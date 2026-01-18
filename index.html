@@ -1,0 +1,1665 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OPSCOPE - Sistema de Gestao Operacional e Manutencao</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Sora:wght@300;400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="is-visitor">
+    <div class="topbar">
+      <div class="topbar__brand">
+        <span class="brand-logo">denemanu</span>
+        <span class="brand-divider">|</span>
+        <span>SUBESTACOES E LINHAS DE TRANSMISSAO</span>
+      </div>
+      <div class="topbar__auth">
+        <div class="notify auth-only">
+          <button
+            id="btnLembretes"
+            class="btn btn--ghost btn--small btn--icon btn--notify"
+            type="button"
+            aria-label="Lembretes"
+            aria-expanded="false"
+          >
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M6 9a6 6 0 1 1 12 0c0 4 2 4 2 5H4c0-1 2-1 2-5Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M9.5 19a2.5 2.5 0 0 0 5 0"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <span id="lembretesCount" class="notify-badge" hidden>0</span>
+          </button>
+          <div id="painelLembretes" class="notify-panel" hidden>
+            <div id="listaLembretes" class="lembretes"></div>
+            <p id="lembretesVazio" class="empty-state">Nenhuma manutencao proxima.</p>
+          </div>
+        </div>
+        <button id="usuarioAtual" class="user-pill" type="button" hidden>Visitante</button>
+        <button id="btnSair" class="btn btn--ghost btn--small" type="button" hidden>Sair</button>
+        <button id="btnTabLogin" class="btn btn--ghost btn--small" type="button">Entrar</button>
+        <button id="btnTabRegistro" class="btn btn--primary btn--small" type="button">
+          Criar conta (com convite)
+        </button>
+      </div>
+    </div>
+    <div id="loadingOverlay" class="loading-overlay" hidden>
+      <div class="loading-spinner" role="status" aria-live="polite">
+        <span class="loading-dot"></span>
+        <span class="loading-dot"></span>
+        <span class="loading-dot"></span>
+      </div>
+    </div>
+    <section id="authPanels" class="auth-panels" hidden>
+      <form id="loginForm" class="auth-panel" data-auth-panel="login" hidden>
+        <h3>Acesso seguro</h3>
+        <div class="field">
+          <label for="loginUsuario">Usuario ou Matricula</label>
+          <input id="loginUsuario" type="text" placeholder="Matricula ou usuario" autocomplete="username" />
+        </div>
+        <div class="field field--password">
+          <label for="loginSenha">Senha</label>
+          <div class="input-group">
+            <input id="loginSenha" type="password" placeholder="Senha" autocomplete="current-password" />
+            <button
+              id="btnToggleLoginSenha"
+              class="btn btn--ghost btn--small btn--icon"
+              type="button"
+              aria-label="Mostrar senha"
+            >
+              Mostrar
+            </button>
+          </div>
+          <small id="capsLockLogin" class="caps-hint" hidden>Caps Lock ativado</small>
+        </div>
+        <button id="btnLoginSubmit" class="btn btn--primary btn--small" type="submit">Entrar</button>
+      </form>
+
+      <form id="reqForm" class="auth-panel" data-auth-panel="registro" hidden>
+        <h3>Criar conta (com convite)</h3>
+        <div class="field">
+          <label for="reqMatricula">Matricula</label>
+          <input id="reqMatricula" type="text" placeholder="000000" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label for="reqNome">Nome Completo</label>
+          <input id="reqNome" type="text" placeholder="Nome do colaborador" autocomplete="name" />
+        </div>
+        <div class="field field--password">
+          <label for="reqSenha">Senha</label>
+          <div class="input-group">
+            <input id="reqSenha" type="password" placeholder="Senha segura" autocomplete="new-password" />
+            <button
+              id="btnToggleReqSenha"
+              class="btn btn--ghost btn--small btn--icon"
+              type="button"
+              aria-label="Mostrar senha"
+            >
+              Mostrar
+            </button>
+          </div>
+          <small id="capsLockRegistro" class="caps-hint" hidden>Caps Lock ativado</small>
+          <ul id="reqSenhaRules" class="password-rules">
+            <li data-rule="length">Minimo 12 caracteres</li>
+            <li data-rule="upper">1 letra maiuscula</li>
+            <li data-rule="lower">1 letra minuscula</li>
+            <li data-rule="number">1 numero</li>
+            <li data-rule="symbol">1 simbolo</li>
+          </ul>
+          <p id="reqSenhaErro" class="field-error" hidden></p>
+        </div>
+        <div class="field field--password">
+          <label for="reqSenhaConfirm">Confirmar senha</label>
+          <div class="input-group">
+            <input id="reqSenhaConfirm" type="password" placeholder="Confirmar senha" autocomplete="new-password" />
+            <button
+              id="btnToggleReqSenhaConfirm"
+              class="btn btn--ghost btn--small btn--icon"
+              type="button"
+              aria-label="Mostrar senha"
+            >
+              Mostrar
+            </button>
+          </div>
+          <p id="reqSenhaConfirmErro" class="field-error" hidden></p>
+        </div>
+        <div class="field">
+          <label for="reqCodigoConvite">Codigo de convite</label>
+          <input id="reqCodigoConvite" type="text" placeholder="Codigo enviado pelo admin" />
+          <p id="reqCodigoErro" class="field-error" hidden></p>
+        </div>
+        <button id="btnRegistroSubmit" class="btn btn--primary btn--small" type="submit">
+          Criar conta
+        </button>
+      </form>
+
+      <p id="mensagemConta" class="mensagem" aria-live="polite"></p>
+      <p class="auth-footer">Acessos auditados e registrados.</p>
+    </section>
+
+    <section class="visitor-wall visitor-only">
+      <h1>ATENCAO!</h1>
+      <p>
+        Este ambiente e de uso exclusivo dos colaboradores, destinado ao acompanhamento, programacao, reprogramacao e conclusao das manutencoes periodicas do escopo HV.
+        Caso voce seja um colaborador, utilize a aba Criar conta (com convite) para solicitar seu acesso.
+      </p>
+    </section>
+    <div class="app-shell auth-only">
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar__header">
+          <div class="sidebar__brand">
+            <strong>OPSCOPE</strong>
+            <small>Operacao sob microscopio</small>
+          </div>
+          <button
+            id="btnToggleSidebar"
+            class="btn btn--ghost btn--icon btn--sidebar"
+            type="button"
+            aria-label="Alternar menu"
+          >
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M9 6l6 6-6 6"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+        <nav class="sidebar__nav">
+          <div class="nav-block">
+            <button class="nav-item" type="button" data-tab="inicio">
+              <span class="nav-icon">IN</span>
+              <span class="nav-text">Inicio</span>
+            </button>
+          </div>
+          <div class="nav-block">
+            <span class="nav-title">Planejamento</span>
+            <button class="nav-item" type="button" data-tab="programacao">
+              <span class="nav-icon">PR</span>
+              <span class="nav-text">Programacao</span>
+            </button>
+            <button class="nav-item" type="button" data-tab="nova">
+              <span class="nav-icon">NM</span>
+              <span class="nav-text">Nova manutencao</span>
+            </button>
+            <button class="nav-item" type="button" data-tab="modelos">
+              <span class="nav-icon">MR</span>
+              <span class="nav-text">Modelos & Recorrencias</span>
+            </button>
+          </div>
+          <div class="nav-block">
+            <span class="nav-title">Execucao</span>
+            <button class="nav-item" type="button" data-tab="execucao">
+              <span class="nav-icon">EX</span>
+              <span class="nav-text">Execucao do dia</span>
+            </button>
+            <button class="nav-item" type="button" data-tab="backlog">
+              <span class="nav-icon">BL</span>
+              <span class="nav-text">Backlog</span>
+            </button>
+            <button class="nav-item" type="button" data-tab="solicitacoes" data-admin-only>
+              <span class="nav-icon">SP</span>
+              <span class="nav-text">Solicitacoes pendentes</span>
+            </button>
+          </div>
+          <div class="nav-block">
+            <span class="nav-title">Analise</span>
+            <button class="nav-item" type="button" data-tab="desempenho">
+              <span class="nav-icon">DE</span>
+              <span class="nav-text">Desempenho</span>
+            </button>
+            <button class="nav-item" type="button" data-tab="tendencias">
+              <span class="nav-icon">KT</span>
+              <span class="nav-text">KPIs & Tendencias</span>
+            </button>
+            <button class="nav-item" type="button" data-tab="relatorios">
+              <span class="nav-icon">RE</span>
+              <span class="nav-text">Relatorios</span>
+            </button>
+          </div>
+          <div class="nav-block" data-admin-only>
+            <span class="nav-title">Governanca</span>
+            <button class="nav-item" type="button" data-tab="rastreabilidade" data-admin-only>
+              <span class="nav-icon">RA</span>
+              <span class="nav-text">Rastreabilidade operacional</span>
+            </button>
+            <button class="nav-item" type="button" data-tab="gerencial" data-admin-only>
+              <span class="nav-icon">PG</span>
+              <span class="nav-text">Painel gerencial</span>
+            </button>
+            <button class="nav-item" type="button" data-tab="contas" data-admin-only>
+              <span class="nav-icon">CA</span>
+              <span class="nav-text">Contas ativas</span>
+            </button>
+          </div>
+          <div class="nav-block">
+            <span class="nav-title">Conta</span>
+            <button class="nav-item" type="button" data-tab="perfil">
+              <span class="nav-icon">MP</span>
+              <span class="nav-text">Meu perfil</span>
+            </button>
+          </div>
+        </nav>
+      </aside>
+      <div class="app-content">
+        <main>
+
+  <div class="container auth-only">
+    <section class="panel panel--inicio is-active" id="inicio" data-panel="inicio">
+      <section class="home-hero">
+        <div class="home-summary">
+          <article class="status-bubble">
+            <span>Vence hoje</span>
+            <strong id="homeHoje">0</strong>
+          </article>
+          <article class="status-bubble">
+            <span>Atrasadas</span>
+            <strong id="homeAtrasadas">0</strong>
+          </article>
+          <article class="status-bubble">
+            <span>Criticas</span>
+            <strong id="homeCriticas">0</strong>
+          </article>
+          <article class="status-bubble">
+            <span>Risco imediato</span>
+            <strong id="homeRisco">Baixo</strong>
+          </article>
+        </div>
+        <div class="home-grid">
+          <article class="home-card">
+            <h3>Alertas operacionais</h3>
+            <div id="homeAlertas" class="home-list"></div>
+            <p id="homeAlertasVazio" class="empty-state">Nenhum alerta critico.</p>
+          </article>
+          <article class="home-card">
+            <h3>Saude operacional</h3>
+            <div class="health-grid">
+              <div class="health-item">
+                <span>Pontualidade</span>
+                <strong id="homePontual">0%</strong>
+              </div>
+              <div class="health-item">
+                <span>Backlog</span>
+                <strong id="homeBacklog">0</strong>
+              </div>
+              <div class="health-item">
+                <span>Concluidas</span>
+                <strong id="homeConcluidas">0</strong>
+              </div>
+              <div class="health-item">
+                <span>Atraso medio</span>
+                <strong id="homeAtrasoMedio">0d</strong>
+              </div>
+            </div>
+          </article>
+        </div>
+        <div class="home-bubbles">
+          <article class="info-bubble">
+            <h3>Guia rapido</h3>
+            <p>Use Programacao para revisar inspecoes e prazos do dia.</p>
+          </article>
+          <article class="info-bubble">
+            <h3>Nova manutencao</h3>
+            <p>Crie manutencoes e ajuste recorrencias a partir dos modelos.</p>
+          </article>
+          <article class="info-bubble">
+            <h3>Execucao</h3>
+            <p>Conclua com evidencias e registre observacoes tecnicas.</p>
+          </article>
+          <article class="info-bubble">
+            <h3>Backlog</h3>
+            <p>Itens vencidos aparecem aqui para replanejamento imediato.</p>
+          </article>
+          <article class="info-bubble">
+            <h3>Desempenho</h3>
+            <p>Acompanhe KPIs de conclusao e pontualidade da equipe.</p>
+          </article>
+        </div>
+      </section>
+    </section>
+
+    <section class="panel" id="programacao" data-panel="programacao">
+      <section class="card" id="painel">
+        <h2>Painel de manutencoes</h2>
+        <div class="stats">
+          <div class="stat">
+            <span id="countAgendadas">0</span>
+            <small>agendadas</small>
+          </div>
+          <div class="stat">
+            <span id="countLiberadas">0</span>
+            <small>liberadas</small>
+          </div>
+          <div class="stat">
+            <span id="countBacklog">0</span>
+            <small>backlog</small>
+          </div>
+          <div class="stat">
+            <span id="countEmExecucao">0</span>
+            <small>em execucao</small>
+          </div>
+          <div class="stat">
+            <span id="countEncerramento">0</span>
+            <small>encerramento</small>
+          </div>
+          <div class="stat">
+            <span id="countConcluidas">0</span>
+            <small>concluidas</small>
+          </div>
+        </div>
+        <p class="hint">Se a data passar sem conclusao, a manutencao vira backlog.</p>
+      </section>
+
+      <section class="card" id="lista-programacao">
+        <h2>Programacao</h2>
+        <div class="programacao-toolbar">
+          <div class="field">
+            <label for="filtroProgramacaoSubestacao">Subestacao</label>
+            <select id="filtroProgramacaoSubestacao">
+              <option value="">Todas</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="filtroProgramacaoStatus">Status</label>
+            <select id="filtroProgramacaoStatus">
+              <option value="">Todos</option>
+              <option value="agendada">Agendada</option>
+              <option value="liberada">Liberada</option>
+              <option value="em_execucao">Em execucao</option>
+              <option value="encerramento">Encerramento</option>
+              <option value="hoje">Vence hoje</option>
+              <option value="backlog">Backlog</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="filtroProgramacaoPeriodo">Periodo</label>
+            <select id="filtroProgramacaoPeriodo">
+              <option value="">Todos</option>
+              <option value="hoje">Hoje</option>
+              <option value="semana">Semana</option>
+              <option value="mes">Mes</option>
+            </select>
+          </div>
+        </div>
+        <p id="alertaProgramacao" class="alert alert--warning" hidden></p>
+        <div id="listaAgendadas" class="manutencoes"></div>
+        <p id="listaAgendadasVazia" class="empty-state">Nenhuma manutencao agendada.</p>
+      </section>
+    </section>
+
+    <section class="panel" id="nova" data-panel="nova">
+      <section class="card" id="nova-manutencao">
+        <h2>Nova manutencao</h2>
+        <div class="form-grid">
+          <div class="field">
+            <label for="tipoManutencao">Tipo de manutencao</label>
+            <select id="tipoManutencao">
+              <option value="">Selecione um tipo</option>
+            </select>
+          </div>
+          <div class="field" id="customTipoField" hidden>
+            <label for="tituloManutencao">Tipo personalizado</label>
+            <input id="tituloManutencao" type="text" placeholder="Inspecao diaria SE Boa Sorte II" />
+          </div>
+          <div class="field">
+            <label for="subestacaoManutencao">Subestacao</label>
+            <select id="subestacaoManutencao">
+              <option value="SE Boa Sorte II">SE Boa Sorte II</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="dataManutencao">Inicio da execucao</label>
+            <input id="dataManutencao" type="date" readonly />
+          </div>
+          <div class="field">
+            <label for="categoriaManutencao">Categoria</label>
+            <select id="categoriaManutencao" required>
+              <option value="">Selecione</option>
+              <option value="Preventiva">Preventiva</option>
+              <option value="Corretiva">Corretiva</option>
+              <option value="Preditiva">Preditiva</option>
+              <option value="Melhoria">Melhoria</option>
+              <option value="Emergencial">Emergencial</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="prioridadeManutencao">Prioridade</label>
+            <select id="prioridadeManutencao" required>
+              <option value="">Selecione</option>
+              <option value="Baixa">Baixa</option>
+              <option value="Media">Media</option>
+              <option value="Alta">Alta</option>
+              <option value="Critica">Critica</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="osReferenciaManutencao">OS / referencia</label>
+            <input id="osReferenciaManutencao" type="text" required />
+          </div>
+          <div class="field" data-full>
+            <label for="participantesManutencao">Participantes (separe por ;)</label>
+            <textarea
+              id="participantesManutencao"
+              class="multi-select"
+              rows="2"
+              placeholder="Ex: Denisson; Leonardo; Manoel"
+              required
+            ></textarea>
+            <p class="hint">Minimo 2 participantes (NR-10)</p>
+            <p id="participantesManutencaoErro" class="field-error" hidden></p>
+          </div>
+          <div class="field">
+            <label for="criticoManutencao">Trabalho critico?</label>
+            <select id="criticoManutencao" required>
+              <option value="nao">Nao</option>
+              <option value="sim">Sim</option>
+            </select>
+          </div>
+          <div class="field" data-full>
+            <label>Documentos obrigatorios</label>
+            <div class="doc-grid">
+              <div class="doc-item" data-doc="apr">
+                <div class="doc-head">
+                  <span>APR*</span>
+                  <button class="btn btn--ghost btn--small" type="button" data-nova-doc-view="apr" disabled>
+                    Visualizar
+                  </button>
+                </div>
+                <div class="doc-actions">
+                  <button class="btn btn--ghost btn--small" type="button" data-nova-doc-btn="apr">Anexar</button>
+                  <input id="novaApr" type="file" accept=".pdf,image/*" data-nova-doc-input="apr" hidden />
+                  <span class="doc-name" data-nova-doc-name="apr">Nenhum arquivo</span>
+                </div>
+              </div>
+              <div class="doc-item" data-doc="os">
+                <div class="doc-head">
+                  <span>OS*</span>
+                  <button class="btn btn--ghost btn--small" type="button" data-nova-doc-view="os" disabled>
+                    Visualizar
+                  </button>
+                </div>
+                <div class="doc-actions">
+                  <button class="btn btn--ghost btn--small" type="button" data-nova-doc-btn="os">Anexar</button>
+                  <input id="novaOsDoc" type="file" accept=".pdf,image/*" data-nova-doc-input="os" hidden />
+                  <span class="doc-name" data-nova-doc-name="os">Nenhum arquivo</span>
+                </div>
+              </div>
+              <div class="doc-item" data-doc="pte">
+                <div class="doc-head">
+                  <span>PTE*</span>
+                  <button class="btn btn--ghost btn--small" type="button" data-nova-doc-view="pte" disabled>
+                    Visualizar
+                  </button>
+                </div>
+                <div class="doc-actions">
+                  <button class="btn btn--ghost btn--small" type="button" data-nova-doc-btn="pte">Anexar</button>
+                  <input id="novaPte" type="file" accept=".pdf,image/*" data-nova-doc-input="pte" hidden />
+                  <span class="doc-name" data-nova-doc-name="pte">Nenhum arquivo</span>
+                </div>
+              </div>
+              <div class="doc-item" data-doc="pt" id="novaDocPt" hidden>
+                <div class="doc-head">
+                  <span id="novaPtLabel">PT*</span>
+                  <button class="btn btn--ghost btn--small" type="button" data-nova-doc-view="pt" disabled>
+                    Visualizar
+                  </button>
+                </div>
+                <div class="doc-actions">
+                  <button class="btn btn--ghost btn--small" type="button" data-nova-doc-btn="pt">Anexar</button>
+                  <input id="novaPt" type="file" accept=".pdf,image/*" data-nova-doc-input="pt" hidden />
+                  <span class="doc-name" data-nova-doc-name="pt">Nenhum arquivo</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="field" data-full>
+            <label for="obsManutencao">Descricao tecnica da demanda</label>
+            <textarea
+              id="obsManutencao"
+              rows="3"
+              placeholder="Descreva a demanda tecnica, condicoes e contexto"
+              required
+            ></textarea>
+          </div>
+        </div>
+        <button id="btnAdicionarManutencao" class="btn btn--primary">Iniciar execucao</button>
+        <p class="hint">Lembretes aparecem com <strong id="diasLembrete">7</strong> dias de antecedencia.</p>
+        <p id="mensagemManutencao" class="mensagem" aria-live="polite"></p>
+      </section>
+    </section>
+
+    <section class="panel" id="modelos" data-panel="modelos">
+      <section class="card" id="modelosManutencao">
+        <h2>Modelos e recorrencias</h2>
+        <p class="hint">Crie tipos e recorrencias automaticas para aparecerem na programacao.</p>
+        <div class="template-grid">
+          <form id="templateForm" class="template-form">
+            <div class="field">
+              <label for="templateNome">Nome do modelo</label>
+              <input id="templateNome" type="text" placeholder="Inspecao diaria" />
+              <p id="templateNomeErro" class="field-error" hidden></p>
+            </div>
+            <div class="field">
+              <label for="templateSubestacao">Subestacao</label>
+              <select id="templateSubestacao">
+                <option value="SE Boa Sorte II">SE Boa Sorte II</option>
+              </select>
+            </div>
+            <div class="field field--primary">
+              <label for="templateFrequencia">Tipo de recorrencia</label>
+              <select id="templateFrequencia">
+                <option value="none">Sem recorrencia (apenas modelo)</option>
+                <option value="daily">Diaria</option>
+                <option value="weekly">Semanal</option>
+                <option value="monthly">Mensal</option>
+              </select>
+            </div>
+            <div class="field" id="templateInicioField">
+              <label for="templateInicio">Data de inicio</label>
+              <input id="templateInicio" type="date" />
+              <p id="templateInicioErro" class="field-error" hidden></p>
+            </div>
+            <div class="field" id="templatePresets">
+              <label>Presets rapidos</label>
+              <div class="preset-row">
+                <button class="btn btn--ghost btn--small" type="button" data-template-preset="hv-daily">
+                  Padrao HV: Diario (Seg-Sex)
+                </button>
+                <button class="btn btn--ghost btn--small" type="button" data-template-preset="weekly">
+                  Semanal: 1x por semana
+                </button>
+                <button class="btn btn--ghost btn--small" type="button" data-template-preset="monthly">
+                  Mensal: dia fixo
+                </button>
+              </div>
+            </div>
+            <div class="field" id="templateDailyField" hidden>
+              <div class="field-head">
+                <label>Dias da semana</label>
+                <button id="btnPresetDiasUteis" class="btn btn--ghost btn--small" type="button">
+                  Somente dias uteis (Seg-Sex)
+                </button>
+              </div>
+              <div class="week-grid">
+                <label class="day-chip">
+                  <input type="checkbox" value="1" data-template-daily-day checked />
+                  <span>Segunda</span>
+                </label>
+                <label class="day-chip">
+                  <input type="checkbox" value="2" data-template-daily-day checked />
+                  <span>Terca</span>
+                </label>
+                <label class="day-chip">
+                  <input type="checkbox" value="3" data-template-daily-day checked />
+                  <span>Quarta</span>
+                </label>
+                <label class="day-chip">
+                  <input type="checkbox" value="4" data-template-daily-day checked />
+                  <span>Quinta</span>
+                </label>
+                <label class="day-chip">
+                  <input type="checkbox" value="5" data-template-daily-day checked />
+                  <span>Sexta</span>
+                </label>
+                <label class="day-chip">
+                  <input type="checkbox" value="6" data-template-daily-day />
+                  <span>Sabado</span>
+                </label>
+                <label class="day-chip">
+                  <input type="checkbox" value="0" data-template-daily-day />
+                  <span>Domingo</span>
+                </label>
+              </div>
+              <p id="templateDailyErro" class="field-error" hidden></p>
+            </div>
+            <div class="field" id="templateWeeklyDayField" hidden>
+              <label for="templateWeeklyDay">Dia da semana</label>
+              <select id="templateWeeklyDay">
+                <option value="1">Segunda</option>
+                <option value="2">Terca</option>
+                <option value="3">Quarta</option>
+                <option value="4">Quinta</option>
+                <option value="5">Sexta</option>
+                <option value="6">Sabado</option>
+                <option value="0">Domingo</option>
+              </select>
+            </div>
+            <div class="field" id="templateWeeklyIntervalField" hidden>
+              <label for="templateWeeklyInterval">Intervalo em semanas</label>
+              <input id="templateWeeklyInterval" type="number" min="1" max="52" value="1" />
+              <p id="templateWeeklyIntervalErro" class="field-error" hidden></p>
+            </div>
+            <div class="field" id="templateMonthlyModeField" hidden>
+              <label>Regra mensal</label>
+              <div class="radio-group">
+                <label class="perm-item">
+                  <input type="radio" name="templateMonthlyMode" id="templateMonthlyFixed" value="fixed" checked />
+                  <span>Dia fixo</span>
+                </label>
+                <label class="perm-item">
+                  <input type="radio" name="templateMonthlyMode" id="templateMonthlyMulti" value="multi" />
+                  <span>Dias especificos</span>
+                </label>
+              </div>
+            </div>
+            <div class="field" id="templateMonthlyDayField" hidden>
+              <label for="templateMonthlyDay">Dia do mes</label>
+              <input id="templateMonthlyDay" type="number" min="1" max="31" value="10" />
+              <p id="templateMonthlyDayErro" class="field-error" hidden></p>
+            </div>
+            <div class="field" id="templateMonthlyDaysField" data-full hidden>
+              <label>Dias do mes</label>
+              <input id="templateMonthlyDaysInput" type="text" placeholder="Ex.: 10, 25" />
+              <div id="templateMonthlyDaysChips" class="chip-row"></div>
+              <p id="templateMonthlyDaysErro" class="field-error" hidden></p>
+            </div>
+            <div class="field" data-full>
+              <label for="templateObs">Observacoes padrao do servico</label>
+              <textarea id="templateObs" rows="3" placeholder="Equipe, materiais, observacoes"></textarea>
+            </div>
+            <div class="recurrence-summary" id="templateResumo">
+              <strong>Resumo da recorrencia</strong>
+              <div class="summary-lines" id="templateResumoLinhas"></div>
+            </div>
+            <label class="perm-item">
+              <input id="templateAtivo" type="checkbox" checked />
+              <span>Ativo</span>
+            </label>
+            <div class="manager-actions">
+              <button id="btnSalvarModelo" class="btn btn--primary btn--small" type="submit">
+                Salvar modelo de recorrencia
+              </button>
+              <button id="btnCancelarModelo" class="btn btn--ghost btn--small" type="button">
+                Limpar formulario
+              </button>
+            </div>
+            <p id="templateMensagem" class="mensagem" aria-live="polite"></p>
+          </form>
+          <div>
+            <div class="template-toolbar">
+              <div class="field">
+                <label for="templateSearch">Buscar modelo</label>
+                <input id="templateSearch" type="text" placeholder="Ex.: inspecao" />
+              </div>
+              <div class="field">
+                <label for="templateFilterSubestacao">Subestacao</label>
+                <select id="templateFilterSubestacao">
+                  <option value="">Todas</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="templateSort">Ordenar</label>
+                <select id="templateSort">
+                  <option value="next">Proxima (asc)</option>
+                </select>
+              </div>
+            </div>
+            <div id="listaModelos" class="template-list"></div>
+            <p id="modelosVazio" class="empty-state">Nenhum modelo cadastrado.</p>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <section class="panel" id="execucao" data-panel="execucao">
+      <section class="card">
+        <h2>Execucao do dia</h2>
+        <p class="hint">Priorize o que vence hoje e o que esta atrasado.</p>
+        <div class="exec-grid">
+          <div class="exec-column">
+            <h3>Manutencoes do dia</h3>
+            <div id="listaExecucaoHoje" class="manutencoes"></div>
+            <p id="listaExecucaoHojeVazia" class="empty-state">Nenhuma manutencao para hoje.</p>
+          </div>
+          <div class="exec-column">
+            <h3>Manutencoes vencidas</h3>
+            <div id="listaExecucaoVencidas" class="manutencoes"></div>
+            <p id="listaExecucaoVencidasVazia" class="empty-state">Nenhuma manutencao vencida.</p>
+          </div>
+          <div class="exec-column">
+            <h3>Manutencoes criticas</h3>
+            <div id="listaExecucaoCriticas" class="manutencoes"></div>
+            <p id="listaExecucaoCriticasVazia" class="empty-state">Nenhuma manutencao critica.</p>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <section class="panel" id="backlog" data-panel="backlog">
+      <section class="card">
+        <h2>Backlog</h2>
+        <p class="hint">Itens atrasados aparecem aqui automaticamente para replanejamento.</p>
+        <div id="listaBacklog" class="manutencoes"></div>
+        <p id="listaBacklogVazia" class="empty-state">Nenhuma manutencao em backlog.</p>
+      </section>
+    </section>
+
+    <section class="panel" id="solicitacoes" data-panel="solicitacoes" data-admin-only>
+      <section class="card" id="adminSolicitacoes">
+        <h2>Solicitacoes pendentes</h2>
+        <div id="listaSolicitacoes" class="account-list"></div>
+        <p id="solicitacoesVazio" class="empty-state">Nenhuma solicitacao pendente.</p>
+      </section>
+    </section>
+
+    <section class="panel" id="desempenho" data-panel="desempenho">
+      <section class="card">
+        <h2>Acompanhar desempenho</h2>
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <span>Total</span>
+            <strong id="kpiTotal">0</strong>
+            <small>Manutencoes</small>
+          </div>
+          <div class="kpi-card">
+            <span>Conclusao</span>
+            <strong id="kpiConclusao">0%</strong>
+            <small id="kpiConcluidas">0 concluidas</small>
+          </div>
+          <div class="kpi-card">
+            <span>Backlog</span>
+            <strong id="kpiBacklog">0</strong>
+            <small>Pendencias</small>
+          </div>
+          <div class="kpi-card">
+            <span>Pontualidade</span>
+            <strong id="kpiPontual">0%</strong>
+            <small>Concluidas no prazo</small>
+          </div>
+          <div class="kpi-card">
+            <span>Media atraso</span>
+            <strong id="kpiAtraso">0</strong>
+            <small>Dias</small>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <section class="panel" id="tendencias" data-panel="tendencias">
+      <section class="card">
+        <h2>KPIs e tendencias</h2>
+        <div class="programacao-toolbar">
+          <div class="field">
+            <label for="kpiPeriodo">Periodo</label>
+            <select id="kpiPeriodo">
+              <option value="7">7d</option>
+              <option value="30" selected>30d</option>
+              <option value="90">90d</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="kpiSubestacao">Subestacao</label>
+            <select id="kpiSubestacao">
+              <option value="">Todas</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="kpiCategoria">Categoria</label>
+            <select id="kpiCategoria">
+              <option value="">Todas</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="kpiPrioridade">Prioridade</label>
+            <select id="kpiPrioridade">
+              <option value="">Todas</option>
+            </select>
+          </div>
+        </div>
+        <p class="hint">Painel somente leitura para acompanhamento gerencial.</p>
+      </section>
+      <section class="card">
+        <h2>Resumo gerencial</h2>
+        <div id="kpiCards" class="kpi-grid kpi-grid--gerencial"></div>
+      </section>
+      <section class="card">
+        <h2>Tendencias semanais</h2>
+        <div class="account-grid">
+          <div>
+            <h3>Concluidas vs Backlog</h3>
+            <div id="kpiTrendChart" class="chart"></div>
+          </div>
+          <div>
+            <h3>Backlog aging</h3>
+            <div id="kpiAgingChart" class="chart"></div>
+          </div>
+          <div>
+            <h3>SLA compliance</h3>
+            <div id="kpiSlaChart" class="chart"></div>
+          </div>
+        </div>
+      </section>
+      <section class="card">
+        <h2>Gestao por usuario</h2>
+        <div class="programacao-toolbar">
+          <div class="field">
+            <label for="kpiUsuarioFiltro">Usuario</label>
+            <select id="kpiUsuarioFiltro">
+              <option value="">Todos</option>
+            </select>
+          </div>
+        </div>
+        <div id="kpiRanking"></div>
+        <p id="kpiRankingVazio" class="empty-state" hidden>Nenhum dado para o filtro.</p>
+      </section>
+      <section class="card">
+        <h2>Drill-down</h2>
+        <div class="programacao-toolbar">
+          <div class="field">
+            <label for="kpiDrilldownLimite">Mostrar</label>
+            <select id="kpiDrilldownLimite">
+              <option value="10">10</option>
+              <option value="25" selected>25</option>
+              <option value="50">50</option>
+            </select>
+          </div>
+        </div>
+        <p id="kpiDrilldownTitulo" class="hint">Clique em um KPI ou grafico para listar.</p>
+        <div id="kpiDrilldownTabela"></div>
+        <p id="kpiDrilldownVazio" class="empty-state" hidden>Nenhum item encontrado.</p>
+      </section>
+    </section>
+
+    <section class="panel" id="relatorios" data-panel="relatorios">
+      <section class="card">
+        <h2>Relatorios</h2>
+        <p class="hint">Cada manutencao concluida gera um relatorio auditavel.</p>
+        <div id="listaRelatorios" class="report-list"></div>
+        <p id="listaRelatoriosVazia" class="empty-state">Nenhuma manutencao concluida.</p>
+      </section>
+    </section>
+
+    <section class="panel" id="rastreabilidade" data-panel="rastreabilidade" data-admin-only>
+      <section class="card">
+        <h2>Rastreabilidade operacional</h2>
+        <p class="hint">Quem fez, o que fez e quando fez.</p>
+        <div id="listaAuditoria" class="audit"></div>
+        <p id="auditVazio" class="empty-state">Nenhuma acao registrada.</p>
+      </section>
+    </section>
+
+    <section class="panel" id="perfil" data-panel="perfil">
+      <section class="card">
+        <h2>Meu perfil</h2>
+        <div class="profile-grid">
+          <div class="profile-item">
+            <span class="account-label">Nome</span>
+            <strong id="perfilNome">-</strong>
+          </div>
+          <div class="profile-item">
+            <span class="account-label">Matricula</span>
+            <strong id="perfilMatricula">-</strong>
+          </div>
+          <div class="profile-item">
+            <span class="account-label">Cargo</span>
+            <strong id="perfilCargo">-</strong>
+          </div>
+          <div class="profile-item">
+            <span class="account-label">Projeto</span>
+            <strong id="perfilProjeto">-</strong>
+          </div>
+          <div class="profile-item">
+            <span class="account-label">Perfil</span>
+            <strong id="perfilRole">-</strong>
+          </div>
+          <div class="profile-item" data-full>
+            <span class="account-label">Atribuicoes</span>
+            <p id="perfilAtribuicoes" class="profile-text">-</p>
+          </div>
+          <div class="profile-item" data-full>
+            <span class="account-label">Permissoes</span>
+            <p id="perfilPermissoes" class="profile-text">-</p>
+          </div>
+          <div class="profile-item" data-full>
+            <span class="account-label">Secoes</span>
+            <p id="perfilSecoes" class="profile-text">-</p>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <section class="panel" id="gerencial" data-panel="gerencial" data-admin-only>
+      <section class="card">
+        <h2>Painel gerencial</h2>
+        <p class="hint">Ferramentas exclusivas do administrador.</p>
+        <div class="manager-grid">
+          <div class="manager-card">
+            <h3>Configuracoes</h3>
+            <div class="field">
+              <label for="configDiasLembrete">Dias de lembrete</label>
+              <input id="configDiasLembrete" type="number" min="1" max="60" />
+            </div>
+            <button id="btnSalvarConfig" class="btn btn--primary btn--small" type="button">
+              Salvar
+            </button>
+          </div>
+          <div class="manager-card">
+            <h3>Backup de dados</h3>
+            <div class="manager-actions">
+              <button id="btnExportarDados" class="btn btn--ghost btn--small" type="button">
+                Exportar JSON
+              </button>
+              <input id="inputImportarDados" type="file" accept="application/json" />
+              <button id="btnImportarDados" class="btn btn--ghost btn--small" type="button">
+                Importar
+              </button>
+            </div>
+          </div>
+          <div class="manager-card">
+            <h3>Limpezas controladas</h3>
+            <div class="field">
+              <label for="inputDiasLimpeza">Dias para limpar concluidas</label>
+              <input id="inputDiasLimpeza" type="number" min="1" max="365" value="30" />
+            </div>
+            <div class="manager-actions">
+              <button id="btnLimparConcluidas" class="btn btn--ghost btn--small" type="button">
+                Limpar concluidas
+              </button>
+              <button id="btnLimparAuditoria" class="btn btn--ghost btn--small" type="button">
+                Limpar auditoria
+              </button>
+            </div>
+          </div>
+          <div class="manager-card">
+            <h3>Atualizacao operacional</h3>
+            <div class="manager-actions">
+              <button id="btnRecalcularBacklog" class="btn btn--ghost btn--small" type="button">
+                Recalcular backlog
+              </button>
+              <button id="btnGerarRelatorio" class="btn btn--ghost btn--small" type="button">
+                Gerar relatorio
+              </button>
+            </div>
+            <div id="relatorioGerencial" class="manager-report"></div>
+          </div>
+        </div>
+        <p id="mensagemGerencial" class="mensagem" aria-live="polite"></p>
+      </section>
+    </section>
+
+    <section class="panel" id="contas" data-panel="contas" data-admin-only>
+      <section class="card" id="adminUsuarios">
+        <h2>Contas ativas</h2>
+        <div class="invite-bar">
+          <div class="field">
+            <label for="inviteRole">Perfil do convite</label>
+            <select id="inviteRole">
+              <option value="EXECUTOR">EXECUTOR</option>
+              <option value="SUPERVISOR">SUPERVISOR</option>
+              <option value="LEITURA">LEITURA</option>
+              <option value="ADMIN">ADMIN</option>
+            </select>
+          </div>
+          <button id="btnGerarConvite" class="btn btn--primary btn--small" type="button">
+            Gerar convite
+          </button>
+          <p id="inviteResultado" class="hint"></p>
+        </div>
+        <div id="listaUsuarios" class="account-list"></div>
+        <p id="usuariosVazio" class="empty-state">Nenhuma conta cadastrada.</p>
+      </section>
+    </section>
+  </div>
+
+  <div id="modalReagendar" class="modal" hidden>
+    <div class="modal__content">
+      <div class="modal__header">
+        <h3>Reagendar manutencao</h3>
+        <button id="btnFecharReagendar" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <form id="formReagendar" class="modal__form">
+        <input id="reagendarId" type="hidden" />
+        <div class="form-grid">
+          <div class="field">
+            <label for="reagendarData">Nova data</label>
+            <input id="reagendarData" type="date" required />
+          </div>
+          <div class="field">
+            <label for="reagendarMotivo">Motivo</label>
+            <select id="reagendarMotivo" required>
+              <option value="">Selecione</option>
+              <option value="Condicao climatica">Condicao climatica</option>
+              <option value="Indisponibilidade operacional">Indisponibilidade operacional</option>
+              <option value="Falta de equipe ou recurso">Falta de equipe ou recurso</option>
+              <option value="Conflito com outra atividade">Conflito com outra atividade</option>
+              <option value="Solicitacao operacional / COS">Solicitacao operacional / COS</option>
+              <option value="Aguardando liberacao">Aguardando liberacao</option>
+              <option value="Outros">Outros</option>
+            </select>
+          </div>
+          <div class="field" data-full>
+            <label for="reagendarObs">Observacao complementar</label>
+            <textarea id="reagendarObs" rows="3" placeholder="Detalhes adicionais"></textarea>
+            <p class="hint">Obrigatorio quando o motivo for Outros.</p>
+          </div>
+        </div>
+        <div class="modal__actions">
+          <button class="btn btn--primary" type="submit">Salvar reagendamento</button>
+          <button id="btnCancelarReagendar" class="btn btn--ghost" type="button">Cancelar</button>
+        </div>
+        <p id="mensagemReagendar" class="mensagem" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalLiberacao" class="modal" hidden>
+    <div class="modal__content">
+      <div class="modal__header">
+        <h3>Liberar execucao</h3>
+        <button id="btnFecharLiberacao" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <form id="formLiberacao" class="modal__form">
+        <input id="liberacaoId" type="hidden" />
+        <div class="form-grid">
+          <div class="field">
+            <label for="liberacaoOs">No OS / referencia</label>
+            <input id="liberacaoOs" type="text" required />
+          </div>
+          <div class="field">
+            <label for="liberacaoCritico">Trabalho critico?</label>
+            <select id="liberacaoCritico" required>
+              <option value="">Selecione</option>
+              <option value="nao">Nao</option>
+              <option value="sim">Sim</option>
+            </select>
+          </div>
+          <div class="field" data-full>
+            <label for="liberacaoParticipantes">Participantes (separe por ;)</label>
+            <textarea
+              id="liberacaoParticipantes"
+              class="multi-select"
+              rows="2"
+              placeholder="Ex: Denisson; Leonardo; Manoel"
+              required
+            ></textarea>
+            <p class="hint">Informe ao menos 1 participante.</p>
+            <p id="liberacaoParticipantesErro" class="field-error" hidden></p>
+          </div>
+          <div class="field" data-full>
+            <label>Documentos obrigatorios</label>
+            <div class="doc-grid">
+              <div class="doc-item" data-doc="apr">
+                <div class="doc-head">
+                  <span>APR*</span>
+                  <button class="btn btn--ghost btn--small" type="button" data-doc-view="apr" disabled>
+                    Visualizar
+                  </button>
+                </div>
+                <div class="doc-actions">
+                  <button class="btn btn--ghost btn--small" type="button" data-doc-btn="apr">Anexar</button>
+                  <input id="liberacaoApr" type="file" accept=".pdf,image/*" data-doc-input="apr" hidden />
+                  <span class="doc-name" data-doc-name="apr">Nenhum arquivo</span>
+                </div>
+              </div>
+              <div class="doc-item" data-doc="os">
+                <div class="doc-head">
+                  <span>OS*</span>
+                  <button class="btn btn--ghost btn--small" type="button" data-doc-view="os" disabled>
+                    Visualizar
+                  </button>
+                </div>
+                <div class="doc-actions">
+                  <button class="btn btn--ghost btn--small" type="button" data-doc-btn="os">Anexar</button>
+                  <input id="liberacaoOsDoc" type="file" accept=".pdf,image/*" data-doc-input="os" hidden />
+                  <span class="doc-name" data-doc-name="os">Nenhum arquivo</span>
+                </div>
+              </div>
+              <div class="doc-item" data-doc="pte">
+                <div class="doc-head">
+                  <span>PTE*</span>
+                  <button class="btn btn--ghost btn--small" type="button" data-doc-view="pte" disabled>
+                    Visualizar
+                  </button>
+                </div>
+                <div class="doc-actions">
+                  <button class="btn btn--ghost btn--small" type="button" data-doc-btn="pte">Anexar</button>
+                  <input id="liberacaoPte" type="file" accept=".pdf,image/*" data-doc-input="pte" hidden />
+                  <span class="doc-name" data-doc-name="pte">Nenhum arquivo</span>
+                </div>
+              </div>
+              <div class="doc-item" data-doc="pt" id="liberacaoDocPt" hidden>
+                <div class="doc-head">
+                  <span>PT*</span>
+                  <button class="btn btn--ghost btn--small" type="button" data-doc-view="pt" disabled>
+                    Visualizar
+                  </button>
+                </div>
+                <div class="doc-actions">
+                  <button class="btn btn--ghost btn--small" type="button" data-doc-btn="pt">Anexar</button>
+                  <input id="liberacaoPt" type="file" accept=".pdf,image/*" data-doc-input="pt" hidden />
+                  <span class="doc-name" data-doc-name="pt">Nenhum arquivo</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="field" data-full>
+            <label>Checklist de liberacao</label>
+            <ul id="liberacaoChecklist" class="checklist"></ul>
+          </div>
+        </div>
+        <div class="modal__actions">
+          <button class="btn btn--primary" type="submit">Salvar liberacao</button>
+          <button id="btnCancelarLiberacao" class="btn btn--ghost" type="button">Cancelar</button>
+        </div>
+        <p id="mensagemLiberacao" class="mensagem" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalHistorico" class="modal" hidden>
+    <div class="modal__content">
+      <div class="modal__header">
+        <h3>Historico da manutencao</h3>
+        <button id="btnFecharHistorico" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <div id="historicoResumo" class="history-summary"></div>
+      <div id="listaHistorico" class="history-list"></div>
+      <div class="history-actions">
+        <button id="btnHistoricoMais" class="btn btn--ghost btn--small" type="button">Mostrar mais</button>
+        <button id="btnHistoricoExportar" class="btn btn--ghost btn--small" type="button">
+          Exportar historico (CSV)
+        </button>
+        <button id="btnHistoricoExportarPdf" class="btn btn--primary btn--small" type="button">
+          Exportar historico (PDF)
+        </button>
+      </div>
+      <p id="historicoVazio" class="empty-state">Nenhum registro encontrado.</p>
+    </div>
+  </div>
+
+  <div id="modalPreview" class="modal" hidden>
+    <div class="modal__content">
+      <div class="modal__header">
+        <h3>Visualizar documento</h3>
+        <button id="btnFecharPreview" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <iframe
+        id="previewFrame"
+        title="Visualizar documento"
+        style="width: 100%; height: 70vh; border: 0;"
+      ></iframe>
+    </div>
+  </div>
+
+  <div id="modalInicioExecucao" class="modal" hidden>
+    <div class="modal__content">
+      <div class="modal__header">
+        <h3>Iniciar execucao</h3>
+        <button id="btnFecharInicioExecucao" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <input id="inicioExecucaoId" type="hidden" />
+      <p class="hint">
+        Deseja iniciar a execucao desta manutencao agora? O horario de inicio sera registrado automaticamente.
+      </p>
+      <div class="modal__actions">
+        <button id="btnConfirmarInicioExecucao" class="btn btn--primary" type="button">Iniciar execucao</button>
+        <button id="btnCancelarInicioExecucao" class="btn btn--ghost" type="button">Cancelar</button>
+      </div>
+      <p id="mensagemInicioExecucao" class="mensagem" aria-live="polite"></p>
+    </div>
+  </div>
+
+  <div id="modalCancelarInicio" class="modal" hidden>
+    <div class="modal__content">
+      <div class="modal__header">
+        <h3>Cancelar inicio de execucao</h3>
+        <button id="btnFecharCancelarInicio" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <form id="formCancelarInicio" class="modal__form">
+        <input id="cancelarInicioId" type="hidden" />
+        <div class="form-grid">
+          <div class="field">
+            <label for="cancelarInicioMotivo">Motivo do cancelamento</label>
+            <select id="cancelarInicioMotivo" required>
+              <option value="">Selecione</option>
+              <option value="Clique acidental">Clique acidental</option>
+              <option value="Atividade adiada por decisao operacional">Atividade adiada por decisao operacional</option>
+              <option value="Falta de liberacao / documentacao inconsistente">Falta de liberacao / documentacao inconsistente</option>
+              <option value="Condicao climatica">Condicao climatica</option>
+              <option value="Indisponibilidade de equipe/recurso">Indisponibilidade de equipe/recurso</option>
+              <option value="Outros">Outros</option>
+            </select>
+          </div>
+          <div class="field" data-full>
+            <label for="cancelarInicioObs">Observacao</label>
+            <textarea id="cancelarInicioObs" rows="3" placeholder="Detalhes do cancelamento"></textarea>
+            <p class="hint">Obrigatorio quando o motivo for Outros.</p>
+          </div>
+        </div>
+        <div class="modal__actions">
+          <button class="btn btn--primary" type="submit">Confirmar cancelamento</button>
+          <button id="btnCancelarCancelarInicio" class="btn btn--ghost" type="button">Voltar</button>
+        </div>
+        <p id="mensagemCancelarInicio" class="mensagem" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalRegistroExecucao" class="modal" hidden>
+    <div class="modal__content">
+      <div class="modal__header">
+        <h3>Registrar execucao</h3>
+        <button id="btnFecharRegistroExecucao" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <form id="formRegistroExecucao" class="modal__form">
+        <input id="registroId" type="hidden" />
+        <div class="form-grid">
+          <div class="field">
+            <label>Tipo</label>
+            <input id="registroTipo" type="text" readonly />
+          </div>
+          <div class="field">
+            <label>Subestacao</label>
+            <input id="registroSubestacao" type="text" readonly />
+          </div>
+          <div class="field">
+            <label>ID unico</label>
+            <input id="registroCodigo" type="text" readonly />
+          </div>
+          <div class="field">
+            <label>Aberta por</label>
+            <input id="registroAbertaPor" type="text" readonly />
+          </div>
+          <div class="field">
+            <label>Aberta em</label>
+            <input id="registroAbertaEm" type="text" readonly />
+          </div>
+          <div class="field">
+            <label for="registroExecutadaPor">Executada por</label>
+            <select id="registroExecutadaPor" required></select>
+          </div>
+          <div class="field">
+            <label for="registroInicio">Inicio da execucao</label>
+            <input id="registroInicio" type="text" readonly />
+          </div>
+          <div class="field">
+            <label>OS / referencia</label>
+            <input id="registroOsNumero" type="text" readonly />
+          </div>
+          <div class="field" data-full>
+            <label>Participantes</label>
+            <input id="registroParticipantes" type="text" readonly />
+          </div>
+          <div class="field" data-full>
+            <label>Documentos anexados</label>
+            <div id="registroDocs" class="doc-list"></div>
+          </div>
+          <div class="field">
+            <label for="registroResultado">Resultado</label>
+            <select id="registroResultado" required>
+              <option value="">Selecione</option>
+              <option value="concluida">Concluida</option>
+              <option value="ressalva">Concluida com ressalva</option>
+              <option value="nao_executada">Nao executada</option>
+            </select>
+          </div>
+          <div class="field" data-full>
+            <label for="registroComentario">Descricao tecnica da execucao</label>
+            <textarea id="registroComentario" rows="3" required></textarea>
+          </div>
+          <div class="field" data-full>
+            <label for="registroObsExecucao">Observacao de execucao (opcional)</label>
+            <textarea id="registroObsExecucao" rows="3" placeholder="Notas adicionais"></textarea>
+          </div>
+        </div>
+        <div class="modal__actions">
+          <button class="btn btn--primary" type="submit">Salvar registro</button>
+          <button id="btnCancelarExecucao" class="btn btn--danger" type="button" hidden>Cancelar execucao</button>
+          <button id="btnCancelarRegistroExecucao" class="btn btn--ghost" type="button">Cancelar</button>
+        </div>
+        <p id="mensagemRegistroExecucao" class="mensagem" aria-live="polite"></p>
+      </form>
+      <form id="formCancelarExecucao" class="modal__form" hidden>
+        <div class="modal__header">
+          <h4>Cancelar execucao</h4>
+        </div>
+        <div class="form-grid">
+          <div class="field" data-full>
+            <label for="cancelarExecucaoMotivo">Motivo do cancelamento</label>
+            <textarea id="cancelarExecucaoMotivo" rows="3" required></textarea>
+          </div>
+        </div>
+        <div class="modal__actions">
+          <button class="btn btn--danger" type="submit">Confirmar</button>
+          <button id="btnVoltarCancelarExecucao" class="btn btn--ghost" type="button">Voltar</button>
+        </div>
+        <p id="mensagemCancelarExecucao" class="mensagem" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalConclusao" class="modal" hidden>
+    <div class="modal__content">
+      <div class="modal__header">
+        <h3>Encerrar manutencao</h3>
+        <button id="btnFecharConclusao" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <form id="formConclusao" class="modal__form">
+        <input id="conclusaoId" type="hidden" />
+        <div class="form-grid">
+          <div class="field">
+            <label>Tipo</label>
+            <input id="conclusaoTipo" type="text" readonly />
+          </div>
+          <div class="field">
+            <label>Subestacao</label>
+            <input id="conclusaoSubestacao" type="text" readonly />
+          </div>
+          <div class="field">
+            <label>ID unico</label>
+            <input id="conclusaoCodigo" type="text" readonly />
+          </div>
+          <div class="field">
+            <label>Aberta por</label>
+            <input id="conclusaoAbertaPor" type="text" readonly />
+          </div>
+          <div class="field">
+            <label>Aberta em</label>
+            <input id="conclusaoAbertaEm" type="text" readonly />
+          </div>
+          <div class="field">
+            <label>Executada por</label>
+            <input id="conclusaoExecutadaPor" type="text" readonly />
+          </div>
+          <div class="field">
+            <label>Encerrada por</label>
+            <input id="conclusaoEncerradaPor" type="text" readonly />
+          </div>
+          <div class="field">
+            <label for="conclusaoInicio">Inicio</label>
+            <input id="conclusaoInicio" type="text" readonly />
+          </div>
+          <div class="field">
+            <label for="conclusaoFim">Fim</label>
+            <input id="conclusaoFim" type="datetime-local" required />
+          </div>
+          <div class="field">
+            <label>Tempo total</label>
+            <input id="conclusaoDuracao" type="text" readonly />
+          </div>
+          <div class="field">
+            <label>Resultado</label>
+            <input id="conclusaoResultado" type="text" readonly />
+          </div>
+          <div class="field" data-full>
+            <label for="conclusaoComentario">Descricao tecnica</label>
+            <textarea id="conclusaoComentario" rows="3" readonly></textarea>
+          </div>
+          <div class="field" data-full>
+            <label for="conclusaoObsExecucao">Observacao de execucao (opcional)</label>
+            <textarea id="conclusaoObsExecucao" rows="3" readonly></textarea>
+          </div>
+          <div class="field" data-full>
+            <label>Participantes</label>
+            <input id="conclusaoParticipantes" type="text" readonly />
+          </div>
+          <div class="field" data-full>
+            <label>Documentos anexados</label>
+            <div id="conclusaoDocs" class="doc-list"></div>
+          </div>
+          <div class="field" data-full>
+            <label for="conclusaoReferencia">No OS / referencia (obrigatorio)</label>
+            <input id="conclusaoReferencia" type="text" placeholder="Ex.: OS 123456" required />
+          </div>
+          <div class="field" data-full>
+            <label for="conclusaoEvidencia1">Evidencias (minimo 4 fotos)</label>
+            <div class="evidence-picker">
+              <div class="photo-slot">
+                <button class="btn btn--icon btn--ghost btn--camera" type="button" data-evidencia-btn="1" aria-label="Adicionar foto 1">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="3" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+                    <circle cx="8" cy="8" r="1.5" fill="none" stroke="currentColor" stroke-width="2" />
+                    <path
+                      d="M5.5 14.5l3-3 2.2 2.2 2.5-2.5 2.8 2.8"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <circle cx="18" cy="18" r="3.5" fill="none" stroke="currentColor" stroke-width="2" />
+                    <path
+                      d="M18 16.8v2.4m-1.2-1.2h2.4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </button>
+                <span class="photo-label" data-photo-slot="1">Foto 1*</span>
+                <input id="conclusaoEvidencia1" type="file" accept="image/*" data-evidencia-input="1" hidden />
+              </div>
+              <div class="photo-slot">
+                <button class="btn btn--icon btn--ghost btn--camera" type="button" data-evidencia-btn="2" aria-label="Adicionar foto 2">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="3" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+                    <circle cx="8" cy="8" r="1.5" fill="none" stroke="currentColor" stroke-width="2" />
+                    <path
+                      d="M5.5 14.5l3-3 2.2 2.2 2.5-2.5 2.8 2.8"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <circle cx="18" cy="18" r="3.5" fill="none" stroke="currentColor" stroke-width="2" />
+                    <path
+                      d="M18 16.8v2.4m-1.2-1.2h2.4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </button>
+                <span class="photo-label" data-photo-slot="2">Foto 2*</span>
+                <input id="conclusaoEvidencia2" type="file" accept="image/*" data-evidencia-input="2" hidden />
+              </div>
+              <div class="photo-slot">
+                <button class="btn btn--icon btn--ghost btn--camera" type="button" data-evidencia-btn="3" aria-label="Adicionar foto 3">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="3" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+                    <circle cx="8" cy="8" r="1.5" fill="none" stroke="currentColor" stroke-width="2" />
+                    <path
+                      d="M5.5 14.5l3-3 2.2 2.2 2.5-2.5 2.8 2.8"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <circle cx="18" cy="18" r="3.5" fill="none" stroke="currentColor" stroke-width="2" />
+                    <path
+                      d="M18 16.8v2.4m-1.2-1.2h2.4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </button>
+                <span class="photo-label" data-photo-slot="3">Foto 3*</span>
+                <input id="conclusaoEvidencia3" type="file" accept="image/*" data-evidencia-input="3" hidden />
+              </div>
+              <div class="photo-slot">
+                <button class="btn btn--icon btn--ghost btn--camera" type="button" data-evidencia-btn="4" aria-label="Adicionar foto 4">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="3" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+                    <circle cx="8" cy="8" r="1.5" fill="none" stroke="currentColor" stroke-width="2" />
+                    <path
+                      d="M5.5 14.5l3-3 2.2 2.2 2.5-2.5 2.8 2.8"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <circle cx="18" cy="18" r="3.5" fill="none" stroke="currentColor" stroke-width="2" />
+                    <path
+                      d="M18 16.8v2.4m-1.2-1.2h2.4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </button>
+                <span class="photo-label" data-photo-slot="4">Foto 4*</span>
+                <input id="conclusaoEvidencia4" type="file" accept="image/*" data-evidencia-input="4" hidden />
+              </div>
+            </div>
+            <div id="conclusaoEvidenciasLista" class="file-list"></div>
+          </div>
+        </div>
+        <div class="modal__actions">
+          <button class="btn btn--primary" type="submit">Concluir manutencao</button>
+          <button id="btnCancelarConclusao" class="btn btn--ghost" type="button">Cancelar</button>
+        </div>
+        <p class="hint">Preencha OS, horario de fim e evidencias para encerrar.</p>
+        <p id="mensagemConclusao" class="mensagem" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalRelatorio" class="modal" hidden>
+    <div class="modal__content modal__content--wide">
+      <div class="modal__header">
+        <h3>Relatorio de manutencao</h3>
+        <button id="btnFecharRelatorio" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <div id="relatorioConteudo" class="report">
+        <header class="report__header">
+          <div class="report__brand">
+            <img id="relatorioLogo" src="assets/engelmig-logo.png" alt="ENGELMIG" />
+            <div>
+              <strong>OPSCOPE</strong>
+              <span>Relatorio de manutencao</span>
+            </div>
+          </div>
+          <div class="report__meta">
+            <span id="relatorioTipo">-</span>
+            <span id="relatorioSubestacao">-</span>
+            <span id="relatorioCodigo">-</span>
+          </div>
+        </header>
+        <section class="report__body">
+          <div class="report__grid">
+            <div>
+              <span>Aberta em</span>
+              <strong id="relatorioAbertaEm">-</strong>
+            </div>
+            <div>
+              <span>Inicio</span>
+              <strong id="relatorioInicio">-</strong>
+            </div>
+            <div>
+              <span>Fim</span>
+              <strong id="relatorioFim">-</strong>
+            </div>
+            <div>
+              <span>Tempo total</span>
+              <strong id="relatorioDuracao">-</strong>
+            </div>
+            <div>
+              <span>Aberta por</span>
+              <strong id="relatorioAbertaPor">-</strong>
+            </div>
+            <div>
+              <span>Executada por</span>
+              <strong id="relatorioExecutadaPor">-</strong>
+            </div>
+            <div>
+              <span>Encerrada por</span>
+              <strong id="relatorioEncerradaPor">-</strong>
+            </div>
+            <div>
+              <span>Resultado</span>
+              <strong id="relatorioResultado">-</strong>
+            </div>
+            <div>
+              <span>Referencia / OS</span>
+              <strong id="relatorioReferencia">-</strong>
+            </div>
+            <div>
+              <span>Emitido em</span>
+              <strong id="relatorioEmitidoEm">-</strong>
+            </div>
+          </div>
+          <div class="report__desc">
+            <h4>Descricao tecnica</h4>
+            <p id="relatorioDescricao">-</p>
+          </div>
+          <div class="report__desc">
+            <h4>Observacao de execucao</h4>
+            <p id="relatorioObsExecucao">-</p>
+          </div>
+          <div> 
+            <h4>Evidencias</h4>
+            <div id="relatorioEvidencias" class="report__evidencias"></div>
+          </div>
+        </section>
+        <footer class="report__footer">
+          <span>Sistema OPSCOPE</span>
+        </footer>
+      </div>
+      <div class="modal__actions">
+        <button id="btnImprimirRelatorio" class="btn btn--primary" type="button">Imprimir relatorio</button>
+        <button id="btnExportarPDF" class="btn btn--ghost" type="button">Exportar PDF</button>
+      </div>
+    </div>
+  </div>
+        </main>
+      </div>
+    </div>
+
+    <footer class="footer auth-only">
+      <p>
+        2026 OPSCOPE - Sistema de Gestao Operacional e Manutencao. Propriedade intelectual de
+        Denisson Alves. Todos os direitos reservados.
+      </p>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>

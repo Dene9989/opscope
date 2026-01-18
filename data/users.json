@@ -1,0 +1,62 @@
+[
+  {
+    "id": "ec0b5a1d-0f0c-4039-91e7-ee0a5232ccb9",
+    "username": "admin",
+    "matricula": "ADMIN",
+    "name": "Administrador",
+    "role": "admin",
+    "passwordHash": "$2a$12$SElTPEhLSB9m987UJOhj3.G/6qU.WSPCNqO6vK6i1yOh2UolurAh.",
+    "permissions": {
+      "create": true,
+      "edit": true,
+      "remove": true,
+      "reschedule": true,
+      "complete": true
+    },
+    "sections": {
+      "inicio": true,
+      "programacao": true,
+      "nova": true,
+      "modelos": true,
+      "execucao": true,
+      "backlog": true,
+      "desempenho": true,
+      "tendencias": true,
+      "relatorios": true,
+      "perfil": true,
+      "solicitacoes": true,
+      "rastreabilidade": true,
+      "gerencial": true,
+      "contas": true
+    },
+    "createdAt": "2026-01-18T17:17:06.264Z"
+  },
+  {
+    "id": "20b44709-e60d-4d71-9857-9dbc233b2361",
+    "username": "35269",
+    "matricula": "35269",
+    "name": "Denisson Silva Alves",
+    "role": "supervisor",
+    "passwordHash": "$2a$12$jESAVRHB4Z.hbfHaUbJqSOQt2i/LKtN2aPePfy5pKDFOhKFG9YfzG",
+    "permissions": {
+      "create": true,
+      "edit": true,
+      "remove": false,
+      "reschedule": true,
+      "complete": true
+    },
+    "sections": {
+      "inicio": true,
+      "programacao": true,
+      "nova": true,
+      "modelos": true,
+      "execucao": true,
+      "backlog": true,
+      "desempenho": true,
+      "tendencias": true,
+      "relatorios": true,
+      "perfil": true
+    },
+    "createdAt": "2026-01-18T17:23:35.080Z"
+  }
+]

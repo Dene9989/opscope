@@ -1,0 +1,85 @@
+[
+  {
+    "id": "8f205fbc-2ec1-4b47-b1f9-3ac9cd6b6c75",
+    "action": "seed_admin",
+    "userId": "ec0b5a1d-0f0c-4039-91e7-ee0a5232ccb9",
+    "details": {
+      "resumo": "Admin inicial criado."
+    },
+    "ip": "local",
+    "timestamp": "2026-01-18T17:17:06.297Z",
+    "prevHash": "",
+    "hash": "c530a403f5c753e30ca6a10bb1006c35871181851df8f7d07a5aa83fd533454a"
+  },
+  {
+    "id": "a18b8930-85f3-4f38-a1b7-8fe9baafca42",
+    "action": "login_success",
+    "userId": "ec0b5a1d-0f0c-4039-91e7-ee0a5232ccb9",
+    "details": {},
+    "ip": "::1",
+    "timestamp": "2026-01-18T17:19:08.562Z",
+    "prevHash": "c530a403f5c753e30ca6a10bb1006c35871181851df8f7d07a5aa83fd533454a",
+    "hash": "1bfce2804752fffe7cba1c9d5dc6295a65a69ee74b708313e9811fe716123f1f"
+  },
+  {
+    "id": "1a05c627-7dd8-4603-8b4e-d71f64a1fbdf",
+    "action": "invite_create",
+    "userId": "ec0b5a1d-0f0c-4039-91e7-ee0a5232ccb9",
+    "details": {
+      "code": "7NKIJ_HM",
+      "role": "admin",
+      "expiresAt": "2026-01-19T17:19:42.007Z"
+    },
+    "ip": "::1",
+    "timestamp": "2026-01-18T17:19:42.024Z",
+    "prevHash": "1bfce2804752fffe7cba1c9d5dc6295a65a69ee74b708313e9811fe716123f1f",
+    "hash": "a59afb230602c893b985bf0e4ae2cadcc011fb1ef9a1c33c4d107ce53f157fa6"
+  },
+  {
+    "id": "798f029d-9a04-4adf-8cf7-82f90056d047",
+    "action": "invite_create",
+    "userId": "ec0b5a1d-0f0c-4039-91e7-ee0a5232ccb9",
+    "details": {
+      "code": "RH_YH0XI",
+      "role": "supervisor",
+      "expiresAt": "2026-01-19T17:21:06.859Z"
+    },
+    "ip": "::1",
+    "timestamp": "2026-01-18T17:21:06.880Z",
+    "prevHash": "a59afb230602c893b985bf0e4ae2cadcc011fb1ef9a1c33c4d107ce53f157fa6",
+    "hash": "2df96b6fafef93cdc38fdebcfb86c3b477922e8ce6f66b3c369cf41c5ca4632c"
+  },
+  {
+    "id": "cc4f80d1-623a-407e-a360-59eeafa79e50",
+    "action": "logout",
+    "userId": "ec0b5a1d-0f0c-4039-91e7-ee0a5232ccb9",
+    "details": {},
+    "ip": "::1",
+    "timestamp": "2026-01-18T17:23:13.560Z",
+    "prevHash": "2df96b6fafef93cdc38fdebcfb86c3b477922e8ce6f66b3c369cf41c5ca4632c",
+    "hash": "32292c0a30d2cec97d7a7a2855f8e5fdf19c693c9cb069c4b98777735e3ebc06"
+  },
+  {
+    "id": "fb4578af-c190-420e-999b-5f98e3cf9b74",
+    "action": "register",
+    "userId": "20b44709-e60d-4d71-9857-9dbc233b2361",
+    "details": {
+      "matricula": "35269",
+      "role": "supervisor"
+    },
+    "ip": "::1",
+    "timestamp": "2026-01-18T17:23:35.115Z",
+    "prevHash": "32292c0a30d2cec97d7a7a2855f8e5fdf19c693c9cb069c4b98777735e3ebc06",
+    "hash": "0cb386d069d569cc72af954ac58d463a1ecb4a205dd269cc6c8298ab4fc29f4e"
+  },
+  {
+    "id": "09707e55-ecc3-4ecc-a6a1-d27f236973b5",
+    "action": "login_success",
+    "userId": "20b44709-e60d-4d71-9857-9dbc233b2361",
+    "details": {},
+    "ip": "::1",
+    "timestamp": "2026-01-18T17:23:44.331Z",
+    "prevHash": "0cb386d069d569cc72af954ac58d463a1ecb4a205dd269cc6c8298ab4fc29f4e",
+    "hash": "acc8fe3b52ba170ec57ddda545aad22ac190686ea9b43692bf81ed5dd060930a"
+  }
+]
