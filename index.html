@@ -68,100 +68,111 @@
         <span class="loading-dot"></span>
       </div>
     </div>
-    <section id="authPanels" class="auth-panels" hidden>
-      <form id="loginForm" class="auth-panel" data-auth-panel="login" hidden>
-        <h3>Acesso seguro</h3>
-        <div class="field">
-          <label for="loginUsuario">Usuario ou Matricula</label>
-          <input id="loginUsuario" type="text" placeholder="Matricula ou usuario" autocomplete="username" />
+    <div class="auth-layout visitor-only">
+      <section class="visitor-wall visitor-only">
+        <div class="auth-brand">
+          <span class="auth-brand__logo">OPSCOPE</span>
+          <p class="auth-brand__tagline">Vis&atilde;o Total da Opera&ccedil;&atilde;o e Manuten&ccedil;&atilde;o.</p>
+          <p class="auth-brand__audit">Acessos auditados e registrados.</p>
         </div>
-        <div class="field field--password">
-          <label for="loginSenha">Senha</label>
-          <div class="input-group">
-            <input id="loginSenha" type="password" placeholder="Senha" autocomplete="current-password" />
-            <button
-              id="btnToggleLoginSenha"
-              class="btn btn--ghost btn--small btn--icon"
-              type="button"
-              aria-label="Mostrar senha"
-            >
-              Mostrar
-            </button>
-          </div>
-          <small id="capsLockLogin" class="caps-hint" hidden>Caps Lock ativado</small>
+        <div class="auth-brand__notice">
+          <h1>ATENCAO!</h1>
+          <p>
+            Este ambiente e de uso exclusivo dos colaboradores, destinado ao acompanhamento, programacao, reprogramacao e conclusao das manutencoes periodicas do escopo HV.
+            Caso voce seja um colaborador, utilize a aba Criar conta (com convite) para solicitar seu acesso.
+          </p>
         </div>
-        <button id="btnLoginSubmit" class="btn btn--primary btn--small" type="submit">Entrar</button>
-      </form>
+      </section>
 
-      <form id="reqForm" class="auth-panel" data-auth-panel="registro" hidden>
-        <h3>Criar conta (com convite)</h3>
-        <div class="field">
-          <label for="reqMatricula">Matricula</label>
-          <input id="reqMatricula" type="text" placeholder="000000" autocomplete="username" />
-        </div>
-        <div class="field">
-          <label for="reqNome">Nome Completo</label>
-          <input id="reqNome" type="text" placeholder="Nome do colaborador" autocomplete="name" />
-        </div>
-        <div class="field field--password">
-          <label for="reqSenha">Senha</label>
-          <div class="input-group">
-            <input id="reqSenha" type="password" placeholder="Senha segura" autocomplete="new-password" />
-            <button
-              id="btnToggleReqSenha"
-              class="btn btn--ghost btn--small btn--icon"
-              type="button"
-              aria-label="Mostrar senha"
-            >
-              Mostrar
-            </button>
-          </div>
-          <small id="capsLockRegistro" class="caps-hint" hidden>Caps Lock ativado</small>
-          <ul id="reqSenhaRules" class="password-rules">
-            <li data-rule="length">Minimo 12 caracteres</li>
-            <li data-rule="upper">1 letra maiuscula</li>
-            <li data-rule="lower">1 letra minuscula</li>
-            <li data-rule="number">1 numero</li>
-            <li data-rule="symbol">1 simbolo</li>
-          </ul>
-          <p id="reqSenhaErro" class="field-error" hidden></p>
-        </div>
-        <div class="field field--password">
-          <label for="reqSenhaConfirm">Confirmar senha</label>
-          <div class="input-group">
-            <input id="reqSenhaConfirm" type="password" placeholder="Confirmar senha" autocomplete="new-password" />
-            <button
-              id="btnToggleReqSenhaConfirm"
-              class="btn btn--ghost btn--small btn--icon"
-              type="button"
-              aria-label="Mostrar senha"
-            >
-              Mostrar
-            </button>
-          </div>
-          <p id="reqSenhaConfirmErro" class="field-error" hidden></p>
-        </div>
-        <div class="field">
-          <label for="reqCodigoConvite">Codigo de convite</label>
-          <input id="reqCodigoConvite" type="text" placeholder="Codigo enviado pelo admin" />
-          <p id="reqCodigoErro" class="field-error" hidden></p>
-        </div>
-        <button id="btnRegistroSubmit" class="btn btn--primary btn--small" type="submit">
-          Criar conta
-        </button>
-      </form>
+      <section id="authPanels" class="auth-panels" hidden>
+        <div class="auth-card">
+          <form id="loginForm" class="auth-panel" data-auth-panel="login" hidden>
+            <h3>Acesso seguro</h3>
+            <div class="field">
+              <label for="loginUsuario">Usuario ou Matricula</label>
+              <input id="loginUsuario" type="text" placeholder="Matricula ou usuario" autocomplete="username" />
+            </div>
+            <div class="field field--password">
+              <label for="loginSenha">Senha</label>
+              <div class="input-group">
+                <input id="loginSenha" type="password" placeholder="Senha" autocomplete="current-password" />
+                <button
+                  id="btnToggleLoginSenha"
+                  class="btn btn--ghost btn--small btn--icon"
+                  type="button"
+                  aria-label="Mostrar senha"
+                >
+                  Mostrar
+                </button>
+              </div>
+              <small id="capsLockLogin" class="caps-hint" hidden>Caps Lock ativado</small>
+            </div>
+            <button id="btnLoginSubmit" class="btn btn--primary btn--small" type="submit">Entrar</button>
+          </form>
 
-      <p id="mensagemConta" class="mensagem" aria-live="polite"></p>
-      <p class="auth-footer">Acessos auditados e registrados.</p>
-    </section>
+          <form id="reqForm" class="auth-panel" data-auth-panel="registro" hidden>
+            <h3>Criar conta (com convite)</h3>
+            <div class="field">
+              <label for="reqMatricula">Matricula</label>
+              <input id="reqMatricula" type="text" placeholder="000000" autocomplete="username" />
+            </div>
+            <div class="field">
+              <label for="reqNome">Nome Completo</label>
+              <input id="reqNome" type="text" placeholder="Nome do colaborador" autocomplete="name" />
+            </div>
+            <div class="field field--password">
+              <label for="reqSenha">Senha</label>
+              <div class="input-group">
+                <input id="reqSenha" type="password" placeholder="Senha segura" autocomplete="new-password" />
+                <button
+                  id="btnToggleReqSenha"
+                  class="btn btn--ghost btn--small btn--icon"
+                  type="button"
+                  aria-label="Mostrar senha"
+                >
+                  Mostrar
+                </button>
+              </div>
+              <small id="capsLockRegistro" class="caps-hint" hidden>Caps Lock ativado</small>
+              <ul id="reqSenhaRules" class="password-rules">
+                <li data-rule="length">Minimo 12 caracteres</li>
+                <li data-rule="upper">1 letra maiuscula</li>
+                <li data-rule="lower">1 letra minuscula</li>
+                <li data-rule="number">1 numero</li>
+                <li data-rule="symbol">1 simbolo</li>
+              </ul>
+              <p id="reqSenhaErro" class="field-error" hidden></p>
+            </div>
+            <div class="field field--password">
+              <label for="reqSenhaConfirm">Confirmar senha</label>
+              <div class="input-group">
+                <input id="reqSenhaConfirm" type="password" placeholder="Confirmar senha" autocomplete="new-password" />
+                <button
+                  id="btnToggleReqSenhaConfirm"
+                  class="btn btn--ghost btn--small btn--icon"
+                  type="button"
+                  aria-label="Mostrar senha"
+                >
+                  Mostrar
+                </button>
+              </div>
+              <p id="reqSenhaConfirmErro" class="field-error" hidden></p>
+            </div>
+            <div class="field">
+              <label for="reqCodigoConvite">Codigo de convite</label>
+              <input id="reqCodigoConvite" type="text" placeholder="Codigo enviado pelo admin" />
+              <p id="reqCodigoErro" class="field-error" hidden></p>
+            </div>
+            <button id="btnRegistroSubmit" class="btn btn--primary btn--small" type="submit">
+              Criar conta
+            </button>
+          </form>
 
-    <section class="visitor-wall visitor-only">
-      <h1>ATENCAO!</h1>
-      <p>
-        Este ambiente e de uso exclusivo dos colaboradores, destinado ao acompanhamento, programacao, reprogramacao e conclusao das manutencoes periodicas do escopo HV.
-        Caso voce seja um colaborador, utilize a aba Criar conta (com convite) para solicitar seu acesso.
-      </p>
-    </section>
+          <p id="mensagemConta" class="mensagem" aria-live="polite"></p>
+          <p class="auth-footer">Acessos auditados e registrados.</p>
+        </div>
+      </section>
+    </div>
     <div class="app-shell auth-only">
       <aside class="sidebar" id="sidebar">
         <div class="sidebar__header">
