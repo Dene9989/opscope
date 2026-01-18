@@ -9,6 +9,11 @@ const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 const SESSION_SECRET = process.env.SESSION_SECRET || "opscope_dev_secret_change";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Admin@12345!";
+const MASTER_USERNAME = "denisson.alves";
+const MASTER_NAME = "Denisson Silva Alves";
+const MASTER_ROLE = "pcm";
+const MASTER_CARGO = "T\u00e9cnico S\u00eanior de Manuten\u00e7\u00e3o";
+const MASTER_PASSWORD = process.env.MASTER_PASSWORD || ADMIN_PASSWORD;
 const INVITE_TTL_HOURS = 24;
 
 const DATA_DIR = path.join(__dirname, "data");
@@ -16,12 +21,36 @@ const USERS_FILE = path.join(DATA_DIR, "users.json");
 const INVITES_FILE = path.join(DATA_DIR, "invites.json");
 const AUDIT_FILE = path.join(DATA_DIR, "audit.json");
 
-const ROLE_PERMISSIONS = {
-  admin: { create: true, edit: true, remove: true, reschedule: true, complete: true },
-  supervisor: { create: true, edit: true, remove: false, reschedule: true, complete: true },
-  executor: { create: false, edit: false, remove: false, reschedule: false, complete: true },
-  leitura: { create: false, edit: false, remove: false, reschedule: false, complete: false },
+const PERMISSION_KEYS = ["create", "edit", "remove", "reschedule", "complete"];
+const FULL_PERMISSIONS = PERMISSION_KEYS.reduce((acc, key) => {
+  acc[key] = true;
+  return acc;
+}, {});
+const NO_PERMISSIONS = PERMISSION_KEYS.reduce((acc, key) => {
+  acc[key] = false;
+  return acc;
+}, {});
+const SUPERVISOR_DEFAULT_PERMISSIONS = {
+  ...NO_PERMISSIONS,
+  create: true,
+  edit: true,
+  reschedule: true,
+  complete: true,
 };
+const EXECUTOR_DEFAULT_PERMISSIONS = {
+  ...NO_PERMISSIONS,
+  complete: true,
+};
+const ROLE_DEFAULT_PERMISSIONS = {
+  supervisor: SUPERVISOR_DEFAULT_PERMISSIONS,
+  supervisor_om: SUPERVISOR_DEFAULT_PERMISSIONS,
+  tecnico_senior: SUPERVISOR_DEFAULT_PERMISSIONS,
+  tecnico_pleno: SUPERVISOR_DEFAULT_PERMISSIONS,
+  tecnico_junior: EXECUTOR_DEFAULT_PERMISSIONS,
+  executor: EXECUTOR_DEFAULT_PERMISSIONS,
+  leitura: NO_PERMISSIONS,
+};
+const FULL_ACCESS_ROLES = new Set(["pcm", "diretor_om", "gerente_contrato"]);
 
 const DEFAULT_SECTIONS = {
   inicio: true,
@@ -37,19 +66,6 @@ const DEFAULT_SECTIONS = {
 };
 
 const ADMIN_SECTIONS = ["solicitacoes", "rastreabilidade", "gerencial", "contas"];
-
-const ROLE_SECTIONS = {
-  admin: ADMIN_SECTIONS.reduce(
-    (acc, key) => {
-      acc[key] = true;
-      return acc;
-    },
-    { ...DEFAULT_SECTIONS }
-  ),
-  supervisor: { ...DEFAULT_SECTIONS },
-  executor: { ...DEFAULT_SECTIONS },
-  leitura: { ...DEFAULT_SECTIONS },
-};
 
 const ipFailures = new Map();
 const userFailures = new Map();
@@ -104,68 +120,233 @@ function appendAudit(action, userId, details, ip) {
   writeJson(AUDIT_FILE, auditLog);
 }
 
-function normalizeRole(role) {
-  const val = String(role || "").toLowerCase();
-  if (ROLE_PERMISSIONS[val]) {
+function normalizeRbacRole(role) {
+  const raw = String(role || "").trim();
+  if (!raw) {
+    return "tecnico_junior";
+  }
+  const normalized = raw
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  const mapped = {
+    pcm: "pcm",
+    diretor: "diretor_om",
+    diretor_om: "diretor_om",
+    diretor_o_m: "diretor_om",
+    diretorom: "diretor_om",
+    gerente: "gerente_contrato",
+    gerente_contrato: "gerente_contrato",
+    gerente_de_contrato: "gerente_contrato",
+    gerentecontrato: "gerente_contrato",
+    supervisor: "supervisor_om",
+    supervisor_om: "supervisor_om",
+    supervisor_o_m: "supervisor_om",
+    tecnico_senior: "tecnico_senior",
+    tecnicosenior: "tecnico_senior",
+    tecnico_pleno: "tecnico_pleno",
+    tecnicopleno: "tecnico_pleno",
+    tecnico_junior: "tecnico_junior",
+    tecnicojunior: "tecnico_junior",
+    executor: "tecnico_junior",
+    colaborador: "tecnico_junior",
+    leitura: "leitura",
+    admin: "pcm",
+  };
+  return mapped[normalized] || normalized || "tecnico_junior";
+}
+
+function isFullAccessRole(role) {
+  return FULL_ACCESS_ROLES.has(normalizeRbacRole(role));
+}
+
+function normalizeRole(role, rbacRole) {
+  const val = String(role || "").trim().toLowerCase();
+  if (val === "admin" || val === "supervisor" || val === "executor" || val === "leitura") {
     return val;
+  }
+  const normalizedRbac = normalizeRbacRole(rbacRole || role);
+  if (isFullAccessRole(normalizedRbac)) {
+    return "admin";
+  }
+  if (normalizedRbac === "supervisor_om") {
+    return "supervisor";
+  }
+  if (normalizedRbac === "leitura") {
+    return "leitura";
   }
   return "executor";
 }
 
-function buildPermissions(role) {
-  const normalized = normalizeRole(role);
-  return ROLE_PERMISSIONS[normalized];
+function clonePermissions(source) {
+  const result = {};
+  PERMISSION_KEYS.forEach((key) => {
+    result[key] = Boolean(source && source[key]);
+  });
+  return result;
 }
 
-function buildSections(role) {
-  const normalized = normalizeRole(role);
-  return ROLE_SECTIONS[normalized] || { ...DEFAULT_SECTIONS };
+function buildPermissions(role, explicitPermissions) {
+  const normalized = normalizeRbacRole(role);
+  if (isFullAccessRole(normalized)) {
+    return clonePermissions(FULL_PERMISSIONS);
+  }
+  const base = ROLE_DEFAULT_PERMISSIONS[normalized] || ROLE_DEFAULT_PERMISSIONS.executor || NO_PERMISSIONS;
+  const permissions = clonePermissions(base);
+  if (explicitPermissions && typeof explicitPermissions === "object") {
+    PERMISSION_KEYS.forEach((key) => {
+      if (key in explicitPermissions) {
+        permissions[key] = Boolean(explicitPermissions[key]);
+      }
+    });
+  }
+  return permissions;
+}
+
+function mergePermissions(role, currentPermissions, patchPermissions) {
+  if (isFullAccessRole(role)) {
+    return clonePermissions(FULL_PERMISSIONS);
+  }
+  const permissions = buildPermissions(role, currentPermissions);
+  if (patchPermissions && typeof patchPermissions === "object") {
+    PERMISSION_KEYS.forEach((key) => {
+      if (key in patchPermissions) {
+        permissions[key] = Boolean(patchPermissions[key]);
+      }
+    });
+  }
+  return permissions;
+}
+
+function buildSections(role, explicitSections) {
+  const config = { ...DEFAULT_SECTIONS };
+  if (explicitSections && typeof explicitSections === "object") {
+    Object.keys(DEFAULT_SECTIONS).forEach((key) => {
+      if (key in explicitSections) {
+        config[key] = Boolean(explicitSections[key]);
+      }
+    });
+  }
+  if (isFullAccessRole(role)) {
+    ADMIN_SECTIONS.forEach((key) => {
+      config[key] = true;
+    });
+  }
+  return config;
 }
 
 function sanitizeUser(user) {
   if (!user) {
     return null;
   }
-  const role = normalizeRole(user.role);
+  const rbacRole = normalizeRbacRole(user.rbacRole || user.role);
+  const role = normalizeRole(user.role, rbacRole);
   return {
     id: user.id,
     username: user.username,
     matricula: user.matricula,
     name: user.name,
     role,
-    permissions: user.permissions || buildPermissions(role),
-    sections: user.sections || buildSections(role),
+    rbacRole,
+    cargo: user.cargo || "",
+    projeto: user.projeto || "",
+    localizacao: user.localizacao || "",
+    active: user.active !== false,
+    permissions: buildPermissions(rbacRole, user.permissions),
+    sections: buildSections(rbacRole, user.sections),
     createdAt: user.createdAt,
   };
 }
 
 function normalizeUserRecord(user) {
-  const role = normalizeRole(user.role);
+  const rbacRole = normalizeRbacRole(user.rbacRole || user.role);
+  const role = normalizeRole(user.role, rbacRole);
   return {
     ...user,
     role,
-    permissions: user.permissions || buildPermissions(role),
-    sections: user.sections || buildSections(role),
+    rbacRole,
+    active: user.active !== false,
+    permissions: buildPermissions(rbacRole, user.permissions),
+    sections: buildSections(rbacRole, user.sections),
   };
 }
 
+function ensureMasterAccount() {
+  const username = MASTER_USERNAME.toLowerCase();
+  const rbacRole = normalizeRbacRole(MASTER_ROLE);
+  const legacyRole = normalizeRole("admin", rbacRole);
+  const index = users.findIndex((user) => String(user.username || "").toLowerCase() === username);
+
+  if (index >= 0) {
+    const current = users[index];
+    const updated = normalizeUserRecord({
+      ...current,
+      username: MASTER_USERNAME,
+      name: MASTER_NAME,
+      role: legacyRole,
+      rbacRole,
+      cargo: MASTER_CARGO,
+      active: true,
+      permissions: buildPermissions(rbacRole, current.permissions),
+      sections: buildSections(rbacRole, current.sections),
+    });
+    if (!updated.matricula) {
+      updated.matricula = MASTER_USERNAME.toUpperCase();
+    }
+    if (!updated.createdAt) {
+      updated.createdAt = new Date().toISOString();
+    }
+    if (JSON.stringify(updated) !== JSON.stringify(current)) {
+      users[index] = updated;
+      writeJson(USERS_FILE, users);
+      appendAudit("seed_master_sync", updated.id, { username: MASTER_USERNAME }, "local");
+    }
+    return;
+  }
+
+  const passwordHash = bcrypt.hashSync(MASTER_PASSWORD, 12);
+  const master = normalizeUserRecord({
+    id: crypto.randomUUID(),
+    username: MASTER_USERNAME,
+    matricula: MASTER_USERNAME.toUpperCase(),
+    name: MASTER_NAME,
+    role: legacyRole,
+    rbacRole,
+    cargo: MASTER_CARGO,
+    active: true,
+    passwordHash,
+    permissions: buildPermissions(rbacRole),
+    sections: buildSections(rbacRole),
+    createdAt: new Date().toISOString(),
+  });
+  users.push(master);
+  writeJson(USERS_FILE, users);
+  appendAudit("seed_master", master.id, { username: MASTER_USERNAME }, "local");
+  console.log("Admin master criado: usuario", MASTER_USERNAME);
+}
+
 function seedAdmin() {
-  if (users.length) {
+  const hasAdmin = users.some((user) => normalizeRole(user.role, user.rbacRole) === "admin");
+  if (hasAdmin) {
     return;
   }
   const passwordHash = bcrypt.hashSync(ADMIN_PASSWORD, 12);
-  const admin = {
+  const admin = normalizeUserRecord({
     id: crypto.randomUUID(),
     username: "admin",
     matricula: "ADMIN",
     name: "Administrador",
     role: "admin",
+    rbacRole: "pcm",
+    active: true,
     passwordHash,
-    permissions: buildPermissions("admin"),
-    sections: buildSections("admin"),
+    permissions: buildPermissions("pcm"),
+    sections: buildSections("pcm"),
     createdAt: new Date().toISOString(),
-  };
-  users = [admin];
+  });
+  users.push(admin);
   writeJson(USERS_FILE, users);
   appendAudit("seed_admin", admin.id, { resumo: "Admin inicial criado." }, "local");
   console.log("Admin criado: usuario admin / senha", ADMIN_PASSWORD);
@@ -255,16 +436,29 @@ function clearFailures(ip, loginKey) {
   }
 }
 
-function requireAuth(req, res, next) {
+function getSessionUser(req) {
   if (!req.session || !req.session.userId) {
+    return null;
+  }
+  const user = users.find((item) => item.id === req.session.userId);
+  if (!user || user.active === false) {
+    return null;
+  }
+  return user;
+}
+
+function requireAuth(req, res, next) {
+  const user = getSessionUser(req);
+  if (!user) {
     return res.status(401).json({ message: "Nao autorizado." });
   }
+  req.currentUser = user;
   return next();
 }
 
 function requireAdmin(req, res, next) {
-  const user = users.find((u) => u.id === req.session.userId);
-  if (!user || normalizeRole(user.role) !== "admin") {
+  const user = req.currentUser || getSessionUser(req);
+  if (!user || !isFullAccessRole(user.rbacRole || user.role)) {
     return res.status(403).json({ message: "Nao autorizado." });
   }
   return next();
@@ -276,6 +470,7 @@ let invites = readJson(INVITES_FILE, []);
 let auditLog = readJson(AUDIT_FILE, []);
 users = users.map(normalizeUserRecord);
 writeJson(USERS_FILE, users);
+ensureMasterAccount();
 seedAdmin();
 
 app.use(express.json({ limit: "2mb" }));
@@ -322,6 +517,10 @@ app.post("/api/auth/login", async (req, res) => {
     appendAudit("login_fail", null, { login }, ip);
     return res.status(401).json({ message: "Credenciais invalidas." });
   }
+  if (user.active === false) {
+    appendAudit("login_inactive", user.id, { login }, ip);
+    return res.status(403).json({ message: "Conta inativa." });
+  }
   const ok = await bcrypt.compare(senha, user.passwordHash);
   if (!ok) {
     recordIpFailure(ip);
@@ -344,10 +543,7 @@ app.post("/api/auth/logout", requireAuth, (req, res) => {
 });
 
 app.get("/api/auth/me", (req, res) => {
-  if (!req.session || !req.session.userId) {
-    return res.status(401).json({ message: "Nao autenticado." });
-  }
-  const user = users.find((u) => u.id === req.session.userId);
+  const user = getSessionUser(req);
   if (!user) {
     return res.status(401).json({ message: "Nao autenticado." });
   }
@@ -359,9 +555,66 @@ app.get("/api/auth/users", requireAuth, (req, res) => {
   return res.json({ users: list });
 });
 
+app.get("/api/admin/users", requireAuth, requireAdmin, (req, res) => {
+  const list = users.map((user) => sanitizeUser(user));
+  return res.json({ users: list });
+});
+
+app.patch("/api/admin/users/:id", requireAuth, requireAdmin, (req, res) => {
+  const userIndex = users.findIndex((item) => item.id === req.params.id);
+  if (userIndex === -1) {
+    return res.status(404).json({ message: "Usuario nao encontrado." });
+  }
+  const current = users[userIndex];
+  const updates = {};
+  if ("name" in req.body) {
+    updates.name = String(req.body.name || "").trim();
+  }
+  if ("cargo" in req.body) {
+    updates.cargo = String(req.body.cargo || "").trim();
+  } else if ("jobTitle" in req.body) {
+    updates.cargo = String(req.body.jobTitle || "").trim();
+  }
+  if ("projeto" in req.body) {
+    updates.projeto = String(req.body.projeto || "").trim();
+  } else if ("project" in req.body) {
+    updates.projeto = String(req.body.project || "").trim();
+  }
+  if ("localizacao" in req.body) {
+    updates.localizacao = String(req.body.localizacao || "").trim();
+  } else if ("location" in req.body) {
+    updates.localizacao = String(req.body.location || "").trim();
+  }
+  if ("active" in req.body) {
+    updates.active = Boolean(req.body.active);
+  }
+  if ("permissions" in req.body) {
+    updates.permissions = mergePermissions(
+      current.rbacRole || current.role,
+      current.permissions,
+      req.body.permissions
+    );
+  }
+
+  if (!Object.keys(updates).length) {
+    return res.status(400).json({ message: "Nenhuma alteracao valida." });
+  }
+
+  const updated = normalizeUserRecord({ ...current, ...updates });
+  users[userIndex] = updated;
+  writeJson(USERS_FILE, users);
+  appendAudit(
+    "admin_user_update",
+    req.session.userId,
+    { alvo: updated.id, campos: Object.keys(updates) },
+    getClientIp(req)
+  );
+  return res.json({ user: sanitizeUser(updated) });
+});
+
 app.post("/api/auth/invite", requireAuth, requireAdmin, (req, res) => {
   cleanupInvites();
-  const role = normalizeRole(req.body.role || "executor");
+  const role = normalizeRbacRole(req.body.role || "tecnico_junior");
   const code = createInviteCode();
   const expiresAt = new Date(Date.now() + INVITE_TTL_HOURS * 60 * 60 * 1000).toISOString();
   const invite = {
@@ -420,14 +673,20 @@ app.post("/api/auth/register", async (req, res) => {
     return res.status(400).json({ message: "Dados invalidos.", errors, rules: passwordCheck.rules });
   }
 
-  const role = normalizeRole(invite.role || "executor");
+  const role = normalizeRbacRole(invite.role || "tecnico_junior");
+  const legacyRole = normalizeRole(role, role);
   const passwordHash = await bcrypt.hash(senha, 12);
   const user = {
     id: crypto.randomUUID(),
     username: matricula.toLowerCase(),
     matricula,
     name: nome,
-    role,
+    role: legacyRole,
+    rbacRole: role,
+    cargo: "",
+    projeto: "",
+    localizacao: "",
+    active: true,
     passwordHash,
     permissions: buildPermissions(role),
     sections: buildSections(role),
