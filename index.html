@@ -1020,10 +1020,102 @@
           </button>
           <p id="inviteResultado" class="hint"></p>
         </div>
+        <div class="account-filters">
+          <div class="field">
+            <label for="userFiltroNome">Buscar por nome</label>
+            <input id="userFiltroNome" type="text" placeholder="Nome do colaborador" />
+          </div>
+          <div class="field">
+            <label for="userFiltroCargo">Cargo</label>
+            <input id="userFiltroCargo" type="text" placeholder="Cargo" />
+          </div>
+          <div class="field">
+            <label for="userFiltroProjeto">Projeto / Localizacao</label>
+            <input id="userFiltroProjeto" type="text" placeholder="Projeto ou local" />
+          </div>
+          <div class="field">
+            <label for="userFiltroStatus">Status</label>
+            <select id="userFiltroStatus">
+              <option value="">Todos</option>
+              <option value="active">Ativos</option>
+              <option value="inactive">Inativos</option>
+            </select>
+          </div>
+          <button id="btnLimparFiltroUsuarios" class="btn btn--ghost btn--small" type="button">
+            Limpar filtros
+          </button>
+        </div>
         <div id="listaUsuarios" class="account-list"></div>
         <p id="usuariosVazio" class="empty-state">Nenhuma conta cadastrada.</p>
       </section>
     </section>
+  </div>
+
+  <div id="userDrawer" class="drawer" hidden>
+    <div class="drawer__backdrop" data-drawer-close></div>
+    <div class="drawer__panel">
+      <div class="drawer__header">
+        <div>
+          <h3>Perfil do colaborador</h3>
+          <p id="drawerSubtitle" class="hint">Dados gerais e permiss&otilde;es</p>
+        </div>
+        <button id="btnFecharUserDrawer" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <form id="userDrawerForm" class="drawer__body">
+        <input id="drawerUserId" type="hidden" />
+        <div class="form-grid">
+          <div class="field">
+            <label for="drawerNome">Nome completo</label>
+            <input id="drawerNome" type="text" />
+          </div>
+          <div class="field">
+            <label for="drawerCargo">Cargo / Job title</label>
+            <select id="drawerCargo">
+              <option value="">Selecione</option>
+              <option value="T&Eacute;CNICO J&Uacute;NIOR DE MANUTEN&Ccedil;&Atilde;O">T&Eacute;CNICO J&Uacute;NIOR DE MANUTEN&Ccedil;&Atilde;O</option>
+              <option value="T&Eacute;CNICO PLENO DE MANUTEN&Ccedil;&Atilde;O">T&Eacute;CNICO PLENO DE MANUTEN&Ccedil;&Atilde;O</option>
+              <option value="T&Eacute;CNICO S&Ecirc;NIOR DE MANUTEN&Ccedil;&Atilde;O">T&Eacute;CNICO S&Ecirc;NIOR DE MANUTEN&Ccedil;&Atilde;O</option>
+              <option value="SUPERVISOR O&amp;M">SUPERVISOR O&amp;M</option>
+              <option value="GERENTE DE CONTRATO">GERENTE DE CONTRATO</option>
+              <option value="DIRETOR O&amp;M">DIRETOR O&amp;M</option>
+              <option value="PCM">PCM</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="drawerRole">Role do sistema</label>
+            <select id="drawerRole">
+              <option value="tecnico_junior">T&Eacute;CNICO J&Uacute;NIOR</option>
+              <option value="tecnico_pleno">T&Eacute;CNICO PLENO</option>
+              <option value="tecnico_senior">T&Eacute;CNICO S&Ecirc;NIOR</option>
+              <option value="supervisor_om">SUPERVISOR O&amp;M</option>
+              <option value="gerente_contrato">GERENTE DE CONTRATO</option>
+              <option value="diretor_om">DIRETOR O&amp;M</option>
+              <option value="pcm">PCM</option>
+              <option value="leitura">LEITURA</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="drawerProjeto">Projeto / Localiza&ccedil;&atilde;o</label>
+            <input id="drawerProjeto" type="text" />
+          </div>
+          <div class="field field--toggle">
+            <label for="drawerActive">Conta ativa</label>
+            <input id="drawerActive" type="checkbox" />
+          </div>
+        </div>
+        <div class="drawer__permissions">
+          <h4>Permiss&otilde;es por m&oacute;dulo</h4>
+          <div id="drawerPermissions" class="perm-groups"></div>
+        </div>
+        <div class="drawer__actions">
+          <button id="btnSalvarUserDrawer" class="btn btn--primary" type="submit">Salvar</button>
+          <button id="btnCancelarUserDrawer" class="btn btn--ghost" type="button">Cancelar</button>
+        </div>
+        <p id="drawerMessage" class="mensagem" aria-live="polite"></p>
+      </form>
+    </div>
   </div>
 
   <div id="modalReagendar" class="modal" hidden>

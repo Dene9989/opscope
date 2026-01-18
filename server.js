@@ -22,7 +22,15 @@ const USERS_FILE = path.join(DATA_DIR, "users.json");
 const INVITES_FILE = path.join(DATA_DIR, "invites.json");
 const AUDIT_FILE = path.join(DATA_DIR, "audit.json");
 
-const PERMISSION_KEYS = ["create", "edit", "remove", "reschedule", "complete"];
+const PERMISSION_KEYS = [
+  "create",
+  "edit",
+  "remove",
+  "reschedule",
+  "complete",
+  "admin:users:read",
+  "admin:users:write",
+];
 const FULL_PERMISSIONS = PERMISSION_KEYS.reduce((acc, key) => {
   acc[key] = true;
   return acc;
@@ -52,6 +60,28 @@ const ROLE_DEFAULT_PERMISSIONS = {
   leitura: NO_PERMISSIONS,
 };
 const FULL_ACCESS_ROLES = new Set(["pcm", "diretor_om", "gerente_contrato"]);
+
+const PERMISSION_CATALOG = [
+  {
+    id: "manutencao",
+    label: "Manutencoes",
+    permissions: [
+      { key: "create", label: "Criar" },
+      { key: "edit", label: "Editar" },
+      { key: "remove", label: "Remover" },
+      { key: "reschedule", label: "Reagendar" },
+      { key: "complete", label: "Executar" },
+    ],
+  },
+  {
+    id: "usuarios",
+    label: "Usuarios",
+    permissions: [
+      { key: "admin:users:read", label: "Ler usuarios" },
+      { key: "admin:users:write", label: "Editar usuarios" },
+    ],
+  },
+];
 
 const DEFAULT_SECTIONS = {
   inicio: true,
@@ -453,6 +483,17 @@ function getSessionUser(req) {
   return user;
 }
 
+function hasPermission(user, permissionKey) {
+  if (!user) {
+    return false;
+  }
+  if (isFullAccessRole(user.rbacRole || user.role)) {
+    return true;
+  }
+  const permissions = buildPermissions(user.rbacRole || user.role, user.permissions);
+  return Boolean(permissions && permissions[permissionKey]);
+}
+
 function requireAuth(req, res, next) {
   const user = getSessionUser(req);
   if (!user) {
@@ -460,6 +501,16 @@ function requireAuth(req, res, next) {
   }
   req.currentUser = user;
   return next();
+}
+
+function requirePermission(permissionKey) {
+  return (req, res, next) => {
+    const user = req.currentUser || getSessionUser(req);
+    if (!hasPermission(user, permissionKey)) {
+      return res.status(403).json({ message: "Nao autorizado." });
+    }
+    return next();
+  };
 }
 
 function requireAdmin(req, res, next) {
@@ -561,18 +612,25 @@ app.get("/api/auth/users", requireAuth, (req, res) => {
   return res.json({ users: list });
 });
 
-app.get("/api/admin/users", requireAuth, requireAdmin, (req, res) => {
+app.get("/api/admin/users", requireAuth, requirePermission("admin:users:read"), (req, res) => {
   const list = users.map((user) => sanitizeUser(user));
   return res.json({ users: list });
 });
 
-app.patch("/api/admin/users/:id", requireAuth, requireAdmin, (req, res) => {
+app.get("/api/admin/permissions", requireAuth, requirePermission("admin:users:read"), (req, res) => {
+  return res.json({ permissions: PERMISSION_CATALOG });
+});
+
+app.patch("/api/admin/users/:id", requireAuth, requirePermission("admin:users:write"), (req, res) => {
   const userIndex = users.findIndex((item) => item.id === req.params.id);
   if (userIndex === -1) {
     return res.status(404).json({ message: "Usuario nao encontrado." });
   }
   const current = users[userIndex];
+  const currentRbacRole = current.rbacRole || current.role;
   const updates = {};
+  let nextRbacRole = currentRbacRole;
+  let roleChanged = false;
   if ("name" in req.body) {
     updates.name = String(req.body.name || "").trim();
   }
@@ -594,12 +652,18 @@ app.patch("/api/admin/users/:id", requireAuth, requireAdmin, (req, res) => {
   if ("active" in req.body) {
     updates.active = Boolean(req.body.active);
   }
-  if ("permissions" in req.body) {
-    updates.permissions = mergePermissions(
-      current.rbacRole || current.role,
-      current.permissions,
-      req.body.permissions
-    );
+  if ("rbacRole" in req.body || "role" in req.body) {
+    const incomingRole = "rbacRole" in req.body ? req.body.rbacRole : req.body.role;
+    nextRbacRole = normalizeRbacRole(incomingRole);
+    updates.rbacRole = nextRbacRole;
+    updates.role = normalizeRole(req.body.role || current.role, nextRbacRole);
+    roleChanged = true;
+  }
+  if ("permissions" in req.body || roleChanged) {
+    updates.permissions = mergePermissions(nextRbacRole, current.permissions, req.body.permissions);
+  }
+  if (roleChanged) {
+    updates.sections = buildSections(nextRbacRole, current.sections);
   }
 
   if (!Object.keys(updates).length) {

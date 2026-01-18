@@ -179,6 +179,25 @@ const solicitacoesVazio = document.getElementById("solicitacoesVazio");
 const listaUsuarios = document.getElementById("listaUsuarios");
 const usuariosVazio = document.getElementById("usuariosVazio");
 const inviteRole = document.getElementById("inviteRole");
+const userFiltroNome = document.getElementById("userFiltroNome");
+const userFiltroCargo = document.getElementById("userFiltroCargo");
+const userFiltroProjeto = document.getElementById("userFiltroProjeto");
+const userFiltroStatus = document.getElementById("userFiltroStatus");
+const btnLimparFiltroUsuarios = document.getElementById("btnLimparFiltroUsuarios");
+const userDrawer = document.getElementById("userDrawer");
+const userDrawerForm = document.getElementById("userDrawerForm");
+const drawerUserId = document.getElementById("drawerUserId");
+const drawerNome = document.getElementById("drawerNome");
+const drawerCargo = document.getElementById("drawerCargo");
+const drawerRole = document.getElementById("drawerRole");
+const drawerProjeto = document.getElementById("drawerProjeto");
+const drawerActive = document.getElementById("drawerActive");
+const drawerPermissions = document.getElementById("drawerPermissions");
+const drawerMessage = document.getElementById("drawerMessage");
+const drawerSubtitle = document.getElementById("drawerSubtitle");
+const btnFecharUserDrawer = document.getElementById("btnFecharUserDrawer");
+const btnCancelarUserDrawer = document.getElementById("btnCancelarUserDrawer");
+const btnSalvarUserDrawer = document.getElementById("btnSalvarUserDrawer");
 const btnGerarConvite = document.getElementById("btnGerarConvite");
 const inviteResultado = document.getElementById("inviteResultado");
 const modalInicioExecucao = document.getElementById("modalInicioExecucao");
@@ -374,6 +393,9 @@ const PERMISSIONS = {
   complete: "Executar",
 };
 
+const ADMIN_USERS_READ = "admin:users:read";
+const ADMIN_USERS_WRITE = "admin:users:write";
+
 const RBAC_ROLE_LABELS = {
   pcm: "PCM",
   diretor_om: "DIRETOR O&M",
@@ -392,6 +414,8 @@ const LEGACY_ROLE_LABELS = {
   leitura: "LEITURA",
 };
 
+const FULL_ACCESS_RBAC = new Set(["pcm", "diretor_om", "gerente_contrato"]);
+
 function getRoleLabel(user) {
   if (!user) {
     return "EXECUTOR";
@@ -405,6 +429,42 @@ function getRoleLabel(user) {
     return LEGACY_ROLE_LABELS[legacyRole];
   }
   return (user.role || user.rbacRole || "EXECUTOR").toString().toUpperCase();
+}
+
+function normalizeSearchValue(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function isFullAccessUser(user) {
+  if (!user) {
+    return false;
+  }
+  const rbacRole = String(user.rbacRole || "").trim().toLowerCase();
+  return user.role === "admin" || FULL_ACCESS_RBAC.has(rbacRole);
+}
+
+function canAdminUsersRead() {
+  if (!currentUser) {
+    return false;
+  }
+  if (isFullAccessUser(currentUser)) {
+    return true;
+  }
+  return Boolean(currentUser.permissions && currentUser.permissions[ADMIN_USERS_READ]);
+}
+
+function canAdminUsersWrite() {
+  if (!currentUser) {
+    return false;
+  }
+  if (isFullAccessUser(currentUser)) {
+    return true;
+  }
+  return Boolean(currentUser.permissions && currentUser.permissions[ADMIN_USERS_WRITE]);
 }
 
 const ACTION_LABELS = {
@@ -444,6 +504,7 @@ let users = [];
 let requests = [];
 let auditLog = [];
 let currentUser = null;
+let adminPermissionCatalog = [];
 let reminderDays = DEFAULT_REMINDER_DAYS;
 let loadingTimeout = null;
 let historicoAtualId = null;
@@ -1389,12 +1450,26 @@ async function carregarUsuariosServidor() {
     return;
   }
   try {
-    const data = await apiRequest("/api/auth/users");
+    const data = canAdminUsersRead() ? await apiAdminUsers() : await apiRequest("/api/auth/users");
     users = Array.isArray(data.users) ? data.users : [];
   } catch (error) {
     users = currentUser ? [currentUser] : [];
   }
+  await carregarPermissoesAdmin();
   renderUsuarios();
+}
+
+async function carregarPermissoesAdmin() {
+  if (!canAdminUsersRead()) {
+    adminPermissionCatalog = [];
+    return;
+  }
+  try {
+    const data = await apiAdminPermissions();
+    adminPermissionCatalog = Array.isArray(data.permissions) ? data.permissions : [];
+  } catch (error) {
+    adminPermissionCatalog = [];
+  }
 }
 
 function getUserById(id) {
@@ -7170,7 +7245,7 @@ function renderUsuarios() {
     return;
   }
   listaUsuarios.innerHTML = "";
-  if (!currentUser || currentUser.role !== "admin") {
+  if (!currentUser || !canAdminUsersRead()) {
     usuariosVazio.hidden = false;
     usuariosVazio.textContent = "Acesso restrito.";
     return;
@@ -7180,17 +7255,65 @@ function renderUsuarios() {
     usuariosVazio.textContent = "Nenhuma conta cadastrada.";
     return;
   }
+
+  const filtroNome = normalizeSearchValue(userFiltroNome ? userFiltroNome.value : "");
+  const filtroCargo = normalizeSearchValue(userFiltroCargo ? userFiltroCargo.value : "");
+  const filtroProjeto = normalizeSearchValue(userFiltroProjeto ? userFiltroProjeto.value : "");
+  const filtroStatus = userFiltroStatus ? userFiltroStatus.value : "";
+
+  const filtrados = users.filter((user) => {
+    const nome = normalizeSearchValue(user.name || "");
+    const cargo = normalizeSearchValue(user.cargo || "");
+    const projeto = normalizeSearchValue(user.projeto || user.localizacao || "");
+    const matricula = normalizeSearchValue(user.matricula || user.username || "");
+    const ativo = user.active !== false;
+
+    if (filtroNome && !nome.includes(filtroNome) && !matricula.includes(filtroNome)) {
+      return false;
+    }
+    if (filtroCargo && !cargo.includes(filtroCargo)) {
+      return false;
+    }
+    if (filtroProjeto && !projeto.includes(filtroProjeto)) {
+      return false;
+    }
+    if (filtroStatus === "active" && !ativo) {
+      return false;
+    }
+    if (filtroStatus === "inactive" && ativo) {
+      return false;
+    }
+    return true;
+  });
+
+  if (filtrados.length === 0) {
+    usuariosVazio.hidden = false;
+    usuariosVazio.textContent = "Nenhum usuario encontrado.";
+    return;
+  }
+
   usuariosVazio.hidden = true;
-  users.forEach((user) => {
+  filtrados.forEach((user) => {
     const item = document.createElement("div");
-    item.className = "account-item";
+    item.className = "account-item is-clickable";
+    item.dataset.userId = user.id;
+    item.tabIndex = 0;
+    const header = document.createElement("div");
+    header.className = "account-header";
     const titulo = document.createElement("strong");
     titulo.textContent = user.name || user.matricula || "Usuario";
+    const status = document.createElement("span");
+    status.className = `status-pill ${user.active === false ? "status-pill--inactive" : "status-pill--active"}`;
+    status.textContent = user.active === false ? "Inativo" : "Ativo";
+    header.append(titulo, status);
     const meta = document.createElement("p");
     meta.className = "account-meta";
     const roleLabel = getRoleLabel(user);
     meta.textContent = `Matricula: ${user.matricula || "-"} | Perfil: ${roleLabel}`;
-    item.append(titulo, meta);
+    const detalhes = document.createElement("p");
+    detalhes.className = "account-meta";
+    detalhes.textContent = `Cargo: ${user.cargo || "-"} | Projeto: ${user.projeto || user.localizacao || "-"}`;
+    item.append(header, meta, detalhes);
     listaUsuarios.append(item);
   });
 }
@@ -8026,6 +8149,189 @@ function registrarObservacao(index) {
   mostrarMensagemManutencao("Observacao registrada.");
 }
 
+function collectDrawerPermissions() {
+  const permissions = {};
+  if (!drawerPermissions) {
+    return permissions;
+  }
+  drawerPermissions.querySelectorAll("input[data-permission-key]").forEach((input) => {
+    permissions[input.dataset.permissionKey] = input.checked;
+  });
+  return permissions;
+}
+
+function renderDrawerPermissions(user, overridePermissions = null) {
+  if (!drawerPermissions) {
+    return;
+  }
+  drawerPermissions.innerHTML = "";
+  if (!adminPermissionCatalog.length) {
+    const aviso = document.createElement("p");
+    aviso.className = "hint";
+    aviso.textContent = "Catalogo de permissoes indisponivel.";
+    drawerPermissions.append(aviso);
+    return;
+  }
+  const roleValue = drawerRole ? drawerRole.value : "";
+  const resolvedRole =
+    roleValue ||
+    user.rbacRole ||
+    (user.role === "admin" ? "pcm" : user.role === "supervisor" ? "supervisor_om" : "");
+  const isFullAccess = FULL_ACCESS_RBAC.has(String(resolvedRole || "").toLowerCase());
+  const permissaoEdicao = canAdminUsersWrite();
+  const basePermissions = overridePermissions || user.permissions || {};
+
+  adminPermissionCatalog.forEach((grupo) => {
+    const bloco = document.createElement("div");
+    bloco.className = "perm-group";
+    const titulo = document.createElement("strong");
+    titulo.textContent = grupo.label || "Modulo";
+    const grid = document.createElement("div");
+    grid.className = "perm-grid";
+
+    (grupo.permissions || []).forEach((perm) => {
+      const item = document.createElement("label");
+      item.className = "perm-item";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.dataset.permissionKey = perm.key;
+      checkbox.checked = isFullAccess ? true : Boolean(basePermissions[perm.key]);
+      checkbox.disabled = !permissaoEdicao || isFullAccess;
+      const texto = document.createElement("span");
+      texto.textContent = perm.label || perm.key;
+      item.append(checkbox, texto);
+      grid.append(item);
+    });
+
+    bloco.append(titulo, grid);
+    drawerPermissions.append(bloco);
+  });
+}
+
+function mostrarMensagemDrawer(texto, erro = false) {
+  if (!drawerMessage) {
+    return;
+  }
+  drawerMessage.textContent = texto;
+  drawerMessage.classList.toggle("mensagem--erro", erro);
+}
+
+function abrirUserDrawer(userId) {
+  if (!canAdminUsersRead()) {
+    mostrarMensagemGerencial("Sem permissao para visualizar usuarios.", true);
+    return;
+  }
+  const user = users.find((item) => item.id === userId);
+  if (!user || !userDrawer) {
+    return;
+  }
+  const legacyToRbac = {
+    admin: "pcm",
+    supervisor: "supervisor_om",
+    executor: "tecnico_junior",
+    leitura: "leitura",
+  };
+  const rbacRole = user.rbacRole || legacyToRbac[user.role] || "tecnico_junior";
+
+  if (drawerUserId) {
+    drawerUserId.value = user.id;
+  }
+  if (drawerNome) {
+    drawerNome.value = user.name || "";
+  }
+  if (drawerCargo) {
+    const cargoAtual = user.cargo || "";
+    const temCargo = Array.from(drawerCargo.options).some((opt) => opt.value === cargoAtual);
+    if (cargoAtual && !temCargo) {
+      const extra = document.createElement("option");
+      extra.value = cargoAtual;
+      extra.textContent = cargoAtual;
+      drawerCargo.append(extra);
+    }
+    drawerCargo.value = cargoAtual;
+  }
+  if (drawerRole) {
+    drawerRole.value = rbacRole;
+  }
+  if (drawerProjeto) {
+    drawerProjeto.value = user.projeto || user.localizacao || "";
+  }
+  if (drawerActive) {
+    drawerActive.checked = user.active !== false;
+  }
+  const podeEditar = canAdminUsersWrite();
+  [drawerNome, drawerCargo, drawerRole, drawerProjeto, drawerActive].forEach((campo) => {
+    if (campo) {
+      campo.disabled = !podeEditar;
+    }
+  });
+  if (drawerSubtitle) {
+    const perfil = getRoleLabel(user);
+    drawerSubtitle.textContent = `Matricula: ${user.matricula || "-"} | Perfil: ${perfil}`;
+  }
+  if (btnSalvarUserDrawer) {
+    btnSalvarUserDrawer.disabled = !canAdminUsersWrite();
+  }
+  renderDrawerPermissions(user);
+  mostrarMensagemDrawer("");
+  userDrawer.hidden = false;
+}
+
+function fecharUserDrawer() {
+  if (!userDrawer) {
+    return;
+  }
+  userDrawer.hidden = true;
+  mostrarMensagemDrawer("");
+}
+
+async function salvarUserDrawer(event) {
+  event.preventDefault();
+  if (!canAdminUsersWrite()) {
+    mostrarMensagemDrawer("Sem permissao para salvar alteracoes.", true);
+    return;
+  }
+  const userId = drawerUserId ? drawerUserId.value : "";
+  const user = users.find((item) => item.id === userId);
+  if (!user) {
+    mostrarMensagemDrawer("Usuario nao encontrado.", true);
+    return;
+  }
+  const nome = drawerNome ? drawerNome.value.trim() : "";
+  if (!nome) {
+    mostrarMensagemDrawer("Informe o nome do colaborador.", true);
+    return;
+  }
+  const cargo = drawerCargo ? drawerCargo.value.trim() : "";
+  const rbacRole = drawerRole ? drawerRole.value : user.rbacRole;
+  const projeto = drawerProjeto ? drawerProjeto.value.trim() : "";
+  const active = drawerActive ? drawerActive.checked : true;
+  const permissions = collectDrawerPermissions();
+
+  try {
+    const data = await apiAdminUpdateUser(userId, {
+      name: nome,
+      cargo,
+      rbacRole,
+      projeto,
+      localizacao: projeto,
+      active,
+      permissions,
+    });
+    const atualizado = data.user || null;
+    if (atualizado) {
+      users = users.map((item) => (item.id === atualizado.id ? atualizado : item));
+      if (currentUser && currentUser.id === atualizado.id) {
+        currentUser = atualizado;
+        renderAuthUI();
+      }
+      renderUsuarios();
+    }
+    mostrarMensagemDrawer("Perfil atualizado.");
+  } catch (error) {
+    mostrarMensagemDrawer("Nao foi possivel salvar. Tente novamente.", true);
+  }
+}
 function executarManutencao(index) {
   if (!requirePermission("complete")) {
     return;
@@ -10008,6 +10314,21 @@ async function apiInvite(role) {
   });
 }
 
+async function apiAdminUsers() {
+  return apiRequest("/api/admin/users");
+}
+
+async function apiAdminPermissions() {
+  return apiRequest("/api/admin/permissions");
+}
+
+async function apiAdminUpdateUser(userId, payload) {
+  return apiRequest(`/api/admin/users/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
 function aprovarSolicitacao(item) {
   if (!isAdmin()) {
     return;
@@ -10831,38 +11152,79 @@ if (listaSolicitacoes) {
 }
 
 if (listaUsuarios) {
-  listaUsuarios.addEventListener("change", (event) => {
-    const permCheckbox = event.target.closest("input[data-permission]");
-    if (permCheckbox) {
-      atualizarPermissoesUsuario(permCheckbox);
+  listaUsuarios.addEventListener("click", (event) => {
+    const item = event.target.closest(".account-item");
+    if (!item || !item.dataset.userId) {
       return;
     }
-    const sectionCheckbox = event.target.closest("input[data-section]");
-    if (sectionCheckbox) {
-      atualizarSecoesUsuario(sectionCheckbox);
-      return;
-    }
-    const roleCheckbox = event.target.closest("input[data-role]");
-    if (roleCheckbox) {
-      atualizarRoleUsuario(roleCheckbox);
-    }
+    abrirUserDrawer(item.dataset.userId);
   });
 
-  listaUsuarios.addEventListener("click", (event) => {
-    const botao = event.target.closest("button[data-action]");
-    if (!botao) {
+  listaUsuarios.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") {
       return;
     }
-    const item = botao.closest("[data-user-id]");
-    if (!item) {
+    const item = event.target.closest(".account-item");
+    if (!item || !item.dataset.userId) {
       return;
     }
-    if (botao.dataset.action === "save-user") {
-      salvarDadosUsuario(item);
+    event.preventDefault();
+    abrirUserDrawer(item.dataset.userId);
+  });
+}
+
+if (userFiltroNome) {
+  userFiltroNome.addEventListener("input", renderUsuarios);
+}
+if (userFiltroCargo) {
+  userFiltroCargo.addEventListener("input", renderUsuarios);
+}
+if (userFiltroProjeto) {
+  userFiltroProjeto.addEventListener("input", renderUsuarios);
+}
+if (userFiltroStatus) {
+  userFiltroStatus.addEventListener("change", renderUsuarios);
+}
+if (btnLimparFiltroUsuarios) {
+  btnLimparFiltroUsuarios.addEventListener("click", () => {
+    if (userFiltroNome) {
+      userFiltroNome.value = "";
     }
-    if (botao.dataset.action === "delete-user") {
-      removerUsuario(item);
+    if (userFiltroCargo) {
+      userFiltroCargo.value = "";
     }
+    if (userFiltroProjeto) {
+      userFiltroProjeto.value = "";
+    }
+    if (userFiltroStatus) {
+      userFiltroStatus.value = "";
+    }
+    renderUsuarios();
+  });
+}
+
+if (userDrawer) {
+  userDrawer.addEventListener("click", (event) => {
+    const alvo = event.target.closest("[data-drawer-close]");
+    if (alvo) {
+      fecharUserDrawer();
+    }
+  });
+}
+if (btnFecharUserDrawer) {
+  btnFecharUserDrawer.addEventListener("click", fecharUserDrawer);
+}
+if (btnCancelarUserDrawer) {
+  btnCancelarUserDrawer.addEventListener("click", fecharUserDrawer);
+}
+if (userDrawerForm) {
+  userDrawerForm.addEventListener("submit", salvarUserDrawer);
+}
+if (drawerRole) {
+  drawerRole.addEventListener("change", () => {
+    const userId = drawerUserId ? drawerUserId.value : "";
+    const user = users.find((item) => item.id === userId);
+    renderDrawerPermissions(user || {}, collectDrawerPermissions());
   });
 }
 
