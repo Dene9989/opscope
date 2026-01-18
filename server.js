@@ -11,6 +11,7 @@ const SESSION_SECRET = process.env.SESSION_SECRET || "opscope_dev_secret_change"
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Admin@12345!";
 const MASTER_USERNAME = "denisson.alves";
 const MASTER_NAME = "Denisson Silva Alves";
+const MASTER_MATRICULA = "35269";
 const MASTER_ROLE = "pcm";
 const MASTER_CARGO = "T\u00e9cnico S\u00eanior de Manuten\u00e7\u00e3o";
 const MASTER_PASSWORD = process.env.MASTER_PASSWORD || ADMIN_PASSWORD;
@@ -275,15 +276,20 @@ function normalizeUserRecord(user) {
 
 function ensureMasterAccount() {
   const username = MASTER_USERNAME.toLowerCase();
+  const matricula = String(MASTER_MATRICULA || "").trim().toUpperCase();
   const rbacRole = normalizeRbacRole(MASTER_ROLE);
   const legacyRole = normalizeRole("admin", rbacRole);
-  const index = users.findIndex((user) => String(user.username || "").toLowerCase() === username);
+  let index = users.findIndex((user) => String(user.username || "").toLowerCase() === username);
+  if (index === -1 && matricula) {
+    index = users.findIndex((user) => String(user.matricula || "").toUpperCase() === matricula);
+  }
 
   if (index >= 0) {
     const current = users[index];
     const updated = normalizeUserRecord({
       ...current,
       username: MASTER_USERNAME,
+      matricula: matricula || current.matricula,
       name: MASTER_NAME,
       role: legacyRole,
       rbacRole,
