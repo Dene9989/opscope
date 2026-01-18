@@ -374,6 +374,39 @@ const PERMISSIONS = {
   complete: "Executar",
 };
 
+const RBAC_ROLE_LABELS = {
+  pcm: "PCM",
+  diretor_om: "DIRETOR O&M",
+  gerente_contrato: "GERENTE DE CONTRATO",
+  supervisor_om: "SUPERVISOR O&M",
+  tecnico_senior: "T\u00c9CNICO S\u00caNIOR",
+  tecnico_pleno: "T\u00c9CNICO PLENO",
+  tecnico_junior: "T\u00c9CNICO J\u00daNIOR",
+  leitura: "LEITURA",
+};
+
+const LEGACY_ROLE_LABELS = {
+  admin: "ADMIN",
+  supervisor: "SUPERVISOR",
+  executor: "EXECUTOR",
+  leitura: "LEITURA",
+};
+
+function getRoleLabel(user) {
+  if (!user) {
+    return "EXECUTOR";
+  }
+  const rbacRole = String(user.rbacRole || "").trim().toLowerCase();
+  if (rbacRole && RBAC_ROLE_LABELS[rbacRole]) {
+    return RBAC_ROLE_LABELS[rbacRole];
+  }
+  const legacyRole = String(user.role || "").trim().toLowerCase();
+  if (legacyRole && LEGACY_ROLE_LABELS[legacyRole]) {
+    return LEGACY_ROLE_LABELS[legacyRole];
+  }
+  return (user.role || user.rbacRole || "EXECUTOR").toString().toUpperCase();
+}
+
 const ACTION_LABELS = {
   create: "Criar",
   edit: "Editar",
@@ -7155,7 +7188,7 @@ function renderUsuarios() {
     titulo.textContent = user.name || user.matricula || "Usuario";
     const meta = document.createElement("p");
     meta.className = "account-meta";
-    const roleLabel = (user.role || "").toUpperCase() || "EXECUTOR";
+    const roleLabel = getRoleLabel(user);
     meta.textContent = `Matricula: ${user.matricula || "-"} | Perfil: ${roleLabel}`;
     item.append(titulo, meta);
     listaUsuarios.append(item);
@@ -7213,7 +7246,7 @@ function renderPerfil() {
     perfilProjeto.textContent = currentUser.projeto || "-";
   }
   if (perfilRole) {
-    perfilRole.textContent = isAdminUser ? "Administrador" : "Colaborador";
+    perfilRole.textContent = getRoleLabel(currentUser);
   }
   if (perfilAtribuicoes) {
     perfilAtribuicoes.textContent = currentUser.atribuicoes || "Nao informado.";
@@ -7246,7 +7279,7 @@ function renderAuthUI() {
   }
 
   if (autenticado) {
-    const roleLabel = currentUser.role ? currentUser.role.toUpperCase() : "COLABORADOR";
+    const roleLabel = getRoleLabel(currentUser);
     usuarioAtual.textContent = `${currentUser.name} (${roleLabel})`;
     usuarioAtual.hidden = false;
     btnTabLogin.hidden = true;
