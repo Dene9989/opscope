@@ -1918,6 +1918,48 @@ body.is-visitor .container.auth-only {
   color: var(--text);
 }
 
+.dashboard-home .data-table {
+  table-layout: fixed;
+  min-width: 520px;
+}
+
+.dashboard-home .data-table thead th {
+  padding: 0 10px 8px 10px;
+}
+
+.dashboard-home .data-table tbody td {
+  padding: 8px 10px;
+  vertical-align: middle;
+}
+
+.dashboard-home .data-table th:nth-child(1),
+.dashboard-home .data-table td:nth-child(1) {
+  width: 48%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-home .data-table th:nth-child(2),
+.dashboard-home .data-table td:nth-child(2) {
+  width: 20%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dashboard-home .data-table th:nth-child(3),
+.dashboard-home .data-table td:nth-child(3) {
+  width: 16%;
+  white-space: nowrap;
+}
+
+.dashboard-home .data-table th:nth-child(4),
+.dashboard-home .data-table td:nth-child(4) {
+  width: 16%;
+  text-align: right;
+  white-space: nowrap;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;

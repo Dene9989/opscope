@@ -227,13 +227,56 @@ function formatShortLabel(date) {
 
 function normalizeStatus(raw) {
   const value = String(raw || "").trim().toLowerCase();
-  if (["concluida", "concluido", "done", "completed"].includes(value)) {
+  if (!value) {
+    return "agendada";
+  }
+  const normalized = value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  if (["concluida", "concluido", "done", "completed", "finalizada", "finalizado"].includes(normalized)) {
     return "concluida";
   }
-  if (["cancelada", "cancelado", "canceled", "cancelled"].includes(value)) {
+  if (["cancelada", "cancelado", "canceled", "cancelled"].includes(normalized)) {
     return "cancelada";
   }
-  return "pendente";
+  if (
+    [
+      "em_execucao",
+      "execucao",
+      "executando",
+      "em_exec"
+    ].includes(normalized)
+  ) {
+    return "em_execucao";
+  }
+  if (["encerramento", "encerrando", "encerrado", "finalizacao"].includes(normalized)) {
+    return "encerramento";
+  }
+  if (["backlog", "atrasada", "atrasado", "overdue"].includes(normalized)) {
+    return "backlog";
+  }
+  if (
+    [
+      "liberada",
+      "liberado",
+      "liberacao",
+      "liberado_para_execucao",
+      "liberada_para_execucao",
+      "released"
+    ].includes(normalized)
+  ) {
+    return "liberada";
+  }
+  if (
+    ["agendada", "agendado", "programada", "programado", "pendente", "scheduled"].includes(
+      normalized
+    )
+  ) {
+    return "agendada";
+  }
+  return "agendada";
 }
 
 function getDueDate(item) {
@@ -741,7 +784,17 @@ function buildDashboardSummary(items, projectKey) {
       });
   }
 
-  const backlogTotal = pendingItems.length;
+  const backlogTotal = pendingItems.filter((item) => {
+    const status = normalizeStatus(item.status);
+    if (status === "backlog") {
+      return true;
+    }
+    if (status === "em_execucao" || status === "encerramento") {
+      return false;
+    }
+    const due = getDueDate(item);
+    return due && due < today;
+  }).length;
 
   const sevenDaysAgo = startOfDay(addDays(today, -6));
   const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -775,6 +828,10 @@ function buildDashboardSummary(items, projectKey) {
 
   const atrasos = pendingItems
     .map((item) => {
+      const status = normalizeStatus(item.status);
+      if (status === "em_execucao" || status === "encerramento") {
+        return null;
+      }
       const due = getDueDate(item);
       if (!due || due >= today) {
         return null;
@@ -787,6 +844,10 @@ function buildDashboardSummary(items, projectKey) {
     : 0;
 
   const proximasAtividades = pendingItems
+    .filter((item) => {
+      const status = normalizeStatus(item.status);
+      return status === "agendada" || status === "liberada";
+    })
     .map((item) => {
       const due = getDueDate(item);
       return due ? { item, due } : null;
