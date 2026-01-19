@@ -704,6 +704,8 @@ body.is-authenticated .app-shell.auth-only {
 
 .sidebar[data-state="collapsed"] {
   width: var(--sb-w-collapsed);
+  padding: 0;
+  overflow: hidden;
 }
 
 .sidebar__brand {
@@ -944,7 +946,8 @@ body.is-authenticated .app-shell.auth-only {
 }
 
 .sidebar[data-state="collapsed"] .sidebar__nav {
-  padding: 10px 8px;
+  width: 100%;
+  padding: 0;
   scrollbar-gutter: auto;
 }
 
@@ -963,15 +966,6 @@ body.is-authenticated .app-shell.auth-only {
   justify-content: center;
   padding: 6px 0;
   background: transparent;
-}
-
-.sidebar[data-state="collapsed"] .nav-group__header::after {
-  content: "";
-  display: block;
-  width: 36px;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 999px;
 }
 
 .sidebar[data-state="collapsed"] .nav-group__body {
@@ -1005,10 +999,15 @@ body.is-authenticated .app-shell.auth-only {
 
 .sidebar[data-state="collapsed"] .nav-item.is-active::before,
 .sidebar[data-state="collapsed"] .nav-item.active::before {
-  left: 6px;
-  top: 10px;
-  bottom: 10px;
-  border-radius: 999px;
+  content: none;
+  display: none;
+}
+
+.sidebar[data-state="collapsed"] .nav-group__header::before,
+.sidebar[data-state="collapsed"] .nav-group__header::after,
+.sidebar[data-state="collapsed"] .nav-item::after {
+  content: none;
+  display: none;
 }
 
 .sidebar[data-state="collapsed"] .sidebar__nav::-webkit-scrollbar {
