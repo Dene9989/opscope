@@ -100,6 +100,7 @@ const perfilPermissoes = document.getElementById("perfilPermissoes");
 const perfilSecoes = document.getElementById("perfilSecoes");
 
 const usuarioAtual = document.getElementById("userChip") || document.getElementById("usuarioAtual");
+const userAvatar = document.getElementById("userAvatar");
 const btnTabLogin = document.getElementById("btnTabLogin");
 const btnTabRegistro = document.getElementById("btnTabRegistro");
 const btnSair = document.getElementById("btnLogout") || document.getElementById("btnSair");
@@ -127,6 +128,11 @@ const reqSenhaErro = document.getElementById("reqSenhaErro");
 const reqSenhaConfirmErro = document.getElementById("reqSenhaConfirmErro");
 const reqCodigoErro = document.getElementById("reqCodigoErro");
 const mensagemConta = document.getElementById("mensagemConta");
+const perfilAvatarPreview = document.getElementById("perfilAvatarPreview");
+const perfilAvatarInput = document.getElementById("perfilAvatarInput");
+const btnAvatarChange = document.getElementById("btnAvatarChange");
+const btnAvatarSave = document.getElementById("btnAvatarSave");
+const perfilAvatarErro = document.getElementById("perfilAvatarErro");
 const configDiasLembrete = document.getElementById("configDiasLembrete");
 const btnSalvarConfig = document.getElementById("btnSalvarConfig");
 const btnExportarDados = document.getElementById("btnExportarDados");
@@ -621,6 +627,9 @@ function writeJson(key, value) {
 }
 
 const API_BASE = "";
+const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+const AVATAR_ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];
+let pendingAvatarDataUrl = "";
 
 async function apiRequest(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -640,6 +649,46 @@ async function apiRequest(path, options = {}) {
     throw error;
   }
   return data;
+}
+
+function getDisplayName(user) {
+  const raw = user && user.name ? String(user.name).trim() : "";
+  if (!raw) {
+    return user && user.username ? user.username : "-";
+  }
+  return raw.replace(/\s*\([^)]*\)\s*$/, "").trim() || raw;
+}
+
+function applyAvatarToElement(element, url) {
+  if (!element) {
+    return;
+  }
+  if (url) {
+    element.style.backgroundImage = `url("${url}")`;
+    element.classList.add("has-photo");
+    return;
+  }
+  element.style.backgroundImage = "";
+  element.classList.remove("has-photo");
+}
+
+function getAvatarUrl(user) {
+  if (!user || !user.avatarUrl) {
+    return "";
+  }
+  if (user.avatarUpdatedAt) {
+    const stamp = new Date(user.avatarUpdatedAt).getTime();
+    return `${user.avatarUrl}?v=${Number.isFinite(stamp) ? stamp : Date.now()}`;
+  }
+  return user.avatarUrl;
+}
+
+function setAvatarError(message) {
+  if (!perfilAvatarErro) {
+    return;
+  }
+  perfilAvatarErro.textContent = message || "";
+  perfilAvatarErro.hidden = !message;
 }
 
 function togglePassword(button) {
@@ -7663,6 +7712,13 @@ function renderPerfil() {
     if (perfilSecoes) {
       perfilSecoes.textContent = "-";
     }
+    pendingAvatarDataUrl = "";
+    if (btnAvatarSave) {
+      btnAvatarSave.disabled = true;
+    }
+    setAvatarError("");
+    applyAvatarToElement(perfilAvatarPreview, "");
+    applyAvatarToElement(userAvatar, "");
     return;
   }
 
@@ -7705,6 +7761,10 @@ function renderPerfil() {
         ? secoesAtivas.join(", ")
         : "Nenhuma.";
   }
+
+  const avatarUrl = pendingAvatarDataUrl || getAvatarUrl(currentUser);
+  applyAvatarToElement(perfilAvatarPreview, avatarUrl);
+  applyAvatarToElement(userAvatar, getAvatarUrl(currentUser));
 }
 
 function renderAuthUI() {
@@ -7728,8 +7788,7 @@ function renderAuthUI() {
   }
 
   if (autenticado) {
-    const roleLabel = getRoleLabel(currentUser);
-    usuarioAtual.textContent = `${currentUser.name} (${roleLabel})`;
+    usuarioAtual.textContent = getDisplayName(currentUser);
     usuarioAtual.hidden = false;
     btnTabLogin.hidden = true;
     btnTabRegistro.hidden = true;
@@ -7744,6 +7803,13 @@ function renderAuthUI() {
     btnTabLogin.hidden = false;
     btnTabRegistro.hidden = false;
     btnSair.hidden = true;
+    pendingAvatarDataUrl = "";
+    if (btnAvatarSave) {
+      btnAvatarSave.disabled = true;
+    }
+    setAvatarError("");
+    applyAvatarToElement(perfilAvatarPreview, "");
+    applyAvatarToElement(userAvatar, "");
   }
 
   const secConfig = getSectionConfig(currentUser);
@@ -7793,6 +7859,76 @@ function renderAuthUI() {
   if (configDiasLembrete && configDiasLembrete.value !== String(reminderDays)) {
     configDiasLembrete.value = reminderDays;
   }
+}
+
+function initAvatarUpload() {
+  if (!perfilAvatarInput || !btnAvatarChange || !btnAvatarSave) {
+    return;
+  }
+
+  btnAvatarChange.addEventListener("click", () => {
+    perfilAvatarInput.click();
+  });
+
+  perfilAvatarInput.addEventListener("change", () => {
+    pendingAvatarDataUrl = "";
+    btnAvatarSave.disabled = true;
+    setAvatarError("");
+
+    const file = perfilAvatarInput.files && perfilAvatarInput.files[0];
+    if (!file) {
+      applyAvatarToElement(perfilAvatarPreview, getAvatarUrl(currentUser));
+      return;
+    }
+    if (!AVATAR_ALLOWED_TYPES.includes(file.type)) {
+      setAvatarError("Formato de imagem nao suportado.");
+      return;
+    }
+    if (file.size > AVATAR_MAX_BYTES) {
+      setAvatarError("Imagem acima de 2 MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      pendingAvatarDataUrl = String(reader.result || "");
+      if (!pendingAvatarDataUrl) {
+        setAvatarError("Falha ao ler a imagem.");
+        return;
+      }
+      applyAvatarToElement(perfilAvatarPreview, pendingAvatarDataUrl);
+      btnAvatarSave.disabled = false;
+    };
+    reader.onerror = () => {
+      setAvatarError("Falha ao ler a imagem.");
+    };
+    reader.readAsDataURL(file);
+  });
+
+  btnAvatarSave.addEventListener("click", async () => {
+    if (!pendingAvatarDataUrl) {
+      return;
+    }
+    btnAvatarSave.disabled = true;
+    setAvatarError("");
+    try {
+      const data = await apiUploadAvatar(pendingAvatarDataUrl);
+      if (data && data.user) {
+        currentUser = data.user;
+      } else if (currentUser && data && data.avatarUrl) {
+        currentUser.avatarUrl = data.avatarUrl;
+        currentUser.avatarUpdatedAt = data.avatarUpdatedAt || new Date().toISOString();
+      }
+      pendingAvatarDataUrl = "";
+      perfilAvatarInput.value = "";
+      renderAuthUI();
+      renderPerfil();
+    } catch (error) {
+      const message = error && error.message ? error.message : "Falha ao salvar foto.";
+      setAvatarError(message);
+      btnAvatarSave.disabled = false;
+    }
+  });
 }
 
 function exportarDados() {
@@ -10766,6 +10902,13 @@ async function apiAdminUpdateUser(userId, payload) {
   });
 }
 
+async function apiUploadAvatar(dataUrl) {
+  return apiRequest("/api/profile/avatar", {
+    method: "POST",
+    body: JSON.stringify({ dataUrl }),
+  });
+}
+
 async function apiMaintenanceSync(items) {
   return apiRequest("/api/maintenance/sync", {
     method: "POST",
@@ -11806,6 +11949,7 @@ renderSubestacoes();
 renderTipoOptions();
 limparTemplateForm();
 initSidebarToggle();
+initAvatarUpload();
 rdoSnapshots = carregarRdoSnapshots();
 montarRdoUI();
 carregarSessaoServidor();

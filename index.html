@@ -879,7 +879,7 @@
               </div>
             </div>
             <div class="user-avatar" id="userAvatar" aria-hidden="true"></div>
-            <div class="user-chip" id="userChip">Denisson Silva Alves (PCM)</div>
+            <div class="user-chip" id="userChip">Denisson Silva Alves</div>
             <button id="btnLogout" class="btn-ghost" type="button">Sair</button>
           </div>
         </header>
@@ -1454,6 +1454,28 @@
     <section class="panel" id="perfil" data-panel="perfil">
       <section class="card">
         <h2>Meu perfil</h2>
+        <div class="profile-avatar">
+          <div class="profile-avatar__preview" id="perfilAvatarPreview" aria-hidden="true"></div>
+          <div class="profile-avatar__info">
+            <span class="account-label">Foto de perfil</span>
+            <p class="profile-text">PNG, JPG ou WebP at&eacute; 2 MB.</p>
+            <input
+              id="perfilAvatarInput"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              hidden
+            />
+            <div class="profile-avatar__actions">
+              <button id="btnAvatarChange" class="btn btn--ghost btn--small" type="button">
+                Alterar foto
+              </button>
+              <button id="btnAvatarSave" class="btn btn--primary btn--small" type="button" disabled>
+                Salvar foto
+              </button>
+            </div>
+            <p id="perfilAvatarErro" class="field-error" hidden></p>
+          </div>
+        </div>
         <div class="profile-grid">
           <div class="profile-item">
             <span class="account-label">Nome</span>

@@ -630,6 +630,18 @@ h1 {
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.22);
 }
 
+.topbar #btnLogout {
+  border-color: rgba(232, 68, 68, 0.6);
+  color: #f2b8b5;
+}
+
+.topbar #btnLogout:hover {
+  background: rgba(232, 68, 68, 0.9);
+  border-color: rgba(232, 68, 68, 0.9);
+  color: #ffffff;
+  box-shadow: none;
+}
+
 .user-chip {
   display: inline-flex;
   align-items: center;
@@ -663,6 +675,16 @@ h1 {
   position: relative;
   overflow: hidden;
   flex-shrink: 0;
+}
+
+.user-avatar.has-photo {
+  background-size: cover;
+  background-position: center;
+}
+
+.user-avatar.has-photo::before,
+.user-avatar.has-photo::after {
+  content: none;
 }
 
 .user-avatar::before {
@@ -1412,6 +1434,68 @@ body.is-visitor .notify.auth-only {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
+}
+
+.profile-avatar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.profile-avatar__preview {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #ffd9b0 0%, #c8923d 38%, #1b2a38 100%);
+  border: 1px solid rgba(19, 32, 42, 0.2);
+  box-shadow: inset 0 0 0 2px rgba(11, 30, 45, 0.45), 0 10px 18px rgba(6, 12, 20, 0.25);
+  position: relative;
+  overflow: hidden;
+}
+
+.profile-avatar__preview::before {
+  content: "";
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(11, 30, 45, 0.6);
+  top: 14px;
+  left: 24px;
+}
+
+.profile-avatar__preview::after {
+  content: "";
+  position: absolute;
+  width: 36px;
+  height: 20px;
+  border-radius: 16px 16px 0 0;
+  background: rgba(11, 30, 45, 0.6);
+  bottom: 10px;
+  left: 18px;
+}
+
+.profile-avatar__preview.has-photo {
+  background-size: cover;
+  background-position: center;
+}
+
+.profile-avatar__preview.has-photo::before,
+.profile-avatar__preview.has-photo::after {
+  content: none;
+}
+
+.profile-avatar__info {
+  display: grid;
+  gap: 8px;
+}
+
+.profile-avatar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .profile-item {

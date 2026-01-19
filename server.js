@@ -22,9 +22,13 @@ const USERS_FILE = path.join(DATA_DIR, "users.json");
 const INVITES_FILE = path.join(DATA_DIR, "invites.json");
 const AUDIT_FILE = path.join(DATA_DIR, "audit.json");
 const MAINTENANCE_FILE = path.join(DATA_DIR, "maintenance.json");
+const UPLOADS_DIR = path.join(__dirname, "uploads");
+const AVATARS_DIR = path.join(UPLOADS_DIR, "avatars");
 const DASHBOARD_CACHE_TTL_MS = 60 * 1000;
 const DASHBOARD_CACHE = new Map();
 const IS_DEV = process.env.NODE_ENV !== "production";
+const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+const ALLOWED_AVATAR_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 const PERMISSION_KEYS = [
   "create",
@@ -119,6 +123,15 @@ const USER_LOCK_MS = 15 * 60 * 1000;
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+}
+
+function ensureUploadDirs() {
+  if (!fs.existsSync(UPLOADS_DIR)) {
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  }
+  if (!fs.existsSync(AVATARS_DIR)) {
+    fs.mkdirSync(AVATARS_DIR, { recursive: true });
   }
 }
 
@@ -491,6 +504,8 @@ function sanitizeUser(user) {
     active: user.active !== false,
     permissions: buildPermissions(rbacRole, user.permissions),
     sections: buildSections(rbacRole, user.sections),
+    avatarUrl: user.avatarUrl || "",
+    avatarUpdatedAt: user.avatarUpdatedAt || "",
     createdAt: user.createdAt,
   };
 }
@@ -971,6 +986,7 @@ function getDashboardSummaryForProject(projectKey) {
 }
 
 ensureDataDir();
+ensureUploadDirs();
 let users = readJson(USERS_FILE, []);
 let invites = readJson(INVITES_FILE, []);
 let auditLog = readJson(AUDIT_FILE, []);
@@ -979,7 +995,7 @@ writeJson(USERS_FILE, users);
 ensureMasterAccount();
 seedAdmin();
 
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({ limit: "5mb" }));
 app.use(
   session({
     name: "opscope.sid",
@@ -1054,6 +1070,52 @@ app.get("/api/auth/me", (req, res) => {
     return res.status(401).json({ message: "Nao autenticado." });
   }
   return res.json({ user: sanitizeUser(user) });
+});
+
+app.post("/api/profile/avatar", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  if (!user) {
+    return res.status(401).json({ message: "Nao autorizado." });
+  }
+  const dataUrl = String(req.body.dataUrl || "").trim();
+  if (!dataUrl) {
+    return res.status(400).json({ message: "Imagem nao enviada." });
+  }
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) {
+    return res.status(400).json({ message: "Formato de imagem invalido." });
+  }
+  const mime = String(match[1] || "").toLowerCase();
+  if (!ALLOWED_AVATAR_TYPES.has(mime)) {
+    return res.status(415).json({ message: "Formato de imagem nao suportado." });
+  }
+  const buffer = Buffer.from(match[2], "base64");
+  if (!buffer.length) {
+    return res.status(400).json({ message: "Imagem invalida." });
+  }
+  if (buffer.length > AVATAR_MAX_BYTES) {
+    return res.status(413).json({ message: "Imagem acima de 2 MB." });
+  }
+  ensureUploadDirs();
+  const ext = mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg";
+  const filename = `${user.id}-${Date.now()}.${ext}`;
+  const filePath = path.join(AVATARS_DIR, filename);
+  fs.writeFileSync(filePath, buffer);
+  const avatarUrl = `/uploads/avatars/${filename}`;
+  const avatarUpdatedAt = new Date().toISOString();
+  const index = users.findIndex((item) => item.id === user.id);
+  if (index === -1) {
+    return res.status(404).json({ message: "Usuario nao encontrado." });
+  }
+  const updated = normalizeUserRecord({
+    ...users[index],
+    avatarUrl,
+    avatarUpdatedAt,
+  });
+  users[index] = updated;
+  writeJson(USERS_FILE, users);
+  appendAudit("avatar_update", updated.id, { avatarUrl }, getClientIp(req));
+  return res.json({ ok: true, avatarUrl, avatarUpdatedAt, user: sanitizeUser(updated) });
 });
 
 app.get("/api/auth/users", requireAuth, (req, res) => {
