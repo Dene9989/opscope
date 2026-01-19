@@ -945,6 +945,7 @@ body.is-authenticated .app-shell.auth-only {
 
 .sidebar[data-state="collapsed"] .sidebar__nav {
   padding: 10px 8px;
+  scrollbar-gutter: auto;
 }
 
 .sidebar[data-state="collapsed"] .nav-group {
@@ -971,6 +972,10 @@ body.is-authenticated .app-shell.auth-only {
   height: 1px;
   background: rgba(255, 255, 255, 0.08);
   border-radius: 999px;
+}
+
+.sidebar[data-state="collapsed"] .nav-group__body {
+  padding: 6px 0 10px;
 }
 
 .sidebar[data-state="collapsed"] .nav-item {
@@ -1037,34 +1042,6 @@ body.is-authenticated .app-shell.auth-only {
 .sidebar[data-state="collapsed"] .nav-item[data-tooltip]:hover::after {
   opacity: 1;
   transform: translateY(-50%) translateX(0);
-}
-
-@media (min-width: 1024px) {
-  .header-toggle,
-  #btnMenu,
-  #topbarMenuToggle,
-  #btnSidebar {
-    display: none !important;
-  }
-
-  .sidebar__toggle,
-  #btnSidebarToggle {
-    display: inline-flex !important;
-  }
-}
-
-@media (max-width: 1023px) {
-  .header-toggle,
-  #btnMenu,
-  #topbarMenuToggle,
-  #btnSidebar {
-    display: inline-flex !important;
-  }
-
-  .sidebar__toggle,
-  #btnSidebarToggle {
-    display: none !important;
-  }
 }
 
 .app.is-collapsed .sidebar,

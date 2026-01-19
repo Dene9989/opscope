@@ -961,6 +961,10 @@ function setSidebarState(collapsed) {
   localStorage.setItem(SIDEBAR_STATE_KEY, collapsed ? "collapsed" : "expanded");
 }
 
+function hasSidebarToggle() {
+  return Boolean(btnToggleSidebar && btnToggleSidebar.length);
+}
+
 function applyCollapsedState(collapsed) {
   if (!appShell) {
     return;
@@ -971,6 +975,10 @@ function applyCollapsedState(collapsed) {
     resolved = stored === null ? false : stored;
   } else {
     setSidebarState(resolved);
+  }
+  if (!hasSidebarToggle()) {
+    resolved = false;
+    setSidebarState(false);
   }
   appShell.classList.toggle("is-collapsed", resolved);
   if (sidebar) {
