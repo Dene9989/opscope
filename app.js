@@ -527,6 +527,10 @@ let dashboardSummary = null;
 let dashboardError = "";
 let dashboardLastFetch = 0;
 let dashboardRequest = null;
+let maintenanceSyncTimer = null;
+let maintenanceSyncPromise = null;
+let maintenanceLastSync = 0;
+let maintenanceLastUserId = null;
 let rdoUI = {
   card: null,
   list: null,
@@ -1319,6 +1323,7 @@ function carregarManutencoes() {
 
 function salvarManutencoes(lista) {
   writeJson(STORAGE_KEY, lista);
+  scheduleMaintenanceSync(lista);
 }
 
 function carregarUsuarios() {
@@ -7564,6 +7569,12 @@ function renderAuthUI() {
     dashboardSummary = null;
     dashboardError = "";
     dashboardLastFetch = 0;
+    maintenanceLastSync = 0;
+    maintenanceLastUserId = null;
+    if (maintenanceSyncTimer) {
+      clearTimeout(maintenanceSyncTimer);
+      maintenanceSyncTimer = null;
+    }
   }
 
   if (autenticado) {
@@ -7574,6 +7585,9 @@ function renderAuthUI() {
     btnTabRegistro.hidden = true;
     btnSair.hidden = false;
     esconderAuthPanels();
+    if (maintenanceLastUserId !== currentUser.id) {
+      scheduleMaintenanceSync(manutencoes, true);
+    }
   } else {
     usuarioAtual.textContent = "Visitante";
     usuarioAtual.hidden = true;
@@ -10498,8 +10512,62 @@ async function apiAdminUpdateUser(userId, payload) {
   });
 }
 
+async function apiMaintenanceSync(items) {
+  return apiRequest("/api/maintenance/sync", {
+    method: "POST",
+    body: JSON.stringify({ items }),
+  });
+}
+
 async function apiDashboardSummary() {
   return apiRequest("/api/dashboard/summary");
+}
+
+async function syncMaintenanceNow(items, force) {
+  if (!currentUser) {
+    return;
+  }
+  if (maintenanceSyncPromise) {
+    return maintenanceSyncPromise;
+  }
+  if (!force && Date.now() - maintenanceLastSync < 10 * 1000) {
+    return;
+  }
+  maintenanceSyncPromise = apiMaintenanceSync(items);
+  try {
+    await maintenanceSyncPromise;
+    maintenanceLastSync = Date.now();
+    maintenanceLastUserId = currentUser.id;
+  } catch (error) {
+    // Falha silenciosa; dashboard trata fallback.
+  } finally {
+    maintenanceSyncPromise = null;
+  }
+}
+
+function scheduleMaintenanceSync(items, force) {
+  if (!currentUser) {
+    return;
+  }
+  if (force) {
+    if (maintenanceSyncTimer) {
+      clearTimeout(maintenanceSyncTimer);
+      maintenanceSyncTimer = null;
+    }
+    syncMaintenanceNow(items, true).then(() => {
+      loadDashboardSummary(true);
+    });
+    return;
+  }
+  if (maintenanceSyncTimer) {
+    return;
+  }
+  maintenanceSyncTimer = setTimeout(() => {
+    maintenanceSyncTimer = null;
+    syncMaintenanceNow(items, false).then(() => {
+      loadDashboardSummary(true);
+    });
+  }, 600);
 }
 
 async function loadDashboardSummary(force) {
@@ -10514,7 +10582,10 @@ async function loadDashboardSummary(force) {
     return;
   }
   dashboardError = "";
-  dashboardRequest = apiDashboardSummary();
+  dashboardRequest = (async () => {
+    await syncMaintenanceNow(manutencoes, force || !dashboardSummary);
+    return apiDashboardSummary();
+  })();
   try {
     const data = await dashboardRequest;
     dashboardSummary = data;

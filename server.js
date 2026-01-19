@@ -165,6 +165,25 @@ function parseDateOnly(value) {
   return Number.isNaN(parsed.getTime()) ? null : startOfDay(parsed);
 }
 
+function parseDateTime(value) {
+  if (!value) {
+    return null;
+  }
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  if (typeof value === "number") {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  const text = String(value).trim();
+  if (!text) {
+    return null;
+  }
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function startOfDay(date) {
   const copy = new Date(date);
   copy.setHours(0, 0, 0, 0);
@@ -222,7 +241,7 @@ function getDueDate(item) {
 }
 
 function getCompletedAt(item) {
-  return parseDateOnly(
+  return parseDateTime(
     item.dataConclusao || item.doneAt || item.concluidaEm || item.concluidoEm || item.completedAt
   );
 }
@@ -725,6 +744,7 @@ function buildDashboardSummary(items, projectKey) {
   const backlogTotal = pendingItems.length;
 
   const sevenDaysAgo = startOfDay(addDays(today, -6));
+  const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
   let concluidasTotal = 0;
   let concluidasNoPrazo = 0;
   let concluidasPeriodo = 0;
@@ -735,15 +755,16 @@ function buildDashboardSummary(items, projectKey) {
       completedAt = today;
       missingCompletionDates += 1;
     }
-    const inPeriodo = completedAt >= sevenDaysAgo && completedAt <= today;
+    const completedDay = startOfDay(completedAt);
+    const inPeriodo = completedDay >= sevenDaysAgo && completedDay <= today;
     if (inPeriodo) {
       concluidasTotal += 1;
       const due = getDueDate(item);
-      if (!due || completedAt <= due) {
+      if (!due || completedDay <= due) {
         concluidasNoPrazo += 1;
       }
     }
-    if (isSameDay(completedAt, today)) {
+    if (completedAt >= last24h && completedAt <= new Date()) {
       concluidasPeriodo += 1;
     }
   });
@@ -972,6 +993,30 @@ app.get("/api/admin/users", requireAuth, requirePermission("admin:users:read"), 
 
 app.get("/api/admin/permissions", requireAuth, requirePermission("admin:users:read"), (req, res) => {
   return res.json({ permissions: PERMISSION_CATALOG });
+});
+
+app.post("/api/maintenance/sync", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const projectKey = getUserProjectKey(user);
+  const incoming = Array.isArray(req.body.items) ? req.body.items : [];
+  const sanitized = incoming
+    .filter((item) => item && typeof item === "object")
+    .map((item) => ({
+      ...item,
+      projeto: projectKey,
+      projectKey,
+    }));
+  const existing = loadMaintenanceData();
+  const filtered = existing.filter((item) => {
+    const itemProject = normalizeProjectKey(
+      item.projeto || item.projectKey || item.project || item.unidade || "HV"
+    );
+    return itemProject !== projectKey;
+  });
+  const merged = [...filtered, ...sanitized];
+  writeJson(MAINTENANCE_FILE, merged);
+  DASHBOARD_CACHE.delete(projectKey);
+  return res.json({ ok: true, count: sanitized.length, project: projectKey });
 });
 
 app.patch("/api/admin/users/:id", requireAuth, requirePermission("admin:users:write"), (req, res) => {
