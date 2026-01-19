@@ -178,7 +178,7 @@
                   <input
                     id="reqMatricula"
                     type="email"
-                    placeholder="nome@empresa.com"
+                    placeholder="nome.sobrenome@engelmig.com.br"
                     autocomplete="email"
                   />
                 </div>
@@ -411,87 +411,443 @@
       </section>
     </div>
     <div class="app app-shell auth-only">
-      <aside class="sidebar" id="sidebar">
-        <div class="sidebar__header">
-          <div class="sidebar__brand">
-            <strong>OPSCOPE</strong>
-            <small>OPERA&Ccedil;&Atilde;O SOB MICROSC&Oacute;PIO</small>
+      <aside class="sidebar" id="sidebar" data-state="expanded">
+        <div class="sidebar__brand">
+          <div class="brand">
+            <div class="brand__logo">OPSCOPE</div>
+            <div class="brand__tagline">OPERA&Ccedil;&Atilde;O SOB MICROSC&Oacute;PIO</div>
           </div>
+          <button
+            class="sidebar__toggle"
+            id="btnSidebarToggle"
+            type="button"
+            aria-label="Recolher/expandir menu"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M4 7h16M4 12h16M4 17h10"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+              />
+            </svg>
+          </button>
         </div>
-        <nav class="sidebar__nav">
-          <div class="nav-block">
-            <button class="nav-item" type="button" data-tab="inicio">
-              <span class="nav-icon">IN</span>
-              <span class="nav-text">Inicio</span>
+        <nav class="sidebar__nav" aria-label="Navegacao principal">
+          <section class="nav-group" data-group="favoritos">
+            <button class="nav-group__header" type="button" aria-expanded="true">
+              <span class="nav-group__title">
+                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M12 3.5 14.9 9l6 0.9-4.4 4.3 1 6-5.5-2.9-5.5 2.9 1-6L3.1 9 9.1 9 12 3.5Z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span class="nav-group__text">Favoritos</span>
+              </span>
+              <span class="nav-group__chev">▾</span>
             </button>
-          </div>
-          <div class="nav-block">
-            <span class="nav-title">Planejamento</span>
-            <button class="nav-item" type="button" data-tab="programacao">
-              <span class="nav-icon">PR</span>
-              <span class="nav-text">Programacao</span>
+            <div class="nav-group__body">
+              <button class="nav-item is-active" type="button" data-tab="inicio" data-tooltip="Inicio">
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M3 11.5 12 4l9 7.5v7.5a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Inicio</span>
+                <span class="nav-item__meta"></span>
+              </button>
+            </div>
+          </section>
+          <section class="nav-group" data-group="planejamento">
+            <button class="nav-group__header" type="button" aria-expanded="true">
+              <span class="nav-group__title">
+                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M7 3v3M17 3v3M4 9h16M5 6h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span class="nav-group__text">Planejamento</span>
+              </span>
+              <span class="nav-group__chev">▾</span>
             </button>
-            <button class="nav-item" type="button" data-tab="nova">
-              <span class="nav-icon">NM</span>
-              <span class="nav-text">Nova manutencao</span>
+            <div class="nav-group__body">
+              <button class="nav-item" type="button" data-tab="programacao" data-tooltip="Programacao">
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M7 3v3M17 3v3M4 9h16M5 6h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Programacao</span>
+                <span class="nav-item__meta"></span>
+              </button>
+              <button class="nav-item" type="button" data-tab="nova" data-tooltip="Nova manutencao">
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M12 5v14M5 12h14"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Nova manutencao</span>
+                <span class="nav-item__meta"></span>
+              </button>
+              <button class="nav-item" type="button" data-tab="modelos" data-tooltip="Modelos & Recorrencias">
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M12 4 3 8l9 4 9-4-9-4Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M3 12l9 4 9-4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M3 16l9 4 9-4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Modelos & Recorrencias</span>
+                <span class="nav-item__meta"></span>
+              </button>
+            </div>
+          </section>
+          <section class="nav-group" data-group="execucao">
+            <button class="nav-group__header" type="button" aria-expanded="true">
+              <span class="nav-group__title">
+                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M9 5h6l1 2h3a1 1 0 0 1 1 1v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1h3l1-2Z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M9 12l2 2 4-4"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span class="nav-group__text">Execucao</span>
+              </span>
+              <span class="nav-group__chev">▾</span>
             </button>
-            <button class="nav-item" type="button" data-tab="modelos">
-              <span class="nav-icon">MR</span>
-              <span class="nav-text">Modelos & Recorrencias</span>
+            <div class="nav-group__body">
+              <button class="nav-item" type="button" data-tab="execucao" data-tooltip="Execucao do dia">
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M9 5h6l1 2h3a1 1 0 0 1 1 1v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1h3l1-2Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M9 12l2 2 4-4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Execucao do dia</span>
+                <span class="nav-item__meta"></span>
+              </button>
+              <button class="nav-item" type="button" data-tab="backlog" data-tooltip="Backlog">
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M6 7h12M6 12h12M6 17h8"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Backlog</span>
+                <span class="nav-item__meta">
+                  <span class="badge badge--neutral">0</span>
+                </span>
+              </button>
+              <button class="nav-item" type="button" data-tab="solicitacoes" data-tooltip="Solicitacoes pendentes" data-admin-only>
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M4 6h16v10a2 2 0 0 1-2 2H8l-4 4V6Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M7 10h10M7 14h6"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Solicitacoes pendentes</span>
+                <span class="nav-item__meta">
+                  <span class="badge badge--warn">0</span>
+                </span>
+              </button>
+            </div>
+          </section>
+          <section class="nav-group" data-group="analise">
+            <button class="nav-group__header" type="button" aria-expanded="true">
+              <span class="nav-group__title">
+                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M4 19h16M7 15v-5M12 15V7M17 15v-3"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                  />
+                </svg>
+                <span class="nav-group__text">Analise</span>
+              </span>
+              <span class="nav-group__chev">▾</span>
             </button>
-          </div>
-          <div class="nav-block">
-            <span class="nav-title">Execucao</span>
-            <button class="nav-item" type="button" data-tab="execucao">
-              <span class="nav-icon">EX</span>
-              <span class="nav-text">Execucao do dia</span>
+            <div class="nav-group__body">
+              <button class="nav-item" type="button" data-tab="desempenho" data-tooltip="Desempenho">
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M4 19h16M7 15v-5M12 15V7M17 15v-3"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Desempenho</span>
+                <span class="nav-item__meta"></span>
+              </button>
+              <button class="nav-item" type="button" data-tab="tendencias" data-tooltip="KPIs & Tendencias">
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M4 16l6-6 4 4 6-7"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M16 7h4v4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span class="nav-item__label">KPIs & Tendencias</span>
+                <span class="nav-item__meta"></span>
+              </button>
+              <button class="nav-item" type="button" data-tab="relatorios" data-tooltip="Relatorios">
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M7 4h7l4 4v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M14 4v4h4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M8 13h8M8 17h5"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Relatorios</span>
+                <span class="nav-item__meta"></span>
+              </button>
+            </div>
+          </section>
+          <section class="nav-group" data-group="governanca" data-admin-only>
+            <button class="nav-group__header" type="button" aria-expanded="true">
+              <span class="nav-group__title">
+                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M12 3 20 6v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3Z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span class="nav-group__text">Governanca</span>
+              </span>
+              <span class="nav-group__chev">▾</span>
             </button>
-            <button class="nav-item" type="button" data-tab="backlog">
-              <span class="nav-icon">BL</span>
-              <span class="nav-text">Backlog</span>
+            <div class="nav-group__body">
+              <button class="nav-item" type="button" data-tab="rastreabilidade" data-tooltip="Rastreabilidade" data-admin-only>
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M12 3 20 6v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Rastreabilidade operacional</span>
+                <span class="nav-item__meta"></span>
+              </button>
+              <button class="nav-item" type="button" data-tab="gerencial" data-tooltip="Painel gerencial" data-admin-only>
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M5 19a7 7 0 1 1 14 0"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                    />
+                    <path
+                      d="M12 12v5M12 12l4-4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <circle cx="12" cy="12" r="1.4" fill="currentColor" />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Painel gerencial</span>
+                <span class="nav-item__meta"></span>
+              </button>
+              <button class="nav-item" type="button" data-tab="contas" data-tooltip="Contas ativas" data-admin-only>
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M7 16a4 4 0 0 1 8 0v3H7v-3Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <circle cx="11" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.6" />
+                    <path
+                      d="M16 18a3 3 0 0 1 3-3"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                    />
+                    <circle cx="18.5" cy="9" r="2.5" fill="none" stroke="currentColor" stroke-width="1.6" />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Contas ativas</span>
+                <span class="nav-item__meta">
+                  <span class="badge badge--neutral">0</span>
+                </span>
+              </button>
+            </div>
+          </section>
+          <section class="nav-group" data-group="conta">
+            <button class="nav-group__header" type="button" aria-expanded="true">
+              <span class="nav-group__title">
+                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.4 0-8 2.2-8 4.8V21h16v-2.2c0-2.6-3.6-4.8-8-4.8Z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                  />
+                </svg>
+                <span class="nav-group__text">Conta</span>
+              </span>
+              <span class="nav-group__chev">▾</span>
             </button>
-            <button class="nav-item" type="button" data-tab="solicitacoes" data-admin-only>
-              <span class="nav-icon">SP</span>
-              <span class="nav-text">Solicitacoes pendentes</span>
-            </button>
-          </div>
-          <div class="nav-block">
-            <span class="nav-title">Analise</span>
-            <button class="nav-item" type="button" data-tab="desempenho">
-              <span class="nav-icon">DE</span>
-              <span class="nav-text">Desempenho</span>
-            </button>
-            <button class="nav-item" type="button" data-tab="tendencias">
-              <span class="nav-icon">KT</span>
-              <span class="nav-text">KPIs & Tendencias</span>
-            </button>
-            <button class="nav-item" type="button" data-tab="relatorios">
-              <span class="nav-icon">RE</span>
-              <span class="nav-text">Relatorios</span>
-            </button>
-          </div>
-          <div class="nav-block" data-admin-only>
-            <span class="nav-title">Governanca</span>
-            <button class="nav-item" type="button" data-tab="rastreabilidade" data-admin-only>
-              <span class="nav-icon">RA</span>
-              <span class="nav-text">Rastreabilidade operacional</span>
-            </button>
-            <button class="nav-item" type="button" data-tab="gerencial" data-admin-only>
-              <span class="nav-icon">PG</span>
-              <span class="nav-text">Painel gerencial</span>
-            </button>
-            <button class="nav-item" type="button" data-tab="contas" data-admin-only>
-              <span class="nav-icon">CA</span>
-              <span class="nav-text">Contas ativas</span>
-            </button>
-          </div>
-          <div class="nav-block">
-            <span class="nav-title">Conta</span>
-            <button class="nav-item" type="button" data-tab="perfil">
-              <span class="nav-icon">MP</span>
-              <span class="nav-text">Meu perfil</span>
-            </button>
-          </div>
+            <div class="nav-group__body">
+              <button class="nav-item" type="button" data-tab="perfil" data-tooltip="Meu perfil">
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.4 0-8 2.2-8 4.8V21h16v-2.2c0-2.6-3.6-4.8-8-4.8Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                    />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Meu perfil</span>
+                <span class="nav-item__meta"></span>
+              </button>
+            </div>
+          </section>
         </nav>
       </aside>
       <div class="backdrop" id="sidebarBackdrop" hidden></div>

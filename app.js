@@ -84,7 +84,9 @@ const lembretesCount = document.getElementById("bellDot") || document.getElement
 const painelLembretes = document.getElementById("painelLembretes");
 const loadingOverlay = document.getElementById("loadingOverlay");
 const sidebar = document.getElementById("sidebar");
-const btnToggleSidebar = document.getElementById("btnSidebar") || document.getElementById("btnToggleSidebar");
+const btnToggleSidebar = document.querySelectorAll(
+  "#btnSidebar, #btnSidebarToggle, #btnToggleSidebar"
+);
 const appShell = document.querySelector(".app") || document.querySelector(".app-shell");
 const sidebarBackdrop = document.getElementById("sidebarBackdrop");
 const dashboardHome = document.getElementById("dashboardHome");
@@ -339,6 +341,7 @@ const LOADING_DELAY_MS = 450;
 const HISTORY_PAGE_SIZE = 12;
 const REMINDER_KEY = "denemanu.reminderDays";
 const SIDEBAR_KEY = "opscope.sidebarCollapsed";
+const SIDEBAR_STATE_KEY = "sb_state";
 const STORAGE_KEY = "denemanu.manutencoes";
 const TEMPLATE_KEY = "denemanu.templates";
 const USER_KEY = "denemanu.users";
@@ -936,6 +939,13 @@ function abrirPainelComCarregamento(tab, scrollTarget = null) {
 }
 
 function readSidebarState() {
+  const state = localStorage.getItem(SIDEBAR_STATE_KEY);
+  if (state === "collapsed") {
+    return true;
+  }
+  if (state === "expanded") {
+    return false;
+  }
   const stored = localStorage.getItem(SIDEBAR_KEY);
   if (stored === "1") {
     return true;
@@ -948,6 +958,7 @@ function readSidebarState() {
 
 function setSidebarState(collapsed) {
   localStorage.setItem(SIDEBAR_KEY, collapsed ? "1" : "0");
+  localStorage.setItem(SIDEBAR_STATE_KEY, collapsed ? "collapsed" : "expanded");
 }
 
 function applyCollapsedState(collapsed) {
@@ -962,6 +973,33 @@ function applyCollapsedState(collapsed) {
     setSidebarState(resolved);
   }
   appShell.classList.toggle("is-collapsed", resolved);
+  if (sidebar) {
+    sidebar.dataset.state = resolved ? "collapsed" : "expanded";
+  }
+}
+
+function initSidebarAccordions() {
+  const groups = document.querySelectorAll(".nav-group");
+  groups.forEach((group) => {
+    const header = group.querySelector(".nav-group__header");
+    if (!header) {
+      return;
+    }
+    const groupName = group.dataset.group;
+    const storageKey = groupName ? `sb_group_${groupName}` : "";
+    const stored = storageKey ? localStorage.getItem(storageKey) : null;
+    const collapsed = stored === "collapsed";
+    group.dataset.collapsed = collapsed ? "true" : "false";
+    header.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    header.addEventListener("click", () => {
+      const isCollapsed = group.dataset.collapsed !== "true";
+      group.dataset.collapsed = isCollapsed ? "true" : "false";
+      header.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
+      if (storageKey) {
+        localStorage.setItem(storageKey, isCollapsed ? "collapsed" : "expanded");
+      }
+    });
+  });
 }
 
 function isMobileView() {
@@ -1009,8 +1047,8 @@ function initSidebarToggle() {
     return;
   }
   applyCollapsedState();
-  if (btnToggleSidebar) {
-    btnToggleSidebar.addEventListener("click", toggleSidebar);
+  if (btnToggleSidebar && btnToggleSidebar.length) {
+    btnToggleSidebar.forEach((btn) => btn.addEventListener("click", toggleSidebar));
   }
   if (sidebarBackdrop) {
     sidebarBackdrop.addEventListener("click", closeSidebarDrawer);
@@ -1029,6 +1067,7 @@ function initSidebarToggle() {
       closeSidebarDrawer();
     }
   });
+  initSidebarAccordions();
 }
 
 function carregarConfiguracoes() {
