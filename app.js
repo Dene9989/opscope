@@ -377,16 +377,7 @@ const DEFAULT_SECTIONS = Object.keys(SECTION_LABELS).reduce((acc, key) => {
   acc[key] = true;
   return acc;
 }, {});
-
-const dashboardData = {
-  kpis: { venceHoje: 0, atrasadas: 0, criticas: 0, risco: "Baixo" },
-  alerts: [],
-  health: { pontualidade: 0, backlog: 0, concluidas: 0, atrasoMedio: "0d" },
-  efficiency: { series: [10, 12, 9, 14, 13, 16, 15] },
-  nextActivities: [
-    { tarefa: "Inspecao TSA", resp: "Equipe HV", prazo: "Hoje", status: "Em dia" },
-  ],
-};
+const DASHBOARD_CLIENT_TTL_MS = 30 * 1000;
 
 const STATUS_LABELS = {
   agendada: "Agendada",
@@ -532,6 +523,10 @@ let kpiSnapshot = null;
 let rdoSnapshots = [];
 let rdoPreviewSnapshot = null;
 let rdoSelection = new Set();
+let dashboardSummary = null;
+let dashboardError = "";
+let dashboardLastFetch = 0;
+let dashboardRequest = null;
 let rdoUI = {
   card: null,
   list: null,
@@ -2066,6 +2061,7 @@ function getDateInfo(item, hoje) {
 }
 
 function renderHome() {
+  loadDashboardSummary();
   renderDashboardHome();
 }
 
@@ -2073,29 +2069,45 @@ function renderDashboardHome() {
   if (!dashboardHome) {
     return;
   }
-  const { kpis, alerts, health, efficiency, nextActivities } = dashboardData;
+  if (!dashboardSummary) {
+    const mensagem = dashboardError || "Carregando indicadores...";
+    dashboardHome.innerHTML = `<p class="dashboard-message">${mensagem}</p>`;
+    return;
+  }
+  const { kpis, alertasOperacionais, saudeOperacional, graficoEficiencia, proximasAtividades } =
+    dashboardSummary;
 
   const renderKpiCard = (label, value) =>
     `<article class="kpi-card"><span>${label}</span><strong>${value}</strong></article>`;
 
-  const alertHtml = alerts.length
-    ? `<div class="alert-list">${alerts
-        .map(
-          (alerta) =>
-            `<div class="alert-item"><span>${escapeHtml(alerta)}</span><strong>Atencao</strong></div>`
-        )
+  const alertHtml = alertasOperacionais.length
+    ? `<div class="alert-list">${alertasOperacionais
+        .map((alerta) => {
+          const badgeClass = alerta.tipo === "critico" ? "badge--crit" : "badge--warn";
+          const badgeLabel = alerta.tipo === "critico" ? "Critico" : "Aviso";
+          return `<div class="alert-item">
+            <span>${escapeHtml(alerta.msg)}</span>
+            <span class="badge ${badgeClass}">${badgeLabel}</span>
+          </div>`;
+        })
         .join("")}</div>`
     : `<p class="empty-state">Nenhum alerta critico.</p>`;
 
-  const series = Array.isArray(efficiency.series) ? efficiency.series : [];
-  const chart = buildMiniChart(series);
+  const series = Array.isArray(graficoEficiencia.serie) ? graficoEficiencia.serie : [];
+  const labels = Array.isArray(graficoEficiencia.labels) ? graficoEficiencia.labels : [];
+  const chart = buildMiniChart(series, labels);
+  const labelRow = labels.length
+    ? `<div class="chart-labels">${labels
+        .map((label) => `<span>${escapeHtml(label)}</span>`)
+        .join("")}</div>`
+    : "";
 
-  const rows = nextActivities
+  const rows = proximasAtividades
     .map((item) => {
       const badge = getStatusBadge(item.status);
       return `<tr>
-        <td>${escapeHtml(item.tarefa)}</td>
-        <td>${escapeHtml(item.resp)}</td>
+        <td>${escapeHtml(item.atividade)}</td>
+        <td>${escapeHtml(item.responsavel)}</td>
         <td>${escapeHtml(item.prazo)}</td>
         <td>${badge}</td>
       </tr>`;
@@ -2107,7 +2119,7 @@ function renderDashboardHome() {
       ${renderKpiCard("VENCE HOJE", kpis.venceHoje)}
       ${renderKpiCard("ATRASADAS", kpis.atrasadas)}
       ${renderKpiCard("CRITICAS", kpis.criticas)}
-      ${renderKpiCard("RISCO IMEDIATO", kpis.risco)}
+      ${renderKpiCard("RISCO IMEDIATO", kpis.riscoImediato)}
     </div>
     <div class="dashboard-row">
       <article class="card panel-card">
@@ -2123,19 +2135,19 @@ function renderDashboardHome() {
         <div class="health-grid">
           <div class="health-item">
             <span>Pontualidade</span>
-            <strong>${health.pontualidade}%</strong>
+            <strong>${saudeOperacional.pontualidadePct}%</strong>
           </div>
           <div class="health-item">
             <span>Backlog</span>
-            <strong>${health.backlog}</strong>
+            <strong>${saudeOperacional.backlogTotal}</strong>
           </div>
           <div class="health-item">
             <span>Concluidas</span>
-            <strong>${health.concluidas}</strong>
+            <strong>${saudeOperacional.concluidasPeriodo}</strong>
           </div>
           <div class="health-item">
             <span>Atraso medio</span>
-            <strong>${health.atrasoMedio}</strong>
+            <strong>${saudeOperacional.atrasoMedioDias}d</strong>
           </div>
         </div>
       </article>
@@ -2148,6 +2160,7 @@ function renderDashboardHome() {
         </div>
         <div class="mini-chart">
           ${chart}
+          ${labelRow}
         </div>
       </article>
       <article class="card panel-card">
@@ -2174,33 +2187,69 @@ function renderDashboardHome() {
   `;
 }
 
-function buildMiniChart(series) {
-  const safeSeries = series && series.length ? series : [0];
+function buildMiniChart(series, labels) {
+  const safeSeries = Array.isArray(series) && series.length ? series : [0];
   const width = 240;
   const height = 90;
   const pad = 10;
-  const min = Math.min(...safeSeries);
-  const max = Math.max(...safeSeries);
+  const values = safeSeries.filter((value) => typeof value === "number");
+  const min = values.length ? Math.min(...values) : 0;
+  const max = values.length ? Math.max(...values) : 100;
   const range = max - min || 1;
   const count = safeSeries.length;
-  const points = safeSeries
-    .map((value, index) => {
-      const x = count === 1 ? width / 2 : pad + (index / (count - 1)) * (width - pad * 2);
-      const y = height - pad - ((value - min) / range) * (height - pad * 2);
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
+  const points = safeSeries.map((value, index) => {
+    const x = count === 1 ? width / 2 : pad + (index / (count - 1)) * (width - pad * 2);
+    if (typeof value !== "number") {
+      return { x, y: null };
+    }
+    const y = height - pad - ((value - min) / range) * (height - pad * 2);
+    return { x, y };
+  });
+  const paths = [];
+  let current = [];
+  points.forEach((point) => {
+    if (point.y === null) {
+      if (current.length > 0) {
+        paths.push(current);
+        current = [];
+      }
+      return;
+    }
+    current.push(point);
+  });
+  if (current.length > 0) {
+    paths.push(current);
+  }
+  const pathMarkup = paths
+    .map((segment) => {
+      const d = segment
+        .map((point, idx) => `${idx === 0 ? "M" : "L"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`)
+        .join(" ");
+      return `<path class="chart-line" d="${d}" />`;
     })
-    .join(" ");
+    .join("");
+  const circles = points
+    .map((point) => {
+      if (point.y === null) {
+        return "";
+      }
+      return `<circle class="chart-point" cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="2.2" />`;
+    })
+    .join("");
   const gridLines = [0, 1, 2, 3]
     .map((step) => {
       const y = pad + (step / 3) * (height - pad * 2);
       return `<line x1="${pad}" y1="${y}" x2="${width - pad}" y2="${y}" />`;
     })
     .join("");
+  const labelText = labels && labels.length ? labels.join(", ") : "";
 
   return `
-    <svg viewBox="0 0 ${width} ${height}" aria-hidden="true" focusable="false">
+    <svg viewBox="0 0 ${width} ${height}" aria-hidden="true" focusable="false" role="img">
+      ${labelText ? `<title>${escapeHtml(labelText)}</title>` : ""}
       <g class="chart-grid">${gridLines}</g>
-      <polyline points="${points}" />
+      ${pathMarkup}
+      ${circles}
     </svg>
   `;
 }
@@ -2211,7 +2260,11 @@ function getStatusBadge(status) {
   let classe = "badge";
   if (normalizado.includes("crit")) {
     classe += " badge--crit";
-  } else if (normalizado.includes("atras") || normalizado.includes("risco")) {
+  } else if (
+    normalizado.includes("atras") ||
+    normalizado.includes("risco") ||
+    normalizado.includes("hoje")
+  ) {
     classe += " badge--warn";
   } else {
     classe += " badge--ok";
@@ -7508,6 +7561,9 @@ function renderAuthUI() {
   if (!autenticado) {
     fecharPainelLembretes();
     esconderCarregando();
+    dashboardSummary = null;
+    dashboardError = "";
+    dashboardLastFetch = 0;
   }
 
   if (autenticado) {
@@ -10440,6 +10496,36 @@ async function apiAdminUpdateUser(userId, payload) {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
+}
+
+async function apiDashboardSummary() {
+  return apiRequest("/api/dashboard/summary");
+}
+
+async function loadDashboardSummary(force) {
+  if (!currentUser) {
+    return;
+  }
+  const agora = Date.now();
+  if (!force && dashboardRequest) {
+    return;
+  }
+  if (!force && dashboardSummary && agora - dashboardLastFetch < DASHBOARD_CLIENT_TTL_MS) {
+    return;
+  }
+  dashboardError = "";
+  dashboardRequest = apiDashboardSummary();
+  try {
+    const data = await dashboardRequest;
+    dashboardSummary = data;
+    dashboardLastFetch = Date.now();
+  } catch (error) {
+    dashboardSummary = null;
+    dashboardError = "Falha ao carregar indicadores. Recarregue.";
+  } finally {
+    dashboardRequest = null;
+    renderDashboardHome();
+  }
 }
 
 function aprovarSolicitacao(item) {

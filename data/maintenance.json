@@ -1,0 +1,78 @@
+[
+  {
+    "id": "MNT-001",
+    "atividade": "Inspecao TSA",
+    "responsavel": "Equipe HV",
+    "prazo": "2026-01-19",
+    "status": "pendente",
+    "criticidade": "alta",
+    "projeto": "HV"
+  },
+  {
+    "id": "MNT-002",
+    "atividade": "Termografia",
+    "responsavel": "Equipe HV",
+    "prazo": "2026-01-18",
+    "status": "pendente",
+    "criticidade": "media",
+    "projeto": "HV"
+  },
+  {
+    "id": "MNT-003",
+    "atividade": "Limpeza patio",
+    "responsavel": "Equipe Site",
+    "prazo": "2026-01-19",
+    "status": "concluida",
+    "criticidade": "baixa",
+    "dataConclusao": "2026-01-19",
+    "projeto": "HV"
+  },
+  {
+    "id": "MNT-004",
+    "atividade": "Inspecao SPDA",
+    "responsavel": "Equipe HV",
+    "prazo": "2026-01-16",
+    "status": "concluida",
+    "criticidade": "alta",
+    "dataConclusao": "2026-01-17",
+    "safetyCritical": true,
+    "projeto": "HV"
+  },
+  {
+    "id": "MNT-005",
+    "atividade": "Teste protecoes",
+    "responsavel": "Equipe HV",
+    "prazo": "2026-01-20",
+    "status": "pendente",
+    "criticidade": "alta",
+    "safetyCritical": true,
+    "projeto": "HV"
+  },
+  {
+    "id": "MNT-006",
+    "atividade": "Revisao disjuntor",
+    "responsavel": "Equipe HV",
+    "prazo": "2026-01-21",
+    "status": "pendente",
+    "criticidade": "media",
+    "projeto": "HV"
+  },
+  {
+    "id": "MNT-007",
+    "atividade": "Troca sensor",
+    "responsavel": "Equipe Site",
+    "prazo": "2026-01-15",
+    "status": "cancelada",
+    "criticidade": "baixa",
+    "projeto": "HV"
+  },
+  {
+    "id": "MNT-008",
+    "atividade": "Analise oleo isolante",
+    "responsavel": "Equipe HV",
+    "prazo": "2026-01-14",
+    "status": "pendente",
+    "criticidade": "alta",
+    "projeto": "HV"
+  }
+]

@@ -21,6 +21,10 @@ const DATA_DIR = path.join(__dirname, "data");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const INVITES_FILE = path.join(DATA_DIR, "invites.json");
 const AUDIT_FILE = path.join(DATA_DIR, "audit.json");
+const MAINTENANCE_FILE = path.join(DATA_DIR, "maintenance.json");
+const DASHBOARD_CACHE_TTL_MS = 60 * 1000;
+const DASHBOARD_CACHE = new Map();
+const IS_DEV = process.env.NODE_ENV !== "production";
 
 const PERMISSION_KEYS = [
   "create",
@@ -126,6 +130,130 @@ function readJson(filePath, fallback) {
 
 function writeJson(filePath, data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+}
+
+function normalizeProjectKey(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function getUserProjectKey(user) {
+  const raw =
+    (user && (user.projeto || user.projectKey || user.localizacao || user.location)) || "HV";
+  return normalizeProjectKey(raw || "HV");
+}
+
+function parseDateOnly(value) {
+  if (!value) {
+    return null;
+  }
+  if (value instanceof Date) {
+    return startOfDay(value);
+  }
+  if (typeof value === "number") {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : startOfDay(date);
+  }
+  const text = String(value).trim();
+  if (!text) {
+    return null;
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    const date = new Date(`${text}T00:00:00`);
+    return Number.isNaN(date.getTime()) ? null : startOfDay(date);
+  }
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? null : startOfDay(parsed);
+}
+
+function startOfDay(date) {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function addDays(date, days) {
+  const copy = new Date(date);
+  copy.setDate(copy.getDate() + days);
+  return copy;
+}
+
+function diffInDays(from, to) {
+  const ms = to.getTime() - from.getTime();
+  return Math.floor(ms / (24 * 60 * 60 * 1000));
+}
+
+function isSameDay(a, b) {
+  if (!a || !b) {
+    return false;
+  }
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function formatDateISO(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatShortLabel(date) {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${day}/${month}`;
+}
+
+function normalizeStatus(raw) {
+  const value = String(raw || "").trim().toLowerCase();
+  if (["concluida", "concluido", "done", "completed"].includes(value)) {
+    return "concluida";
+  }
+  if (["cancelada", "cancelado", "canceled", "cancelled"].includes(value)) {
+    return "cancelada";
+  }
+  return "pendente";
+}
+
+function getDueDate(item) {
+  return parseDateOnly(item.prazo || item.data || item.dueDate || item.prazoManutencao);
+}
+
+function getCompletedAt(item) {
+  return parseDateOnly(
+    item.dataConclusao || item.doneAt || item.concluidaEm || item.concluidoEm || item.completedAt
+  );
+}
+
+function isCritical(item) {
+  const crit = String(item.criticidade || "").trim().toLowerCase();
+  return Boolean(item.safetyCritical || item.critico || crit === "alta");
+}
+
+function getItemTitle(item) {
+  return (
+    String(item.atividade || item.titulo || item.nome || item.task || "Atividade").trim() ||
+    "Atividade"
+  );
+}
+
+function getItemOwner(item) {
+  return (
+    String(
+      item.responsavel ||
+        item.executadaPor ||
+        item.owner ||
+        item.responsavelManutencao ||
+        "Equipe"
+    ).trim() || "Equipe"
+  );
+}
+
+function loadMaintenanceData() {
+  const data = readJson(MAINTENANCE_FILE, []);
+  return Array.isArray(data) ? data : [];
 }
 
 function sha256(input) {
@@ -521,6 +649,231 @@ function requireAdmin(req, res, next) {
   return next();
 }
 
+function buildDashboardSummary(items, projectKey) {
+  const today = startOfDay(new Date());
+  const pendingItems = [];
+  const completedItems = [];
+  let missingCompletionDates = 0;
+
+  items.forEach((item) => {
+    const status = normalizeStatus(item.status);
+    if (status === "cancelada") {
+      return;
+    }
+    if (status === "concluida") {
+      completedItems.push(item);
+      return;
+    }
+    pendingItems.push(item);
+  });
+
+  const venceHoje = pendingItems.filter((item) => {
+    const due = getDueDate(item);
+    return due && isSameDay(due, today);
+  }).length;
+
+  const atrasadas = pendingItems.filter((item) => {
+    const due = getDueDate(item);
+    return due && due < today;
+  }).length;
+
+  const criticas = pendingItems.filter((item) => isCritical(item)).length;
+
+  const score = atrasadas * 2 + criticas * 3 + venceHoje;
+  let riscoImediato = "Baixo";
+  if (score > 12) {
+    riscoImediato = "Cr\u00edtico";
+  } else if (score >= 7) {
+    riscoImediato = "Alto";
+  } else if (score >= 3) {
+    riscoImediato = "Moderado";
+  }
+
+  const alertasOperacionais = [];
+  pendingItems
+    .filter((item) => isCritical(item))
+    .slice(0, 3)
+    .forEach((item) => {
+      const due = getDueDate(item);
+      const dueLabel = due ? formatDateISO(due) : "--";
+      alertasOperacionais.push({
+        tipo: "critico",
+        msg: `${getItemTitle(item)} - prazo ${dueLabel}`,
+      });
+    });
+
+  if (alertasOperacionais.length < 3) {
+    pendingItems
+      .filter((item) => {
+        if (isCritical(item)) {
+          return false;
+        }
+        const due = getDueDate(item);
+        return due && (due < today || isSameDay(due, today));
+      })
+      .slice(0, 3 - alertasOperacionais.length)
+      .forEach((item) => {
+        const due = getDueDate(item);
+        const dueLabel = due ? formatDateISO(due) : "--";
+        alertasOperacionais.push({
+          tipo: "aviso",
+          msg: `${getItemTitle(item)} - prazo ${dueLabel}`,
+        });
+      });
+  }
+
+  const backlogTotal = pendingItems.length;
+
+  const sevenDaysAgo = startOfDay(addDays(today, -6));
+  let concluidasTotal = 0;
+  let concluidasNoPrazo = 0;
+  let concluidasPeriodo = 0;
+
+  completedItems.forEach((item) => {
+    let completedAt = getCompletedAt(item);
+    if (!completedAt) {
+      completedAt = today;
+      missingCompletionDates += 1;
+    }
+    const inPeriodo = completedAt >= sevenDaysAgo && completedAt <= today;
+    if (inPeriodo) {
+      concluidasTotal += 1;
+      const due = getDueDate(item);
+      if (!due || completedAt <= due) {
+        concluidasNoPrazo += 1;
+      }
+    }
+    if (isSameDay(completedAt, today)) {
+      concluidasPeriodo += 1;
+    }
+  });
+
+  const pontualidadePct = concluidasTotal
+    ? Math.round((concluidasNoPrazo / concluidasTotal) * 100)
+    : 0;
+
+  const atrasos = pendingItems
+    .map((item) => {
+      const due = getDueDate(item);
+      if (!due || due >= today) {
+        return null;
+      }
+      return diffInDays(due, today);
+    })
+    .filter((value) => typeof value === "number");
+  const atrasoMedioDias = atrasos.length
+    ? Number((atrasos.reduce((acc, value) => acc + value, 0) / atrasos.length).toFixed(1))
+    : 0;
+
+  const proximasAtividades = pendingItems
+    .map((item) => {
+      const due = getDueDate(item);
+      return due ? { item, due } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.due - b.due)
+    .slice(0, 5)
+    .map(({ item, due }) => {
+      let status = "Em dia";
+      if (isSameDay(due, today)) {
+        status = "Hoje";
+      } else if (due < today) {
+        status = "Atrasada";
+      }
+      return {
+        atividade: getItemTitle(item),
+        responsavel: getItemOwner(item),
+        prazo: formatDateISO(due),
+        status,
+      };
+    });
+
+  const labels = [];
+  const serie = [];
+  for (let i = 0; i < 7; i += 1) {
+    const day = startOfDay(addDays(today, -6 + i));
+    labels.push(formatShortLabel(day));
+    const programadas = items.filter((item) => {
+      const due = getDueDate(item);
+      if (!due || !isSameDay(due, day)) {
+        return false;
+      }
+      return normalizeStatus(item.status) !== "cancelada";
+    });
+    if (!programadas.length) {
+      serie.push(null);
+      continue;
+    }
+    const concluidasNoPrazoDia = programadas.filter((item) => {
+      if (normalizeStatus(item.status) !== "concluida") {
+        return false;
+      }
+      let completedAt = getCompletedAt(item);
+      if (!completedAt) {
+        completedAt = day;
+        missingCompletionDates += 1;
+      }
+      const due = getDueDate(item);
+      return !due || completedAt <= due;
+    });
+    const eficiencia = Math.round((concluidasNoPrazoDia.length / programadas.length) * 100);
+    serie.push(eficiencia);
+  }
+
+  if (IS_DEV && missingCompletionDates > 0) {
+    console.warn(
+      `[dashboard] ${missingCompletionDates} conclusoes sem data. Assumindo hoje para calculos.`
+    );
+  }
+
+  return {
+    kpis: {
+      venceHoje,
+      atrasadas,
+      criticas,
+      riscoImediato,
+    },
+    alertasOperacionais,
+    saudeOperacional: {
+      pontualidadePct,
+      backlogTotal,
+      concluidasPeriodo,
+      atrasoMedioDias,
+    },
+    proximasAtividades,
+    graficoEficiencia: {
+      labels,
+      serie,
+    },
+    meta: {
+      generatedAt: new Date().toISOString(),
+      project: projectKey,
+    },
+  };
+}
+
+function getDashboardSummaryForProject(projectKey) {
+  const key = normalizeProjectKey(projectKey || "HV") || "HV";
+  const now = Date.now();
+  const cached = DASHBOARD_CACHE.get(key);
+  if (cached && cached.expiresAt > now) {
+    return cached.payload;
+  }
+  const dataset = loadMaintenanceData();
+  const filtered = dataset.filter((item) => {
+    const itemProject = normalizeProjectKey(
+      item.projeto || item.unidade || item.projectKey || item.project || "HV"
+    );
+    return itemProject === key;
+  });
+  if (IS_DEV && filtered.length === 0) {
+    console.warn("[dashboard] Dataset vazio para project", key);
+  }
+  const payload = buildDashboardSummary(filtered, key);
+  DASHBOARD_CACHE.set(key, { expiresAt: now + DASHBOARD_CACHE_TTL_MS, payload });
+  return payload;
+}
+
 ensureDataDir();
 let users = readJson(USERS_FILE, []);
 let invites = readJson(INVITES_FILE, []);
@@ -768,6 +1121,13 @@ app.post("/api/auth/register", async (req, res) => {
   writeJson(INVITES_FILE, invites);
   appendAudit("register", user.id, { matricula, role }, getClientIp(req));
   return res.json({ ok: true });
+});
+
+app.get("/api/dashboard/summary", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const projectKey = getUserProjectKey(user);
+  const payload = getDashboardSummaryForProject(projectKey);
+  return res.json(payload);
 });
 
 app.listen(PORT, () => {
