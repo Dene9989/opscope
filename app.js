@@ -79,13 +79,15 @@ const homePontual = document.getElementById("homePontual");
 const homeBacklog = document.getElementById("homeBacklog");
 const homeConcluidas = document.getElementById("homeConcluidas");
 const homeAtrasoMedio = document.getElementById("homeAtrasoMedio");
-const btnLembretes = document.getElementById("btnLembretes");
-const lembretesCount = document.getElementById("lembretesCount");
+const btnLembretes = document.getElementById("btnBell") || document.getElementById("btnLembretes");
+const lembretesCount = document.getElementById("bellDot") || document.getElementById("lembretesCount");
 const painelLembretes = document.getElementById("painelLembretes");
 const loadingOverlay = document.getElementById("loadingOverlay");
 const sidebar = document.getElementById("sidebar");
-const btnToggleSidebar = document.getElementById("btnToggleSidebar");
-const appShell = document.querySelector(".app-shell");
+const btnToggleSidebar = document.getElementById("btnSidebar") || document.getElementById("btnToggleSidebar");
+const appShell = document.querySelector(".app") || document.querySelector(".app-shell");
+const sidebarBackdrop = document.getElementById("sidebarBackdrop");
+const dashboardHome = document.getElementById("dashboardHome");
 const perfilNome = document.getElementById("perfilNome");
 const perfilMatricula = document.getElementById("perfilMatricula");
 const perfilCargo = document.getElementById("perfilCargo");
@@ -95,10 +97,10 @@ const perfilAtribuicoes = document.getElementById("perfilAtribuicoes");
 const perfilPermissoes = document.getElementById("perfilPermissoes");
 const perfilSecoes = document.getElementById("perfilSecoes");
 
-const usuarioAtual = document.getElementById("usuarioAtual");
+const usuarioAtual = document.getElementById("userChip") || document.getElementById("usuarioAtual");
 const btnTabLogin = document.getElementById("btnTabLogin");
 const btnTabRegistro = document.getElementById("btnTabRegistro");
-const btnSair = document.getElementById("btnSair");
+const btnSair = document.getElementById("btnLogout") || document.getElementById("btnSair");
 const authPanels = document.getElementById("authPanels");
 const authPanelLogin = document.querySelector("[data-auth-panel='login']");
 const authPanelRegistro = document.querySelector("[data-auth-panel='registro']");
@@ -329,7 +331,7 @@ const DEFAULT_REMINDER_DAYS = 7;
 const LOADING_DELAY_MS = 450;
 const HISTORY_PAGE_SIZE = 12;
 const REMINDER_KEY = "denemanu.reminderDays";
-const SIDEBAR_KEY = "denemanu.sidebar";
+const SIDEBAR_KEY = "opscope.sidebarCollapsed";
 const STORAGE_KEY = "denemanu.manutencoes";
 const TEMPLATE_KEY = "denemanu.templates";
 const USER_KEY = "denemanu.users";
@@ -375,6 +377,16 @@ const DEFAULT_SECTIONS = Object.keys(SECTION_LABELS).reduce((acc, key) => {
   acc[key] = true;
   return acc;
 }, {});
+
+const dashboardData = {
+  kpis: { venceHoje: 0, atrasadas: 0, criticas: 0, risco: "Baixo" },
+  alerts: [],
+  health: { pontualidade: 0, backlog: 0, concluidas: 0, atrasoMedio: "0d" },
+  efficiency: { series: [10, 12, 9, 14, 13, 16, 15] },
+  nextActivities: [
+    { tarefa: "Inspecao TSA", resp: "Equipe HV", prazo: "Hoje", status: "Em dia" },
+  ],
+};
 
 const STATUS_LABELS = {
   agendada: "Agendada",
@@ -883,23 +895,100 @@ function abrirPainelComCarregamento(tab, scrollTarget = null) {
   }, LOADING_DELAY_MS);
 }
 
-function carregarSidebar() {
+function readSidebarState() {
+  const stored = localStorage.getItem(SIDEBAR_KEY);
+  if (stored === "1") {
+    return true;
+  }
+  if (stored === "0") {
+    return false;
+  }
+  return null;
+}
+
+function setSidebarState(collapsed) {
+  localStorage.setItem(SIDEBAR_KEY, collapsed ? "1" : "0");
+}
+
+function applyCollapsedState(collapsed) {
   if (!appShell) {
     return;
   }
-  const salvo = readJson(SIDEBAR_KEY, null);
-  const deveColapsar =
-    typeof salvo === "boolean" ? salvo : window.matchMedia("(max-width: 980px)").matches;
-  appShell.classList.toggle("is-collapsed", deveColapsar);
+  let resolved = collapsed;
+  if (typeof resolved !== "boolean") {
+    const stored = readSidebarState();
+    resolved = stored === null ? false : stored;
+  } else {
+    setSidebarState(resolved);
+  }
+  appShell.classList.toggle("is-collapsed", resolved);
 }
 
-function alternarSidebar() {
+function isMobileView() {
+  return window.matchMedia("(max-width: 900px)").matches;
+}
+
+function openSidebarDrawer() {
   if (!appShell) {
+    return;
+  }
+  appShell.classList.add("is-drawer-open");
+  if (sidebarBackdrop) {
+    sidebarBackdrop.hidden = false;
+  }
+}
+
+function closeSidebarDrawer() {
+  if (!appShell) {
+    return;
+  }
+  appShell.classList.remove("is-drawer-open");
+  if (sidebarBackdrop) {
+    sidebarBackdrop.hidden = true;
+  }
+}
+
+function toggleSidebar() {
+  if (!appShell) {
+    return;
+  }
+  if (isMobileView()) {
+    if (appShell.classList.contains("is-drawer-open")) {
+      closeSidebarDrawer();
+      return;
+    }
+    openSidebarDrawer();
     return;
   }
   const novoEstado = !appShell.classList.contains("is-collapsed");
-  appShell.classList.toggle("is-collapsed", novoEstado);
-  writeJson(SIDEBAR_KEY, novoEstado);
+  applyCollapsedState(novoEstado);
+}
+
+function initSidebarToggle() {
+  if (!appShell) {
+    return;
+  }
+  applyCollapsedState();
+  if (btnToggleSidebar) {
+    btnToggleSidebar.addEventListener("click", toggleSidebar);
+  }
+  if (sidebarBackdrop) {
+    sidebarBackdrop.addEventListener("click", closeSidebarDrawer);
+  }
+  if (tabButtons && tabButtons.length) {
+    tabButtons.forEach((botao) => {
+      botao.addEventListener("click", () => {
+        if (isMobileView()) {
+          closeSidebarDrawer();
+        }
+      });
+    });
+  }
+  window.addEventListener("resize", () => {
+    if (!isMobileView()) {
+      closeSidebarDrawer();
+    }
+  });
 }
 
 function carregarConfiguracoes() {
@@ -1977,137 +2066,157 @@ function getDateInfo(item, hoje) {
 }
 
 function renderHome() {
-  if (!homeHoje || !homeAtrasadas || !homeCriticas || !homeRisco) {
+  renderDashboardHome();
+}
+
+function renderDashboardHome() {
+  if (!dashboardHome) {
     return;
   }
+  const { kpis, alerts, health, efficiency, nextActivities } = dashboardData;
 
-  const hoje = startOfDay(new Date());
-  const agendadas = manutencoes.filter(
-    (item) => item.status === "agendada" || item.status === "liberada"
-  );
-  const backlog = manutencoes.filter((item) => item.status === "backlog");
-  const concluidas = manutencoes.filter((item) => item.status === "concluida");
+  const renderKpiCard = (label, value) =>
+    `<article class="kpi-card"><span>${label}</span><strong>${value}</strong></article>`;
 
-  const hojeItens = agendadas.filter((item) => {
-    const info = getDateInfo(item, hoje);
-    return info && info.diff === 0;
-  });
+  const alertHtml = alerts.length
+    ? `<div class="alert-list">${alerts
+        .map(
+          (alerta) =>
+            `<div class="alert-item"><span>${escapeHtml(alerta)}</span><strong>Atencao</strong></div>`
+        )
+        .join("")}</div>`
+    : `<p class="empty-state">Nenhum alerta critico.</p>`;
 
-  const atrasadasInfo = backlog
+  const series = Array.isArray(efficiency.series) ? efficiency.series : [];
+  const chart = buildMiniChart(series);
+
+  const rows = nextActivities
     .map((item) => {
-      const info = getDateInfo(item, hoje);
-      return info ? { item, ...info } : null;
+      const badge = getStatusBadge(item.status);
+      return `<tr>
+        <td>${escapeHtml(item.tarefa)}</td>
+        <td>${escapeHtml(item.resp)}</td>
+        <td>${escapeHtml(item.prazo)}</td>
+        <td>${badge}</td>
+      </tr>`;
     })
-    .filter(Boolean)
-    .sort((a, b) => a.diff - b.diff);
+    .join("");
 
-  const criticas = atrasadasInfo.filter((entry) => entry.diff <= -3);
+  dashboardHome.innerHTML = `
+    <div class="kpi-grid">
+      ${renderKpiCard("VENCE HOJE", kpis.venceHoje)}
+      ${renderKpiCard("ATRASADAS", kpis.atrasadas)}
+      ${renderKpiCard("CRITICAS", kpis.criticas)}
+      ${renderKpiCard("RISCO IMEDIATO", kpis.risco)}
+    </div>
+    <div class="dashboard-row">
+      <article class="card panel-card">
+        <div class="panel-head">
+          <h3>ALERTAS OPERACIONAIS</h3>
+        </div>
+        ${alertHtml}
+      </article>
+      <article class="card panel-card">
+        <div class="panel-head">
+          <h3>SAUDE OPERACIONAL</h3>
+        </div>
+        <div class="health-grid">
+          <div class="health-item">
+            <span>Pontualidade</span>
+            <strong>${health.pontualidade}%</strong>
+          </div>
+          <div class="health-item">
+            <span>Backlog</span>
+            <strong>${health.backlog}</strong>
+          </div>
+          <div class="health-item">
+            <span>Concluidas</span>
+            <strong>${health.concluidas}</strong>
+          </div>
+          <div class="health-item">
+            <span>Atraso medio</span>
+            <strong>${health.atrasoMedio}</strong>
+          </div>
+        </div>
+      </article>
+    </div>
+    <div class="dashboard-row">
+      <article class="card panel-card">
+        <div class="panel-head">
+          <h3>EFICIENCIA OPERACIONAL</h3>
+          <span class="trend-tag">+8%</span>
+        </div>
+        <div class="mini-chart">
+          ${chart}
+        </div>
+      </article>
+      <article class="card panel-card">
+        <div class="panel-head">
+          <h3>PROXIMAS ATIVIDADES</h3>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Atividade</th>
+                <th>Responsavel</th>
+                <th>Prazo</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows || `<tr><td colspan="4" class="empty-state">Sem registros.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+  `;
+}
 
-  homeHoje.textContent = hojeItens.length;
-  homeAtrasadas.textContent = atrasadasInfo.length;
-  homeCriticas.textContent = criticas.length;
+function buildMiniChart(series) {
+  const safeSeries = series && series.length ? series : [0];
+  const width = 240;
+  const height = 90;
+  const pad = 10;
+  const min = Math.min(...safeSeries);
+  const max = Math.max(...safeSeries);
+  const range = max - min || 1;
+  const count = safeSeries.length;
+  const points = safeSeries
+    .map((value, index) => {
+      const x = count === 1 ? width / 2 : pad + (index / (count - 1)) * (width - pad * 2);
+      const y = height - pad - ((value - min) / range) * (height - pad * 2);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+  const gridLines = [0, 1, 2, 3]
+    .map((step) => {
+      const y = pad + (step / 3) * (height - pad * 2);
+      return `<line x1="${pad}" y1="${y}" x2="${width - pad}" y2="${y}" />`;
+    })
+    .join("");
 
-  let risco = "Baixo";
-  if (criticas.length > 0) {
-    risco = "Alto";
-  } else if (atrasadasInfo.length > 0) {
-    risco = "Medio";
-  } else if (hojeItens.length > 0) {
-    risco = "Atencao";
+  return `
+    <svg viewBox="0 0 ${width} ${height}" aria-hidden="true" focusable="false">
+      <g class="chart-grid">${gridLines}</g>
+      <polyline points="${points}" />
+    </svg>
+  `;
+}
+
+function getStatusBadge(status) {
+  const texto = status || "";
+  const normalizado = texto.toLowerCase();
+  let classe = "badge";
+  if (normalizado.includes("crit")) {
+    classe += " badge--crit";
+  } else if (normalizado.includes("atras") || normalizado.includes("risco")) {
+    classe += " badge--warn";
+  } else {
+    classe += " badge--ok";
   }
-  homeRisco.textContent = risco;
-
-  const total = manutencoes.length;
-  const taxaPontual = concluidas.length
-    ? Math.round(
-        (concluidas.filter((item) => {
-          const data = parseDate(item.data);
-          const doneAt = parseTimestamp(item.doneAt);
-          if (!data || !doneAt) {
-            return false;
-          }
-          return startOfDay(doneAt) <= startOfDay(data);
-        }).length /
-          concluidas.length) *
-          100
-      )
-    : 0;
-
-  const atrasos = [];
-  const hojeBase = startOfDay(new Date());
-  manutencoes.forEach((item) => {
-    const data = parseDate(item.data);
-    if (!data) {
-      return;
-    }
-    if (item.status === "backlog") {
-      const diff = diffInDays(data, hojeBase);
-      if (diff > 0) {
-        atrasos.push(diff);
-      }
-    }
-    if (item.status === "concluida" && item.doneAt) {
-      const doneAt = parseTimestamp(item.doneAt);
-      const diff = doneAt ? diffInDays(data, startOfDay(doneAt)) : null;
-      if (diff > 0) {
-        atrasos.push(diff);
-      }
-    }
-  });
-  const mediaAtraso = atrasos.length
-    ? Math.round(atrasos.reduce((acc, val) => acc + val, 0) / atrasos.length)
-    : 0;
-
-  if (homePontual) {
-    homePontual.textContent = `${taxaPontual}%`;
-  }
-  if (homeBacklog) {
-    homeBacklog.textContent = backlog.length;
-  }
-  if (homeConcluidas) {
-    homeConcluidas.textContent = concluidas.length;
-  }
-  if (homeAtrasoMedio) {
-    homeAtrasoMedio.textContent = `${mediaAtraso}d`;
-  }
-
-  if (!homeAlertas || !homeAlertasVazio) {
-    return;
-  }
-  homeAlertas.innerHTML = "";
-  const alertas = [];
-
-  criticas.slice(0, 3).forEach((entry) => {
-    alertas.push({ item: entry.item, label: formatOverdue(entry.diff) });
-  });
-
-  if (alertas.length < 3) {
-    atrasadasInfo
-      .filter((entry) => !criticas.includes(entry))
-      .slice(0, 3 - alertas.length)
-      .forEach((entry) => {
-        alertas.push({ item: entry.item, label: formatOverdue(entry.diff) });
-      });
-  }
-
-  if (alertas.length < 3) {
-    hojeItens.slice(0, 3 - alertas.length).forEach((item) => {
-      alertas.push({ item, label: "vence hoje" });
-    });
-  }
-
-  alertas.forEach((alerta) => {
-    const linha = document.createElement("div");
-    linha.className = "home-item";
-    const nome = document.createElement("span");
-    nome.textContent = alerta.item.titulo;
-    const estado = document.createElement("strong");
-    estado.textContent = alerta.label;
-    linha.append(nome, estado);
-    homeAlertas.append(linha);
-  });
-
-  homeAlertasVazio.hidden = alertas.length > 0;
+  return `<span class="${classe}">${escapeHtml(texto || "OK")}</span>`;
 }
 
 function renderLembretes() {
@@ -2133,8 +2242,8 @@ function renderLembretes() {
 
   if (lembretesCount) {
     const total = proximos.length;
-    lembretesCount.textContent = total;
-    lembretesCount.hidden = false;
+    lembretesCount.textContent = lembretesCount.id === "bellDot" ? "" : total;
+    lembretesCount.hidden = total === 0;
     lembretesCount.classList.toggle("is-zero", total === 0);
   }
 
@@ -7437,7 +7546,9 @@ function renderAuthUI() {
     panel.hidden = !autenticado || !secConfig[nome];
   });
 
-  const tabAtiva = Array.from(tabButtons).find((botao) => botao.classList.contains("is-active"));
+  const tabAtiva = Array.from(tabButtons).find(
+    (botao) => botao.classList.contains("is-active") || botao.classList.contains("active")
+  );
   if (!tabAtiva || tabAtiva.hidden) {
     const primeira = Array.from(tabButtons).find((botao) => !botao.hidden);
     if (primeira) {
@@ -10282,7 +10393,9 @@ function agirNaManutencao(event) {
 
 function ativarTab(nome) {
   tabButtons.forEach((botao) => {
-    botao.classList.toggle("is-active", botao.dataset.tab === nome);
+    const ativo = botao.dataset.tab === nome;
+    botao.classList.toggle("is-active", ativo);
+    botao.classList.toggle("active", ativo);
   });
   panels.forEach((panel) => {
     panel.classList.toggle("is-active", panel.dataset.panel === nome);
@@ -11128,9 +11241,6 @@ if (btnExportarPDF) {
 if (btnFecharRelatorio) {
   btnFecharRelatorio.addEventListener("click", fecharRelatorio);
 }
-if (btnToggleSidebar) {
-  btnToggleSidebar.addEventListener("click", alternarSidebar);
-}
 
 if (listaSolicitacoes) {
   listaSolicitacoes.addEventListener("click", (event) => {
@@ -11275,7 +11385,7 @@ salvarManutencoes(manutencoes);
 renderSubestacoes();
 renderTipoOptions();
 limparTemplateForm();
-carregarSidebar();
+initSidebarToggle();
 rdoSnapshots = carregarRdoSnapshots();
 montarRdoUI();
 carregarSessaoServidor();

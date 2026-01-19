@@ -4,63 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>OPSCOPE - Sistema de Gestao Operacional e Manutencao</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Sora:wght@300;400;600&display=swap"
-      rel="stylesheet"
-    />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body class="is-visitor">
-    <div class="topbar">
-      <div class="topbar__brand">
-        <span class="brand-logo">denemanu</span>
-        <span class="brand-divider">|</span>
-        <span>SUBESTACOES E LINHAS DE TRANSMISSAO</span>
-      </div>
-      <div class="topbar__auth">
-        <div class="notify auth-only">
-          <button
-            id="btnLembretes"
-            class="btn btn--ghost btn--small btn--icon btn--notify"
-            type="button"
-            aria-label="Lembretes"
-            aria-expanded="false"
-          >
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M6 9a6 6 0 1 1 12 0c0 4 2 4 2 5H4c0-1 2-1 2-5Z"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.6"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-              <path
-                d="M9.5 19a2.5 2.5 0 0 0 5 0"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.6"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-            <span id="lembretesCount" class="notify-badge" hidden>0</span>
-          </button>
-          <div id="painelLembretes" class="notify-panel" hidden>
-            <div id="listaLembretes" class="lembretes"></div>
-            <p id="lembretesVazio" class="empty-state">Nenhuma manutencao proxima.</p>
-          </div>
-        </div>
-        <button id="usuarioAtual" class="user-pill" type="button" hidden>Visitante</button>
-        <button id="btnSair" class="btn btn--ghost btn--small" type="button" hidden>Sair</button>
-        <button id="btnTabLogin" class="btn btn--ghost btn--small" type="button">Entrar</button>
-        <button id="btnTabRegistro" class="btn btn--primary btn--small" type="button">
-          Criar conta (com convite)
-        </button>
-      </div>
-    </div>
     <div id="loadingOverlay" class="loading-overlay" hidden>
       <div class="loading-spinner" role="status" aria-live="polite">
         <span class="loading-dot"></span>
@@ -86,6 +32,14 @@
 
       <section id="authPanels" class="auth-panels" hidden>
         <div class="auth-card">
+          <div class="auth-tabs">
+            <button id="btnTabLogin" class="auth-tab btn btn--ghost btn--small" type="button">
+              Entrar
+            </button>
+            <button id="btnTabRegistro" class="auth-tab btn btn--primary btn--small" type="button">
+              Criar conta (com convite)
+            </button>
+          </div>
           <form id="loginForm" class="auth-panel" data-auth-panel="login" hidden>
             <h3>Acesso seguro</h3>
             <div class="field">
@@ -173,30 +127,13 @@
         </div>
       </section>
     </div>
-    <div class="app-shell auth-only">
+    <div class="app app-shell auth-only">
       <aside class="sidebar" id="sidebar">
         <div class="sidebar__header">
           <div class="sidebar__brand">
             <strong>OPSCOPE</strong>
-            <small>Operacao sob microscopio</small>
+            <small>OPERA&Ccedil;&Atilde;O SOB MICROSC&Oacute;PIO</small>
           </div>
-          <button
-            id="btnToggleSidebar"
-            class="btn btn--ghost btn--icon btn--sidebar"
-            type="button"
-            aria-label="Alternar menu"
-          >
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M9 6l6 6-6 6"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-          </button>
         </div>
         <nav class="sidebar__nav">
           <div class="nav-block">
@@ -274,81 +211,59 @@
           </div>
         </nav>
       </aside>
-      <div class="app-content">
-        <main>
+      <div class="backdrop" id="sidebarBackdrop" hidden></div>
+      <div class="main">
+        <header class="topbar">
+          <button class="icon-btn" id="btnSidebar" type="button" aria-label="Toggle sidebar">
+            &#9776;
+          </button>
+          <div class="crumbs" id="crumbs">
+            DENEMANU | SUBESTA&Ccedil;&Otilde;ES E LINHAS DE TRANSMISS&Atilde;O
+          </div>
+          <div class="topbar-right">
+            <div class="notify">
+              <button
+                id="btnBell"
+                class="icon-btn"
+                type="button"
+                aria-label="Notifica&ccedil;&otilde;es"
+                aria-expanded="false"
+              >
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M6 9a6 6 0 1 1 12 0c0 4 2 4 2 5H4c0-1 2-1 2-5Z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M9.5 19a2.5 2.5 0 0 0 5 0"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span class="bell-dot" id="bellDot" hidden></span>
+              </button>
+              <div id="painelLembretes" class="notify-panel" hidden>
+                <div id="listaLembretes" class="lembretes"></div>
+                <p id="lembretesVazio" class="empty-state">Nenhuma manutencao proxima.</p>
+              </div>
+            </div>
+            <div class="user-chip" id="userChip">Denisson Silva Alves (PCM)</div>
+            <button id="btnLogout" class="btn-ghost" type="button">Sair</button>
+          </div>
+        </header>
+        <section class="content" id="view-root">
+          <main>
 
   <div class="container auth-only">
     <section class="panel panel--inicio is-active" id="inicio" data-panel="inicio">
-      <section class="home-hero">
-        <div class="home-summary">
-          <article class="status-bubble">
-            <span>Vence hoje</span>
-            <strong id="homeHoje">0</strong>
-          </article>
-          <article class="status-bubble">
-            <span>Atrasadas</span>
-            <strong id="homeAtrasadas">0</strong>
-          </article>
-          <article class="status-bubble">
-            <span>Criticas</span>
-            <strong id="homeCriticas">0</strong>
-          </article>
-          <article class="status-bubble">
-            <span>Risco imediato</span>
-            <strong id="homeRisco">Baixo</strong>
-          </article>
-        </div>
-        <div class="home-grid">
-          <article class="home-card">
-            <h3>Alertas operacionais</h3>
-            <div id="homeAlertas" class="home-list"></div>
-            <p id="homeAlertasVazio" class="empty-state">Nenhum alerta critico.</p>
-          </article>
-          <article class="home-card">
-            <h3>Saude operacional</h3>
-            <div class="health-grid">
-              <div class="health-item">
-                <span>Pontualidade</span>
-                <strong id="homePontual">0%</strong>
-              </div>
-              <div class="health-item">
-                <span>Backlog</span>
-                <strong id="homeBacklog">0</strong>
-              </div>
-              <div class="health-item">
-                <span>Concluidas</span>
-                <strong id="homeConcluidas">0</strong>
-              </div>
-              <div class="health-item">
-                <span>Atraso medio</span>
-                <strong id="homeAtrasoMedio">0d</strong>
-              </div>
-            </div>
-          </article>
-        </div>
-        <div class="home-bubbles">
-          <article class="info-bubble">
-            <h3>Guia rapido</h3>
-            <p>Use Programacao para revisar inspecoes e prazos do dia.</p>
-          </article>
-          <article class="info-bubble">
-            <h3>Nova manutencao</h3>
-            <p>Crie manutencoes e ajuste recorrencias a partir dos modelos.</p>
-          </article>
-          <article class="info-bubble">
-            <h3>Execucao</h3>
-            <p>Conclua com evidencias e registre observacoes tecnicas.</p>
-          </article>
-          <article class="info-bubble">
-            <h3>Backlog</h3>
-            <p>Itens vencidos aparecem aqui para replanejamento imediato.</p>
-          </article>
-          <article class="info-bubble">
-            <h3>Desempenho</h3>
-            <p>Acompanhe KPIs de conclusao e pontualidade da equipe.</p>
-          </article>
-        </div>
-      </section>
+      <div id="dashboardHome" class="dashboard-home"></div>
     </section>
 
     <section class="panel" id="programacao" data-panel="programacao">
@@ -1755,7 +1670,8 @@
       </div>
     </div>
   </div>
-        </main>
+          </main>
+        </section>
       </div>
     </div>
 
