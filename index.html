@@ -1193,6 +1193,36 @@
     </div>
   </div>
 
+  <div id="modalOverride" class="modal modal--override" hidden>
+    <div class="modal__content">
+      <div class="modal__header">
+        <div>
+          <h3>Justificativa obrigatoria</h3>
+          <p id="overrideInfo" class="hint">Liberacao antes da data prevista.</p>
+        </div>
+        <button id="btnFecharOverride" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <form id="formOverride" class="modal__form">
+        <div class="field" data-full>
+          <label for="overrideMotivo">Justificativa</label>
+          <textarea
+            id="overrideMotivo"
+            rows="3"
+            placeholder="Descreva o motivo da liberacao antecipada"
+            required
+          ></textarea>
+        </div>
+        <div class="modal__actions">
+          <button class="btn btn--primary" type="submit">Confirmar liberacao</button>
+          <button id="btnCancelarOverride" class="btn btn--ghost" type="button">Cancelar</button>
+        </div>
+        <p id="overrideMensagem" class="mensagem" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+
   <div id="modalHistorico" class="modal" hidden>
     <div class="modal__content">
       <div class="modal__header">

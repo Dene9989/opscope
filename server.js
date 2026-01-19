@@ -64,6 +64,12 @@ const ROLE_DEFAULT_PERMISSIONS = {
   leitura: NO_PERMISSIONS,
 };
 const FULL_ACCESS_ROLES = new Set(["pcm", "diretor_om", "gerente_contrato"]);
+const RELEASE_OVERRIDE_ROLES = new Set([
+  "pcm",
+  "diretor_om",
+  "gerente_contrato",
+  "supervisor_om",
+]);
 
 const PERMISSION_CATALOG = [
   {
@@ -381,6 +387,14 @@ function normalizeRbacRole(role) {
 
 function isFullAccessRole(role) {
   return FULL_ACCESS_ROLES.has(normalizeRbacRole(role));
+}
+
+function canOverrideRelease(user) {
+  if (!user) {
+    return false;
+  }
+  const role = normalizeRbacRole(user.rbacRole || user.role);
+  return RELEASE_OVERRIDE_ROLES.has(role);
 }
 
 function normalizeRole(role, rbacRole) {
@@ -1078,6 +1092,79 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
   writeJson(MAINTENANCE_FILE, merged);
   DASHBOARD_CACHE.delete(projectKey);
   return res.json({ ok: true, count: sanitized.length, project: projectKey });
+});
+
+app.post("/api/maintenance/release", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const projectKey = getUserProjectKey(user);
+  const maintenanceId = String(req.body.id || "").trim();
+  const justificativa = String(req.body.justificativa || "").trim();
+  const payloadDate =
+    req.body.data ||
+    req.body.dataProgramada ||
+    req.body.prazo ||
+    req.body.dueDate ||
+    req.body.execucao;
+
+  const dataset = loadMaintenanceData();
+  const candidate = dataset.find((item) => {
+    if (!item || String(item.id || "") !== maintenanceId) {
+      return false;
+    }
+    const itemProject = normalizeProjectKey(
+      item.projeto || item.projectKey || item.project || item.unidade || "HV"
+    );
+    return itemProject === projectKey;
+  });
+
+  const dueDate = getDueDate(candidate) || parseDateOnly(payloadDate);
+  const today = startOfDay(new Date());
+
+  if (dueDate && today < dueDate) {
+    if (!canOverrideRelease(user)) {
+      appendAudit(
+        "maintenance_release_blocked",
+        req.session.userId,
+        {
+          manutencaoId: maintenanceId || null,
+          dataProgramada: formatDateISO(dueDate),
+          project: projectKey,
+        },
+        getClientIp(req)
+      );
+      return res
+        .status(403)
+        .json({ message: "Liberacao antes da data prevista nao autorizada." });
+    }
+    if (!justificativa) {
+      return res
+        .status(400)
+        .json({ message: "Justificativa obrigatoria para liberacao antecipada." });
+    }
+    appendAudit(
+      "maintenance_release_override",
+      req.session.userId,
+      {
+        manutencaoId: maintenanceId || null,
+        dataProgramada: formatDateISO(dueDate),
+        justificativa,
+        role: normalizeRbacRole(user.rbacRole || user.role),
+        project: projectKey,
+      },
+      getClientIp(req)
+    );
+    return res.json({
+      ok: true,
+      override: true,
+      dataProgramada: formatDateISO(dueDate),
+    });
+  }
+
+  return res.json({
+    ok: true,
+    override: false,
+    dataProgramada: dueDate ? formatDateISO(dueDate) : null,
+  });
 });
 
 app.patch("/api/admin/users/:id", requireAuth, requirePermission("admin:users:write"), (req, res) => {

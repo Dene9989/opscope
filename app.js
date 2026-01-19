@@ -266,6 +266,13 @@ const liberacaoDocViews = Array.from(document.querySelectorAll("[data-doc-view]"
 const liberacaoDocNames = Array.from(document.querySelectorAll("[data-doc-name]"));
 const btnFecharLiberacao = document.getElementById("btnFecharLiberacao");
 const btnCancelarLiberacao = document.getElementById("btnCancelarLiberacao");
+const modalOverride = document.getElementById("modalOverride");
+const formOverride = document.getElementById("formOverride");
+const overrideInfo = document.getElementById("overrideInfo");
+const overrideMotivo = document.getElementById("overrideMotivo");
+const overrideMensagem = document.getElementById("overrideMensagem");
+const btnFecharOverride = document.getElementById("btnFecharOverride");
+const btnCancelarOverride = document.getElementById("btnCancelarOverride");
 const modalHistorico = document.getElementById("modalHistorico");
 const listaHistorico = document.getElementById("listaHistorico");
 const historicoVazio = document.getElementById("historicoVazio");
@@ -418,6 +425,9 @@ const LEGACY_ROLE_LABELS = {
 };
 
 const FULL_ACCESS_RBAC = new Set(["pcm", "diretor_om", "gerente_contrato"]);
+const RELEASE_OVERRIDE_RBAC = new Set(["pcm", "diretor_om", "gerente_contrato", "supervisor_om"]);
+const LOCK_ICON_SVG =
+  '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 10V7a5 5 0 0 1 10 0v3h1a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h1Zm2 0h6V7a3 3 0 0 0-6 0v3Z" fill="currentColor"/></svg>';
 
 function getRoleLabel(user) {
   if (!user) {
@@ -448,6 +458,17 @@ function isFullAccessUser(user) {
   }
   const rbacRole = String(user.rbacRole || "").trim().toLowerCase();
   return user.role === "admin" || FULL_ACCESS_RBAC.has(rbacRole);
+}
+
+function canOverrideRelease(user) {
+  if (!user) {
+    return false;
+  }
+  if (user.role === "admin" || user.role === "supervisor") {
+    return true;
+  }
+  const rbacRole = String(user.rbacRole || "").trim().toLowerCase();
+  return RELEASE_OVERRIDE_RBAC.has(rbacRole);
 }
 
 function canAdminUsersRead() {
@@ -513,6 +534,7 @@ let loadingTimeout = null;
 let historicoAtualId = null;
 let historicoLimite = HISTORY_PAGE_SIZE;
 let manutencaoEmLiberacao = null;
+let pendingLiberacaoOverride = null;
 let manutencaoEmCancelamento = null;
 let liberacaoDocsBase = {};
 let liberacaoDocsPreview = {};
@@ -745,6 +767,14 @@ function mostrarMensagemLiberacao(texto, erro = false) {
   }
   mensagemLiberacao.textContent = texto;
   mensagemLiberacao.classList.toggle("mensagem--erro", erro);
+}
+
+function mostrarMensagemOverride(texto, erro = false) {
+  if (!overrideMensagem) {
+    return;
+  }
+  overrideMensagem.textContent = texto;
+  overrideMensagem.classList.toggle("mensagem--erro", erro);
 }
 
 function mostrarMensagemCancelarInicio(texto, erro = false) {
@@ -2065,6 +2095,19 @@ function getDateInfo(item, hoje) {
   return { data, diff };
 }
 
+function getReleaseLockInfo(item, data, hoje) {
+  if (!item || !data) {
+    return null;
+  }
+  if (item.status !== "agendada") {
+    return null;
+  }
+  if (data <= hoje) {
+    return null;
+  }
+  return { date: data, canOverride: canOverrideRelease(currentUser) };
+}
+
 function renderHome() {
   loadDashboardSummary();
   renderDashboardHome();
@@ -2340,6 +2383,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const hoje = startOfDay(new Date());
   const diff = data ? diffInDays(hoje, data) : null;
   const liberacao = getLiberacao(item);
+  const lockInfo = getReleaseLockInfo(item, data, hoje);
 
   const card = document.createElement("article");
   card.className = `manutencao-item status-${item.status}`;
@@ -2395,6 +2439,17 @@ function criarCardManutencao(item, permissoes, options = {}) {
   info.append(titulo, meta);
   if (statusInfo.textContent) {
     info.append(statusInfo);
+  }
+  if (lockInfo) {
+    const lockLine = document.createElement("p");
+    lockLine.className = "submeta submeta--lock";
+    const lockIcon = document.createElement("span");
+    lockIcon.className = "lock-icon";
+    lockIcon.innerHTML = LOCK_ICON_SVG;
+    const lockText = document.createElement("span");
+    lockText.textContent = `Trancada - libera em ${formatDate(lockInfo.date)}`;
+    lockLine.append(lockIcon, lockText);
+    info.append(lockLine);
   }
   if (item.status === "liberada") {
     const liberadaInfo = document.createElement("p");
@@ -2503,9 +2558,15 @@ function criarCardManutencao(item, permissoes, options = {}) {
 
   if (item.status === "agendada" || item.status === "backlog" || item.status === "liberada") {
     if (permite("execute")) {
-      actions.append(
-        criarBotaoAcao(liberacaoOk ? "Iniciar execucao" : "Liberar execucao", liberacaoOk ? "execute" : "release")
-      );
+      const action = liberacaoOk ? "execute" : "release";
+      const actionLabel = liberacaoOk ? "Iniciar execucao" : "Liberar execucao";
+      const botao = criarBotaoAcao(actionLabel, action);
+      if (action === "release" && lockInfo && !lockInfo.canOverride) {
+        botao.disabled = true;
+        botao.classList.add("is-disabled");
+        botao.title = `Trancada - libera em ${formatDate(lockInfo.date)}`;
+      }
+      actions.append(botao);
     }
     if (permite("reschedule")) {
       actions.append(criarBotaoAcao("Reagendar", "reschedule"));
@@ -9126,6 +9187,105 @@ function fecharLiberacao() {
   liberacaoDocsPreview = {};
 }
 
+function abrirOverrideLiberacao(dataProgramada) {
+  if (!modalOverride || !formOverride) {
+    return;
+  }
+  if (overrideInfo) {
+    const dataLabel = dataProgramada ? formatDate(dataProgramada) : "-";
+    overrideInfo.textContent = `Liberacao antes da data prevista (${dataLabel}).`;
+  }
+  if (overrideMotivo) {
+    overrideMotivo.value = "";
+  }
+  mostrarMensagemOverride("");
+  modalOverride.hidden = false;
+}
+
+function fecharOverrideLiberacao() {
+  if (!modalOverride) {
+    return;
+  }
+  modalOverride.hidden = true;
+  mostrarMensagemOverride("");
+  pendingLiberacaoOverride = null;
+}
+
+function finalizarLiberacao(index, item, liberacaoBase, overrideJustificativa = "") {
+  const dataProgramada = parseDate(item.data);
+  const atrasada = dataProgramada && dataProgramada < startOfDay(new Date());
+  const agoraIso = toIsoUtc(new Date());
+  const liberacao = {
+    ...liberacaoBase,
+    liberadoEm: agoraIso,
+    liberadoPor: currentUser.id,
+  };
+  if (overrideJustificativa) {
+    liberacao.overrideJustificativa = overrideJustificativa;
+    liberacao.overrideRole = getRoleLabel(currentUser);
+    liberacao.overrideAt = agoraIso;
+  }
+  const atualizado = {
+    ...item,
+    liberacao,
+    status: atrasada ? "backlog" : "liberada",
+    updatedAt: agoraIso,
+    updatedBy: currentUser.id,
+  };
+  manutencoes[index] = atualizado;
+  salvarManutencoes(manutencoes);
+  const documentosLista = DOC_KEYS.filter(
+    (key) => liberacao.documentos && liberacao.documentos[key]
+  ).map((key) => DOC_LABELS[key] || key);
+  logAction("release", atualizado, {
+    osNumero: liberacao.osNumero,
+    participantes: liberacao.participantes,
+    critico: liberacao.critico,
+    documentos: documentosLista,
+    justificativa: overrideJustificativa || undefined,
+    resumo: overrideJustificativa ? "Liberacao antecipada registrada." : "Liberacao registrada.",
+  });
+  renderTudo();
+  fecharLiberacao();
+  mostrarMensagemManutencao("Liberacao registrada.");
+}
+
+async function confirmarOverrideLiberacao(event) {
+  event.preventDefault();
+  if (!pendingLiberacaoOverride) {
+    mostrarMensagemOverride("Nenhuma liberacao pendente.", true);
+    return;
+  }
+  const motivo = overrideMotivo ? overrideMotivo.value.trim() : "";
+  if (!motivo) {
+    mostrarMensagemOverride("Justificativa obrigatoria.", true);
+    return;
+  }
+  const index = manutencoes.findIndex(
+    (registro) => registro.id === pendingLiberacaoOverride.id
+  );
+  if (index < 0) {
+    mostrarMensagemOverride("Manutencao nao encontrada.", true);
+    pendingLiberacaoOverride = null;
+    return;
+  }
+  const item = manutencoes[index];
+  try {
+    await apiMaintenanceRelease({
+      id: pendingLiberacaoOverride.id,
+      dataProgramada: item.data,
+      justificativa: motivo,
+    });
+  } catch (error) {
+    mostrarMensagemOverride(error.message || "Nao foi possivel liberar.", true);
+    return;
+  }
+  const liberacaoBase = pendingLiberacaoOverride.liberacaoBase;
+  pendingLiberacaoOverride = null;
+  fecharOverrideLiberacao();
+  finalizarLiberacao(index, item, liberacaoBase, motivo);
+}
+
 async function salvarLiberacao(event) {
   event.preventDefault();
   if (!requirePermission("complete")) {
@@ -9224,38 +9384,33 @@ async function salvarLiberacao(event) {
     return;
   }
   const dataProgramada = parseDate(item.data);
-  const atrasada = dataProgramada && dataProgramada < startOfDay(new Date());
-  const agoraIso = toIsoUtc(new Date());
-  const liberacao = {
+  const hoje = startOfDay(new Date());
+  const liberacaoAntecipada = dataProgramada && dataProgramada > hoje;
+  if (liberacaoAntecipada && !canOverrideRelease(currentUser)) {
+    mostrarMensagemLiberacao(
+      `Trancada - libera em ${dataProgramada ? formatDate(dataProgramada) : "-"}.`,
+      true
+    );
+    return;
+  }
+  const liberacaoBase = {
     osNumero,
     participantes,
     critico,
     documentos,
-    liberadoEm: agoraIso,
-    liberadoPor: currentUser.id,
   };
-  const atualizado = {
-    ...item,
-    liberacao,
-    status: atrasada ? "backlog" : "liberada",
-    updatedAt: agoraIso,
-    updatedBy: currentUser.id,
-  };
-  manutencoes[index] = atualizado;
-  salvarManutencoes(manutencoes);
-  const documentosLista = DOC_KEYS.filter((key) => documentos[key]).map(
-    (key) => DOC_LABELS[key] || key
-  );
-  logAction("release", atualizado, {
-    osNumero,
-    participantes,
-    critico,
-    documentos: documentosLista,
-    resumo: "Liberacao registrada.",
-  });
-  renderTudo();
-  fecharLiberacao();
-  mostrarMensagemManutencao("Liberacao registrada.");
+  if (liberacaoAntecipada) {
+    pendingLiberacaoOverride = { id: item.id, liberacaoBase };
+    abrirOverrideLiberacao(dataProgramada);
+    return;
+  }
+  try {
+    await apiMaintenanceRelease({ id: item.id, dataProgramada: item.data });
+  } catch (error) {
+    mostrarMensagemLiberacao(error.message || "Nao foi possivel liberar.", true);
+    return;
+  }
+  finalizarLiberacao(index, item, liberacaoBase);
 }
 
 function handleLiberacaoDocChange(input) {
@@ -9287,6 +9442,16 @@ function liberarManutencao(index) {
     return;
   }
   const item = manutencoes[index];
+  const dataProgramada = parseDate(item.data);
+  const hoje = startOfDay(new Date());
+  const lockInfo = getReleaseLockInfo(item, dataProgramada, hoje);
+  if (lockInfo && !lockInfo.canOverride) {
+    mostrarMensagemManutencao(
+      `Trancada - libera em ${formatDate(lockInfo.date)}.`,
+      true
+    );
+    return;
+  }
   abrirLiberacao(item);
 }
 
@@ -10519,6 +10684,13 @@ async function apiMaintenanceSync(items) {
   });
 }
 
+async function apiMaintenanceRelease(payload) {
+  return apiRequest("/api/maintenance/release", {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
 async function apiDashboardSummary() {
   return apiRequest("/api/dashboard/summary");
 }
@@ -11192,6 +11364,9 @@ if (formCancelarExecucao) {
 if (formLiberacao) {
   formLiberacao.addEventListener("submit", salvarLiberacao);
 }
+if (formOverride) {
+  formOverride.addEventListener("submit", confirmarOverrideLiberacao);
+}
 if (btnFecharConclusao) {
   btnFecharConclusao.addEventListener("click", fecharConclusao);
 }
@@ -11203,6 +11378,12 @@ if (btnFecharLiberacao) {
 }
 if (btnCancelarLiberacao) {
   btnCancelarLiberacao.addEventListener("click", fecharLiberacao);
+}
+if (btnFecharOverride) {
+  btnFecharOverride.addEventListener("click", fecharOverrideLiberacao);
+}
+if (btnCancelarOverride) {
+  btnCancelarOverride.addEventListener("click", fecharOverrideLiberacao);
 }
 if (btnFecharRegistroExecucao) {
   btnFecharRegistroExecucao.addEventListener("click", fecharRegistroExecucao);
@@ -11252,6 +11433,11 @@ if (liberacaoParticipantes) {
 }
 if (liberacaoCritico) {
   liberacaoCritico.addEventListener("change", atualizarLiberacaoCriticoUI);
+}
+if (overrideMotivo) {
+  overrideMotivo.addEventListener("input", () => {
+    mostrarMensagemOverride("");
+  });
 }
 if (criticoManutencao) {
   criticoManutencao.addEventListener("change", atualizarNovaCriticoUI);

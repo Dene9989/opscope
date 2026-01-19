@@ -3466,6 +3466,25 @@ textarea:focus {
   font-weight: 600;
 }
 
+.submeta--lock {
+  color: #7a2b1e;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lock-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.lock-icon svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
 .obs {
   font-size: 0.9rem;
   color: #4e5a66;
@@ -3483,11 +3502,13 @@ textarea:focus {
   font-weight: 700;
   background: #eef1f3;
   color: var(--ink);
+  border: 1px solid transparent;
 }
 
 .status--agendada {
-  background: rgba(43, 122, 120, 0.16);
-  color: var(--teal-strong);
+  background: #1b2b36;
+  color: #e9f1f7;
+  border-color: #2d3f4d;
 }
 
 .status--liberada {
@@ -3496,18 +3517,21 @@ textarea:focus {
 }
 
 .status--hoje {
-  background: rgba(212, 106, 47, 0.18);
-  color: #9a4319;
+  background: #6a3414;
+  color: #ffe9d6;
+  border-color: #8a4820;
 }
 
 .status--amanha {
-  background: rgba(212, 106, 47, 0.12);
-  color: #8b4b2a;
+  background: #3b2f1b;
+  color: #f9ead4;
+  border-color: #5a4725;
 }
 
 .status--backlog {
-  background: rgba(192, 84, 47, 0.2);
-  color: #7a2b1e;
+  background: #5a1e18;
+  color: #ffe3dd;
+  border-color: #7a2b1e;
 }
 
 .status--em_execucao {
@@ -3754,6 +3778,10 @@ textarea:focus {
   justify-content: center;
   padding: 24px;
   z-index: 120;
+}
+
+.modal--override {
+  z-index: 130;
 }
 
 .modal[hidden] {
