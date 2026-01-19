@@ -4,6 +4,12 @@ const bcrypt = require("bcryptjs");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+let sharp;
+try {
+  sharp = require("sharp");
+} catch (error) {
+  sharp = null;
+}
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -27,7 +33,9 @@ const AVATARS_DIR = path.join(UPLOADS_DIR, "avatars");
 const DASHBOARD_CACHE_TTL_MS = 60 * 1000;
 const DASHBOARD_CACHE = new Map();
 const IS_DEV = process.env.NODE_ENV !== "production";
-const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
+const AVATAR_TARGET_BYTES = 1024 * 1024;
+const AVATAR_SIZE = 512;
 const ALLOWED_AVATAR_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 const PERMISSION_KEYS = [
@@ -133,6 +141,30 @@ function ensureUploadDirs() {
   if (!fs.existsSync(AVATARS_DIR)) {
     fs.mkdirSync(AVATARS_DIR, { recursive: true });
   }
+}
+
+async function optimizeAvatar(buffer) {
+  if (!sharp) {
+    return null;
+  }
+  const sizes = [AVATAR_SIZE, 448, 384, 320];
+  const qualities = [82, 78, 74, 70, 65, 60];
+  let output = null;
+  for (const size of sizes) {
+    for (const quality of qualities) {
+      output = await sharp(buffer, { failOnError: false })
+        .resize(size, size, { fit: "cover", position: "centre" })
+        .webp({ quality })
+        .toBuffer();
+      if (output.length <= AVATAR_TARGET_BYTES) {
+        return { buffer: output, ext: "webp" };
+      }
+    }
+  }
+  if (output && output.length <= AVATAR_TARGET_BYTES) {
+    return { buffer: output, ext: "webp" };
+  }
+  return { buffer: output || buffer, ext: "webp", oversized: true };
 }
 
 function readJson(filePath, fallback) {
@@ -995,7 +1027,7 @@ writeJson(USERS_FILE, users);
 ensureMasterAccount();
 seedAdmin();
 
-app.use(express.json({ limit: "5mb" }));
+app.use(express.json({ limit: "20mb" }));
 app.use(
   session({
     name: "opscope.sid",
@@ -1072,7 +1104,7 @@ app.get("/api/auth/me", (req, res) => {
   return res.json({ user: sanitizeUser(user) });
 });
 
-app.post("/api/profile/avatar", requireAuth, (req, res) => {
+app.post("/api/profile/avatar", requireAuth, async (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   if (!user) {
     return res.status(401).json({ message: "Nao autorizado." });
@@ -1094,13 +1126,24 @@ app.post("/api/profile/avatar", requireAuth, (req, res) => {
     return res.status(400).json({ message: "Imagem invalida." });
   }
   if (buffer.length > AVATAR_MAX_BYTES) {
-    return res.status(413).json({ message: "Imagem acima de 2 MB." });
+    return res.status(413).json({ message: "Imagem acima de 10 MB." });
+  }
+  if (!sharp) {
+    return res.status(500).json({ message: "Processamento de imagem indisponivel." });
   }
   ensureUploadDirs();
-  const ext = mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg";
-  const filename = `${user.id}-${Date.now()}.${ext}`;
+  let optimized;
+  try {
+    optimized = await optimizeAvatar(buffer);
+  } catch (error) {
+    return res.status(500).json({ message: "Falha ao processar imagem." });
+  }
+  if (!optimized || optimized.oversized) {
+    return res.status(413).json({ message: "Imagem muito grande para otimizar." });
+  }
+  const filename = `${user.id}-${Date.now()}.${optimized.ext}`;
   const filePath = path.join(AVATARS_DIR, filename);
-  fs.writeFileSync(filePath, buffer);
+  fs.writeFileSync(filePath, optimized.buffer);
   const avatarUrl = `/uploads/avatars/${filename}`;
   const avatarUpdatedAt = new Date().toISOString();
   const index = users.findIndex((item) => item.id === user.id);

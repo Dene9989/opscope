@@ -627,7 +627,7 @@ function writeJson(key, value) {
 }
 
 const API_BASE = "";
-const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
 const AVATAR_ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];
 let pendingAvatarDataUrl = "";
 
@@ -7885,7 +7885,7 @@ function initAvatarUpload() {
       return;
     }
     if (file.size > AVATAR_MAX_BYTES) {
-      setAvatarError("Imagem acima de 2 MB.");
+      setAvatarError("Imagem acima de 10 MB.");
       return;
     }
 
