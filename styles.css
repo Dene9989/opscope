@@ -975,6 +975,35 @@ body.is-authenticated .app-shell.auth-only {
   background: transparent;
 }
 
+.sidebar[data-state="collapsed"] .sidebar__brand {
+  padding: 8px 0;
+  justify-content: center;
+}
+
+.sidebar[data-state="collapsed"] .brand {
+  width: 100%;
+  justify-items: center;
+}
+
+.sidebar[data-state="collapsed"] .brand__logo {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0;
+  letter-spacing: 0;
+}
+
+.sidebar[data-state="collapsed"] .brand__logo::before {
+  content: "O";
+  font-size: 0.9rem;
+  letter-spacing: 0;
+  color: var(--sb-text);
+}
+
 .sidebar[data-state="collapsed"] .nav-group__body {
   padding: 6px 0 10px;
 }
@@ -987,6 +1016,7 @@ body.is-authenticated .app-shell.auth-only {
   display: grid;
   place-items: center;
   border-radius: 14px;
+  background: transparent;
 }
 
 .sidebar[data-state="collapsed"] .nav-item__ico {
@@ -1001,7 +1031,14 @@ body.is-authenticated .app-shell.auth-only {
 
 .sidebar[data-state="collapsed"] .nav-item.is-active,
 .sidebar[data-state="collapsed"] .nav-item.active {
-  background: rgba(217, 138, 59, 0.1);
+  background: transparent;
+}
+
+.sidebar[data-state="collapsed"] .nav-item.is-active .nav-item__ico,
+.sidebar[data-state="collapsed"] .nav-item.active .nav-item__ico {
+  background: rgba(217, 138, 59, 0.18);
+  border-color: rgba(217, 138, 59, 0.35);
+  box-shadow: 0 0 14px rgba(217, 138, 59, 0.35);
 }
 
 .sidebar[data-state="collapsed"] .nav-item.is-active::before,
