@@ -975,6 +975,12 @@ body.is-authenticated .app-shell.auth-only {
   background: transparent;
 }
 
+.sidebar[data-state="collapsed"] .sidebar__brand,
+.sidebar[data-state="collapsed"] .brand,
+.sidebar[data-state="collapsed"] .brand__logo {
+  display: none;
+}
+
 .sidebar[data-state="collapsed"] .sidebar__brand {
   padding: 8px 0;
   justify-content: center;
