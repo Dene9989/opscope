@@ -1580,6 +1580,123 @@ body.is-visitor .container.auth-only {
   gap: 8px;
 }
 
+.page-modelos {
+  --modelos-text-strong: #0b1b2b;
+  --modelos-text-muted: #667085;
+  --modelos-border: #d0d5dd;
+  --modelos-focus: 0 0 0 3px rgba(11, 27, 43, 0.2);
+  --modelos-primary: #0b1e2d;
+  --modelos-warning: #c8923d;
+  --modelos-danger: #b86845;
+}
+
+.page-modelos .card {
+  color: var(--modelos-text-strong);
+}
+
+.page-modelos .hint {
+  color: #546274;
+}
+
+.page-modelos label {
+  color: var(--modelos-text-strong);
+  font-weight: 600;
+}
+
+.page-modelos .template-form,
+.page-modelos .template-item {
+  color: var(--modelos-text-strong);
+}
+
+.page-modelos .template-form input,
+.page-modelos .template-form textarea,
+.page-modelos .template-form select,
+.page-modelos .template-toolbar input,
+.page-modelos .template-toolbar select {
+  background: #ffffff;
+  border: 1px solid var(--modelos-border);
+  color: var(--modelos-text-strong);
+}
+
+.page-modelos .template-form input::placeholder,
+.page-modelos .template-form textarea::placeholder,
+.page-modelos .template-toolbar input::placeholder {
+  color: var(--modelos-text-muted);
+  opacity: 1;
+}
+
+.page-modelos .template-form input:focus,
+.page-modelos .template-form textarea:focus,
+.page-modelos .template-form select:focus,
+.page-modelos .template-toolbar input:focus,
+.page-modelos .template-toolbar select:focus {
+  outline: none;
+  border-color: #98a2b3;
+  box-shadow: var(--modelos-focus);
+}
+
+.page-modelos .template-item strong {
+  font-size: 1.05rem;
+  color: var(--modelos-text-strong);
+}
+
+.page-modelos .template-meta {
+  color: #475467;
+}
+
+.page-modelos .template-item .account-label {
+  color: #1f2a37;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+.page-modelos .template-actions .btn {
+  border: 1px solid var(--modelos-border);
+  background: #ffffff;
+  color: var(--modelos-text-strong);
+}
+
+.page-modelos .template-actions .btn:hover {
+  background: #f5f7fa;
+}
+
+.page-modelos .template-actions .btn[data-action="edit-template"] {
+  background: var(--modelos-primary);
+  border-color: var(--modelos-primary);
+  color: #f8fafc;
+}
+
+.page-modelos .template-actions .btn[data-action="edit-template"]:hover {
+  background: #132c41;
+  border-color: #132c41;
+}
+
+.page-modelos .template-actions .btn[data-action="toggle-template"] {
+  background: var(--modelos-warning);
+  border-color: #b27b2e;
+  color: #1a1207;
+}
+
+.page-modelos .template-actions .btn[data-action="toggle-template"]:hover {
+  background: #d6a04a;
+}
+
+.page-modelos .template-actions .btn[data-action="delete-template"] {
+  background: var(--modelos-danger);
+  border-color: #9a4d34;
+  color: #fff5f1;
+}
+
+.page-modelos .template-actions .btn[data-action="delete-template"]:hover {
+  background: #a45337;
+}
+
+.page-modelos .template-actions .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 .account-details {
   display: grid;
   gap: 10px;
