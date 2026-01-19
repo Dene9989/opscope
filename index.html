@@ -26,20 +26,22 @@
           </button>
         </div>
         <div class="auth-shell">
-          <div class="auth-panel auth-panel--left">
+          <div class="auth-panel auth-panel--left auth-card">
             <div class="auth-brand">
               <span class="auth-brand__icon" aria-hidden="true"></span>
               <div>
                 <span class="auth-brand__logo">OPSCOPE</span>
-                <span class="auth-brand__tagline">OPERA&Ccedil;&Atilde;O SOB MICROSC&Oacute;PIO</span>
+                <span class="auth-brand__tagline">
+                  Vis&atilde;o Total da Opera&ccedil;&atilde;o e Manuten&ccedil;&atilde;o.
+                </span>
               </div>
             </div>
             <form id="loginForm" class="auth-form auth-form--login" data-auth-panel="login" hidden>
               <h3>Acesso seguro</h3>
               <div class="field">
                 <label for="loginUsuario">Usu&aacute;rio ou Matr&iacute;cula</label>
-                <div class="input-icon">
-                  <span class="input-icon__item" aria-hidden="true">
+                <div class="input-wrap has-icon-left">
+                  <span class="input-icon left" aria-hidden="true">
                     <svg viewBox="0 0 24 24" focusable="false">
                       <path
                         d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.4 0-8 2.2-8 4.8V21h16v-2.2c0-2.6-3.6-4.8-8-4.8Z"
@@ -57,8 +59,8 @@
               </div>
               <div class="field field--password">
                 <label for="loginSenha">Senha</label>
-                <div class="input-icon input-icon--action">
-                  <span class="input-icon__item" aria-hidden="true">
+                <div class="input-wrap has-icon-left has-icon-right">
+                  <span class="input-icon left" aria-hidden="true">
                     <svg viewBox="0 0 24 24" focusable="false">
                       <path
                         d="M7 10V7a5 5 0 0 1 10 0v3h1a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h1Zm2 0h6V7a3 3 0 0 0-6 0v3Z"
@@ -69,17 +71,74 @@
                   <input id="loginSenha" type="password" placeholder="Senha" autocomplete="current-password" />
                   <button
                     id="btnToggleLoginSenha"
-                    class="btn btn--ghost btn--small btn--icon"
+                    class="icon-btn toggle-password"
                     type="button"
                     aria-label="Mostrar senha"
+                    aria-pressed="false"
                   >
-                    Mostrar
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path
+                        class="eye-open"
+                        d="M1.5 12s4.5-7 10.5-7 10.5 7 10.5 7-4.5 7-10.5 7S1.5 12 1.5 12Z"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                      <circle
+                        class="eye-open"
+                        cx="12"
+                        cy="12"
+                        r="3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                      />
+                      <path
+                        class="eye-closed"
+                        d="M4 5.5 20 19.5"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                        stroke-linecap="round"
+                      />
+                      <path
+                        class="eye-closed"
+                        d="M6.8 7.4A10.7 10.7 0 0 1 12 6c6 0 10 6 10 6a18 18 0 0 1-3.9 4.4"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                      <path
+                        class="eye-closed"
+                        d="M4.8 16.6A10.7 10.7 0 0 1 2 12s1.4-2.4 3.9-4.6"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                      <path
+                        class="eye-closed"
+                        d="M9.6 9.6a3 3 0 0 0 4.8 4.8"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
                   </button>
                 </div>
                 <small id="capsLockLogin" class="caps-hint" hidden>Caps Lock ativado</small>
               </div>
-              <button id="btnLoginSubmit" class="btn btn--primary" type="submit">Entrar</button>
-              <a class="auth-link auth-link--light" href="#">Esqueceu sua senha?</a>
+              <div class="auth-actions">
+                <button id="btnLoginSubmit" class="btn btn--primary" type="submit">Entrar</button>
+                <a class="auth-link auth-link--light" href="#">Esqueceu sua senha?</a>
+              </div>
             </form>
             <p id="mensagemConta" class="mensagem" aria-live="polite"></p>
             <div class="auth-footer">
@@ -87,14 +146,14 @@
               <span>Acessos auditados e registrados</span>
             </div>
           </div>
-          <div class="auth-panel auth-panel--right">
+          <div class="auth-panel auth-panel--right auth-card">
             <p class="auth-kicker">Ainda n&atilde;o tem acesso? Solicite uma conta.</p>
             <form id="reqForm" class="auth-form auth-form--register" data-auth-panel="registro" hidden>
               <h3>Registrar</h3>
               <div class="field">
                 <label for="reqNome">Nome completo</label>
-                <div class="input-icon">
-                  <span class="input-icon__item" aria-hidden="true">
+                <div class="input-wrap has-icon-left">
+                  <span class="input-icon left" aria-hidden="true">
                     <svg viewBox="0 0 24 24" focusable="false">
                       <path
                         d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.4 0-8 2.2-8 4.8V21h16v-2.2c0-2.6-3.6-4.8-8-4.8Z"
@@ -107,8 +166,8 @@
               </div>
               <div class="field">
                 <label for="reqMatricula">E-mail corporativo</label>
-                <div class="input-icon">
-                  <span class="input-icon__item" aria-hidden="true">
+                <div class="input-wrap has-icon-left">
+                  <span class="input-icon left" aria-hidden="true">
                     <svg viewBox="0 0 24 24" focusable="false">
                       <path
                         d="M4 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Zm0 2 8 5 8-5H4Z"
@@ -126,8 +185,8 @@
               </div>
               <div class="field">
                 <label for="reqTelefone">Telefone (com DDD)</label>
-                <div class="input-icon">
-                  <span class="input-icon__item" aria-hidden="true">
+                <div class="input-wrap has-icon-left">
+                  <span class="input-icon left" aria-hidden="true">
                     <svg viewBox="0 0 24 24" focusable="false">
                       <path
                         d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.2 11.7 11.7 0 0 0 3.6.6 1 1 0 0 1 1 1v3.4a1 1 0 0 1-1 1A18 18 0 0 1 3 5a1 1 0 0 1 1-1h3.4a1 1 0 0 1 1 1 11.7 11.7 0 0 0 .6 3.6 1 1 0 0 1-.2 1Z"
@@ -140,8 +199,8 @@
               </div>
               <div class="field">
                 <label for="reqMotivo">Motivo do acesso</label>
-                <div class="input-icon">
-                  <span class="input-icon__item" aria-hidden="true">
+                <div class="input-wrap has-icon-left">
+                  <span class="input-icon left" aria-hidden="true">
                     <svg viewBox="0 0 24 24" focusable="false">
                       <path
                         d="M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8l-4 4V6a2 2 0 0 1 2-2Zm3 5h6v2H9V9Zm0 4h6v2H9v-2Z"
@@ -154,8 +213,8 @@
               </div>
               <div class="field field--password">
                 <label for="reqSenha">Senha</label>
-                <div class="input-icon input-icon--action">
-                  <span class="input-icon__item" aria-hidden="true">
+                <div class="input-wrap has-icon-left has-icon-right">
+                  <span class="input-icon left" aria-hidden="true">
                     <svg viewBox="0 0 24 24" focusable="false">
                       <path
                         d="M7 10V7a5 5 0 0 1 10 0v3h1a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h1Zm2 0h6V7a3 3 0 0 0-6 0v3Z"
@@ -166,11 +225,66 @@
                   <input id="reqSenha" type="password" placeholder="Senha" autocomplete="new-password" />
                   <button
                     id="btnToggleReqSenha"
-                    class="btn btn--ghost btn--small btn--icon"
+                    class="icon-btn toggle-password"
                     type="button"
                     aria-label="Mostrar senha"
+                    aria-pressed="false"
                   >
-                    Mostrar
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path
+                        class="eye-open"
+                        d="M1.5 12s4.5-7 10.5-7 10.5 7 10.5 7-4.5 7-10.5 7S1.5 12 1.5 12Z"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                      <circle
+                        class="eye-open"
+                        cx="12"
+                        cy="12"
+                        r="3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                      />
+                      <path
+                        class="eye-closed"
+                        d="M4 5.5 20 19.5"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                        stroke-linecap="round"
+                      />
+                      <path
+                        class="eye-closed"
+                        d="M6.8 7.4A10.7 10.7 0 0 1 12 6c6 0 10 6 10 6a18 18 0 0 1-3.9 4.4"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                      <path
+                        class="eye-closed"
+                        d="M4.8 16.6A10.7 10.7 0 0 1 2 12s1.4-2.4 3.9-4.6"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                      <path
+                        class="eye-closed"
+                        d="M9.6 9.6a3 3 0 0 0 4.8 4.8"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
                   </button>
                 </div>
                 <small id="capsLockRegistro" class="caps-hint" hidden>Caps Lock ativado</small>
@@ -185,8 +299,8 @@
               </div>
               <div class="field field--password">
                 <label for="reqSenhaConfirm">Confirmar senha</label>
-                <div class="input-icon input-icon--action">
-                  <span class="input-icon__item" aria-hidden="true">
+                <div class="input-wrap has-icon-left has-icon-right">
+                  <span class="input-icon left" aria-hidden="true">
                     <svg viewBox="0 0 24 24" focusable="false">
                       <path
                         d="M7 10V7a5 5 0 0 1 10 0v3h1a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h1Zm2 0h6V7a3 3 0 0 0-6 0v3Z"
@@ -197,19 +311,74 @@
                   <input id="reqSenhaConfirm" type="password" placeholder="Confirmar senha" autocomplete="new-password" />
                   <button
                     id="btnToggleReqSenhaConfirm"
-                    class="btn btn--ghost btn--small btn--icon"
+                    class="icon-btn toggle-password"
                     type="button"
                     aria-label="Mostrar senha"
+                    aria-pressed="false"
                   >
-                    Mostrar
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path
+                        class="eye-open"
+                        d="M1.5 12s4.5-7 10.5-7 10.5 7 10.5 7-4.5 7-10.5 7S1.5 12 1.5 12Z"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                      <circle
+                        class="eye-open"
+                        cx="12"
+                        cy="12"
+                        r="3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                      />
+                      <path
+                        class="eye-closed"
+                        d="M4 5.5 20 19.5"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                        stroke-linecap="round"
+                      />
+                      <path
+                        class="eye-closed"
+                        d="M6.8 7.4A10.7 10.7 0 0 1 12 6c6 0 10 6 10 6a18 18 0 0 1-3.9 4.4"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                      <path
+                        class="eye-closed"
+                        d="M4.8 16.6A10.7 10.7 0 0 1 2 12s1.4-2.4 3.9-4.6"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                      <path
+                        class="eye-closed"
+                        d="M9.6 9.6a3 3 0 0 0 4.8 4.8"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
                   </button>
                 </div>
                 <p id="reqSenhaConfirmErro" class="field-error" hidden></p>
               </div>
               <div class="field">
                 <label for="reqCodigoConvite">Codigo de convite</label>
-                <div class="input-icon">
-                  <span class="input-icon__item" aria-hidden="true">
+                <div class="input-wrap has-icon-left">
+                  <span class="input-icon left" aria-hidden="true">
                     <svg viewBox="0 0 24 24" focusable="false">
                       <path
                         d="M12 3a4 4 0 0 1 4 4v3h2a2 2 0 0 1 2 2v2h-2v6a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-6H4v-2a2 2 0 0 1 2-2h2V7a4 4 0 0 1 4-4Zm0 2a2 2 0 0 0-2 2v3h4V7a2 2 0 0 0-2-2Z"
@@ -228,18 +397,16 @@
                 Sua solicita&ccedil;&atilde;o ser&aacute; encaminhada ao PCM/O&amp;M respons&aacute;vel.
               </p>
             </form>
-            <div class="auth-links">
-              <div class="auth-links__left">
-                <span class="status-dot" aria-hidden="true"></span>
-                <span>Acessos auditados e registrados</span>
-              </div>
-              <div class="auth-links__right">
-                <a class="auth-link" href="#">Ajuda</a>
-                <span class="auth-link-sep">|</span>
-                <a class="auth-link" href="#">Pol&iacute;tica de Privacidade</a>
-              </div>
-            </div>
           </div>
+        </div>
+        <div class="auth-footer-global">
+          <span>Acessos auditados e registrados</span>
+          <span class="auth-sep">|</span>
+          <a class="auth-link" href="#">Ajuda</a>
+          <span class="auth-sep">|</span>
+          <a class="auth-link" href="#">Pol&iacute;tica de Privacidade</a>
+          <span class="auth-sep">|</span>
+          <a class="auth-link" href="#">Termos</a>
         </div>
       </section>
     </div>

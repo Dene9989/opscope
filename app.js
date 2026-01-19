@@ -639,13 +639,19 @@ async function apiRequest(path, options = {}) {
   return data;
 }
 
-function togglePassword(input, button) {
-  if (!input || !button) {
+function togglePassword(button) {
+  if (!button) {
+    return;
+  }
+  const wrapper = button.closest(".input-wrap");
+  const input = wrapper ? wrapper.querySelector("input") : null;
+  if (!input) {
     return;
   }
   const isPassword = input.type === "password";
   input.type = isPassword ? "text" : "password";
-  button.textContent = isPassword ? "Ocultar" : "Mostrar";
+  button.setAttribute("aria-pressed", isPassword ? "true" : "false");
+  button.setAttribute("aria-label", isPassword ? "Ocultar senha" : "Mostrar senha");
 }
 
 function bindCapsLockIndicator(input, hint) {
@@ -11195,21 +11201,9 @@ if (templateForm) {
   templateForm.addEventListener("change", handleTemplateFormChange);
 }
 
-if (btnToggleLoginSenha) {
-  btnToggleLoginSenha.addEventListener("click", () =>
-    togglePassword(loginSenha, btnToggleLoginSenha)
-  );
-}
-if (btnToggleReqSenha) {
-  btnToggleReqSenha.addEventListener("click", () =>
-    togglePassword(reqSenha, btnToggleReqSenha)
-  );
-}
-if (btnToggleReqSenhaConfirm) {
-  btnToggleReqSenhaConfirm.addEventListener("click", () =>
-    togglePassword(reqSenhaConfirm, btnToggleReqSenhaConfirm)
-  );
-}
+document.querySelectorAll(".toggle-password").forEach((button) => {
+  button.addEventListener("click", () => togglePassword(button));
+});
 bindCapsLockIndicator(loginSenha, capsLockLogin);
 bindCapsLockIndicator(reqSenha, capsLockRegistro);
 
