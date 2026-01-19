@@ -85,7 +85,7 @@ const painelLembretes = document.getElementById("painelLembretes");
 const loadingOverlay = document.getElementById("loadingOverlay");
 const sidebar = document.getElementById("sidebar");
 const btnToggleSidebar = document.querySelectorAll(
-  "#btnSidebar, #btnSidebarToggle, #btnToggleSidebar"
+  "#btnSidebar, #btnSidebarToggle, #btnToggleSidebar, #btnMenu, #topbarMenuToggle, .header-toggle"
 );
 const appShell = document.querySelector(".app") || document.querySelector(".app-shell");
 const sidebarBackdrop = document.getElementById("sidebarBackdrop");
@@ -1003,7 +1003,7 @@ function initSidebarAccordions() {
 }
 
 function isMobileView() {
-  return window.matchMedia("(max-width: 900px)").matches;
+  return window.matchMedia("(max-width: 1023px)").matches;
 }
 
 function openSidebarDrawer() {
@@ -1014,6 +1014,10 @@ function openSidebarDrawer() {
   if (sidebarBackdrop) {
     sidebarBackdrop.hidden = false;
   }
+  if (sidebar) {
+    sidebar.classList.add("is-open");
+  }
+  document.body.classList.add("sidebar-open");
 }
 
 function closeSidebarDrawer() {
@@ -1024,6 +1028,10 @@ function closeSidebarDrawer() {
   if (sidebarBackdrop) {
     sidebarBackdrop.hidden = true;
   }
+  if (sidebar) {
+    sidebar.classList.remove("is-open");
+  }
+  document.body.classList.remove("sidebar-open");
 }
 
 function toggleSidebar() {
@@ -1033,20 +1041,36 @@ function toggleSidebar() {
   if (isMobileView()) {
     if (appShell.classList.contains("is-drawer-open")) {
       closeSidebarDrawer();
-      return;
+    } else {
+      openSidebarDrawer();
     }
-    openSidebarDrawer();
     return;
   }
   const novoEstado = !appShell.classList.contains("is-collapsed");
   applyCollapsedState(novoEstado);
 }
 
+function syncSidebarLayout() {
+  if (!appShell) {
+    return;
+  }
+  if (isMobileView()) {
+    if (sidebar) {
+      sidebar.removeAttribute("data-state");
+    }
+    appShell.classList.remove("is-collapsed");
+    closeSidebarDrawer();
+    return;
+  }
+  closeSidebarDrawer();
+  applyCollapsedState();
+}
+
 function initSidebarToggle() {
   if (!appShell) {
     return;
   }
-  applyCollapsedState();
+  syncSidebarLayout();
   if (btnToggleSidebar && btnToggleSidebar.length) {
     btnToggleSidebar.forEach((btn) => btn.addEventListener("click", toggleSidebar));
   }
@@ -1062,8 +1086,15 @@ function initSidebarToggle() {
       });
     });
   }
+  let estavaMobile = isMobileView();
   window.addEventListener("resize", () => {
-    if (!isMobileView()) {
+    const agoraMobile = isMobileView();
+    if (agoraMobile !== estavaMobile) {
+      syncSidebarLayout();
+      estavaMobile = agoraMobile;
+      return;
+    }
+    if (!agoraMobile) {
       closeSidebarDrawer();
     }
   });
