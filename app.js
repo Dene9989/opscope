@@ -831,6 +831,11 @@ function mostrarAuthPanel(nome) {
     return;
   }
   authPanels.hidden = false;
+  if (authPanels.classList.contains("auth-panels--dual")) {
+    authPanelLogin.hidden = false;
+    authPanelRegistro.hidden = false;
+    return;
+  }
   authPanelLogin.hidden = nome !== "login";
   authPanelRegistro.hidden = nome !== "registro";
   btnTabLogin.classList.toggle("is-active", nome === "login");
@@ -11145,7 +11150,7 @@ reqForm.addEventListener("submit", async (event) => {
   }
   if (btnRegistroSubmit) {
     btnRegistroSubmit.disabled = true;
-    btnRegistroSubmit.textContent = "Criando...";
+    btnRegistroSubmit.textContent = "Solicitando...";
   }
   try {
     await apiRegister({ matricula, nome, senha, senhaConfirm, convite });
@@ -11175,7 +11180,7 @@ reqForm.addEventListener("submit", async (event) => {
   } finally {
     if (btnRegistroSubmit) {
       btnRegistroSubmit.disabled = false;
-      btnRegistroSubmit.textContent = "Criar conta";
+      btnRegistroSubmit.textContent = "Solicitar acesso";
     }
   }
 });
