@@ -348,6 +348,7 @@ const HISTORY_PAGE_SIZE = 12;
 const REMINDER_KEY = "denemanu.reminderDays";
 const SIDEBAR_KEY = "opscope.sidebarCollapsed";
 const SIDEBAR_STATE_KEY = "sb_state";
+const NOTIFICATION_READ_KEY = "opscope.notifications.read";
 const STORAGE_KEY = "denemanu.manutencoes";
 const TEMPLATE_KEY = "denemanu.templates";
 const USER_KEY = "denemanu.users";
@@ -630,6 +631,7 @@ const API_BASE = "";
 const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
 const AVATAR_ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];
 let pendingAvatarDataUrl = "";
+let lastFocusMaintenanceId = "";
 
 async function apiRequest(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -689,6 +691,93 @@ function setAvatarError(message) {
   }
   perfilAvatarErro.textContent = message || "";
   perfilAvatarErro.hidden = !message;
+}
+
+function getReadNotificationIds() {
+  const stored = readJson(NOTIFICATION_READ_KEY, []);
+  return new Set(stored.map((id) => String(id)));
+}
+
+function saveReadNotificationIds(readSet) {
+  writeJson(NOTIFICATION_READ_KEY, Array.from(readSet));
+}
+
+function markNotificationRead(id) {
+  if (!id) {
+    return;
+  }
+  const readSet = getReadNotificationIds();
+  const key = String(id);
+  if (!readSet.has(key)) {
+    readSet.add(key);
+    saveReadNotificationIds(readSet);
+  }
+}
+
+function setFocusParam(id) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("focus", id);
+  window.history.replaceState(null, "", url.toString());
+}
+
+function focusMaintenanceById(id, attempt = 0) {
+  if (!id) {
+    return;
+  }
+  const rawId = String(id);
+  const safeId =
+    window.CSS && CSS.escape ? CSS.escape(rawId) : rawId.replace(/["\\]/g, "\\$&");
+  const selector = `[data-maintenance-id="${safeId}"]`;
+  const target =
+    document.querySelector(selector) || document.getElementById(`maintenance-${rawId}`);
+  if (!target) {
+    if (attempt < 8) {
+      window.setTimeout(() => focusMaintenanceById(id, attempt + 1), 180);
+    }
+    return;
+  }
+  const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  target.scrollIntoView({
+    behavior: prefersReduced ? "auto" : "smooth",
+    block: "center",
+  });
+  target.classList.remove("focus-pulse");
+  void target.offsetWidth;
+  target.classList.add("focus-pulse");
+  const cleanup = () => {
+    target.classList.remove("focus-pulse");
+    target.removeEventListener("animationend", cleanup);
+  };
+  if (prefersReduced) {
+    window.setTimeout(cleanup, 2000);
+    return;
+  }
+  target.addEventListener("animationend", cleanup);
+  window.setTimeout(cleanup, 4000);
+}
+
+function openMaintenanceFromNotification(id) {
+  if (!id) {
+    return;
+  }
+  lastFocusMaintenanceId = String(id);
+  setFocusParam(id);
+  abrirPainelComCarregamento("programacao");
+  window.setTimeout(() => focusMaintenanceById(id), 200);
+}
+
+function handleFocusFromUrl() {
+  if (!currentUser) {
+    return;
+  }
+  const params = new URLSearchParams(window.location.search);
+  const focusId = params.get("focus");
+  if (!focusId || focusId === lastFocusMaintenanceId) {
+    return;
+  }
+  lastFocusMaintenanceId = focusId;
+  abrirPainelComCarregamento("programacao");
+  window.setTimeout(() => focusMaintenanceById(focusId), 200);
 }
 
 function togglePassword(button) {
@@ -1696,6 +1785,7 @@ async function carregarSessaoServidor() {
   await carregarUsuariosServidor();
   renderAuthUI();
   renderTudo();
+  handleFocusFromUrl();
   if (!currentUser) {
     mostrarAuthPanel("login");
   }
@@ -2464,6 +2554,7 @@ function renderLembretes() {
   }
   listaLembretes.innerHTML = "";
   const hoje = startOfDay(new Date());
+  const readSet = getReadNotificationIds();
 
   const proximos = manutencoes
     .filter((item) => item.status === "agendada" || item.status === "liberada")
@@ -2480,7 +2571,18 @@ function renderLembretes() {
     .sort((a, b) => a.data - b.data);
 
   if (lembretesCount) {
-    const total = proximos.length;
+    const ids = new Set(proximos.map(({ item }) => String(item.id)));
+    let changed = false;
+    readSet.forEach((id) => {
+      if (!ids.has(id)) {
+        readSet.delete(id);
+        changed = true;
+      }
+    });
+    if (changed) {
+      saveReadNotificationIds(readSet);
+    }
+    const total = proximos.filter(({ item }) => !readSet.has(String(item.id))).length;
     lembretesCount.textContent = lembretesCount.id === "bellDot" ? "" : total;
     lembretesCount.hidden = total === 0;
     lembretesCount.classList.toggle("is-zero", total === 0);
@@ -2495,6 +2597,7 @@ function renderLembretes() {
   proximos.forEach(({ item, data, diff }) => {
     const card = document.createElement("div");
     card.className = "lembrete-item";
+    card.dataset.maintenanceId = item.id;
 
     const titulo = document.createElement("strong");
     titulo.textContent = item.titulo;
@@ -2526,6 +2629,8 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const card = document.createElement("article");
   card.className = `manutencao-item status-${item.status}`;
   card.dataset.id = item.id;
+  card.dataset.maintenanceId = item.id;
+  card.id = `maintenance-${item.id}`;
 
   const header = document.createElement("div");
   header.className = "manutencao-header";
@@ -11204,6 +11309,23 @@ if (btnLembretes) {
   });
 }
 
+if (listaLembretes) {
+  listaLembretes.addEventListener("click", (event) => {
+    const item = event.target.closest(".lembrete-item");
+    if (!item) {
+      return;
+    }
+    const id = item.dataset.maintenanceId;
+    if (!id) {
+      return;
+    }
+    markNotificationRead(id);
+    renderLembretes();
+    fecharPainelLembretes();
+    openMaintenanceFromNotification(id);
+  });
+}
+
 document.addEventListener("click", (event) => {
   if (painelLembretes && !painelLembretes.hidden && btnLembretes) {
     const dentro =
@@ -11211,6 +11333,12 @@ document.addEventListener("click", (event) => {
     if (!dentro) {
       fecharPainelLembretes();
     }
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    fecharPainelLembretes();
   }
 });
 
