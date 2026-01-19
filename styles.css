@@ -1836,6 +1836,87 @@ body.is-visitor .container.auth-only {
   border-color: rgba(184, 104, 69, 0.35);
 }
 
+.page-gerencial {
+  --card-bg: #0e2a3d;
+  --card-bg-soft: #132c41;
+  --text-strong: #f8fafc;
+  --text-body: #d0d5dd;
+  --text-muted: #98a2b3;
+  --card-border: rgba(255, 255, 255, 0.12);
+  --field-border: rgba(255, 255, 255, 0.2);
+  --field-bg: #0f2436;
+  --focus-ring: 0 0 0 3px rgba(200, 146, 61, 0.25);
+}
+
+.page-gerencial .card,
+.page-gerencial .manager-card {
+  background: var(--card-bg);
+  border-color: var(--card-border);
+  color: var(--text-body);
+}
+
+.page-gerencial h2,
+.page-gerencial h3 {
+  color: var(--text-strong);
+}
+
+.page-gerencial p,
+.page-gerencial label,
+.page-gerencial small {
+  color: var(--text-body);
+}
+
+.page-gerencial .hint,
+.page-gerencial .empty-state {
+  color: var(--text-muted);
+}
+
+.page-gerencial .manager-report {
+  color: var(--text-body);
+}
+
+.page-gerencial input[type="text"],
+.page-gerencial input[type="number"],
+.page-gerencial input[type="file"],
+.page-gerencial textarea,
+.page-gerencial select {
+  background: var(--field-bg);
+  border: 1px solid var(--field-border);
+  color: var(--text-strong);
+}
+
+.page-gerencial input::placeholder,
+.page-gerencial textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+.page-gerencial input:focus,
+.page-gerencial textarea:focus,
+.page-gerencial select:focus {
+  outline: none;
+  border-color: #c8923d;
+  box-shadow: var(--focus-ring);
+}
+
+.page-gerencial .btn--ghost {
+  border: 1px solid var(--card-border);
+  background: transparent;
+  color: var(--text-body);
+}
+
+.page-gerencial .btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.page-gerencial .btn:disabled,
+.page-gerencial .btn.is-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  color: var(--text-body);
+}
+
 .account-details {
   display: grid;
   gap: 10px;
