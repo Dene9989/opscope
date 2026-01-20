@@ -60,6 +60,8 @@ const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
 const SMTP_USER = process.env.SMTP_USER || "";
 const SMTP_PASS = process.env.SMTP_PASS || "";
 const SMTP_FROM = process.env.SMTP_FROM || "";
+const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
+const RESEND_FROM = process.env.RESEND_FROM || "";
 const APP_BASE_URL = process.env.APP_BASE_URL || `http://localhost:${PORT}`;
 const SMTP_TIMEOUT_MS = Number(process.env.SMTP_TIMEOUT_MS) || 10000;
 const DASHBOARD_CACHE_TTL_MS = 60 * 1000;
@@ -849,27 +851,57 @@ function getMailer() {
   return mailer;
 }
 
-async function sendVerificationEmail(email, name, token) {
+async function sendEmailViaResend({ to, subject, text, html }) {
+  if (!RESEND_API_KEY || !RESEND_FROM) {
+    return false;
+  }
+  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  let timeoutId = null;
+  if (controller) {
+    timeoutId = setTimeout(() => controller.abort(), SMTP_TIMEOUT_MS);
+  }
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: RESEND_FROM,
+        to: [to],
+        subject,
+        text,
+        html,
+      }),
+      signal: controller ? controller.signal : undefined,
+    });
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      console.warn(`Resend falhou (${response.status}).`, body);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn("Resend falhou.", error && error.message ? error.message : error);
+    return false;
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
+async function sendEmailViaSmtp({ to, subject, text, html }) {
   const transporter = getMailer();
   if (!transporter) {
     return false;
   }
-  const baseUrl = String(APP_BASE_URL || "").replace(/\/$/, "");
-  const verifyUrl = `${baseUrl}/?verify=${encodeURIComponent(token)}`;
-  const safeName = String(name || "").trim() || "colaborador";
-  const subject = "Confirmacao de email - OPSCOPE";
-  const text = `Ola, ${safeName}!\n\nConfirme seu email para ativar sua conta OPSCOPE:\n${verifyUrl}\n\nSe voce nao solicitou o acesso, ignore este email.`;
-  const html = `
-    <p>Ola, <strong>${safeName}</strong>!</p>
-    <p>Confirme seu email para ativar sua conta OPSCOPE:</p>
-    <p><a href="${verifyUrl}">Confirmar email</a></p>
-    <p>Se voce nao solicitou o acesso, ignore este email.</p>
-  `;
   try {
     await withTimeout(
       transporter.sendMail({
         from: SMTP_FROM,
-        to: email,
+        to,
         subject,
         text,
         html,
@@ -881,6 +913,25 @@ async function sendVerificationEmail(email, name, token) {
     console.warn("Falha ao enviar email.", error && error.message ? error.message : error);
     return false;
   }
+}
+
+async function sendVerificationEmail(email, name, token) {
+  const baseUrl = String(APP_BASE_URL || "").replace(/\/$/, "");
+  const verifyUrl = `${baseUrl}/?verify=${encodeURIComponent(token)}`;
+  const safeName = String(name || "").trim() || "colaborador";
+  const subject = "Confirmacao de email - OPSCOPE";
+  const text = `Ola, ${safeName}!\n\nConfirme seu email para ativar sua conta OPSCOPE:\n${verifyUrl}\n\nSe voce nao solicitou o acesso, ignore este email.`;
+  const html = `
+    <p>Ola, <strong>${safeName}</strong>!</p>
+    <p>Confirme seu email para ativar sua conta OPSCOPE:</p>
+    <p><a href="${verifyUrl}">Confirmar email</a></p>
+    <p>Se voce nao solicitou o acesso, ignore este email.</p>
+  `;
+  const resendOk = await sendEmailViaResend({ to: email, subject, text, html });
+  if (resendOk) {
+    return true;
+  }
+  return sendEmailViaSmtp({ to: email, subject, text, html });
 }
 
 function cleanupVerifications() {
