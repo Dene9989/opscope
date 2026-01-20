@@ -578,6 +578,13 @@ const ACTION_LABELS = {
   rdo_delete: "RDO excluido",
 };
 
+const MAINTENANCE_STATE_LABELS = {
+  overdue: "ATRASADA",
+  locked: "TRANCADA",
+  released: "LIBERADA",
+  planned: "PLANEJADA",
+};
+
 const RESULTADO_LABELS = {
   concluida: "Concluida",
   ressalva: "Concluida com ressalva",
@@ -824,11 +831,11 @@ function focusMaintenanceById(id, attempt = 0) {
     behavior: prefersReduced ? "auto" : "smooth",
     block: "center",
   });
-  target.classList.remove("focus-pulse");
+  target.classList.remove("focus-pulse", "focus-state-pulse");
   void target.offsetWidth;
-  target.classList.add("focus-pulse");
+  target.classList.add("focus-pulse", "focus-state-pulse");
   const cleanup = () => {
-    target.classList.remove("focus-pulse");
+    target.classList.remove("focus-pulse", "focus-state-pulse");
     target.removeEventListener("animationend", cleanup);
   };
   if (prefersReduced) {
@@ -2446,6 +2453,26 @@ function getReleaseLockInfo(item, data, hoje) {
   return { date: data, canOverride: canOverrideRelease(currentUser) };
 }
 
+function getMaintenanceState(item, data, hoje, lockInfo) {
+  if (!item) {
+    return "planned";
+  }
+  const status = String(item.status || "").trim().toLowerCase();
+  if (status === "backlog") {
+    return "overdue";
+  }
+  if (status !== "concluida" && status !== "cancelada" && data && data < hoje) {
+    return "overdue";
+  }
+  if (item.trancada === true || lockInfo) {
+    return "locked";
+  }
+  if (status === "liberada") {
+    return "released";
+  }
+  return "planned";
+}
+
 function renderHome() {
   loadDashboardSummary();
   renderDashboardHome();
@@ -2735,12 +2762,17 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const diff = data ? diffInDays(hoje, data) : null;
   const liberacao = getLiberacao(item);
   const lockInfo = getReleaseLockInfo(item, data, hoje);
+  const state = getMaintenanceState(item, data, hoje, lockInfo);
 
   const card = document.createElement("article");
-  card.className = `manutencao-item status-${item.status}`;
+  card.className = `manutencao-item status-${item.status} state-${state}`;
   card.dataset.id = item.id;
   card.dataset.maintenanceId = item.id;
   card.id = `maintenance-${item.id}`;
+
+  const rail = document.createElement("div");
+  rail.className = "status-rail";
+  rail.setAttribute("aria-hidden", "true");
 
   const header = document.createElement("div");
   header.className = "manutencao-header";
@@ -2885,7 +2917,15 @@ function criarCardManutencao(item, permissoes, options = {}) {
   badge.className = `status status--${statusBase}`;
   badge.textContent = label;
 
-  header.append(info, badge);
+  const stateBadge = document.createElement("span");
+  stateBadge.className = `status-flag status-flag--${state}`;
+  stateBadge.textContent = MAINTENANCE_STATE_LABELS[state] || "PLANEJADA";
+
+  const statusGroup = document.createElement("div");
+  statusGroup.className = "status-group";
+  statusGroup.append(badge, stateBadge);
+
+  header.append(info, statusGroup);
 
   const actions = document.createElement("div");
   actions.className = "manutencao-actions";
@@ -2954,7 +2994,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
     actions.append(criarBotaoAcao("Remover", "remove", true));
   }
 
-  card.append(header);
+  card.append(rail, header);
   if (actions.childElementCount > 0) {
     card.append(actions);
   }
