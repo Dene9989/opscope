@@ -99,6 +99,18 @@ const perfilRole = document.getElementById("perfilRole");
 const perfilAtribuicoes = document.getElementById("perfilAtribuicoes");
 const perfilPermissoes = document.getElementById("perfilPermissoes");
 const perfilSecoes = document.getElementById("perfilSecoes");
+const perfilCard = document.getElementById("perfilCard");
+const perfilTitle = document.getElementById("perfilTitle");
+const perfilModeBadge = document.getElementById("perfilModeBadge");
+const perfilView = document.getElementById("perfilView");
+const perfilViewActions = document.getElementById("perfilViewActions");
+const perfilEditActions = document.getElementById("perfilEditActions");
+const perfilEditMount = document.getElementById("perfilEditMount");
+const perfilAvatarActionsMount = document.getElementById("perfilAvatarActionsMount");
+const perfilAvatarTemplate = document.getElementById("perfilAvatarTemplate");
+const perfilEditTemplate = document.getElementById("perfilEditTemplate");
+const btnPerfilEditar = document.getElementById("btnPerfilEditar");
+const btnPerfilCancelar = document.getElementById("btnPerfilCancelar");
 
 const usuarioAtual = document.getElementById("userChip") || document.getElementById("usuarioAtual");
 const userAvatar = document.getElementById("userAvatar");
@@ -699,6 +711,7 @@ const API_BASE = "";
 const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
 const AVATAR_ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];
 let pendingAvatarDataUrl = "";
+let avatarUploadBound = false;
 let lastFocusMaintenanceId = "";
 
 async function apiRequest(path, options = {}) {
@@ -774,12 +787,63 @@ function setAvatarError(message) {
 }
 
 function setPerfilSaveMessage(message, error = false) {
-  if (!perfilSaveMsg) {
+  const saveMsg = document.getElementById("perfilSaveMsg");
+  if (!saveMsg) {
     return;
   }
-  perfilSaveMsg.textContent = message || "";
-  perfilSaveMsg.hidden = !message;
-  perfilSaveMsg.classList.toggle("mensagem--erro", error);
+  saveMsg.textContent = message || "";
+  saveMsg.hidden = !message;
+  saveMsg.classList.toggle("mensagem--erro", error);
+}
+
+function isProfileEditMode() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("edit") === "1";
+}
+
+function setProfileEditParam(isEdit) {
+  const url = new URL(window.location.href);
+  if (isEdit) {
+    url.searchParams.set("edit", "1");
+  } else {
+    url.searchParams.delete("edit");
+  }
+  window.history.replaceState(null, "", url.toString());
+}
+
+function mountProfileTemplate(template, mount) {
+  if (!template || !mount || mount.childElementCount) {
+    return;
+  }
+  mount.append(template.content.cloneNode(true));
+}
+
+function unmountProfileTemplate(mount) {
+  if (!mount) {
+    return;
+  }
+  mount.textContent = "";
+}
+
+function mountProfileEdit() {
+  mountProfileTemplate(perfilEditTemplate, perfilEditMount);
+}
+
+function unmountProfileEdit() {
+  unmountProfileTemplate(perfilEditMount);
+}
+
+function mountProfileAvatarActions() {
+  mountProfileTemplate(perfilAvatarTemplate, perfilAvatarActionsMount);
+}
+
+function unmountProfileAvatarActions() {
+  unmountProfileTemplate(perfilAvatarActionsMount);
+}
+
+function formatProfileValue(value) {
+  const texto = String(value || "").trim();
+  return texto ? texto : "Nao informado";
 }
 
 function getReadNotificationIds() {
@@ -1189,6 +1253,7 @@ function abrirPainelComCarregamento(tab, scrollTarget = null) {
 }
 
 function fecharPainelPerfil() {
+  setProfileEditParam(false);
   abrirPainelComCarregamento("inicio");
 }
 
@@ -7939,6 +8004,46 @@ function renderPerfil() {
     return;
   }
 
+  const editRequested = isProfileEditMode();
+  const podeEditarPerfil = currentUser ? canEditProfile(currentUser, currentUser) : false;
+  const isEdit = Boolean(editRequested && podeEditarPerfil);
+
+  if (editRequested && !podeEditarPerfil) {
+    setProfileEditParam(false);
+  }
+
+  if (perfilCard) {
+    perfilCard.classList.toggle("is-editing", isEdit);
+  }
+  if (perfilView) {
+    perfilView.hidden = isEdit;
+  }
+  if (perfilViewActions) {
+    perfilViewActions.hidden = isEdit;
+  }
+  if (perfilEditActions) {
+    perfilEditActions.hidden = !isEdit;
+  }
+  if (perfilModeBadge) {
+    perfilModeBadge.hidden = !isEdit;
+  }
+  if (perfilTitle) {
+    perfilTitle.textContent = isEdit ? "Editar perfil" : "Meu perfil";
+  }
+  if (btnPerfilEditar) {
+    btnPerfilEditar.hidden = !podeEditarPerfil;
+  }
+
+  if (isEdit) {
+    mountProfileAvatarActions();
+    mountProfileEdit();
+  } else {
+    unmountProfileAvatarActions();
+    unmountProfileEdit();
+    setPerfilSaveMessage("");
+    pendingAvatarDataUrl = "";
+  }
+
   if (!currentUser) {
     perfilNome.textContent = "-";
     if (perfilMatricula) {
@@ -7965,21 +8070,14 @@ function renderPerfil() {
     if (perfilSecoes) {
       perfilSecoes.textContent = "-";
     }
-    if (perfilUenInput) {
-      perfilUenInput.value = "";
+    if (perfilViewActions) {
+      perfilViewActions.hidden = true;
     }
-    if (perfilProjetoInput) {
-      perfilProjetoInput.value = "";
+    if (perfilEditActions) {
+      perfilEditActions.hidden = true;
     }
-    if (perfilEdit) {
-      perfilEdit.hidden = true;
-    }
-    if (perfilAvatarActions) {
-      perfilAvatarActions.hidden = true;
-    }
-    pendingAvatarDataUrl = "";
-    if (btnAvatarSave) {
-      btnAvatarSave.disabled = true;
+    if (btnPerfilEditar) {
+      btnPerfilEditar.hidden = true;
     }
     setAvatarError("");
     applyAvatarToElement(perfilAvatarPreview, "");
@@ -7989,7 +8087,6 @@ function renderPerfil() {
 
   const isAdminUser = currentUser.role === "admin";
   const secConfig = getSectionConfig(currentUser);
-  const podeEditarPerfil = canEditProfile(currentUser, currentUser);
   const permissoesAtivas = Object.keys(PERMISSIONS)
     .filter((key) => !isAdminUser && currentUser.permissions && currentUser.permissions[key])
     .map((key) => PERMISSIONS[key]);
@@ -7997,21 +8094,23 @@ function renderPerfil() {
     .filter((key) => secConfig[key])
     .map((key) => SECTION_LABELS[key]);
 
-  perfilNome.textContent = currentUser.name || "-";
+  perfilNome.textContent = formatProfileValue(currentUser.name);
   if (perfilMatricula) {
-    perfilMatricula.textContent = currentUser.matricula || currentUser.username || "-";
+    perfilMatricula.textContent = formatProfileValue(
+      currentUser.matricula || currentUser.username || ""
+    );
   }
   if (perfilCargo) {
-    perfilCargo.textContent = currentUser.cargo || "-";
+    perfilCargo.textContent = formatProfileValue(currentUser.cargo);
   }
   if (perfilProjeto) {
-    perfilProjeto.textContent = currentUser.projeto || "-";
+    perfilProjeto.textContent = formatProfileValue(currentUser.projeto);
   }
   if (perfilUen) {
-    perfilUen.textContent = currentUser.uen || "-";
+    perfilUen.textContent = formatProfileValue(currentUser.uen);
   }
   if (perfilRole) {
-    perfilRole.textContent = getRoleLabel(currentUser);
+    perfilRole.textContent = formatProfileValue(getRoleLabel(currentUser));
   }
   if (perfilAtribuicoes) {
     perfilAtribuicoes.textContent = currentUser.atribuicoes || "Nao informado.";
@@ -8030,20 +8129,21 @@ function renderPerfil() {
         ? secoesAtivas.join(", ")
         : "Nenhuma.";
   }
-  if (perfilUenInput) {
-    perfilUenInput.value = currentUser.uen || "";
+  const perfilUenInputAtual = document.getElementById("perfilUenInput");
+  if (perfilUenInputAtual) {
+    perfilUenInputAtual.value = currentUser.uen || "";
   }
-  if (perfilProjetoInput) {
-    perfilProjetoInput.value = currentUser.projeto || "";
+  const perfilProjetoInputAtual = document.getElementById("perfilProjetoInput");
+  if (perfilProjetoInputAtual) {
+    perfilProjetoInputAtual.value = currentUser.projeto || "";
   }
-  if (perfilEdit) {
-    perfilEdit.hidden = !podeEditarPerfil;
+  const btnSalvarAtual = document.getElementById("btnPerfilSalvar");
+  if (btnSalvarAtual) {
+    btnSalvarAtual.disabled = !podeEditarPerfil;
   }
-  if (btnPerfilSalvar) {
-    btnPerfilSalvar.disabled = !podeEditarPerfil;
-  }
-  if (perfilAvatarActions) {
-    perfilAvatarActions.hidden = false;
+  const btnAvatarSaveAtual = document.getElementById("btnAvatarSave");
+  if (btnAvatarSaveAtual) {
+    btnAvatarSaveAtual.disabled = !pendingAvatarDataUrl;
   }
 
   const avatarUrl = pendingAvatarDataUrl || getAvatarUrl(currentUser);
@@ -8157,20 +8257,66 @@ function renderAuthUI() {
 }
 
 function initAvatarUpload() {
-  if (!perfilAvatarInput || !btnAvatarChange || !btnAvatarSave) {
+  if (avatarUploadBound) {
     return;
   }
+  avatarUploadBound = true;
 
-  btnAvatarChange.addEventListener("click", () => {
-    perfilAvatarInput.click();
+  document.addEventListener("click", (event) => {
+    const changeBtn = event.target.closest("#btnAvatarChange");
+    if (changeBtn) {
+      const input = document.getElementById("perfilAvatarInput");
+      if (input) {
+        input.click();
+      }
+      return;
+    }
+
+    const saveBtn = event.target.closest("#btnAvatarSave");
+    if (!saveBtn) {
+      return;
+    }
+    if (!pendingAvatarDataUrl) {
+      return;
+    }
+    saveBtn.disabled = true;
+    setAvatarError("");
+    apiUploadAvatar(pendingAvatarDataUrl)
+      .then((data) => {
+        if (data && data.user) {
+          currentUser = data.user;
+        } else if (currentUser && data && data.avatarUrl) {
+          currentUser.avatarUrl = data.avatarUrl;
+          currentUser.avatarUpdatedAt = data.avatarUpdatedAt || new Date().toISOString();
+        }
+        const input = document.getElementById("perfilAvatarInput");
+        if (input) {
+          input.value = "";
+        }
+        pendingAvatarDataUrl = "";
+        renderAuthUI();
+        renderPerfil();
+      })
+      .catch((error) => {
+        const message = error && error.message ? error.message : "Falha ao salvar foto.";
+        setAvatarError(message);
+        saveBtn.disabled = false;
+      });
   });
 
-  perfilAvatarInput.addEventListener("change", () => {
+  document.addEventListener("change", (event) => {
+    const input = event.target;
+    if (!input || input.id !== "perfilAvatarInput") {
+      return;
+    }
     pendingAvatarDataUrl = "";
-    btnAvatarSave.disabled = true;
     setAvatarError("");
+    const saveBtn = document.getElementById("btnAvatarSave");
+    if (saveBtn) {
+      saveBtn.disabled = true;
+    }
 
-    const file = perfilAvatarInput.files && perfilAvatarInput.files[0];
+    const file = input.files && input.files[0];
     if (!file) {
       applyAvatarToElement(perfilAvatarPreview, getAvatarUrl(currentUser));
       return;
@@ -8192,37 +8338,14 @@ function initAvatarUpload() {
         return;
       }
       applyAvatarToElement(perfilAvatarPreview, pendingAvatarDataUrl);
-      btnAvatarSave.disabled = false;
+      if (saveBtn) {
+        saveBtn.disabled = false;
+      }
     };
     reader.onerror = () => {
       setAvatarError("Falha ao ler a imagem.");
     };
     reader.readAsDataURL(file);
-  });
-
-  btnAvatarSave.addEventListener("click", async () => {
-    if (!pendingAvatarDataUrl) {
-      return;
-    }
-    btnAvatarSave.disabled = true;
-    setAvatarError("");
-    try {
-      const data = await apiUploadAvatar(pendingAvatarDataUrl);
-      if (data && data.user) {
-        currentUser = data.user;
-      } else if (currentUser && data && data.avatarUrl) {
-        currentUser.avatarUrl = data.avatarUrl;
-        currentUser.avatarUpdatedAt = data.avatarUpdatedAt || new Date().toISOString();
-      }
-      pendingAvatarDataUrl = "";
-      perfilAvatarInput.value = "";
-      renderAuthUI();
-      renderPerfil();
-    } catch (error) {
-      const message = error && error.message ? error.message : "Falha ao salvar foto.";
-      setAvatarError(message);
-      btnAvatarSave.disabled = false;
-    }
   });
 }
 
@@ -11540,14 +11663,19 @@ if (userMenuPanel) {
       return;
     }
     if (action === "view-profile") {
+      setProfileEditParam(false);
       abrirPainelComCarregamento("perfil");
+      renderPerfil();
       return;
     }
     if (action === "edit-profile") {
+      setProfileEditParam(true);
       abrirPainelComCarregamento("perfil");
       window.setTimeout(() => {
-        if (perfilUenInput) {
-          perfilUenInput.focus();
+        renderPerfil();
+        const input = document.getElementById("perfilUenInput");
+        if (input) {
+          input.focus();
         }
       }, 0);
     }
@@ -11640,48 +11768,76 @@ if (btnSair) {
   });
 }
 
-if (btnPerfilSalvar) {
-  btnPerfilSalvar.addEventListener("click", async () => {
-    if (!currentUser) {
-      return;
-    }
-    if (!canEditProfile(currentUser, currentUser)) {
-      setPerfilSaveMessage("Sem permissao para editar este perfil.", true);
-      return;
-    }
-    const payload = {};
-    const uenValue = perfilUenInput ? perfilUenInput.value.trim() : "";
-    const projetoValue = perfilProjetoInput ? perfilProjetoInput.value.trim() : "";
-    if (perfilUenInput && uenValue !== (currentUser.uen || "")) {
-      payload.uen = uenValue;
-    }
-    if (perfilProjetoInput && projetoValue !== (currentUser.projeto || "")) {
-      payload.projeto = projetoValue;
-    }
-    if (!Object.keys(payload).length) {
-      setPerfilSaveMessage("Nenhuma alteracao para salvar.");
-      return;
-    }
-    btnPerfilSalvar.disabled = true;
-    setPerfilSaveMessage("");
-    try {
-      const data = await apiUpdateProfile(payload);
+document.addEventListener("click", (event) => {
+  const editar = event.target.closest("#btnPerfilEditar");
+  if (editar) {
+    setProfileEditParam(true);
+    abrirPainelComCarregamento("perfil");
+    renderPerfil();
+    window.setTimeout(() => {
+      const input = document.getElementById("perfilUenInput");
+      if (input) {
+        input.focus();
+      }
+    }, 0);
+    return;
+  }
+
+  const cancelar = event.target.closest("#btnPerfilCancelar");
+  if (cancelar) {
+    setProfileEditParam(false);
+    renderPerfil();
+    return;
+  }
+
+  const salvar = event.target.closest("#btnPerfilSalvar");
+  if (!salvar) {
+    return;
+  }
+  if (!currentUser) {
+    return;
+  }
+  if (!canEditProfile(currentUser, currentUser)) {
+    setPerfilSaveMessage("Sem permissao para editar este perfil.", true);
+    return;
+  }
+  const uenInput = document.getElementById("perfilUenInput");
+  const projetoInput = document.getElementById("perfilProjetoInput");
+  const payload = {};
+  const uenValue = uenInput ? uenInput.value.trim() : "";
+  const projetoValue = projetoInput ? projetoInput.value.trim() : "";
+  if (uenInput && uenValue !== (currentUser.uen || "")) {
+    payload.uen = uenValue;
+  }
+  if (projetoInput && projetoValue !== (currentUser.projeto || "")) {
+    payload.projeto = projetoValue;
+  }
+  if (!Object.keys(payload).length) {
+    setPerfilSaveMessage("Nenhuma alteracao para salvar.");
+    return;
+  }
+  salvar.disabled = true;
+  setPerfilSaveMessage("");
+  apiUpdateProfile(payload)
+    .then((data) => {
       if (data && data.user) {
         currentUser = data.user;
         users = users.map((usuario) => (usuario.id === currentUser.id ? data.user : usuario));
       }
+      setProfileEditParam(false);
       renderPerfil();
       renderUsuarios();
       renderAuthUI();
       setPerfilSaveMessage("Perfil atualizado.");
-    } catch (error) {
+    })
+    .catch((error) => {
       const message = error && error.message ? error.message : "Nao foi possivel salvar.";
       setPerfilSaveMessage(message, true);
-    } finally {
-      btnPerfilSalvar.disabled = false;
-    }
-  });
-}
+    })
+    .finally(() => {
+      salvar.disabled = false;
+    });
+});
 
 if (btnSalvarConfig) {
   btnSalvarConfig.addEventListener("click", salvarConfiguracoes);

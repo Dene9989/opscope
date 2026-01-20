@@ -1480,15 +1480,80 @@
     </section>
 
     <section class="panel" id="perfil" data-panel="perfil">
-      <section class="card">
+      <section class="card profile-card" id="perfilCard">
         <div class="profile-actions">
-          <h2>Meu perfil</h2>
-          <button id="btnFecharPerfil" class="btn btn--ghost btn--small" type="button">
-            Fechar
-          </button>
+          <div class="profile-actions__title">
+            <h2 id="perfilTitle">Meu perfil</h2>
+            <span class="profile-mode" id="perfilModeBadge" hidden>Modo edi&ccedil;&atilde;o</span>
+          </div>
+          <div class="profile-actions__buttons" id="perfilViewActions">
+            <button id="btnPerfilEditar" class="btn btn--primary btn--small" type="button">
+              Editar perfil
+            </button>
+            <button id="btnFecharPerfil" class="btn btn--ghost btn--small" type="button">
+              Fechar
+            </button>
+          </div>
+          <div class="profile-actions__buttons" id="perfilEditActions" hidden>
+            <button id="btnPerfilCancelar" class="btn btn--ghost btn--small" type="button">
+              Cancelar
+            </button>
+            <button id="btnPerfilSalvar" class="btn btn--primary btn--small" type="button">
+              Salvar altera&ccedil;&otilde;es
+            </button>
+          </div>
         </div>
-        <div class="profile-avatar">
-          <div class="profile-avatar__preview" id="perfilAvatarPreview" aria-hidden="true"></div>
+        <div class="profile-layout">
+          <div class="profile-header" id="perfilHeader">
+            <div class="profile-avatar__preview" id="perfilAvatarPreview" aria-hidden="true"></div>
+            <div class="profile-identity">
+              <span class="profile-eyebrow">Perfil do colaborador</span>
+              <strong id="perfilNome">-</strong>
+              <div class="profile-subinfo">
+                <span id="perfilCargo">-</span>
+                <span class="dot-sep" aria-hidden="true"></span>
+                <span id="perfilRole">-</span>
+              </div>
+              <div class="profile-chips">
+                <span class="profile-chip">
+                  <span class="chip-label">Matricula</span>
+                  <strong id="perfilMatricula">-</strong>
+                </span>
+                <span class="profile-chip">
+                  <span class="chip-label">UEN</span>
+                  <strong id="perfilUen">-</strong>
+                </span>
+                <span class="profile-chip">
+                  <span class="chip-label">Projeto(s)</span>
+                  <strong id="perfilProjeto">-</strong>
+                </span>
+              </div>
+              <div class="profile-avatar__mount" id="perfilAvatarActionsMount"></div>
+              <p id="perfilAvatarErro" class="field-error" hidden></p>
+            </div>
+          </div>
+          <div id="perfilEditMount"></div>
+        </div>
+        <div class="profile-view" id="perfilView">
+          <div class="profile-section">
+            <h3>Dados operacionais</h3>
+            <div class="profile-grid">
+              <div class="profile-item" data-full>
+                <span class="account-label">Atribuicoes</span>
+                <p id="perfilAtribuicoes" class="profile-text">-</p>
+              </div>
+              <div class="profile-item" data-full>
+                <span class="account-label">Permissoes</span>
+                <p id="perfilPermissoes" class="profile-text">-</p>
+              </div>
+              <div class="profile-item" data-full>
+                <span class="account-label">Secoes</span>
+                <p id="perfilSecoes" class="profile-text">-</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <template id="perfilAvatarTemplate">
           <div class="profile-avatar__info">
             <span class="account-label">Foto de perfil</span>
             <p class="profile-text">PNG, JPG ou WebP at&eacute; 10 MB.</p>
@@ -1506,61 +1571,21 @@
                 Salvar foto
               </button>
             </div>
-            <p id="perfilAvatarErro" class="field-error" hidden></p>
           </div>
-        </div>
-        <div class="profile-grid">
-          <div class="profile-item">
-            <span class="account-label">Nome</span>
-            <strong id="perfilNome">-</strong>
+        </template>
+        <template id="perfilEditTemplate">
+          <div class="profile-edit">
+            <div class="field">
+              <label for="perfilUenInput">UEN</label>
+              <input id="perfilUenInput" type="text" placeholder="Informe a UEN" />
+            </div>
+            <div class="field">
+              <label for="perfilProjetoInput">Projeto(s)</label>
+              <input id="perfilProjetoInput" type="text" placeholder="Informe o projeto" />
+            </div>
+            <p id="perfilSaveMsg" class="field-error" hidden></p>
           </div>
-          <div class="profile-item">
-            <span class="account-label">Matricula</span>
-            <strong id="perfilMatricula">-</strong>
-          </div>
-          <div class="profile-item">
-            <span class="account-label">Cargo</span>
-            <strong id="perfilCargo">-</strong>
-          </div>
-          <div class="profile-item">
-            <span class="account-label">Projeto</span>
-            <strong id="perfilProjeto">-</strong>
-          </div>
-          <div class="profile-item">
-            <span class="account-label">UEN</span>
-            <strong id="perfilUen">-</strong>
-          </div>
-          <div class="profile-item">
-            <span class="account-label">Perfil</span>
-            <strong id="perfilRole">-</strong>
-          </div>
-          <div class="profile-item" data-full>
-            <span class="account-label">Atribuicoes</span>
-            <p id="perfilAtribuicoes" class="profile-text">-</p>
-          </div>
-          <div class="profile-item" data-full>
-            <span class="account-label">Permissoes</span>
-            <p id="perfilPermissoes" class="profile-text">-</p>
-          </div>
-          <div class="profile-item" data-full>
-            <span class="account-label">Secoes</span>
-            <p id="perfilSecoes" class="profile-text">-</p>
-          </div>
-        </div>
-        <div class="profile-edit" id="perfilEdit">
-          <div class="field">
-            <label for="perfilUenInput">UEN</label>
-            <input id="perfilUenInput" type="text" placeholder="Informe a UEN" />
-          </div>
-          <div class="field">
-            <label for="perfilProjetoInput">Projeto(s)</label>
-            <input id="perfilProjetoInput" type="text" placeholder="Informe o projeto" />
-          </div>
-          <button id="btnPerfilSalvar" class="btn btn--primary btn--small" type="button">
-            Salvar
-          </button>
-          <p id="perfilSaveMsg" class="field-error" hidden></p>
-        </div>
+        </template>
       </section>
     </section>
 
