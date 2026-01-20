@@ -44,6 +44,7 @@ const listaRelatoriosVazia = document.getElementById("listaRelatoriosVazia");
 const countAgendadas = document.getElementById("countAgendadas");
 const countLiberadas = document.getElementById("countLiberadas");
 const countBacklog = document.getElementById("countBacklog");
+const badgeBacklog = document.getElementById("badgeBacklog");
 const countEmExecucao = document.getElementById("countEmExecucao");
 const countEncerramento = document.getElementById("countEncerramento");
 const countConcluidas = document.getElementById("countConcluidas");
@@ -2579,6 +2580,9 @@ function atualizarResumo() {
     countLiberadas.textContent = contagem.liberada;
   }
   countBacklog.textContent = contagem.backlog;
+  if (badgeBacklog) {
+    badgeBacklog.textContent = contagem.backlog;
+  }
   if (countEmExecucao) {
     countEmExecucao.textContent = contagem.em_execucao;
   }
