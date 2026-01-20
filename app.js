@@ -592,6 +592,7 @@ const ACTION_LABELS = {
   complete: "Concluir",
   note: "Observacao",
   backlog_auto: "Backlog automatico",
+  backlog_reason: "Motivo nao executada",
   rdo_delete: "RDO excluido",
 };
 
@@ -3018,6 +3019,15 @@ function criarCardManutencao(item, permissoes, options = {}) {
   }
   info.append(autoria);
 
+  if (item.status === "backlog" && item.backlogMotivo && item.backlogMotivo.motivo) {
+    const motivo = document.createElement("p");
+    motivo.className = "submeta";
+    const motivoData = parseTimestamp(item.backlogMotivo.registradoEm);
+    const dataTexto = motivoData ? ` em ${formatDateTime(motivoData)}` : "";
+    motivo.textContent = `Motivo nao executada: ${item.backlogMotivo.motivo}${dataTexto}`;
+    info.append(motivo);
+  }
+
   const ultimoReagendamento = getUltimoReagendamento(item);
   if (ultimoReagendamento && ultimoReagendamento.detalhes && ultimoReagendamento.detalhes.motivo) {
     const motivo = document.createElement("p");
@@ -3108,7 +3118,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
     actions.append(criarBotaoAcao("Observacao", "note"));
   }
 
-  if (item.status === "agendada" || item.status === "backlog" || item.status === "liberada") {
+  if (item.status === "agendada" || item.status === "liberada") {
     if (permite("execute")) {
       const action = liberacaoOk ? "execute" : "release";
       const actionLabel = liberacaoOk ? "Iniciar execucao" : "Liberar execucao";
@@ -3119,6 +3129,13 @@ function criarCardManutencao(item, permissoes, options = {}) {
         botao.title = `Trancada - libera em ${formatDate(lockInfo.date)}`;
       }
       actions.append(botao);
+    }
+    if (permite("reschedule")) {
+      actions.append(criarBotaoAcao("Reagendar", "reschedule"));
+    }
+  } else if (item.status === "backlog") {
+    if (permite("backlog_reason")) {
+      actions.append(criarBotaoAcao("Motivo nao executada", "backlog_reason"));
     }
     if (permite("reschedule")) {
       actions.append(criarBotaoAcao("Reagendar", "reschedule"));
@@ -3171,6 +3188,7 @@ function renderListaStatus(status, container, emptyEl, options = {}) {
     remove: can("remove"),
     reschedule: can("reschedule"),
     execute: can("complete"),
+    backlog_reason: can("edit"),
     history: true,
   };
   const items = manutencoes
@@ -3363,13 +3381,23 @@ function renderProgramacao() {
     remove: can("remove"),
     reschedule: can("reschedule"),
     execute: can("complete"),
+    backlog_reason: can("edit"),
     history: true,
   };
 
   ordenados.forEach((item) => {
     listaAgendadas.append(
       criarCardManutencao(item, permissoes, {
-        allowedActions: ["release", "execute", "cancel_start", "reschedule", "register", "finish", "history"],
+        allowedActions: [
+          "release",
+          "execute",
+          "cancel_start",
+          "reschedule",
+          "register",
+          "finish",
+          "history",
+          "backlog_reason",
+        ],
       })
     );
   });
@@ -3389,6 +3417,7 @@ function renderListaCustom(items, container, emptyEl, allowedActions) {
     remove: can("remove"),
     reschedule: can("reschedule"),
     execute: can("complete"),
+    backlog_reason: can("edit"),
     history: true,
   };
   items.forEach((item) => {
@@ -3430,6 +3459,7 @@ function renderExecucao() {
     "execute",
     "reschedule",
     "history",
+    "backlog_reason",
   ]);
   renderListaCustom(vencidas, listaExecucaoVencidas, listaExecucaoVencidasVazia, [
     "note",
@@ -3437,6 +3467,7 @@ function renderExecucao() {
     "execute",
     "reschedule",
     "history",
+    "backlog_reason",
   ]);
   renderListaCustom(criticas, listaExecucaoCriticas, listaExecucaoCriticasVazia, [
     "note",
@@ -3444,6 +3475,7 @@ function renderExecucao() {
     "execute",
     "reschedule",
     "history",
+    "backlog_reason",
   ]);
 }
 
@@ -8680,6 +8712,22 @@ function gerarRelatorio() {
         .map((entry) => `- ${entry.item.titulo} | ${entry.item.local} | ${entry.atraso}d`)
         .join("\n")
     : "-";
+  const backlogMotivos = manutencoes
+    .filter((item) => item.status === "backlog" && item.backlogMotivo && item.backlogMotivo.motivo)
+    .map((item) => item.backlogMotivo.motivo.trim())
+    .filter(Boolean);
+  const backlogMotivosTotal = backlogMotivos.length;
+  const backlogMotivosResumo = backlogMotivosTotal
+    ? Object.entries(
+        backlogMotivos.reduce((acc, motivo) => {
+          acc[motivo] = (acc[motivo] || 0) + 1;
+          return acc;
+        }, {})
+      )
+        .sort((a, b) => b[1] - a[1])
+        .map(([motivo, totalMotivo]) => `${motivo}: ${totalMotivo}`)
+        .join(" | ")
+    : "-";
 
   const outrosObservacoes = reagendamentos
     .filter((entry) => entry.detalhes && entry.detalhes.motivo === "Outros")
@@ -8793,6 +8841,8 @@ function gerarRelatorio() {
       `Backlog (manutencoes afetadas): ${backlogUnicos}\n` +
       `Backlog medio (dias): ${backlogMedio}\n` +
       `Top 5 atrasadas:\n${backlogTopTexto}\n` +
+      `Motivos nao executada (backlog): ${backlogMotivosTotal}\n` +
+      `Detalhes motivos backlog: ${backlogMotivosResumo}\n` +
       `Tempo medio entre programada e execucao (dias): ${tempoMedioExecucao}\n` +
       `Tempo medio de execucao (HH:MM): ${mediaDuracaoExecucao}\n` +
       `Tempo medio de atraso (dias): ${mediaAtrasoExec}\n` +
@@ -8813,7 +8863,7 @@ function renderTudo() {
   renderLembretes();
   renderProgramacao();
   renderListaStatus("backlog", listaBacklog, listaBacklogVazia, {
-    allowedActions: ["release", "execute", "reschedule", "history"],
+    allowedActions: ["reschedule", "history", "backlog_reason"],
   });
   renderListaStatus("concluida", listaConcluidas, listaConcluidasVazia, {
     limit: 6,
@@ -9179,6 +9229,48 @@ function registrarObservacao(index) {
   mostrarMensagemManutencao("Observacao registrada.");
 }
 
+function registrarMotivoBacklog(index) {
+  if (!requirePermission("edit")) {
+    return;
+  }
+  const item = manutencoes[index];
+  if (!item || item.status !== "backlog") {
+    mostrarMensagemManutencao("Somente itens em backlog aceitam motivo.", true);
+    return;
+  }
+  const motivoAtual =
+    item.backlogMotivo && item.backlogMotivo.motivo ? item.backlogMotivo.motivo : "";
+  const novoMotivo = window.prompt("Motivo da nao execucao:", motivoAtual);
+  if (novoMotivo === null) {
+    return;
+  }
+  const motivoLimpo = novoMotivo.trim();
+  if (!motivoLimpo) {
+    mostrarMensagemManutencao("Informe o motivo da nao execucao.", true);
+    return;
+  }
+
+  const registro = {
+    motivo: motivoLimpo,
+    registradoEm: toIsoUtc(new Date()),
+    registradoPor: currentUser ? currentUser.id : SYSTEM_USER_ID,
+  };
+  const atualizado = {
+    ...item,
+    backlogMotivo: registro,
+    updatedAt: toIsoUtc(new Date()),
+    updatedBy: currentUser ? currentUser.id : SYSTEM_USER_ID,
+  };
+
+  manutencoes[index] = atualizado;
+  const resultado = normalizarManutencoes(manutencoes);
+  manutencoes = resultado.normalizadas;
+  salvarManutencoes(manutencoes);
+  logAction("backlog_reason", atualizado, { motivo: motivoLimpo, resumo: "Motivo registrado." });
+  renderTudo();
+  mostrarMensagemManutencao("Motivo registrado.");
+}
+
 function collectDrawerPermissions() {
   const permissions = {};
   if (!drawerPermissions) {
@@ -9375,6 +9467,10 @@ function executarManutencao(index) {
     return;
   }
   const item = manutencoes[index];
+  if (item.status === "backlog") {
+    mostrarMensagemManutencao("Manutencao em backlog. Registre o motivo.", true);
+    return;
+  }
   if (!isLiberacaoOk(item)) {
     abrirLiberacao(item);
     return;
@@ -9391,6 +9487,10 @@ function abrirInicioExecucao(item) {
   }
   if (item.status === "concluida") {
     mostrarMensagemManutencao("Manutencao concluida. Apenas leitura.", true);
+    return;
+  }
+  if (item.status === "backlog") {
+    mostrarMensagemManutencao("Manutencao em backlog. Registre o motivo.", true);
     return;
   }
   if (item.status === "em_execucao") {
@@ -10249,6 +10349,10 @@ function liberarManutencao(index) {
     return;
   }
   const item = manutencoes[index];
+  if (item.status === "backlog") {
+    mostrarMensagemManutencao("Manutencao em backlog. Nao e possivel liberar.", true);
+    return;
+  }
   const dataProgramada = parseDate(item.data);
   const hoje = startOfDay(new Date());
   const lockInfo = getReleaseLockInfo(item, dataProgramada, hoje);
@@ -11406,6 +11510,9 @@ function agirNaManutencao(event) {
   }
   if (acao === "note") {
     registrarObservacao(index);
+  }
+  if (acao === "backlog_reason") {
+    registrarMotivoBacklog(index);
   }
   if (acao === "reschedule") {
     reagendarManutencao(index);
