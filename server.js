@@ -1273,6 +1273,39 @@ app.post("/api/profile/avatar", requireAuth, async (req, res) => {
   return res.json({ ok: true, avatarUrl, avatarUpdatedAt, user: sanitizeUser(updated) });
 });
 
+app.delete("/api/profile/avatar", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  if (!user) {
+    return res.status(401).json({ message: "Nao autorizado." });
+  }
+  const index = users.findIndex((item) => item.id === user.id);
+  if (index === -1) {
+    return res.status(404).json({ message: "Usuario nao encontrado." });
+  }
+  const current = users[index];
+  const existingUrl = String(current.avatarUrl || "");
+  if (existingUrl.startsWith("/uploads/avatars/")) {
+    const filename = path.basename(existingUrl);
+    const filePath = path.join(AVATARS_DIR, filename);
+    if (fs.existsSync(filePath)) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch (error) {
+        // noop
+      }
+    }
+  }
+  const updated = normalizeUserRecord({
+    ...current,
+    avatarUrl: "",
+    avatarUpdatedAt: "",
+  });
+  users[index] = updated;
+  writeJson(USERS_FILE, users);
+  appendAudit("avatar_remove", updated.id, {}, getClientIp(req));
+  return res.json({ ok: true, user: sanitizeUser(updated) });
+});
+
 app.get("/api/auth/users", requireAuth, (req, res) => {
   const list = users.map((user) => sanitizeUser(user));
   return res.json({ users: list });

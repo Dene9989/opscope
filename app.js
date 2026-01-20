@@ -8204,6 +8204,10 @@ function renderPerfil() {
   if (btnAvatarSaveAtual) {
     btnAvatarSaveAtual.disabled = !pendingAvatarDataUrl;
   }
+  const btnAvatarRemoveAtual = document.getElementById("btnAvatarRemove");
+  if (btnAvatarRemoveAtual) {
+    btnAvatarRemoveAtual.disabled = !currentUser.avatarUrl && !pendingAvatarDataUrl;
+  }
 
   const avatarUrl = pendingAvatarDataUrl || getAvatarUrl(currentUser);
   applyAvatarToElement(perfilAvatarPreview, avatarUrl);
@@ -8329,6 +8333,34 @@ function initAvatarUpload() {
       if (input) {
         input.click();
       }
+      return;
+    }
+
+    const removeBtn = event.target.closest("#btnAvatarRemove");
+    if (removeBtn) {
+      if (!currentUser) {
+        return;
+      }
+      removeBtn.disabled = true;
+      setAvatarError("");
+      apiDeleteAvatar()
+        .then((data) => {
+          if (data && data.user) {
+            currentUser = data.user;
+          } else if (currentUser) {
+            currentUser.avatarUrl = "";
+            currentUser.avatarUpdatedAt = "";
+          }
+          pendingAvatarDataUrl = "";
+          applyAvatarToElement(perfilAvatarPreview, "");
+          renderAuthUI();
+          renderPerfil();
+        })
+        .catch((error) => {
+          const message = error && error.message ? error.message : "Falha ao remover foto.";
+          setAvatarError(message);
+          removeBtn.disabled = false;
+        });
       return;
     }
 
@@ -11399,6 +11431,13 @@ async function apiUploadAvatar(dataUrl) {
   return apiRequest("/api/profile/avatar", {
     method: "POST",
     body: JSON.stringify({ dataUrl }),
+  });
+}
+
+async function apiDeleteAvatar() {
+  return apiRequest("/api/profile/avatar", {
+    method: "DELETE",
+    body: "{}",
   });
 }
 
