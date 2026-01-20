@@ -244,13 +244,28 @@ body.is-visitor::after {
 }
 
 .auth-card input:-webkit-autofill,
-.auth-card textarea:-webkit-autofill {
+.auth-card input:-webkit-autofill:hover,
+.auth-card input:-webkit-autofill:focus,
+.auth-card input:-webkit-autofill:active,
+.auth-card textarea:-webkit-autofill,
+.auth-card textarea:-webkit-autofill:hover,
+.auth-card textarea:-webkit-autofill:focus,
+.auth-card textarea:-webkit-autofill:active,
+.auth-card input:autofill,
+.auth-card textarea:autofill {
   -webkit-text-fill-color: var(--auth-text);
   caret-color: var(--auth-text);
   transition: background-color 9999s ease-in-out 0s;
-  -webkit-box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.08) inset !important;
-  box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.08) inset !important;
+  background-color: var(--auth-input-bg) !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--auth-input-bg) inset !important;
+  box-shadow: 0 0 0 1000px var(--auth-input-bg) inset !important;
   border: 1px solid var(--auth-input-border) !important;
+}
+
+.auth-card input:-internal-autofill-selected,
+.auth-card textarea:-internal-autofill-selected {
+  background-color: var(--auth-input-bg) !important;
+  color: var(--auth-text) !important;
 }
 
 .input-icon {

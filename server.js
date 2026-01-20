@@ -10,6 +10,12 @@ try {
 } catch (error) {
   sharp = null;
 }
+let nodemailer;
+try {
+  nodemailer = require("nodemailer");
+} catch (error) {
+  nodemailer = null;
+}
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -22,6 +28,7 @@ const MASTER_ROLE = "pcm";
 const MASTER_CARGO = "T\u00e9cnico S\u00eanior de Manuten\u00e7\u00e3o";
 const MASTER_PASSWORD = process.env.MASTER_PASSWORD || ADMIN_PASSWORD;
 const INVITE_TTL_HOURS = 24;
+const VERIFICATION_TTL_HOURS = Number(process.env.VERIFICATION_TTL_HOURS) || 24;
 
 const DATA_DIR = path.join(__dirname, "data");
 const LEGACY_STORAGE_DIR = path.join(__dirname, "storage");
@@ -47,6 +54,13 @@ const UPLOADS_DIR = process.env.OPSCOPE_UPLOADS_DIR
 const AVATARS_DIR = path.join(UPLOADS_DIR, "avatars");
 const LEGACY_UPLOADS_DIR = path.join(__dirname, "uploads");
 const LEGACY_AVATARS_DIR = path.join(LEGACY_UPLOADS_DIR, "avatars");
+const VERIFICATIONS_FILE = path.join(STORAGE_DIR, "email_verifications.json");
+const SMTP_HOST = process.env.SMTP_HOST || "";
+const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
+const SMTP_USER = process.env.SMTP_USER || "";
+const SMTP_PASS = process.env.SMTP_PASS || "";
+const SMTP_FROM = process.env.SMTP_FROM || "";
+const APP_BASE_URL = process.env.APP_BASE_URL || `http://localhost:${PORT}`;
 const DASHBOARD_CACHE_TTL_MS = 60 * 1000;
 const DASHBOARD_CACHE = new Map();
 const IS_DEV = process.env.NODE_ENV !== "production";
@@ -528,6 +542,25 @@ function isFullAccessRole(role) {
   return FULL_ACCESS_ROLES.has(normalizeRbacRole(role));
 }
 
+function getUserEmail(user) {
+  if (!user) {
+    return "";
+  }
+  const direct = String(user.email || "").trim();
+  if (direct) {
+    return direct;
+  }
+  const matricula = String(user.matricula || "").trim();
+  if (matricula.includes("@")) {
+    return matricula;
+  }
+  const username = String(user.username || "").trim();
+  if (username.includes("@")) {
+    return username;
+  }
+  return "";
+}
+
 function canOverrideRelease(user) {
   if (!user) {
     return false;
@@ -617,6 +650,8 @@ function sanitizeUser(user) {
   }
   const rbacRole = normalizeRbacRole(user.rbacRole || user.role);
   const role = normalizeRole(user.role, rbacRole);
+  const email = getUserEmail(user);
+  const emailVerified = user.emailVerified !== false;
   return {
     id: user.id,
     username: user.username,
@@ -625,6 +660,8 @@ function sanitizeUser(user) {
     role,
     rbacRole,
     cargo: user.cargo || "",
+    email,
+    emailVerified,
     projeto: user.projeto || "",
     uen: user.uen || "",
     localizacao: user.localizacao || "",
@@ -640,10 +677,13 @@ function sanitizeUser(user) {
 function normalizeUserRecord(user) {
   const rbacRole = normalizeRbacRole(user.rbacRole || user.role);
   const role = normalizeRole(user.role, rbacRole);
+  const email = getUserEmail(user);
   return {
     ...user,
     role,
     rbacRole,
+    email,
+    emailVerified: user.emailVerified !== false,
     active: user.active !== false,
     permissions: buildPermissions(rbacRole, user.permissions),
     sections: buildSections(rbacRole, user.sections),
@@ -755,6 +795,73 @@ function validatePassword(password) {
   };
   const ok = Object.values(rules).every(Boolean);
   return { ok, rules };
+}
+
+function isValidEmail(email) {
+  const value = String(email || "").trim();
+  if (!value) {
+    return false;
+  }
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function createVerificationToken() {
+  return crypto.randomBytes(32).toString("hex");
+}
+
+function hashToken(token) {
+  return crypto.createHash("sha256").update(String(token)).digest("hex");
+}
+
+let mailer = null;
+
+function getMailer() {
+  if (!nodemailer || !SMTP_HOST || !SMTP_FROM) {
+    return null;
+  }
+  if (!mailer) {
+    mailer = nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_PORT === 465,
+      auth: SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
+    });
+  }
+  return mailer;
+}
+
+async function sendVerificationEmail(email, name, token) {
+  const transporter = getMailer();
+  if (!transporter) {
+    return false;
+  }
+  const baseUrl = String(APP_BASE_URL || "").replace(/\/$/, "");
+  const verifyUrl = `${baseUrl}/?verify=${encodeURIComponent(token)}`;
+  const safeName = String(name || "").trim() || "colaborador";
+  const subject = "Confirmacao de email - OPSCOPE";
+  const text = `Ola, ${safeName}!\n\nConfirme seu email para ativar sua conta OPSCOPE:\n${verifyUrl}\n\nSe voce nao solicitou o acesso, ignore este email.`;
+  const html = `
+    <p>Ola, <strong>${safeName}</strong>!</p>
+    <p>Confirme seu email para ativar sua conta OPSCOPE:</p>
+    <p><a href="${verifyUrl}">Confirmar email</a></p>
+    <p>Se voce nao solicitou o acesso, ignore este email.</p>
+  `;
+  await transporter.sendMail({
+    from: SMTP_FROM,
+    to: email,
+    subject,
+    text,
+    html,
+  });
+  return true;
+}
+
+function cleanupVerifications() {
+  const now = Date.now();
+  verifications = verifications.filter(
+    (item) => !item.expiresAt || new Date(item.expiresAt).getTime() > now
+  );
+  writeJson(VERIFICATIONS_FILE, verifications);
 }
 
 function getClientIp(req) {
@@ -1133,6 +1240,8 @@ if (!usersFileExists) {
 }
 let invites = readJson(INVITES_FILE, []);
 let auditLog = readJson(AUDIT_FILE, []);
+let verifications = readJson(VERIFICATIONS_FILE, []);
+cleanupVerifications();
 users = users.map(normalizeUserRecord);
 writeJson(USERS_FILE, users);
 ensureMasterAccount();
@@ -1193,6 +1302,10 @@ app.post("/api/auth/login", async (req, res) => {
     recordUserFailure(login);
     appendAudit("login_fail", user.id, { login }, ip);
     return res.status(401).json({ message: "Credenciais invalidas." });
+  }
+  if (user.emailVerified === false) {
+    appendAudit("login_unverified", user.id, { login }, ip);
+    return res.status(403).json({ message: "Email nao verificado. Verifique seu email." });
   }
   clearFailures(ip, login);
   req.session.userId = user.id;
@@ -1551,7 +1664,9 @@ app.post("/api/auth/invite", requireAuth, requireAdmin, (req, res) => {
 
 app.post("/api/auth/register", async (req, res) => {
   cleanupInvites();
-  const matricula = String(req.body.matricula || "").trim().toUpperCase();
+  const emailRaw = String(req.body.email || req.body.matricula || "").trim();
+  const email = emailRaw.toLowerCase();
+  const matricula = emailRaw.toUpperCase();
   const nome = String(req.body.nome || "").trim();
   const senha = String(req.body.senha || "").trim();
   const senhaConfirm = String(req.body.senhaConfirm || "").trim();
@@ -1559,8 +1674,8 @@ app.post("/api/auth/register", async (req, res) => {
 
   const passwordCheck = validatePassword(senha);
   const errors = {};
-  if (!matricula) {
-    errors.matricula = "Informe a matricula.";
+  if (!email || !isValidEmail(email)) {
+    errors.matricula = "Informe um e-mail corporativo valido.";
   }
   if (!nome) {
     errors.nome = "Informe o nome completo.";
@@ -1582,7 +1697,8 @@ app.post("/api/auth/register", async (req, res) => {
   const jaExiste = users.some(
     (user) =>
       String(user.matricula || "").toUpperCase() === matricula ||
-      String(user.username || "").toLowerCase() === matricula.toLowerCase()
+      String(user.username || "").toLowerCase() === email ||
+      String(user.email || "").toLowerCase() === email
   );
   if (jaExiste) {
     errors.matricula = "Dados invalidos.";
@@ -1597,8 +1713,10 @@ app.post("/api/auth/register", async (req, res) => {
   const passwordHash = await bcrypt.hash(senha, 12);
   const user = {
     id: crypto.randomUUID(),
-    username: matricula.toLowerCase(),
+    username: email,
     matricula,
+    email,
+    emailVerified: false,
     name: nome,
     role: legacyRole,
     rbacRole: role,
@@ -1611,12 +1729,68 @@ app.post("/api/auth/register", async (req, res) => {
     sections: buildSections(role),
     createdAt: new Date().toISOString(),
   };
+  cleanupVerifications();
+  const token = createVerificationToken();
+  const tokenHash = hashToken(token);
+  const expiresAt = new Date(Date.now() + VERIFICATION_TTL_HOURS * 60 * 60 * 1000).toISOString();
+  const verification = {
+    tokenHash,
+    userId: user.id,
+    email,
+    createdAt: new Date().toISOString(),
+    expiresAt,
+  };
+  try {
+    const enviado = await sendVerificationEmail(email, nome, token);
+    if (!enviado) {
+      return res.status(503).json({ message: "Envio de email indisponivel." });
+    }
+  } catch (error) {
+    return res.status(503).json({ message: "Nao foi possivel enviar o email." });
+  }
+  verifications.push(verification);
   users.push(user);
   invites = invites.filter((item) => item.code !== convite);
   writeJson(USERS_FILE, users);
   writeJson(INVITES_FILE, invites);
+  writeJson(VERIFICATIONS_FILE, verifications);
   appendAudit("register", user.id, { matricula, role }, getClientIp(req));
-  return res.json({ ok: true });
+  return res.json({ ok: true, verificationRequired: true });
+});
+
+app.get("/api/auth/verify", (req, res) => {
+  cleanupVerifications();
+  const token = String(req.query.token || "").trim();
+  if (!token) {
+    return res.status(400).json({ message: "Token invalido." });
+  }
+  const tokenHash = hashToken(token);
+  const recordIndex = verifications.findIndex((item) => item.tokenHash === tokenHash);
+  if (recordIndex === -1) {
+    return res.status(400).json({ message: "Token invalido ou expirado." });
+  }
+  const record = verifications[recordIndex];
+  if (record.expiresAt && new Date(record.expiresAt).getTime() <= Date.now()) {
+    verifications.splice(recordIndex, 1);
+    writeJson(VERIFICATIONS_FILE, verifications);
+    return res.status(410).json({ message: "Token expirado." });
+  }
+  const userIndex = users.findIndex((item) => item.id === record.userId);
+  if (userIndex === -1) {
+    verifications.splice(recordIndex, 1);
+    writeJson(VERIFICATIONS_FILE, verifications);
+    return res.status(404).json({ message: "Usuario nao encontrado." });
+  }
+  const updated = normalizeUserRecord({
+    ...users[userIndex],
+    emailVerified: true,
+  });
+  users[userIndex] = updated;
+  verifications.splice(recordIndex, 1);
+  writeJson(USERS_FILE, users);
+  writeJson(VERIFICATIONS_FILE, verifications);
+  appendAudit("email_verify", updated.id, { email: updated.email }, getClientIp(req));
+  return res.json({ ok: true, user: sanitizeUser(updated) });
 });
 
 app.get("/api/dashboard/summary", requireAuth, (req, res) => {

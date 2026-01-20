@@ -981,6 +981,28 @@ function handleFocusFromUrl() {
   window.setTimeout(() => focusMaintenanceById(focusId), 200);
 }
 
+async function handleEmailVerification() {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get("verify");
+  if (!token) {
+    return false;
+  }
+  try {
+    await apiVerifyEmail(token);
+    mostrarMensagemConta("Email confirmado. Faca login.", false);
+  } catch (error) {
+    const message = error && error.message ? error.message : "Falha ao confirmar email.";
+    mostrarMensagemConta(message, true);
+  } finally {
+    params.delete("verify");
+    const url = new URL(window.location.href);
+    url.searchParams.delete("verify");
+    window.history.replaceState(null, "", url.toString());
+    mostrarAuthPanel("login");
+  }
+  return true;
+}
+
 function togglePassword(button) {
   if (!button) {
     return;
@@ -2014,6 +2036,7 @@ async function carregarSessaoServidor() {
   await carregarUsuariosServidor();
   renderAuthUI();
   renderTudo();
+  await handleEmailVerification();
   handleFocusFromUrl();
   if (!currentUser) {
     mostrarAuthPanel("login");
@@ -11398,6 +11421,11 @@ async function apiRegister(payload) {
   });
 }
 
+async function apiVerifyEmail(token) {
+  const safeToken = encodeURIComponent(String(token || ""));
+  return apiRequest(`/api/auth/verify?token=${safeToken}`, { method: "GET" });
+}
+
 async function apiInvite(role) {
   return apiRequest("/api/auth/invite", {
     method: "POST",
@@ -11997,7 +12025,8 @@ loginForm.addEventListener("submit", async (event) => {
     esconderAuthPanels();
     renderTudo();
   } catch (error) {
-    mostrarMensagemConta("Usuario ou senha invalidos.", true);
+    const message = error && error.message ? error.message : "Usuario ou senha invalidos.";
+    mostrarMensagemConta(message, true);
   } finally {
     if (btnLoginSubmit) {
       btnLoginSubmit.disabled = false;
@@ -12011,7 +12040,8 @@ reqForm.addEventListener("submit", async (event) => {
   setFieldError(reqSenhaErro, "");
   setFieldError(reqSenhaConfirmErro, "");
   setFieldError(reqCodigoErro, "");
-  const matricula = reqMatricula.value.trim().toUpperCase();
+  const matricula = reqMatricula.value.trim();
+  const email = matricula;
   const nome = reqNome.value.trim();
   const senha = reqSenha.value.trim();
   const senhaConfirm = reqSenhaConfirm ? reqSenhaConfirm.value.trim() : "";
@@ -12043,8 +12073,8 @@ reqForm.addEventListener("submit", async (event) => {
     btnRegistroSubmit.textContent = "Solicitando...";
   }
   try {
-    await apiRegister({ matricula, nome, senha, senhaConfirm, convite });
-    mostrarMensagemConta("Conta criada. Faca login.", false);
+    await apiRegister({ matricula, email, nome, senha, senhaConfirm, convite });
+    mostrarMensagemConta("Conta criada. Confirme o email para ativar.", false);
     reqMatricula.value = "";
     reqNome.value = "";
     reqSenha.value = "";
