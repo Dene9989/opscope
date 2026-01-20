@@ -532,6 +532,7 @@ function sanitizeUser(user) {
     rbacRole,
     cargo: user.cargo || "",
     projeto: user.projeto || "",
+    uen: user.uen || "",
     localizacao: user.localizacao || "",
     active: user.active !== false,
     permissions: buildPermissions(rbacRole, user.permissions),
@@ -1104,6 +1105,41 @@ app.get("/api/auth/me", (req, res) => {
   return res.json({ user: sanitizeUser(user) });
 });
 
+app.patch("/api/profile", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  if (!user) {
+    return res.status(401).json({ message: "Nao autorizado." });
+  }
+  const index = users.findIndex((item) => item.id === user.id);
+  if (index === -1) {
+    return res.status(404).json({ message: "Usuario nao encontrado." });
+  }
+  const updates = {};
+  if ("uen" in req.body) {
+    updates.uen = String(req.body.uen || "").trim();
+  }
+  if ("projeto" in req.body) {
+    updates.projeto = String(req.body.projeto || "").trim();
+  } else if ("project" in req.body) {
+    updates.projeto = String(req.body.project || "").trim();
+  }
+
+  if (!Object.keys(updates).length) {
+    return res.status(400).json({ message: "Nenhuma alteracao valida." });
+  }
+
+  const updated = normalizeUserRecord({ ...users[index], ...updates });
+  users[index] = updated;
+  writeJson(USERS_FILE, users);
+  appendAudit(
+    "profile_update",
+    updated.id,
+    { campos: Object.keys(updates) },
+    getClientIp(req)
+  );
+  return res.json({ user: sanitizeUser(updated) });
+});
+
 app.post("/api/profile/avatar", requireAuth, async (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   if (!user) {
@@ -1294,6 +1330,9 @@ app.patch("/api/admin/users/:id", requireAuth, requirePermission("admin:users:wr
     updates.projeto = String(req.body.projeto || "").trim();
   } else if ("project" in req.body) {
     updates.projeto = String(req.body.project || "").trim();
+  }
+  if ("uen" in req.body) {
+    updates.uen = String(req.body.uen || "").trim();
   }
   if ("localizacao" in req.body) {
     updates.localizacao = String(req.body.localizacao || "").trim();

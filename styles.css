@@ -533,6 +533,103 @@ h1 {
   margin-left: auto;
 }
 
+.user-menu {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.user-menu__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  padding: 4px 6px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.user-menu__trigger:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--sb-focus);
+}
+
+.user-menu__panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(320px, 90vw);
+  background: rgba(9, 16, 24, 0.96);
+  border: 1px solid var(--sb-border);
+  border-radius: 12px;
+  box-shadow: 0 16px 30px rgba(6, 12, 20, 0.35);
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  z-index: 80;
+  color: var(--sb-text);
+}
+
+.user-menu__summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.user-menu__avatar {
+  width: 42px;
+  height: 42px;
+}
+
+.user-menu__meta {
+  display: grid;
+  gap: 4px;
+}
+
+.user-menu__meta strong {
+  font-size: 0.9rem;
+}
+
+.user-menu__meta span {
+  font-size: 0.75rem;
+  color: var(--sb-muted);
+}
+
+.user-menu__item {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.user-menu__item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.user-menu__divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 4px 0;
+}
+
+.user-menu__logout {
+  color: #f2b8b5;
+}
+
+.user-menu__logout:hover {
+  background: rgba(232, 68, 68, 0.18);
+  color: #ffffff;
+}
+
 .topbar-logo {
   font-size: 0.85rem;
   letter-spacing: 0.3em;
@@ -633,13 +730,6 @@ h1 {
 .topbar #btnLogout {
   border-color: rgba(232, 68, 68, 0.6);
   color: #f2b8b5;
-}
-
-.topbar #btnLogout:hover {
-  background: rgba(232, 68, 68, 0.9);
-  border-color: rgba(232, 68, 68, 0.9);
-  color: #ffffff;
-  box-shadow: none;
 }
 
 .user-chip {
@@ -1496,6 +1586,13 @@ body.is-visitor .notify.auth-only {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.profile-edit {
+  margin-top: 16px;
+  display: grid;
+  gap: 12px;
+  align-items: start;
 }
 
 .profile-item {

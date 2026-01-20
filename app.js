@@ -94,6 +94,7 @@ const perfilNome = document.getElementById("perfilNome");
 const perfilMatricula = document.getElementById("perfilMatricula");
 const perfilCargo = document.getElementById("perfilCargo");
 const perfilProjeto = document.getElementById("perfilProjeto");
+const perfilUen = document.getElementById("perfilUen");
 const perfilRole = document.getElementById("perfilRole");
 const perfilAtribuicoes = document.getElementById("perfilAtribuicoes");
 const perfilPermissoes = document.getElementById("perfilPermissoes");
@@ -101,6 +102,12 @@ const perfilSecoes = document.getElementById("perfilSecoes");
 
 const usuarioAtual = document.getElementById("userChip") || document.getElementById("usuarioAtual");
 const userAvatar = document.getElementById("userAvatar");
+const userMenu = document.getElementById("userMenu");
+const btnUserMenu = document.getElementById("btnUserMenu");
+const userMenuPanel = document.getElementById("userMenuPanel");
+const userMenuAvatar = document.getElementById("userMenuAvatar");
+const userMenuName = document.getElementById("userMenuName");
+const userMenuRole = document.getElementById("userMenuRole");
 const btnTabLogin = document.getElementById("btnTabLogin");
 const btnTabRegistro = document.getElementById("btnTabRegistro");
 const btnSair = document.getElementById("btnLogout") || document.getElementById("btnSair");
@@ -133,6 +140,10 @@ const perfilAvatarInput = document.getElementById("perfilAvatarInput");
 const btnAvatarChange = document.getElementById("btnAvatarChange");
 const btnAvatarSave = document.getElementById("btnAvatarSave");
 const perfilAvatarErro = document.getElementById("perfilAvatarErro");
+const perfilUenInput = document.getElementById("perfilUenInput");
+const perfilProjetoInput = document.getElementById("perfilProjetoInput");
+const btnPerfilSalvar = document.getElementById("btnPerfilSalvar");
+const perfilSaveMsg = document.getElementById("perfilSaveMsg");
 const configDiasLembrete = document.getElementById("configDiasLembrete");
 const btnSalvarConfig = document.getElementById("btnSalvarConfig");
 const btnExportarDados = document.getElementById("btnExportarDados");
@@ -661,6 +672,18 @@ function getDisplayName(user) {
   return raw.replace(/\s*\([^)]*\)\s*$/, "").trim() || raw;
 }
 
+function getUserMenuRoleText(user) {
+  if (!user) {
+    return "Perfil";
+  }
+  const roleLabel = getRoleLabel(user);
+  const cargo = String(user.cargo || "").trim();
+  if (cargo && roleLabel) {
+    return `${cargo} | ${roleLabel}`;
+  }
+  return cargo || roleLabel || "Perfil";
+}
+
 function applyAvatarToElement(element, url) {
   if (!element) {
     return;
@@ -691,6 +714,15 @@ function setAvatarError(message) {
   }
   perfilAvatarErro.textContent = message || "";
   perfilAvatarErro.hidden = !message;
+}
+
+function setPerfilSaveMessage(message, error = false) {
+  if (!perfilSaveMsg) {
+    return;
+  }
+  perfilSaveMsg.textContent = message || "";
+  perfilSaveMsg.hidden = !message;
+  perfilSaveMsg.classList.toggle("mensagem--erro", error);
 }
 
 function getReadNotificationIds() {
@@ -1010,17 +1042,40 @@ function fecharPainelLembretes() {
   btnLembretes.setAttribute("aria-expanded", "false");
 }
 
+function fecharUserMenu() {
+  if (!userMenuPanel || !btnUserMenu) {
+    return;
+  }
+  userMenuPanel.hidden = true;
+  btnUserMenu.setAttribute("aria-expanded", "false");
+}
+
 function alternarPainelLembretes() {
   if (!painelLembretes || !btnLembretes) {
     return;
   }
   const abrir = painelLembretes.hidden;
   if (abrir) {
+    fecharUserMenu();
     painelLembretes.hidden = false;
     btnLembretes.setAttribute("aria-expanded", "true");
     return;
   }
   fecharPainelLembretes();
+}
+
+function alternarUserMenu() {
+  if (!userMenuPanel || !btnUserMenu) {
+    return;
+  }
+  const abrir = userMenuPanel.hidden;
+  if (abrir) {
+    fecharPainelLembretes();
+    userMenuPanel.hidden = false;
+    btnUserMenu.setAttribute("aria-expanded", "true");
+    return;
+  }
+  fecharUserMenu();
 }
 
 function mostrarCarregando() {
@@ -7805,6 +7860,9 @@ function renderPerfil() {
     if (perfilProjeto) {
       perfilProjeto.textContent = "-";
     }
+    if (perfilUen) {
+      perfilUen.textContent = "-";
+    }
     if (perfilRole) {
       perfilRole.textContent = "-";
     }
@@ -7816,6 +7874,12 @@ function renderPerfil() {
     }
     if (perfilSecoes) {
       perfilSecoes.textContent = "-";
+    }
+    if (perfilUenInput) {
+      perfilUenInput.value = "";
+    }
+    if (perfilProjetoInput) {
+      perfilProjetoInput.value = "";
     }
     pendingAvatarDataUrl = "";
     if (btnAvatarSave) {
@@ -7846,6 +7910,9 @@ function renderPerfil() {
   if (perfilProjeto) {
     perfilProjeto.textContent = currentUser.projeto || "-";
   }
+  if (perfilUen) {
+    perfilUen.textContent = currentUser.uen || "-";
+  }
   if (perfilRole) {
     perfilRole.textContent = getRoleLabel(currentUser);
   }
@@ -7866,6 +7933,12 @@ function renderPerfil() {
         ? secoesAtivas.join(", ")
         : "Nenhuma.";
   }
+  if (perfilUenInput) {
+    perfilUenInput.value = currentUser.uen || "";
+  }
+  if (perfilProjetoInput) {
+    perfilProjetoInput.value = currentUser.projeto || "";
+  }
 
   const avatarUrl = pendingAvatarDataUrl || getAvatarUrl(currentUser);
   applyAvatarToElement(perfilAvatarPreview, avatarUrl);
@@ -7880,6 +7953,7 @@ function renderAuthUI() {
 
   if (!autenticado) {
     fecharPainelLembretes();
+    fecharUserMenu();
     esconderCarregando();
     dashboardSummary = null;
     dashboardError = "";
@@ -7893,8 +7967,20 @@ function renderAuthUI() {
   }
 
   if (autenticado) {
-    usuarioAtual.textContent = getDisplayName(currentUser);
+    const displayName = getDisplayName(currentUser);
+    usuarioAtual.textContent = displayName;
     usuarioAtual.hidden = false;
+    if (userMenuName) {
+      userMenuName.textContent = displayName;
+    }
+    if (userMenuRole) {
+      userMenuRole.textContent = getUserMenuRoleText(currentUser);
+    }
+    if (userMenu) {
+      userMenu.hidden = false;
+    }
+    applyAvatarToElement(userAvatar, getAvatarUrl(currentUser));
+    applyAvatarToElement(userMenuAvatar, getAvatarUrl(currentUser));
     btnTabLogin.hidden = true;
     btnTabRegistro.hidden = true;
     btnSair.hidden = false;
@@ -7905,6 +7991,9 @@ function renderAuthUI() {
   } else {
     usuarioAtual.textContent = "Visitante";
     usuarioAtual.hidden = true;
+    if (userMenu) {
+      userMenu.hidden = true;
+    }
     btnTabLogin.hidden = false;
     btnTabRegistro.hidden = false;
     btnSair.hidden = true;
@@ -7915,6 +8004,7 @@ function renderAuthUI() {
     setAvatarError("");
     applyAvatarToElement(perfilAvatarPreview, "");
     applyAvatarToElement(userAvatar, "");
+    applyAvatarToElement(userMenuAvatar, "");
   }
 
   const secConfig = getSectionConfig(currentUser);
@@ -11007,6 +11097,13 @@ async function apiAdminUpdateUser(userId, payload) {
   });
 }
 
+async function apiUpdateProfile(payload) {
+  return apiRequest("/api/profile", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
 async function apiUploadAvatar(dataUrl) {
   return apiRequest("/api/profile/avatar", {
     method: "POST",
@@ -11309,6 +11406,42 @@ if (btnLembretes) {
   });
 }
 
+if (btnUserMenu) {
+  btnUserMenu.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (!currentUser) {
+      return;
+    }
+    alternarUserMenu();
+  });
+}
+
+if (userMenuPanel) {
+  userMenuPanel.addEventListener("click", (event) => {
+    const item = event.target.closest(".user-menu__item");
+    if (!item) {
+      return;
+    }
+    const action = item.dataset.action;
+    fecharUserMenu();
+    if (!action) {
+      return;
+    }
+    if (action === "view-profile") {
+      abrirPainelComCarregamento("perfil");
+      return;
+    }
+    if (action === "edit-profile") {
+      abrirPainelComCarregamento("perfil");
+      window.setTimeout(() => {
+        if (perfilUenInput) {
+          perfilUenInput.focus();
+        }
+      }, 0);
+    }
+  });
+}
+
 if (listaLembretes) {
   listaLembretes.addEventListener("click", (event) => {
     const item = event.target.closest(".lembrete-item");
@@ -11334,23 +11467,21 @@ document.addEventListener("click", (event) => {
       fecharPainelLembretes();
     }
   }
+  if (userMenuPanel && !userMenuPanel.hidden && btnUserMenu) {
+    const dentro =
+      userMenuPanel.contains(event.target) || btnUserMenu.contains(event.target);
+    if (!dentro) {
+      fecharUserMenu();
+    }
+  }
 });
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     fecharPainelLembretes();
+    fecharUserMenu();
   }
 });
-
-if (usuarioAtual) {
-  usuarioAtual.addEventListener("click", () => {
-    if (!currentUser) {
-      return;
-    }
-    abrirPainelComCarregamento("perfil");
-  });
-}
-
 
 if (btnTabLogin) {
   btnTabLogin.addEventListener("click", () => {
@@ -11388,6 +11519,45 @@ if (btnSair) {
     currentUser = null;
     renderTudo();
     mostrarAuthPanel("login");
+  });
+}
+
+if (btnPerfilSalvar) {
+  btnPerfilSalvar.addEventListener("click", async () => {
+    if (!currentUser) {
+      return;
+    }
+    const payload = {};
+    const uenValue = perfilUenInput ? perfilUenInput.value.trim() : "";
+    const projetoValue = perfilProjetoInput ? perfilProjetoInput.value.trim() : "";
+    if (perfilUenInput && uenValue !== (currentUser.uen || "")) {
+      payload.uen = uenValue;
+    }
+    if (perfilProjetoInput && projetoValue !== (currentUser.projeto || "")) {
+      payload.projeto = projetoValue;
+    }
+    if (!Object.keys(payload).length) {
+      setPerfilSaveMessage("Nenhuma alteracao para salvar.");
+      return;
+    }
+    btnPerfilSalvar.disabled = true;
+    setPerfilSaveMessage("");
+    try {
+      const data = await apiUpdateProfile(payload);
+      if (data && data.user) {
+        currentUser = data.user;
+        users = users.map((usuario) => (usuario.id === currentUser.id ? data.user : usuario));
+      }
+      renderPerfil();
+      renderUsuarios();
+      renderAuthUI();
+      setPerfilSaveMessage("Perfil atualizado.");
+    } catch (error) {
+      const message = error && error.message ? error.message : "Nao foi possivel salvar.";
+      setPerfilSaveMessage(message, true);
+    } finally {
+      btnPerfilSalvar.disabled = false;
+    }
   });
 }
 

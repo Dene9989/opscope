@@ -878,9 +878,37 @@
                 <p id="lembretesVazio" class="empty-state">Nenhuma manutencao proxima.</p>
               </div>
             </div>
-            <div class="user-avatar" id="userAvatar" aria-hidden="true"></div>
-            <div class="user-chip" id="userChip">Denisson Silva Alves</div>
-            <button id="btnLogout" class="btn-ghost" type="button">Sair</button>
+            <div class="user-menu" id="userMenu">
+              <button
+                class="user-menu__trigger"
+                id="btnUserMenu"
+                type="button"
+                aria-haspopup="true"
+                aria-expanded="false"
+              >
+                <div class="user-avatar" id="userAvatar" aria-hidden="true"></div>
+                <div class="user-chip" id="userChip">Denisson Silva Alves</div>
+              </button>
+              <div class="user-menu__panel" id="userMenuPanel" hidden>
+                <div class="user-menu__summary">
+                  <div class="user-avatar user-menu__avatar" id="userMenuAvatar" aria-hidden="true"></div>
+                  <div class="user-menu__meta">
+                    <strong id="userMenuName">Denisson Silva Alves</strong>
+                    <span id="userMenuRole">Perfil</span>
+                  </div>
+                </div>
+                <button class="user-menu__item" type="button" data-action="view-profile">
+                  Ver perfil
+                </button>
+                <button class="user-menu__item" type="button" data-action="edit-profile">
+                  Editar perfil
+                </button>
+                <div class="user-menu__divider"></div>
+                <button id="btnLogout" class="user-menu__item user-menu__logout" type="button">
+                  Sair
+                </button>
+              </div>
+            </div>
           </div>
         </header>
         <section class="content" id="view-root">
@@ -1494,6 +1522,10 @@
             <strong id="perfilProjeto">-</strong>
           </div>
           <div class="profile-item">
+            <span class="account-label">UEN</span>
+            <strong id="perfilUen">-</strong>
+          </div>
+          <div class="profile-item">
             <span class="account-label">Perfil</span>
             <strong id="perfilRole">-</strong>
           </div>
@@ -1509,6 +1541,20 @@
             <span class="account-label">Secoes</span>
             <p id="perfilSecoes" class="profile-text">-</p>
           </div>
+        </div>
+        <div class="profile-edit">
+          <div class="field">
+            <label for="perfilUenInput">UEN</label>
+            <input id="perfilUenInput" type="text" placeholder="Informe a UEN" />
+          </div>
+          <div class="field">
+            <label for="perfilProjetoInput">Projeto(s)</label>
+            <input id="perfilProjetoInput" type="text" placeholder="Informe o projeto" />
+          </div>
+          <button id="btnPerfilSalvar" class="btn btn--primary btn--small" type="button">
+            Salvar
+          </button>
+          <p id="perfilSaveMsg" class="field-error" hidden></p>
         </div>
       </section>
     </section>
