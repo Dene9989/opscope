@@ -24,14 +24,29 @@ const MASTER_PASSWORD = process.env.MASTER_PASSWORD || ADMIN_PASSWORD;
 const INVITE_TTL_HOURS = 24;
 
 const DATA_DIR = path.join(__dirname, "data");
-const STORAGE_DIR = process.env.OPSCOPE_STORAGE_DIR || path.join(__dirname, "storage");
+const LEGACY_STORAGE_DIR = path.join(__dirname, "storage");
+const STORAGE_DIR = process.env.OPSCOPE_STORAGE_DIR
+  ? path.resolve(process.env.OPSCOPE_STORAGE_DIR)
+  : path.join(
+      process.env.OPSCOPE_DATA_DIR ||
+        process.env.APPDATA ||
+        process.env.LOCALAPPDATA ||
+        process.env.HOME ||
+        path.resolve(__dirname, ".."),
+      "opscope-storage"
+    );
 const LEGACY_USERS_FILE = path.join(DATA_DIR, "users.json");
+const LEGACY_USERS_STORAGE_FILE = path.join(LEGACY_STORAGE_DIR, "users.json");
 const USERS_FILE = path.join(STORAGE_DIR, "users.json");
 const INVITES_FILE = path.join(DATA_DIR, "invites.json");
 const AUDIT_FILE = path.join(DATA_DIR, "audit.json");
 const MAINTENANCE_FILE = path.join(DATA_DIR, "maintenance.json");
-const UPLOADS_DIR = path.join(__dirname, "uploads");
+const UPLOADS_DIR = process.env.OPSCOPE_UPLOADS_DIR
+  ? path.resolve(process.env.OPSCOPE_UPLOADS_DIR)
+  : path.join(STORAGE_DIR, "uploads");
 const AVATARS_DIR = path.join(UPLOADS_DIR, "avatars");
+const LEGACY_UPLOADS_DIR = path.join(__dirname, "uploads");
+const LEGACY_AVATARS_DIR = path.join(LEGACY_UPLOADS_DIR, "avatars");
 const DASHBOARD_CACHE_TTL_MS = 60 * 1000;
 const DASHBOARD_CACHE = new Map();
 const IS_DEV = process.env.NODE_ENV !== "production";
@@ -143,6 +158,28 @@ function ensureUploadDirs() {
   if (!fs.existsSync(AVATARS_DIR)) {
     fs.mkdirSync(AVATARS_DIR, { recursive: true });
   }
+}
+
+function migrateLegacyAvatars() {
+  if (LEGACY_AVATARS_DIR === AVATARS_DIR) {
+    return;
+  }
+  if (!fs.existsSync(LEGACY_AVATARS_DIR)) {
+    return;
+  }
+  ensureUploadDirs();
+  const files = fs.readdirSync(LEGACY_AVATARS_DIR);
+  files.forEach((file) => {
+    const source = path.join(LEGACY_AVATARS_DIR, file);
+    const target = path.join(AVATARS_DIR, file);
+    if (!fs.existsSync(target)) {
+      try {
+        fs.copyFileSync(source, target);
+      } catch (error) {
+        // noop
+      }
+    }
+  });
 }
 
 async function optimizeAvatar(buffer) {
@@ -1077,13 +1114,21 @@ function getDashboardSummaryForProject(projectKey) {
 
 ensureDataDir();
 ensureUploadDirs();
+migrateLegacyAvatars();
 const usersFileExists = fs.existsSync(USERS_FILE);
 let users = readJson(USERS_FILE, []);
-if (!usersFileExists && fs.existsSync(LEGACY_USERS_FILE)) {
-  const legacyUsers = readJson(LEGACY_USERS_FILE, []);
-  if (legacyUsers.length) {
-    users = legacyUsers;
-    writeJson(USERS_FILE, users);
+if (!usersFileExists) {
+  const legacyCandidates = [LEGACY_USERS_STORAGE_FILE, LEGACY_USERS_FILE];
+  for (const legacyPath of legacyCandidates) {
+    if (!fs.existsSync(legacyPath)) {
+      continue;
+    }
+    const legacyUsers = readJson(legacyPath, []);
+    if (legacyUsers.length) {
+      users = legacyUsers;
+      writeJson(USERS_FILE, users);
+      break;
+    }
   }
 }
 let invites = readJson(INVITES_FILE, []);
@@ -1109,6 +1154,7 @@ app.use(
   })
 );
 
+app.use("/uploads", express.static(UPLOADS_DIR));
 app.use(express.static(__dirname));
 
 app.post("/api/auth/login", async (req, res) => {
