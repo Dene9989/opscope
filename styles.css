@@ -1568,6 +1568,10 @@ body.is-visitor .notify.auth-only {
   gap: 16px;
 }
 
+.profile-card [hidden] {
+  display: none !important;
+}
+
 .profile-layout {
   display: grid;
   gap: 16px;
@@ -1590,6 +1594,7 @@ body.is-visitor .notify.auth-only {
   border-radius: 18px;
   border: 1px solid var(--border);
   background: var(--surface2);
+  align-items: center;
 }
 
 .profile-identity {
