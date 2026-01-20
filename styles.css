@@ -4346,8 +4346,8 @@ textarea:focus {
   animation: rise 0.35s ease both;
   border-left: 4px solid transparent;
   position: relative;
-  --state-color: #6b7c8d;
-  --focus-color: rgba(107, 124, 141, 0.45);
+  --state-color: #f59e0b;
+  --focus-color: rgba(245, 158, 11, 0.45);
 }
 
 .status-rail {
@@ -4362,26 +4362,20 @@ textarea:focus {
 }
 
 .manutencao-item.state-overdue {
-  --state-color: #d44545;
-  --focus-color: rgba(212, 69, 69, 0.45);
-  border-left-color: var(--state-color) !important;
-}
-
-.manutencao-item.state-locked {
-  --state-color: #d98a3b;
-  --focus-color: rgba(217, 138, 59, 0.45);
+  --state-color: #ef4444;
+  --focus-color: rgba(239, 68, 68, 0.45);
   border-left-color: var(--state-color) !important;
 }
 
 .manutencao-item.state-released {
-  --state-color: #2ecc71;
-  --focus-color: rgba(46, 204, 113, 0.45);
+  --state-color: #22c55e;
+  --focus-color: rgba(34, 197, 94, 0.45);
   border-left-color: var(--state-color) !important;
 }
 
 .manutencao-item.state-planned {
-  --state-color: #6b7c8d;
-  --focus-color: rgba(107, 124, 141, 0.4);
+  --state-color: #f59e0b;
+  --focus-color: rgba(245, 158, 11, 0.45);
   border-left-color: var(--state-color) !important;
 }
 
@@ -4587,32 +4581,26 @@ textarea:focus {
   text-transform: uppercase;
   font-weight: 700;
   border: 1px solid transparent;
-  background: rgba(107, 124, 141, 0.16);
-  color: #4c5a66;
+  background: rgba(245, 158, 11, 0.18);
+  color: #9a5c07;
 }
 
 .status-flag--overdue {
-  background: rgba(212, 69, 69, 0.18);
-  color: #b43a3a;
-  border-color: rgba(212, 69, 69, 0.35);
-}
-
-.status-flag--locked {
-  background: rgba(217, 138, 59, 0.18);
-  color: #a45b1f;
-  border-color: rgba(217, 138, 59, 0.35);
+  background: rgba(239, 68, 68, 0.2);
+  color: #b91c1c;
+  border-color: rgba(239, 68, 68, 0.4);
 }
 
 .status-flag--released {
-  background: rgba(46, 204, 113, 0.2);
-  color: #1e8b4a;
-  border-color: rgba(46, 204, 113, 0.4);
+  background: rgba(34, 197, 94, 0.2);
+  color: #15803d;
+  border-color: rgba(34, 197, 94, 0.4);
 }
 
 .status-flag--planned {
-  background: rgba(107, 124, 141, 0.16);
-  color: #4c5a66;
-  border-color: rgba(107, 124, 141, 0.35);
+  background: rgba(245, 158, 11, 0.18);
+  color: #9a5c07;
+  border-color: rgba(245, 158, 11, 0.4);
 }
 
 .manutencao-actions {

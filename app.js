@@ -580,7 +580,6 @@ const ACTION_LABELS = {
 
 const MAINTENANCE_STATE_LABELS = {
   overdue: "ATRASADA",
-  locked: "TRANCADA",
   released: "LIBERADA",
   planned: "PLANEJADA",
 };
@@ -2453,22 +2452,19 @@ function getReleaseLockInfo(item, data, hoje) {
   return { date: data, canOverride: canOverrideRelease(currentUser) };
 }
 
-function getMaintenanceState(item, data, hoje, lockInfo) {
+function getMaintenanceState(item, data, hoje) {
   if (!item) {
     return "planned";
   }
   const status = String(item.status || "").trim().toLowerCase();
-  if (status === "backlog") {
-    return "overdue";
+  if (status === "concluida" || status === "cancelada") {
+    return "planned";
   }
-  if (status !== "concluida" && status !== "cancelada" && data && data < hoje) {
-    return "overdue";
-  }
-  if (item.trancada === true || lockInfo) {
-    return "locked";
-  }
-  if (status === "liberada") {
+  if (data && data.getTime() === hoje.getTime()) {
     return "released";
+  }
+  if (data && data < hoje) {
+    return "overdue";
   }
   return "planned";
 }
@@ -2762,7 +2758,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const diff = data ? diffInDays(hoje, data) : null;
   const liberacao = getLiberacao(item);
   const lockInfo = getReleaseLockInfo(item, data, hoje);
-  const state = getMaintenanceState(item, data, hoje, lockInfo);
+  const state = getMaintenanceState(item, data, hoje);
 
   const card = document.createElement("article");
   card.className = `manutencao-item status-${item.status} state-${state}`;
@@ -3158,35 +3154,26 @@ function renderProgramacao() {
     return;
   }
 
-  const getGrupo = (item) => {
-    const info = getDateInfo(item, hoje);
-    const diff = info ? info.diff : null;
-    if (
-      item.status === "backlog" ||
-      (item.status !== "em_execucao" && item.status !== "encerramento" && diff !== null && diff < 0)
-    ) {
+  const getRank = (state) => {
+    if (state === "released") {
       return 0;
     }
-    if (item.status === "em_execucao" || item.status === "encerramento") {
+    if (state === "overdue") {
       return 1;
     }
-    if (diff === 0) {
-      return 2;
-    }
-    if (diff === 1) {
-      return 3;
-    }
-    return 4;
+    return 2;
   };
 
   const ordenados = filtrados.sort((a, b) => {
-    const grupoA = getGrupo(a);
-    const grupoB = getGrupo(b);
-    if (grupoA !== grupoB) {
-      return grupoA - grupoB;
-    }
     const dataA = parseDate(a.data);
     const dataB = parseDate(b.data);
+    const stateA = getMaintenanceState(a, dataA, hoje);
+    const stateB = getMaintenanceState(b, dataB, hoje);
+    const rankA = getRank(stateA);
+    const rankB = getRank(stateB);
+    if (rankA !== rankB) {
+      return rankA - rankB;
+    }
     if (dataA && dataB) {
       return dataA - dataB;
     }
@@ -3196,7 +3183,15 @@ function renderProgramacao() {
     if (dataB) {
       return 1;
     }
-    return 0;
+    const createdA = getTimeValue(a.createdAt) || 0;
+    const createdB = getTimeValue(b.createdAt) || 0;
+    if (createdA !== createdB) {
+      return createdA - createdB;
+    }
+    return String(a.id || "").localeCompare(String(b.id || ""), "pt-BR", {
+      numeric: true,
+      sensitivity: "base",
+    });
   });
 
   const permissoes = {
