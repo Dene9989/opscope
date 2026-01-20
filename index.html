@@ -991,57 +991,75 @@
     <section class="panel" id="nova" data-panel="nova">
       <section class="card" id="nova-manutencao">
         <h2>Nova manutencao</h2>
-        <div class="form-grid">
-          <div class="field">
-            <label for="tipoManutencao">Tipo de manutencao</label>
-            <select id="tipoManutencao">
-              <option value="">Selecione um tipo</option>
-            </select>
+        <div class="nova-manutencao__section">
+          <div class="nova-manutencao__heading">
+            <div>
+              <p class="nova-manutencao__heading-title">Dados da manutencao</p>
+              <p class="nova-manutencao__heading-subtitle">Escolha o tipo, subestacao e data que deseja agendar</p>
+            </div>
           </div>
-          <div class="field" id="customTipoField" hidden>
-            <label for="tituloManutencao">Tipo personalizado</label>
-            <input id="tituloManutencao" type="text" placeholder="Inspecao diaria SE Boa Sorte II" />
+          <div class="form-grid">
+            <div class="field">
+              <label for="tipoManutencao">Tipo de manutencao</label>
+              <select id="tipoManutencao">
+                <option value="">Selecione um tipo</option>
+              </select>
+            </div>
+            <div class="field" id="customTipoField" hidden>
+              <label for="tituloManutencao">Tipo personalizado</label>
+              <input id="tituloManutencao" type="text" placeholder="Inspecao diaria SE Boa Sorte II" />
+            </div>
+            <div class="field">
+              <label for="subestacaoManutencao">Subestacao</label>
+              <select id="subestacaoManutencao">
+                <option value="SE Boa Sorte II">SE Boa Sorte II</option>
+              </select>
+            </div>
+            <div class="field field--date-group">
+              <div class="field__label-row">
+                <label for="dataManutencao">Inicio da execucao</label>
+                <label class="checkbox-field futura-checkbox" for="futuraManutencao">
+                  <input id="futuraManutencao" type="checkbox" />
+                  <span title="Libera a data para agendamento">Futura manutencao</span>
+                </label>
+              </div>
+              <input id="dataManutencao" type="date" readonly />
+            </div>
           </div>
-          <div class="field">
-            <label for="subestacaoManutencao">Subestacao</label>
-            <select id="subestacaoManutencao">
-              <option value="SE Boa Sorte II">SE Boa Sorte II</option>
-            </select>
+          <div class="form-grid">
+            <div class="field">
+              <label for="categoriaManutencao">Categoria</label>
+              <select id="categoriaManutencao" required>
+                <option value="">Selecione</option>
+                <option value="Preventiva">Preventiva</option>
+                <option value="Corretiva">Corretiva</option>
+                <option value="Preditiva">Preditiva</option>
+                <option value="Melhoria">Melhoria</option>
+                <option value="Emergencial">Emergencial</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="prioridadeManutencao">Prioridade</label>
+              <select id="prioridadeManutencao" required>
+                <option value="">Selecione</option>
+                <option value="Baixa">Baixa</option>
+                <option value="Media">Media</option>
+                <option value="Alta">Alta</option>
+                <option value="Critica">Critica</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="osReferenciaManutencao">OS / referencia</label>
+              <input id="osReferenciaManutencao" type="text" required />
+            </div>
           </div>
-          <div class="field">
-            <label for="dataManutencao">Inicio da execucao</label>
-            <input id="dataManutencao" type="date" readonly />
-          </div>
-          <div class="field field--checkbox">
-            <label class="checkbox-field" for="futuraManutencao">
-              <input id="futuraManutencao" type="checkbox" />
-              <span>Futura manutencao (libera a data para agendamento)</span>
-            </label>
-          </div>
-          <div class="field">
-            <label for="categoriaManutencao">Categoria</label>
-            <select id="categoriaManutencao" required>
-              <option value="">Selecione</option>
-              <option value="Preventiva">Preventiva</option>
-              <option value="Corretiva">Corretiva</option>
-              <option value="Preditiva">Preditiva</option>
-              <option value="Melhoria">Melhoria</option>
-              <option value="Emergencial">Emergencial</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="prioridadeManutencao">Prioridade</label>
-            <select id="prioridadeManutencao" required>
-              <option value="">Selecione</option>
-              <option value="Baixa">Baixa</option>
-              <option value="Media">Media</option>
-              <option value="Alta">Alta</option>
-              <option value="Critica">Critica</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="osReferenciaManutencao">OS / referencia</label>
-            <input id="osReferenciaManutencao" type="text" required />
+        </div>
+        <div class="nova-manutencao__section">
+          <div class="nova-manutencao__heading">
+            <div>
+              <p class="nova-manutencao__heading-title">Participantes e criticidade</p>
+              <p class="nova-manutencao__heading-subtitle">Separe os nomes por ponto e virgula e indique se e critico</p>
+            </div>
           </div>
           <div class="field" data-full>
             <label for="participantesManutencao">Participantes (separe por ;)</label>
@@ -1062,8 +1080,15 @@
               <option value="sim">Sim</option>
             </select>
           </div>
+        </div>
+        <div class="nova-manutencao__section">
+          <div class="nova-manutencao__heading">
+            <div>
+              <p class="nova-manutencao__heading-title">Documentos obrigatorios</p>
+              <p class="nova-manutencao__heading-subtitle">Anexe APR, OS e PTE; PT aparece para trabalhos criticos</p>
+            </div>
+          </div>
           <div class="field" data-full>
-            <label>Documentos obrigatorios</label>
             <div class="doc-grid">
               <div class="doc-item" data-doc="apr">
                 <div class="doc-head">
@@ -1117,6 +1142,14 @@
                   <span class="doc-name" data-nova-doc-name="pt">Nenhum arquivo</span>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+        <div class="nova-manutencao__section">
+          <div class="nova-manutencao__heading">
+            <div>
+              <p class="nova-manutencao__heading-title">Descricao tecnica da demanda</p>
+              <p class="nova-manutencao__heading-subtitle">Conte o contexto, condicionantes e objetivos</p>
             </div>
           </div>
           <div class="field" data-full>

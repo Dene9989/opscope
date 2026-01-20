@@ -3370,6 +3370,48 @@ label {
   margin-bottom: 16px;
 }
 
+.nova-manutencao__section:not(:first-of-type) {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.nova-manutencao__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.nova-manutencao__heading-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.nova-manutencao__heading-subtitle {
+  font-size: 0.85rem;
+  margin: 2px 0 0;
+  color: var(--ink-soft);
+}
+
+.field--date-group .field__label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.field--date-group .futura-checkbox span {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.field--date-group .futura-checkbox input {
+  margin: 0;
+}
+
 .field[data-full] {
   grid-column: 1 / -1;
 }
