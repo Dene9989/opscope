@@ -286,6 +286,14 @@ const reagendarObs = document.getElementById("reagendarObs");
 const mensagemReagendar = document.getElementById("mensagemReagendar");
 const btnFecharReagendar = document.getElementById("btnFecharReagendar");
 const btnCancelarReagendar = document.getElementById("btnCancelarReagendar");
+const modalBacklogMotivo = document.getElementById("modalBacklogMotivo");
+const formBacklogMotivo = document.getElementById("formBacklogMotivo");
+const backlogMotivoId = document.getElementById("backlogMotivoId");
+const backlogMotivoSelect = document.getElementById("backlogMotivoSelect");
+const backlogMotivoObs = document.getElementById("backlogMotivoObs");
+const mensagemBacklogMotivo = document.getElementById("mensagemBacklogMotivo");
+const btnFecharBacklogMotivo = document.getElementById("btnFecharBacklogMotivo");
+const btnCancelarBacklogMotivo = document.getElementById("btnCancelarBacklogMotivo");
 const modalLiberacao = document.getElementById("modalLiberacao");
 const formLiberacao = document.getElementById("formLiberacao");
 const liberacaoId = document.getElementById("liberacaoId");
@@ -631,6 +639,7 @@ let historicoAtualId = null;
 let historicoLimite = HISTORY_PAGE_SIZE;
 let manutencaoEmLiberacao = null;
 let pendingLiberacaoOverride = null;
+let manutencaoEmBacklogMotivo = null;
 let manutencaoEmCancelamento = null;
 let liberacaoDocsBase = {};
 let liberacaoDocsPreview = {};
@@ -1130,6 +1139,14 @@ function mostrarMensagemReagendar(texto, erro = false) {
   }
   mensagemReagendar.textContent = texto;
   mensagemReagendar.classList.toggle("mensagem--erro", erro);
+}
+
+function mostrarMensagemBacklogMotivo(texto, erro = false) {
+  if (!mensagemBacklogMotivo) {
+    return;
+  }
+  mensagemBacklogMotivo.textContent = texto;
+  mensagemBacklogMotivo.classList.toggle("mensagem--erro", erro);
 }
 
 function mostrarMensagemInicioExecucao(texto, erro = false) {
@@ -3026,6 +3043,12 @@ function criarCardManutencao(item, permissoes, options = {}) {
     const dataTexto = motivoData ? ` em ${formatDateTime(motivoData)}` : "";
     motivo.textContent = `Motivo nao executada: ${item.backlogMotivo.motivo}${dataTexto}`;
     info.append(motivo);
+  }
+  if (item.status === "backlog" && item.backlogMotivo && item.backlogMotivo.observacao) {
+    const obs = document.createElement("p");
+    obs.className = "submeta";
+    obs.textContent = `Obs.: ${item.backlogMotivo.observacao}`;
+    info.append(obs);
   }
 
   const ultimoReagendamento = getUltimoReagendamento(item);
@@ -9238,20 +9261,70 @@ function registrarMotivoBacklog(index) {
     mostrarMensagemManutencao("Somente itens em backlog aceitam motivo.", true);
     return;
   }
-  const motivoAtual =
-    item.backlogMotivo && item.backlogMotivo.motivo ? item.backlogMotivo.motivo : "";
-  const novoMotivo = window.prompt("Motivo da nao execucao:", motivoAtual);
-  if (novoMotivo === null) {
+  abrirBacklogMotivo(item);
+}
+
+function abrirBacklogMotivo(item) {
+  if (!modalBacklogMotivo || !formBacklogMotivo) {
     return;
   }
-  const motivoLimpo = novoMotivo.trim();
-  if (!motivoLimpo) {
-    mostrarMensagemManutencao("Informe o motivo da nao execucao.", true);
+  manutencaoEmBacklogMotivo = item.id;
+  mostrarMensagemBacklogMotivo("");
+  if (backlogMotivoId) {
+    backlogMotivoId.value = item.id;
+  }
+  if (backlogMotivoSelect) {
+    backlogMotivoSelect.value =
+      item.backlogMotivo && item.backlogMotivo.motivo ? item.backlogMotivo.motivo : "";
+  }
+  if (backlogMotivoObs) {
+    backlogMotivoObs.value =
+      item.backlogMotivo && item.backlogMotivo.observacao ? item.backlogMotivo.observacao : "";
+  }
+  modalBacklogMotivo.hidden = false;
+}
+
+function fecharBacklogMotivo() {
+  if (!modalBacklogMotivo) {
+    return;
+  }
+  modalBacklogMotivo.hidden = true;
+  manutencaoEmBacklogMotivo = null;
+  mostrarMensagemBacklogMotivo("");
+}
+
+function salvarBacklogMotivo(event) {
+  event.preventDefault();
+  if (!requirePermission("edit")) {
+    return;
+  }
+  if (!manutencaoEmBacklogMotivo || !backlogMotivoSelect) {
+    return;
+  }
+  const index = manutencoes.findIndex((item) => item.id === manutencaoEmBacklogMotivo);
+  if (index < 0) {
+    mostrarMensagemBacklogMotivo("Manutencao nao encontrada.", true);
+    return;
+  }
+  const item = manutencoes[index];
+  if (item.status !== "backlog") {
+    mostrarMensagemBacklogMotivo("Somente itens em backlog aceitam motivo.", true);
+    return;
+  }
+  const motivo = backlogMotivoSelect.value.trim();
+  if (!motivo) {
+    mostrarMensagemBacklogMotivo("Selecione o motivo.", true);
+    return;
+  }
+  const observacao = backlogMotivoObs ? backlogMotivoObs.value.trim() : "";
+  if (motivo === "Outros" && !observacao) {
+    mostrarMensagemBacklogMotivo("Informe a observacao para o motivo Outros.", true);
     return;
   }
 
   const registro = {
-    motivo: motivoLimpo,
+    motivo,
+    observacao,
     registradoEm: toIsoUtc(new Date()),
     registradoPor: currentUser ? currentUser.id : SYSTEM_USER_ID,
   };
@@ -9266,8 +9339,13 @@ function registrarMotivoBacklog(index) {
   const resultado = normalizarManutencoes(manutencoes);
   manutencoes = resultado.normalizadas;
   salvarManutencoes(manutencoes);
-  logAction("backlog_reason", atualizado, { motivo: motivoLimpo, resumo: "Motivo registrado." });
+  logAction("backlog_reason", atualizado, {
+    motivo,
+    observacao,
+    resumo: "Motivo registrado.",
+  });
   renderTudo();
+  fecharBacklogMotivo();
   mostrarMensagemManutencao("Motivo registrado.");
 }
 
@@ -12484,6 +12562,20 @@ if (btnCancelarReagendar) {
 if (reagendarMotivo) {
   reagendarMotivo.addEventListener("change", () => {
     mostrarMensagemReagendar("");
+  });
+}
+if (formBacklogMotivo) {
+  formBacklogMotivo.addEventListener("submit", salvarBacklogMotivo);
+}
+if (btnFecharBacklogMotivo) {
+  btnFecharBacklogMotivo.addEventListener("click", fecharBacklogMotivo);
+}
+if (btnCancelarBacklogMotivo) {
+  btnCancelarBacklogMotivo.addEventListener("click", fecharBacklogMotivo);
+}
+if (backlogMotivoSelect) {
+  backlogMotivoSelect.addEventListener("change", () => {
+    mostrarMensagemBacklogMotivo("");
   });
 }
 if (cancelarInicioMotivo) {

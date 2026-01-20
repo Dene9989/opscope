@@ -1840,6 +1840,45 @@
     </div>
   </div>
 
+  <div id="modalBacklogMotivo" class="modal" hidden>
+    <div class="modal__content">
+      <div class="modal__header">
+        <h3>Motivo da nao execucao</h3>
+        <button id="btnFecharBacklogMotivo" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <form id="formBacklogMotivo" class="modal__form">
+        <input id="backlogMotivoId" type="hidden" />
+        <div class="form-grid">
+          <div class="field">
+            <label for="backlogMotivoSelect">Motivo</label>
+            <select id="backlogMotivoSelect" required>
+              <option value="">Selecione</option>
+              <option value="Condicao climatica">Condicao climatica</option>
+              <option value="Indisponibilidade operacional">Indisponibilidade operacional</option>
+              <option value="Falta de equipe ou recurso">Falta de equipe ou recurso</option>
+              <option value="Conflito com outra atividade">Conflito com outra atividade</option>
+              <option value="Solicitacao operacional / COS">Solicitacao operacional / COS</option>
+              <option value="Aguardando liberacao">Aguardando liberacao</option>
+              <option value="Outros">Outros</option>
+            </select>
+          </div>
+          <div class="field" data-full>
+            <label for="backlogMotivoObs">Observacao complementar</label>
+            <textarea id="backlogMotivoObs" rows="3" placeholder="Detalhes adicionais"></textarea>
+            <p class="hint">Obrigatorio quando o motivo for Outros.</p>
+          </div>
+        </div>
+        <div class="modal__actions">
+          <button class="btn btn--primary" type="submit">Salvar motivo</button>
+          <button id="btnCancelarBacklogMotivo" class="btn btn--ghost" type="button">Cancelar</button>
+        </div>
+        <p id="mensagemBacklogMotivo" class="mensagem" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+
   <div id="modalLiberacao" class="modal" hidden>
     <div class="modal__content">
       <div class="modal__header">
