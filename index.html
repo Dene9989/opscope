@@ -898,7 +898,7 @@
                   </div>
                 </div>
                 <button class="user-menu__item" type="button" data-action="view-profile">
-                  Ver Perfil
+                  Ver erfil
                 </button>
                 <button class="user-menu__item" type="button" data-action="edit-profile">
                   Editar Perfil
@@ -991,75 +991,51 @@
     <section class="panel" id="nova" data-panel="nova">
       <section class="card" id="nova-manutencao">
         <h2>Nova manutencao</h2>
-        <div class="nova-manutencao__section">
-          <div class="nova-manutencao__heading">
-            <div>
-              <p class="nova-manutencao__heading-title">Dados da manutencao</p>
-              <p class="nova-manutencao__heading-subtitle">Escolha o tipo, subestacao e data que deseja agendar</p>
-            </div>
+        <div class="form-grid">
+          <div class="field">
+            <label for="tipoManutencao">Tipo de manutencao</label>
+            <select id="tipoManutencao">
+              <option value="">Selecione um tipo</option>
+            </select>
           </div>
-          <div class="form-grid">
-            <div class="field">
-              <label for="tipoManutencao">Tipo de manutencao</label>
-              <select id="tipoManutencao">
-                <option value="">Selecione um tipo</option>
-              </select>
-            </div>
-            <div class="field" id="customTipoField" hidden>
-              <label for="tituloManutencao">Tipo personalizado</label>
-              <input id="tituloManutencao" type="text" placeholder="Inspecao diaria SE Boa Sorte II" />
-            </div>
-            <div class="field">
-              <label for="subestacaoManutencao">Subestacao</label>
-              <select id="subestacaoManutencao">
-                <option value="SE Boa Sorte II">SE Boa Sorte II</option>
-              </select>
-            </div>
-            <div class="field field--date-group">
-              <div class="field__label-row">
-                <label for="dataManutencao">Inicio da execucao</label>
-                <label class="checkbox-field futura-checkbox" for="futuraManutencao">
-                  <input id="futuraManutencao" type="checkbox" />
-                  <span title="Libera a data para agendamento">Futura manutencao</span>
-                </label>
-              </div>
-              <input id="dataManutencao" type="date" readonly />
-            </div>
+          <div class="field" id="customTipoField" hidden>
+            <label for="tituloManutencao">Tipo personalizado</label>
+            <input id="tituloManutencao" type="text" placeholder="Inspecao diaria SE Boa Sorte II" />
           </div>
-          <div class="form-grid">
-            <div class="field">
-              <label for="categoriaManutencao">Categoria</label>
-              <select id="categoriaManutencao" required>
-                <option value="">Selecione</option>
-                <option value="Preventiva">Preventiva</option>
-                <option value="Corretiva">Corretiva</option>
-                <option value="Preditiva">Preditiva</option>
-                <option value="Melhoria">Melhoria</option>
-                <option value="Emergencial">Emergencial</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="prioridadeManutencao">Prioridade</label>
-              <select id="prioridadeManutencao" required>
-                <option value="">Selecione</option>
-                <option value="Baixa">Baixa</option>
-                <option value="Media">Media</option>
-                <option value="Alta">Alta</option>
-                <option value="Critica">Critica</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="osReferenciaManutencao">OS / referencia</label>
-              <input id="osReferenciaManutencao" type="text" required />
-            </div>
+          <div class="field">
+            <label for="subestacaoManutencao">Subestacao</label>
+            <select id="subestacaoManutencao">
+              <option value="SE Boa Sorte II">SE Boa Sorte II</option>
+            </select>
           </div>
-        </div>
-        <div class="nova-manutencao__section">
-          <div class="nova-manutencao__heading">
-            <div>
-              <p class="nova-manutencao__heading-title">Participantes e criticidade</p>
-              <p class="nova-manutencao__heading-subtitle">Separe os nomes por ponto e virgula e indique se e critico</p>
-            </div>
+          <div class="field">
+            <label for="dataManutencao">Inicio da execucao</label>
+            <input id="dataManutencao" type="date" readonly />
+          </div>
+          <div class="field">
+            <label for="categoriaManutencao">Categoria</label>
+            <select id="categoriaManutencao" required>
+              <option value="">Selecione</option>
+              <option value="Preventiva">Preventiva</option>
+              <option value="Corretiva">Corretiva</option>
+              <option value="Preditiva">Preditiva</option>
+              <option value="Melhoria">Melhoria</option>
+              <option value="Emergencial">Emergencial</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="prioridadeManutencao">Prioridade</label>
+            <select id="prioridadeManutencao" required>
+              <option value="">Selecione</option>
+              <option value="Baixa">Baixa</option>
+              <option value="Media">Media</option>
+              <option value="Alta">Alta</option>
+              <option value="Critica">Critica</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="osReferenciaManutencao">OS / referencia</label>
+            <input id="osReferenciaManutencao" type="text" required />
           </div>
           <div class="field" data-full>
             <label for="participantesManutencao">Participantes (separe por ;)</label>
@@ -1080,15 +1056,8 @@
               <option value="sim">Sim</option>
             </select>
           </div>
-        </div>
-        <div class="nova-manutencao__section">
-          <div class="nova-manutencao__heading">
-            <div>
-              <p class="nova-manutencao__heading-title">Documentos obrigatorios</p>
-              <p class="nova-manutencao__heading-subtitle">Anexe APR, OS e PTE; PT aparece para trabalhos criticos</p>
-            </div>
-          </div>
           <div class="field" data-full>
+            <label>Documentos obrigatorios</label>
             <div class="doc-grid">
               <div class="doc-item" data-doc="apr">
                 <div class="doc-head">
@@ -1144,14 +1113,6 @@
               </div>
             </div>
           </div>
-        </div>
-        <div class="nova-manutencao__section">
-          <div class="nova-manutencao__heading">
-            <div>
-              <p class="nova-manutencao__heading-title">Descricao tecnica da demanda</p>
-              <p class="nova-manutencao__heading-subtitle">Conte o contexto, condicionantes e objetivos</p>
-            </div>
-          </div>
           <div class="field" data-full>
             <label for="obsManutencao">Descricao tecnica da demanda</label>
             <textarea
@@ -1174,148 +1135,178 @@
         <p class="hint">Crie tipos e recorrencias automaticas para aparecerem na programacao.</p>
         <div class="template-grid">
           <form id="templateForm" class="template-form">
-            <div class="field">
-              <label for="templateNome">Nome do modelo</label>
-              <input id="templateNome" type="text" placeholder="Inspecao diaria" />
-              <p id="templateNomeErro" class="field-error" hidden></p>
-            </div>
-            <div class="field">
-              <label for="templateSubestacao">Subestacao</label>
-              <select id="templateSubestacao">
-                <option value="SE Boa Sorte II">SE Boa Sorte II</option>
-              </select>
-            </div>
-            <div class="field field--primary">
-              <label for="templateFrequencia">Tipo de recorrencia</label>
-              <select id="templateFrequencia">
-                <option value="none">Sem recorrencia (apenas modelo)</option>
-                <option value="daily">Diaria</option>
-                <option value="weekly">Semanal</option>
-                <option value="monthly">Mensal</option>
-              </select>
-            </div>
-            <div class="field" id="templateInicioField">
-              <label for="templateInicio">Data de inicio</label>
-              <input id="templateInicio" type="date" />
-              <p id="templateInicioErro" class="field-error" hidden></p>
-            </div>
-            <div class="field" id="templatePresets">
-              <label>Presets rapidos</label>
-              <div class="preset-row">
-                <button class="btn btn--ghost btn--small" type="button" data-template-preset="hv-daily">
-                  Padrao HV: Diario (Seg-Sex)
-                </button>
-                <button class="btn btn--ghost btn--small" type="button" data-template-preset="weekly">
-                  Semanal: 1x por semana
-                </button>
-                <button class="btn btn--ghost btn--small" type="button" data-template-preset="monthly">
-                  Mensal: dia fixo
-                </button>
+            <div class="template-section">
+              <div class="section-title">
+                <h3>Identificacao</h3>
+                <p>Modelo, unidade e recorrencia.</p>
+              </div>
+              <div class="field">
+                <label for="templateNome">Nome do modelo</label>
+                <input id="templateNome" type="text" placeholder="Inspecao diaria" />
+                <p id="templateNomeErro" class="field-error" hidden></p>
+              </div>
+              <div class="field">
+                <label for="templateSubestacao">Subestacao</label>
+                <select id="templateSubestacao">
+                  <option value="SE Boa Sorte II">SE Boa Sorte II</option>
+                </select>
+              </div>
+              <div class="field field--primary">
+                <label for="templateFrequencia">Tipo de recorrencia</label>
+                <select id="templateFrequencia">
+                  <option value="none">Sem recorrencia (apenas modelo)</option>
+                  <option value="daily">Diaria</option>
+                  <option value="weekly">Semanal</option>
+                  <option value="monthly">Mensal</option>
+                </select>
+              </div>
+              <div class="field" id="templateInicioField">
+                <label for="templateInicio">Data de inicio</label>
+                <input id="templateInicio" type="date" />
+                <p id="templateInicioErro" class="field-error" hidden></p>
               </div>
             </div>
-            <div class="field" id="templateDailyField" hidden>
-              <div class="field-head">
-                <label>Dias da semana</label>
-                <button id="btnPresetDiasUteis" class="btn btn--ghost btn--small" type="button">
-                  Somente dias uteis (Seg-Sex)
+            <div class="template-section">
+              <div class="section-title">
+                <h3>Regras de recorrencia</h3>
+                <p>Defina periodicidade e regras por ciclo.</p>
+              </div>
+              <div class="field" id="templatePresets">
+                <label>Presets rapidos</label>
+                <div class="preset-row">
+                  <button class="btn btn--ghost btn--small" type="button" data-template-preset="hv-daily">
+                    Padrao HV: Diario (Seg-Sex)
+                  </button>
+                  <button class="btn btn--ghost btn--small" type="button" data-template-preset="weekly">
+                    Semanal: 1x por semana
+                  </button>
+                  <button class="btn btn--ghost btn--small" type="button" data-template-preset="monthly">
+                    Mensal: dia fixo
+                  </button>
+                </div>
+              </div>
+              <div class="field" id="templateDailyField" hidden>
+                <div class="field-head">
+                  <label>Dias da semana</label>
+                  <button id="btnPresetDiasUteis" class="btn btn--ghost btn--small" type="button">
+                    Somente dias uteis (Seg-Sex)
+                  </button>
+                </div>
+                <div class="week-grid">
+                  <label class="day-chip">
+                    <input type="checkbox" value="1" data-template-daily-day checked />
+                    <span>Segunda</span>
+                  </label>
+                  <label class="day-chip">
+                    <input type="checkbox" value="2" data-template-daily-day checked />
+                    <span>Terca</span>
+                  </label>
+                  <label class="day-chip">
+                    <input type="checkbox" value="3" data-template-daily-day checked />
+                    <span>Quarta</span>
+                  </label>
+                  <label class="day-chip">
+                    <input type="checkbox" value="4" data-template-daily-day checked />
+                    <span>Quinta</span>
+                  </label>
+                  <label class="day-chip">
+                    <input type="checkbox" value="5" data-template-daily-day checked />
+                    <span>Sexta</span>
+                  </label>
+                  <label class="day-chip">
+                    <input type="checkbox" value="6" data-template-daily-day />
+                    <span>Sabado</span>
+                  </label>
+                  <label class="day-chip">
+                    <input type="checkbox" value="0" data-template-daily-day />
+                    <span>Domingo</span>
+                  </label>
+                </div>
+                <p id="templateDailyErro" class="field-error" hidden></p>
+              </div>
+              <div class="field" id="templateWeeklyDayField" hidden>
+                <label for="templateWeeklyDay">Dia da semana</label>
+                <select id="templateWeeklyDay">
+                  <option value="1">Segunda</option>
+                  <option value="2">Terca</option>
+                  <option value="3">Quarta</option>
+                  <option value="4">Quinta</option>
+                  <option value="5">Sexta</option>
+                  <option value="6">Sabado</option>
+                  <option value="0">Domingo</option>
+                </select>
+              </div>
+              <div class="field" id="templateWeeklyIntervalField" hidden>
+                <label for="templateWeeklyInterval">Intervalo em semanas</label>
+                <input id="templateWeeklyInterval" type="number" min="1" max="52" value="1" />
+                <p id="templateWeeklyIntervalErro" class="field-error" hidden></p>
+              </div>
+              <div class="field" id="templateMonthlyModeField" hidden>
+                <label>Regra mensal</label>
+                <div class="radio-group">
+                  <label class="perm-item">
+                    <input type="radio" name="templateMonthlyMode" id="templateMonthlyFixed" value="fixed" checked />
+                    <span>Dia fixo</span>
+                  </label>
+                  <label class="perm-item">
+                    <input type="radio" name="templateMonthlyMode" id="templateMonthlyMulti" value="multi" />
+                    <span>Dias especificos</span>
+                  </label>
+                </div>
+              </div>
+              <div class="field" id="templateMonthlyDayField" hidden>
+                <label for="templateMonthlyDay">Dia do mes</label>
+                <input id="templateMonthlyDay" type="number" min="1" max="31" value="10" />
+                <p id="templateMonthlyDayErro" class="field-error" hidden></p>
+              </div>
+              <div class="field" id="templateMonthlyDaysField" data-full hidden>
+                <label>Dias do mes</label>
+                <input id="templateMonthlyDaysInput" type="text" placeholder="Ex.: 10, 25" />
+                <div id="templateMonthlyDaysChips" class="chip-row"></div>
+                <p id="templateMonthlyDaysErro" class="field-error" hidden></p>
+              </div>
+            </div>
+            <div class="template-section">
+              <div class="section-title">
+                <h3>Observacoes e status</h3>
+                <p>Contexto e resumo automatico.</p>
+              </div>
+              <div class="field" data-full>
+                <label for="templateObs">Observacoes padrao do servico</label>
+                <textarea id="templateObs" rows="3" placeholder="Equipe, materiais, observacoes"></textarea>
+              </div>
+              <div class="recurrence-summary" id="templateResumo">
+                <strong>Resumo da recorrencia</strong>
+                <div class="summary-lines" id="templateResumoLinhas"></div>
+              </div>
+              <label class="perm-item">
+                <input id="templateAtivo" type="checkbox" checked />
+                <span>Ativo</span>
+              </label>
+            </div>
+            <div class="template-section template-section--actions">
+              <div class="section-title">
+                <h3>Acoes</h3>
+                <p>Salvar ou limpar o formulario.</p>
+              </div>
+              <div class="manager-actions">
+                <button id="btnSalvarModelo" class="btn btn--primary btn--small" type="submit">
+                  Salvar modelo de recorrencia
+                </button>
+                <button id="btnCancelarModelo" class="btn btn--ghost btn--small" type="button">
+                  Limpar formulario
                 </button>
               </div>
-              <div class="week-grid">
-                <label class="day-chip">
-                  <input type="checkbox" value="1" data-template-daily-day checked />
-                  <span>Segunda</span>
-                </label>
-                <label class="day-chip">
-                  <input type="checkbox" value="2" data-template-daily-day checked />
-                  <span>Terca</span>
-                </label>
-                <label class="day-chip">
-                  <input type="checkbox" value="3" data-template-daily-day checked />
-                  <span>Quarta</span>
-                </label>
-                <label class="day-chip">
-                  <input type="checkbox" value="4" data-template-daily-day checked />
-                  <span>Quinta</span>
-                </label>
-                <label class="day-chip">
-                  <input type="checkbox" value="5" data-template-daily-day checked />
-                  <span>Sexta</span>
-                </label>
-                <label class="day-chip">
-                  <input type="checkbox" value="6" data-template-daily-day />
-                  <span>Sabado</span>
-                </label>
-                <label class="day-chip">
-                  <input type="checkbox" value="0" data-template-daily-day />
-                  <span>Domingo</span>
-                </label>
-              </div>
-              <p id="templateDailyErro" class="field-error" hidden></p>
+              <p id="templateMensagem" class="mensagem" aria-live="polite"></p>
             </div>
-            <div class="field" id="templateWeeklyDayField" hidden>
-              <label for="templateWeeklyDay">Dia da semana</label>
-              <select id="templateWeeklyDay">
-                <option value="1">Segunda</option>
-                <option value="2">Terca</option>
-                <option value="3">Quarta</option>
-                <option value="4">Quinta</option>
-                <option value="5">Sexta</option>
-                <option value="6">Sabado</option>
-                <option value="0">Domingo</option>
-              </select>
-            </div>
-            <div class="field" id="templateWeeklyIntervalField" hidden>
-              <label for="templateWeeklyInterval">Intervalo em semanas</label>
-              <input id="templateWeeklyInterval" type="number" min="1" max="52" value="1" />
-              <p id="templateWeeklyIntervalErro" class="field-error" hidden></p>
-            </div>
-            <div class="field" id="templateMonthlyModeField" hidden>
-              <label>Regra mensal</label>
-              <div class="radio-group">
-                <label class="perm-item">
-                  <input type="radio" name="templateMonthlyMode" id="templateMonthlyFixed" value="fixed" checked />
-                  <span>Dia fixo</span>
-                </label>
-                <label class="perm-item">
-                  <input type="radio" name="templateMonthlyMode" id="templateMonthlyMulti" value="multi" />
-                  <span>Dias especificos</span>
-                </label>
-              </div>
-            </div>
-            <div class="field" id="templateMonthlyDayField" hidden>
-              <label for="templateMonthlyDay">Dia do mes</label>
-              <input id="templateMonthlyDay" type="number" min="1" max="31" value="10" />
-              <p id="templateMonthlyDayErro" class="field-error" hidden></p>
-            </div>
-            <div class="field" id="templateMonthlyDaysField" data-full hidden>
-              <label>Dias do mes</label>
-              <input id="templateMonthlyDaysInput" type="text" placeholder="Ex.: 10, 25" />
-              <div id="templateMonthlyDaysChips" class="chip-row"></div>
-              <p id="templateMonthlyDaysErro" class="field-error" hidden></p>
-            </div>
-            <div class="field" data-full>
-              <label for="templateObs">Observacoes padrao do servico</label>
-              <textarea id="templateObs" rows="3" placeholder="Equipe, materiais, observacoes"></textarea>
-            </div>
-            <div class="recurrence-summary" id="templateResumo">
-              <strong>Resumo da recorrencia</strong>
-              <div class="summary-lines" id="templateResumoLinhas"></div>
-            </div>
-            <label class="perm-item">
-              <input id="templateAtivo" type="checkbox" checked />
-              <span>Ativo</span>
-            </label>
-            <div class="manager-actions">
-              <button id="btnSalvarModelo" class="btn btn--primary btn--small" type="submit">
-                Salvar modelo de recorrencia
-              </button>
-              <button id="btnCancelarModelo" class="btn btn--ghost btn--small" type="button">
-                Limpar formulario
-              </button>
-            </div>
-            <p id="templateMensagem" class="mensagem" aria-live="polite"></p>
           </form>
-          <div>
+          <div class="template-list-panel">
+            <div class="template-list-head">
+              <div>
+                <h3>Modelos cadastrados</h3>
+                <p class="hint">Use filtros para localizar rapidamente.</p>
+              </div>
+            </div>
             <div class="template-toolbar">
               <div class="field">
                 <label for="templateSearch">Buscar modelo</label>
@@ -1608,9 +1599,6 @@
               </button>
               <button id="btnAvatarSave" class="btn btn--primary btn--small" type="button" disabled>
                 Salvar foto
-              </button>
-              <button id="btnAvatarRemove" class="btn btn--ghost btn--small btn--danger" type="button">
-                Remover foto
               </button>
             </div>
           </div>

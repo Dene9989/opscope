@@ -2125,7 +2125,61 @@ body.is-visitor .container.auth-only {
   border: 1px solid rgba(19, 32, 42, 0.12);
   background: #f8f6f1;
   display: grid;
+  gap: 16px;
+}
+
+.template-section {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(19, 32, 42, 0.12);
+  background: rgba(255, 255, 255, 0.7);
+  display: grid;
   gap: 12px;
+}
+
+.template-section--actions {
+  align-items: start;
+}
+
+.section-title {
+  display: grid;
+  gap: 4px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed rgba(19, 32, 42, 0.2);
+}
+
+.section-title h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.section-title p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.template-list-panel {
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(19, 32, 42, 0.12);
+  background: #f8f6f1;
+  display: grid;
+  gap: 12px;
+}
+
+.template-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.template-list-head h3 {
+  margin: 0;
+  font-size: 1.05rem;
 }
 
 .template-toolbar {
@@ -2395,10 +2449,24 @@ body.is-visitor .container.auth-only {
 }
 
 .page-modelos .template-form,
+.page-modelos .template-section,
+.page-modelos .template-list-panel,
 .page-modelos .template-item,
 .page-modelos .recurrence-summary {
   background: var(--card-bg-soft);
   border-color: var(--card-border);
+}
+
+.page-modelos .section-title {
+  border-bottom-color: var(--card-border);
+}
+
+.page-modelos .section-title h3 {
+  color: var(--text-strong);
+}
+
+.page-modelos .section-title p {
+  color: var(--text-muted);
 }
 
 .page-modelos .template-form input[type="text"],
