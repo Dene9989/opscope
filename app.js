@@ -2902,7 +2902,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
       : statusBase === "encerramento"
         ? STATUS_LABELS.encerramento
       : statusBase === "backlog"
-        ? "Atrasada"
+        ? "BACKLOG"
       : statusBase === "liberada"
         ? STATUS_LABELS.liberada
       : statusBase === "hoje"
