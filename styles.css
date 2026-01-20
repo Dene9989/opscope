@@ -1524,6 +1524,18 @@ body.is-visitor .notify.auth-only {
   animation-delay: 0.3s;
 }
 
+.profile-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.profile-actions h2 {
+  margin: 0;
+}
+
 .profile-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

@@ -24,7 +24,9 @@ const MASTER_PASSWORD = process.env.MASTER_PASSWORD || ADMIN_PASSWORD;
 const INVITE_TTL_HOURS = 24;
 
 const DATA_DIR = path.join(__dirname, "data");
-const USERS_FILE = path.join(DATA_DIR, "users.json");
+const STORAGE_DIR = process.env.OPSCOPE_STORAGE_DIR || path.join(__dirname, "storage");
+const LEGACY_USERS_FILE = path.join(DATA_DIR, "users.json");
+const USERS_FILE = path.join(STORAGE_DIR, "users.json");
 const INVITES_FILE = path.join(DATA_DIR, "invites.json");
 const AUDIT_FILE = path.join(DATA_DIR, "audit.json");
 const MAINTENANCE_FILE = path.join(DATA_DIR, "maintenance.json");
@@ -180,7 +182,59 @@ function readJson(filePath, fallback) {
 }
 
 function writeJson(filePath, data) {
+  const dir = path.dirname(filePath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+}
+
+function normalizeCargo(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function getCargoLevel(cargo) {
+  const normalized = normalizeCargo(cargo);
+  if (!normalized) {
+    return 0;
+  }
+  if (normalized.includes("diretor o m")) {
+    return 6;
+  }
+  if (normalized.includes("gerente de contrato")) {
+    return 5;
+  }
+  if (normalized.includes("supervisor o m")) {
+    return 4;
+  }
+  if (normalized.includes("tecnico senior")) {
+    return 3;
+  }
+  if (normalized.includes("tecnico pleno")) {
+    return 2;
+  }
+  if (normalized.includes("tecnico junior")) {
+    return 1;
+  }
+  return 0;
+}
+
+function canEditProfile(actor, target) {
+  if (!actor || !target) {
+    return false;
+  }
+  const actorLevel = getCargoLevel(actor.cargo);
+  if (actor.id === target.id) {
+    return actorLevel >= 4;
+  }
+  const targetLevel = getCargoLevel(target.cargo);
+  return actorLevel > targetLevel;
 }
 
 function normalizeProjectKey(value) {
@@ -1020,7 +1074,15 @@ function getDashboardSummaryForProject(projectKey) {
 
 ensureDataDir();
 ensureUploadDirs();
+const usersFileExists = fs.existsSync(USERS_FILE);
 let users = readJson(USERS_FILE, []);
+if (!usersFileExists && fs.existsSync(LEGACY_USERS_FILE)) {
+  const legacyUsers = readJson(LEGACY_USERS_FILE, []);
+  if (legacyUsers.length) {
+    users = legacyUsers;
+    writeJson(USERS_FILE, users);
+  }
+}
 let invites = readJson(INVITES_FILE, []);
 let auditLog = readJson(AUDIT_FILE, []);
 users = users.map(normalizeUserRecord);
@@ -1106,11 +1168,22 @@ app.get("/api/auth/me", (req, res) => {
 });
 
 app.patch("/api/profile", requireAuth, (req, res) => {
-  const user = req.currentUser || getSessionUser(req);
-  if (!user) {
+  const actor = req.currentUser || getSessionUser(req);
+  if (!actor) {
     return res.status(401).json({ message: "Nao autorizado." });
   }
-  const index = users.findIndex((item) => item.id === user.id);
+  const targetId = String(req.body.userId || "").trim();
+  const targetUser =
+    targetId && targetId !== actor.id
+      ? users.find((item) => item.id === targetId)
+      : actor;
+  if (!targetUser) {
+    return res.status(404).json({ message: "Usuario nao encontrado." });
+  }
+  if (!canEditProfile(actor, targetUser)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  const index = users.findIndex((item) => item.id === targetUser.id);
   if (index === -1) {
     return res.status(404).json({ message: "Usuario nao encontrado." });
   }
@@ -1133,8 +1206,8 @@ app.patch("/api/profile", requireAuth, (req, res) => {
   writeJson(USERS_FILE, users);
   appendAudit(
     "profile_update",
-    updated.id,
-    { campos: Object.keys(updates) },
+    actor.id,
+    { alvo: updated.id, campos: Object.keys(updates) },
     getClientIp(req)
   );
   return res.json({ user: sanitizeUser(updated) });
@@ -1314,6 +1387,10 @@ app.patch("/api/admin/users/:id", requireAuth, requirePermission("admin:users:wr
     return res.status(404).json({ message: "Usuario nao encontrado." });
   }
   const current = users[userIndex];
+  const actor = req.currentUser || getSessionUser(req);
+  if (!canEditProfile(actor, current)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
   const currentRbacRole = current.rbacRole || current.role;
   const updates = {};
   let nextRbacRole = currentRbacRole;

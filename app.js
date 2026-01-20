@@ -140,10 +140,13 @@ const perfilAvatarInput = document.getElementById("perfilAvatarInput");
 const btnAvatarChange = document.getElementById("btnAvatarChange");
 const btnAvatarSave = document.getElementById("btnAvatarSave");
 const perfilAvatarErro = document.getElementById("perfilAvatarErro");
+const perfilAvatarActions = document.getElementById("perfilAvatarActions");
+const btnFecharPerfil = document.getElementById("btnFecharPerfil");
 const perfilUenInput = document.getElementById("perfilUenInput");
 const perfilProjetoInput = document.getElementById("perfilProjetoInput");
 const btnPerfilSalvar = document.getElementById("btnPerfilSalvar");
 const perfilSaveMsg = document.getElementById("perfilSaveMsg");
+const perfilEdit = document.getElementById("perfilEdit");
 const configDiasLembrete = document.getElementById("configDiasLembrete");
 const btnSalvarConfig = document.getElementById("btnSalvarConfig");
 const btnExportarDados = document.getElementById("btnExportarDados");
@@ -471,6 +474,54 @@ function normalizeSearchValue(value) {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
+}
+
+function normalizeCargo(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function getCargoLevel(cargo) {
+  const normalized = normalizeCargo(cargo);
+  if (!normalized) {
+    return 0;
+  }
+  if (normalized.includes("diretor o m")) {
+    return 6;
+  }
+  if (normalized.includes("gerente de contrato")) {
+    return 5;
+  }
+  if (normalized.includes("supervisor o m")) {
+    return 4;
+  }
+  if (normalized.includes("tecnico senior")) {
+    return 3;
+  }
+  if (normalized.includes("tecnico pleno")) {
+    return 2;
+  }
+  if (normalized.includes("tecnico junior")) {
+    return 1;
+  }
+  return 0;
+}
+
+function canEditProfile(actor, target) {
+  if (!actor || !target) {
+    return false;
+  }
+  const actorLevel = getCargoLevel(actor.cargo);
+  if (actor.id === target.id) {
+    return actorLevel >= 4;
+  }
+  const targetLevel = getCargoLevel(target.cargo);
+  return actorLevel > targetLevel;
 }
 
 function isFullAccessUser(user) {
@@ -1129,6 +1180,10 @@ function abrirPainelComCarregamento(tab, scrollTarget = null) {
     esconderCarregando();
     loadingTimeout = null;
   }, LOADING_DELAY_MS);
+}
+
+function fecharPainelPerfil() {
+  abrirPainelComCarregamento("inicio");
 }
 
 function readSidebarState() {
@@ -7881,6 +7936,12 @@ function renderPerfil() {
     if (perfilProjetoInput) {
       perfilProjetoInput.value = "";
     }
+    if (perfilEdit) {
+      perfilEdit.hidden = true;
+    }
+    if (perfilAvatarActions) {
+      perfilAvatarActions.hidden = true;
+    }
     pendingAvatarDataUrl = "";
     if (btnAvatarSave) {
       btnAvatarSave.disabled = true;
@@ -7893,6 +7954,7 @@ function renderPerfil() {
 
   const isAdminUser = currentUser.role === "admin";
   const secConfig = getSectionConfig(currentUser);
+  const podeEditarPerfil = canEditProfile(currentUser, currentUser);
   const permissoesAtivas = Object.keys(PERMISSIONS)
     .filter((key) => !isAdminUser && currentUser.permissions && currentUser.permissions[key])
     .map((key) => PERMISSIONS[key]);
@@ -7938,6 +8000,15 @@ function renderPerfil() {
   }
   if (perfilProjetoInput) {
     perfilProjetoInput.value = currentUser.projeto || "";
+  }
+  if (perfilEdit) {
+    perfilEdit.hidden = !podeEditarPerfil;
+  }
+  if (btnPerfilSalvar) {
+    btnPerfilSalvar.disabled = !podeEditarPerfil;
+  }
+  if (perfilAvatarActions) {
+    perfilAvatarActions.hidden = false;
   }
 
   const avatarUrl = pendingAvatarDataUrl || getAvatarUrl(currentUser);
@@ -8834,7 +8905,7 @@ function renderDrawerPermissions(user, overridePermissions = null) {
     user.rbacRole ||
     (user.role === "admin" ? "pcm" : user.role === "supervisor" ? "supervisor_om" : "");
   const isFullAccess = FULL_ACCESS_RBAC.has(String(resolvedRole || "").toLowerCase());
-  const permissaoEdicao = canAdminUsersWrite();
+  const permissaoEdicao = canAdminUsersWrite() && canEditProfile(currentUser, user);
   const basePermissions = overridePermissions || user.permissions || {};
 
   adminPermissionCatalog.forEach((grupo) => {
@@ -8915,7 +8986,7 @@ function abrirUserDrawer(userId) {
   if (drawerActive) {
     drawerActive.checked = user.active !== false;
   }
-  const podeEditar = canAdminUsersWrite();
+  const podeEditar = canAdminUsersWrite() && canEditProfile(currentUser, user);
   [drawerNome, drawerCargo, drawerRole, drawerProjeto, drawerActive].forEach((campo) => {
     if (campo) {
       campo.disabled = !podeEditar;
@@ -8926,10 +8997,14 @@ function abrirUserDrawer(userId) {
     drawerSubtitle.textContent = `Matricula: ${user.matricula || "-"} | Perfil: ${perfil}`;
   }
   if (btnSalvarUserDrawer) {
-    btnSalvarUserDrawer.disabled = !canAdminUsersWrite();
+    btnSalvarUserDrawer.disabled = !podeEditar;
   }
   renderDrawerPermissions(user);
-  mostrarMensagemDrawer("");
+  if (!podeEditar) {
+    mostrarMensagemDrawer("Sem permissao para editar este perfil.", true);
+  } else {
+    mostrarMensagemDrawer("");
+  }
   userDrawer.hidden = false;
 }
 
@@ -8951,6 +9026,10 @@ async function salvarUserDrawer(event) {
   const user = users.find((item) => item.id === userId);
   if (!user) {
     mostrarMensagemDrawer("Usuario nao encontrado.", true);
+    return;
+  }
+  if (!canEditProfile(currentUser, user)) {
+    mostrarMensagemDrawer("Sem permissao para editar este perfil.", true);
     return;
   }
   const nome = drawerNome ? drawerNome.value.trim() : "";
@@ -11330,6 +11409,10 @@ function salvarDadosUsuario(item) {
   if (!user) {
     return;
   }
+  if (!canEditProfile(currentUser, user)) {
+    mostrarMensagemGerencial("Sem permissao para editar este perfil.", true);
+    return;
+  }
   const cargoInput = item.querySelector("[data-user-field='cargo']");
   const projetoInput = item.querySelector("[data-user-field='projeto']");
   const atribuicoesInput = item.querySelector("[data-user-field='atribuicoes']");
@@ -11477,6 +11560,12 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
+if (btnFecharPerfil) {
+  btnFecharPerfil.addEventListener("click", () => {
+    fecharPainelPerfil();
+  });
+}
+
 if (btnTabLogin) {
   btnTabLogin.addEventListener("click", () => {
     if (authPanels && !authPanels.hidden && authPanelLogin && !authPanelLogin.hidden) {
@@ -11519,6 +11608,10 @@ if (btnSair) {
 if (btnPerfilSalvar) {
   btnPerfilSalvar.addEventListener("click", async () => {
     if (!currentUser) {
+      return;
+    }
+    if (!canEditProfile(currentUser, currentUser)) {
+      setPerfilSaveMessage("Sem permissao para editar este perfil.", true);
       return;
     }
     const payload = {};

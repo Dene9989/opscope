@@ -878,7 +878,7 @@
                 <p id="lembretesVazio" class="empty-state">Nenhuma manutencao proxima.</p>
               </div>
             </div>
-            <div class="user-menu" id="userMenu" hidden>
+            <div class="user-menu" id="userMenu">
               <button
                 class="user-menu__trigger"
                 id="btnUserMenu"
@@ -1481,7 +1481,12 @@
 
     <section class="panel" id="perfil" data-panel="perfil">
       <section class="card">
-        <h2>Meu perfil</h2>
+        <div class="profile-actions">
+          <h2>Meu perfil</h2>
+          <button id="btnFecharPerfil" class="btn btn--ghost btn--small" type="button">
+            Fechar
+          </button>
+        </div>
         <div class="profile-avatar">
           <div class="profile-avatar__preview" id="perfilAvatarPreview" aria-hidden="true"></div>
           <div class="profile-avatar__info">
@@ -1493,7 +1498,7 @@
               accept="image/png,image/jpeg,image/webp"
               hidden
             />
-            <div class="profile-avatar__actions">
+            <div class="profile-avatar__actions" id="perfilAvatarActions">
               <button id="btnAvatarChange" class="btn btn--ghost btn--small" type="button">
                 Alterar foto
               </button>
@@ -1542,7 +1547,7 @@
             <p id="perfilSecoes" class="profile-text">-</p>
           </div>
         </div>
-        <div class="profile-edit">
+        <div class="profile-edit" id="perfilEdit">
           <div class="field">
             <label for="perfilUenInput">UEN</label>
             <input id="perfilUenInput" type="text" placeholder="Informe a UEN" />
