@@ -528,6 +528,9 @@ function canEditProfile(actor, target) {
   if (!actor || !target) {
     return false;
   }
+  if (isFullAccessUser(actor)) {
+    return true;
+  }
   const actorLevel = getCargoLevel(actor.cargo);
   if (actor.id === target.id) {
     return actorLevel >= 4;
@@ -815,7 +818,8 @@ function mountProfileTemplate(template, mount) {
   if (!template || !mount || mount.childElementCount) {
     return;
   }
-  mount.innerHTML = template.innerHTML;
+  mount.innerHTML = "";
+  mount.appendChild(template.content.cloneNode(true));
 }
 
 function unmountProfileTemplate(mount) {
@@ -850,12 +854,24 @@ function ativarModoEdicaoPerfil() {
   if (!currentUser) {
     return;
   }
-  if (!canEditProfile(currentUser, currentUser)) {
+  if (
+    !isFullAccessUser(currentUser) &&
+    getCargoLevel(currentUser.cargo) < getCargoLevel("SUPERVISOR O&M")
+  ) {
     setPerfilSaveMessage("Sem permissao para editar este perfil.", true);
     return;
   }
   setProfileEditParam(true);
   renderPerfil();
+  if (perfilModeBadge) {
+    perfilModeBadge.hidden = false;
+  }
+  if (perfilViewActions) {
+    perfilViewActions.hidden = true;
+  }
+  if (perfilEditActions) {
+    perfilEditActions.hidden = false;
+  }
   const input = document.getElementById("perfilUenInput");
   if (input) {
     input.focus();
@@ -867,6 +883,15 @@ function cancelarModoEdicaoPerfil() {
   pendingAvatarDataUrl = "";
   setAvatarError("");
   renderPerfil();
+  if (perfilModeBadge) {
+    perfilModeBadge.hidden = true;
+  }
+  if (perfilViewActions) {
+    perfilViewActions.hidden = false;
+  }
+  if (perfilEditActions) {
+    perfilEditActions.hidden = true;
+  }
 }
 
 function getReadNotificationIds() {
@@ -8028,7 +8053,10 @@ function renderPerfil() {
   }
 
   const editRequested = isProfileEditMode();
-  const podeEditarPerfil = currentUser ? canEditProfile(currentUser, currentUser) : false;
+  const podeEditarPerfil = currentUser
+    ? isFullAccessUser(currentUser) ||
+      getCargoLevel(currentUser.cargo) >= getCargoLevel("SUPERVISOR O&M")
+    : false;
   const isEdit = Boolean(editRequested && podeEditarPerfil);
   const perfilUsuario = currentUser;
   const isSelfProfile = Boolean(
@@ -11814,7 +11842,10 @@ document.addEventListener("click", (event) => {
   if (!currentUser) {
     return;
   }
-  if (!canEditProfile(currentUser, currentUser)) {
+  if (
+    !isFullAccessUser(currentUser) &&
+    getCargoLevel(currentUser.cargo) < getCargoLevel("SUPERVISOR O&M")
+  ) {
     setPerfilSaveMessage("Sem permissao para editar este perfil.", true);
     return;
   }

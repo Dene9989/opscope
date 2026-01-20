@@ -229,9 +229,12 @@ function canEditProfile(actor, target) {
   if (!actor || !target) {
     return false;
   }
+  if (isFullAccessRole(actor.rbacRole || actor.role)) {
+    return true;
+  }
   const actorLevel = getCargoLevel(actor.cargo);
   if (actor.id === target.id) {
-    return actorLevel >= 4;
+    return actorLevel >= 4 || isFullAccessRole(actor.rbacRole || actor.role);
   }
   const targetLevel = getCargoLevel(target.cargo);
   return actorLevel > targetLevel;
