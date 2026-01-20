@@ -12073,8 +12073,12 @@ reqForm.addEventListener("submit", async (event) => {
     btnRegistroSubmit.textContent = "Solicitando...";
   }
   try {
-    await apiRegister({ matricula, email, nome, senha, senhaConfirm, convite });
-    mostrarMensagemConta("Conta criada. Confirme o email para ativar.", false);
+    const data = await apiRegister({ matricula, email, nome, senha, senhaConfirm, convite });
+    const needsVerification = !data || data.verificationRequired !== false;
+    const successMessage = needsVerification
+      ? "Conta criada. Confirme o email para ativar."
+      : "Conta criada. Voce ja pode entrar.";
+    mostrarMensagemConta(successMessage, false);
     reqMatricula.value = "";
     reqNome.value = "";
     reqSenha.value = "";
@@ -12096,7 +12100,8 @@ reqForm.addEventListener("submit", async (event) => {
     if (errors.convite) {
       setFieldError(reqCodigoErro, errors.convite);
     }
-    mostrarMensagemConta("Nao foi possivel criar a conta.", true);
+    const message = error && error.message ? error.message : "Nao foi possivel criar a conta.";
+    mostrarMensagemConta(message, true);
   } finally {
     if (btnRegistroSubmit) {
       btnRegistroSubmit.disabled = false;

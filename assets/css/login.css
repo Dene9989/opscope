@@ -12,6 +12,7 @@ body.is-visitor {
   --auth-accent: #d98a3b;
   --auth-accent-dark: #b86a22;
   --auth-focus: rgba(243, 150, 70, 0.18);
+  color-scheme: dark;
   background: url("../img/OPSCOPE_BACKGROUND.png") center / cover no-repeat fixed;
   font-family: var(--auth-font);
   color: var(--auth-text);
@@ -85,6 +86,7 @@ body.is-visitor::after {
   align-content: start;
   gap: 18px;
   position: relative;
+  color-scheme: dark;
 }
 
 .auth-card::before {
@@ -239,8 +241,11 @@ body.is-visitor::after {
 .auth-card input,
 .auth-card textarea {
   background: var(--auth-input-bg) !important;
+  background-color: var(--auth-input-bg) !important;
   color: var(--auth-text) !important;
   border: 1px solid var(--auth-input-border) !important;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .auth-card input:-webkit-autofill,
@@ -253,10 +258,11 @@ body.is-visitor::after {
 .auth-card textarea:-webkit-autofill:active,
 .auth-card input:autofill,
 .auth-card textarea:autofill {
-  -webkit-text-fill-color: var(--auth-text);
-  caret-color: var(--auth-text);
+  -webkit-text-fill-color: var(--auth-text) !important;
+  caret-color: var(--auth-text) !important;
   transition: background-color 9999s ease-in-out 0s;
   background-color: var(--auth-input-bg) !important;
+  background-image: none !important;
   -webkit-box-shadow: 0 0 0 1000px var(--auth-input-bg) inset !important;
   box-shadow: 0 0 0 1000px var(--auth-input-bg) inset !important;
   border: 1px solid var(--auth-input-border) !important;
@@ -266,6 +272,16 @@ body.is-visitor::after {
 .auth-card textarea:-internal-autofill-selected {
   background-color: var(--auth-input-bg) !important;
   color: var(--auth-text) !important;
+  -webkit-text-fill-color: var(--auth-text) !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--auth-input-bg) inset !important;
+  box-shadow: 0 0 0 1000px var(--auth-input-bg) inset !important;
+}
+
+.auth-card input:-moz-autofill,
+.auth-card textarea:-moz-autofill {
+  background-color: var(--auth-input-bg) !important;
+  color: var(--auth-text) !important;
+  box-shadow: 0 0 0 1000px var(--auth-input-bg) inset !important;
 }
 
 .input-icon {

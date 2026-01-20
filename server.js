@@ -1740,22 +1740,33 @@ app.post("/api/auth/register", async (req, res) => {
     createdAt: new Date().toISOString(),
     expiresAt,
   };
+  let emailSent = false;
+  let verificationRequired = true;
   try {
-    const enviado = await sendVerificationEmail(email, nome, token);
-    if (!enviado) {
+    emailSent = await sendVerificationEmail(email, nome, token);
+  } catch (error) {
+    emailSent = false;
+  }
+  if (!emailSent) {
+    if (!IS_DEV) {
       return res.status(503).json({ message: "Envio de email indisponivel." });
     }
-  } catch (error) {
-    return res.status(503).json({ message: "Nao foi possivel enviar o email." });
+    user.emailVerified = true;
+    verificationRequired = false;
+    console.warn("SMTP nao configurado. Verificacao de email ignorada em dev.");
   }
-  verifications.push(verification);
+  if (emailSent) {
+    verifications.push(verification);
+  }
   users.push(user);
   invites = invites.filter((item) => item.code !== convite);
   writeJson(USERS_FILE, users);
   writeJson(INVITES_FILE, invites);
-  writeJson(VERIFICATIONS_FILE, verifications);
+  if (emailSent) {
+    writeJson(VERIFICATIONS_FILE, verifications);
+  }
   appendAudit("register", user.id, { matricula, role }, getClientIp(req));
-  return res.json({ ok: true, verificationRequired: true });
+  return res.json({ ok: true, verificationRequired });
 });
 
 app.get("/api/auth/verify", (req, res) => {
