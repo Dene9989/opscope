@@ -7976,9 +7976,6 @@ function renderAuthUI() {
     if (userMenuRole) {
       userMenuRole.textContent = getUserMenuRoleText(currentUser);
     }
-    if (userMenu) {
-      userMenu.hidden = false;
-    }
     applyAvatarToElement(userAvatar, getAvatarUrl(currentUser));
     applyAvatarToElement(userMenuAvatar, getAvatarUrl(currentUser));
     btnTabLogin.hidden = true;
@@ -7991,9 +7988,6 @@ function renderAuthUI() {
   } else {
     usuarioAtual.textContent = "Visitante";
     usuarioAtual.hidden = true;
-    if (userMenu) {
-      userMenu.hidden = true;
-    }
     btnTabLogin.hidden = false;
     btnTabRegistro.hidden = false;
     btnSair.hidden = true;

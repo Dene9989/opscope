@@ -572,6 +572,10 @@ h1 {
   color: var(--sb-text);
 }
 
+.user-menu__panel[hidden] {
+  display: none;
+}
+
 .user-menu__summary {
   display: flex;
   align-items: center;
