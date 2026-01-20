@@ -3338,6 +3338,26 @@ body.is-visitor .container.auth-only {
   margin-bottom: 16px;
 }
 
+.field--checkbox {
+  margin-bottom: 16px;
+}
+
+.field--checkbox .checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.field--checkbox .checkbox-field input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  border-radius: 6px;
+}
+
 label {
   font-weight: 600;
   color: var(--ink);

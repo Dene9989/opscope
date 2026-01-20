@@ -4,6 +4,7 @@ const customTipoField = document.getElementById("customTipoField");
 const tituloManutencao = document.getElementById("tituloManutencao");
 const subestacaoManutencao = document.getElementById("subestacaoManutencao");
 const dataManutencao = document.getElementById("dataManutencao");
+const futuraManutencao = document.getElementById("futuraManutencao");
 const obsManutencao = document.getElementById("obsManutencao");
 const categoriaManutencao = document.getElementById("categoriaManutencao");
 const prioridadeManutencao = document.getElementById("prioridadeManutencao");
@@ -9049,8 +9050,11 @@ async function adicionarManutencao() {
   if (subestacaoManutencao && SUBESTACOES.length > 0) {
     subestacaoManutencao.value = SUBESTACOES[0];
   }
+  if (futuraManutencao) {
+    futuraManutencao.checked = false;
+  }
   if (dataManutencao) {
-    dataManutencao.value = formatDateISO(new Date());
+    atualizarDataManutencaoState();
   }
   if (obsManutencao) {
     obsManutencao.value = "";
@@ -9835,7 +9839,18 @@ function preencherInicioExecucaoNova() {
   if (!dataManutencao) {
     return;
   }
-  dataManutencao.value = formatDateISO(new Date());
+  atualizarDataManutencaoState();
+}
+
+function atualizarDataManutencaoState() {
+  if (!dataManutencao) {
+    return;
+  }
+  const permitirEdicao = futuraManutencao && futuraManutencao.checked;
+  dataManutencao.readOnly = !permitirEdicao;
+  if (!permitirEdicao || !dataManutencao.value) {
+    dataManutencao.value = formatDateISO(new Date());
+  }
 }
 
 function atualizarLiberacaoChecklist() {
@@ -12382,6 +12397,10 @@ if (overrideMotivo) {
 if (criticoManutencao) {
   criticoManutencao.addEventListener("change", atualizarNovaCriticoUI);
   atualizarNovaCriticoUI();
+}
+if (futuraManutencao) {
+  futuraManutencao.addEventListener("change", atualizarDataManutencaoState);
+  atualizarDataManutencaoState();
 }
 if (participantesManutencao) {
   participantesManutencao.addEventListener("input", () => {
