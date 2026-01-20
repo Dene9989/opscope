@@ -81,5 +81,266 @@
     "timestamp": "2026-01-18T17:23:44.331Z",
     "prevHash": "0cb386d069d569cc72af954ac58d463a1ecb4a205dd269cc6c8298ab4fc29f4e",
     "hash": "acc8fe3b52ba170ec57ddda545aad22ac190686ea9b43692bf81ed5dd060930a"
+  },
+  {
+    "id": "705edbbb-1447-4960-a9cf-ad29575091f6",
+    "action": "seed_master_sync",
+    "userId": "20b44709-e60d-4d71-9857-9dbc233b2361",
+    "details": {
+      "username": "denisson.alves"
+    },
+    "ip": "local",
+    "timestamp": "2026-01-20T14:54:11.265Z",
+    "prevHash": "acc8fe3b52ba170ec57ddda545aad22ac190686ea9b43692bf81ed5dd060930a",
+    "hash": "ce2ea97c8504b861b94617617166e8b37016e905af53c754431cc724b395f61c"
+  },
+  {
+    "id": "ad6eb19f-17f5-4cc0-92ec-ba9f3038bf52",
+    "action": "login_success",
+    "userId": "20b44709-e60d-4d71-9857-9dbc233b2361",
+    "details": {},
+    "ip": "::1",
+    "timestamp": "2026-01-20T15:20:10.847Z",
+    "prevHash": "ce2ea97c8504b861b94617617166e8b37016e905af53c754431cc724b395f61c",
+    "hash": "f5753f2d966e4b11373cf7ae4da66d25a523f94a887ffcdd1f8a7a0a88d7fb01"
+  },
+  {
+    "id": "6e1661e9-ebf5-4314-b5d1-cf582246a726",
+    "action": "invite_create",
+    "userId": "20b44709-e60d-4d71-9857-9dbc233b2361",
+    "details": {
+      "code": "0PQNSOP3",
+      "role": "tecnico_junior",
+      "expiresAt": "2026-01-21T15:20:24.262Z"
+    },
+    "ip": "::1",
+    "timestamp": "2026-01-20T15:20:24.276Z",
+    "prevHash": "f5753f2d966e4b11373cf7ae4da66d25a523f94a887ffcdd1f8a7a0a88d7fb01",
+    "hash": "4fd45724697768e04467f6d269bf73dc3e560743924984a1076e86fbe750852b"
+  },
+  {
+    "id": "0d7cacf8-9ce0-4073-ae0c-532cadaf656d",
+    "action": "register",
+    "userId": "b62cf247-26db-45aa-9569-bebb32d5d2d7",
+    "details": {
+      "matricula": "ALEX.LANHOSO@ENGELMIG.COM.BR",
+      "role": "tecnico_junior"
+    },
+    "ip": "::1",
+    "timestamp": "2026-01-20T15:20:50.811Z",
+    "prevHash": "4fd45724697768e04467f6d269bf73dc3e560743924984a1076e86fbe750852b",
+    "hash": "a6e597e145b7003486acee71d92ab6e138b189e132dc490ab90a55b3b1b4ea23"
+  },
+  {
+    "id": "8d157511-4def-4944-9bba-4dd613375961",
+    "action": "login_fail",
+    "userId": null,
+    "details": {
+      "login": "alex mendes lanhoso"
+    },
+    "ip": "::1",
+    "timestamp": "2026-01-20T15:21:43.512Z",
+    "prevHash": "a6e597e145b7003486acee71d92ab6e138b189e132dc490ab90a55b3b1b4ea23",
+    "hash": "b35238874b9f1172e9b8ca714e1dd7f03c05756d1be7ccad07a89cfe259e016c"
+  },
+  {
+    "id": "d82bfca2-d33b-49c9-b83b-5d940de5423c",
+    "action": "login_fail",
+    "userId": null,
+    "details": {
+      "login": "alex.mendes"
+    },
+    "ip": "::1",
+    "timestamp": "2026-01-20T15:21:51.689Z",
+    "prevHash": "b35238874b9f1172e9b8ca714e1dd7f03c05756d1be7ccad07a89cfe259e016c",
+    "hash": "6b51f9e6fa1080dbdabd324ad44727a924869aff4c15c652d87406dbf8760bcf"
+  },
+  {
+    "id": "9359cda5-c958-488a-9dc5-16156f66bbdb",
+    "action": "invite_create",
+    "userId": "20b44709-e60d-4d71-9857-9dbc233b2361",
+    "details": {
+      "code": "I59W3G2A",
+      "role": "tecnico_junior",
+      "expiresAt": "2026-01-21T15:23:11.404Z"
+    },
+    "ip": "::1",
+    "timestamp": "2026-01-20T15:23:11.415Z",
+    "prevHash": "6b51f9e6fa1080dbdabd324ad44727a924869aff4c15c652d87406dbf8760bcf",
+    "hash": "af400dc50b34a8aa40f5f56006d5aec08160b6f8ea43c6cd86786e09b8c11627"
+  },
+  {
+    "id": "b007f62b-6b8b-47b2-9298-946f2709a2bf",
+    "action": "admin_user_update",
+    "userId": "20b44709-e60d-4d71-9857-9dbc233b2361",
+    "details": {
+      "alvo": "b62cf247-26db-45aa-9569-bebb32d5d2d7",
+      "campos": [
+        "name",
+        "cargo",
+        "projeto",
+        "localizacao",
+        "active",
+        "rbacRole",
+        "role",
+        "permissions",
+        "sections"
+      ]
+    },
+    "ip": "::1",
+    "timestamp": "2026-01-20T15:24:05.815Z",
+    "prevHash": "af400dc50b34a8aa40f5f56006d5aec08160b6f8ea43c6cd86786e09b8c11627",
+    "hash": "bd437ccd307d0fce5a364bed591bb7a159d4bdd6dabd01faaf9d2333bf33fb5d"
+  },
+  {
+    "id": "1eed8151-4391-42e0-a477-a22679b3e923",
+    "action": "logout",
+    "userId": "20b44709-e60d-4d71-9857-9dbc233b2361",
+    "details": {},
+    "ip": "::1",
+    "timestamp": "2026-01-20T15:24:51.379Z",
+    "prevHash": "bd437ccd307d0fce5a364bed591bb7a159d4bdd6dabd01faaf9d2333bf33fb5d",
+    "hash": "2bbab76cba008af6c07d7ac6524945dbfcd56d98f21582f2d0e51ae68a8be4cd"
+  },
+  {
+    "id": "c50e7067-7861-4a91-92b1-772d6311486b",
+    "action": "login_success",
+    "userId": "b62cf247-26db-45aa-9569-bebb32d5d2d7",
+    "details": {},
+    "ip": "::1",
+    "timestamp": "2026-01-20T15:25:08.095Z",
+    "prevHash": "2bbab76cba008af6c07d7ac6524945dbfcd56d98f21582f2d0e51ae68a8be4cd",
+    "hash": "0aa6235e31b1f968deb28f0e14b186fd1eb205ad10b1422b3877d19a2a886789"
+  },
+  {
+    "id": "a3e158cb-e890-4346-b552-5598ee04b905",
+    "action": "login_success",
+    "userId": "20b44709-e60d-4d71-9857-9dbc233b2361",
+    "details": {},
+    "ip": "::1",
+    "timestamp": "2026-01-20T15:45:17.090Z",
+    "prevHash": "0aa6235e31b1f968deb28f0e14b186fd1eb205ad10b1422b3877d19a2a886789",
+    "hash": "7291a48d2bd2ad46046b0e000a6d17b9603377b905bf9e89651ac4b88539c8b9"
+  },
+  {
+    "id": "c6eab3ba-544c-40c9-9c5e-a9ee86a10b20",
+    "action": "invite_create",
+    "userId": "20b44709-e60d-4d71-9857-9dbc233b2361",
+    "details": {
+      "code": "QZOBFPCF",
+      "role": "tecnico_junior",
+      "expiresAt": "2026-01-21T15:46:24.110Z"
+    },
+    "ip": "::1",
+    "timestamp": "2026-01-20T15:46:24.128Z",
+    "prevHash": "7291a48d2bd2ad46046b0e000a6d17b9603377b905bf9e89651ac4b88539c8b9",
+    "hash": "3ad9d0ce6fbafb832497e6115cb8d59ad16579ab03a340407cdf6d8da1407582"
+  },
+  {
+    "id": "1d96b23e-516f-4534-9367-a6b925577377",
+    "action": "logout",
+    "userId": "20b44709-e60d-4d71-9857-9dbc233b2361",
+    "details": {},
+    "ip": "::1",
+    "timestamp": "2026-01-20T15:46:33.373Z",
+    "prevHash": "3ad9d0ce6fbafb832497e6115cb8d59ad16579ab03a340407cdf6d8da1407582",
+    "hash": "423d7fe661835c2f948b425f73e53c4994fe892527cd670a28c5e8b127fe9429"
+  },
+  {
+    "id": "feb9492e-7915-4e19-9a1b-e95cd0ed9e07",
+    "action": "register",
+    "userId": "6d5e7e67-0e94-49b6-b66b-ed9c9e65726f",
+    "details": {
+      "matricula": "DENISSONSILVAALVES.00@GMAIL.COM",
+      "role": "tecnico_junior"
+    },
+    "ip": "::1",
+    "timestamp": "2026-01-20T15:47:14.445Z",
+    "prevHash": "423d7fe661835c2f948b425f73e53c4994fe892527cd670a28c5e8b127fe9429",
+    "hash": "4f1f24b180e858f06e38c9346e8a05a9d2ef4777d97b85693578f9875dc4ad6b"
+  },
+  {
+    "id": "79887e76-77a2-4ebc-b3ed-ab13a3749147",
+    "action": "login_success",
+    "userId": "20b44709-e60d-4d71-9857-9dbc233b2361",
+    "details": {},
+    "ip": "::1",
+    "timestamp": "2026-01-20T15:52:30.444Z",
+    "prevHash": "4f1f24b180e858f06e38c9346e8a05a9d2ef4777d97b85693578f9875dc4ad6b",
+    "hash": "ab8f974073f00cbb1a5608f312f905f961cbcaaff70968539e83495f3914636c"
+  },
+  {
+    "id": "804e4ffa-6827-44c4-ba3f-eebc744f84ac",
+    "action": "invite_create",
+    "userId": "20b44709-e60d-4d71-9857-9dbc233b2361",
+    "details": {
+      "code": "OH0VMFR9",
+      "role": "tecnico_junior",
+      "expiresAt": "2026-01-21T15:52:44.711Z"
+    },
+    "ip": "::1",
+    "timestamp": "2026-01-20T15:52:44.736Z",
+    "prevHash": "ab8f974073f00cbb1a5608f312f905f961cbcaaff70968539e83495f3914636c",
+    "hash": "ccf3fa43e955962a6173928c2b704a2a8f6978b70f82022bd36654f34cd0439b"
+  },
+  {
+    "id": "26e9a534-42f4-47cb-9d9b-4449e458ab97",
+    "action": "logout",
+    "userId": "20b44709-e60d-4d71-9857-9dbc233b2361",
+    "details": {},
+    "ip": "::1",
+    "timestamp": "2026-01-20T15:53:18.744Z",
+    "prevHash": "ccf3fa43e955962a6173928c2b704a2a8f6978b70f82022bd36654f34cd0439b",
+    "hash": "4d05ca3c53f3b70a1b7275a02a3aa2f4227b2087ea279e56065cff84f6871247"
+  },
+  {
+    "id": "144eaec2-5e96-4143-9860-db72740fef7f",
+    "action": "register",
+    "userId": "0efc265b-d2cf-4249-9447-0ef0fb87b553",
+    "details": {
+      "matricula": "SENTYODA@GMAIL.COM",
+      "role": "tecnico_junior"
+    },
+    "ip": "::1",
+    "timestamp": "2026-01-20T15:54:16.469Z",
+    "prevHash": "4d05ca3c53f3b70a1b7275a02a3aa2f4227b2087ea279e56065cff84f6871247",
+    "hash": "507b34b8cc584b599452206987a9a6e08b89690f698ca4f1e5c17662f7928200"
+  },
+  {
+    "id": "20f841fb-bd54-4386-bf8e-75d2d6219b76",
+    "action": "login_success",
+    "userId": "20b44709-e60d-4d71-9857-9dbc233b2361",
+    "details": {},
+    "ip": "::1",
+    "timestamp": "2026-01-20T15:57:04.601Z",
+    "prevHash": "507b34b8cc584b599452206987a9a6e08b89690f698ca4f1e5c17662f7928200",
+    "hash": "db3cf48c369e4ba36af6d1f6706d070913bac2675da6e4034bdf3bd0449360e6"
+  },
+  {
+    "id": "ed641c77-03e5-4e82-8151-b91fb6c23c4c",
+    "action": "invite_create",
+    "userId": "20b44709-e60d-4d71-9857-9dbc233b2361",
+    "details": {
+      "code": "73RGPUC0",
+      "role": "tecnico_junior",
+      "expiresAt": "2026-01-21T15:57:08.350Z"
+    },
+    "ip": "::1",
+    "timestamp": "2026-01-20T15:57:08.357Z",
+    "prevHash": "db3cf48c369e4ba36af6d1f6706d070913bac2675da6e4034bdf3bd0449360e6",
+    "hash": "da1e916c83cdb11028a4327f4e401824b68198747ea4a38584a246c3cb24db2d"
+  },
+  {
+    "id": "bd83e73b-6540-4161-a035-1b0f6df5de82",
+    "action": "register",
+    "userId": "bcb067d5-8965-416a-a212-422003f71785",
+    "details": {
+      "matricula": "DHEMYMALVES@GMAIL.COM",
+      "role": "tecnico_junior"
+    },
+    "ip": "::1",
+    "timestamp": "2026-01-20T15:57:32.143Z",
+    "prevHash": "da1e916c83cdb11028a4327f4e401824b68198747ea4a38584a246c3cb24db2d",
+    "hash": "02817c99d135511d7c1a1dd319b8706ccc7e173160f80a0a3c68c33676fc7959"
   }
 ]

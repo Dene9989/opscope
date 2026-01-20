@@ -711,6 +711,7 @@ function writeJson(key, value) {
 }
 
 const API_BASE = "";
+const API_TIMEOUT_MS = 15000;
 const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
 const AVATAR_ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];
 let pendingAvatarDataUrl = "";
@@ -718,14 +719,35 @@ let avatarUploadBound = false;
 let lastFocusMaintenanceId = "";
 
 async function apiRequest(path, options = {}) {
-  const response = await fetch(`${API_BASE}${path}`, {
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-    ...options,
-  });
+  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  let timeoutId = null;
+  if (controller) {
+    timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  }
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+      },
+      signal: controller ? controller.signal : undefined,
+      ...options,
+    });
+  } catch (error) {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    if (error && error.name === "AbortError") {
+      throw new Error("Tempo limite da requisicao.");
+    }
+    throw error;
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const message = data && data.message ? data.message : "Falha na autenticacao.";

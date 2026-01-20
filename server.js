@@ -61,6 +61,7 @@ const SMTP_USER = process.env.SMTP_USER || "";
 const SMTP_PASS = process.env.SMTP_PASS || "";
 const SMTP_FROM = process.env.SMTP_FROM || "";
 const APP_BASE_URL = process.env.APP_BASE_URL || `http://localhost:${PORT}`;
+const SMTP_TIMEOUT_MS = Number(process.env.SMTP_TIMEOUT_MS) || 10000;
 const DASHBOARD_CACHE_TTL_MS = 60 * 1000;
 const DASHBOARD_CACHE = new Map();
 const IS_DEV = process.env.NODE_ENV !== "production";
@@ -813,6 +814,21 @@ function hashToken(token) {
   return crypto.createHash("sha256").update(String(token)).digest("hex");
 }
 
+function withTimeout(promise, timeoutMs) {
+  if (!timeoutMs || !Number.isFinite(timeoutMs)) {
+    return promise;
+  }
+  let timer = null;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error("timeout")), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  });
+}
+
 let mailer = null;
 
 function getMailer() {
@@ -825,6 +841,9 @@ function getMailer() {
       port: SMTP_PORT,
       secure: SMTP_PORT === 465,
       auth: SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
+      connectionTimeout: SMTP_TIMEOUT_MS,
+      greetingTimeout: SMTP_TIMEOUT_MS,
+      socketTimeout: SMTP_TIMEOUT_MS,
     });
   }
   return mailer;
@@ -846,14 +865,22 @@ async function sendVerificationEmail(email, name, token) {
     <p><a href="${verifyUrl}">Confirmar email</a></p>
     <p>Se voce nao solicitou o acesso, ignore este email.</p>
   `;
-  await transporter.sendMail({
-    from: SMTP_FROM,
-    to: email,
-    subject,
-    text,
-    html,
-  });
-  return true;
+  try {
+    await withTimeout(
+      transporter.sendMail({
+        from: SMTP_FROM,
+        to: email,
+        subject,
+        text,
+        html,
+      }),
+      SMTP_TIMEOUT_MS
+    );
+    return true;
+  } catch (error) {
+    console.warn("Falha ao enviar email.", error && error.message ? error.message : error);
+    return false;
+  }
 }
 
 function cleanupVerifications() {
