@@ -173,6 +173,24 @@ const btnRecalcularBacklog = document.getElementById("btnRecalcularBacklog");
 const btnGerarRelatorio = document.getElementById("btnGerarRelatorio");
 const relatorioGerencial = document.getElementById("relatorioGerencial");
 const mensagemGerencial = document.getElementById("mensagemGerencial");
+const healthSummary = document.getElementById("healthSummary");
+const healthTasks = document.getElementById("healthTasks");
+const healthIntegrity = document.getElementById("healthIntegrity");
+const healthMessage = document.getElementById("healthMessage");
+const btnRefreshHealth = document.getElementById("btnRefreshHealth");
+const apiLogsTable = document.getElementById("apiLogsTable");
+const apiLogsEmpty = document.getElementById("apiLogsEmpty");
+const apiLogsCount = document.getElementById("apiLogsCount");
+const apiLogsMessage = document.getElementById("apiLogsMessage");
+const btnLogsRefresh = document.getElementById("btnLogsRefresh");
+const btnLogsLoadMore = document.getElementById("btnLogsLoadMore");
+const btnLogsApply = document.getElementById("btnLogsApply");
+const btnLogsClear = document.getElementById("btnLogsClear");
+const logsFilterEndpoint = document.getElementById("logsFilterEndpoint");
+const logsFilterUser = document.getElementById("logsFilterUser");
+const logsFilterStatus = document.getElementById("logsFilterStatus");
+const logsFilterFrom = document.getElementById("logsFilterFrom");
+const logsFilterTo = document.getElementById("logsFilterTo");
 const templateForm = document.getElementById("templateForm");
 const templateNome = document.getElementById("templateNome");
 const templateSubestacao = document.getElementById("templateSubestacao");
@@ -658,6 +676,23 @@ let maintenanceSyncTimer = null;
 let maintenanceSyncPromise = null;
 let maintenanceLastSync = 0;
 let maintenanceLastUserId = null;
+let healthSnapshot = null;
+let healthLoading = false;
+let apiLogsState = {
+  items: [],
+  total: 0,
+  filtered: 0,
+  offset: 0,
+  limit: 20,
+  loading: false,
+  filters: {
+    endpoint: "",
+    user: "",
+    status: "",
+    from: "",
+    to: "",
+  },
+};
 let rdoUI = {
   card: null,
   list: null,
@@ -1117,6 +1152,361 @@ function mostrarMensagemGerencial(texto, erro = false) {
   mensagemGerencial.classList.toggle("mensagem--erro", erro);
 }
 
+function mostrarMensagemHealth(texto, erro = false) {
+  if (!healthMessage) {
+    return;
+  }
+  healthMessage.textContent = texto;
+  healthMessage.classList.toggle("mensagem--erro", erro);
+}
+
+function getHealthLabel(status) {
+  if (status === "ok") {
+    return "OK";
+  }
+  if (status === "warn") {
+    return "Atencao";
+  }
+  if (status === "error") {
+    return "Falha";
+  }
+  return "Indef.";
+}
+
+function buildHealthBadge(status) {
+  const badge = document.createElement("span");
+  badge.className = `health-badge health-badge--${status || "warn"}`;
+  badge.textContent = getHealthLabel(status);
+  return badge;
+}
+
+function formatHealthDate(value) {
+  const parsed = parseTimestamp(value);
+  return parsed ? formatDateTime(parsed) : "-";
+}
+
+function renderHealthSummary(snapshot) {
+  if (!healthSummary) {
+    return;
+  }
+  healthSummary.innerHTML = "";
+  if (!snapshot || !snapshot.modules) {
+    const vazio = document.createElement("p");
+    vazio.className = "empty-state";
+    vazio.textContent = "Diagnostico indisponivel.";
+    healthSummary.append(vazio);
+    return;
+  }
+  const { modules } = snapshot;
+  const dbFiles = modules.database && modules.database.files ? modules.database.files : [];
+  const dbResumo = dbFiles.length
+    ? dbFiles
+        .map((file) =>
+          file.ok
+            ? `${file.label}: ${file.count} registros`
+            : `${file.label}: erro`
+        )
+        .join(" | ")
+    : "Sem arquivos monitorados.";
+  const tarefas = modules.queue && modules.queue.tasks ? modules.queue.tasks : [];
+  const tarefasEmAtraso = tarefas.filter((task) => task.status !== "ok").length;
+  const cards = [
+    {
+      titulo: "Banco de dados",
+      status: modules.database ? modules.database.status : "warn",
+      resumo: dbResumo,
+    },
+    {
+      titulo: "Backup",
+      status: modules.backups ? modules.backups.status : "warn",
+      resumo: `Ultima execucao: ${formatHealthDate(modules.backups && modules.backups.lastRun)}`,
+    },
+    {
+      titulo: "Fila de tarefas",
+      status: modules.queue ? modules.queue.status : "warn",
+      resumo: `Tarefas: ${tarefas.length} | Alertas: ${tarefasEmAtraso}`,
+    },
+    {
+      titulo: "Integridade",
+      status: modules.integrity ? modules.integrity.status : "warn",
+      resumo: `Inconsistencias: ${
+        modules.integrity && modules.integrity.issues
+          ? modules.integrity.issues.length
+          : 0
+      }`,
+    },
+  ];
+  cards.forEach((cardData) => {
+    const card = document.createElement("div");
+    card.className = "health-card";
+    const title = document.createElement("h4");
+    title.textContent = cardData.titulo;
+    const badge = buildHealthBadge(cardData.status);
+    const resumo = document.createElement("p");
+    resumo.textContent = cardData.resumo;
+    card.append(title, badge, resumo);
+    healthSummary.append(card);
+  });
+}
+
+function renderHealthTasks(snapshot) {
+  if (!healthTasks) {
+    return;
+  }
+  healthTasks.innerHTML = "";
+  const tasks = snapshot && snapshot.modules && snapshot.modules.queue
+    ? snapshot.modules.queue.tasks || []
+    : [];
+  if (!tasks.length) {
+    const vazio = document.createElement("p");
+    vazio.className = "empty-state";
+    vazio.textContent = "Nenhuma tarefa registrada.";
+    healthTasks.append(vazio);
+    return;
+  }
+  tasks.forEach((task) => {
+    const card = document.createElement("div");
+    card.className = "health-task";
+    card.dataset.taskId = task.id;
+
+    const meta = document.createElement("div");
+    meta.className = "health-task__meta";
+    const title = document.createElement("div");
+    title.className = "health-task__title";
+    title.textContent = task.label || task.id;
+    const details = document.createElement("div");
+    details.className = "health-task__details";
+    details.textContent = `Ultima execucao: ${formatHealthDate(task.lastRun)} | Intervalo: ${task.intervalMinutes} min`;
+    meta.append(title, details);
+    if (task.lastError) {
+      const error = document.createElement("div");
+      error.className = "health-task__details";
+      error.textContent = `Erro: ${task.lastError}`;
+      meta.append(error);
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "health-task__actions";
+    actions.append(buildHealthBadge(task.status));
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn--ghost btn--small";
+    btn.dataset.action = "run-task";
+    btn.dataset.taskId = task.id;
+    btn.textContent = "Reexecutar";
+    actions.append(btn);
+
+    card.append(meta, actions);
+    healthTasks.append(card);
+  });
+}
+
+function renderHealthIntegrity(snapshot) {
+  if (!healthIntegrity) {
+    return;
+  }
+  healthIntegrity.innerHTML = "";
+  const issues = snapshot && snapshot.modules && snapshot.modules.integrity
+    ? snapshot.modules.integrity.issues || []
+    : [];
+  if (!issues.length) {
+    const ok = document.createElement("p");
+    ok.className = "empty-state";
+    ok.textContent = "Sem inconsistencias detectadas.";
+    healthIntegrity.append(ok);
+    return;
+  }
+  issues.forEach((issue) => {
+    const item = document.createElement("div");
+    const level = issue.level === "error" ? "error" : "warn";
+    item.className = `health-issue health-issue--${level}`;
+    item.textContent = issue.message || "Inconsistencia detectada.";
+    healthIntegrity.append(item);
+  });
+}
+
+async function carregarHealth(forcar = false) {
+  if (!isAdmin() || healthLoading) {
+    return;
+  }
+  if (!forcar && healthSnapshot) {
+    renderHealthSummary(healthSnapshot);
+    renderHealthTasks(healthSnapshot);
+    renderHealthIntegrity(healthSnapshot);
+    return;
+  }
+  healthLoading = true;
+  mostrarMensagemHealth("Carregando diagnostico...");
+  try {
+    const data = await apiAdminHealth();
+    healthSnapshot = data;
+    renderHealthSummary(data);
+    renderHealthTasks(data);
+    renderHealthIntegrity(data);
+    mostrarMensagemHealth(`Atualizado em ${formatHealthDate(data.generatedAt)}.`);
+  } catch (error) {
+    mostrarMensagemHealth(error.message || "Falha ao carregar diagnostico.", true);
+  } finally {
+    healthLoading = false;
+  }
+}
+
+function buildLogStatusClass(status) {
+  if (status >= 500) {
+    return "log-status--error";
+  }
+  if (status >= 400) {
+    return "log-status--error";
+  }
+  if (status >= 300) {
+    return "log-status--warn";
+  }
+  return "log-status--ok";
+}
+
+function renderApiLogs() {
+  if (!apiLogsTable) {
+    return;
+  }
+  apiLogsTable.innerHTML = "";
+  const items = apiLogsState.items || [];
+  if (!items.length) {
+    if (apiLogsEmpty) {
+      apiLogsEmpty.hidden = false;
+    }
+    if (btnLogsLoadMore) {
+      btnLogsLoadMore.hidden = true;
+    }
+    if (apiLogsCount) {
+      apiLogsCount.textContent = "";
+    }
+    return;
+  }
+  if (apiLogsEmpty) {
+    apiLogsEmpty.hidden = true;
+  }
+  const table = document.createElement("table");
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Endpoint</th>
+        <th>Usuario</th>
+        <th>Status</th>
+        <th>Duracao</th>
+        <th>Acoes</th>
+      </tr>
+    </thead>
+  `;
+  const tbody = document.createElement("tbody");
+  items.forEach((entry) => {
+    const row = document.createElement("tr");
+    const data = parseTimestamp(entry.timestamp);
+    const userLabel = entry.userName || entry.userId || "Anonimo";
+    const status = Number(entry.status) || 0;
+    const statusClass = buildLogStatusClass(status);
+    row.innerHTML = `
+      <td>${escapeHtml(data ? formatDateTime(data) : "-")}</td>
+      <td>${escapeHtml(entry.method || "")} ${escapeHtml(entry.endpoint || "")}</td>
+      <td>${escapeHtml(userLabel)}</td>
+      <td><span class="log-status ${statusClass}">${status || "-"}</span></td>
+      <td>${escapeHtml(entry.durationMs ? `${entry.durationMs}ms` : "-")}</td>
+      <td>
+        <button class="btn btn--ghost btn--small" data-action="toggle-log" data-log-id="${escapeHtml(entry.id)}">
+          Ver JSON
+        </button>
+      </td>
+    `;
+    tbody.append(row);
+
+    const detailRow = document.createElement("tr");
+    detailRow.className = "log-details";
+    detailRow.dataset.logDetails = entry.id;
+    detailRow.hidden = true;
+    const detailCell = document.createElement("td");
+    detailCell.colSpan = 6;
+    const pre = document.createElement("pre");
+    pre.textContent = JSON.stringify(entry, null, 2);
+    detailCell.append(pre);
+    detailRow.append(detailCell);
+    tbody.append(detailRow);
+  });
+  table.append(tbody);
+  apiLogsTable.append(table);
+  if (apiLogsCount) {
+    apiLogsCount.textContent = `Mostrando ${apiLogsState.items.length} de ${apiLogsState.filtered}`;
+  }
+  if (btnLogsLoadMore) {
+    btnLogsLoadMore.hidden = apiLogsState.items.length >= apiLogsState.filtered;
+  }
+}
+
+function getApiLogsFilters() {
+  return {
+    endpoint: logsFilterEndpoint ? logsFilterEndpoint.value.trim() : "",
+    user: logsFilterUser ? logsFilterUser.value.trim() : "",
+    status: logsFilterStatus ? logsFilterStatus.value : "",
+    from: logsFilterFrom ? logsFilterFrom.value : "",
+    to: logsFilterTo ? logsFilterTo.value : "",
+  };
+}
+
+async function carregarApiLogs(reset = false) {
+  if (!isAdmin() || apiLogsState.loading) {
+    return;
+  }
+  if (!apiLogsTable) {
+    return;
+  }
+  if (reset) {
+    apiLogsState.offset = 0;
+    apiLogsState.items = [];
+  }
+  apiLogsState.loading = true;
+  const filtros = getApiLogsFilters();
+  apiLogsState.filters = filtros;
+  if (apiLogsMessage) {
+    apiLogsMessage.textContent = "Carregando logs...";
+    apiLogsMessage.classList.remove("mensagem--erro");
+  }
+  try {
+    const params = {
+      limit: apiLogsState.limit,
+      offset: apiLogsState.offset,
+      endpoint: filtros.endpoint,
+      userId: filtros.user,
+      status: filtros.status,
+      from: filtros.from,
+      to: filtros.to,
+    };
+    const data = await apiAdminLogs(params);
+    apiLogsState.total = data.total || 0;
+    apiLogsState.filtered = data.filteredTotal || 0;
+    const novos = Array.isArray(data.logs) ? data.logs : [];
+    apiLogsState.items = reset ? novos : apiLogsState.items.concat(novos);
+    apiLogsState.offset = apiLogsState.items.length;
+    renderApiLogs();
+    if (apiLogsMessage) {
+      apiLogsMessage.textContent = "";
+    }
+  } catch (error) {
+    if (apiLogsMessage) {
+      apiLogsMessage.textContent = error.message || "Falha ao carregar logs.";
+      apiLogsMessage.classList.add("mensagem--erro");
+    }
+  } finally {
+    apiLogsState.loading = false;
+  }
+}
+
+function carregarPainelGerencial(forcar = false) {
+  if (!isAdmin()) {
+    return;
+  }
+  carregarHealth(forcar);
+  carregarApiLogs(true);
+}
+
 function mostrarMensagemTemplate(texto, erro = false) {
   if (!templateMensagem) {
     return;
@@ -1339,6 +1729,9 @@ function abrirPainelComCarregamento(tab, scrollTarget = null) {
 
   const abrir = () => {
     ativarTab(tab);
+    if (tab === "gerencial") {
+      carregarPainelGerencial(true);
+    }
     if (scrollTarget) {
       const alvo = document.getElementById(scrollTarget);
       if (alvo) {
@@ -11663,6 +12056,24 @@ async function apiAdminUsers() {
   return apiRequest("/api/admin/users");
 }
 
+async function apiAdminHealth() {
+  return apiRequest("/api/admin/health");
+}
+
+async function apiAdminLogs(params = {}) {
+  const query = new URLSearchParams(params);
+  const suffix = query.toString();
+  return apiRequest(`/api/admin/logs${suffix ? `?${suffix}` : ""}`);
+}
+
+async function apiRunHealthTask(taskId) {
+  const safeId = encodeURIComponent(String(taskId || ""));
+  return apiRequest(`/api/admin/health/tasks/${safeId}/run`, {
+    method: "POST",
+    body: "{}",
+  });
+}
+
 async function apiAdminPermissions() {
   return apiRequest("/api/admin/permissions");
 }
@@ -11985,6 +12396,101 @@ document.querySelectorAll("[data-open-tab]").forEach((link) => {
     }
   });
 });
+
+if (btnRefreshHealth) {
+  btnRefreshHealth.addEventListener("click", () => {
+    carregarHealth(true);
+  });
+}
+
+if (healthTasks) {
+  healthTasks.addEventListener("click", async (event) => {
+    const btn = event.target.closest("[data-action=\"run-task\"]");
+    if (!btn || !isAdmin()) {
+      return;
+    }
+    const taskId = btn.dataset.taskId;
+    if (!taskId) {
+      return;
+    }
+    btn.disabled = true;
+    mostrarMensagemHealth("Reexecutando tarefa...");
+    try {
+      const data = await apiRunHealthTask(taskId);
+      if (data && data.snapshot) {
+        healthSnapshot = data.snapshot;
+        renderHealthSummary(healthSnapshot);
+        renderHealthTasks(healthSnapshot);
+        renderHealthIntegrity(healthSnapshot);
+      }
+      mostrarMensagemHealth("Tarefa reexecutada.");
+    } catch (error) {
+      mostrarMensagemHealth(error.message || "Falha ao reexecutar tarefa.", true);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
+if (btnLogsApply) {
+  btnLogsApply.addEventListener("click", () => {
+    carregarApiLogs(true);
+  });
+}
+
+if (btnLogsClear) {
+  btnLogsClear.addEventListener("click", () => {
+    if (logsFilterEndpoint) {
+      logsFilterEndpoint.value = "";
+    }
+    if (logsFilterUser) {
+      logsFilterUser.value = "";
+    }
+    if (logsFilterStatus) {
+      logsFilterStatus.value = "";
+    }
+    if (logsFilterFrom) {
+      logsFilterFrom.value = "";
+    }
+    if (logsFilterTo) {
+      logsFilterTo.value = "";
+    }
+    carregarApiLogs(true);
+  });
+}
+
+if (btnLogsRefresh) {
+  btnLogsRefresh.addEventListener("click", () => {
+    carregarApiLogs(true);
+  });
+}
+
+if (btnLogsLoadMore) {
+  btnLogsLoadMore.addEventListener("click", () => {
+    carregarApiLogs(false);
+  });
+}
+
+if (apiLogsTable) {
+  apiLogsTable.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-action=\"toggle-log\"]");
+    if (!btn) {
+      return;
+    }
+    const logId = btn.dataset.logId;
+    if (!logId) {
+      return;
+    }
+    const detailRow = apiLogsTable.querySelector(
+      `tr[data-log-details=\"${logId}\"]`
+    );
+    if (!detailRow) {
+      return;
+    }
+    detailRow.hidden = !detailRow.hidden;
+    btn.textContent = detailRow.hidden ? "Ver JSON" : "Ocultar";
+  });
+}
 
 
 if (btnLembretes) {

@@ -1676,6 +1676,74 @@
         </div>
         <p id="mensagemGerencial" class="mensagem" aria-live="polite"></p>
       </section>
+
+      <section class="card" id="gerencialHealth">
+        <div class="card-head">
+          <div>
+            <h2>Diagnostico do sistema</h2>
+            <p class="hint">Status tecnico dos modulos e integridade dos dados.</p>
+          </div>
+          <button id="btnRefreshHealth" class="btn btn--ghost btn--small" type="button">Atualizar</button>
+        </div>
+        <div id="healthSummary" class="health-grid"></div>
+        <div class="health-section">
+          <h3>Fila de tarefas automaticas</h3>
+          <div id="healthTasks" class="health-tasks"></div>
+        </div>
+        <div class="health-section">
+          <h3>Integridade de dados</h3>
+          <div id="healthIntegrity" class="health-integrity"></div>
+        </div>
+        <p id="healthMessage" class="mensagem" aria-live="polite"></p>
+      </section>
+
+      <section class="card" id="gerencialLogs">
+        <div class="card-head">
+          <div>
+            <h2>Logs de API</h2>
+            <p class="hint">Historico tecnico das requisicoes mais recentes.</p>
+          </div>
+          <button id="btnLogsRefresh" class="btn btn--ghost btn--small" type="button">Atualizar</button>
+        </div>
+        <div class="logs-toolbar">
+          <div class="field">
+            <label for="logsFilterEndpoint">Endpoint</label>
+            <input id="logsFilterEndpoint" type="text" placeholder="/api/maintenance" />
+          </div>
+          <div class="field">
+            <label for="logsFilterUser">Usuario/ID</label>
+            <input id="logsFilterUser" type="text" placeholder="userId" />
+          </div>
+          <div class="field">
+            <label for="logsFilterStatus">Status</label>
+            <select id="logsFilterStatus">
+              <option value="">Todos</option>
+              <option value="error">Erros (4xx/5xx)</option>
+              <option value="4xx">HTTP 4xx</option>
+              <option value="5xx">HTTP 5xx</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="logsFilterFrom">De</label>
+            <input id="logsFilterFrom" type="date" />
+          </div>
+          <div class="field">
+            <label for="logsFilterTo">Ate</label>
+            <input id="logsFilterTo" type="date" />
+          </div>
+          <div class="logs-actions">
+            <button id="btnLogsApply" class="btn btn--ghost btn--small" type="button">Aplicar</button>
+            <button id="btnLogsClear" class="btn btn--ghost btn--small" type="button">Limpar</button>
+          </div>
+        </div>
+        <div id="apiLogsTable" class="logs-table"></div>
+        <p id="apiLogsEmpty" class="empty-state" hidden>Nenhum log encontrado.</p>
+        <div class="logs-footer">
+          <button id="btnLogsLoadMore" class="btn btn--ghost btn--small" type="button">Carregar mais</button>
+          <span id="apiLogsCount" class="hint"></span>
+        </div>
+        <p id="apiLogsMessage" class="mensagem" aria-live="polite"></p>
+      </section>
     </section>
 
     <section class="panel" id="contas" data-panel="contas" data-admin-only>

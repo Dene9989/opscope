@@ -55,6 +55,9 @@ const AVATARS_DIR = path.join(UPLOADS_DIR, "avatars");
 const LEGACY_UPLOADS_DIR = path.join(__dirname, "uploads");
 const LEGACY_AVATARS_DIR = path.join(LEGACY_UPLOADS_DIR, "avatars");
 const VERIFICATIONS_FILE = path.join(STORAGE_DIR, "email_verifications.json");
+const API_LOG_FILE = path.join(DATA_DIR, "api_logs.json");
+const HEALTH_TASKS_FILE = path.join(DATA_DIR, "health_tasks.json");
+const BACKUP_DIR = path.join(DATA_DIR, "backups");
 const SMTP_HOST = process.env.SMTP_HOST || "";
 const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
 const SMTP_USER = process.env.SMTP_USER || "";
@@ -67,6 +70,7 @@ const SMTP_TIMEOUT_MS = Number(process.env.SMTP_TIMEOUT_MS) || 10000;
 const DASHBOARD_CACHE_TTL_MS = 60 * 1000;
 const DASHBOARD_CACHE = new Map();
 const IS_DEV = process.env.NODE_ENV !== "production";
+const API_LOG_LIMIT = Number(process.env.API_LOG_LIMIT) || 800;
 const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
 const AVATAR_TARGET_BYTES = 1024 * 1024;
 const AVATAR_SIZE = 512;
@@ -153,6 +157,33 @@ const DEFAULT_SECTIONS = {
 };
 
 const ADMIN_SECTIONS = ["solicitacoes", "rastreabilidade", "gerencial", "contas"];
+const HEALTH_TASK_GRACE = 1.5;
+const HEALTH_TASK_DEFAULTS = [
+  {
+    id: "recorrencias",
+    label: "Geracao de recorrencias",
+    intervalMinutes: 60,
+    critical: true,
+  },
+  {
+    id: "rdo_diario",
+    label: "RDO diario",
+    intervalMinutes: 1440,
+    critical: false,
+  },
+  {
+    id: "limpeza_programada",
+    label: "Limpeza programada",
+    intervalMinutes: 1440,
+    critical: false,
+  },
+  {
+    id: "backup",
+    label: "Backup de dados",
+    intervalMinutes: 1440,
+    critical: true,
+  },
+];
 
 const ipFailures = new Map();
 const userFailures = new Map();
@@ -174,6 +205,12 @@ function ensureUploadDirs() {
   }
   if (!fs.existsSync(AVATARS_DIR)) {
     fs.mkdirSync(AVATARS_DIR, { recursive: true });
+  }
+}
+
+function ensureBackupDir() {
+  if (!fs.existsSync(BACKUP_DIR)) {
+    fs.mkdirSync(BACKUP_DIR, { recursive: true });
   }
 }
 
@@ -241,6 +278,295 @@ function writeJson(filePath, data) {
     fs.mkdirSync(dir, { recursive: true });
   }
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+}
+
+function shouldRedactLogKey(key) {
+  const normalized = String(key || "").toLowerCase();
+  return (
+    normalized.includes("password") ||
+    normalized.includes("senha") ||
+    normalized.includes("token") ||
+    normalized.includes("authorization") ||
+    normalized.includes("secret") ||
+    normalized.includes("cookie") ||
+    normalized.includes("session") ||
+    normalized.includes("dataurl") ||
+    normalized.includes("base64") ||
+    normalized.includes("avatar") ||
+    normalized.includes("file")
+  );
+}
+
+function sanitizeLogValue(value, depth = 0) {
+  if (depth > 2) {
+    return "[truncated]";
+  }
+  if (value === null || value === undefined) {
+    return value;
+  }
+  if (typeof value === "string") {
+    if (value.length > 240) {
+      return `${value.slice(0, 240)}...`;
+    }
+    return value;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.slice(0, 20).map((entry) => sanitizeLogValue(entry, depth + 1));
+  }
+  if (typeof value === "object") {
+    const output = {};
+    Object.keys(value)
+      .slice(0, 40)
+      .forEach((key) => {
+        if (shouldRedactLogKey(key)) {
+          output[key] = "[redacted]";
+          return;
+        }
+        output[key] = sanitizeLogValue(value[key], depth + 1);
+      });
+    return output;
+  }
+  return String(value);
+}
+
+function normalizeHealthTasks(list) {
+  const base = new Map(HEALTH_TASK_DEFAULTS.map((task) => [task.id, task]));
+  const output = [];
+  HEALTH_TASK_DEFAULTS.forEach((task) => {
+    const stored = Array.isArray(list) ? list.find((item) => item.id === task.id) : null;
+    output.push({
+      ...task,
+      lastRun: stored && stored.lastRun ? stored.lastRun : "",
+      lastStatus: stored && stored.lastStatus ? stored.lastStatus : "",
+      lastError: stored && stored.lastError ? stored.lastError : "",
+      lastDurationMs: stored && stored.lastDurationMs ? stored.lastDurationMs : 0,
+      lastRunBy: stored && stored.lastRunBy ? stored.lastRunBy : "",
+      lastBackupFile: stored && stored.lastBackupFile ? stored.lastBackupFile : "",
+    });
+  });
+  if (Array.isArray(list)) {
+    list.forEach((stored) => {
+      if (!stored || !stored.id || base.has(stored.id)) {
+        return;
+      }
+      output.push({ ...stored });
+    });
+  }
+  return output;
+}
+
+function saveHealthTasks(tasks) {
+  writeJson(HEALTH_TASKS_FILE, tasks);
+}
+
+function getTaskHealth(task, now) {
+  const expectedMs = (task.intervalMinutes || 0) * 60 * 1000;
+  const lastRun = task.lastRun ? new Date(task.lastRun) : null;
+  if (!lastRun || Number.isNaN(lastRun.getTime())) {
+    return { status: task.critical ? "error" : "warn", nextDue: "", overdueByMin: null };
+  }
+  const elapsed = now.getTime() - lastRun.getTime();
+  const grace = expectedMs ? expectedMs * HEALTH_TASK_GRACE : 0;
+  if (expectedMs && elapsed > grace) {
+    return { status: task.critical ? "error" : "warn", nextDue: "", overdueByMin: Math.round(elapsed / 60000) };
+  }
+  return { status: task.lastStatus === "error" ? "error" : "ok", nextDue: "", overdueByMin: null };
+}
+
+function checkJsonFile(filePath, label) {
+  const exists = fs.existsSync(filePath);
+  if (!exists) {
+    return { label, ok: false, message: "Arquivo ausente." };
+  }
+  try {
+    const raw = fs.readFileSync(filePath, "utf8");
+    const parsed = JSON.parse(raw);
+    const size = fs.statSync(filePath).size;
+    const count = Array.isArray(parsed) ? parsed.length : Object.keys(parsed || {}).length;
+    return { label, ok: true, size, count };
+  } catch (error) {
+    return { label, ok: false, message: "Falha ao ler JSON." };
+  }
+}
+
+function runIntegrityChecks() {
+  const issues = [];
+  const userIds = new Set();
+  let duplicateUsers = 0;
+  users.forEach((user) => {
+    if (!user || !user.id) {
+      issues.push({ level: "error", message: "Usuario sem ID detectado." });
+      return;
+    }
+    if (userIds.has(user.id)) {
+      duplicateUsers += 1;
+    }
+    userIds.add(user.id);
+  });
+  if (duplicateUsers) {
+    issues.push({ level: "error", message: `IDs duplicados em usuarios: ${duplicateUsers}.` });
+  }
+
+  const validStatuses = new Set([
+    "agendada",
+    "liberada",
+    "backlog",
+    "em_execucao",
+    "encerramento",
+    "concluida",
+    "cancelada",
+  ]);
+  const maintenance = loadMaintenanceData();
+  let invalidStatus = 0;
+  let missingIds = 0;
+  let orphanUsers = 0;
+  maintenance.forEach((item) => {
+    if (!item || !item.id) {
+      missingIds += 1;
+      return;
+    }
+    const status = String(item.status || "").toLowerCase();
+    if (status && !validStatuses.has(status)) {
+      invalidStatus += 1;
+    }
+  });
+  if (missingIds) {
+    issues.push({ level: "error", message: `Manutencoes sem ID: ${missingIds}.` });
+  }
+  if (invalidStatus) {
+    issues.push({ level: "warn", message: `Manutencoes com status desconhecido: ${invalidStatus}.` });
+  }
+  maintenance.forEach((item) => {
+    const createdBy = item && (item.createdBy || item.createdById || item.userId);
+    if (createdBy && !userIds.has(createdBy)) {
+      orphanUsers += 1;
+    }
+  });
+  if (orphanUsers) {
+    issues.push({
+      level: "warn",
+      message: `Manutencoes com usuarios inexistentes: ${orphanUsers}.`,
+    });
+  }
+
+  let orphanAuditUsers = 0;
+  auditLog.forEach((entry) => {
+    if (entry && entry.userId && !userIds.has(entry.userId)) {
+      orphanAuditUsers += 1;
+    }
+  });
+  if (orphanAuditUsers) {
+    issues.push({
+      level: "warn",
+      message: `Auditoria com usuarios inexistentes: ${orphanAuditUsers}.`,
+    });
+  }
+  return issues;
+}
+
+function buildHealthSnapshot(tasks) {
+  const now = new Date();
+  const files = [
+    checkJsonFile(USERS_FILE, "Usuarios"),
+    checkJsonFile(MAINTENANCE_FILE, "Manutencoes"),
+    checkJsonFile(AUDIT_FILE, "Auditoria"),
+    checkJsonFile(INVITES_FILE, "Convites"),
+  ];
+  const dbOk = files.every((file) => file.ok);
+  const dbStatus = dbOk ? "ok" : "error";
+
+  const normalizedTasks = normalizeHealthTasks(tasks);
+  const taskStatus = normalizedTasks.map((task) => ({
+    ...task,
+    ...getTaskHealth(task, now),
+  }));
+  const criticalFailed = taskStatus.some((task) => task.status === "error" && task.critical);
+  const anyWarn = taskStatus.some((task) => task.status === "warn");
+  const queueStatus = criticalFailed ? "error" : anyWarn ? "warn" : "ok";
+
+  const backupTask = taskStatus.find((task) => task.id === "backup");
+  const backupStatus = backupTask ? backupTask.status : "warn";
+
+  const issues = runIntegrityChecks();
+  const integrityStatus = issues.some((issue) => issue.level === "error")
+    ? "error"
+    : issues.length
+      ? "warn"
+      : "ok";
+
+  return {
+    generatedAt: now.toISOString(),
+    modules: {
+      database: {
+        status: dbStatus,
+        files,
+      },
+      backups: {
+        status: backupStatus,
+        lastRun: backupTask ? backupTask.lastRun : "",
+        lastStatus: backupTask ? backupTask.lastStatus : "",
+      },
+      queue: {
+        status: queueStatus,
+        tasks: taskStatus,
+      },
+      integrity: {
+        status: integrityStatus,
+        issues,
+      },
+    },
+  };
+}
+
+function appendApiLog(entry) {
+  apiLogs.push(entry);
+  if (apiLogs.length > API_LOG_LIMIT) {
+    apiLogs = apiLogs.slice(apiLogs.length - API_LOG_LIMIT);
+  }
+  writeJson(API_LOG_FILE, apiLogs);
+}
+
+function runHealthTask(taskId, user) {
+  const index = healthTasks.findIndex((task) => task.id === taskId);
+  if (index === -1) {
+    return null;
+  }
+  const now = new Date();
+  let status = "ok";
+  let errorMessage = "";
+  let backupFile = "";
+  if (taskId === "backup") {
+    try {
+      ensureBackupDir();
+      const snapshot = {
+        createdAt: now.toISOString(),
+        users,
+        invites,
+        auditLog,
+        maintenance: loadMaintenanceData(),
+      };
+      const fileName = `backup-${now.toISOString().replace(/[:.]/g, "-")}.json`;
+      backupFile = path.join(BACKUP_DIR, fileName);
+      fs.writeFileSync(backupFile, JSON.stringify(snapshot, null, 2));
+    } catch (error) {
+      status = "error";
+      errorMessage = "Falha ao gerar backup.";
+    }
+  }
+  const updated = {
+    ...healthTasks[index],
+    lastRun: now.toISOString(),
+    lastStatus: status,
+    lastError: errorMessage,
+    lastRunBy: user ? user.id : "",
+    lastBackupFile: backupFile || healthTasks[index].lastBackupFile || "",
+  };
+  healthTasks[index] = updated;
+  saveHealthTasks(healthTasks);
+  return updated;
 }
 
 function normalizeCargo(value) {
@@ -1319,6 +1645,9 @@ if (!usersFileExists) {
 let invites = readJson(INVITES_FILE, []);
 let auditLog = readJson(AUDIT_FILE, []);
 let verifications = readJson(VERIFICATIONS_FILE, []);
+let apiLogs = readJson(API_LOG_FILE, []);
+let healthTasks = normalizeHealthTasks(readJson(HEALTH_TASKS_FILE, []));
+saveHealthTasks(healthTasks);
 cleanupVerifications();
 users = users.map(normalizeUserRecord);
 writeJson(USERS_FILE, users);
@@ -1340,6 +1669,32 @@ app.use(
     },
   })
 );
+
+app.use((req, res, next) => {
+  if (!req.originalUrl.startsWith("/api/")) {
+    return next();
+  }
+  const startedAt = Date.now();
+  res.on("finish", () => {
+    const user = getSessionUser(req);
+    const entry = {
+      id: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+      method: req.method,
+      endpoint: req.originalUrl.split("?")[0],
+      status: res.statusCode,
+      durationMs: Date.now() - startedAt,
+      userId: user ? user.id : null,
+      userName: user ? user.name : null,
+      ip: getClientIp(req),
+      params: sanitizeLogValue(req.params || {}),
+      query: sanitizeLogValue(req.query || {}),
+      body: sanitizeLogValue(req.body || {}),
+    };
+    appendApiLog(entry);
+  });
+  return next();
+});
 
 app.use("/uploads", express.static(UPLOADS_DIR));
 app.use(express.static(__dirname));
@@ -1555,6 +1910,70 @@ app.get("/api/admin/users", requireAuth, requirePermission("admin:users:read"), 
 
 app.get("/api/admin/permissions", requireAuth, requirePermission("admin:users:read"), (req, res) => {
   return res.json({ permissions: PERMISSION_CATALOG });
+});
+
+app.get("/api/admin/health", requireAuth, requireAdmin, (req, res) => {
+  const snapshot = buildHealthSnapshot(healthTasks);
+  return res.json(snapshot);
+});
+
+app.post("/api/admin/health/tasks/:id/run", requireAuth, requireAdmin, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const taskId = String(req.params.id || "").trim();
+  const updated = runHealthTask(taskId, user);
+  if (!updated) {
+    return res.status(404).json({ message: "Tarefa nao encontrada." });
+  }
+  appendAudit(
+    "health_task_run",
+    user ? user.id : null,
+    { taskId, status: updated.lastStatus },
+    getClientIp(req)
+  );
+  return res.json({ ok: true, task: updated, snapshot: buildHealthSnapshot(healthTasks) });
+});
+
+app.get("/api/admin/logs", requireAuth, requireAdmin, (req, res) => {
+  const limitRaw = Number(req.query.limit || 20);
+  const offsetRaw = Number(req.query.offset || 0);
+  const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 5), 100) : 20;
+  const offset = Number.isFinite(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
+  const endpoint = String(req.query.endpoint || "").trim().toLowerCase();
+  const userId = String(req.query.userId || "").trim();
+  const statusFilter = String(req.query.status || "").trim().toLowerCase();
+  const from = parseDateTime(req.query.from);
+  const to = parseDateTime(req.query.to);
+
+  const total = apiLogs.length;
+  let filtered = apiLogs.slice().sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
+  if (endpoint) {
+    filtered = filtered.filter((entry) =>
+      String(entry.endpoint || "").toLowerCase().includes(endpoint)
+    );
+  }
+  if (userId) {
+    filtered = filtered.filter((entry) => String(entry.userId || "").includes(userId));
+  }
+  if (statusFilter) {
+    if (statusFilter === "error") {
+      filtered = filtered.filter((entry) => Number(entry.status) >= 400);
+    } else if (statusFilter === "4xx") {
+      filtered = filtered.filter((entry) => Number(entry.status) >= 400 && Number(entry.status) < 500);
+    } else if (statusFilter === "5xx") {
+      filtered = filtered.filter((entry) => Number(entry.status) >= 500);
+    } else if (/^\d+$/.test(statusFilter)) {
+      filtered = filtered.filter((entry) => Number(entry.status) === Number(statusFilter));
+    }
+  }
+  if (from) {
+    filtered = filtered.filter((entry) => new Date(entry.timestamp).getTime() >= from.getTime());
+  }
+  if (to) {
+    filtered = filtered.filter((entry) => new Date(entry.timestamp).getTime() <= to.getTime());
+  }
+  const filteredTotal = filtered.length;
+  const logs = filtered.slice(offset, offset + limit);
+  return res.json({ total, filteredTotal, logs, offset, limit });
 });
 
 app.post("/api/maintenance/sync", requireAuth, (req, res) => {
