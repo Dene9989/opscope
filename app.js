@@ -14730,19 +14730,19 @@ if (gerencialIndicatorsWrap) {
     const actionBtn = event.target.closest(".indicator-card__action");
     if (actionBtn) {
       const action = actionBtn.dataset.action;
-      if (action === "refresh-health") {
+      if (action === "open-diagnostico") {
         setGerencialTabActive("diagnostico");
         carregarHealth(true);
       }
-      if (action === "refresh-logs") {
+      if (action === "open-logs") {
         setGerencialTabActive("logs");
         carregarApiLogs(true);
       }
-      if (action === "refresh-files") {
+      if (action === "open-arquivos") {
         setGerencialTabActive("arquivos");
         carregarArquivos(true);
       }
-      if (action === "refresh-automations") {
+      if (action === "open-automacoes") {
         setGerencialTabActive("automacoes");
         carregarAutomacoes(true);
       }

@@ -2111,9 +2111,9 @@ body.is-visitor .container.auth-only {
 }
 
 .indicator-card {
-  border: 1px solid rgba(19, 32, 42, 0.12);
+  border: 1px solid var(--card-border, rgba(19, 32, 42, 0.12));
   border-radius: 14px;
-  background: #f8f6f1;
+  background: var(--card-bg, #f8f6f1);
   padding: 12px 14px;
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -2183,7 +2183,7 @@ body.is-visitor .container.auth-only {
 .indicator-card__count {
   font-size: 1.3rem;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--text-strong, var(--ink));
 }
 
 .indicator-card__action {
@@ -2227,17 +2227,17 @@ body.is-visitor .container.auth-only {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: #ffffff;
+  background: var(--card-bg, #ffffff);
   padding: 8px 0;
-  border-bottom: 1px solid rgba(19, 32, 42, 0.08);
+  border-bottom: 1px solid var(--card-border, rgba(19, 32, 42, 0.08));
 }
 
 .gerencial-tab {
   border: 1px solid rgba(19, 32, 42, 0.12);
   border-radius: 999px;
   padding: 6px 14px;
-  background: #f5f2ed;
-  color: var(--ink);
+  background: var(--card-bg-soft, #f5f2ed);
+  color: var(--text-body, var(--ink));
   font-size: 0.8rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -2249,7 +2249,7 @@ body.is-visitor .container.auth-only {
 .gerencial-tab.is-active {
   background: rgba(200, 146, 61, 0.18);
   border-color: rgba(200, 146, 61, 0.45);
-  color: #8a571c;
+  color: #f8fafc;
   box-shadow: 0 8px 14px rgba(200, 146, 61, 0.18);
 }
 
@@ -3265,7 +3265,8 @@ body.is-visitor .container.auth-only {
   margin-top: 12px;
   border-radius: 14px;
   border: 1px solid var(--card-border);
-  overflow: hidden;
+  overflow: auto;
+  max-height: 360px;
 }
 
 .page-gerencial .logs-table table {
@@ -3286,6 +3287,10 @@ body.is-visitor .container.auth-only {
   letter-spacing: 0.12em;
   color: var(--text-muted);
   font-size: 0.7rem;
+  position: sticky;
+  top: 0;
+  background: var(--field-bg);
+  z-index: 1;
 }
 
 .page-gerencial .log-status {
