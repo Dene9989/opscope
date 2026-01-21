@@ -1636,20 +1636,135 @@
         </div>
 
         <div class="gerencial-indicators">
-          <button class="indicator-card" type="button" data-tab-target="diagnostico" data-permission="verDiagnostico">
-            <span class="indicator-card__icon" aria-hidden="true">&#9728;</span>
-            <div>
+          <div
+            class="indicator-card"
+            data-tab-target="diagnostico"
+            data-permission="verDiagnostico"
+            data-indicator="diagnostico"
+            role="button"
+            tabindex="0"
+          >
+            <span class="indicator-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path
+                  d="M4 4h16v5H4V4Zm0 7h10v5H4v-5Zm12 0h4v9h-4v-9ZM4 18h10v2H4v-2Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </span>
+            <div class="indicator-card__body">
               <strong>Status tecnico</strong>
-              <span>3 alertas ativos</span>
+              <span id="indicatorHealthMeta">Diagnostico em tempo real</span>
             </div>
-            <span class="indicator-card__badge indicator-card__badge--warn">3 alertas</span>
-          </button>
-          <button class="indicator-card" type="button" data-tab-target="logs" data-permission="verLogsAPI">
-            <span class="indicator-card__icon" aria-hidden="true">&#9888;</span>
-            <div>
+            <div class="indicator-card__actions">
+              <span class="indicator-card__count" id="indicatorHealthCount">-</span>
+              <button
+                class="btn btn--ghost btn--small indicator-card__action"
+                type="button"
+                data-action="refresh-health"
+              >
+                Atualizar
+              </button>
+            </div>
+            <span class="indicator-card__badge" id="indicatorHealthBadge">-</span>
+          </div>
+          <div
+            class="indicator-card"
+            data-tab-target="logs"
+            data-permission="verLogsAPI"
+            data-indicator="logs"
+            role="button"
+            tabindex="0"
+          >
+            <span class="indicator-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path
+                  d="M5 4h10l4 4v12H5V4Zm10 1.5V8h3.5L15 5.5ZM7 12h10v2H7v-2Zm0-4h6v2H7V8Zm0 8h10v2H7v-2Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </span>
+            <div class="indicator-card__body">
               <strong>Erros de API</strong>
-              <span>Ultimas 24h</span>
+              <span id="indicatorLogsMeta">Ultimas requisicoes</span>
             </div>
+            <div class="indicator-card__actions">
+              <span class="indicator-card__count" id="indicatorLogsCount">-</span>
+              <button
+                class="btn btn--ghost btn--small indicator-card__action"
+                type="button"
+                data-action="refresh-logs"
+              >
+                Atualizar
+              </button>
+            </div>
+            <span class="indicator-card__badge" id="indicatorLogsBadge">-</span>
+          </div>
+          <div
+            class="indicator-card"
+            data-tab-target="arquivos"
+            data-permission="verArquivos"
+            data-indicator="arquivos"
+            role="button"
+            tabindex="0"
+          >
+            <span class="indicator-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path
+                  d="M4 5h6l2 2h8v12H4V5Zm2 6h12v2H6v-2Zm0 4h8v2H6v-2Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </span>
+            <div class="indicator-card__body">
+              <strong>Arquivos ativos</strong>
+              <span id="indicatorFilesMeta">Central de documentos</span>
+            </div>
+            <div class="indicator-card__actions">
+              <span class="indicator-card__count" id="indicatorFilesCount">-</span>
+              <button
+                class="btn btn--ghost btn--small indicator-card__action"
+                type="button"
+                data-action="refresh-files"
+              >
+                Atualizar
+              </button>
+            </div>
+            <span class="indicator-card__badge" id="indicatorFilesBadge">-</span>
+          </div>
+          <div
+            class="indicator-card"
+            data-tab-target="automacoes"
+            data-permission="verAutomacoes"
+            data-indicator="automacoes"
+            role="button"
+            tabindex="0"
+          >
+            <span class="indicator-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path
+                  d="M7 2h10v4h4v10h-4v4H7v-4H3V6h4V2Zm2 4v12h6V6H9Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </span>
+            <div class="indicator-card__body">
+              <strong>Automacoes</strong>
+              <span id="indicatorAutomationsMeta">Rotinas em execucao</span>
+            </div>
+            <div class="indicator-card__actions">
+              <span class="indicator-card__count" id="indicatorAutomationsCount">-</span>
+              <button
+                class="btn btn--ghost btn--small indicator-card__action"
+                type="button"
+                data-action="refresh-automations"
+              >
+                Atualizar
+              </button>
+            </div>
+            <span class="indicator-card__badge" id="indicatorAutomationsBadge">-</span>
+          </div>
+        </div>
             <span class="indicator-card__badge indicator-card__badge--danger">2 erros</span>
           </button>
           <button class="indicator-card" type="button" data-tab-target="arquivos" data-permission="verArquivos">

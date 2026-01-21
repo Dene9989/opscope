@@ -2116,7 +2116,7 @@ body.is-visitor .container.auth-only {
   background: #f8f6f1;
   padding: 12px 14px;
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto 1fr auto;
   gap: 10px 12px;
   align-items: center;
   text-align: left;
@@ -2128,6 +2128,11 @@ body.is-visitor .container.auth-only {
 .indicator-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 12px 22px rgba(11, 30, 45, 0.14);
+}
+
+.indicator-card:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .indicator-card__icon {
@@ -2146,7 +2151,12 @@ body.is-visitor .container.auth-only {
   font-size: 0.9rem;
 }
 
-.indicator-card div span {
+.indicator-card__body {
+  display: grid;
+  gap: 2px;
+}
+
+.indicator-card__body span {
   font-size: 0.75rem;
   color: var(--ink-soft);
 }
@@ -2162,6 +2172,34 @@ body.is-visitor .container.auth-only {
   background: rgba(200, 146, 61, 0.18);
   color: #8a571c;
   border: 1px solid rgba(200, 146, 61, 0.35);
+}
+
+.indicator-card__actions {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+.indicator-card__count {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.indicator-card__action {
+  white-space: nowrap;
+}
+
+.indicator-card--ok {
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.indicator-card--warn {
+  border-color: rgba(245, 158, 11, 0.45);
+}
+
+.indicator-card--error {
+  border-color: rgba(239, 68, 68, 0.45);
 }
 
 .indicator-card__badge--warn {

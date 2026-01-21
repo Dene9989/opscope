@@ -196,6 +196,23 @@ const gerencialPanels = Array.from(document.querySelectorAll("[data-tab-panel]")
 const gerencialIndicators = Array.from(
   document.querySelectorAll(".indicator-card[data-tab-target]")
 );
+const gerencialIndicatorsWrap = document.querySelector(".gerencial-indicators");
+const indicatorHealthCard = document.querySelector("[data-indicator='diagnostico']");
+const indicatorHealthCount = document.getElementById("indicatorHealthCount");
+const indicatorHealthBadge = document.getElementById("indicatorHealthBadge");
+const indicatorHealthMeta = document.getElementById("indicatorHealthMeta");
+const indicatorLogsCard = document.querySelector("[data-indicator='logs']");
+const indicatorLogsCount = document.getElementById("indicatorLogsCount");
+const indicatorLogsBadge = document.getElementById("indicatorLogsBadge");
+const indicatorLogsMeta = document.getElementById("indicatorLogsMeta");
+const indicatorFilesCard = document.querySelector("[data-indicator='arquivos']");
+const indicatorFilesCount = document.getElementById("indicatorFilesCount");
+const indicatorFilesBadge = document.getElementById("indicatorFilesBadge");
+const indicatorFilesMeta = document.getElementById("indicatorFilesMeta");
+const indicatorAutomationsCard = document.querySelector("[data-indicator='automacoes']");
+const indicatorAutomationsCount = document.getElementById("indicatorAutomationsCount");
+const indicatorAutomationsBadge = document.getElementById("indicatorAutomationsBadge");
+const indicatorAutomationsMeta = document.getElementById("indicatorAutomationsMeta");
 const gerencialPalette = document.getElementById("gerencialPalette");
 const gerencialPaletteInput = document.getElementById("gerencialPaletteInput");
 const gerencialPaletteList = document.getElementById("gerencialPaletteList");
@@ -797,6 +814,160 @@ function canAccessGerencialTab(tabId, user) {
   }
 }
 
+const gerencialLoadedTabs = new Set();
+
+function getIndicatorStatusLabel(status, count) {
+  if (status === "error") {
+    return `${count} criticos`;
+  }
+  if (status === "warn") {
+    return `${count} alertas`;
+  }
+  return "OK";
+}
+
+function applyIndicatorStatus(card, badge, status) {
+  if (card) {
+    card.classList.remove("indicator-card--ok", "indicator-card--warn", "indicator-card--error");
+    card.classList.add(`indicator-card--${status}`);
+  }
+  if (badge) {
+    badge.classList.remove(
+      "indicator-card__badge--warn",
+      "indicator-card__badge--danger",
+      "indicator-card__badge--neutral"
+    );
+    if (status === "error") {
+      badge.classList.add("indicator-card__badge--danger");
+    } else if (status === "warn") {
+      badge.classList.add("indicator-card__badge--warn");
+    } else {
+      badge.classList.add("indicator-card__badge--neutral");
+    }
+  }
+}
+
+function summarizeHealthIndicators(snapshot) {
+  if (!snapshot || !snapshot.modules) {
+    return {
+      status: "warn",
+      alerts: 0,
+      meta: "Diagnostico indisponivel",
+    };
+  }
+  const modules = snapshot.modules;
+  const moduleStatuses = [
+    modules.database && modules.database.status,
+    modules.backups && modules.backups.status,
+    modules.queue && modules.queue.status,
+    modules.integrity && modules.integrity.status,
+  ].filter(Boolean);
+  const moduleAlerts = moduleStatuses.filter((status) => status !== "ok").length;
+  const tasks = modules.queue && modules.queue.tasks ? modules.queue.tasks : [];
+  const taskAlerts = tasks.filter((task) => task.status && task.status !== "ok").length;
+  const issues = modules.integrity && modules.integrity.issues ? modules.integrity.issues : [];
+  const issueAlerts = issues.length;
+  const alerts = moduleAlerts + taskAlerts + issueAlerts;
+  const hasError = moduleStatuses.includes("error") || issues.some((item) => item.level === "error");
+  const status = hasError ? "error" : alerts > 0 ? "warn" : "ok";
+  const meta = snapshot.generatedAt ? `Atualizado em ${formatHealthDate(snapshot.generatedAt)}` : "Diagnostico ativo";
+  return { status, alerts, meta };
+}
+
+function updateGerencialIndicators() {
+  if (!indicatorHealthCount && !indicatorLogsCount && !indicatorFilesCount && !indicatorAutomationsCount) {
+    return;
+  }
+  const health = summarizeHealthIndicators(healthSnapshot);
+  if (indicatorHealthCount) {
+    indicatorHealthCount.textContent = String(health.alerts);
+  }
+  if (indicatorHealthBadge) {
+    indicatorHealthBadge.textContent = getIndicatorStatusLabel(health.status, health.alerts);
+  }
+  if (indicatorHealthMeta) {
+    indicatorHealthMeta.textContent = health.meta;
+  }
+  applyIndicatorStatus(indicatorHealthCard, indicatorHealthBadge, health.status);
+
+  const logErrors = apiLogsState.items.filter((item) => Number(item.status) >= 400).length;
+  const logStatus = logErrors > 0 ? "error" : "ok";
+  if (indicatorLogsCount) {
+    indicatorLogsCount.textContent = String(logErrors);
+  }
+  if (indicatorLogsBadge) {
+    indicatorLogsBadge.textContent = getIndicatorStatusLabel(logStatus, logErrors);
+  }
+  if (indicatorLogsMeta) {
+    indicatorLogsMeta.textContent = apiLogsState.items.length ? "Ultimas requisicoes" : "Sem logs carregados";
+  }
+  applyIndicatorStatus(indicatorLogsCard, indicatorLogsBadge, logStatus);
+
+  const filesCount = filesState.items.length;
+  const filesStatus = filesCount ? "ok" : "warn";
+  if (indicatorFilesCount) {
+    indicatorFilesCount.textContent = String(filesCount);
+  }
+  if (indicatorFilesBadge) {
+    indicatorFilesBadge.textContent = filesCount ? `${filesCount} itens` : "Sem arquivos";
+  }
+  if (indicatorFilesMeta) {
+    indicatorFilesMeta.textContent = filesCount ? "Arquivos monitorados" : "Nenhum arquivo carregado";
+  }
+  applyIndicatorStatus(indicatorFilesCard, indicatorFilesBadge, filesStatus);
+
+  const automationCount = automationsState.items.length;
+  const activeCount = automationsState.items.filter((item) => item.enabled).length;
+  const automationStatus = activeCount ? "ok" : automationCount ? "warn" : "warn";
+  if (indicatorAutomationsCount) {
+    indicatorAutomationsCount.textContent = String(activeCount);
+  }
+  if (indicatorAutomationsBadge) {
+    indicatorAutomationsBadge.textContent = activeCount ? `${activeCount} ativas` : "Sem rotinas";
+  }
+  if (indicatorAutomationsMeta) {
+    indicatorAutomationsMeta.textContent = automationCount
+      ? `${automationCount} regras`
+      : "Nenhuma automacao carregada";
+  }
+  applyIndicatorStatus(indicatorAutomationsCard, indicatorAutomationsBadge, automationStatus);
+}
+
+function loadGerencialTab(tabId, force = false) {
+  if (!tabId) {
+    return;
+  }
+  if (force) {
+    gerencialLoadedTabs.delete(tabId);
+  }
+  if (gerencialLoadedTabs.has(tabId)) {
+    return;
+  }
+  switch (tabId) {
+    case "diagnostico":
+      carregarHealth(true);
+      break;
+    case "logs":
+      carregarApiLogs(true);
+      break;
+    case "permissoes":
+      carregarPermissoes(true);
+      break;
+    case "arquivos":
+      carregarArquivos(true);
+      break;
+    case "automacoes":
+      carregarAutomacoes(true);
+      break;
+    case "geral":
+      updateGerencialIndicators();
+      break;
+    default:
+      break;
+  }
+  gerencialLoadedTabs.add(tabId);
+}
+
 function setGerencialTabActive(tabId) {
   gerencialTabs.forEach((tab) => {
     const isActive = tab.dataset.tabTarget === tabId;
@@ -807,6 +978,7 @@ function setGerencialTabActive(tabId) {
   gerencialPanels.forEach((panel) => {
     panel.classList.toggle("is-active", panel.dataset.tabPanel === tabId);
   });
+  loadGerencialTab(tabId);
 }
 
 function updateGerencialTabVisibility() {
@@ -823,6 +995,10 @@ function updateGerencialTabVisibility() {
     const tabId = card.dataset.tabTarget;
     const allow = canView && canAccessGerencialTab(tabId, currentUser);
     card.hidden = !allow;
+    const action = card.querySelector(".indicator-card__action");
+    if (action) {
+      action.disabled = !allow;
+    }
   });
   gerencialPanels.forEach((panel) => {
     const tabId = panel.dataset.tabPanel;
@@ -849,12 +1025,15 @@ function updateGerencialTabVisibility() {
   if (btnLogsExport) {
     btnLogsExport.disabled = !currentUser || !hasGranularPermission(currentUser, "verLogsAPI");
   }
+  updateGerencialIndicators();
   const activeTab = gerencialTabs.find((tab) => tab.classList.contains("is-active") && !tab.hidden);
-  if (!activeTab) {
-    const firstVisible = gerencialTabs.find((tab) => !tab.hidden);
-    if (firstVisible) {
-      setGerencialTabActive(firstVisible.dataset.tabTarget);
-    }
+  if (activeTab) {
+    setGerencialTabActive(activeTab.dataset.tabTarget);
+    return;
+  }
+  const firstVisible = gerencialTabs.find((tab) => !tab.hidden);
+  if (firstVisible) {
+    setGerencialTabActive(firstVisible.dataset.tabTarget);
   }
 }
 
@@ -873,6 +1052,12 @@ function getGerencialPaletteItems() {
     });
   });
   const actionItems = [
+    {
+      label: "Ver status de backup",
+      tab: "diagnostico",
+      scrollTarget: "gerencialHealth",
+      permission: "verDiagnostico",
+    },
     {
       label: "Atualizar painel",
       tab: "geral",
@@ -956,6 +1141,7 @@ function renderGerencialPalette(query = "") {
     row.dataset.paletteType = item.type;
     row.dataset.paletteTab = item.tab || "";
     row.dataset.paletteSelector = item.selector || "";
+    row.dataset.paletteScroll = item.scrollTarget || "";
     row.innerHTML = `<strong>${item.label}</strong><span>${item.hint || ""}</span>`;
     gerencialPaletteList.append(row);
   });
@@ -963,11 +1149,11 @@ function renderGerencialPalette(query = "") {
 
 function openGerencialPalette() {
   if (!gerencialPalette) {
-    return;
+    return false;
   }
   const gerencialPanel = document.getElementById("gerencial");
   if (!currentUser || !canViewGerencial(currentUser) || (gerencialPanel && gerencialPanel.hidden)) {
-    return;
+    return false;
   }
   gerencialPalette.hidden = false;
   renderGerencialPalette("");
@@ -975,6 +1161,7 @@ function openGerencialPalette() {
     gerencialPaletteInput.value = "";
     gerencialPaletteInput.focus();
   }
+  return true;
 }
 
 function closeGerencialPalette() {
@@ -1675,6 +1862,7 @@ function renderHealthSummary(snapshot) {
     card.append(title, badge, resumo);
     healthSummary.append(card);
   });
+  updateGerencialIndicators();
 }
 
 function renderHealthTasks(snapshot) {
@@ -1921,6 +2109,7 @@ function renderApiLogs() {
   if (btnLogsLoadMore) {
     btnLogsLoadMore.hidden = apiLogsState.items.length >= apiLogsState.filtered;
   }
+  updateGerencialIndicators();
 }
 
 function getApiLogsFilters() {
@@ -1985,11 +2174,20 @@ function carregarPainelGerencial(forcar = false) {
   if (!currentUser || !canViewGerencial(currentUser)) {
     return;
   }
-  carregarHealth(forcar);
-  carregarApiLogs(true);
-  carregarAutomacoes(forcar);
-  carregarArquivos(forcar);
-  carregarPermissoes(forcar);
+  updateGerencialTabVisibility();
+  if (forcar) {
+    gerencialLoadedTabs.clear();
+    gerencialTabs.forEach((tab) => {
+      if (!tab.hidden) {
+        loadGerencialTab(tab.dataset.tabTarget, true);
+      }
+    });
+    return;
+  }
+  const activeTab = gerencialTabs.find((tab) => tab.classList.contains("is-active") && !tab.hidden);
+  if (activeTab) {
+    loadGerencialTab(activeTab.dataset.tabTarget);
+  }
 }
 
 function mostrarMensagemAutomacoes(texto, erro = false) {
@@ -2210,6 +2408,7 @@ function renderAutomacoes() {
     row.append(main, actions);
     automationList.append(row);
   });
+  updateGerencialIndicators();
 }
 
 async function carregarAutomacoes(forcar = false) {
@@ -2335,6 +2534,7 @@ function renderFilesList() {
     row.append(preview, info, actions);
     filesList.append(row);
   });
+  updateGerencialIndicators();
 }
 
 async function carregarArquivos(forcar = false) {
@@ -2586,7 +2786,7 @@ function abrirPainelComCarregamento(tab, scrollTarget = null) {
   const abrir = () => {
     ativarTab(tab);
     if (tab === "gerencial") {
-      carregarPainelGerencial(true);
+      carregarPainelGerencial(false);
     }
     if (scrollTarget) {
       const alvo = document.getElementById(scrollTarget);
@@ -14525,14 +14725,51 @@ if (gerencialTabs.length) {
   });
 }
 
-if (gerencialIndicators.length) {
-  gerencialIndicators.forEach((card) => {
-    card.addEventListener("click", () => {
-      const tabId = card.dataset.tabTarget;
-      if (canAccessGerencialTab(tabId, currentUser)) {
-        setGerencialTabActive(tabId);
+if (gerencialIndicatorsWrap) {
+  gerencialIndicatorsWrap.addEventListener("click", (event) => {
+    const actionBtn = event.target.closest(".indicator-card__action");
+    if (actionBtn) {
+      const action = actionBtn.dataset.action;
+      if (action === "refresh-health") {
+        setGerencialTabActive("diagnostico");
+        carregarHealth(true);
       }
-    });
+      if (action === "refresh-logs") {
+        setGerencialTabActive("logs");
+        carregarApiLogs(true);
+      }
+      if (action === "refresh-files") {
+        setGerencialTabActive("arquivos");
+        carregarArquivos(true);
+      }
+      if (action === "refresh-automations") {
+        setGerencialTabActive("automacoes");
+        carregarAutomacoes(true);
+      }
+      return;
+    }
+    const card = event.target.closest(".indicator-card[data-tab-target]");
+    if (!card || card.hidden) {
+      return;
+    }
+    const tabId = card.dataset.tabTarget;
+    if (canAccessGerencialTab(tabId, currentUser)) {
+      setGerencialTabActive(tabId);
+    }
+  });
+  gerencialIndicatorsWrap.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+    const card = event.target.closest(".indicator-card[data-tab-target]");
+    if (!card || card.hidden) {
+      return;
+    }
+    event.preventDefault();
+    const tabId = card.dataset.tabTarget;
+    if (canAccessGerencialTab(tabId, currentUser)) {
+      setGerencialTabActive(tabId);
+    }
   });
 }
 
@@ -14584,6 +14821,13 @@ if (gerencialPalette) {
         target.click();
       }
     }
+    const scrollTarget = item.dataset.paletteScroll;
+    if (scrollTarget) {
+      const target = document.getElementById(scrollTarget);
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
     closeGerencialPalette();
   });
 }
@@ -14596,8 +14840,10 @@ document.addEventListener("keydown", (event) => {
     }
   }
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-    event.preventDefault();
-    openGerencialPalette();
+    const opened = openGerencialPalette();
+    if (opened) {
+      event.preventDefault();
+    }
   }
 });
 
