@@ -2918,6 +2918,71 @@ body.is-visitor .container.auth-only {
   margin-top: 12px;
 }
 
+.page-gerencial .automation-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.page-gerencial .automation-item {
+  background: var(--surface2);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.page-gerencial .automation-main {
+  display: grid;
+  gap: 6px;
+  min-width: 220px;
+}
+
+.page-gerencial .automation-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.page-gerencial .automation-meta {
+  font-size: 0.8rem;
+  color: var(--text-body);
+}
+
+.page-gerencial .automation-status {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.page-gerencial .automation-actions {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+.page-gerencial .automation-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-body);
+}
+
+.page-gerencial .automation-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: #c8923d;
+}
+
+.page-gerencial .automation-note {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
 .page-gerencial input[type="text"],
 .page-gerencial input[type="number"],
 .page-gerencial input[type="file"],

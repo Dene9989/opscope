@@ -184,6 +184,9 @@ const apiLogsCount = document.getElementById("apiLogsCount");
 const apiLogsMessage = document.getElementById("apiLogsMessage");
 const btnLogsRefresh = document.getElementById("btnLogsRefresh");
 const btnLogsLoadMore = document.getElementById("btnLogsLoadMore");
+const automationList = document.getElementById("automationList");
+const automationMessage = document.getElementById("automationMessage");
+const btnAutomationRefresh = document.getElementById("btnAutomationRefresh");
 const btnLogsApply = document.getElementById("btnLogsApply");
 const btnLogsClear = document.getElementById("btnLogsClear");
 const logsFilterEndpoint = document.getElementById("logsFilterEndpoint");
@@ -692,6 +695,10 @@ let apiLogsState = {
     from: "",
     to: "",
   },
+};
+let automationsState = {
+  items: [],
+  loading: false,
 };
 let rdoUI = {
   card: null,
@@ -1505,6 +1512,124 @@ function carregarPainelGerencial(forcar = false) {
   }
   carregarHealth(forcar);
   carregarApiLogs(true);
+  carregarAutomacoes(forcar);
+}
+
+function mostrarMensagemAutomacoes(texto, erro = false) {
+  if (!automationMessage) {
+    return;
+  }
+  automationMessage.textContent = texto;
+  automationMessage.classList.toggle("mensagem--erro", erro);
+}
+
+function getAutomationEventLabel(evento) {
+  if (evento === "maintenance_created") {
+    return "Manutencao criada";
+  }
+  return "Evento";
+}
+
+function getAutomationConditionLabel(condition) {
+  if (condition && condition.type === "critical") {
+    return "Tag critica";
+  }
+  return "Sem condicao";
+}
+
+function getAutomationActionLabel(action) {
+  if (action && action.type === "notify_email") {
+    return "Notificar email";
+  }
+  return "Acao";
+}
+
+function formatAutomationDate(value) {
+  const parsed = parseTimestamp(value);
+  return parsed ? formatDateTime(parsed) : "Nunca";
+}
+
+function renderAutomacoes() {
+  if (!automationList) {
+    return;
+  }
+  automationList.innerHTML = "";
+  const items = automationsState.items || [];
+  if (!items.length) {
+    const vazio = document.createElement("p");
+    vazio.className = "empty-state";
+    vazio.textContent = "Nenhuma automacao configurada.";
+    automationList.append(vazio);
+    return;
+  }
+  items.forEach((automation) => {
+    const row = document.createElement("div");
+    row.className = "automation-item";
+    row.dataset.automationId = automation.id;
+
+    const main = document.createElement("div");
+    main.className = "automation-main";
+    const title = document.createElement("div");
+    title.className = "automation-title";
+    title.textContent = automation.name || "Automacao";
+    const meta = document.createElement("div");
+    meta.className = "automation-meta";
+    meta.textContent = `Evento: ${getAutomationEventLabel(automation.event)} | Condicao: ${getAutomationConditionLabel(
+      automation.condition
+    )} | Acao: ${getAutomationActionLabel(automation.action)}`;
+    const status = document.createElement("div");
+    status.className = "automation-status";
+    const lastLabel = formatAutomationDate(automation.lastRunAt);
+    const statusLabel = automation.lastStatus
+      ? automation.lastStatus.toUpperCase()
+      : "PENDENTE";
+    status.textContent = `Ultima execucao: ${lastLabel} | ${statusLabel}`;
+    main.append(title, meta, status);
+
+    const actions = document.createElement("div");
+    actions.className = "automation-actions";
+    const toggle = document.createElement("label");
+    toggle.className = "automation-toggle";
+    toggle.innerHTML = `
+      <input type="checkbox" data-action="toggle-automation" data-automation-id="${escapeHtml(
+        automation.id
+      )}">
+      <span>Ativa</span>
+    `;
+    const input = toggle.querySelector("input");
+    if (input) {
+      input.checked = Boolean(automation.enabled);
+    }
+    const note = document.createElement("div");
+    note.className = "automation-note";
+    note.textContent = "Destino: email do admin logado.";
+    actions.append(toggle, note);
+
+    row.append(main, actions);
+    automationList.append(row);
+  });
+}
+
+async function carregarAutomacoes(forcar = false) {
+  if (!isAdmin() || automationsState.loading) {
+    return;
+  }
+  if (!forcar && automationsState.items.length) {
+    renderAutomacoes();
+    return;
+  }
+  automationsState.loading = true;
+  mostrarMensagemAutomacoes("Carregando automacoes...");
+  try {
+    const data = await apiAdminAutomations();
+    automationsState.items = Array.isArray(data.automations) ? data.automations : [];
+    renderAutomacoes();
+    mostrarMensagemAutomacoes("");
+  } catch (error) {
+    mostrarMensagemAutomacoes(error.message || "Falha ao carregar automacoes.", true);
+  } finally {
+    automationsState.loading = false;
+  }
 }
 
 function mostrarMensagemTemplate(texto, erro = false) {
@@ -2422,6 +2547,30 @@ function getSectionConfig(user) {
 
 function getTemplateById(id) {
   return templates.find((item) => item.id === id);
+}
+
+function isDailySubstationInspection(item) {
+  if (!item) {
+    return false;
+  }
+  const template = item.templateId ? getTemplateById(item.templateId) : null;
+  const nome = template && template.nome ? template.nome : item.titulo || "";
+  const nomeNormalizado = normalizeSearchValue(nome);
+  const tituloNormalizado = normalizeSearchValue(item.titulo || "");
+  const isDaily =
+    nomeNormalizado.includes("inspecao diaria") ||
+    tituloNormalizado.includes("inspecao diaria");
+  const isSubestacao =
+    nomeNormalizado.includes("subestacao") ||
+    tituloNormalizado.includes("subestacao");
+  if (!isDaily || !isSubestacao) {
+    return false;
+  }
+  const frequencia = template && template.frequencia ? String(template.frequencia).toLowerCase() : "";
+  if (frequencia) {
+    return frequencia === "daily";
+  }
+  return true;
 }
 
 function getDefaultPermissions() {
@@ -3546,14 +3695,14 @@ function criarCardManutencao(item, permissoes, options = {}) {
       }
       actions.append(botao);
     }
-    if (permite("reschedule")) {
+    if (permite("reschedule") && !isDailySubstationInspection(item)) {
       actions.append(criarBotaoAcao("Reagendar", "reschedule"));
     }
   } else if (item.status === "backlog") {
     if (permite("backlog_reason")) {
       actions.append(criarBotaoAcao("Motivo nao executada", "backlog_reason"));
     }
-    if (permite("reschedule")) {
+    if (permite("reschedule") && !isDailySubstationInspection(item)) {
       actions.append(criarBotaoAcao("Reagendar", "reschedule"));
     }
   } else if (item.status === "em_execucao") {
@@ -10963,6 +11112,13 @@ function reagendarManutencao(index) {
     return;
   }
   const item = manutencoes[index];
+  if (isDailySubstationInspection(item)) {
+    mostrarMensagemManutencao(
+      "Inspecao diaria de subestacao nao pode ser reagendada.",
+      true
+    );
+    return;
+  }
   if (item.status === "em_execucao" || item.status === "encerramento") {
     mostrarMensagemManutencao("Nao e possivel reagendar durante a execucao.", true);
     return;
@@ -10987,6 +11143,14 @@ function salvarReagendamento(event) {
     mostrarMensagemReagendar("Manutencao nao encontrada.", true);
     return;
   }
+  const item = manutencoes[index];
+  if (isDailySubstationInspection(item)) {
+    mostrarMensagemReagendar(
+      "Inspecao diaria de subestacao nao pode ser reagendada.",
+      true
+    );
+    return;
+  }
   const motivo = reagendarMotivo.value.trim();
   if (!motivo) {
     mostrarMensagemReagendar("Selecione o motivo do reagendamento.", true);
@@ -10998,7 +11162,6 @@ function salvarReagendamento(event) {
     mostrarMensagemReagendar("Data invalida. Use AAAA-MM-DD.", true);
     return;
   }
-  const item = manutencoes[index];
   if (item.status === "em_execucao" || item.status === "encerramento") {
     mostrarMensagemReagendar("Nao e possivel reagendar durante a execucao.", true);
     return;
@@ -12056,6 +12219,18 @@ async function apiAdminUsers() {
   return apiRequest("/api/admin/users");
 }
 
+async function apiAdminAutomations() {
+  return apiRequest("/api/admin/automations");
+}
+
+async function apiUpdateAutomation(automationId, payload) {
+  const safeId = encodeURIComponent(String(automationId || ""));
+  return apiRequest(`/api/admin/automations/${safeId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
 async function apiAdminHealth() {
   return apiRequest("/api/admin/health");
 }
@@ -12489,6 +12664,39 @@ if (apiLogsTable) {
     }
     detailRow.hidden = !detailRow.hidden;
     btn.textContent = detailRow.hidden ? "Ver JSON" : "Ocultar";
+  });
+}
+
+if (btnAutomationRefresh) {
+  btnAutomationRefresh.addEventListener("click", () => {
+    carregarAutomacoes(true);
+  });
+}
+
+if (automationList) {
+  automationList.addEventListener("change", async (event) => {
+    const toggle = event.target.closest("[data-action=\"toggle-automation\"]");
+    if (!toggle || !isAdmin()) {
+      return;
+    }
+    const automationId = toggle.dataset.automationId;
+    if (!automationId) {
+      return;
+    }
+    const enabled = toggle.checked;
+    toggle.disabled = true;
+    mostrarMensagemAutomacoes("Salvando automacao...");
+    try {
+      const data = await apiUpdateAutomation(automationId, { enabled });
+      automationsState.items = Array.isArray(data.automations) ? data.automations : [];
+      renderAutomacoes();
+      mostrarMensagemAutomacoes("Automacao atualizada.");
+    } catch (error) {
+      toggle.checked = !enabled;
+      mostrarMensagemAutomacoes(error.message || "Falha ao atualizar automacao.", true);
+    } finally {
+      toggle.disabled = false;
+    }
   });
 }
 

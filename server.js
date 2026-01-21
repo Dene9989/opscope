@@ -48,6 +48,7 @@ const USERS_FILE = path.join(STORAGE_DIR, "users.json");
 const INVITES_FILE = path.join(DATA_DIR, "invites.json");
 const AUDIT_FILE = path.join(DATA_DIR, "audit.json");
 const MAINTENANCE_FILE = path.join(DATA_DIR, "maintenance.json");
+const AUTOMATIONS_FILE = path.join(DATA_DIR, "automations.json");
 const UPLOADS_DIR = process.env.OPSCOPE_UPLOADS_DIR
   ? path.resolve(process.env.OPSCOPE_UPLOADS_DIR)
   : path.join(STORAGE_DIR, "uploads");
@@ -75,6 +76,16 @@ const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
 const AVATAR_TARGET_BYTES = 1024 * 1024;
 const AVATAR_SIZE = 512;
 const ALLOWED_AVATAR_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+const AUTOMATION_DEFAULTS = [
+  {
+    id: "maintenance_critical_email",
+    name: "Notificar manutencao critica",
+    enabled: true,
+    event: "maintenance_created",
+    condition: { type: "critical" },
+    action: { type: "notify_email", to: "" },
+  },
+];
 
 const PERMISSION_KEYS = [
   "create",
@@ -356,6 +367,45 @@ function normalizeHealthTasks(list) {
     });
   }
   return output;
+}
+
+function normalizeAutomations(list) {
+  const output = [];
+  const storedMap = new Map();
+  if (Array.isArray(list)) {
+    list.forEach((item) => {
+      if (item && item.id) {
+        storedMap.set(item.id, item);
+      }
+    });
+  }
+  AUTOMATION_DEFAULTS.forEach((automation) => {
+    const stored = storedMap.get(automation.id);
+    output.push({
+      ...automation,
+      enabled: stored && typeof stored.enabled === "boolean" ? stored.enabled : automation.enabled,
+      condition: { ...automation.condition, ...(stored ? stored.condition : {}) },
+      action: { ...automation.action, ...(stored ? stored.action : {}) },
+      lastRunAt: stored && stored.lastRunAt ? stored.lastRunAt : "",
+      lastStatus: stored && stored.lastStatus ? stored.lastStatus : "",
+      lastError: stored && stored.lastError ? stored.lastError : "",
+      lastItemId: stored && stored.lastItemId ? stored.lastItemId : "",
+      lastTriggeredBy: stored && stored.lastTriggeredBy ? stored.lastTriggeredBy : "",
+    });
+  });
+  if (Array.isArray(list)) {
+    list.forEach((item) => {
+      if (!item || !item.id || AUTOMATION_DEFAULTS.some((def) => def.id === item.id)) {
+        return;
+      }
+      output.push({ ...item });
+    });
+  }
+  return output;
+}
+
+function saveAutomations(list) {
+  writeJson(AUTOMATIONS_FILE, list);
 }
 
 function saveHealthTasks(tasks) {
@@ -779,7 +829,14 @@ function getCompletedAt(item) {
 
 function isCritical(item) {
   const crit = String(item.criticidade || "").trim().toLowerCase();
-  return Boolean(item.safetyCritical || item.critico || crit === "alta");
+  return Boolean(
+    item.safetyCritical ||
+      item.critico ||
+      crit === "alta" ||
+      crit === "critica" ||
+      crit === "critico" ||
+      crit === "sim"
+  );
 }
 
 function getItemTitle(item) {
@@ -799,6 +856,91 @@ function getItemOwner(item) {
         "Equipe"
     ).trim() || "Equipe"
   );
+}
+
+function matchesAutomationCondition(automation, item) {
+  if (!automation || !automation.condition) {
+    return false;
+  }
+  if (automation.condition.type === "critical") {
+    return isCritical(item);
+  }
+  return false;
+}
+
+async function executeAutomationAction(automation, item, actor) {
+  const action = automation && automation.action ? automation.action : {};
+  if (action.type !== "notify_email") {
+    return { status: "skipped", message: "Acao nao suportada." };
+  }
+  const customTo = String(action.to || "").trim();
+  const to = isValidEmail(customTo) ? customTo : getUserEmail(actor);
+  if (!isValidEmail(to)) {
+    console.warn("Automacao sem destinatario valido.");
+    return { status: "skipped", message: "Sem destinatario valido." };
+  }
+  const title = getItemTitle(item);
+  const due = getDueDate(item);
+  const dueLabel = due ? due.toLocaleDateString("pt-BR") : "-";
+  const subject = "OPSCOPE - Manutencao critica criada";
+  const text = `Uma manutencao critica foi criada.\n\nAtividade: ${title}\nPrazo: ${dueLabel}\nResponsavel: ${getItemOwner(item)}\n\nAcesse o OPSCOPE para detalhes.`;
+  const html = `
+    <p>Uma manutencao <strong>critica</strong> foi criada.</p>
+    <p><strong>Atividade:</strong> ${title}</p>
+    <p><strong>Prazo:</strong> ${dueLabel}</p>
+    <p><strong>Responsavel:</strong> ${getItemOwner(item)}</p>
+    <p>Acesse o OPSCOPE para detalhes.</p>
+  `;
+  const resendOk = await sendEmailViaResend({ to, subject, text, html });
+  if (resendOk) {
+    return { status: "ok", message: "Email enviado via Resend." };
+  }
+  const smtpOk = await sendEmailViaSmtp({ to, subject, text, html });
+  if (smtpOk) {
+    return { status: "ok", message: "Email enviado via SMTP." };
+  }
+  console.warn("Automacao sem envio de email. Fallback console log.");
+  console.log(`[automation] ${subject} -> ${to}`, { id: item.id, title });
+  return { status: "warn", message: "Envio de email indisponivel." };
+}
+
+async function runAutomationsForItems(event, items, actor, ip) {
+  if (!Array.isArray(items) || !items.length) {
+    return;
+  }
+  let changed = false;
+  for (const automation of automations) {
+    if (!automation.enabled || automation.event !== event) {
+      continue;
+    }
+    for (const item of items) {
+      if (!matchesAutomationCondition(automation, item)) {
+        continue;
+      }
+      const result = await executeAutomationAction(automation, item, actor);
+      const now = new Date().toISOString();
+      automation.lastRunAt = now;
+      automation.lastStatus = result.status;
+      automation.lastError = result.status === "ok" ? "" : result.message || "";
+      automation.lastItemId = item.id || "";
+      automation.lastTriggeredBy = actor ? actor.id : "";
+      appendAudit(
+        "automation_trigger",
+        actor ? actor.id : null,
+        {
+          automationId: automation.id,
+          status: result.status,
+          itemId: item.id || "",
+          message: result.message || "",
+        },
+        ip || "unknown"
+      );
+      changed = true;
+    }
+  }
+  if (changed) {
+    saveAutomations(automations);
+  }
 }
 
 function loadMaintenanceData() {
@@ -1648,6 +1790,8 @@ let verifications = readJson(VERIFICATIONS_FILE, []);
 let apiLogs = readJson(API_LOG_FILE, []);
 let healthTasks = normalizeHealthTasks(readJson(HEALTH_TASKS_FILE, []));
 saveHealthTasks(healthTasks);
+let automations = normalizeAutomations(readJson(AUTOMATIONS_FILE, []));
+saveAutomations(automations);
 cleanupVerifications();
 users = users.map(normalizeUserRecord);
 writeJson(USERS_FILE, users);
@@ -1976,6 +2120,38 @@ app.get("/api/admin/logs", requireAuth, requireAdmin, (req, res) => {
   return res.json({ total, filteredTotal, logs, offset, limit });
 });
 
+app.get("/api/admin/automations", requireAuth, requireAdmin, (req, res) => {
+  return res.json({ automations });
+});
+
+app.patch("/api/admin/automations/:id", requireAuth, requireAdmin, (req, res) => {
+  const automationId = String(req.params.id || "").trim();
+  const index = automations.findIndex((item) => item.id === automationId);
+  if (index === -1) {
+    return res.status(404).json({ message: "Automacao nao encontrada." });
+  }
+  const current = automations[index];
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const updated = {
+    ...current,
+    enabled:
+      typeof payload.enabled === "boolean" ? payload.enabled : current.enabled,
+    action: {
+      ...current.action,
+      ...(payload.action && typeof payload.action === "object" ? payload.action : {}),
+    },
+  };
+  automations[index] = updated;
+  saveAutomations(automations);
+  appendAudit(
+    "automation_update",
+    req.currentUser ? req.currentUser.id : null,
+    { automationId, enabled: updated.enabled },
+    getClientIp(req)
+  );
+  return res.json({ ok: true, automations });
+});
+
 app.post("/api/maintenance/sync", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   const projectKey = getUserProjectKey(user);
@@ -1988,6 +2164,16 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
       projectKey,
     }));
   const existing = loadMaintenanceData();
+  const existingProject = existing.filter((item) => {
+    const itemProject = normalizeProjectKey(
+      item.projeto || item.projectKey || item.project || item.unidade || "HV"
+    );
+    return itemProject === projectKey;
+  });
+  const existingIds = new Set(existingProject.map((item) => item.id).filter(Boolean));
+  const createdItems = sanitized.filter(
+    (item) => item && item.id && !existingIds.has(item.id)
+  );
   const filtered = existing.filter((item) => {
     const itemProject = normalizeProjectKey(
       item.projeto || item.projectKey || item.project || item.unidade || "HV"
@@ -1997,6 +2183,15 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
   const merged = [...filtered, ...sanitized];
   writeJson(MAINTENANCE_FILE, merged);
   DASHBOARD_CACHE.delete(projectKey);
+  if (createdItems.length) {
+    const ip = getClientIp(req);
+    runAutomationsForItems("maintenance_created", createdItems, user, ip).catch((error) => {
+      console.warn(
+        "Automacoes falharam.",
+        error && error.message ? error.message : error
+      );
+    });
+  }
   return res.json({ ok: true, count: sanitized.length, project: projectKey });
 });
 
