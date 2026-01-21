@@ -197,6 +197,10 @@ const btnFilesRefresh = document.getElementById("btnFilesRefresh");
 const filesList = document.getElementById("filesList");
 const filesEmpty = document.getElementById("filesEmpty");
 const filesMessage = document.getElementById("filesMessage");
+const gerencialPermissoes = document.getElementById("gerencialPermissoes");
+const permissoesList = document.getElementById("permissoesList");
+const btnPermissoesSalvar = document.getElementById("btnPermissoesSalvar");
+const permissoesMessage = document.getElementById("permissoesMessage");
 const btnLogsApply = document.getElementById("btnLogsApply");
 const btnLogsClear = document.getElementById("btnLogsClear");
 const logsFilterEndpoint = document.getElementById("logsFilterEndpoint");
@@ -480,6 +484,24 @@ const PERMISSIONS = {
   complete: "Executar",
 };
 
+const GRANULAR_PERMISSION_LABELS = {
+  editarPerfil: "Editar perfil (UEN/Projeto)",
+  excluirArquivo: "Excluir arquivos",
+  verRDO: "Ver RDOs",
+  gerarRelatorio: "Gerar relatorios",
+  editarPermissoes: "Editar permissoes",
+};
+const GRANULAR_PROFILE_ORDER = [
+  "pcm",
+  "diretor_om",
+  "gerente_contrato",
+  "supervisor_om",
+  "tecnico_senior",
+  "tecnico_pleno",
+  "tecnico_junior",
+  "leitura",
+];
+
 const ADMIN_USERS_READ = "admin:users:read";
 const ADMIN_USERS_WRITE = "admin:users:write";
 
@@ -565,17 +587,48 @@ function getCargoLevel(cargo) {
   return 0;
 }
 
+function getProfileKeyForUser(user) {
+  if (!user) {
+    return "leitura";
+  }
+  const rbacRole = String(user.rbacRole || "").trim().toLowerCase();
+  if (rbacRole && GRANULAR_PROFILE_ORDER.includes(rbacRole)) {
+    return rbacRole;
+  }
+  const cargo = normalizeCargo(user.cargo);
+  if (cargo.includes("supervisor o m")) {
+    return "supervisor_om";
+  }
+  if (cargo.includes("tecnico senior")) {
+    return "tecnico_senior";
+  }
+  if (cargo.includes("tecnico pleno")) {
+    return "tecnico_pleno";
+  }
+  if (cargo.includes("tecnico junior")) {
+    return "tecnico_junior";
+  }
+  return "leitura";
+}
+
+function hasGranularPermission(user, permissionKey) {
+  return Boolean(user && user.granularPermissions && user.granularPermissions[permissionKey]);
+}
+
 function canEditProfile(actor, target) {
   if (!actor || !target) {
+    return false;
+  }
+  if (!hasGranularPermission(actor, "editarPerfil")) {
     return false;
   }
   if (isFullAccessUser(actor)) {
     return true;
   }
-  const actorLevel = getCargoLevel(actor.cargo);
   if (actor.id === target.id) {
-    return actorLevel >= 4;
+    return true;
   }
+  const actorLevel = getCargoLevel(actor.cargo);
   const targetLevel = getCargoLevel(target.cargo);
   return actorLevel > targetLevel;
 }
@@ -626,7 +679,15 @@ function canManageFilesClient(user) {
   if (isFullAccessUser(user)) {
     return true;
   }
-  return getCargoLevel(user.cargo) >= 4;
+  return hasGranularPermission(user, "excluirArquivo");
+}
+
+function canViewRdo(user) {
+  return hasGranularPermission(user, "verRDO");
+}
+
+function canGerarRelatorio(user) {
+  return hasGranularPermission(user, "gerarRelatorio");
 }
 
 const ACTION_LABELS = {
@@ -723,6 +784,13 @@ let automationsState = {
 let filesState = {
   items: [],
   loading: false,
+};
+let permissoesState = {
+  values: {},
+  profiles: [],
+  permissions: [],
+  loading: false,
+  loaded: false,
 };
 let filesSearchTimer = null;
 let rdoUI = {
@@ -1546,6 +1614,7 @@ function carregarPainelGerencial(forcar = false) {
   carregarApiLogs(true);
   carregarAutomacoes(forcar);
   carregarArquivos(forcar);
+  carregarPermissoes(forcar);
 }
 
 function mostrarMensagemAutomacoes(texto, erro = false) {
@@ -1554,6 +1623,128 @@ function mostrarMensagemAutomacoes(texto, erro = false) {
   }
   automationMessage.textContent = texto;
   automationMessage.classList.toggle("mensagem--erro", erro);
+}
+
+function mostrarMensagemPermissoes(texto, erro = false) {
+  if (!permissoesMessage) {
+    return;
+  }
+  permissoesMessage.textContent = texto;
+  permissoesMessage.classList.toggle("mensagem--erro", erro);
+}
+
+function getPermissoesProfiles() {
+  if (Array.isArray(permissoesState.profiles) && permissoesState.profiles.length) {
+    return permissoesState.profiles;
+  }
+  return GRANULAR_PROFILE_ORDER.map((key) => ({
+    key,
+    label: RBAC_ROLE_LABELS[key] || key.toUpperCase(),
+  }));
+}
+
+function getPermissoesCatalog() {
+  if (Array.isArray(permissoesState.permissions) && permissoesState.permissions.length) {
+    return permissoesState.permissions;
+  }
+  return Object.keys(GRANULAR_PERMISSION_LABELS).map((key) => ({
+    key,
+    label: GRANULAR_PERMISSION_LABELS[key],
+  }));
+}
+
+function renderPermissoesGerenciais() {
+  if (!permissoesList) {
+    return;
+  }
+  const profiles = getPermissoesProfiles();
+  const permissions = getPermissoesCatalog();
+  const podeEditar =
+    Boolean(currentUser) && isAdmin() && hasGranularPermission(currentUser, "editarPermissoes");
+
+  permissoesList.innerHTML = "";
+  if (!profiles.length || !permissions.length) {
+    return;
+  }
+
+  profiles.forEach((profile) => {
+    const card = document.createElement("div");
+    card.className = "permissions-card";
+    card.dataset.profile = profile.key;
+
+    const title = document.createElement("div");
+    title.className = "permissions-title";
+    title.textContent = profile.label || profile.key;
+
+    const list = document.createElement("div");
+    list.className = "permissions-list";
+    const values = (permissoesState.values && permissoesState.values[profile.key]) || {};
+
+    permissions.forEach((perm) => {
+      const label = document.createElement("label");
+      label.className = "permissions-item";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.dataset.profile = profile.key;
+      checkbox.dataset.permission = perm.key;
+      checkbox.checked = Boolean(values[perm.key]);
+      checkbox.disabled = !podeEditar;
+      const text = document.createElement("span");
+      text.textContent = perm.label || perm.key;
+      label.append(checkbox, text);
+      list.append(label);
+    });
+
+    card.append(title, list);
+    permissoesList.append(card);
+  });
+}
+
+function coletarPermissoesGerenciais() {
+  const payload = {};
+  if (!permissoesList) {
+    return payload;
+  }
+  permissoesList.querySelectorAll(".permissions-card").forEach((card) => {
+    const profileKey = card.dataset.profile;
+    if (!profileKey) {
+      return;
+    }
+    const profilePermissions = {};
+    card.querySelectorAll("input[data-permission]").forEach((input) => {
+      profilePermissions[input.dataset.permission] = input.checked;
+    });
+    payload[profileKey] = profilePermissions;
+  });
+  return payload;
+}
+
+async function carregarPermissoes(forcar = false) {
+  if (!currentUser || !isAdmin()) {
+    return;
+  }
+  if (permissoesState.loading) {
+    return;
+  }
+  if (!forcar && permissoesState.loaded) {
+    renderPermissoesGerenciais();
+    return;
+  }
+  permissoesState.loading = true;
+  mostrarMensagemPermissoes("Carregando permissoes...");
+  try {
+    const data = await apiAdminPermissoes();
+    permissoesState.values = data.values || {};
+    permissoesState.profiles = Array.isArray(data.profiles) ? data.profiles : [];
+    permissoesState.permissions = Array.isArray(data.permissions) ? data.permissions : [];
+    permissoesState.loaded = true;
+    renderPermissoesGerenciais();
+    mostrarMensagemPermissoes("");
+  } catch (error) {
+    mostrarMensagemPermissoes(error.message || "Falha ao carregar permissoes.", true);
+  } finally {
+    permissoesState.loading = false;
+  }
 }
 
 function getAutomationEventLabel(evento) {
@@ -4596,6 +4787,27 @@ function montarRdoUI() {
       atualizarRdoExcluirState();
     });
   }
+
+  aplicarPermissoesRdo();
+}
+
+function aplicarPermissoesRdo() {
+  if (!rdoUI.card) {
+    return;
+  }
+  const podeVer = Boolean(currentUser && canViewRdo(currentUser));
+  const podeGerar = Boolean(currentUser && canGerarRelatorio(currentUser));
+  rdoUI.card.hidden = !podeVer;
+  if (!podeVer) {
+    return;
+  }
+  if (rdoUI.btnGerar) {
+    rdoUI.btnGerar.disabled = !podeGerar;
+    rdoUI.btnGerar.classList.toggle("is-disabled", !podeGerar);
+  }
+  if (rdoUI.btnExcluir) {
+    rdoUI.btnExcluir.disabled = !podeGerar;
+  }
 }
 
 function renderRdoList() {
@@ -4711,6 +4923,10 @@ function confirmarDeleteRdo() {
   if (!rdoUI.deleteReason) {
     return;
   }
+  if (!currentUser || !canGerarRelatorio(currentUser)) {
+    mostrarMensagemRdo("Sem permissao para excluir RDO.", true);
+    return;
+  }
   const motivo = rdoUI.deleteReason.value.trim();
   if (!motivo) {
     if (rdoUI.deleteMensagem) {
@@ -4753,6 +4969,14 @@ function confirmarDeleteRdo() {
 
 function abrirRdoModal(snapshot) {
   if (!rdoUI.modal) {
+    return;
+  }
+  if (!currentUser || !canViewRdo(currentUser)) {
+    mostrarMensagemRdo("Sem permissao para acessar RDO.", true);
+    return;
+  }
+  if (!snapshot && !canGerarRelatorio(currentUser)) {
+    mostrarMensagemRdo("Sem permissao para gerar RDO.", true);
     return;
   }
   atualizarFiltrosRdo(manutencoes);
@@ -8858,10 +9082,7 @@ function renderPerfil() {
   }
 
   const editRequested = isProfileEditMode();
-  const podeEditarPerfil = currentUser
-    ? isFullAccessUser(currentUser) ||
-      getCargoLevel(currentUser.cargo) >= getCargoLevel("SUPERVISOR O&M")
-    : false;
+  const podeEditarPerfil = currentUser ? canEditProfile(currentUser, currentUser) : false;
   const isEdit = Boolean(editRequested && podeEditarPerfil);
   const perfilUsuario = currentUser;
   const isSelfProfile = Boolean(
@@ -9035,6 +9256,10 @@ function renderAuthUI() {
     maintenanceLastSync = 0;
     maintenanceLastUserId = null;
     filesState.items = [];
+    permissoesState.values = {};
+    permissoesState.profiles = [];
+    permissoesState.permissions = [];
+    permissoesState.loaded = false;
     if (maintenanceSyncTimer) {
       clearTimeout(maintenanceSyncTimer);
       maintenanceSyncTimer = null;
@@ -9114,12 +9339,26 @@ function renderAuthUI() {
   if (gerencialFiles) {
     gerencialFiles.hidden = !canManageFilesClient(currentUser);
   }
+  if (gerencialPermissoes) {
+    const podeEditar = Boolean(
+      currentUser && isAdmin() && hasGranularPermission(currentUser, "editarPermissoes")
+    );
+    gerencialPermissoes.hidden = !podeEditar;
+  }
 
   if (btnAdicionarManutencao) {
     const podeCriar = can("create") && secConfig.nova !== false;
     btnAdicionarManutencao.disabled = !podeCriar;
     btnAdicionarManutencao.classList.toggle("is-disabled", !podeCriar);
   }
+
+  if (btnGerarRelatorio) {
+    const podeGerar = currentUser && canGerarRelatorio(currentUser);
+    btnGerarRelatorio.disabled = !podeGerar;
+    btnGerarRelatorio.classList.toggle("is-disabled", !podeGerar);
+  }
+
+  aplicarPermissoesRdo();
 
   if (diasLembrete) {
     diasLembrete.textContent = reminderDays;
@@ -9382,6 +9621,10 @@ function recalcularBacklog() {
 }
 
 function gerarRelatorio() {
+  if (!currentUser || !canGerarRelatorio(currentUser)) {
+    mostrarMensagemGerencial("Sem permissao para gerar relatorio.", true);
+    return;
+  }
   const total = manutencoes.length;
   const agendadas = manutencoes.filter(
     (item) => item.status === "agendada" || item.status === "liberada"
@@ -12447,6 +12690,17 @@ async function apiAdminPermissions() {
   return apiRequest("/api/admin/permissions");
 }
 
+async function apiAdminPermissoes() {
+  return apiRequest("/api/admin/permissoes");
+}
+
+async function apiSalvarPermissoes(payload) {
+  return apiRequest("/api/admin/permissoes", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
 async function apiAdminUpdateUser(userId, payload) {
   return apiRequest(`/api/admin/users/${userId}`, {
     method: "PATCH",
@@ -12968,6 +13222,10 @@ if (filesList) {
     if (!removeBtn) {
       return;
     }
+    if (!currentUser || !canManageFilesClient(currentUser)) {
+      mostrarMensagemArquivos("Sem permissao para remover arquivos.", true);
+      return;
+    }
     const fileId = removeBtn.dataset.fileId;
     if (!fileId) {
       return;
@@ -12986,6 +13244,41 @@ if (filesList) {
       mostrarMensagemArquivos(error.message || "Falha ao remover arquivo.", true);
     } finally {
       removeBtn.disabled = false;
+    }
+  });
+}
+
+if (btnPermissoesSalvar) {
+  btnPermissoesSalvar.addEventListener("click", async () => {
+    if (!currentUser || !isAdmin() || !hasGranularPermission(currentUser, "editarPermissoes")) {
+      mostrarMensagemPermissoes("Sem permissao para editar permissoes.", true);
+      return;
+    }
+    const payload = { values: coletarPermissoesGerenciais() };
+    btnPermissoesSalvar.disabled = true;
+    mostrarMensagemPermissoes("Salvando permissoes...");
+    try {
+      const data = await apiSalvarPermissoes(payload);
+      permissoesState.values = data.values || payload.values;
+      permissoesState.profiles = Array.isArray(data.profiles) ? data.profiles : permissoesState.profiles;
+      permissoesState.permissions = Array.isArray(data.permissions)
+        ? data.permissions
+        : permissoesState.permissions;
+      permissoesState.loaded = true;
+      if (currentUser) {
+        const profileKey = getProfileKeyForUser(currentUser);
+        if (permissoesState.values && permissoesState.values[profileKey]) {
+          currentUser.granularPermissions = permissoesState.values[profileKey];
+        }
+      }
+      renderPermissoesGerenciais();
+      renderAuthUI();
+      renderPerfil();
+      mostrarMensagemPermissoes("Permissoes atualizadas.");
+    } catch (error) {
+      mostrarMensagemPermissoes(error.message || "Falha ao salvar permissoes.", true);
+    } finally {
+      btnPermissoesSalvar.disabled = false;
     }
   });
 }
@@ -13139,10 +13432,7 @@ document.addEventListener("click", (event) => {
   if (!currentUser) {
     return;
   }
-  if (
-    !isFullAccessUser(currentUser) &&
-    getCargoLevel(currentUser.cargo) < getCargoLevel("SUPERVISOR O&M")
-  ) {
+  if (!canEditProfile(currentUser, currentUser)) {
     setPerfilSaveMessage("Sem permissao para editar este perfil.", true);
     return;
   }

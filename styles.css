@@ -3061,6 +3061,49 @@ body.is-visitor .container.auth-only {
   justify-content: flex-end;
 }
 
+.page-gerencial .permissions-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.page-gerencial .permissions-card {
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--card-border);
+  background: var(--surface2);
+  display: grid;
+  gap: 10px;
+}
+
+.page-gerencial .permissions-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.page-gerencial .permissions-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px 12px;
+}
+
+.page-gerencial .permissions-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-body);
+}
+
+.page-gerencial .permissions-item input {
+  width: 16px;
+  height: 16px;
+  accent-color: #c8923d;
+}
+
 .page-gerencial input[type="text"],
 .page-gerencial input[type="number"],
 .page-gerencial input[type="file"],

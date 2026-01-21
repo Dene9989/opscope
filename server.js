@@ -60,6 +60,7 @@ const API_LOG_FILE = path.join(DATA_DIR, "api_logs.json");
 const HEALTH_TASKS_FILE = path.join(DATA_DIR, "health_tasks.json");
 const BACKUP_DIR = path.join(DATA_DIR, "backups");
 const FILES_META_FILE = path.join(DATA_DIR, "files.json");
+const PERMISSOES_FILE = path.join(DATA_DIR, "permissoes.json");
 const FILES_DIR = path.join(UPLOADS_DIR, "files");
 const SMTP_HOST = process.env.SMTP_HOST || "";
 const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
@@ -167,6 +168,50 @@ const PERMISSION_CATALOG = [
     ],
   },
 ];
+
+const GRANULAR_PERMISSION_CATALOG = [
+  { key: "editarPerfil", label: "Editar perfil (UEN/Projeto)" },
+  { key: "excluirArquivo", label: "Excluir arquivos" },
+  { key: "verRDO", label: "Ver RDOs" },
+  { key: "gerarRelatorio", label: "Gerar relatorios" },
+  { key: "editarPermissoes", label: "Editar permissoes" },
+];
+const GRANULAR_PROFILE_CATALOG = [
+  { key: "pcm", label: "PCM" },
+  { key: "diretor_om", label: "Diretor O&M" },
+  { key: "gerente_contrato", label: "Gerente de Contrato" },
+  { key: "supervisor_om", label: "Supervisor O&M" },
+  { key: "tecnico_senior", label: "Tecnico Senior" },
+  { key: "tecnico_pleno", label: "Tecnico Pleno" },
+  { key: "tecnico_junior", label: "Tecnico Junior" },
+  { key: "leitura", label: "Leitura" },
+];
+const GRANULAR_BASE_PERMISSIONS = {
+  editarPerfil: false,
+  excluirArquivo: false,
+  verRDO: true,
+  gerarRelatorio: true,
+  editarPermissoes: false,
+};
+const GRANULAR_SUPERVISOR_PERMISSIONS = {
+  ...GRANULAR_BASE_PERMISSIONS,
+  editarPerfil: true,
+  excluirArquivo: true,
+};
+const GRANULAR_ADMIN_PERMISSIONS = {
+  ...GRANULAR_SUPERVISOR_PERMISSIONS,
+  editarPermissoes: true,
+};
+const GRANULAR_DEFAULT_PERMISSIONS = {
+  pcm: GRANULAR_ADMIN_PERMISSIONS,
+  diretor_om: GRANULAR_SUPERVISOR_PERMISSIONS,
+  gerente_contrato: GRANULAR_SUPERVISOR_PERMISSIONS,
+  supervisor_om: GRANULAR_SUPERVISOR_PERMISSIONS,
+  tecnico_senior: GRANULAR_BASE_PERMISSIONS,
+  tecnico_pleno: GRANULAR_BASE_PERMISSIONS,
+  tecnico_junior: GRANULAR_BASE_PERMISSIONS,
+  leitura: GRANULAR_BASE_PERMISSIONS,
+};
 
 const DEFAULT_SECTIONS = {
   inicio: true,
@@ -536,7 +581,7 @@ function canManageFiles(user) {
   if (isFullAccessRole(user.rbacRole || user.role)) {
     return true;
   }
-  return getCargoLevel(user.cargo) >= 4;
+  return hasGranularPermission(user, "excluirArquivo");
 }
 
 function requireSupervisor(req, res, next) {
@@ -798,13 +843,16 @@ function canEditProfile(actor, target) {
   if (!actor || !target) {
     return false;
   }
+  if (!hasGranularPermission(actor, "editarPerfil")) {
+    return false;
+  }
   if (isFullAccessRole(actor.rbacRole || actor.role)) {
     return true;
   }
-  const actorLevel = getCargoLevel(actor.cargo);
   if (actor.id === target.id) {
-    return actorLevel >= 4 || isFullAccessRole(actor.rbacRole || actor.role);
+    return true;
   }
+  const actorLevel = getCargoLevel(actor.cargo);
   const targetLevel = getCargoLevel(target.cargo);
   return actorLevel > targetLevel;
 }
@@ -1254,6 +1302,78 @@ function buildSections(role, explicitSections) {
   return config;
 }
 
+function normalizeGranularPermissions(payload) {
+  const normalized = {};
+  GRANULAR_PROFILE_CATALOG.forEach((profile) => {
+    const defaults = GRANULAR_DEFAULT_PERMISSIONS[profile.key] || GRANULAR_BASE_PERMISSIONS;
+    const current = payload && typeof payload === "object" ? payload[profile.key] : null;
+    const profilePermissions = {};
+    GRANULAR_PERMISSION_CATALOG.forEach((perm) => {
+      if (current && perm.key in current) {
+        profilePermissions[perm.key] = Boolean(current[perm.key]);
+        return;
+      }
+      profilePermissions[perm.key] = Boolean(defaults[perm.key]);
+    });
+    normalized[profile.key] = profilePermissions;
+  });
+  return normalized;
+}
+
+function getProfileKeyForUser(user) {
+  if (!user) {
+    return "leitura";
+  }
+  const rbacRole = normalizeRbacRole(user.rbacRole || user.role);
+  const known = GRANULAR_PROFILE_CATALOG.some((profile) => profile.key === rbacRole);
+  if (known) {
+    return rbacRole;
+  }
+  const cargo = normalizeCargo(user.cargo);
+  if (cargo.includes("supervisor o m")) {
+    return "supervisor_om";
+  }
+  if (cargo.includes("tecnico senior")) {
+    return "tecnico_senior";
+  }
+  if (cargo.includes("tecnico pleno")) {
+    return "tecnico_pleno";
+  }
+  if (cargo.includes("tecnico junior")) {
+    return "tecnico_junior";
+  }
+  return "leitura";
+}
+
+function getGranularPermissionsForUser(user) {
+  const profileKey = getProfileKeyForUser(user);
+  if (granularPermissions && granularPermissions[profileKey]) {
+    return granularPermissions[profileKey];
+  }
+  return GRANULAR_DEFAULT_PERMISSIONS[profileKey] || GRANULAR_BASE_PERMISSIONS;
+}
+
+function hasGranularPermission(user, permissionKey) {
+  const permissions = getGranularPermissionsForUser(user);
+  return Boolean(permissions && permissions[permissionKey]);
+}
+
+function diffGranularPermissions(before, after) {
+  const changes = [];
+  GRANULAR_PROFILE_CATALOG.forEach((profile) => {
+    const prev = (before && before[profile.key]) || {};
+    const next = (after && after[profile.key]) || {};
+    GRANULAR_PERMISSION_CATALOG.forEach((perm) => {
+      const from = Boolean(prev[perm.key]);
+      const to = Boolean(next[perm.key]);
+      if (from !== to) {
+        changes.push({ perfil: profile.key, permissao: perm.key, de: from, para: to });
+      }
+    });
+  });
+  return changes;
+}
+
 function sanitizeUser(user) {
   if (!user) {
     return null;
@@ -1277,6 +1397,7 @@ function sanitizeUser(user) {
     localizacao: user.localizacao || "",
     active: user.active !== false,
     permissions: buildPermissions(rbacRole, user.permissions),
+    granularPermissions: getGranularPermissionsForUser(user),
     sections: buildSections(rbacRole, user.sections),
     avatarUrl: user.avatarUrl || "",
     avatarUpdatedAt: user.avatarUpdatedAt || "",
@@ -1931,6 +2052,10 @@ let healthTasks = normalizeHealthTasks(readJson(HEALTH_TASKS_FILE, []));
 saveHealthTasks(healthTasks);
 let automations = normalizeAutomations(readJson(AUTOMATIONS_FILE, []));
 saveAutomations(automations);
+let granularPermissions = normalizeGranularPermissions(readJson(PERMISSOES_FILE, null));
+if (!fs.existsSync(PERMISSOES_FILE)) {
+  writeJson(PERMISSOES_FILE, granularPermissions);
+}
 let filesMeta = readJson(FILES_META_FILE, []);
 if (!Array.isArray(filesMeta)) {
   filesMeta = [];
@@ -2197,6 +2322,38 @@ app.get("/api/admin/users", requireAuth, requirePermission("admin:users:read"), 
 
 app.get("/api/admin/permissions", requireAuth, requirePermission("admin:users:read"), (req, res) => {
   return res.json({ permissions: PERMISSION_CATALOG });
+});
+
+app.get("/api/admin/permissoes", requireAuth, requireAdmin, (req, res) => {
+  return res.json({
+    profiles: GRANULAR_PROFILE_CATALOG,
+    permissions: GRANULAR_PERMISSION_CATALOG,
+    values: granularPermissions,
+  });
+});
+
+app.put("/api/admin/permissoes", requireAuth, requireAdmin, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  if (!hasGranularPermission(user, "editarPermissoes")) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  const payload = req.body && (req.body.values || req.body.permissoes || req.body.permissions || req.body);
+  const normalized = normalizeGranularPermissions(payload);
+  const changes = diffGranularPermissions(granularPermissions, normalized);
+  granularPermissions = normalized;
+  writeJson(PERMISSOES_FILE, granularPermissions);
+  appendAudit(
+    "permissoes_update",
+    req.session.userId,
+    { alteracoes: changes },
+    getClientIp(req)
+  );
+  return res.json({
+    ok: true,
+    profiles: GRANULAR_PROFILE_CATALOG,
+    permissions: GRANULAR_PERMISSION_CATALOG,
+    values: granularPermissions,
+  });
 });
 
 app.get("/api/admin/health", requireAuth, requireAdmin, (req, res) => {

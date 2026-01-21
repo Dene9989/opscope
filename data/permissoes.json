@@ -1,0 +1,58 @@
+{
+  "pcm": {
+    "editarPerfil": true,
+    "excluirArquivo": true,
+    "verRDO": true,
+    "gerarRelatorio": true,
+    "editarPermissoes": true
+  },
+  "diretor_om": {
+    "editarPerfil": true,
+    "excluirArquivo": true,
+    "verRDO": true,
+    "gerarRelatorio": true,
+    "editarPermissoes": false
+  },
+  "gerente_contrato": {
+    "editarPerfil": true,
+    "excluirArquivo": true,
+    "verRDO": true,
+    "gerarRelatorio": true,
+    "editarPermissoes": false
+  },
+  "supervisor_om": {
+    "editarPerfil": true,
+    "excluirArquivo": true,
+    "verRDO": true,
+    "gerarRelatorio": true,
+    "editarPermissoes": false
+  },
+  "tecnico_senior": {
+    "editarPerfil": false,
+    "excluirArquivo": false,
+    "verRDO": true,
+    "gerarRelatorio": true,
+    "editarPermissoes": false
+  },
+  "tecnico_pleno": {
+    "editarPerfil": false,
+    "excluirArquivo": false,
+    "verRDO": true,
+    "gerarRelatorio": true,
+    "editarPermissoes": false
+  },
+  "tecnico_junior": {
+    "editarPerfil": false,
+    "excluirArquivo": false,
+    "verRDO": true,
+    "gerarRelatorio": true,
+    "editarPermissoes": false
+  },
+  "leitura": {
+    "editarPerfil": false,
+    "excluirArquivo": false,
+    "verRDO": true,
+    "gerarRelatorio": true,
+    "editarPermissoes": false
+  }
+}
