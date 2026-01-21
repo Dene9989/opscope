@@ -191,6 +191,11 @@ const gerencialHealth = document.getElementById("gerencialHealth");
 const gerencialLogs = document.getElementById("gerencialLogs");
 const gerencialAutomations = document.getElementById("gerencialAutomations");
 const gerencialFiles = document.getElementById("gerencialFiles");
+const gerencialModuleGrid = document.getElementById("gerencialModuleGrid");
+const gerencialModuleSearch = document.getElementById("gerencialModuleSearch");
+const gerencialModulesEmpty = document.getElementById("gerencialModulesEmpty");
+const gerencialModuleCards = Array.from(document.querySelectorAll(".module-card[data-module]"));
+const gerencialModuleModals = Array.from(document.querySelectorAll(".module-modal"));
 const filesFilterType = document.getElementById("filesFilterType");
 const filesSearch = document.getElementById("filesSearch");
 const filesUploadType = document.getElementById("filesUploadType");
@@ -756,6 +761,97 @@ function canExportRelatorios(user) {
 
 function canViewGerencial(user) {
   return hasGranularPermission(user, "verPainelGerencial");
+}
+
+function canAccessGerencialModule(moduleId, user) {
+  if (!user || !canViewGerencial(user)) {
+    return false;
+  }
+  switch (moduleId) {
+    case "diagnostico":
+      return hasGranularPermission(user, "verDiagnostico");
+    case "logs":
+      return hasGranularPermission(user, "verLogsAPI");
+    case "automacoes":
+      return hasGranularPermission(user, "verAutomacoes");
+    case "arquivos":
+      return canManageFilesClient(user);
+    case "permissoes":
+      return true;
+    case "admin-tools":
+      return isAdmin();
+    default:
+      return false;
+  }
+}
+
+function closeGerencialModuleModal(modal) {
+  if (!modal) {
+    return;
+  }
+  modal.hidden = true;
+}
+
+function openGerencialModuleModal(moduleId) {
+  if (!moduleId) {
+    return;
+  }
+  const modal = document.querySelector(`[data-module-modal="${moduleId}"]`);
+  if (!modal) {
+    return;
+  }
+  gerencialModuleModals.forEach((item) => {
+    if (item !== modal) {
+      item.hidden = true;
+    }
+  });
+  modal.hidden = false;
+}
+
+function updateGerencialModuleVisibility() {
+  if (!gerencialModuleGrid) {
+    return;
+  }
+  const canView = Boolean(currentUser && canViewGerencial(currentUser));
+  gerencialModuleGrid.hidden = !canView;
+  if (!canView) {
+    gerencialModuleModals.forEach((modal) => closeGerencialModuleModal(modal));
+    if (gerencialModulesEmpty) {
+      gerencialModulesEmpty.hidden = true;
+    }
+    return;
+  }
+  let visibleCount = 0;
+  gerencialModuleCards.forEach((card) => {
+    const moduleId = card.dataset.module;
+    const allow = canAccessGerencialModule(moduleId, currentUser);
+    card.hidden = !allow;
+    if (allow && !card.classList.contains("is-search-hidden")) {
+      visibleCount += 1;
+    }
+  });
+  if (gerencialModulesEmpty) {
+    gerencialModulesEmpty.hidden = visibleCount !== 0;
+  }
+}
+
+function filterGerencialModules() {
+  if (!gerencialModuleSearch) {
+    return;
+  }
+  const query = gerencialModuleSearch.value.trim().toLowerCase();
+  let visibleCount = 0;
+  gerencialModuleCards.forEach((card) => {
+    const label = (card.dataset.moduleLabel || card.textContent || "").toLowerCase();
+    const match = !query || label.includes(query);
+    card.classList.toggle("is-search-hidden", !match);
+    if (!card.hidden && match) {
+      visibleCount += 1;
+    }
+  });
+  if (gerencialModulesEmpty) {
+    gerencialModulesEmpty.hidden = visibleCount !== 0;
+  }
 }
 
 function canViewUsuarios(user) {
@@ -9489,6 +9585,8 @@ function renderAuthUI() {
     const podeVerGerencial = Boolean(currentUser && canViewGerencial(currentUser));
     gerencialPermissoes.hidden = !podeVerGerencial;
   }
+  updateGerencialModuleVisibility();
+  filterGerencialModules();
   const podeUploadArquivos = currentUser && canUploadFilesClient(currentUser);
   if (filesUploadInput) {
     filesUploadInput.disabled = !podeUploadArquivos;
@@ -14215,6 +14313,47 @@ if (btnExportarPDF) {
 if (btnFecharRelatorio) {
   btnFecharRelatorio.addEventListener("click", fecharRelatorio);
 }
+
+if (gerencialModuleGrid) {
+  gerencialModuleGrid.addEventListener("click", (event) => {
+    const card = event.target.closest(".module-card[data-module]");
+    if (!card || card.hidden) {
+      return;
+    }
+    const moduleId = card.dataset.module;
+    if (!canAccessGerencialModule(moduleId, currentUser)) {
+      return;
+    }
+    openGerencialModuleModal(moduleId);
+  });
+}
+
+if (gerencialModuleSearch) {
+  gerencialModuleSearch.addEventListener("input", () => {
+    filterGerencialModules();
+  });
+}
+
+if (gerencialModuleModals.length) {
+  gerencialModuleModals.forEach((modal) => {
+    modal.addEventListener("click", (event) => {
+      const closeBtn = event.target.closest("[data-modal-close]");
+      if (closeBtn || event.target === modal) {
+        closeGerencialModuleModal(modal);
+      }
+    });
+  });
+}
+
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") {
+    return;
+  }
+  const modal = gerencialModuleModals.find((item) => !item.hidden);
+  if (modal) {
+    closeGerencialModuleModal(modal);
+  }
+});
 
 if (listaSolicitacoes) {
   listaSolicitacoes.addEventListener("click", (event) => {
