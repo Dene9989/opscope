@@ -187,6 +187,16 @@ const btnLogsLoadMore = document.getElementById("btnLogsLoadMore");
 const automationList = document.getElementById("automationList");
 const automationMessage = document.getElementById("automationMessage");
 const btnAutomationRefresh = document.getElementById("btnAutomationRefresh");
+const gerencialFiles = document.getElementById("gerencialFiles");
+const filesFilterType = document.getElementById("filesFilterType");
+const filesSearch = document.getElementById("filesSearch");
+const filesUploadType = document.getElementById("filesUploadType");
+const filesUploadInput = document.getElementById("filesUploadInput");
+const btnFilesUpload = document.getElementById("btnFilesUpload");
+const btnFilesRefresh = document.getElementById("btnFilesRefresh");
+const filesList = document.getElementById("filesList");
+const filesEmpty = document.getElementById("filesEmpty");
+const filesMessage = document.getElementById("filesMessage");
 const btnLogsApply = document.getElementById("btnLogsApply");
 const btnLogsClear = document.getElementById("btnLogsClear");
 const logsFilterEndpoint = document.getElementById("logsFilterEndpoint");
@@ -609,6 +619,16 @@ function canAdminUsersWrite() {
   return Boolean(currentUser.permissions && currentUser.permissions[ADMIN_USERS_WRITE]);
 }
 
+function canManageFilesClient(user) {
+  if (!user) {
+    return false;
+  }
+  if (isFullAccessUser(user)) {
+    return true;
+  }
+  return getCargoLevel(user.cargo) >= 4;
+}
+
 const ACTION_LABELS = {
   create: "Criar",
   edit: "Editar",
@@ -700,6 +720,11 @@ let automationsState = {
   items: [],
   loading: false,
 };
+let filesState = {
+  items: [],
+  loading: false,
+};
+let filesSearchTimer = null;
 let rdoUI = {
   card: null,
   list: null,
@@ -768,6 +793,13 @@ const API_BASE = "";
 const API_TIMEOUT_MS = 15000;
 const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
 const AVATAR_ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const FILE_MAX_BYTES = 10 * 1024 * 1024;
+const FILE_ALLOWED_TYPES = [
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
 let pendingAvatarDataUrl = "";
 let avatarUploadBound = false;
 let lastFocusMaintenanceId = "";
@@ -1513,6 +1545,7 @@ function carregarPainelGerencial(forcar = false) {
   carregarHealth(forcar);
   carregarApiLogs(true);
   carregarAutomacoes(forcar);
+  carregarArquivos(forcar);
 }
 
 function mostrarMensagemAutomacoes(texto, erro = false) {
@@ -1629,6 +1662,131 @@ async function carregarAutomacoes(forcar = false) {
     mostrarMensagemAutomacoes(error.message || "Falha ao carregar automacoes.", true);
   } finally {
     automationsState.loading = false;
+  }
+}
+
+function mostrarMensagemArquivos(texto, erro = false) {
+  if (!filesMessage) {
+    return;
+  }
+  filesMessage.textContent = texto;
+  filesMessage.classList.toggle("mensagem--erro", erro);
+}
+
+function getFileTypeLabel(tipo) {
+  if (tipo === "evidence") {
+    return "Evidencias";
+  }
+  if (tipo === "rdo") {
+    return "Anexos de RDO";
+  }
+  if (tipo === "audit") {
+    return "Documentos de auditoria";
+  }
+  return "Arquivo";
+}
+
+function formatFileSize(bytes) {
+  const value = Number(bytes) || 0;
+  if (value >= 1024 * 1024) {
+    return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  }
+  if (value >= 1024) {
+    return `${Math.round(value / 1024)} KB`;
+  }
+  return `${value} B`;
+}
+
+function renderFilesList() {
+  if (!filesList) {
+    return;
+  }
+  filesList.innerHTML = "";
+  const items = filesState.items || [];
+  if (!items.length) {
+    if (filesEmpty) {
+      filesEmpty.hidden = false;
+    }
+    return;
+  }
+  if (filesEmpty) {
+    filesEmpty.hidden = true;
+  }
+  items.forEach((file) => {
+    const row = document.createElement("div");
+    row.className = "file-item";
+    row.dataset.fileId = file.id;
+
+    const preview = document.createElement("div");
+    preview.className = "file-preview";
+    if (String(file.mime || "").startsWith("image/")) {
+      const img = document.createElement("img");
+      img.src = file.url;
+      img.alt = file.originalName || file.name;
+      preview.append(img);
+    } else {
+      const tag = document.createElement("span");
+      tag.textContent = (file.name || "").split(".").pop()?.toUpperCase() || "ARQ";
+      preview.append(tag);
+    }
+
+    const info = document.createElement("div");
+    info.className = "file-info";
+    const title = document.createElement("div");
+    title.className = "file-title";
+    title.textContent = file.originalName || file.name;
+    const meta = document.createElement("div");
+    meta.className = "file-meta";
+    const data = parseTimestamp(file.createdAt);
+    meta.textContent = `${getFileTypeLabel(file.type)} | ${formatFileSize(file.size)} | ${
+      data ? formatDateTime(data) : "-"
+    }`;
+    info.append(title, meta);
+
+    const actions = document.createElement("div");
+    actions.className = "file-actions";
+    const open = document.createElement("a");
+    open.href = file.url;
+    open.target = "_blank";
+    open.rel = "noopener";
+    open.className = "btn btn--ghost btn--small";
+    open.textContent = "Ver";
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "btn btn--ghost btn--small";
+    remove.dataset.action = "delete-file";
+    remove.dataset.fileId = file.id;
+    remove.textContent = "Excluir";
+    actions.append(open, remove);
+
+    row.append(preview, info, actions);
+    filesList.append(row);
+  });
+}
+
+async function carregarArquivos(forcar = false) {
+  if (!currentUser || !canManageFilesClient(currentUser) || filesState.loading) {
+    return;
+  }
+  if (!forcar && filesState.items.length) {
+    renderFilesList();
+    return;
+  }
+  filesState.loading = true;
+  mostrarMensagemArquivos("Carregando arquivos...");
+  try {
+    const params = {
+      type: filesFilterType ? filesFilterType.value : "",
+      search: filesSearch ? filesSearch.value.trim() : "",
+    };
+    const data = await apiAdminFiles(params);
+    filesState.items = Array.isArray(data.files) ? data.files : [];
+    renderFilesList();
+    mostrarMensagemArquivos("");
+  } catch (error) {
+    mostrarMensagemArquivos(error.message || "Falha ao carregar arquivos.", true);
+  } finally {
+    filesState.loading = false;
   }
 }
 
@@ -8876,6 +9034,7 @@ function renderAuthUI() {
     dashboardLastFetch = 0;
     maintenanceLastSync = 0;
     maintenanceLastUserId = null;
+    filesState.items = [];
     if (maintenanceSyncTimer) {
       clearTimeout(maintenanceSyncTimer);
       maintenanceSyncTimer = null;
@@ -8951,6 +9110,10 @@ function renderAuthUI() {
   adminElements.forEach((section) => {
     section.hidden = !isAdmin();
   });
+
+  if (gerencialFiles) {
+    gerencialFiles.hidden = !canManageFilesClient(currentUser);
+  }
 
   if (btnAdicionarManutencao) {
     const podeCriar = can("create") && secConfig.nova !== false;
@@ -12231,6 +12394,37 @@ async function apiUpdateAutomation(automationId, payload) {
   });
 }
 
+async function apiAdminFiles(params = {}) {
+  const query = new URLSearchParams(params);
+  const suffix = query.toString();
+  return apiRequest(`/api/admin/files${suffix ? `?${suffix}` : ""}`);
+}
+
+async function apiUploadFile(formData) {
+  const response = await fetch(`${API_BASE}/api/admin/files`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = data && data.message ? data.message : "Falha no upload.";
+    const error = new Error(message);
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+  return data;
+}
+
+async function apiDeleteFile(fileId) {
+  const safeId = encodeURIComponent(String(fileId || ""));
+  return apiRequest(`/api/admin/files/${safeId}`, {
+    method: "DELETE",
+    body: "{}",
+  });
+}
+
 async function apiAdminHealth() {
   return apiRequest("/api/admin/health");
 }
@@ -12696,6 +12890,102 @@ if (automationList) {
       mostrarMensagemAutomacoes(error.message || "Falha ao atualizar automacao.", true);
     } finally {
       toggle.disabled = false;
+    }
+  });
+}
+
+if (btnFilesRefresh) {
+  btnFilesRefresh.addEventListener("click", () => {
+    carregarArquivos(true);
+  });
+}
+
+if (filesFilterType) {
+  filesFilterType.addEventListener("change", () => {
+    carregarArquivos(true);
+  });
+}
+
+if (filesSearch) {
+  filesSearch.addEventListener("input", () => {
+    if (filesSearchTimer) {
+      clearTimeout(filesSearchTimer);
+    }
+    filesSearchTimer = setTimeout(() => {
+      carregarArquivos(true);
+    }, 300);
+  });
+}
+
+if (btnFilesUpload) {
+  btnFilesUpload.addEventListener("click", async () => {
+    if (!filesUploadInput || !filesUploadType) {
+      return;
+    }
+    if (!currentUser || !canManageFilesClient(currentUser)) {
+      mostrarMensagemArquivos("Sem permissao para enviar arquivos.", true);
+      return;
+    }
+    const type = filesUploadType.value;
+    const file = filesUploadInput.files && filesUploadInput.files[0];
+    if (!type) {
+      mostrarMensagemArquivos("Selecione o tipo do arquivo.", true);
+      return;
+    }
+    if (!file) {
+      mostrarMensagemArquivos("Selecione um arquivo.", true);
+      return;
+    }
+    if (!FILE_ALLOWED_TYPES.includes(file.type)) {
+      mostrarMensagemArquivos("Tipo de arquivo nao suportado.", true);
+      return;
+    }
+    if (file.size > FILE_MAX_BYTES) {
+      mostrarMensagemArquivos("Arquivo acima de 10 MB.", true);
+      return;
+    }
+    btnFilesUpload.disabled = true;
+    mostrarMensagemArquivos("Enviando arquivo...");
+    try {
+      const formData = new FormData();
+      formData.append("type", type);
+      formData.append("file", file);
+      await apiUploadFile(formData);
+      filesUploadInput.value = "";
+      carregarArquivos(true);
+      mostrarMensagemArquivos("Arquivo enviado com sucesso.");
+    } catch (error) {
+      mostrarMensagemArquivos(error.message || "Falha ao enviar arquivo.", true);
+    } finally {
+      btnFilesUpload.disabled = false;
+    }
+  });
+}
+
+if (filesList) {
+  filesList.addEventListener("click", async (event) => {
+    const removeBtn = event.target.closest("[data-action=\"delete-file\"]");
+    if (!removeBtn) {
+      return;
+    }
+    const fileId = removeBtn.dataset.fileId;
+    if (!fileId) {
+      return;
+    }
+    const confirmar = window.confirm("Excluir este arquivo?");
+    if (!confirmar) {
+      return;
+    }
+    removeBtn.disabled = true;
+    mostrarMensagemArquivos("Removendo arquivo...");
+    try {
+      await apiDeleteFile(fileId);
+      carregarArquivos(true);
+      mostrarMensagemArquivos("Arquivo removido.");
+    } catch (error) {
+      mostrarMensagemArquivos(error.message || "Falha ao remover arquivo.", true);
+    } finally {
+      removeBtn.disabled = false;
     }
   });
 }
@@ -13645,7 +13935,3 @@ window.addEventListener("storage", (event) => {
     carregarSessaoServidor();
   }
 });
-
-
-
-

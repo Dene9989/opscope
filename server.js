@@ -59,6 +59,8 @@ const VERIFICATIONS_FILE = path.join(STORAGE_DIR, "email_verifications.json");
 const API_LOG_FILE = path.join(DATA_DIR, "api_logs.json");
 const HEALTH_TASKS_FILE = path.join(DATA_DIR, "health_tasks.json");
 const BACKUP_DIR = path.join(DATA_DIR, "backups");
+const FILES_META_FILE = path.join(DATA_DIR, "files.json");
+const FILES_DIR = path.join(UPLOADS_DIR, "files");
 const SMTP_HOST = process.env.SMTP_HOST || "";
 const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
 const SMTP_USER = process.env.SMTP_USER || "";
@@ -76,6 +78,18 @@ const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
 const AVATAR_TARGET_BYTES = 1024 * 1024;
 const AVATAR_SIZE = 512;
 const ALLOWED_AVATAR_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+const FILE_MAX_BYTES = 10 * 1024 * 1024;
+const FILE_TYPE_CONFIG = {
+  evidence: { label: "Evidencias", dir: "evidencias" },
+  rdo: { label: "Anexos de RDO", dir: "rdos" },
+  audit: { label: "Documentos de auditoria", dir: "auditoria" },
+};
+const FILE_ALLOWED_MIME = new Map([
+  ["application/pdf", "pdf"],
+  ["image/png", "png"],
+  ["image/jpeg", "jpg"],
+  ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "docx"],
+]);
 const AUTOMATION_DEFAULTS = [
   {
     id: "maintenance_critical_email",
@@ -217,6 +231,15 @@ function ensureUploadDirs() {
   if (!fs.existsSync(AVATARS_DIR)) {
     fs.mkdirSync(AVATARS_DIR, { recursive: true });
   }
+  if (!fs.existsSync(FILES_DIR)) {
+    fs.mkdirSync(FILES_DIR, { recursive: true });
+  }
+  Object.values(FILE_TYPE_CONFIG).forEach((config) => {
+    const dirPath = path.join(FILES_DIR, config.dir);
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+    }
+  });
 }
 
 function ensureBackupDir() {
@@ -315,6 +338,9 @@ function sanitizeLogValue(value, depth = 0) {
   if (value === null || value === undefined) {
     return value;
   }
+  if (Buffer.isBuffer(value)) {
+    return `[binary ${value.length} bytes]`;
+  }
   if (typeof value === "string") {
     if (value.length > 240) {
       return `${value.slice(0, 240)}...`;
@@ -406,6 +432,119 @@ function normalizeAutomations(list) {
 
 function saveAutomations(list) {
   writeJson(AUTOMATIONS_FILE, list);
+}
+
+function getFileTypeConfig(type) {
+  const key = String(type || "").trim().toLowerCase();
+  return FILE_TYPE_CONFIG[key] ? { key, ...FILE_TYPE_CONFIG[key] } : null;
+}
+
+function sanitizeFileName(name) {
+  return String(name || "")
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-zA-Z0-9._-]/g, "");
+}
+
+function splitMultipartBuffer(body, boundary) {
+  const parts = [];
+  if (!body || !boundary) {
+    return parts;
+  }
+  const boundaryBuffer = Buffer.from(`--${boundary}`);
+  let start = body.indexOf(boundaryBuffer);
+  if (start === -1) {
+    return parts;
+  }
+  start += boundaryBuffer.length;
+  while (start < body.length) {
+    if (body[start] === 45 && body[start + 1] === 45) {
+      break;
+    }
+    if (body[start] === 13 && body[start + 1] === 10) {
+      start += 2;
+    }
+    const end = body.indexOf(boundaryBuffer, start);
+    if (end === -1) {
+      break;
+    }
+    const part = body.slice(start, end - 2);
+    if (part.length) {
+      parts.push(part);
+    }
+    start = end + boundaryBuffer.length;
+  }
+  return parts;
+}
+
+function parseMultipartForm(req) {
+  const contentType = String(req.headers["content-type"] || "");
+  const match = contentType.match(/boundary=([^;]+)/i);
+  if (!match) {
+    return null;
+  }
+  const boundary = match[1].replace(/^\"|\"$/g, "");
+  if (!Buffer.isBuffer(req.body)) {
+    return null;
+  }
+  const parts = splitMultipartBuffer(req.body, boundary);
+  const fields = {};
+  let file = null;
+  const separator = Buffer.from("\r\n\r\n");
+  parts.forEach((part) => {
+    const sepIndex = part.indexOf(separator);
+    if (sepIndex === -1) {
+      return;
+    }
+    const headersText = part.slice(0, sepIndex).toString("utf8");
+    const content = part.slice(sepIndex + separator.length);
+    const headers = {};
+    headersText.split("\r\n").forEach((line) => {
+      const idx = line.indexOf(":");
+      if (idx === -1) {
+        return;
+      }
+      const key = line.slice(0, idx).trim().toLowerCase();
+      const value = line.slice(idx + 1).trim();
+      headers[key] = value;
+    });
+    const disposition = headers["content-disposition"] || "";
+    const nameMatch = disposition.match(/name=\"([^\"]+)\"/i);
+    const fileMatch = disposition.match(/filename=\"([^\"]*)\"/i);
+    const fieldName = nameMatch ? nameMatch[1] : "";
+    if (!fieldName) {
+      return;
+    }
+    if (fileMatch && fileMatch[1] !== undefined) {
+      file = {
+        fieldName,
+        originalName: fileMatch[1],
+        mime: headers["content-type"] || "",
+        buffer: content,
+      };
+      return;
+    }
+    fields[fieldName] = content.toString("utf8").trim();
+  });
+  return { fields, file };
+}
+
+function canManageFiles(user) {
+  if (!user) {
+    return false;
+  }
+  if (isFullAccessRole(user.rbacRole || user.role)) {
+    return true;
+  }
+  return getCargoLevel(user.cargo) >= 4;
+}
+
+function requireSupervisor(req, res, next) {
+  const user = req.currentUser || getSessionUser(req);
+  if (!user || !canManageFiles(user)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  return next();
 }
 
 function saveHealthTasks(tasks) {
@@ -1792,6 +1931,10 @@ let healthTasks = normalizeHealthTasks(readJson(HEALTH_TASKS_FILE, []));
 saveHealthTasks(healthTasks);
 let automations = normalizeAutomations(readJson(AUTOMATIONS_FILE, []));
 saveAutomations(automations);
+let filesMeta = readJson(FILES_META_FILE, []);
+if (!Array.isArray(filesMeta)) {
+  filesMeta = [];
+}
 cleanupVerifications();
 users = users.map(normalizeUserRecord);
 writeJson(USERS_FILE, users);
@@ -2150,6 +2293,114 @@ app.patch("/api/admin/automations/:id", requireAuth, requireAdmin, (req, res) =>
     getClientIp(req)
   );
   return res.json({ ok: true, automations });
+});
+
+app.get("/api/admin/files", requireAuth, requireSupervisor, (req, res) => {
+  const type = String(req.query.type || "").trim().toLowerCase();
+  const search = String(req.query.search || "").trim().toLowerCase();
+  let list = Array.isArray(filesMeta) ? filesMeta.slice() : [];
+  if (type && FILE_TYPE_CONFIG[type]) {
+    list = list.filter((item) => item.type === type);
+  }
+  if (search) {
+    list = list.filter((item) => {
+      const name = String(item.name || "").toLowerCase();
+      const original = String(item.originalName || "").toLowerCase();
+      return name.includes(search) || original.includes(search);
+    });
+  }
+  list.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return res.json({ files: list });
+});
+
+app.post(
+  "/api/admin/files",
+  requireAuth,
+  requireSupervisor,
+  express.raw({ type: "multipart/form-data", limit: FILE_MAX_BYTES + 1024 * 1024 }),
+  (req, res) => {
+    const parsed = parseMultipartForm(req);
+    if (!parsed || !parsed.file) {
+      return res.status(400).json({ message: "Arquivo nao enviado." });
+    }
+    const typeConfig = getFileTypeConfig(parsed.fields.type);
+    if (!typeConfig) {
+      return res.status(400).json({ message: "Tipo de arquivo invalido." });
+    }
+    const mime = String(parsed.file.mime || "").toLowerCase();
+    if (!FILE_ALLOWED_MIME.has(mime)) {
+      return res.status(415).json({ message: "Tipo de arquivo nao suportado." });
+    }
+    if (!parsed.file.buffer || parsed.file.buffer.length === 0) {
+      return res.status(400).json({ message: "Arquivo invalido." });
+    }
+    if (parsed.file.buffer.length > FILE_MAX_BYTES) {
+      return res.status(413).json({ message: "Arquivo acima de 10 MB." });
+    }
+    ensureUploadDirs();
+    const ext = FILE_ALLOWED_MIME.get(mime);
+    const baseName = sanitizeFileName(path.parse(parsed.file.originalName || "arquivo").name);
+    const unique = crypto.randomUUID().slice(0, 8);
+    const fileName = `${Date.now()}-${unique}-${baseName || "arquivo"}.${ext}`;
+    const dirPath = path.join(FILES_DIR, typeConfig.dir);
+    const filePath = path.join(dirPath, fileName);
+    try {
+      fs.writeFileSync(filePath, parsed.file.buffer);
+    } catch (error) {
+      return res.status(500).json({ message: "Falha ao salvar arquivo." });
+    }
+    const actor = req.currentUser || getSessionUser(req);
+    const entry = {
+      id: crypto.randomUUID(),
+      name: fileName,
+      originalName: parsed.file.originalName || fileName,
+      type: typeConfig.key,
+      size: parsed.file.buffer.length,
+      mime,
+      url: `/uploads/files/${typeConfig.dir}/${fileName}`,
+      createdAt: new Date().toISOString(),
+      createdBy: actor ? actor.id : "",
+      createdByName: actor ? actor.name : "",
+    };
+    filesMeta = Array.isArray(filesMeta) ? filesMeta.concat(entry) : [entry];
+    writeJson(FILES_META_FILE, filesMeta);
+    appendAudit(
+      "file_upload",
+      actor ? actor.id : null,
+      { fileId: entry.id, name: entry.originalName, type: entry.type },
+      getClientIp(req)
+    );
+    return res.json({ ok: true, file: entry });
+  }
+);
+
+app.delete("/api/admin/files/:id", requireAuth, requireSupervisor, (req, res) => {
+  const fileId = String(req.params.id || "").trim();
+  const index = Array.isArray(filesMeta) ? filesMeta.findIndex((item) => item.id === fileId) : -1;
+  if (index === -1) {
+    return res.status(404).json({ message: "Arquivo nao encontrado." });
+  }
+  const file = filesMeta[index];
+  const typeConfig = getFileTypeConfig(file.type);
+  if (typeConfig) {
+    const filePath = path.join(FILES_DIR, typeConfig.dir, file.name);
+    if (fs.existsSync(filePath)) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch (error) {
+        // noop
+      }
+    }
+  }
+  filesMeta.splice(index, 1);
+  writeJson(FILES_META_FILE, filesMeta);
+  appendAudit(
+    "file_delete",
+    req.currentUser ? req.currentUser.id : null,
+    { fileId, name: file.originalName },
+    getClientIp(req)
+  );
+  return res.json({ ok: true });
 });
 
 app.post("/api/maintenance/sync", requireAuth, (req, res) => {

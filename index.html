@@ -1756,6 +1756,48 @@
         <div id="automationList" class="automation-list"></div>
         <p id="automationMessage" class="mensagem" aria-live="polite"></p>
       </section>
+
+      <section class="card" id="gerencialFiles">
+        <div class="card-head">
+          <div>
+            <h2>Arquivos do sistema</h2>
+            <p class="hint">Anexos operacionais e evidencias centralizadas.</p>
+          </div>
+          <button id="btnFilesRefresh" class="btn btn--ghost btn--small" type="button">Atualizar</button>
+        </div>
+        <div class="files-toolbar">
+          <div class="field">
+            <label for="filesFilterType">Tipo</label>
+            <select id="filesFilterType">
+              <option value="">Todos</option>
+              <option value="evidence">Evidencias</option>
+              <option value="rdo">Anexos de RDO</option>
+              <option value="audit">Documentos de auditoria</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="filesSearch">Buscar</label>
+            <input id="filesSearch" type="text" placeholder="Nome do arquivo" />
+          </div>
+          <div class="field">
+            <label for="filesUploadType">Tipo do upload</label>
+            <select id="filesUploadType">
+              <option value="">Selecionar</option>
+              <option value="evidence">Evidencias</option>
+              <option value="rdo">Anexos de RDO</option>
+              <option value="audit">Documentos de auditoria</option>
+            </select>
+          </div>
+          <div class="files-actions">
+            <input id="filesUploadInput" type="file" accept=".pdf,.png,.jpg,.jpeg,.docx" />
+            <button id="btnFilesUpload" class="btn btn--primary btn--small" type="button">Enviar</button>
+          </div>
+        </div>
+        <small class="hint">PDF, PNG, JPG ou DOCX ate 10 MB por arquivo.</small>
+        <div id="filesList" class="files-list"></div>
+        <p id="filesEmpty" class="empty-state" hidden>Nenhum arquivo encontrado.</p>
+        <p id="filesMessage" class="mensagem" aria-live="polite"></p>
+      </section>
     </section>
 
     <section class="panel" id="contas" data-panel="contas" data-admin-only>
