@@ -187,6 +187,9 @@ const btnLogsLoadMore = document.getElementById("btnLogsLoadMore");
 const automationList = document.getElementById("automationList");
 const automationMessage = document.getElementById("automationMessage");
 const btnAutomationRefresh = document.getElementById("btnAutomationRefresh");
+const gerencialHealth = document.getElementById("gerencialHealth");
+const gerencialLogs = document.getElementById("gerencialLogs");
+const gerencialAutomations = document.getElementById("gerencialAutomations");
 const gerencialFiles = document.getElementById("gerencialFiles");
 const filesFilterType = document.getElementById("filesFilterType");
 const filesSearch = document.getElementById("filesSearch");
@@ -486,10 +489,26 @@ const PERMISSIONS = {
 
 const GRANULAR_PERMISSION_LABELS = {
   editarPerfil: "Editar perfil (UEN/Projeto)",
-  excluirArquivo: "Excluir arquivos",
-  verRDO: "Ver RDOs",
-  gerarRelatorio: "Gerar relatorios",
-  editarPermissoes: "Editar permissoes",
+  editarPerfilOutros: "Editar perfil de outros",
+  verUsuarios: "Ver usuarios",
+  convidarUsuarios: "Convidar usuarios",
+  desativarUsuarios: "Desativar usuarios",
+  verArquivos: "Ver arquivos",
+  uploadArquivos: "Enviar arquivos",
+  excluirArquivos: "Excluir arquivos",
+  vincularArquivo: "Vincular arquivo",
+  verRDOs: "Ver RDOs",
+  gerarRDOs: "Gerar RDOs",
+  excluirRDOs: "Excluir RDOs",
+  verRelatorios: "Ver relatorios",
+  exportarRelatorios: "Exportar relatorios",
+  reexecutarTarefas: "Reexecutar tarefas",
+  verLogsAPI: "Ver logs de API",
+  limparLogsAPI: "Limpar logs de API",
+  gerenciarAutomacoes: "Gerenciar automacoes",
+  verAutomacoes: "Ver automacoes",
+  verDiagnostico: "Ver diagnostico",
+  verPainelGerencial: "Ver painel gerencial",
 };
 const GRANULAR_PROFILE_ORDER = [
   "pcm",
@@ -525,6 +544,15 @@ const LEGACY_ROLE_LABELS = {
 
 const FULL_ACCESS_RBAC = new Set(["pcm", "diretor_om", "gerente_contrato"]);
 const RELEASE_OVERRIDE_RBAC = new Set(["pcm", "diretor_om", "gerente_contrato", "supervisor_om"]);
+const TAB_PERMISSION_MAP = {
+  desempenho: "verRelatorios",
+  tendencias: "verRelatorios",
+  relatorios: ["verRelatorios", "verRDOs"],
+  solicitacoes: "verUsuarios",
+  contas: "verUsuarios",
+  gerencial: "verPainelGerencial",
+  rastreabilidade: "verLogsAPI",
+};
 const LOCK_ICON_SVG =
   '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 10V7a5 5 0 0 1 10 0v3h1a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h1Zm2 0h6V7a3 3 0 0 0-6 0v3Z" fill="currentColor"/></svg>';
 
@@ -619,14 +647,14 @@ function canEditProfile(actor, target) {
   if (!actor || !target) {
     return false;
   }
-  if (!hasGranularPermission(actor, "editarPerfil")) {
-    return false;
-  }
   if (isFullAccessUser(actor)) {
     return true;
   }
   if (actor.id === target.id) {
-    return true;
+    return hasGranularPermission(actor, "editarPerfil");
+  }
+  if (!hasGranularPermission(actor, "editarPerfilOutros")) {
+    return false;
   }
   const actorLevel = getCargoLevel(actor.cargo);
   const targetLevel = getCargoLevel(target.cargo);
@@ -659,7 +687,7 @@ function canAdminUsersRead() {
   if (isFullAccessUser(currentUser)) {
     return true;
   }
-  return Boolean(currentUser.permissions && currentUser.permissions[ADMIN_USERS_READ]);
+  return canViewUsuarios(currentUser);
 }
 
 function canAdminUsersWrite() {
@@ -669,7 +697,11 @@ function canAdminUsersWrite() {
   if (isFullAccessUser(currentUser)) {
     return true;
   }
-  return Boolean(currentUser.permissions && currentUser.permissions[ADMIN_USERS_WRITE]);
+  return (
+    hasGranularPermission(currentUser, "editarPerfilOutros") ||
+    hasGranularPermission(currentUser, "desativarUsuarios") ||
+    hasGranularPermission(currentUser, "convidarUsuarios")
+  );
 }
 
 function canManageFilesClient(user) {
@@ -679,15 +711,78 @@ function canManageFilesClient(user) {
   if (isFullAccessUser(user)) {
     return true;
   }
-  return hasGranularPermission(user, "excluirArquivo");
+  return hasGranularPermission(user, "verArquivos");
+}
+
+function canUploadFilesClient(user) {
+  if (!user) {
+    return false;
+  }
+  if (isFullAccessUser(user)) {
+    return true;
+  }
+  return hasGranularPermission(user, "uploadArquivos");
+}
+
+function canDeleteFilesClient(user) {
+  if (!user) {
+    return false;
+  }
+  if (isFullAccessUser(user)) {
+    return true;
+  }
+  return hasGranularPermission(user, "excluirArquivos");
 }
 
 function canViewRdo(user) {
-  return hasGranularPermission(user, "verRDO");
+  return hasGranularPermission(user, "verRDOs");
 }
 
 function canGerarRelatorio(user) {
-  return hasGranularPermission(user, "gerarRelatorio");
+  return hasGranularPermission(user, "gerarRDOs");
+}
+
+function canExcluirRdo(user) {
+  return hasGranularPermission(user, "excluirRDOs");
+}
+
+function canViewRelatorios(user) {
+  return hasGranularPermission(user, "verRelatorios");
+}
+
+function canExportRelatorios(user) {
+  return hasGranularPermission(user, "exportarRelatorios");
+}
+
+function canViewGerencial(user) {
+  return hasGranularPermission(user, "verPainelGerencial");
+}
+
+function canViewUsuarios(user) {
+  return hasGranularPermission(user, "verUsuarios");
+}
+
+function canInviteUsuarios(user) {
+  return hasGranularPermission(user, "convidarUsuarios");
+}
+
+function canDesativarUsuarios(user) {
+  return hasGranularPermission(user, "desativarUsuarios");
+}
+
+function canViewTab(tab, user, secConfig) {
+  if (!tab) {
+    return false;
+  }
+  const permissionKey = TAB_PERMISSION_MAP[tab];
+  if (permissionKey) {
+    if (!user) {
+      return false;
+    }
+    const keys = Array.isArray(permissionKey) ? permissionKey : [permissionKey];
+    return keys.some((key) => hasGranularPermission(user, key));
+  }
+  return Boolean(secConfig && secConfig[tab]);
 }
 
 const ACTION_LABELS = {
@@ -1401,6 +1496,9 @@ function renderHealthTasks(snapshot) {
     btn.dataset.action = "run-task";
     btn.dataset.taskId = task.id;
     btn.textContent = "Reexecutar";
+    if (!currentUser || !hasGranularPermission(currentUser, "reexecutarTarefas")) {
+      btn.disabled = true;
+    }
     actions.append(btn);
 
     card.append(meta, actions);
@@ -1433,7 +1531,7 @@ function renderHealthIntegrity(snapshot) {
 }
 
 async function carregarHealth(forcar = false) {
-  if (!isAdmin() || healthLoading) {
+  if (!currentUser || !canViewGerencial(currentUser) || !hasGranularPermission(currentUser, "verDiagnostico") || healthLoading) {
     return;
   }
   if (!forcar && healthSnapshot) {
@@ -1559,7 +1657,7 @@ function getApiLogsFilters() {
 }
 
 async function carregarApiLogs(reset = false) {
-  if (!isAdmin() || apiLogsState.loading) {
+  if (!currentUser || !canViewGerencial(currentUser) || !hasGranularPermission(currentUser, "verLogsAPI") || apiLogsState.loading) {
     return;
   }
   if (!apiLogsTable) {
@@ -1607,7 +1705,7 @@ async function carregarApiLogs(reset = false) {
 }
 
 function carregarPainelGerencial(forcar = false) {
-  if (!isAdmin()) {
+  if (!currentUser || !canViewGerencial(currentUser)) {
     return;
   }
   carregarHealth(forcar);
@@ -1659,8 +1757,7 @@ function renderPermissoesGerenciais() {
   }
   const profiles = getPermissoesProfiles();
   const permissions = getPermissoesCatalog();
-  const podeEditar =
-    Boolean(currentUser) && isAdmin() && hasGranularPermission(currentUser, "editarPermissoes");
+  const podeEditar = Boolean(currentUser && isAdmin() && canViewGerencial(currentUser));
 
   permissoesList.innerHTML = "";
   if (!profiles.length || !permissions.length) {
@@ -1698,6 +1795,9 @@ function renderPermissoesGerenciais() {
     card.append(title, list);
     permissoesList.append(card);
   });
+  if (btnPermissoesSalvar) {
+    btnPermissoesSalvar.disabled = !podeEditar;
+  }
 }
 
 function coletarPermissoesGerenciais() {
@@ -1720,7 +1820,7 @@ function coletarPermissoesGerenciais() {
 }
 
 async function carregarPermissoes(forcar = false) {
-  if (!currentUser || !isAdmin()) {
+  if (!currentUser || !canViewGerencial(currentUser)) {
     return;
   }
   if (permissoesState.loading) {
@@ -1823,6 +1923,7 @@ function renderAutomacoes() {
     const input = toggle.querySelector("input");
     if (input) {
       input.checked = Boolean(automation.enabled);
+      input.disabled = !hasGranularPermission(currentUser, "gerenciarAutomacoes");
     }
     const note = document.createElement("div");
     note.className = "automation-note";
@@ -1835,7 +1936,7 @@ function renderAutomacoes() {
 }
 
 async function carregarAutomacoes(forcar = false) {
-  if (!isAdmin() || automationsState.loading) {
+  if (!currentUser || !canViewGerencial(currentUser) || !hasGranularPermission(currentUser, "verAutomacoes") || automationsState.loading) {
     return;
   }
   if (!forcar && automationsState.items.length) {
@@ -1942,13 +2043,17 @@ function renderFilesList() {
     open.rel = "noopener";
     open.className = "btn btn--ghost btn--small";
     open.textContent = "Ver";
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.className = "btn btn--ghost btn--small";
-    remove.dataset.action = "delete-file";
-    remove.dataset.fileId = file.id;
-    remove.textContent = "Excluir";
-    actions.append(open, remove);
+    actions.append(open);
+    const podeExcluir = currentUser && canDeleteFilesClient(currentUser);
+    if (podeExcluir) {
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "btn btn--ghost btn--small";
+      remove.dataset.action = "delete-file";
+      remove.dataset.fileId = file.id;
+      remove.textContent = "Excluir";
+      actions.append(remove);
+    }
 
     row.append(preview, info, actions);
     filesList.append(row);
@@ -1956,7 +2061,7 @@ function renderFilesList() {
 }
 
 async function carregarArquivos(forcar = false) {
-  if (!currentUser || !canManageFilesClient(currentUser) || filesState.loading) {
+  if (!currentUser || !canManageFilesClient(currentUser) || !canViewGerencial(currentUser) || filesState.loading) {
     return;
   }
   if (!forcar && filesState.items.length) {
@@ -3026,7 +3131,7 @@ function getUserLabel(id) {
 }
 
 function isAdmin() {
-  return currentUser && currentUser.role === "admin";
+  return Boolean(currentUser && isFullAccessUser(currentUser));
 }
 
 function can(action) {
@@ -4797,6 +4902,7 @@ function aplicarPermissoesRdo() {
   }
   const podeVer = Boolean(currentUser && canViewRdo(currentUser));
   const podeGerar = Boolean(currentUser && canGerarRelatorio(currentUser));
+  const podeExcluir = Boolean(currentUser && canExcluirRdo(currentUser));
   rdoUI.card.hidden = !podeVer;
   if (!podeVer) {
     return;
@@ -4806,7 +4912,7 @@ function aplicarPermissoesRdo() {
     rdoUI.btnGerar.classList.toggle("is-disabled", !podeGerar);
   }
   if (rdoUI.btnExcluir) {
-    rdoUI.btnExcluir.disabled = !podeGerar;
+    rdoUI.btnExcluir.disabled = !podeExcluir;
   }
 }
 
@@ -4923,7 +5029,7 @@ function confirmarDeleteRdo() {
   if (!rdoUI.deleteReason) {
     return;
   }
-  if (!currentUser || !canGerarRelatorio(currentUser)) {
+  if (!currentUser || !canExcluirRdo(currentUser)) {
     mostrarMensagemRdo("Sem permissao para excluir RDO.", true);
     return;
   }
@@ -8912,11 +9018,18 @@ function renderSolicitacoes() {
     return;
   }
   listaSolicitacoes.innerHTML = "";
+  if (!currentUser || !canViewUsuarios(currentUser)) {
+    solicitacoesVazio.textContent = "Acesso restrito.";
+    solicitacoesVazio.hidden = false;
+    return;
+  }
   if (requests.length === 0) {
+    solicitacoesVazio.textContent = "Nenhuma solicitacao pendente.";
     solicitacoesVazio.hidden = false;
     return;
   }
   solicitacoesVazio.hidden = true;
+  const podeAprovar = Boolean(currentUser && canInviteUsuarios(currentUser));
 
   requests.forEach((request) => {
     const item = document.createElement("div");
@@ -8939,6 +9052,7 @@ function renderSolicitacoes() {
     const roleInput = document.createElement("input");
     roleInput.type = "checkbox";
     roleInput.dataset.role = "admin";
+    roleInput.disabled = !podeAprovar;
     const roleLabel = document.createElement("label");
     roleLabel.textContent = "Administrador";
     role.append(roleInput, roleLabel);
@@ -8954,6 +9068,7 @@ function renderSolicitacoes() {
       checkbox.type = "checkbox";
       checkbox.checked = true;
       checkbox.dataset.permission = key;
+      checkbox.disabled = !podeAprovar;
       const text = document.createElement("span");
       text.textContent = PERMISSIONS[key];
       permItem.append(checkbox, text);
@@ -8973,6 +9088,7 @@ function renderSolicitacoes() {
       checkbox.type = "checkbox";
       checkbox.checked = true;
       checkbox.dataset.section = key;
+      checkbox.disabled = !podeAprovar;
       const text = document.createElement("span");
       text.textContent = SECTION_LABELS[key];
       sectionItem.append(checkbox, text);
@@ -8986,11 +9102,15 @@ function renderSolicitacoes() {
     btnAprovar.className = "btn btn--primary btn--small";
     btnAprovar.dataset.action = "approve";
     btnAprovar.textContent = "Aprovar";
+    btnAprovar.disabled = !podeAprovar;
+    btnAprovar.classList.toggle("is-disabled", !podeAprovar);
     const btnRecusar = document.createElement("button");
     btnRecusar.type = "button";
     btnRecusar.className = "btn btn--ghost btn--small btn--danger";
     btnRecusar.dataset.action = "reject";
     btnRecusar.textContent = "Recusar";
+    btnRecusar.disabled = !podeAprovar;
+    btnRecusar.classList.toggle("is-disabled", !podeAprovar);
     actions.append(btnAprovar, btnRecusar);
 
     item.append(header, perms, sectionsLabel, sections, actions);
@@ -9306,20 +9426,14 @@ function renderAuthUI() {
 
   tabButtons.forEach((botao) => {
     const tab = botao.dataset.tab;
-    if (ADMIN_SECTIONS.includes(tab)) {
-      botao.hidden = !isAdmin();
-      return;
-    }
-    botao.hidden = !autenticado || !secConfig[tab];
+    const podeVer = autenticado && canViewTab(tab, currentUser, secConfig);
+    botao.hidden = !podeVer;
   });
 
   panels.forEach((panel) => {
     const nome = panel.dataset.panel;
-    if (ADMIN_SECTIONS.includes(nome)) {
-      panel.hidden = !isAdmin();
-      return;
-    }
-    panel.hidden = !autenticado || !secConfig[nome];
+    const podeVer = autenticado && canViewTab(nome, currentUser, secConfig);
+    panel.hidden = !podeVer;
   });
 
   const tabAtiva = Array.from(tabButtons).find(
@@ -9333,17 +9447,54 @@ function renderAuthUI() {
   }
 
   adminElements.forEach((section) => {
-    section.hidden = !isAdmin();
+    const tab = section.dataset.tab || section.dataset.panel;
+    if (tab) {
+      section.hidden = !autenticado || !canViewTab(tab, currentUser, secConfig);
+      return;
+    }
+    section.hidden = !autenticado || !canViewGerencial(currentUser);
   });
 
+  document.querySelectorAll(".nav-group").forEach((grupo) => {
+    const itens = Array.from(grupo.querySelectorAll("[data-tab]"));
+    const algumVisivel = itens.some((item) => !item.hidden);
+    grupo.hidden = !algumVisivel;
+  });
+
+  if (gerencialHealth) {
+    gerencialHealth.hidden =
+      !currentUser ||
+      !canViewGerencial(currentUser) ||
+      !hasGranularPermission(currentUser, "verDiagnostico");
+  }
+  if (gerencialLogs) {
+    gerencialLogs.hidden =
+      !currentUser ||
+      !canViewGerencial(currentUser) ||
+      !hasGranularPermission(currentUser, "verLogsAPI");
+  }
+  if (gerencialAutomations) {
+    gerencialAutomations.hidden =
+      !currentUser ||
+      !canViewGerencial(currentUser) ||
+      !hasGranularPermission(currentUser, "verAutomacoes");
+  }
   if (gerencialFiles) {
-    gerencialFiles.hidden = !canManageFilesClient(currentUser);
+    gerencialFiles.hidden =
+      !currentUser ||
+      !canViewGerencial(currentUser) ||
+      !canManageFilesClient(currentUser);
   }
   if (gerencialPermissoes) {
-    const podeEditar = Boolean(
-      currentUser && isAdmin() && hasGranularPermission(currentUser, "editarPermissoes")
-    );
-    gerencialPermissoes.hidden = !podeEditar;
+    const podeVerGerencial = Boolean(currentUser && canViewGerencial(currentUser));
+    gerencialPermissoes.hidden = !podeVerGerencial;
+  }
+  const podeUploadArquivos = currentUser && canUploadFilesClient(currentUser);
+  if (filesUploadInput) {
+    filesUploadInput.disabled = !podeUploadArquivos;
+  }
+  if (btnFilesUpload) {
+    btnFilesUpload.disabled = !podeUploadArquivos;
   }
 
   if (btnAdicionarManutencao) {
@@ -9353,9 +9504,18 @@ function renderAuthUI() {
   }
 
   if (btnGerarRelatorio) {
-    const podeGerar = currentUser && canGerarRelatorio(currentUser);
-    btnGerarRelatorio.disabled = !podeGerar;
-    btnGerarRelatorio.classList.toggle("is-disabled", !podeGerar);
+    const podeExportar = currentUser && canExportRelatorios(currentUser);
+    btnGerarRelatorio.disabled = !podeExportar;
+    btnGerarRelatorio.classList.toggle("is-disabled", !podeExportar);
+  }
+
+  const podeConvidarUsuarios = Boolean(currentUser && canInviteUsuarios(currentUser));
+  if (btnGerarConvite) {
+    btnGerarConvite.disabled = !podeConvidarUsuarios;
+    btnGerarConvite.classList.toggle("is-disabled", !podeConvidarUsuarios);
+  }
+  if (inviteRole) {
+    inviteRole.disabled = !podeConvidarUsuarios;
   }
 
   aplicarPermissoesRdo();
@@ -9621,7 +9781,7 @@ function recalcularBacklog() {
 }
 
 function gerarRelatorio() {
-  if (!currentUser || !canGerarRelatorio(currentUser)) {
+  if (!currentUser || !canExportRelatorios(currentUser)) {
     mostrarMensagemGerencial("Sem permissao para gerar relatorio.", true);
     return;
   }
@@ -10326,7 +10486,7 @@ function renderDrawerPermissions(user, overridePermissions = null) {
     user.rbacRole ||
     (user.role === "admin" ? "pcm" : user.role === "supervisor" ? "supervisor_om" : "");
   const isFullAccess = FULL_ACCESS_RBAC.has(String(resolvedRole || "").toLowerCase());
-  const permissaoEdicao = canAdminUsersWrite() && canEditProfile(currentUser, user);
+  const permissaoEdicao = Boolean(currentUser && canEditProfile(currentUser, user));
   const basePermissions = overridePermissions || user.permissions || {};
 
   adminPermissionCatalog.forEach((grupo) => {
@@ -10407,22 +10567,30 @@ function abrirUserDrawer(userId) {
   if (drawerActive) {
     drawerActive.checked = user.active !== false;
   }
-  const podeEditar = canAdminUsersWrite() && canEditProfile(currentUser, user);
-  [drawerNome, drawerCargo, drawerRole, drawerProjeto, drawerActive].forEach((campo) => {
+  const podeEditarPerfil = Boolean(currentUser && canEditProfile(currentUser, user));
+  const podeDesativar = Boolean(currentUser && canDesativarUsuarios(currentUser));
+  const podeSalvar = podeEditarPerfil || podeDesativar;
+
+  [drawerNome, drawerCargo, drawerRole, drawerProjeto].forEach((campo) => {
     if (campo) {
-      campo.disabled = !podeEditar;
+      campo.disabled = !podeEditarPerfil;
     }
   });
+  if (drawerActive) {
+    drawerActive.disabled = !podeDesativar;
+  }
   if (drawerSubtitle) {
     const perfil = getRoleLabel(user);
     drawerSubtitle.textContent = `Matricula: ${user.matricula || "-"} | Perfil: ${perfil}`;
   }
   if (btnSalvarUserDrawer) {
-    btnSalvarUserDrawer.disabled = !podeEditar;
+    btnSalvarUserDrawer.disabled = !podeSalvar;
   }
   renderDrawerPermissions(user);
-  if (!podeEditar) {
-    mostrarMensagemDrawer("Sem permissao para editar este perfil.", true);
+  if (!podeSalvar) {
+    mostrarMensagemDrawer("Sem permissao para alterar este perfil.", true);
+  } else if (!podeEditarPerfil && podeDesativar) {
+    mostrarMensagemDrawer("Edicao bloqueada. Apenas ativacao/desativacao disponivel.", true);
   } else {
     mostrarMensagemDrawer("");
   }
@@ -10439,41 +10607,45 @@ function fecharUserDrawer() {
 
 async function salvarUserDrawer(event) {
   event.preventDefault();
-  if (!canAdminUsersWrite()) {
-    mostrarMensagemDrawer("Sem permissao para salvar alteracoes.", true);
-    return;
-  }
   const userId = drawerUserId ? drawerUserId.value : "";
   const user = users.find((item) => item.id === userId);
   if (!user) {
     mostrarMensagemDrawer("Usuario nao encontrado.", true);
     return;
   }
-  if (!canEditProfile(currentUser, user)) {
-    mostrarMensagemDrawer("Sem permissao para editar este perfil.", true);
+  const podeEditarPerfil = Boolean(currentUser && canEditProfile(currentUser, user));
+  const podeDesativar = Boolean(currentUser && canDesativarUsuarios(currentUser));
+  if (!podeEditarPerfil && !podeDesativar) {
+    mostrarMensagemDrawer("Sem permissao para salvar alteracoes.", true);
     return;
   }
-  const nome = drawerNome ? drawerNome.value.trim() : "";
-  if (!nome) {
-    mostrarMensagemDrawer("Informe o nome do colaborador.", true);
+  const payload = {};
+  if (podeEditarPerfil) {
+    const nome = drawerNome ? drawerNome.value.trim() : "";
+    if (!nome) {
+      mostrarMensagemDrawer("Informe o nome do colaborador.", true);
+      return;
+    }
+    const cargo = drawerCargo ? drawerCargo.value.trim() : "";
+    const rbacRole = drawerRole ? drawerRole.value : user.rbacRole;
+    const projeto = drawerProjeto ? drawerProjeto.value.trim() : "";
+    const permissions = collectDrawerPermissions();
+    payload.name = nome;
+    payload.cargo = cargo;
+    payload.rbacRole = rbacRole;
+    payload.projeto = projeto;
+    payload.localizacao = projeto;
+    payload.permissions = permissions;
+  }
+  if (podeDesativar) {
+    payload.active = drawerActive ? drawerActive.checked : true;
+  }
+  if (!Object.keys(payload).length) {
+    mostrarMensagemDrawer("Nenhuma alteracao permitida.", true);
     return;
   }
-  const cargo = drawerCargo ? drawerCargo.value.trim() : "";
-  const rbacRole = drawerRole ? drawerRole.value : user.rbacRole;
-  const projeto = drawerProjeto ? drawerProjeto.value.trim() : "";
-  const active = drawerActive ? drawerActive.checked : true;
-  const permissions = collectDrawerPermissions();
-
   try {
-    const data = await apiAdminUpdateUser(userId, {
-      name: nome,
-      cargo,
-      rbacRole,
-      projeto,
-      localizacao: projeto,
-      active,
-      permissions,
-    });
+    const data = await apiAdminUpdateUser(userId, payload);
     const atualizado = data.user || null;
     if (atualizado) {
       users = users.map((item) => (item.id === atualizado.id ? atualizado : item));
@@ -12824,7 +12996,8 @@ async function loadDashboardSummary(force) {
 }
 
 function aprovarSolicitacao(item) {
-  if (!isAdmin()) {
+  if (!currentUser || !canInviteUsuarios(currentUser)) {
+    mostrarMensagemGerencial("Sem permissao para aprovar solicitacoes.", true);
     return;
   }
   const requestId = item.dataset.requestId;
@@ -12869,7 +13042,8 @@ function aprovarSolicitacao(item) {
 }
 
 function recusarSolicitacao(item) {
-  if (!isAdmin()) {
+  if (!currentUser || !canInviteUsuarios(currentUser)) {
+    mostrarMensagemGerencial("Sem permissao para recusar solicitacoes.", true);
     return;
   }
   const requestId = item.dataset.requestId;
@@ -12946,15 +13120,12 @@ function atualizarRoleUsuario(checkbox) {
 }
 
 function salvarDadosUsuario(item) {
-  if (!isAdmin()) {
-    return;
-  }
   const userId = item.dataset.userId;
   const user = users.find((usuario) => usuario.id === userId);
   if (!user) {
     return;
   }
-  if (!canEditProfile(currentUser, user)) {
+  if (!currentUser || !canEditProfile(currentUser, user)) {
     mostrarMensagemGerencial("Sem permissao para editar este perfil.", true);
     return;
   }
@@ -12974,7 +13145,8 @@ function salvarDadosUsuario(item) {
 }
 
 function removerUsuario(item) {
-  if (!isAdmin()) {
+  if (!currentUser || !canDesativarUsuarios(currentUser)) {
+    mostrarMensagemGerencial("Sem permissao para remover usuarios.", true);
     return;
   }
   const userId = item.dataset.userId;
@@ -13029,7 +13201,7 @@ if (btnRefreshHealth) {
 if (healthTasks) {
   healthTasks.addEventListener("click", async (event) => {
     const btn = event.target.closest("[data-action=\"run-task\"]");
-    if (!btn || !isAdmin()) {
+    if (!btn || !currentUser || !hasGranularPermission(currentUser, "reexecutarTarefas")) {
       return;
     }
     const taskId = btn.dataset.taskId;
@@ -13124,7 +13296,7 @@ if (btnAutomationRefresh) {
 if (automationList) {
   automationList.addEventListener("change", async (event) => {
     const toggle = event.target.closest("[data-action=\"toggle-automation\"]");
-    if (!toggle || !isAdmin()) {
+    if (!toggle || !currentUser || !hasGranularPermission(currentUser, "gerenciarAutomacoes")) {
       return;
     }
     const automationId = toggle.dataset.automationId;
@@ -13176,7 +13348,7 @@ if (btnFilesUpload) {
     if (!filesUploadInput || !filesUploadType) {
       return;
     }
-    if (!currentUser || !canManageFilesClient(currentUser)) {
+    if (!currentUser || !canUploadFilesClient(currentUser)) {
       mostrarMensagemArquivos("Sem permissao para enviar arquivos.", true);
       return;
     }
@@ -13222,7 +13394,7 @@ if (filesList) {
     if (!removeBtn) {
       return;
     }
-    if (!currentUser || !canManageFilesClient(currentUser)) {
+    if (!currentUser || !canDeleteFilesClient(currentUser)) {
       mostrarMensagemArquivos("Sem permissao para remover arquivos.", true);
       return;
     }
@@ -13250,7 +13422,7 @@ if (filesList) {
 
 if (btnPermissoesSalvar) {
   btnPermissoesSalvar.addEventListener("click", async () => {
-    if (!currentUser || !isAdmin() || !hasGranularPermission(currentUser, "editarPermissoes")) {
+    if (!currentUser || !isAdmin() || !canViewGerencial(currentUser)) {
       mostrarMensagemPermissoes("Sem permissao para editar permissoes.", true);
       return;
     }
@@ -13503,7 +13675,10 @@ if (btnGerarRelatorio) {
 }
 if (btnGerarConvite) {
   btnGerarConvite.addEventListener("click", async () => {
-    if (!isAdmin()) {
+    if (!currentUser || !canInviteUsuarios(currentUser)) {
+      if (inviteResultado) {
+        inviteResultado.textContent = "Sem permissao para gerar convite.";
+      }
       return;
     }
     if (inviteResultado) {

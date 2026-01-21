@@ -171,11 +171,30 @@ const PERMISSION_CATALOG = [
 
 const GRANULAR_PERMISSION_CATALOG = [
   { key: "editarPerfil", label: "Editar perfil (UEN/Projeto)" },
-  { key: "excluirArquivo", label: "Excluir arquivos" },
-  { key: "verRDO", label: "Ver RDOs" },
-  { key: "gerarRelatorio", label: "Gerar relatorios" },
-  { key: "editarPermissoes", label: "Editar permissoes" },
+  { key: "editarPerfilOutros", label: "Editar perfil de outros" },
+  { key: "verUsuarios", label: "Ver usuarios" },
+  { key: "convidarUsuarios", label: "Convidar usuarios" },
+  { key: "desativarUsuarios", label: "Desativar usuarios" },
+  { key: "verArquivos", label: "Ver arquivos" },
+  { key: "uploadArquivos", label: "Enviar arquivos" },
+  { key: "excluirArquivos", label: "Excluir arquivos" },
+  { key: "vincularArquivo", label: "Vincular arquivo" },
+  { key: "verRDOs", label: "Ver RDOs" },
+  { key: "gerarRDOs", label: "Gerar RDOs" },
+  { key: "excluirRDOs", label: "Excluir RDOs" },
+  { key: "verRelatorios", label: "Ver relatorios" },
+  { key: "exportarRelatorios", label: "Exportar relatorios" },
+  { key: "reexecutarTarefas", label: "Reexecutar tarefas" },
+  { key: "verLogsAPI", label: "Ver logs de API" },
+  { key: "limparLogsAPI", label: "Limpar logs de API" },
+  { key: "gerenciarAutomacoes", label: "Gerenciar automacoes" },
+  { key: "verAutomacoes", label: "Ver automacoes" },
+  { key: "verDiagnostico", label: "Ver diagnostico" },
+  { key: "verPainelGerencial", label: "Ver painel gerencial" },
 ];
+const GRANULAR_PERMISSION_KEYS = new Set(
+  GRANULAR_PERMISSION_CATALOG.map((permission) => permission.key)
+);
 const GRANULAR_PROFILE_CATALOG = [
   { key: "pcm", label: "PCM" },
   { key: "diretor_om", label: "Diretor O&M" },
@@ -188,19 +207,48 @@ const GRANULAR_PROFILE_CATALOG = [
 ];
 const GRANULAR_BASE_PERMISSIONS = {
   editarPerfil: false,
-  excluirArquivo: false,
-  verRDO: true,
-  gerarRelatorio: true,
-  editarPermissoes: false,
+  editarPerfilOutros: false,
+  verUsuarios: false,
+  convidarUsuarios: false,
+  desativarUsuarios: false,
+  verArquivos: false,
+  uploadArquivos: false,
+  excluirArquivos: false,
+  vincularArquivo: false,
+  verRDOs: true,
+  gerarRDOs: true,
+  excluirRDOs: true,
+  verRelatorios: true,
+  exportarRelatorios: true,
+  reexecutarTarefas: false,
+  verLogsAPI: false,
+  limparLogsAPI: false,
+  gerenciarAutomacoes: false,
+  verAutomacoes: false,
+  verDiagnostico: false,
+  verPainelGerencial: false,
 };
 const GRANULAR_SUPERVISOR_PERMISSIONS = {
   ...GRANULAR_BASE_PERMISSIONS,
   editarPerfil: true,
-  excluirArquivo: true,
+  editarPerfilOutros: true,
 };
 const GRANULAR_ADMIN_PERMISSIONS = {
   ...GRANULAR_SUPERVISOR_PERMISSIONS,
-  editarPermissoes: true,
+  verUsuarios: true,
+  convidarUsuarios: true,
+  desativarUsuarios: true,
+  verArquivos: true,
+  uploadArquivos: true,
+  excluirArquivos: true,
+  vincularArquivo: true,
+  reexecutarTarefas: true,
+  verLogsAPI: true,
+  limparLogsAPI: true,
+  gerenciarAutomacoes: true,
+  verAutomacoes: true,
+  verDiagnostico: true,
+  verPainelGerencial: true,
 };
 const GRANULAR_DEFAULT_PERMISSIONS = {
   pcm: GRANULAR_ADMIN_PERMISSIONS,
@@ -581,7 +629,7 @@ function canManageFiles(user) {
   if (isFullAccessRole(user.rbacRole || user.role)) {
     return true;
   }
-  return hasGranularPermission(user, "excluirArquivo");
+  return hasGranularPermission(user, "verArquivos");
 }
 
 function requireSupervisor(req, res, next) {
@@ -843,14 +891,14 @@ function canEditProfile(actor, target) {
   if (!actor || !target) {
     return false;
   }
-  if (!hasGranularPermission(actor, "editarPerfil")) {
-    return false;
-  }
   if (isFullAccessRole(actor.rbacRole || actor.role)) {
     return true;
   }
   if (actor.id === target.id) {
-    return true;
+    return hasGranularPermission(actor, "editarPerfil");
+  }
+  if (!hasGranularPermission(actor, "editarPerfilOutros")) {
+    return false;
   }
   const actorLevel = getCargoLevel(actor.cargo);
   const targetLevel = getCargoLevel(target.cargo);
@@ -1765,7 +1813,11 @@ function requireAuth(req, res, next) {
 function requirePermission(permissionKey) {
   return (req, res, next) => {
     const user = req.currentUser || getSessionUser(req);
-    if (!hasPermission(user, permissionKey)) {
+    const isLegacy = String(permissionKey || "").startsWith("admin:");
+    const allowed = isLegacy
+      ? hasPermission(user, permissionKey)
+      : hasGranularPermission(user, permissionKey);
+    if (!allowed) {
       return res.status(403).json({ message: "Nao autorizado." });
     }
     return next();
@@ -2315,16 +2367,16 @@ app.get("/api/auth/users", requireAuth, (req, res) => {
   return res.json({ users: list });
 });
 
-app.get("/api/admin/users", requireAuth, requirePermission("admin:users:read"), (req, res) => {
+app.get("/api/admin/users", requireAuth, requirePermission("verUsuarios"), (req, res) => {
   const list = users.map((user) => sanitizeUser(user));
   return res.json({ users: list });
 });
 
-app.get("/api/admin/permissions", requireAuth, requirePermission("admin:users:read"), (req, res) => {
+app.get("/api/admin/permissions", requireAuth, requirePermission("verUsuarios"), (req, res) => {
   return res.json({ permissions: PERMISSION_CATALOG });
 });
 
-app.get("/api/admin/permissoes", requireAuth, requireAdmin, (req, res) => {
+app.get("/api/admin/permissoes", requireAuth, requirePermission("verPainelGerencial"), (req, res) => {
   return res.json({
     profiles: GRANULAR_PROFILE_CATALOG,
     permissions: GRANULAR_PERMISSION_CATALOG,
@@ -2334,9 +2386,6 @@ app.get("/api/admin/permissoes", requireAuth, requireAdmin, (req, res) => {
 
 app.put("/api/admin/permissoes", requireAuth, requireAdmin, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
-  if (!hasGranularPermission(user, "editarPermissoes")) {
-    return res.status(403).json({ message: "Nao autorizado." });
-  }
   const payload = req.body && (req.body.values || req.body.permissoes || req.body.permissions || req.body);
   const normalized = normalizeGranularPermissions(payload);
   const changes = diffGranularPermissions(granularPermissions, normalized);
@@ -2356,12 +2405,16 @@ app.put("/api/admin/permissoes", requireAuth, requireAdmin, (req, res) => {
   });
 });
 
-app.get("/api/admin/health", requireAuth, requireAdmin, (req, res) => {
+app.get("/api/admin/health", requireAuth, requirePermission("verDiagnostico"), (req, res) => {
   const snapshot = buildHealthSnapshot(healthTasks);
   return res.json(snapshot);
 });
 
-app.post("/api/admin/health/tasks/:id/run", requireAuth, requireAdmin, (req, res) => {
+app.post(
+  "/api/admin/health/tasks/:id/run",
+  requireAuth,
+  requirePermission("reexecutarTarefas"),
+  (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   const taskId = String(req.params.id || "").trim();
   const updated = runHealthTask(taskId, user);
@@ -2375,9 +2428,10 @@ app.post("/api/admin/health/tasks/:id/run", requireAuth, requireAdmin, (req, res
     getClientIp(req)
   );
   return res.json({ ok: true, task: updated, snapshot: buildHealthSnapshot(healthTasks) });
-});
+  }
+);
 
-app.get("/api/admin/logs", requireAuth, requireAdmin, (req, res) => {
+app.get("/api/admin/logs", requireAuth, requirePermission("verLogsAPI"), (req, res) => {
   const limitRaw = Number(req.query.limit || 20);
   const offsetRaw = Number(req.query.offset || 0);
   const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 5), 100) : 20;
@@ -2420,11 +2474,15 @@ app.get("/api/admin/logs", requireAuth, requireAdmin, (req, res) => {
   return res.json({ total, filteredTotal, logs, offset, limit });
 });
 
-app.get("/api/admin/automations", requireAuth, requireAdmin, (req, res) => {
+app.get("/api/admin/automations", requireAuth, requirePermission("verAutomacoes"), (req, res) => {
   return res.json({ automations });
 });
 
-app.patch("/api/admin/automations/:id", requireAuth, requireAdmin, (req, res) => {
+app.patch(
+  "/api/admin/automations/:id",
+  requireAuth,
+  requirePermission("gerenciarAutomacoes"),
+  (req, res) => {
   const automationId = String(req.params.id || "").trim();
   const index = automations.findIndex((item) => item.id === automationId);
   if (index === -1) {
@@ -2450,9 +2508,10 @@ app.patch("/api/admin/automations/:id", requireAuth, requireAdmin, (req, res) =>
     getClientIp(req)
   );
   return res.json({ ok: true, automations });
-});
+  }
+);
 
-app.get("/api/admin/files", requireAuth, requireSupervisor, (req, res) => {
+app.get("/api/admin/files", requireAuth, requirePermission("verArquivos"), (req, res) => {
   const type = String(req.query.type || "").trim().toLowerCase();
   const search = String(req.query.search || "").trim().toLowerCase();
   let list = Array.isArray(filesMeta) ? filesMeta.slice() : [];
@@ -2473,7 +2532,7 @@ app.get("/api/admin/files", requireAuth, requireSupervisor, (req, res) => {
 app.post(
   "/api/admin/files",
   requireAuth,
-  requireSupervisor,
+  requirePermission("uploadArquivos"),
   express.raw({ type: "multipart/form-data", limit: FILE_MAX_BYTES + 1024 * 1024 }),
   (req, res) => {
     const parsed = parseMultipartForm(req);
@@ -2531,7 +2590,7 @@ app.post(
   }
 );
 
-app.delete("/api/admin/files/:id", requireAuth, requireSupervisor, (req, res) => {
+app.delete("/api/admin/files/:id", requireAuth, requirePermission("excluirArquivos"), (req, res) => {
   const fileId = String(req.params.id || "").trim();
   const index = Array.isArray(filesMeta) ? filesMeta.findIndex((item) => item.id === fileId) : -1;
   if (index === -1) {
@@ -2676,20 +2735,37 @@ app.post("/api/maintenance/release", requireAuth, (req, res) => {
   });
 });
 
-app.patch("/api/admin/users/:id", requireAuth, requirePermission("admin:users:write"), (req, res) => {
+app.patch("/api/admin/users/:id", requireAuth, requirePermission("verUsuarios"), (req, res) => {
   const userIndex = users.findIndex((item) => item.id === req.params.id);
   if (userIndex === -1) {
     return res.status(404).json({ message: "Usuario nao encontrado." });
   }
   const current = users[userIndex];
   const actor = req.currentUser || getSessionUser(req);
-  if (!canEditProfile(actor, current)) {
-    return res.status(403).json({ message: "Nao autorizado." });
-  }
   const currentRbacRole = current.rbacRole || current.role;
   const updates = {};
   let nextRbacRole = currentRbacRole;
   let roleChanged = false;
+  const wantsActive = "active" in req.body;
+  const wantsProfileUpdate =
+    "name" in req.body ||
+    "cargo" in req.body ||
+    "jobTitle" in req.body ||
+    "projeto" in req.body ||
+    "project" in req.body ||
+    "uen" in req.body ||
+    "localizacao" in req.body ||
+    "location" in req.body ||
+    "rbacRole" in req.body ||
+    "role" in req.body ||
+    "permissions" in req.body;
+
+  if (wantsProfileUpdate && !canEditProfile(actor, current)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  if (wantsActive && !hasGranularPermission(actor, "desativarUsuarios")) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
   if ("name" in req.body) {
     updates.name = String(req.body.name || "").trim();
   }
@@ -2744,7 +2820,7 @@ app.patch("/api/admin/users/:id", requireAuth, requirePermission("admin:users:wr
   return res.json({ user: sanitizeUser(updated) });
 });
 
-app.post("/api/auth/invite", requireAuth, requireAdmin, (req, res) => {
+app.post("/api/auth/invite", requireAuth, requirePermission("convidarUsuarios"), (req, res) => {
   cleanupInvites();
   const role = normalizeRbacRole(req.body.role || "tecnico_junior");
   const code = createInviteCode();
