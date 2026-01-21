@@ -1620,171 +1620,121 @@
     </section>
 
     <section class="panel page-gerencial" id="gerencial" data-panel="gerencial" data-admin-only>
-      <section class="card">
-        <div class="card-head">
+      <section class="card gerencial-shell">
+        <div class="gerencial-head">
           <div>
             <h2>Painel gerencial</h2>
             <p class="hint">Ferramentas exclusivas do administrador.</p>
           </div>
-          <div class="module-toolbar">
+          <div class="gerencial-head__actions">
             <div class="field field--compact">
-              <label for="gerencialModuleSearch">Buscar modulo</label>
-              <input id="gerencialModuleSearch" type="search" placeholder="Buscar por nome" />
+              <label for="gerencialPaletteTrigger">Buscar modulo ou acao</label>
+              <input id="gerencialPaletteTrigger" type="search" placeholder="Ctrl+K para buscar" />
             </div>
+            <button id="btnGerencialPalette" class="btn btn--ghost btn--small" type="button">Buscar</button>
           </div>
         </div>
-        <div id="gerencialModuleGrid" class="module-grid">
-          <button
-            class="module-card"
-            type="button"
-            data-module="diagnostico"
-            data-module-permission="verDiagnostico"
-            data-module-label="Diagnostico"
-            title="Diagnostico do sistema"
-          >
-            <span class="module-card__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" focusable="false">
-                <path
-                  d="M4 4h16v4H4V4Zm0 6h10v4H4v-4Zm0 6h16v4H4v-4Zm12-6h4v10h-4V10Z"
-                  fill="currentColor"
-                />
-              </svg>
-            </span>
-            <div class="module-card__content">
-              <strong>Diagnostico</strong>
-              <span>Status tecnico e integridade.</span>
-            </div>
-            <span class="module-card__badge">3 alertas</span>
-          </button>
-          <button
-            class="module-card"
-            type="button"
-            data-module="logs"
-            data-module-permission="verLogsAPI"
-            data-module-label="Logs de API"
-            title="Logs de API"
-          >
-            <span class="module-card__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" focusable="false">
-                <path
-                  d="M5 3h10l4 4v14H5V3Zm10 1.5V8h3.5L15 4.5ZM7 12h10v2H7v-2Zm0-4h6v2H7V8Zm0 8h10v2H7v-2Z"
-                  fill="currentColor"
-                />
-              </svg>
-            </span>
-            <div class="module-card__content">
-              <strong>Logs de API</strong>
-              <span>Requisicoes, filtros e auditoria.</span>
-            </div>
-            <span class="module-card__badge">2 erros</span>
-          </button>
-          <button
-            class="module-card"
-            type="button"
-            data-module="permissoes"
-            data-module-label="Permissoes granulares"
-            title="Permissoes granulares"
-          >
-            <span class="module-card__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" focusable="false">
-                <path
-                  d="M12 2 20 6v6c0 5-3.5 8.6-8 10-4.5-1.4-8-5-8-10V6l8-4Zm0 4-5 2.5V12c0 3.5 2.2 6.3 5 7.5 2.8-1.2 5-4 5-7.5V8.5L12 6Zm-1 5h2v4h-2v-4Zm0-3h2v2h-2V8Z"
-                  fill="currentColor"
-                />
-              </svg>
-            </span>
-            <div class="module-card__content">
-              <strong>Permissoes</strong>
-              <span>Controle fino de acessos.</span>
-            </div>
-            <span class="module-card__badge module-card__badge--neutral">RBAC</span>
-          </button>
-          <button
-            class="module-card"
-            type="button"
-            data-module="automacoes"
-            data-module-permission="verAutomacoes"
-            data-module-label="Automacoes"
-            title="Automacoes"
-          >
-            <span class="module-card__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" focusable="false">
-                <path
-                  d="M7 2h10v4h4v10h-4v4H7v-4H3V6h4V2Zm2 4v12h6V6H9Z"
-                  fill="currentColor"
-                />
-              </svg>
-            </span>
-            <div class="module-card__content">
-              <strong>Automacoes</strong>
-              <span>Gatilhos e rotinas de suporte.</span>
-            </div>
-            <span class="module-card__badge module-card__badge--neutral">MVP</span>
-          </button>
-          <button
-            class="module-card"
-            type="button"
-            data-module="arquivos"
-            data-module-permission="verArquivos"
-            data-module-label="Arquivos do sistema"
-            title="Arquivos do sistema"
-          >
-            <span class="module-card__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" focusable="false">
-                <path
-                  d="M4 5h6l2 2h8v12H4V5Zm2 6h12v2H6v-2Zm0 4h8v2H6v-2Z"
-                  fill="currentColor"
-                />
-              </svg>
-            </span>
-            <div class="module-card__content">
-              <strong>Arquivos</strong>
-              <span>Uploads, filtros e evidencias.</span>
-            </div>
-            <span class="module-card__badge">24 itens</span>
-          </button>
-          <button
-            class="module-card"
-            type="button"
-            data-module="admin-tools"
-            data-module-label="Operacoes administrativas"
-            title="Operacoes administrativas"
-          >
-            <span class="module-card__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" focusable="false">
-                <path
-                  d="M12 2 14 6l4 .6-3 3 .7 4.4-3.7-2-3.7 2 .7-4.4-3-3 4-.6 2-4Zm-6 13h12v7H6v-7Z"
-                  fill="currentColor"
-                />
-              </svg>
-            </span>
-            <div class="module-card__content">
-              <strong>Operacoes</strong>
-              <span>Configuracoes, backup e limpeza.</span>
-            </div>
-            <span class="module-card__badge module-card__badge--neutral">Admin</span>
-          </button>
-        </div>
-        <p id="gerencialModulesEmpty" class="empty-state" hidden>Nenhum modulo disponivel.</p>
-      </section>
 
-      <div id="modalGerencialDiagnostico" class="modal module-modal" data-module-modal="diagnostico" hidden>
-        <div class="modal-content">
-          <div class="modal-header">
+        <div class="gerencial-indicators">
+          <button class="indicator-card" type="button" data-tab-target="diagnostico" data-permission="verDiagnostico">
+            <span class="indicator-card__icon" aria-hidden="true">&#9728;</span>
             <div>
-              <h3>Diagnostico do sistema</h3>
-              <p class="hint">Status tecnico dos modulos e integridade dos dados.</p>
+              <strong>Status tecnico</strong>
+              <span>3 alertas ativos</span>
             </div>
-            <button class="modal-close btn btn--ghost btn--small" type="button" data-modal-close>Fechar</button>
-          </div>
-          <div class="modal-body">
-            <section class="card card--flat" id="gerencialHealth">
+            <span class="indicator-card__badge indicator-card__badge--warn">3 alertas</span>
+          </button>
+          <button class="indicator-card" type="button" data-tab-target="logs" data-permission="verLogsAPI">
+            <span class="indicator-card__icon" aria-hidden="true">&#9888;</span>
+            <div>
+              <strong>Erros de API</strong>
+              <span>Ultimas 24h</span>
+            </div>
+            <span class="indicator-card__badge indicator-card__badge--danger">2 erros</span>
+          </button>
+          <button class="indicator-card" type="button" data-tab-target="arquivos" data-permission="verArquivos">
+            <span class="indicator-card__icon" aria-hidden="true">&#128193;</span>
+            <div>
+              <strong>Arquivos</strong>
+              <span>24 itens ativos</span>
+            </div>
+            <span class="indicator-card__badge">24 itens</span>
+          </button>
+          <button class="indicator-card" type="button" data-tab-target="automacoes" data-permission="verAutomacoes">
+            <span class="indicator-card__icon" aria-hidden="true">&#9889;</span>
+            <div>
+              <strong>Automacoes</strong>
+              <span>5 regras em execucao</span>
+            </div>
+            <span class="indicator-card__badge indicator-card__badge--neutral">MVP</span>
+          </button>
+        </div>
+
+        <div class="gerencial-tabs" role="tablist" aria-label="Modulos gerenciais">
+          <button class="gerencial-tab is-active" type="button" role="tab" data-tab-target="geral">Geral</button>
+          <button class="gerencial-tab" type="button" role="tab" data-tab-target="diagnostico" data-permission="verDiagnostico">
+            Diagnostico
+          </button>
+          <button class="gerencial-tab" type="button" role="tab" data-tab-target="logs" data-permission="verLogsAPI">
+            Logs de API
+          </button>
+          <button class="gerencial-tab" type="button" role="tab" data-tab-target="permissoes">
+            Permissoes
+          </button>
+          <button class="gerencial-tab" type="button" role="tab" data-tab-target="arquivos" data-permission="verArquivos">
+            Arquivos
+          </button>
+          <button class="gerencial-tab" type="button" role="tab" data-tab-target="automacoes" data-permission="verAutomacoes">
+            Automacoes
+          </button>
+          <button class="gerencial-tab" type="button" role="tab" data-tab-target="operacoes">
+            Operacoes
+          </button>
+        </div>
+
+        <div class="gerencial-content">
+          <section class="gerencial-panel is-active" role="tabpanel" data-tab-panel="geral">
+            <div class="gerencial-overview">
+              <div class="overview-card">
+                <h3>Resumo rapido</h3>
+                <ul class="overview-list">
+                  <li><span>Alertas ativos</span><strong>3</strong></li>
+                  <li><span>Erros de API</span><strong>2</strong></li>
+                  <li><span>Arquivos pendentes</span><strong>4</strong></li>
+                  <li><span>Permissoes criticas</span><strong>1</strong></li>
+                </ul>
+              </div>
+              <div class="overview-card">
+                <h3>Acoes rapidas</h3>
+                <div class="overview-actions">
+                  <button id="btnGerencialRefreshAll" class="btn btn--primary btn--small" type="button">
+                    Atualizar painel
+                  </button>
+                  <button id="btnGerencialGoLogs" class="btn btn--ghost btn--small" type="button">
+                    Ir para logs
+                  </button>
+                  <button id="btnGerencialGoPermissoes" class="btn btn--ghost btn--small" type="button">
+                    Ajustar permissoes
+                  </button>
+                </div>
+                <p class="hint">Atalhos para funcoes criticas do dia.</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="gerencial-panel" role="tabpanel" data-tab-panel="diagnostico">
+            <section class="card" id="gerencialHealth">
               <div class="card-head">
                 <div>
                   <h2>Diagnostico do sistema</h2>
                   <p class="hint">Status tecnico dos modulos e integridade dos dados.</p>
                 </div>
-                <button id="btnRefreshHealth" class="btn btn--ghost btn--small" type="button">Atualizar</button>
+                <div class="card-actions">
+                  <button id="btnHealthRunAll" class="btn btn--primary btn--small" type="button">
+                    Reexecutar tudo
+                  </button>
+                  <button id="btnRefreshHealth" class="btn btn--ghost btn--small" type="button">Atualizar</button>
+                </div>
               </div>
               <div id="healthSummary" class="health-grid"></div>
               <div class="health-section">
@@ -1797,27 +1747,19 @@
               </div>
               <p id="healthMessage" class="mensagem" aria-live="polite"></p>
             </section>
-          </div>
-        </div>
-      </div>
+          </section>
 
-      <div id="modalGerencialLogs" class="modal module-modal" data-module-modal="logs" hidden>
-        <div class="modal-content">
-          <div class="modal-header">
-            <div>
-              <h3>Logs de API</h3>
-              <p class="hint">Historico tecnico das requisicoes mais recentes.</p>
-            </div>
-            <button class="modal-close btn btn--ghost btn--small" type="button" data-modal-close>Fechar</button>
-          </div>
-          <div class="modal-body">
-            <section class="card card--flat" id="gerencialLogs">
+          <section class="gerencial-panel" role="tabpanel" data-tab-panel="logs">
+            <section class="card" id="gerencialLogs">
               <div class="card-head">
                 <div>
                   <h2>Logs de API</h2>
                   <p class="hint">Historico tecnico das requisicoes mais recentes.</p>
                 </div>
-                <button id="btnLogsRefresh" class="btn btn--ghost btn--small" type="button">Atualizar</button>
+                <div class="card-actions">
+                  <button id="btnLogsExport" class="btn btn--primary btn--small" type="button">Exportar</button>
+                  <button id="btnLogsRefresh" class="btn btn--ghost btn--small" type="button">Atualizar</button>
+                </div>
               </div>
               <div class="logs-toolbar">
                 <div class="field">
@@ -1858,21 +1800,10 @@
               </div>
               <p id="apiLogsMessage" class="mensagem" aria-live="polite"></p>
             </section>
-          </div>
-        </div>
-      </div>
+          </section>
 
-      <div id="modalGerencialPermissoes" class="modal module-modal" data-module-modal="permissoes" hidden>
-        <div class="modal-content">
-          <div class="modal-header">
-            <div>
-              <h3>Permissoes granulares</h3>
-              <p class="hint">Defina acessos por perfil para funcoes criticas.</p>
-            </div>
-            <button class="modal-close btn btn--ghost btn--small" type="button" data-modal-close>Fechar</button>
-          </div>
-          <div class="modal-body">
-            <section class="card card--flat" id="gerencialPermissoes">
+          <section class="gerencial-panel" role="tabpanel" data-tab-panel="permissoes">
+            <section class="card" id="gerencialPermissoes">
               <div class="card-head">
                 <div>
                   <h2>Permissoes granulares</h2>
@@ -1885,46 +1816,10 @@
               <div id="permissoesList" class="permissions-grid"></div>
               <p id="permissoesMessage" class="mensagem" aria-live="polite"></p>
             </section>
-          </div>
-        </div>
-      </div>
+          </section>
 
-      <div id="modalGerencialAutomacoes" class="modal module-modal" data-module-modal="automacoes" hidden>
-        <div class="modal-content">
-          <div class="modal-header">
-            <div>
-              <h3>Automacoes (MVP)</h3>
-              <p class="hint">Gatilhos iniciais para manutencoes criticas.</p>
-            </div>
-            <button class="modal-close btn btn--ghost btn--small" type="button" data-modal-close>Fechar</button>
-          </div>
-          <div class="modal-body">
-            <section class="card card--flat" id="gerencialAutomations">
-              <div class="card-head">
-                <div>
-                  <h2>Automacoes (MVP)</h2>
-                  <p class="hint">Gatilhos iniciais para manutencoes criticas.</p>
-                </div>
-                <button id="btnAutomationRefresh" class="btn btn--ghost btn--small" type="button">Atualizar</button>
-              </div>
-              <div id="automationList" class="automation-list"></div>
-              <p id="automationMessage" class="mensagem" aria-live="polite"></p>
-            </section>
-          </div>
-        </div>
-      </div>
-
-      <div id="modalGerencialArquivos" class="modal module-modal" data-module-modal="arquivos" hidden>
-        <div class="modal-content">
-          <div class="modal-header">
-            <div>
-              <h3>Arquivos do sistema</h3>
-              <p class="hint">Anexos operacionais e evidencias centralizadas.</p>
-            </div>
-            <button class="modal-close btn btn--ghost btn--small" type="button" data-modal-close>Fechar</button>
-          </div>
-          <div class="modal-body">
-            <section class="card card--flat" id="gerencialFiles">
+          <section class="gerencial-panel" role="tabpanel" data-tab-panel="arquivos">
+            <section class="card" id="gerencialFiles">
               <div class="card-head">
                 <div>
                   <h2>Arquivos do sistema</h2>
@@ -1965,21 +1860,24 @@
               <p id="filesEmpty" class="empty-state" hidden>Nenhum arquivo encontrado.</p>
               <p id="filesMessage" class="mensagem" aria-live="polite"></p>
             </section>
-          </div>
-        </div>
-      </div>
+          </section>
 
-      <div id="modalGerencialAdmin" class="modal module-modal" data-module-modal="admin-tools" hidden>
-        <div class="modal-content">
-          <div class="modal-header">
-            <div>
-              <h3>Operacoes administrativas</h3>
-              <p class="hint">Configuracoes, backup e limpezas controladas.</p>
-            </div>
-            <button class="modal-close btn btn--ghost btn--small" type="button" data-modal-close>Fechar</button>
-          </div>
-          <div class="modal-body">
-            <section class="card card--flat">
+          <section class="gerencial-panel" role="tabpanel" data-tab-panel="automacoes">
+            <section class="card" id="gerencialAutomations">
+              <div class="card-head">
+                <div>
+                  <h2>Automacoes (MVP)</h2>
+                  <p class="hint">Gatilhos iniciais para manutencoes criticas.</p>
+                </div>
+                <button id="btnAutomationRefresh" class="btn btn--ghost btn--small" type="button">Atualizar</button>
+              </div>
+              <div id="automationList" class="automation-list"></div>
+              <p id="automationMessage" class="mensagem" aria-live="polite"></p>
+            </section>
+          </section>
+
+          <section class="gerencial-panel" role="tabpanel" data-tab-panel="operacoes">
+            <section class="card">
               <div class="manager-grid">
                 <div class="manager-card">
                   <h3>Configuracoes</h3>
@@ -2033,7 +1931,24 @@
               </div>
               <p id="mensagemGerencial" class="mensagem" aria-live="polite"></p>
             </section>
+          </section>
+        </div>
+      </section>
+
+      <div id="gerencialPalette" class="command-palette" hidden>
+        <div class="command-palette__overlay" data-palette-close></div>
+        <div class="command-palette__panel" role="dialog" aria-modal="true" aria-label="Buscar modulo ou acao">
+          <div class="command-palette__header">
+            <span class="command-palette__kicker">Command Palette</span>
+            <button class="btn btn--ghost btn--small" type="button" data-palette-close>Fechar</button>
           </div>
+          <input
+            id="gerencialPaletteInput"
+            type="search"
+            placeholder="Digite para buscar modulos e acoes"
+            autocomplete="off"
+          />
+          <div id="gerencialPaletteList" class="command-palette__list"></div>
         </div>
       </div>
     </section>

@@ -191,11 +191,21 @@ const gerencialHealth = document.getElementById("gerencialHealth");
 const gerencialLogs = document.getElementById("gerencialLogs");
 const gerencialAutomations = document.getElementById("gerencialAutomations");
 const gerencialFiles = document.getElementById("gerencialFiles");
-const gerencialModuleGrid = document.getElementById("gerencialModuleGrid");
-const gerencialModuleSearch = document.getElementById("gerencialModuleSearch");
-const gerencialModulesEmpty = document.getElementById("gerencialModulesEmpty");
-const gerencialModuleCards = Array.from(document.querySelectorAll(".module-card[data-module]"));
-const gerencialModuleModals = Array.from(document.querySelectorAll(".module-modal"));
+const gerencialTabs = Array.from(document.querySelectorAll(".gerencial-tab"));
+const gerencialPanels = Array.from(document.querySelectorAll("[data-tab-panel]"));
+const gerencialIndicators = Array.from(
+  document.querySelectorAll(".indicator-card[data-tab-target]")
+);
+const gerencialPalette = document.getElementById("gerencialPalette");
+const gerencialPaletteInput = document.getElementById("gerencialPaletteInput");
+const gerencialPaletteList = document.getElementById("gerencialPaletteList");
+const gerencialPaletteTrigger = document.getElementById("gerencialPaletteTrigger");
+const btnGerencialPalette = document.getElementById("btnGerencialPalette");
+const btnGerencialRefreshAll = document.getElementById("btnGerencialRefreshAll");
+const btnGerencialGoLogs = document.getElementById("btnGerencialGoLogs");
+const btnGerencialGoPermissoes = document.getElementById("btnGerencialGoPermissoes");
+const btnHealthRunAll = document.getElementById("btnHealthRunAll");
+const btnLogsExport = document.getElementById("btnLogsExport");
 const filesFilterType = document.getElementById("filesFilterType");
 const filesSearch = document.getElementById("filesSearch");
 const filesUploadType = document.getElementById("filesUploadType");
@@ -763,95 +773,215 @@ function canViewGerencial(user) {
   return hasGranularPermission(user, "verPainelGerencial");
 }
 
-function canAccessGerencialModule(moduleId, user) {
+function canAccessGerencialTab(tabId, user) {
   if (!user || !canViewGerencial(user)) {
     return false;
   }
-  switch (moduleId) {
+  switch (tabId) {
+    case "geral":
+      return true;
     case "diagnostico":
       return hasGranularPermission(user, "verDiagnostico");
     case "logs":
       return hasGranularPermission(user, "verLogsAPI");
-    case "automacoes":
-      return hasGranularPermission(user, "verAutomacoes");
-    case "arquivos":
-      return canManageFilesClient(user);
     case "permissoes":
       return true;
-    case "admin-tools":
+    case "arquivos":
+      return canManageFilesClient(user);
+    case "automacoes":
+      return hasGranularPermission(user, "verAutomacoes");
+    case "operacoes":
       return isAdmin();
     default:
       return false;
   }
 }
 
-function closeGerencialModuleModal(modal) {
-  if (!modal) {
-    return;
-  }
-  modal.hidden = true;
-}
-
-function openGerencialModuleModal(moduleId) {
-  if (!moduleId) {
-    return;
-  }
-  const modal = document.querySelector(`[data-module-modal="${moduleId}"]`);
-  if (!modal) {
-    return;
-  }
-  gerencialModuleModals.forEach((item) => {
-    if (item !== modal) {
-      item.hidden = true;
-    }
+function setGerencialTabActive(tabId) {
+  gerencialTabs.forEach((tab) => {
+    const isActive = tab.dataset.tabTarget === tabId;
+    tab.classList.toggle("is-active", isActive);
+    tab.setAttribute("aria-selected", isActive ? "true" : "false");
+    tab.setAttribute("tabindex", isActive ? "0" : "-1");
   });
-  modal.hidden = false;
+  gerencialPanels.forEach((panel) => {
+    panel.classList.toggle("is-active", panel.dataset.tabPanel === tabId);
+  });
 }
 
-function updateGerencialModuleVisibility() {
-  if (!gerencialModuleGrid) {
+function updateGerencialTabVisibility() {
+  if (!gerencialTabs.length) {
     return;
   }
   const canView = Boolean(currentUser && canViewGerencial(currentUser));
-  gerencialModuleGrid.hidden = !canView;
-  if (!canView) {
-    gerencialModuleModals.forEach((modal) => closeGerencialModuleModal(modal));
-    if (gerencialModulesEmpty) {
-      gerencialModulesEmpty.hidden = true;
-    }
-    return;
-  }
-  let visibleCount = 0;
-  gerencialModuleCards.forEach((card) => {
-    const moduleId = card.dataset.module;
-    const allow = canAccessGerencialModule(moduleId, currentUser);
-    card.hidden = !allow;
-    if (allow && !card.classList.contains("is-search-hidden")) {
-      visibleCount += 1;
-    }
+  gerencialTabs.forEach((tab) => {
+    const tabId = tab.dataset.tabTarget;
+    const allow = canView && canAccessGerencialTab(tabId, currentUser);
+    tab.hidden = !allow;
   });
-  if (gerencialModulesEmpty) {
-    gerencialModulesEmpty.hidden = visibleCount !== 0;
+  gerencialIndicators.forEach((card) => {
+    const tabId = card.dataset.tabTarget;
+    const allow = canView && canAccessGerencialTab(tabId, currentUser);
+    card.hidden = !allow;
+  });
+  gerencialPanels.forEach((panel) => {
+    const tabId = panel.dataset.tabPanel;
+    panel.hidden = !canView || !canAccessGerencialTab(tabId, currentUser);
+  });
+  if (btnGerencialRefreshAll) {
+    btnGerencialRefreshAll.disabled = !canView;
+  }
+  if (gerencialPaletteTrigger) {
+    gerencialPaletteTrigger.disabled = !canView;
+  }
+  if (btnGerencialPalette) {
+    btnGerencialPalette.disabled = !canView;
+  }
+  if (btnGerencialGoLogs) {
+    btnGerencialGoLogs.disabled = !canAccessGerencialTab("logs", currentUser);
+  }
+  if (btnGerencialGoPermissoes) {
+    btnGerencialGoPermissoes.disabled = !canAccessGerencialTab("permissoes", currentUser);
+  }
+  if (btnHealthRunAll) {
+    btnHealthRunAll.disabled = !currentUser || !hasGranularPermission(currentUser, "reexecutarTarefas");
+  }
+  if (btnLogsExport) {
+    btnLogsExport.disabled = !currentUser || !hasGranularPermission(currentUser, "verLogsAPI");
+  }
+  const activeTab = gerencialTabs.find((tab) => tab.classList.contains("is-active") && !tab.hidden);
+  if (!activeTab) {
+    const firstVisible = gerencialTabs.find((tab) => !tab.hidden);
+    if (firstVisible) {
+      setGerencialTabActive(firstVisible.dataset.tabTarget);
+    }
   }
 }
 
-function filterGerencialModules() {
-  if (!gerencialModuleSearch) {
+function getGerencialPaletteItems() {
+  const items = [];
+  gerencialTabs.forEach((tab) => {
+    if (tab.hidden) {
+      return;
+    }
+    const label = tab.textContent.trim();
+    items.push({
+      type: "tab",
+      label,
+      tab: tab.dataset.tabTarget,
+      hint: "Abrir modulo",
+    });
+  });
+  const actionItems = [
+    {
+      label: "Atualizar painel",
+      tab: "geral",
+      selector: "#btnGerencialRefreshAll",
+    },
+    {
+      label: "Reexecutar tudo (diagnostico)",
+      tab: "diagnostico",
+      selector: "#btnHealthRunAll",
+      permission: "reexecutarTarefas",
+    },
+    {
+      label: "Atualizar diagnostico",
+      tab: "diagnostico",
+      selector: "#btnRefreshHealth",
+      permission: "verDiagnostico",
+    },
+    {
+      label: "Exportar logs de API",
+      tab: "logs",
+      selector: "#btnLogsExport",
+      permission: "verLogsAPI",
+    },
+    {
+      label: "Atualizar logs",
+      tab: "logs",
+      selector: "#btnLogsRefresh",
+      permission: "verLogsAPI",
+    },
+    {
+      label: "Salvar permissoes",
+      tab: "permissoes",
+      selector: "#btnPermissoesSalvar",
+    },
+    {
+      label: "Atualizar automacoes",
+      tab: "automacoes",
+      selector: "#btnAutomationRefresh",
+      permission: "verAutomacoes",
+    },
+    {
+      label: "Atualizar arquivos",
+      tab: "arquivos",
+      selector: "#btnFilesRefresh",
+      permission: "verArquivos",
+    },
+  ];
+  actionItems.forEach((item) => {
+    if (!currentUser || !canAccessGerencialTab(item.tab, currentUser)) {
+      return;
+    }
+    if (item.permission && !hasGranularPermission(currentUser, item.permission)) {
+      return;
+    }
+    items.push({ ...item, type: "action", hint: "Executar acao" });
+  });
+  return items;
+}
+
+function renderGerencialPalette(query = "") {
+  if (!gerencialPaletteList) {
     return;
   }
-  const query = gerencialModuleSearch.value.trim().toLowerCase();
-  let visibleCount = 0;
-  gerencialModuleCards.forEach((card) => {
-    const label = (card.dataset.moduleLabel || card.textContent || "").toLowerCase();
-    const match = !query || label.includes(query);
-    card.classList.toggle("is-search-hidden", !match);
-    if (!card.hidden && match) {
-      visibleCount += 1;
-    }
+  const normalized = query.trim().toLowerCase();
+  gerencialPaletteList.innerHTML = "";
+  const items = getGerencialPaletteItems().filter((item) => {
+    const text = `${item.label} ${item.hint || ""}`.toLowerCase();
+    return !normalized || text.includes(normalized);
   });
-  if (gerencialModulesEmpty) {
-    gerencialModulesEmpty.hidden = visibleCount !== 0;
+  if (!items.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = "Nenhum resultado encontrado.";
+    gerencialPaletteList.append(empty);
+    return;
   }
+  items.forEach((item) => {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "command-palette__item";
+    row.dataset.paletteType = item.type;
+    row.dataset.paletteTab = item.tab || "";
+    row.dataset.paletteSelector = item.selector || "";
+    row.innerHTML = `<strong>${item.label}</strong><span>${item.hint || ""}</span>`;
+    gerencialPaletteList.append(row);
+  });
+}
+
+function openGerencialPalette() {
+  if (!gerencialPalette) {
+    return;
+  }
+  const gerencialPanel = document.getElementById("gerencial");
+  if (!currentUser || !canViewGerencial(currentUser) || (gerencialPanel && gerencialPanel.hidden)) {
+    return;
+  }
+  gerencialPalette.hidden = false;
+  renderGerencialPalette("");
+  if (gerencialPaletteInput) {
+    gerencialPaletteInput.value = "";
+    gerencialPaletteInput.focus();
+  }
+}
+
+function closeGerencialPalette() {
+  if (!gerencialPalette) {
+    return;
+  }
+  gerencialPalette.hidden = true;
 }
 
 function canViewUsuarios(user) {
@@ -1650,6 +1780,57 @@ async function carregarHealth(forcar = false) {
   } finally {
     healthLoading = false;
   }
+}
+
+async function runAllHealthTasks() {
+  if (!currentUser || !hasGranularPermission(currentUser, "reexecutarTarefas")) {
+    return;
+  }
+  const tasks = healthSnapshot && healthSnapshot.modules && healthSnapshot.modules.queue
+    ? healthSnapshot.modules.queue.tasks || []
+    : [];
+  if (!tasks.length) {
+    mostrarMensagemHealth("Nenhuma tarefa para reexecutar.");
+    return;
+  }
+  mostrarMensagemHealth("Reexecutando tarefas...");
+  for (const task of tasks) {
+    try {
+      await apiRunHealthTask(task.id);
+    } catch (error) {
+      mostrarMensagemHealth(error.message || "Falha ao reexecutar tarefas.", true);
+      break;
+    }
+  }
+  await carregarHealth(true);
+  mostrarMensagemHealth("Tarefas reexecutadas.");
+}
+
+function exportarApiLogs() {
+  if (!apiLogsState.items.length) {
+    if (apiLogsMessage) {
+      apiLogsMessage.textContent = "Sem logs para exportar.";
+      apiLogsMessage.classList.add("mensagem--erro");
+    }
+    return;
+  }
+  const payload = {
+    generatedAt: new Date().toISOString(),
+    filters: apiLogsState.filters,
+    logs: apiLogsState.items,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: "application/json",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0, 10);
+  link.href = url;
+  link.download = `logs-api-${stamp}.json`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function buildLogStatusClass(status) {
@@ -9585,8 +9766,7 @@ function renderAuthUI() {
     const podeVerGerencial = Boolean(currentUser && canViewGerencial(currentUser));
     gerencialPermissoes.hidden = !podeVerGerencial;
   }
-  updateGerencialModuleVisibility();
-  filterGerencialModules();
+  updateGerencialTabVisibility();
   const podeUploadArquivos = currentUser && canUploadFilesClient(currentUser);
   if (filesUploadInput) {
     filesUploadInput.disabled = !podeUploadArquivos;
@@ -13296,6 +13476,17 @@ if (btnRefreshHealth) {
   });
 }
 
+if (btnHealthRunAll) {
+  btnHealthRunAll.addEventListener("click", async () => {
+    btnHealthRunAll.disabled = true;
+    try {
+      await runAllHealthTasks();
+    } finally {
+      btnHealthRunAll.disabled = false;
+    }
+  });
+}
+
 if (healthTasks) {
   healthTasks.addEventListener("click", async (event) => {
     const btn = event.target.closest("[data-action=\"run-task\"]");
@@ -13328,6 +13519,12 @@ if (healthTasks) {
 if (btnLogsApply) {
   btnLogsApply.addEventListener("click", () => {
     carregarApiLogs(true);
+  });
+}
+
+if (btnLogsExport) {
+  btnLogsExport.addEventListener("click", () => {
+    exportarApiLogs();
   });
 }
 
@@ -14314,46 +14511,117 @@ if (btnFecharRelatorio) {
   btnFecharRelatorio.addEventListener("click", fecharRelatorio);
 }
 
-if (gerencialModuleGrid) {
-  gerencialModuleGrid.addEventListener("click", (event) => {
-    const card = event.target.closest(".module-card[data-module]");
-    if (!card || card.hidden) {
-      return;
-    }
-    const moduleId = card.dataset.module;
-    if (!canAccessGerencialModule(moduleId, currentUser)) {
-      return;
-    }
-    openGerencialModuleModal(moduleId);
-  });
-}
-
-if (gerencialModuleSearch) {
-  gerencialModuleSearch.addEventListener("input", () => {
-    filterGerencialModules();
-  });
-}
-
-if (gerencialModuleModals.length) {
-  gerencialModuleModals.forEach((modal) => {
-    modal.addEventListener("click", (event) => {
-      const closeBtn = event.target.closest("[data-modal-close]");
-      if (closeBtn || event.target === modal) {
-        closeGerencialModuleModal(modal);
+if (gerencialTabs.length) {
+  gerencialTabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      if (tab.hidden) {
+        return;
+      }
+      const tabId = tab.dataset.tabTarget;
+      if (canAccessGerencialTab(tabId, currentUser)) {
+        setGerencialTabActive(tabId);
       }
     });
   });
 }
 
+if (gerencialIndicators.length) {
+  gerencialIndicators.forEach((card) => {
+    card.addEventListener("click", () => {
+      const tabId = card.dataset.tabTarget;
+      if (canAccessGerencialTab(tabId, currentUser)) {
+        setGerencialTabActive(tabId);
+      }
+    });
+  });
+}
+
+if (btnGerencialPalette) {
+  btnGerencialPalette.addEventListener("click", openGerencialPalette);
+}
+
+if (gerencialPaletteTrigger) {
+  gerencialPaletteTrigger.addEventListener("focus", openGerencialPalette);
+  gerencialPaletteTrigger.addEventListener("click", openGerencialPalette);
+}
+
+if (gerencialPaletteInput) {
+  gerencialPaletteInput.addEventListener("input", (event) => {
+    renderGerencialPalette(event.target.value);
+  });
+  gerencialPaletteInput.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") {
+      return;
+    }
+    const first = gerencialPaletteList
+      ? gerencialPaletteList.querySelector(".command-palette__item")
+      : null;
+    if (first) {
+      first.click();
+    }
+  });
+}
+
+if (gerencialPalette) {
+  gerencialPalette.addEventListener("click", (event) => {
+    const close = event.target.closest("[data-palette-close]");
+    if (close || event.target.classList.contains("command-palette__overlay")) {
+      closeGerencialPalette();
+      return;
+    }
+    const item = event.target.closest(".command-palette__item");
+    if (!item) {
+      return;
+    }
+    const tabId = item.dataset.paletteTab;
+    if (tabId && canAccessGerencialTab(tabId, currentUser)) {
+      setGerencialTabActive(tabId);
+    }
+    const selector = item.dataset.paletteSelector;
+    if (selector) {
+      const target = document.querySelector(selector);
+      if (target && typeof target.click === "function" && !target.disabled) {
+        target.click();
+      }
+    }
+    closeGerencialPalette();
+  });
+}
+
 document.addEventListener("keydown", (event) => {
-  if (event.key !== "Escape") {
-    return;
+  if (event.key === "Escape") {
+    if (gerencialPalette && !gerencialPalette.hidden) {
+      closeGerencialPalette();
+      return;
+    }
   }
-  const modal = gerencialModuleModals.find((item) => !item.hidden);
-  if (modal) {
-    closeGerencialModuleModal(modal);
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+    event.preventDefault();
+    openGerencialPalette();
   }
 });
+
+if (btnGerencialRefreshAll) {
+  btnGerencialRefreshAll.addEventListener("click", () => {
+    carregarPainelGerencial(true);
+  });
+}
+
+if (btnGerencialGoLogs) {
+  btnGerencialGoLogs.addEventListener("click", () => {
+    if (canAccessGerencialTab("logs", currentUser)) {
+      setGerencialTabActive("logs");
+    }
+  });
+}
+
+if (btnGerencialGoPermissoes) {
+  btnGerencialGoPermissoes.addEventListener("click", () => {
+    if (canAccessGerencialTab("permissoes", currentUser)) {
+      setGerencialTabActive("permissoes");
+    }
+  });
+}
 
 if (listaSolicitacoes) {
   listaSolicitacoes.addEventListener("click", (event) => {
