@@ -5666,16 +5666,26 @@ function abrirJanelaRelatorio(html, titulo, imprimir) {
           .report__table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
           .report__table th, .report__table td { border-bottom: 1px solid #e2ddd2; padding: 8px; text-align: left; }
           .report__table th { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.65rem; background: #f6f2ea; }
-          .rdo-month { display: grid; gap: 18px; }
-          .rdo-month__header { display: flex; justify-content: space-between; gap: 16px; border-bottom: 2px solid #d9d4c8; padding-bottom: 12px; }
-          .rdo-month__eyebrow { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: #5c6772; }
-          .rdo-month__header h2 { margin: 6px 0 4px; font-size: 1.4rem; }
-          .rdo-month__meta { font-size: 0.85rem; color: #5c6772; display: grid; gap: 6px; text-align: right; }
-          .rdo-month__summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
-          .rdo-month__summary div { border: 1px solid #d9d4c8; border-radius: 10px; padding: 10px; background: #f8f6f1; }
-          .rdo-month__summary span { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: #5c6772; }
-          .rdo-month__summary strong { font-size: 1rem; }
-          .rdo-month__table h3 { margin: 0 0 8px; font-size: 1rem; }
+          .rdo-doc { display: grid; gap: 18px; }
+          .rdo-header { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 10px; border-bottom: 2px solid #d9d4c8; }
+          .rdo-brand { display: grid; gap: 4px; }
+          .rdo-eyebrow { font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; color: #5c6772; }
+          .rdo-title { font-size: 1.5rem; letter-spacing: 0.08em; text-transform: uppercase; margin: 0; }
+          .rdo-subtitle { font-size: 0.9rem; color: #5c6772; margin: 0; }
+          .rdo-meta { font-size: 0.8rem; display: grid; gap: 4px; color: #5c6772; text-align: right; }
+          .rdo-header-info { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; font-size: 0.72rem; color: #425363; }
+          .rdo-header-info span { display: block; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.55rem; }
+          .rdo-header-info strong { font-size: 0.78rem; color: #1f2a33; }
+          .rdo-section { display: grid; gap: 10px; }
+          .rdo-summary { background: #f8f6f1; border: 1px solid #d9d4c8; padding: 12px 14px; border-radius: 12px; }
+          .rdo-block { border: 1px solid #d9d4c8; border-radius: 12px; padding: 10px 12px; background: #fff; }
+          .rdo-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin-top: 8px; }
+          .rdo-summary-item { border: 1px solid #d9d4c8; border-radius: 10px; padding: 6px 8px; display: grid; gap: 2px; background: #fff; }
+          .rdo-summary-item span { font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: #425363; }
+          .rdo-summary-item strong { font-size: 0.9rem; }
+          .rdo-items { display: grid; gap: 10px; }
+          .rdo-item { border: 1px solid #d9d4c8; border-radius: 12px; padding: 10px 12px; display: grid; gap: 8px; }
+          .rdo-item__head { display: flex; justify-content: space-between; gap: 12px; font-size: 0.8rem; color: #425363; }
           .rdo-month__day { border: 1px solid #d9d4c8; border-radius: 12px; padding: 12px; display: grid; gap: 12px; }
           .rdo-month__day-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
           .rdo-month__day-head span { font-size: 0.8rem; color: #5c6772; }
@@ -5687,6 +5697,18 @@ function abrirJanelaRelatorio(html, titulo, imprimir) {
           .rdo-month__notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
           .rdo-month__notes h4 { margin: 0 0 6px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.12em; color: #5c6772; }
           .rdo-month__notes p { margin: 0; font-size: 0.85rem; color: #1f2a33; }
+          .rdo-month { display: grid; gap: 18px; }
+          .rdo-month__charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+          .rdo-month__charts h4 { margin: 0 0 8px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.12em; color: #5c6772; }
+          .rdo-chart { width: 100%; height: auto; display: block; }
+          .rdo-month__donut { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; }
+          .rdo-donut { width: 120px; height: 120px; display: block; }
+          .rdo-legend { display: grid; gap: 6px; font-size: 0.75rem; color: #425363; }
+          .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+          .legend-dot--ok { background: #4bd28f; }
+          .legend-dot--info { background: #5b8def; }
+          .legend-dot--warn { background: #f6c453; }
+          .legend-dot--danger { background: #e2595c; }
         </style>
       </head>
       <body>${html}</body>
@@ -5785,6 +5807,7 @@ function gerarRdoMensal() {
     })
     .sort((a, b) => (getTimeValue(parseDate(b.rdoDate)) || 0) - (getTimeValue(parseDate(a.rdoDate)) || 0));
 
+  const rdosAsc = [...rdos].reverse();
   const acumulado = rdos.reduce(
     (acc, item) => {
       const metricas = item.metricas || {};
@@ -5807,20 +5830,146 @@ function gerarRdoMensal() {
       emExecucao: 0,
       criticas: 0,
       overdue: 0,
+      abertas: 0,
       docsOk: 0,
       docsTotal: 0,
       tempoTotal: 0,
       evidencias: 0,
     }
   );
+  acumulado.abertas = rdos.reduce((acc, item) => acc + ((item.metricas && item.metricas.abertas) || 0), 0);
 
   const docsPercent = acumulado.docsTotal
     ? Math.round((acumulado.docsOk / acumulado.docsTotal) * 100)
+    : 0;
+  const slaPercent = acumulado.atividades
+    ? Math.round(((acumulado.atividades - acumulado.overdue) / acumulado.atividades) * 100)
     : 0;
   const tempoTotalLabel = acumulado.tempoTotal
     ? formatDuracaoMin(acumulado.tempoTotal)
     : "-";
   const cliente = relatorioCliente ? relatorioCliente.value || RDO_CLIENTE : RDO_CLIENTE;
+  const hashMensal = hashString(`${periodoLabel}|${acumulado.totalRdos}|${cliente}`).slice(0, 8).toUpperCase();
+  const topSubestacoes = rdos.reduce((acc, item) => {
+    const sub = item.filtros && item.filtros.subestacao ? item.filtros.subestacao : "";
+    if (!sub) {
+      return acc;
+    }
+    acc[sub] = (acc[sub] || 0) + ((item.metricas && item.metricas.total) || 0);
+    return acc;
+  }, {});
+  const topSubResumo = Object.keys(topSubestacoes)
+    .map((key) => ({ key, total: topSubestacoes[key] }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 3)
+    .map((item) => `${item.key} (${item.total})`)
+    .join(", ");
+  const resumoExec = acumulado.totalRdos
+    ? `No periodo foram consolidados ${acumulado.totalRdos} RDOs, com ${acumulado.atividades} atividades, ${acumulado.concluidas} concluidas e ${acumulado.overdue} overdue. ${
+        topSubResumo ? `Subestacoes com maior volume: ${topSubResumo}.` : ""
+      }`
+    : "Nenhum RDO encontrado no periodo selecionado.";
+
+  const segurancaResumo = rdos.reduce(
+    (acc, item) => {
+      const manual = item.manual || {};
+      const incidente = String(manual.incidente || "").toUpperCase();
+      const bloqueio = String(manual.bloqueio || "").toUpperCase();
+      if (incidente && incidente !== "NAO" && incidente !== "N/A") {
+        acc.incidentes += 1;
+      }
+      if (bloqueio && bloqueio !== "N/A" && bloqueio !== "NAO") {
+        acc.bloqueios += 1;
+      }
+      const clima = (manual.clima || "").trim();
+      if (clima) {
+        acc.climas[clima] = (acc.climas[clima] || 0) + 1;
+      }
+      const kmInicial = Number.parseFloat(manual.kmInicial || "");
+      const kmFinal = Number.parseFloat(manual.kmFinal || "");
+      if (Number.isFinite(kmInicial) && Number.isFinite(kmFinal) && kmFinal >= kmInicial) {
+        acc.kmTotal += kmFinal - kmInicial;
+      }
+      const qtPessoas = Number.parseFloat(manual.qtPessoas || "");
+      if (Number.isFinite(qtPessoas) && qtPessoas > 0) {
+        acc.qtPessoasTotal += qtPessoas;
+        acc.qtPessoasCount += 1;
+      }
+      const condutor = manual.condutor ? String(manual.condutor).trim() : "";
+      if (condutor) {
+        acc.condutores.add(condutor);
+      }
+      return acc;
+    },
+    {
+      incidentes: 0,
+      bloqueios: 0,
+      climas: {},
+      kmTotal: 0,
+      qtPessoasTotal: 0,
+      qtPessoasCount: 0,
+      condutores: new Set(),
+    }
+  );
+  const climaTop = Object.keys(segurancaResumo.climas)
+    .map((key) => ({ key, total: segurancaResumo.climas[key] }))
+    .sort((a, b) => b.total - a.total)[0];
+  const pessoasMedia = segurancaResumo.qtPessoasCount
+    ? Math.round(segurancaResumo.qtPessoasTotal / segurancaResumo.qtPessoasCount)
+    : 0;
+
+  const dailyData = rdosAsc.map((item) => {
+    const metricas = item.metricas || {};
+    const date = item.rdoDate ? parseDate(item.rdoDate) : null;
+    return {
+      label: date ? formatDate(date) : "-",
+      total: metricas.total || 0,
+      concluidas: metricas.concluidas || 0,
+      overdue: metricas.overdue || 0,
+    };
+  });
+  const maxDaily = dailyData.reduce((max, item) => Math.max(max, item.total), 1);
+  const chartWidth = 560;
+  const chartHeight = 140;
+  const barWidth = dailyData.length ? Math.max(12, Math.floor(chartWidth / dailyData.length) - 6) : 12;
+  const barGap = 6;
+  const bars = dailyData
+    .map((item, index) => {
+      const height = Math.round((item.total / maxDaily) * (chartHeight - 40));
+      const x = index * (barWidth + barGap);
+      const y = chartHeight - height - 20;
+      return `<g>
+        <rect x="${x}" y="${y}" width="${barWidth}" height="${height}" fill="#5b8def" rx="4" />
+      </g>`;
+    })
+    .join("");
+  const chartSvg = `
+    <svg class="rdo-chart" viewBox="0 0 ${chartWidth} ${chartHeight}" role="img" aria-label="Volume diario">
+      <rect x="0" y="0" width="${chartWidth}" height="${chartHeight}" fill="#f8f6f1" rx="12" />
+      <line x1="0" y1="${chartHeight - 20}" x2="${chartWidth}" y2="${chartHeight - 20}" stroke="#d9d4c8" />
+      ${bars}
+    </svg>
+  `;
+  const abertasSemOverdue = Math.max(0, acumulado.abertas - acumulado.overdue);
+  const totalDistribuicao =
+    acumulado.concluidas + acumulado.emExecucao + abertasSemOverdue + acumulado.overdue;
+  const percConclusao = totalDistribuicao ? Math.round((acumulado.concluidas / totalDistribuicao) * 100) : 0;
+  const percExecucao = totalDistribuicao ? Math.round((acumulado.emExecucao / totalDistribuicao) * 100) : 0;
+  const percAbertas = totalDistribuicao ? Math.round((abertasSemOverdue / totalDistribuicao) * 100) : 0;
+  const percOverdue = Math.max(0, 100 - percConclusao - percExecucao - percAbertas);
+  const donutSvg = `
+    <svg class="rdo-donut" viewBox="0 0 120 120" role="img" aria-label="Distribuicao de status">
+      <circle cx="60" cy="60" r="46" fill="none" stroke="#e5e1d6" stroke-width="16" />
+      <circle cx="60" cy="60" r="46" fill="none" stroke="#4bd28f" stroke-width="16"
+        stroke-dasharray="${percConclusao} ${100 - percConclusao}" stroke-dashoffset="25" />
+      <circle cx="60" cy="60" r="46" fill="none" stroke="#5b8def" stroke-width="16"
+        stroke-dasharray="${percExecucao} ${100 - percExecucao}" stroke-dashoffset="${25 - percConclusao}" />
+      <circle cx="60" cy="60" r="46" fill="none" stroke="#f6c453" stroke-width="16"
+        stroke-dasharray="${percAbertas} ${100 - percAbertas}" stroke-dashoffset="${25 - percConclusao - percExecucao}" />
+      <circle cx="60" cy="60" r="46" fill="none" stroke="#e2595c" stroke-width="16"
+        stroke-dasharray="${percOverdue} ${100 - percOverdue}" stroke-dashoffset="${25 - percConclusao - percExecucao - percAbertas}" />
+    </svg>
+  `;
 
   const linhas = rdos
     .map((item) => {
@@ -5961,30 +6110,84 @@ function gerarRdoMensal() {
     .join("");
 
   const html = `
-    <div class="rdo-month">
-      <header class="rdo-month__header">
-        <div>
-          <span class="rdo-month__eyebrow">OPSCOPE</span>
-          <h2>Relatorio mensal RDO</h2>
-          <p>Cliente: ${escapeHtml(cliente)}</p>
+    <div class="rdo-month rdo-doc">
+      <header class="rdo-header">
+        <div class="rdo-brand">
+          <span class="rdo-eyebrow">OPSCOPE</span>
+          <h2 class="rdo-title">RELATORIO DE OPERACAO MENSAL - HV</h2>
+          <p class="rdo-subtitle">Relatorio Mensal de Operacao</p>
         </div>
-        <div class="rdo-month__meta">
-          <div>Periodo: ${escapeHtml(periodoLabel)}</div>
-          <div>Gerado em: ${escapeHtml(formatDateTime(new Date()))}</div>
+        <div class="rdo-meta">
+          <span>RDO-M: ${escapeHtml(hashMensal)}</span>
+          <span>Periodo: ${escapeHtml(periodoLabel)}</span>
+          <span>Cliente: ${escapeHtml(cliente)}</span>
+          <span>Emitido em: ${escapeHtml(formatDateTime(new Date()))}</span>
         </div>
       </header>
-      <section class="rdo-month__summary">
-        <div><span>RDOs</span><strong>${acumulado.totalRdos}</strong></div>
-        <div><span>Atividades</span><strong>${acumulado.atividades}</strong></div>
-        <div><span>Concluidas</span><strong>${acumulado.concluidas}</strong></div>
-        <div><span>Em execucao</span><strong>${acumulado.emExecucao}</strong></div>
-        <div><span>Criticas</span><strong>${acumulado.criticas}</strong></div>
-        <div><span>Overdue</span><strong>${acumulado.overdue}</strong></div>
-        <div><span>Docs OK</span><strong>${docsPercent}%</strong></div>
-        <div><span>Evidencias</span><strong>${acumulado.evidencias}</strong></div>
-        <div><span>Tempo total</span><strong>${tempoTotalLabel}</strong></div>
+      <div class="rdo-header-info">
+        <div>
+          <span>Projeto/Planta</span>
+          <strong>${escapeHtml(RDO_PROJETO)}</strong>
+        </div>
+        <div>
+          <span>Cliente</span>
+          <strong>${escapeHtml(cliente)}</strong>
+        </div>
+        <div>
+          <span>Setor</span>
+          <strong>${escapeHtml(RDO_SETOR)}</strong>
+        </div>
+        <div>
+          <span>Local</span>
+          <strong>Consolidado</strong>
+        </div>
+      </div>
+      <section class="rdo-section rdo-summary">
+        <h3>Resumo Executivo</h3>
+        <p>${escapeHtml(resumoExec)}</p>
+        <div class="rdo-summary-grid">
+          <div class="rdo-summary-item"><span>RDOs</span><strong>${acumulado.totalRdos}</strong></div>
+          <div class="rdo-summary-item"><span>Atividades</span><strong>${acumulado.atividades}</strong></div>
+          <div class="rdo-summary-item"><span>Concluidas</span><strong>${acumulado.concluidas}</strong></div>
+          <div class="rdo-summary-item"><span>Em execucao</span><strong>${acumulado.emExecucao}</strong></div>
+          <div class="rdo-summary-item"><span>Criticas</span><strong>${acumulado.criticas}</strong></div>
+          <div class="rdo-summary-item"><span>Overdue</span><strong>${acumulado.overdue}</strong></div>
+          <div class="rdo-summary-item"><span>Docs OK</span><strong>${docsPercent}%</strong></div>
+          <div class="rdo-summary-item"><span>SLA no prazo</span><strong>${slaPercent}%</strong></div>
+          <div class="rdo-summary-item"><span>Evidencias</span><strong>${acumulado.evidencias}</strong></div>
+          <div class="rdo-summary-item"><span>Tempo total</span><strong>${tempoTotalLabel}</strong></div>
+        </div>
       </section>
-      <section class="rdo-month__table">
+      <section class="rdo-section rdo-block rdo-month__charts">
+        <div>
+          <h4>Volume diario de atividades</h4>
+          ${chartSvg}
+        </div>
+        <div>
+          <h4>Distribuicao de status</h4>
+          <div class="rdo-month__donut">
+            ${donutSvg}
+            <div class="rdo-legend">
+              <span><i class="legend-dot legend-dot--ok"></i>Concluidas (${percConclusao}%)</span>
+              <span><i class="legend-dot legend-dot--info"></i>Em execucao (${percExecucao}%)</span>
+              <span><i class="legend-dot legend-dot--warn"></i>Abertas (${percAbertas}%)</span>
+              <span><i class="legend-dot legend-dot--danger"></i>Overdue (${percOverdue}%)</span>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="rdo-section rdo-block">
+        <h3>Seguranca e logistica</h3>
+        <div class="rdo-month__grid">
+          <div><span>Incidentes</span><strong>${segurancaResumo.incidentes}</strong></div>
+          <div><span>Bloqueios eletricos</span><strong>${segurancaResumo.bloqueios}</strong></div>
+          <div><span>Clima dominante</span><strong>${escapeHtml(climaTop ? climaTop.key : "-")}</strong></div>
+          <div><span>KM total</span><strong>${segurancaResumo.kmTotal.toFixed(1)}</strong></div>
+          <div><span>Qt. pessoas (media)</span><strong>${pessoasMedia}</strong></div>
+          <div><span>Condutores</span><strong>${segurancaResumo.condutores.size}</strong></div>
+        </div>
+      </section>
+      <section class="rdo-section rdo-block">
         <h3>Resumo operacional por dia</h3>
         <table class="report__table">
           <thead>
@@ -6004,7 +6207,12 @@ function gerarRdoMensal() {
           </tbody>
         </table>
       </section>
-      ${blocos || ""}
+      <section class="rdo-section">
+        <h3>Detalhamento diario</h3>
+        <div class="rdo-items">
+          ${blocos || `<div class="rdo-item">Nenhum RDO no periodo.</div>`}
+        </div>
+      </section>
     </div>
   `;
   return abrirJanelaRelatorio(html, "RDO mensal - OPSCOPE", false);
