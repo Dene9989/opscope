@@ -1765,26 +1765,6 @@
             <span class="indicator-card__badge" id="indicatorAutomationsBadge">-</span>
           </div>
         </div>
-            <span class="indicator-card__badge indicator-card__badge--danger">2 erros</span>
-          </button>
-          <button class="indicator-card" type="button" data-tab-target="arquivos" data-permission="verArquivos">
-            <span class="indicator-card__icon" aria-hidden="true">&#128193;</span>
-            <div>
-              <strong>Arquivos</strong>
-              <span>24 itens ativos</span>
-            </div>
-            <span class="indicator-card__badge">24 itens</span>
-          </button>
-          <button class="indicator-card" type="button" data-tab-target="automacoes" data-permission="verAutomacoes">
-            <span class="indicator-card__icon" aria-hidden="true">&#9889;</span>
-            <div>
-              <strong>Automacoes</strong>
-              <span>5 regras em execucao</span>
-            </div>
-            <span class="indicator-card__badge indicator-card__badge--neutral">MVP</span>
-          </button>
-        </div>
-
         <div class="gerencial-tabs" role="tablist" aria-label="Modulos gerenciais">
           <button class="gerencial-tab is-active" type="button" role="tab" data-tab-target="geral">Geral</button>
           <button class="gerencial-tab" type="button" role="tab" data-tab-target="diagnostico" data-permission="verDiagnostico">
@@ -1927,6 +1907,13 @@
                 <button id="btnPermissoesSalvar" class="btn btn--primary btn--small" type="button">
                   Salvar permissoes
                 </button>
+              </div>
+              <div class="permissions-toolbar">
+                <div id="permissoesSummary" class="permissions-summary"></div>
+                <div class="field field--compact">
+                  <label for="permissoesSearch">Filtrar permissoes</label>
+                  <input id="permissoesSearch" type="search" placeholder="Buscar por modulo ou acao" />
+                </div>
               </div>
               <div id="permissoesList" class="permissions-grid"></div>
               <p id="permissoesMessage" class="mensagem" aria-live="polite"></p>

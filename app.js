@@ -213,6 +213,8 @@ const indicatorAutomationsCard = document.querySelector("[data-indicator='automa
 const indicatorAutomationsCount = document.getElementById("indicatorAutomationsCount");
 const indicatorAutomationsBadge = document.getElementById("indicatorAutomationsBadge");
 const indicatorAutomationsMeta = document.getElementById("indicatorAutomationsMeta");
+const permissoesSearch = document.getElementById("permissoesSearch");
+const permissoesSummary = document.getElementById("permissoesSummary");
 const gerencialPalette = document.getElementById("gerencialPalette");
 const gerencialPaletteInput = document.getElementById("gerencialPaletteInput");
 const gerencialPaletteList = document.getElementById("gerencialPaletteList");
@@ -542,6 +544,48 @@ const GRANULAR_PERMISSION_LABELS = {
   verDiagnostico: "Ver diagnostico",
   verPainelGerencial: "Ver painel gerencial",
 };
+const PERMISSION_GROUPS = [
+  {
+    key: "perfil",
+    label: "Perfis e usuarios",
+    items: ["editarPerfil", "editarPerfilOutros", "verUsuarios", "convidarUsuarios", "desativarUsuarios"],
+  },
+  {
+    key: "arquivos",
+    label: "Arquivos",
+    items: ["verArquivos", "uploadArquivos", "excluirArquivos", "vincularArquivo"],
+  },
+  {
+    key: "rdo",
+    label: "RDOs",
+    items: ["verRDOs", "gerarRDOs", "excluirRDOs"],
+  },
+  {
+    key: "relatorios",
+    label: "Relatorios",
+    items: ["verRelatorios", "exportarRelatorios"],
+  },
+  {
+    key: "diagnostico",
+    label: "Diagnostico",
+    items: ["verDiagnostico", "reexecutarTarefas"],
+  },
+  {
+    key: "logs",
+    label: "Logs de API",
+    items: ["verLogsAPI", "limparLogsAPI"],
+  },
+  {
+    key: "automacoes",
+    label: "Automacoes",
+    items: ["verAutomacoes", "gerenciarAutomacoes"],
+  },
+  {
+    key: "gerencial",
+    label: "Painel gerencial",
+    items: ["verPainelGerencial"],
+  },
+];
 const GRANULAR_PROFILE_ORDER = [
   "pcm",
   "diretor_om",
@@ -2226,18 +2270,47 @@ function getPermissoesCatalog() {
   }));
 }
 
+function buildPermissoesGroups(permissions) {
+  const permMap = new Map(permissions.map((perm) => [perm.key, perm]));
+  const used = new Set();
+  const groups = PERMISSION_GROUPS.map((group) => {
+    const items = group.items
+      .map((key) => permMap.get(key))
+      .filter(Boolean);
+    items.forEach((item) => used.add(item.key));
+    return { key: group.key, label: group.label, items };
+  });
+  const extras = permissions.filter((perm) => !used.has(perm.key));
+  if (extras.length) {
+    groups.push({ key: "outros", label: "Outros", items: extras });
+  }
+  return groups;
+}
+
 function renderPermissoesGerenciais() {
   if (!permissoesList) {
     return;
   }
   const profiles = getPermissoesProfiles();
   const permissions = getPermissoesCatalog();
+  const groups = buildPermissoesGroups(permissions);
   const podeEditar = Boolean(currentUser && isAdmin() && canViewGerencial(currentUser));
+  const query = permissoesSearch ? normalizeSearchValue(permissoesSearch.value) : "";
+  const allowedPermissions = query
+    ? new Set(
+        permissions
+          .filter((perm) => normalizeSearchValue(perm.label || perm.key).includes(query))
+          .map((perm) => perm.key)
+      )
+    : null;
 
   permissoesList.innerHTML = "";
   if (!profiles.length || !permissions.length) {
     return;
   }
+
+  let totalEnabled = 0;
+  let visibleProfiles = 0;
 
   profiles.forEach((profile) => {
     const card = document.createElement("div");
@@ -2246,30 +2319,90 @@ function renderPermissoesGerenciais() {
 
     const title = document.createElement("div");
     title.className = "permissions-title";
+    const values = (permissoesState.values && permissoesState.values[profile.key]) || {};
     title.textContent = profile.label || profile.key;
 
-    const list = document.createElement("div");
-    list.className = "permissions-list";
-    const values = (permissoesState.values && permissoesState.values[profile.key]) || {};
+    const groupsWrap = document.createElement("div");
+    groupsWrap.className = "permissions-groups";
+    let profileEnabled = 0;
+    let hasVisibleGroup = false;
 
-    permissions.forEach((perm) => {
-      const label = document.createElement("label");
-      label.className = "permissions-item";
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.dataset.profile = profile.key;
-      checkbox.dataset.permission = perm.key;
-      checkbox.checked = Boolean(values[perm.key]);
-      checkbox.disabled = !podeEditar;
-      const text = document.createElement("span");
-      text.textContent = perm.label || perm.key;
-      label.append(checkbox, text);
-      list.append(label);
+    groups.forEach((group) => {
+      const visiblePerms = group.items.filter(
+        (perm) => !allowedPermissions || allowedPermissions.has(perm.key)
+      );
+      if (!visiblePerms.length) {
+        return;
+      }
+      hasVisibleGroup = true;
+      const groupEl = document.createElement("div");
+      groupEl.className = "permissions-group";
+      const groupTitle = document.createElement("div");
+      groupTitle.className = "permissions-group__title";
+      groupTitle.textContent = group.label;
+
+      const list = document.createElement("div");
+      list.className = "permissions-list";
+      visiblePerms.forEach((perm) => {
+        const label = document.createElement("label");
+        label.className = "permissions-item";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.dataset.profile = profile.key;
+        checkbox.dataset.permission = perm.key;
+        checkbox.checked = Boolean(values[perm.key]);
+        checkbox.disabled = !podeEditar;
+        if (checkbox.checked) {
+          profileEnabled += 1;
+        }
+        const text = document.createElement("span");
+        text.textContent = perm.label || perm.key;
+        label.append(checkbox, text);
+        list.append(label);
+      });
+
+      groupEl.append(groupTitle, list);
+      groupsWrap.append(groupEl);
     });
 
-    card.append(title, list);
+    if (!hasVisibleGroup) {
+      return;
+    }
+
+    const count = document.createElement("span");
+    count.className = "permissions-count";
+    const totalVisible = allowedPermissions ? allowedPermissions.size : permissions.length;
+    count.textContent = `${profileEnabled}/${totalVisible} ativos`;
+    title.append(count);
+
+    card.append(title, groupsWrap);
     permissoesList.append(card);
+    totalEnabled += profileEnabled;
+    visibleProfiles += 1;
   });
+
+  if (!permissoesList.childElementCount) {
+    const vazio = document.createElement("p");
+    vazio.className = "empty-state";
+    vazio.textContent = "Nenhuma permissao encontrada com esse filtro.";
+    permissoesList.append(vazio);
+  }
+
+  if (permissoesSummary) {
+    const totalVisible = allowedPermissions ? allowedPermissions.size : permissions.length;
+    permissoesSummary.innerHTML = "";
+    const pills = [
+      `Perfis: ${visibleProfiles}`,
+      `Permissoes: ${totalVisible}`,
+      `Ativas: ${totalEnabled}`,
+    ];
+    pills.forEach((text) => {
+      const pill = document.createElement("span");
+      pill.className = "permissions-pill";
+      pill.textContent = text;
+      permissoesSummary.append(pill);
+    });
+  }
   if (btnPermissoesSalvar) {
     btnPermissoesSalvar.disabled = !podeEditar;
   }
@@ -13947,6 +14080,12 @@ if (btnPermissoesSalvar) {
     } finally {
       btnPermissoesSalvar.disabled = false;
     }
+  });
+}
+
+if (permissoesSearch) {
+  permissoesSearch.addEventListener("input", () => {
+    renderPermissoesGerenciais();
   });
 }
 
