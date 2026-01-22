@@ -4327,11 +4327,16 @@ function renderDashboardHome() {
   const renderKpiCard = (label, value) =>
     `<article class="kpi-card"><span>${label}</span><strong>${value}</strong></article>`;
 
-  const series = Array.isArray(graficoEficiencia.serie) ? graficoEficiencia.serie : [];
-  const labels = Array.isArray(graficoEficiencia.labels) ? graficoEficiencia.labels : [];
-  const chart = buildNeonPieChart(series, labels);
-  const legendRow = labels.length
-    ? `<div class="chart-labels">${labels
+  const pieValues = [
+    Number(saudeOperacional.pontualidadePct) || 0,
+    Number(saudeOperacional.backlogTotal) || 0,
+    Number(saudeOperacional.concluidasPeriodo) || 0,
+    Number(saudeOperacional.atrasoMedioDias) || 0,
+  ];
+  const pieLabels = ["Pontualidade", "Backlog", "Concluidas", "Atraso medio"];
+  const chart = buildNeonPieChart(pieValues, pieLabels);
+  const legendRow = pieLabels.length
+    ? `<div class="chart-labels">${pieLabels
         .map((label) => `<span>${escapeHtml(label)}</span>`)
         .join("")}</div>`
     : "";
@@ -4443,7 +4448,10 @@ function renderDashboardHome() {
               <h3>EFICIENCIA OPERACIONAL</h3>
               <span class="trend-tag">+8%</span>
             </div>
-            <div class="mini-chart neon-pie">
+            <div class="mini-chart neon-pie" data-tooltip="Distribuicao operacional em pizza: Pontualidade mostra o percentual de entregas no prazo; Backlog indica tarefas pendentes; Concluidas mostra o volume finalizado no periodo; Atraso medio reflete o desvio medio em dias. Passe o mouse para revisar estes indicadores.">
+              <div class="neon-tooltip">
+                Distribuicao operacional em pizza: Pontualidade mostra o percentual de entregas no prazo; Backlog indica tarefas pendentes; Concluidas mostra o volume finalizado no periodo; Atraso medio reflete o desvio medio em dias.
+              </div>
               ${chart}
               ${legendRow}
             </div>
@@ -4521,11 +4529,11 @@ function startHomeTipsRotation() {
     return;
   }
   const tips = [
-    "Use o painel gerencial para validar backlog critico antes do turno.",
-    "Registre evidencias completas para agilizar auditorias de manutencao.",
-    "Priorize atividades com risco imediato e sincronize equipe.",
-    "Atualize OS e referencias para manter o historico confiavel.",
-    "Confira automacoes ativas para evitar repeticoes manuais.",
+    "Registre evidencias completas com fotos e observacoes tecnicas: isso acelera auditorias, evita retrabalho e protege o historico de manutencao.",
+    "Antes do turno, valide backlog critico e confirme recursos no campo: isso reduz interrupcoes e garante cumprimento de SLA.",
+    "Mantenha OS e referencias sempre atualizadas: padronizar dados melhora rastreabilidade e agiliza liberacoes futuras.",
+    "Use o painel gerencial para conferir automacoes ativas e evitar duplicidade de acao manual em tarefas recorrentes.",
+    "Priorize atividades com risco imediato e alinhe responsaveis: comunicacao clara reduz falhas e melhora a seguranca.",
   ];
   if (homeTipsTimer) {
     window.clearInterval(homeTipsTimer);
@@ -4538,7 +4546,7 @@ function startHomeTipsRotation() {
     tipBox.classList.remove("tip-fade");
     void tipBox.offsetWidth;
     tipBox.classList.add("tip-fade");
-  }, 4000);
+  }, 6000);
 }
 
 function buildMiniChart(series, labels) {

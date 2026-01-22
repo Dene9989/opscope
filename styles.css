@@ -3804,16 +3804,24 @@ body.is-visitor .container.auth-only {
 }
 
 .home-header {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  gap: 10px;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-items: center;
   padding: 16px 18px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
+  text-align: center;
+}
+
+.home-header h2 {
+  text-align: center;
+}
+
+.home-header__meta {
+  justify-content: center;
 }
 
 .home-header h2 {
@@ -4003,6 +4011,33 @@ body.is-visitor .container.auth-only {
   opacity: 0.95;
 }
 
+.neon-pie {
+  position: relative;
+}
+
+.neon-pie:hover .neon-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.neon-tooltip {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  max-width: 320px;
+  padding: 10px 12px;
+  background: rgba(9, 18, 28, 0.9);
+  border: 1px solid rgba(88, 210, 255, 0.4);
+  border-radius: 12px;
+  color: #e6f7ff;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+}
+
 .mini-chart .chart-grid line {
   stroke: rgba(255, 255, 255, 0.08);
   stroke-width: 1;
@@ -4035,20 +4070,20 @@ body.is-visitor .container.auth-only {
 }
 
 .opscope-tips {
-  min-height: 110px;
+  min-height: 130px;
   display: grid;
   align-items: center;
 }
 
 .opscope-tip {
-  font-size: 0.95rem;
-  color: var(--text);
-  background: rgba(12, 28, 45, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  padding: 14px 16px;
-  box-shadow: inset 0 0 18px rgba(6, 16, 26, 0.35);
-  animation: tipPulse 4s ease-in-out infinite;
+  font-size: 0.98rem;
+  color: #e6fff2;
+  background: rgba(10, 24, 34, 0.72);
+  border: 1px solid rgba(46, 204, 113, 0.35);
+  border-radius: 16px;
+  padding: 16px 18px;
+  box-shadow: inset 0 0 18px rgba(6, 16, 26, 0.35), 0 0 22px rgba(46, 204, 113, 0.18);
+  animation: tipPulseGreen 6s ease-in-out infinite;
 }
 
 .tip-fade {
@@ -4066,13 +4101,13 @@ body.is-visitor .container.auth-only {
   }
 }
 
-@keyframes tipPulse {
+@keyframes tipPulseGreen {
   0%,
   100% {
-    box-shadow: inset 0 0 18px rgba(6, 16, 26, 0.35), 0 0 0 rgba(88, 210, 255, 0);
+    box-shadow: inset 0 0 18px rgba(6, 16, 26, 0.35), 0 0 0 rgba(46, 204, 113, 0);
   }
   50% {
-    box-shadow: inset 0 0 18px rgba(6, 16, 26, 0.35), 0 0 18px rgba(88, 210, 255, 0.28);
+    box-shadow: inset 0 0 18px rgba(6, 16, 26, 0.35), 0 0 20px rgba(46, 204, 113, 0.45);
   }
 }
 
