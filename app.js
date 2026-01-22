@@ -5714,6 +5714,30 @@ function getPerfCriticalClass(value) {
   return "perf-badge--danger";
 }
 
+function parseTimeToMinutes(value) {
+  if (!value) {
+    return null;
+  }
+  const [hora, minuto] = String(value).split(":").map((item) => Number.parseInt(item, 10));
+  if (!Number.isFinite(hora) || !Number.isFinite(minuto)) {
+    return null;
+  }
+  return hora * 60 + minuto;
+}
+
+function calcDurationMinutes(inicio, fim) {
+  const inicioMin = parseTimeToMinutes(inicio);
+  const fimMin = parseTimeToMinutes(fim);
+  if (inicioMin === null || fimMin === null) {
+    return 0;
+  }
+  let diff = fimMin - inicioMin;
+  if (diff < 0) {
+    diff += 24 * 60;
+  }
+  return diff;
+}
+
 function renderPerformanceProjetos() {
   if (!perfProjetoCards || !perfProjetoTabela) {
     return;
@@ -7579,6 +7603,29 @@ function montarRdoUI() {
             <input id="rdoSgi" type="text" />
           </div>
         </div>
+        <div class="field rdo-shift-block" data-full>
+          <label>Horas e acionamentos (projeto BSO2)</label>
+          <div class="rdo-shift-toggles">
+            <label class="checkbox-field">
+              <input id="rdoAcionamentoToggle" type="checkbox" />
+              <span>Acionamento</span>
+            </label>
+            <div class="rdo-shift-time">
+              <input id="rdoAcionamentoInicio" type="time" disabled />
+              <input id="rdoAcionamentoFim" type="time" disabled />
+            </div>
+            <label class="checkbox-field">
+              <input id="rdoHoraExtraToggle" type="checkbox" />
+              <span>Hora extra</span>
+            </label>
+            <div class="rdo-shift-time">
+              <input id="rdoHoraExtraInicio" type="time" disabled />
+              <input id="rdoHoraExtraFim" type="time" disabled />
+            </div>
+          </div>
+          <div class="rdo-shift-list" id="rdoJornadaList"></div>
+          <small class="hint">Informe entrada e saida dos colaboradores do projeto BSO2.</small>
+        </div>
         <div class="field" data-full>
           <label for="rdoRegistro">Registro gerencial do dia</label>
           <textarea id="rdoRegistro" rows="2" placeholder="Opcional"></textarea>
@@ -7587,6 +7634,9 @@ function montarRdoUI() {
         <div class="modal__actions">
           <button id="btnRdoPreview" class="btn btn--ghost btn--small" type="button">Preview</button>
           <button id="btnRdoExportar" class="btn btn--primary btn--small" type="button">Exportar PDF</button>
+          <button id="btnRdoExportarCliente" class="btn btn--ghost btn--small" type="button">
+            Exportar PDF cliente
+          </button>
           <button id="btnRdoVoltar" class="btn btn--ghost btn--small" type="button">Voltar</button>
         </div>
         <div id="rdoPreview" class="rdo-preview" hidden>
@@ -7651,6 +7701,13 @@ function montarRdoUI() {
   rdoUI.kmInicial = modal.querySelector("#rdoKmInicial");
   rdoUI.kmFinal = modal.querySelector("#rdoKmFinal");
   rdoUI.qtPessoas = modal.querySelector("#rdoQtPessoas");
+  rdoUI.acionamentoToggle = modal.querySelector("#rdoAcionamentoToggle");
+  rdoUI.acionamentoInicio = modal.querySelector("#rdoAcionamentoInicio");
+  rdoUI.acionamentoFim = modal.querySelector("#rdoAcionamentoFim");
+  rdoUI.horaExtraToggle = modal.querySelector("#rdoHoraExtraToggle");
+  rdoUI.horaExtraInicio = modal.querySelector("#rdoHoraExtraInicio");
+  rdoUI.horaExtraFim = modal.querySelector("#rdoHoraExtraFim");
+  rdoUI.jornadaList = modal.querySelector("#rdoJornadaList");
   rdoUI.clima = modal.querySelector("#rdoClima");
   rdoUI.climaOutroField = modal.querySelector("#rdoClimaOutroField");
   rdoUI.climaOutro = modal.querySelector("#rdoClimaOutro");
@@ -7664,6 +7721,7 @@ function montarRdoUI() {
   rdoUI.mensagem = modal.querySelector("#rdoMensagem");
   rdoUI.btnPreview = modal.querySelector("#btnRdoPreview");
   rdoUI.btnExportar = modal.querySelector("#btnRdoExportar");
+  rdoUI.btnExportarCliente = modal.querySelector("#btnRdoExportarCliente");
   rdoUI.btnFechar = modal.querySelector("[data-rdo-close]");
   rdoUI.btnVoltar = modal.querySelector("#btnRdoVoltar");
   rdoUI.deleteModal = modalDelete;
@@ -7698,6 +7756,15 @@ function montarRdoUI() {
       }
     });
   }
+  if (rdoUI.btnExportarCliente) {
+    rdoUI.btnExportarCliente.addEventListener("click", async () => {
+      const isReadOnly = rdoUI.modal && rdoUI.modal.dataset.readonly === "true";
+      const snapshot = isReadOnly ? rdoPreviewSnapshot : await gerarSnapshotRdo(true);
+      if (snapshot) {
+        await exportarRdoPdf(snapshot, { cliente: true });
+      }
+    });
+  }
   if (rdoUI.showDeleted) {
     rdoUI.showDeleted.addEventListener("change", renderRdoList);
   }
@@ -7718,6 +7785,24 @@ function montarRdoUI() {
   }
   if (rdoUI.clima) {
     rdoUI.clima.addEventListener("change", atualizarClimaOutroRdo);
+  }
+  if (rdoUI.acionamentoToggle) {
+    rdoUI.acionamentoToggle.addEventListener("change", () => {
+      toggleRdoHorarioFields(
+        rdoUI.acionamentoToggle,
+        rdoUI.acionamentoInicio,
+        rdoUI.acionamentoFim
+      );
+    });
+  }
+  if (rdoUI.horaExtraToggle) {
+    rdoUI.horaExtraToggle.addEventListener("change", () => {
+      toggleRdoHorarioFields(
+        rdoUI.horaExtraToggle,
+        rdoUI.horaExtraInicio,
+        rdoUI.horaExtraFim
+      );
+    });
   }
   if (rdoUI.qtPessoas) {
     rdoUI.qtPessoas.addEventListener("input", () => {
@@ -7759,6 +7844,9 @@ function montarRdoUI() {
       }
       if (botao.dataset.action === "rdo-pdf") {
         await exportarRdoPdf(snapshot);
+      }
+      if (botao.dataset.action === "rdo-pdf-cliente") {
+        await exportarRdoPdf(snapshot, { cliente: true });
       }
     });
     rdoUI.list.addEventListener("change", (event) => {
@@ -7869,10 +7957,16 @@ function renderRdoList() {
     btnPdf.className = "btn btn--primary btn--small";
     btnPdf.dataset.action = "rdo-pdf";
     btnPdf.textContent = "Exportar PDF";
+    const btnPdfCliente = document.createElement("button");
+    btnPdfCliente.type = "button";
+    btnPdfCliente.className = "btn btn--ghost btn--small";
+    btnPdfCliente.dataset.action = "rdo-pdf-cliente";
+    btnPdfCliente.textContent = "PDF cliente";
     if (snapshot.deletedAt) {
       btnPdf.disabled = true;
+      btnPdfCliente.disabled = true;
     }
-    actions.append(btnAbrir, btnPdf);
+    actions.append(btnAbrir, btnPdf, btnPdfCliente);
 
     card.append(selectWrap, info, actions);
     rdoUI.list.append(card);
@@ -8012,6 +8106,28 @@ function abrirRdoModal(snapshot) {
     rdoUI.qtPessoas.value = manual.qtPessoas || "";
     rdoUI.qtPessoas.dataset.auto = manual.qtPessoas ? "manual" : "auto";
   }
+  if (rdoUI.acionamentoToggle) {
+    rdoUI.acionamentoToggle.checked = Boolean(manual.acionamento && manual.acionamento.ativo);
+  }
+  if (rdoUI.acionamentoInicio) {
+    rdoUI.acionamentoInicio.value =
+      manual.acionamento && manual.acionamento.inicio ? manual.acionamento.inicio : "";
+  }
+  if (rdoUI.acionamentoFim) {
+    rdoUI.acionamentoFim.value =
+      manual.acionamento && manual.acionamento.fim ? manual.acionamento.fim : "";
+  }
+  if (rdoUI.horaExtraToggle) {
+    rdoUI.horaExtraToggle.checked = Boolean(manual.horaExtra && manual.horaExtra.ativo);
+  }
+  if (rdoUI.horaExtraInicio) {
+    rdoUI.horaExtraInicio.value =
+      manual.horaExtra && manual.horaExtra.inicio ? manual.horaExtra.inicio : "";
+  }
+  if (rdoUI.horaExtraFim) {
+    rdoUI.horaExtraFim.value =
+      manual.horaExtra && manual.horaExtra.fim ? manual.horaExtra.fim : "";
+  }
   if (rdoUI.clima) {
     rdoUI.clima.value = manual.clima || "SOL";
   }
@@ -8033,6 +8149,9 @@ function abrirRdoModal(snapshot) {
   if (rdoUI.numeroSgi) {
     rdoUI.numeroSgi.value = manual.numeroSgi || "";
   }
+  renderRdoJornadas(manual);
+  toggleRdoHorarioFields(rdoUI.acionamentoToggle, rdoUI.acionamentoInicio, rdoUI.acionamentoFim);
+  toggleRdoHorarioFields(rdoUI.horaExtraToggle, rdoUI.horaExtraInicio, rdoUI.horaExtraFim);
   atualizarClimaOutroRdo();
   atualizarSugestaoQtPessoas();
   setRdoReadOnly(isReadOnly);
@@ -8046,6 +8165,9 @@ function abrirRdoModal(snapshot) {
   }
   if (rdoUI.btnExportar) {
     rdoUI.btnExportar.disabled = Boolean(snapshot && snapshot.deletedAt);
+  }
+  if (rdoUI.btnExportarCliente) {
+    rdoUI.btnExportarCliente.disabled = Boolean(snapshot && snapshot.deletedAt);
   }
   mostrarMensagemRdo(isReadOnly ? "Snapshot somente leitura." : "");
   rdoUI.modal.hidden = false;
@@ -8080,6 +8202,12 @@ function setRdoReadOnly(readOnly) {
     rdoUI.kmInicial,
     rdoUI.kmFinal,
     rdoUI.qtPessoas,
+    rdoUI.acionamentoToggle,
+    rdoUI.acionamentoInicio,
+    rdoUI.acionamentoFim,
+    rdoUI.horaExtraToggle,
+    rdoUI.horaExtraInicio,
+    rdoUI.horaExtraFim,
     rdoUI.clima,
     rdoUI.climaOutro,
     rdoUI.incidente,
@@ -8096,6 +8224,7 @@ function setRdoReadOnly(readOnly) {
   if (rdoUI.btnPreview) {
     rdoUI.btnPreview.hidden = readOnly;
   }
+  setRdoJornadaReadOnly(readOnly);
 }
 
 function atualizarClimaOutroRdo() {
@@ -8109,6 +8238,95 @@ function atualizarClimaOutroRdo() {
   }
 }
 
+function isUserFromBso2(user) {
+  const projeto = normalizeSearchValue(user.projeto || user.localizacao || "");
+  return (
+    projeto.includes("bso2") ||
+    projeto.includes("bos2") ||
+    projeto.includes("boa sorte ii") ||
+    projeto.includes("boa sorte 2")
+  );
+}
+
+function renderRdoJornadas(manual = {}) {
+  if (!rdoUI.jornadaList) {
+    return;
+  }
+  const jornadas = Array.isArray(manual.jornadas) ? manual.jornadas : [];
+  const jornadasMap = new Map(
+    jornadas.map((item) => [String(item.userId || item.nome || item.label || ""), item])
+  );
+  const colaboradores = users
+    .filter((user) => user && (user.name || user.username))
+    .filter(isUserFromBso2)
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+
+  if (!colaboradores.length && !jornadas.length) {
+    rdoUI.jornadaList.innerHTML = `<p class="empty-state">Nenhum colaborador BSO2 cadastrado.</p>`;
+    return;
+  }
+
+  if (!colaboradores.length && jornadas.length) {
+    rdoUI.jornadaList.innerHTML = jornadas
+      .map((item) => {
+        const label = item.nome || item.label || "Colaborador";
+        return `
+          <div class="rdo-shift-row" data-user-id="${escapeHtml(item.userId || "")}">
+            <div class="rdo-shift-name">${escapeHtml(label)}</div>
+            <div class="rdo-shift-inputs">
+              <label>Entrada</label>
+              <input type="time" data-shift="entrada" value="${escapeHtml(item.entrada || "")}" />
+              <label>Saida</label>
+              <input type="time" data-shift="saida" value="${escapeHtml(item.saida || "")}" />
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+    return;
+  }
+
+  rdoUI.jornadaList.innerHTML = colaboradores
+    .map((user) => {
+      const label = getUserLabel(user.id);
+      const ref = jornadasMap.get(String(user.id)) || jornadasMap.get(label) || {};
+      return `
+        <div class="rdo-shift-row" data-user-id="${escapeHtml(user.id)}">
+          <div class="rdo-shift-name">${escapeHtml(label)}</div>
+          <div class="rdo-shift-inputs">
+            <label>Entrada</label>
+            <input type="time" data-shift="entrada" value="${escapeHtml(ref.entrada || "")}" />
+            <label>Saida</label>
+            <input type="time" data-shift="saida" value="${escapeHtml(ref.saida || "")}" />
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function toggleRdoHorarioFields(toggle, inicio, fim) {
+  if (!toggle || !inicio || !fim) {
+    return;
+  }
+  const ativo = toggle.checked;
+  inicio.disabled = !ativo;
+  fim.disabled = !ativo;
+  if (!ativo) {
+    inicio.value = "";
+    fim.value = "";
+  }
+}
+
+function setRdoJornadaReadOnly(readOnly) {
+  if (!rdoUI.jornadaList) {
+    return;
+  }
+  rdoUI.jornadaList
+    .querySelectorAll("input")
+    .forEach((input) => (input.disabled = readOnly));
+}
+
 function coletarFiltrosRdo() {
   return {
     subestacao: rdoUI.subestacao ? rdoUI.subestacao.value : "",
@@ -8120,6 +8338,22 @@ function coletarFiltrosRdo() {
 
 function coletarManualRdo() {
   const clima = rdoUI.clima ? rdoUI.clima.value : "";
+  const jornadas = rdoUI.jornadaList
+    ? Array.from(rdoUI.jornadaList.querySelectorAll(".rdo-shift-row"))
+        .map((row) => {
+          const entradaInput = row.querySelector("input[data-shift='entrada']");
+          const saidaInput = row.querySelector("input[data-shift='saida']");
+          return {
+            userId: row.dataset.userId || "",
+            nome: row.querySelector(".rdo-shift-name")
+              ? row.querySelector(".rdo-shift-name").textContent.trim()
+              : "",
+            entrada: entradaInput ? entradaInput.value : "",
+            saida: saidaInput ? saidaInput.value : "",
+          };
+        })
+        .filter((item) => item.entrada || item.saida)
+    : [];
   return {
     condutor: rdoUI.condutor ? rdoUI.condutor.value.trim() : "",
     kmInicial: rdoUI.kmInicial ? rdoUI.kmInicial.value.trim() : "",
@@ -8132,6 +8366,17 @@ function coletarManualRdo() {
     local: rdoUI.local ? rdoUI.local.value : "",
     numeroSi: rdoUI.numeroSi ? rdoUI.numeroSi.value.trim() : "",
     numeroSgi: rdoUI.numeroSgi ? rdoUI.numeroSgi.value.trim() : "",
+    acionamento: {
+      ativo: rdoUI.acionamentoToggle ? rdoUI.acionamentoToggle.checked : false,
+      inicio: rdoUI.acionamentoInicio ? rdoUI.acionamentoInicio.value : "",
+      fim: rdoUI.acionamentoFim ? rdoUI.acionamentoFim.value : "",
+    },
+    horaExtra: {
+      ativo: rdoUI.horaExtraToggle ? rdoUI.horaExtraToggle.checked : false,
+      inicio: rdoUI.horaExtraInicio ? rdoUI.horaExtraInicio.value : "",
+      fim: rdoUI.horaExtraFim ? rdoUI.horaExtraFim.value : "",
+    },
+    jornadas,
   };
 }
 
@@ -8876,7 +9121,8 @@ function renderRdoPreview(snapshot) {
   rdoUI.preview.hidden = false;
 }
 
-function buildRdoHtml(snapshot) {
+function buildRdoHtml(snapshot, options = {}) {
+  const isCliente = Boolean(options.cliente);
   const dataParsed = snapshot.rdoDate ? parseDate(snapshot.rdoDate) : null;
   const dataLabel = dataParsed ? formatDate(dataParsed) : "-";
   const emitidoDate = snapshot.createdAt ? parseTimestamp(snapshot.createdAt) : null;
@@ -8916,6 +9162,27 @@ function buildRdoHtml(snapshot) {
   const climaValor = manual.clima === "OUTRO" && manual.climaOutro
     ? `OUTRO - ${manual.climaOutro}`
     : manual.clima || "-";
+  const jornadas = Array.isArray(manual.jornadas) ? manual.jornadas : [];
+  const jornadasRows = jornadas.map((item) => {
+    const entrada = item.entrada || "";
+    const saida = item.saida || "";
+    const duracaoMin = calcDurationMinutes(entrada, saida);
+    return {
+      nome: item.nome || item.label || item.userLabel || "Colaborador",
+      entrada: entrada || "-",
+      saida: saida || "-",
+      duracaoMin,
+    };
+  });
+  const totalJornadaMin = jornadasRows.reduce((acc, row) => acc + (row.duracaoMin || 0), 0);
+  const acionamentoMin =
+    manual.acionamento && manual.acionamento.ativo
+      ? calcDurationMinutes(manual.acionamento.inicio, manual.acionamento.fim)
+      : 0;
+  const horaExtraMin =
+    manual.horaExtra && manual.horaExtra.ativo
+      ? calcDurationMinutes(manual.horaExtra.inicio, manual.horaExtra.fim)
+      : 0;
   const descricaoConsolidada = gerarDescricaoConsolidadaRdo(snapshot.itens || [], snapshot.metricas);
   const rdoNumero = snapshot.id ? snapshot.id.slice(0, 6).toUpperCase() : "-";
   const resumoItens = [
@@ -8938,6 +9205,61 @@ function buildRdoHtml(snapshot) {
       `;
     })
     .join("");
+  const jornadaRowsHtml = jornadasRows.length
+    ? `
+      <table class="rdo-table rdo-table--compact">
+        <thead>
+          <tr>
+            <th>Colaborador</th>
+            <th>Entrada</th>
+            <th>Saida</th>
+            <th>Horas</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${jornadasRows
+            .map(
+              (row) => `
+              <tr>
+                <td>${escapeHtml(row.nome)}</td>
+                <td>${escapeHtml(row.entrada)}</td>
+                <td>${escapeHtml(row.saida)}</td>
+                <td>${row.duracaoMin ? escapeHtml(formatDuracaoMin(row.duracaoMin)) : "-"}</td>
+              </tr>
+            `
+            )
+            .join("")}
+        </tbody>
+      </table>
+    `
+    : `<p class="empty-state">Sem apontamentos de jornada no periodo.</p>`;
+  const acionamentoLabel =
+    manual.acionamento && manual.acionamento.ativo
+      ? `${manual.acionamento.inicio || "-"} - ${manual.acionamento.fim || "-"}`
+      : "Nao informado";
+  const horaExtraLabel =
+    manual.horaExtra && manual.horaExtra.ativo
+      ? `${manual.horaExtra.inicio || "-"} - ${manual.horaExtra.fim || "-"}`
+      : "Nao informado";
+  const jornadaResumoHtml = `
+    <div class="rdo-summary-grid rdo-summary-grid--cards rdo-summary-grid--tight">
+      <div class="rdo-summary-item">
+        <span>Jornada total</span>
+        <strong>${totalJornadaMin ? formatDuracaoMin(totalJornadaMin) : "-"}</strong>
+        <small>${jornadasRows.length} colaboradores</small>
+      </div>
+      <div class="rdo-summary-item">
+        <span>Hora extra</span>
+        <strong>${horaExtraMin ? formatDuracaoMin(horaExtraMin) : "-"}</strong>
+        <small>${escapeHtml(horaExtraLabel)}</small>
+      </div>
+      <div class="rdo-summary-item">
+        <span>Acionamento</span>
+        <strong>${acionamentoMin ? formatDuracaoMin(acionamentoMin) : "-"}</strong>
+        <small>${escapeHtml(acionamentoLabel)}</small>
+      </div>
+    </div>
+  `;
 
   const rows = snapshot.itens
     .map((item) => {
@@ -9040,7 +9362,11 @@ function buildRdoHtml(snapshot) {
           ${logoHtml}
           <div>
             <span class="rdo-eyebrow">OPSCOPE</span>
-            <h2 class="rdo-title">RELATORIO DE OPERACAO DIARIA - HV</h2>
+            <h2 class="rdo-title">${
+              isCliente
+                ? "RELATORIO DE OPERACAO DIARIA - HV (CLIENTE)"
+                : "RELATORIO DE OPERACAO DIARIA - HV"
+            }</h2>
             <p class="rdo-subtitle">Relatorio Diario de Operacao</p>
           </div>
         </div>
@@ -9069,6 +9395,12 @@ function buildRdoHtml(snapshot) {
           <strong>${escapeHtml(local)}</strong>
         </div>
       </div>
+
+      <section class="rdo-section rdo-block rdo-header-shifts">
+        <h3>Controle de jornada</h3>
+        ${jornadaResumoHtml}
+        ${jornadaRowsHtml}
+      </section>
 
       <section class="rdo-section rdo-summary">
         <h3>Resumo Executivo</h3>
@@ -9099,6 +9431,10 @@ function buildRdoHtml(snapshot) {
       <section class="rdo-section rdo-block">
         <h3>Dados Operacionais</h3>
         <div class="rdo-info-grid">
+          ${
+            isCliente
+              ? ""
+              : `
           <div>
             <span>Condutor</span>
             <strong>${escapeHtml(manual.condutor || "-")}</strong>
@@ -9111,6 +9447,8 @@ function buildRdoHtml(snapshot) {
             <span>KM final</span>
             <strong>${escapeHtml(manual.kmFinal || "-")}</strong>
           </div>
+          `
+          }
           <div>
             <span>Qt. pessoas</span>
             <strong>${escapeHtml(manual.qtPessoas || "-")}</strong>
@@ -9185,7 +9523,7 @@ function buildRdoHtml(snapshot) {
   `;
 }
 
-function buildRdoPrintHtml(snapshot, logoDataUrl = "") {
+function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
   const baseHref = window.location.href.split("#")[0];
   const estilos = `
     @page { size: A4; margin: 16mm; }
@@ -9208,7 +9546,9 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "") {
     .rdo-summary { background: #f8f6f1; border: 1px solid #d6d1c6; padding: 12px 14px; border-radius: 12px; }
     .rdo-block { border: 1px solid #d6d1c6; border-radius: 12px; padding: 10px 12px; background: #fff; }
     .rdo-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+    .rdo-summary-grid--tight { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
     .rdo-summary-item { border: 1px solid #d6d1c6; border-radius: 10px; padding: 6px 8px; display: grid; gap: 2px; background: #fff; }
+    .rdo-summary-grid--cards .rdo-summary-item { background: #fff; box-shadow: 0 6px 10px rgba(0,0,0,0.06); }
     .rdo-summary-item span { font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: #425363; }
     .rdo-summary-item strong { font-size: 0.9rem; }
     .rdo-summary-item small { font-size: 0.65rem; color: #425363; }
@@ -9216,6 +9556,7 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "") {
     .rdo-table th, .rdo-table td { border-bottom: 1px solid #d6d1c6; padding: 6px 8px; }
     .rdo-table th { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; background: #f8f6f1; color: #425363; }
     .rdo-table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rdo-table--compact th, .rdo-table--compact td { font-size: 0.7rem; }
     .rdo-items { display: grid; gap: 10px; }
     .rdo-item { border: 1px solid #d6d1c6; border-radius: 12px; padding: 10px 12px; display: grid; gap: 8px; break-inside: avoid; }
     .rdo-item__head { display: flex; justify-content: space-between; gap: 12px; font-size: 0.8rem; color: #425363; }
@@ -9242,16 +9583,17 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "") {
     .rdo-evidencia figcaption { padding: 6px 8px; font-size: 0.7rem; color: #425363; background: #f8f6f1; }
     .rdo-naoimagem ul { margin: 6px 0 0 18px; padding: 0; font-size: 0.75rem; color: #425363; }
   `;
-  let body = buildRdoHtml(snapshot);
+  let body = buildRdoHtml(snapshot, options);
   if (logoDataUrl) {
     body = body.replace('src="./assets/engelmig-logo.png"', `src="${logoDataUrl}"`);
   }
+  const titleLabel = options.cliente ? "RDO cliente" : "RDO";
   return `
     <!doctype html>
     <html lang="pt-BR">
       <head>
         <meta charset="utf-8" />
-        <title>RDO ${escapeHtml(snapshot.rdoDate || "")}</title>
+        <title>${titleLabel} ${escapeHtml(snapshot.rdoDate || "")}</title>
         <base href="${baseHref}" />
         <style>${estilos}</style>
       </head>
@@ -9331,12 +9673,12 @@ async function carregarLogoRdoDataUrl() {
   }
 }
 
-async function exportarRdoPdf(snapshot) {
+async function exportarRdoPdf(snapshot, options = {}) {
   if (!snapshot) {
     return;
   }
   const logoDataUrl = await carregarLogoRdoDataUrl();
-  const html = buildRdoPrintHtml(snapshot, logoDataUrl);
+  const html = buildRdoPrintHtml(snapshot, logoDataUrl, options);
   const popup = window.open("", "_blank");
   if (!popup) {
     mostrarMensagemRdo("Popup bloqueado. Permita a abertura para exportar o PDF.", true);
