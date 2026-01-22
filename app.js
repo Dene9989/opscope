@@ -5666,6 +5666,27 @@ function abrirJanelaRelatorio(html, titulo, imprimir) {
           .report__table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
           .report__table th, .report__table td { border-bottom: 1px solid #e2ddd2; padding: 8px; text-align: left; }
           .report__table th { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.65rem; background: #f6f2ea; }
+          .rdo-month { display: grid; gap: 18px; }
+          .rdo-month__header { display: flex; justify-content: space-between; gap: 16px; border-bottom: 2px solid #d9d4c8; padding-bottom: 12px; }
+          .rdo-month__eyebrow { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: #5c6772; }
+          .rdo-month__header h2 { margin: 6px 0 4px; font-size: 1.4rem; }
+          .rdo-month__meta { font-size: 0.85rem; color: #5c6772; display: grid; gap: 6px; text-align: right; }
+          .rdo-month__summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+          .rdo-month__summary div { border: 1px solid #d9d4c8; border-radius: 10px; padding: 10px; background: #f8f6f1; }
+          .rdo-month__summary span { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: #5c6772; }
+          .rdo-month__summary strong { font-size: 1rem; }
+          .rdo-month__table h3 { margin: 0 0 8px; font-size: 1rem; }
+          .rdo-month__day { border: 1px solid #d9d4c8; border-radius: 12px; padding: 12px; display: grid; gap: 12px; }
+          .rdo-month__day-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+          .rdo-month__day-head span { font-size: 0.8rem; color: #5c6772; }
+          .rdo-badge { border: 1px solid #d9d4c8; border-radius: 999px; padding: 6px 10px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; background: #f6f2ea; color: #5c6772; }
+          .rdo-month__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+          .rdo-month__grid div { border: 1px solid #e2ddd2; border-radius: 10px; padding: 8px; }
+          .rdo-month__grid span { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: #5c6772; }
+          .rdo-month__grid strong { font-size: 0.85rem; }
+          .rdo-month__notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+          .rdo-month__notes h4 { margin: 0 0 6px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.12em; color: #5c6772; }
+          .rdo-month__notes p { margin: 0; font-size: 0.85rem; color: #1f2a33; }
         </style>
       </head>
       <body>${html}</body>
@@ -5757,48 +5778,233 @@ function exportarRelatorioMensal() {
 function gerarRdoMensal() {
   const range = getMonthlyRange();
   const periodoLabel = `${formatDate(range.start)} - ${formatDate(range.end)}`;
-  const rdos = rdoSnapshots.filter((item) => {
-    const data = item.rdoDate ? parseDate(item.rdoDate) : null;
-    return data ? inRange(startOfDay(data), range.start, range.end) : false;
-  });
+  const rdos = rdoSnapshots
+    .filter((item) => {
+      const data = item.rdoDate ? parseDate(item.rdoDate) : null;
+      return data ? inRange(startOfDay(data), range.start, range.end) : false;
+    })
+    .sort((a, b) => (getTimeValue(parseDate(b.rdoDate)) || 0) - (getTimeValue(parseDate(a.rdoDate)) || 0));
+
+  const acumulado = rdos.reduce(
+    (acc, item) => {
+      const metricas = item.metricas || {};
+      acc.totalRdos += 1;
+      acc.atividades += metricas.total || 0;
+      acc.concluidas += metricas.concluidas || 0;
+      acc.emExecucao += metricas.emExecucao || 0;
+      acc.criticas += metricas.criticas || 0;
+      acc.overdue += metricas.overdue || 0;
+      acc.docsOk += metricas.docsOk || 0;
+      acc.docsTotal += metricas.docsTotal || 0;
+      acc.tempoTotal += metricas.tempoTotalMin || 0;
+      acc.evidencias += item.evidenciasTotal || (Array.isArray(item.evidencias) ? item.evidencias.length : 0);
+      return acc;
+    },
+    {
+      totalRdos: 0,
+      atividades: 0,
+      concluidas: 0,
+      emExecucao: 0,
+      criticas: 0,
+      overdue: 0,
+      docsOk: 0,
+      docsTotal: 0,
+      tempoTotal: 0,
+      evidencias: 0,
+    }
+  );
+
+  const docsPercent = acumulado.docsTotal
+    ? Math.round((acumulado.docsOk / acumulado.docsTotal) * 100)
+    : 0;
+  const tempoTotalLabel = acumulado.tempoTotal
+    ? formatDuracaoMin(acumulado.tempoTotal)
+    : "-";
+  const cliente = relatorioCliente ? relatorioCliente.value || RDO_CLIENTE : RDO_CLIENTE;
+
   const linhas = rdos
     .map((item) => {
       const dataLabel = item.rdoDate ? formatDate(parseDate(item.rdoDate)) : "-";
-      const totalItens = Array.isArray(item.itens) ? item.itens.length : 0;
+      const filtros = item.filtros || {};
+      const metricas = item.metricas || {};
       return `<tr>
         <td>${escapeHtml(dataLabel)}</td>
-        <td>${escapeHtml(String(totalItens))}</td>
-        <td>${escapeHtml(item.responsavel || "-")}</td>
+        <td>${escapeHtml(filtros.subestacao || "-")}</td>
+        <td>${escapeHtml(filtros.categoria || "-")}</td>
+        <td>${escapeHtml(filtros.prioridade || "-")}</td>
+        <td>${escapeHtml(filtros.usuario || "-")}</td>
+        <td>${escapeHtml(String(metricas.total || 0))}</td>
+        <td>${escapeHtml(String(metricas.concluidas || 0))}</td>
+        <td>${escapeHtml(String(metricas.criticas || 0))}</td>
       </tr>`;
     })
     .join("");
+
+  const blocos = rdos
+    .map((item) => {
+      const dataLabel = item.rdoDate ? formatDate(parseDate(item.rdoDate)) : "-";
+      const emitidoEm = item.createdAt ? formatDateTime(parseTimestamp(item.createdAt)) : "-";
+      const emitidoPor = item.createdBy ? getUserLabel(item.createdBy) : "Sistema";
+      const filtros = item.filtros || {};
+      const manual = item.manual || {};
+      const metricas = item.metricas || {};
+      const resumo = item.resumoDia || "-";
+      const narrativa = item.narrativaDia || "-";
+      const docsPercentDia =
+        metricas.docsTotal && metricas.docsPercent !== null
+          ? `${metricas.docsPercent}%`
+          : metricas.docsTotal
+            ? `${Math.round((metricas.docsOk / metricas.docsTotal) * 100)}%`
+            : "-";
+      return `
+        <article class="rdo-month__day">
+          <header class="rdo-month__day-head">
+            <div>
+              <strong>RDO ${escapeHtml(dataLabel)}</strong>
+              <span>Emitido em ${escapeHtml(emitidoEm)} por ${escapeHtml(emitidoPor)}</span>
+            </div>
+            <span class="rdo-badge">Atividades: ${escapeHtml(String(metricas.total || 0))}</span>
+          </header>
+          <div class="rdo-month__grid">
+            <div>
+              <span>Subestacao</span>
+              <strong>${escapeHtml(filtros.subestacao || "-")}</strong>
+            </div>
+            <div>
+              <span>Categoria</span>
+              <strong>${escapeHtml(filtros.categoria || "-")}</strong>
+            </div>
+            <div>
+              <span>Prioridade</span>
+              <strong>${escapeHtml(filtros.prioridade || "-")}</strong>
+            </div>
+            <div>
+              <span>Usuario</span>
+              <strong>${escapeHtml(filtros.usuario || "-")}</strong>
+            </div>
+            <div>
+              <span>Local</span>
+              <strong>${escapeHtml(manual.local || "-")}</strong>
+            </div>
+            <div>
+              <span>Condutor</span>
+              <strong>${escapeHtml(manual.condutor || "-")}</strong>
+            </div>
+            <div>
+              <span>KM inicial/final</span>
+              <strong>${escapeHtml(manual.kmInicial || "-")} / ${escapeHtml(manual.kmFinal || "-")}</strong>
+            </div>
+            <div>
+              <span>Qt. pessoas</span>
+              <strong>${escapeHtml(manual.qtPessoas || "-")}</strong>
+            </div>
+            <div>
+              <span>Clima</span>
+              <strong>${escapeHtml(
+                manual.clima === "OUTRO" && manual.climaOutro ? `OUTRO - ${manual.climaOutro}` : manual.clima || "-"
+              )}</strong>
+            </div>
+            <div>
+              <span>Incidente</span>
+              <strong>${escapeHtml(manual.incidente || "-")}</strong>
+            </div>
+            <div>
+              <span>Bloqueio eletrico</span>
+              <strong>${escapeHtml(manual.bloqueio || "-")}</strong>
+            </div>
+            <div>
+              <span>SI / SGI</span>
+              <strong>${escapeHtml(manual.numeroSi || "-")} / ${escapeHtml(manual.numeroSgi || "-")}</strong>
+            </div>
+            <div>
+              <span>Concluidas</span>
+              <strong>${escapeHtml(String(metricas.concluidas || 0))}</strong>
+            </div>
+            <div>
+              <span>Em execucao</span>
+              <strong>${escapeHtml(String(metricas.emExecucao || 0))}</strong>
+            </div>
+            <div>
+              <span>Criticas</span>
+              <strong>${escapeHtml(String(metricas.criticas || 0))}</strong>
+            </div>
+            <div>
+              <span>Overdue</span>
+              <strong>${escapeHtml(String(metricas.overdue || 0))}</strong>
+            </div>
+            <div>
+              <span>Docs</span>
+              <strong>${escapeHtml(docsPercentDia)}</strong>
+            </div>
+            <div>
+              <span>Tempo total</span>
+              <strong>${escapeHtml(
+                metricas.tempoTotalMin && metricas.tempoTotalMin > 0
+                  ? formatDuracaoMin(metricas.tempoTotalMin)
+                  : "-"
+              )}</strong>
+            </div>
+          </div>
+          <div class="rdo-month__notes">
+            <div>
+              <h4>Resumo do dia</h4>
+              <p>${escapeHtml(resumo)}</p>
+            </div>
+            <div>
+              <h4>Narrativa tecnica</h4>
+              <p>${escapeHtml(narrativa)}</p>
+            </div>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+
   const html = `
-    <div class="report">
-      <header class="report__header">
-        <div class="report__brand">
-          <strong>OPSCOPE</strong>
-          <span>RDO mensal</span>
+    <div class="rdo-month">
+      <header class="rdo-month__header">
+        <div>
+          <span class="rdo-month__eyebrow">OPSCOPE</span>
+          <h2>Relatorio mensal RDO</h2>
+          <p>Cliente: ${escapeHtml(cliente)}</p>
         </div>
-        <div class="report__meta">
+        <div class="rdo-month__meta">
           <div>Periodo: ${escapeHtml(periodoLabel)}</div>
           <div>Gerado em: ${escapeHtml(formatDateTime(new Date()))}</div>
         </div>
       </header>
-      <section class="report__body">
-        <h4>RDOs no periodo</h4>
+      <section class="rdo-month__summary">
+        <div><span>RDOs</span><strong>${acumulado.totalRdos}</strong></div>
+        <div><span>Atividades</span><strong>${acumulado.atividades}</strong></div>
+        <div><span>Concluidas</span><strong>${acumulado.concluidas}</strong></div>
+        <div><span>Em execucao</span><strong>${acumulado.emExecucao}</strong></div>
+        <div><span>Criticas</span><strong>${acumulado.criticas}</strong></div>
+        <div><span>Overdue</span><strong>${acumulado.overdue}</strong></div>
+        <div><span>Docs OK</span><strong>${docsPercent}%</strong></div>
+        <div><span>Evidencias</span><strong>${acumulado.evidencias}</strong></div>
+        <div><span>Tempo total</span><strong>${tempoTotalLabel}</strong></div>
+      </section>
+      <section class="rdo-month__table">
+        <h3>Resumo operacional por dia</h3>
         <table class="report__table">
           <thead>
             <tr>
               <th>Data</th>
-              <th>Itens</th>
-              <th>Responsavel</th>
+              <th>Subestacao</th>
+              <th>Categoria</th>
+              <th>Prioridade</th>
+              <th>Usuario</th>
+              <th>Atividades</th>
+              <th>Concluidas</th>
+              <th>Criticas</th>
             </tr>
           </thead>
           <tbody>
-            ${linhas || `<tr><td colspan="3">Nenhum RDO no periodo.</td></tr>`}
+            ${linhas || `<tr><td colspan="8">Nenhum RDO no periodo.</td></tr>`}
           </tbody>
         </table>
       </section>
+      ${blocos || ""}
     </div>
   `;
   return abrirJanelaRelatorio(html, "RDO mensal - OPSCOPE", false);
