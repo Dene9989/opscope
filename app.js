@@ -1426,6 +1426,8 @@ let rdoUI = {
   btnDeleteCancel: null,
 };
 let kpiRankingSort = { key: "concluidas", dir: "desc" };
+let homeTipsTimer = null;
+let homeTipIndex = 0;
 
 function readJson(key, fallback) {
   const raw = localStorage.getItem(key);
@@ -4319,35 +4321,46 @@ function renderDashboardHome() {
     dashboardHome.innerHTML = `<p class="dashboard-message">${mensagem}</p>`;
     return;
   }
-  const { kpis, alertasOperacionais, saudeOperacional, graficoEficiencia, proximasAtividades } =
+  const { kpis, saudeOperacional, graficoEficiencia, proximasAtividades } =
     dashboardSummary;
 
   const renderKpiCard = (label, value) =>
     `<article class="kpi-card"><span>${label}</span><strong>${value}</strong></article>`;
 
-  const alertHtml = alertasOperacionais.length
-    ? `<div class="alert-list">${alertasOperacionais
-        .map((alerta) => {
-          const badgeClass = alerta.tipo === "critico" ? "badge--crit" : "badge--warn";
-          const badgeLabel = alerta.tipo === "critico" ? "Critico" : "Aviso";
-          return `<div class="alert-item">
-            <span>${escapeHtml(alerta.msg)}</span>
-            <span class="badge ${badgeClass}">${badgeLabel}</span>
-          </div>`;
-        })
-        .join("")}</div>`
-    : `<p class="empty-state">Nenhum alerta critico.</p>`;
-
   const series = Array.isArray(graficoEficiencia.serie) ? graficoEficiencia.serie : [];
   const labels = Array.isArray(graficoEficiencia.labels) ? graficoEficiencia.labels : [];
-  const chart = buildMiniChart(series, labels);
-  const labelRow = labels.length
+  const chart = buildNeonPieChart(series, labels);
+  const legendRow = labels.length
     ? `<div class="chart-labels">${labels
         .map((label) => `<span>${escapeHtml(label)}</span>`)
         .join("")}</div>`
     : "";
 
-  const rows = proximasAtividades
+  const today = startOfDay(new Date());
+  const sortedAtividades = Array.isArray(proximasAtividades)
+    ? proximasAtividades
+        .map((item) => {
+          const parsed = parseTimestamp(item.prazo);
+          const date = parsed ? startOfDay(parsed) : null;
+          let bucket = 1;
+          if (date && date.getTime() === today.getTime()) {
+            bucket = 0;
+          } else if (date && date < today) {
+            bucket = 2;
+          }
+          return { ...item, _bucket: bucket, _date: date };
+        })
+        .sort((a, b) => {
+          if (a._bucket !== b._bucket) {
+            return a._bucket - b._bucket;
+          }
+          const at = a._date ? a._date.getTime() : Number.MAX_SAFE_INTEGER;
+          const bt = b._date ? b._date.getTime() : Number.MAX_SAFE_INTEGER;
+          return at - bt;
+        })
+    : [];
+
+  const rows = sortedAtividades
     .map((item) => {
       const badge = getStatusBadge(item.status);
       return `<tr>
@@ -4358,7 +4371,9 @@ function renderDashboardHome() {
       </tr>`;
     })
     .join("");
-  const updatedAt = formatDateTime(new Date());
+  const updatedAt = dashboardSummary.generatedAt
+    ? formatDateTime(parseTimestamp(dashboardSummary.generatedAt) || new Date())
+    : formatDateTime(new Date());
 
   dashboardHome.innerHTML = `
     <div class="home-shell">
@@ -4384,13 +4399,15 @@ function renderDashboardHome() {
       </section>
 
       <section class="home-section">
-        <h3 class="home-section__title">Alertas e saude</h3>
+        <h3 class="home-section__title">Suporte e saude</h3>
         <div class="dashboard-row">
           <article class="card panel-card">
             <div class="panel-head">
-              <h3>ALERTAS OPERACIONAIS</h3>
+              <h3>DICAS OPSCOPE</h3>
             </div>
-            ${alertHtml}
+            <div class="opscope-tips" id="opscopeTips">
+              <p class="opscope-tip" data-tip></p>
+            </div>
           </article>
           <article class="card panel-card">
             <div class="panel-head">
@@ -4426,9 +4443,9 @@ function renderDashboardHome() {
               <h3>EFICIENCIA OPERACIONAL</h3>
               <span class="trend-tag">+8%</span>
             </div>
-            <div class="mini-chart">
+            <div class="mini-chart neon-pie">
               ${chart}
-              ${labelRow}
+              ${legendRow}
             </div>
           </article>
           <article class="card panel-card">
@@ -4455,6 +4472,73 @@ function renderDashboardHome() {
       </section>
     </div>
   `;
+  startHomeTipsRotation();
+}
+
+function buildNeonPieChart(series, labels) {
+  const values = Array.isArray(series) ? series.filter((value) => typeof value === "number") : [];
+  const safeValues = values.length ? values : [1, 1, 1];
+  const total = safeValues.reduce((sum, value) => sum + value, 0) || 1;
+  const colors = ["#58d2ff", "#f6d08a", "#6ee7b7", "#f472b6", "#f87171"];
+  const radius = 38;
+  const center = 50;
+  let startAngle = -Math.PI / 2;
+  const slices = safeValues
+    .map((value, index) => {
+      const angle = (value / total) * Math.PI * 2;
+      const endAngle = startAngle + angle;
+      const largeArc = angle > Math.PI ? 1 : 0;
+      const x1 = center + radius * Math.cos(startAngle);
+      const y1 = center + radius * Math.sin(startAngle);
+      const x2 = center + radius * Math.cos(endAngle);
+      const y2 = center + radius * Math.sin(endAngle);
+      const path = `M ${center} ${center} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${radius} ${radius} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
+      startAngle = endAngle;
+      return `<path class="pie-slice" d="${path}" fill="${colors[index % colors.length]}" />`;
+    })
+    .join("");
+  const title = labels && labels.length ? labels.join(", ") : "Distribuicao";
+  return `
+    <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false" role="img">
+      <title>${escapeHtml(title)}</title>
+      <defs>
+        <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="rgba(88, 210, 255, 0.7)" />
+          <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="rgba(246, 208, 138, 0.5)" />
+        </filter>
+      </defs>
+      <g filter="url(#neonGlow)">
+        ${slices}
+      </g>
+      <circle cx="${center}" cy="${center}" r="20" fill="rgba(12, 26, 40, 0.85)" />
+    </svg>
+  `;
+}
+
+function startHomeTipsRotation() {
+  const tipBox = document.querySelector("#opscopeTips [data-tip]");
+  if (!tipBox) {
+    return;
+  }
+  const tips = [
+    "Use o painel gerencial para validar backlog critico antes do turno.",
+    "Registre evidencias completas para agilizar auditorias de manutencao.",
+    "Priorize atividades com risco imediato e sincronize equipe.",
+    "Atualize OS e referencias para manter o historico confiavel.",
+    "Confira automacoes ativas para evitar repeticoes manuais.",
+  ];
+  if (homeTipsTimer) {
+    window.clearInterval(homeTipsTimer);
+  }
+  homeTipIndex = homeTipIndex % tips.length;
+  tipBox.textContent = tips[homeTipIndex];
+  homeTipsTimer = window.setInterval(() => {
+    homeTipIndex = (homeTipIndex + 1) % tips.length;
+    tipBox.textContent = tips[homeTipIndex];
+    tipBox.classList.remove("tip-fade");
+    void tipBox.offsetWidth;
+    tipBox.classList.add("tip-fade");
+  }, 4000);
 }
 
 function buildMiniChart(series, labels) {
