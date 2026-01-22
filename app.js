@@ -101,6 +101,15 @@ const btnEnviarFeedback = document.getElementById("btnEnviarFeedback");
 const feedbackSendMsg = document.getElementById("feedbackSendMsg");
 const feedbackList = document.getElementById("feedbackList");
 const feedbackEmpty = document.getElementById("feedbackEmpty");
+const feedbackStatReceived = document.getElementById("feedbackStatReceived");
+const feedbackStatSent = document.getElementById("feedbackStatSent");
+const feedbackStatAvg = document.getElementById("feedbackStatAvg");
+const feedbackStatUnread = document.getElementById("feedbackStatUnread");
+const feedbackSearch = document.getElementById("feedbackSearch");
+const feedbackSort = document.getElementById("feedbackSort");
+const feedbackTemplateButtons = Array.from(
+  document.querySelectorAll("[data-feedback-template]")
+);
 const feedbackBadge = document.getElementById("feedbackBadge");
 const feedbackTabButtons = Array.from(document.querySelectorAll("[data-feedback-tab]"));
 const btnFeedbackInbox = document.getElementById("btnFeedbackInbox");
@@ -6217,14 +6226,47 @@ function getFeedbacksEnviados(userId) {
   return feedbacks.filter((item) => item.from === userId);
 }
 
+function renderFeedbackStats() {
+  if (!currentUser) {
+    return;
+  }
+  const userId = currentUser.id;
+  const recebidos = getFeedbacksRecebidos(userId);
+  const enviados = getFeedbacksEnviados(userId);
+  const unread = recebidos.filter((item) => !item.readAt).length;
+  const media =
+    recebidos.length > 0
+      ? (
+          recebidos.reduce((acc, item) => acc + (Number(item.score) || 0), 0) /
+          recebidos.length
+        ).toFixed(1)
+      : "-";
+
+  if (feedbackStatReceived) feedbackStatReceived.textContent = String(recebidos.length);
+  if (feedbackStatSent) feedbackStatSent.textContent = String(enviados.length);
+  if (feedbackStatAvg) feedbackStatAvg.textContent = media === "-" ? "-" : media;
+  if (feedbackStatUnread) feedbackStatUnread.textContent = String(unread);
+}
+
 function renderFeedbackList() {
   if (!feedbackList || !feedbackEmpty) {
     return;
   }
+  renderFeedbackStats();
   const activeTab = feedbackTabButtons.find((btn) => btn.classList.contains("is-active"));
   const mode = activeTab ? activeTab.dataset.feedbackTab : "recebidos";
   const userId = currentUser ? currentUser.id : "";
-  const lista = mode === "enviados" ? getFeedbacksEnviados(userId) : getFeedbacksRecebidos(userId);
+  const searchQuery = feedbackSearch ? normalizeSearchValue(feedbackSearch.value) : "";
+  const sortMode = feedbackSort ? feedbackSort.value : "recent";
+  const listaBase = mode === "enviados" ? getFeedbacksEnviados(userId) : getFeedbacksRecebidos(userId);
+  const lista = listaBase.filter((item) => {
+    if (!searchQuery) {
+      return true;
+    }
+    const peer = mode === "enviados" ? getUserLabel(item.to) : getUserLabel(item.from);
+    const content = normalizeSearchValue(`${peer} ${item.message || ""}`);
+    return content.includes(searchQuery);
+  });
   feedbackList.innerHTML = "";
 
   if (!lista.length) {
@@ -6235,7 +6277,15 @@ function renderFeedbackList() {
 
   lista
     .slice()
-    .sort((a, b) => (getTimeValue(parseTimestamp(b.createdAt)) || 0) - (getTimeValue(parseTimestamp(a.createdAt)) || 0))
+    .sort((a, b) => {
+      if (sortMode === "score") {
+        return (Number(b.score) || 0) - (Number(a.score) || 0);
+      }
+      return (
+        (getTimeValue(parseTimestamp(b.createdAt)) || 0) -
+        (getTimeValue(parseTimestamp(a.createdAt)) || 0)
+      );
+    })
     .forEach((item) => {
       const card = document.createElement("div");
       card.className = `feedback-item ${item.readAt ? "" : "is-unread"}`;
@@ -6271,6 +6321,7 @@ function marcarFeedbacksComoLidos(userId) {
   }
   atualizarFeedbackBadge();
   renderFeedbackInbox();
+  renderFeedbackStats();
 }
 
 function atualizarFeedbackBadge() {
@@ -6311,6 +6362,7 @@ function renderFeedbackInbox() {
     `;
     feedbackInboxList.append(row);
   });
+  renderFeedbackStats();
 }
 
 function enviarFeedback() {
@@ -6348,6 +6400,7 @@ function enviarFeedback() {
   atualizarFeedbackBadge();
   renderFeedbackInbox();
   renderFeedbackList();
+  renderFeedbackStats();
 }
 
 function renderFeedbackRecipients() {
@@ -17295,6 +17348,24 @@ if (perfPessoaFiltro) {
 if (btnEnviarFeedback) {
   btnEnviarFeedback.addEventListener("click", enviarFeedback);
 }
+if (feedbackTemplateButtons.length && feedbackMessage) {
+  const templates = {
+    bom: "Excelente atuacao no atendimento e registro das atividades. Sua organizacao ajudou a equipe a manter o ritmo.",
+    melhora:
+      "Observei pontos que podem melhorar: alinhar o status no OPSCOPE logo apos a execucao e detalhar melhor o impacto.",
+    apoio:
+      "Obrigado pelo apoio em campo. Sua prontidao e comunicacao clara facilitaram o fechamento das tarefas.",
+  };
+  feedbackTemplateButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.feedbackTemplate || "";
+      if (templates[key]) {
+        feedbackMessage.value = templates[key];
+        feedbackMessage.focus();
+      }
+    });
+  });
+}
 if (feedbackTabButtons.length) {
   feedbackTabButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -17303,6 +17374,12 @@ if (feedbackTabButtons.length) {
       renderFeedbackList();
     });
   });
+}
+if (feedbackSearch) {
+  feedbackSearch.addEventListener("input", renderFeedbackList);
+}
+if (feedbackSort) {
+  feedbackSort.addEventListener("change", renderFeedbackList);
 }
 if (btnFeedbackInbox) {
   btnFeedbackInbox.addEventListener("click", () => {

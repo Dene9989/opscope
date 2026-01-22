@@ -1979,52 +1979,111 @@
     </section>
 
     <section class="panel" id="feedbacks" data-panel="feedbacks">
-      <section class="card">
+  <section class="card">
+    <div class="card-head">
+      <div>
         <h2>Feedbacks entre colaboradores</h2>
         <p class="hint">Feedbacks sao privados entre remetente e destinatario.</p>
-        <div class="feedback-grid">
-          <div class="feedback-card">
-            <h3>Novo feedback</h3>
-            <div class="form-grid">
-              <div class="field">
-                <label for="feedbackTo">Para</label>
-                <select id="feedbackTo">
-                  <option value="">Selecione um colaborador</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="feedbackScore">Avaliacao</label>
-                <select id="feedbackScore">
-                  <option value="5">5 - Excelente</option>
-                  <option value="4">4 - Muito bom</option>
-                  <option value="3">3 - Bom</option>
-                  <option value="2">2 - Atenção</option>
-                  <option value="1">1 - Precisa melhorar</option>
-                </select>
-              </div>
-              <div class="field" data-full>
-                <label for="feedbackMessage">Mensagem</label>
-                <textarea id="feedbackMessage" rows="3" placeholder="Escreva um feedback claro e respeitoso."></textarea>
-              </div>
-            </div>
-            <button id="btnEnviarFeedback" class="btn btn--primary" type="button">Enviar feedback</button>
-            <p id="feedbackSendMsg" class="mensagem" aria-live="polite"></p>
+      </div>
+      <div class="feedback-stats" id="feedbackStats">
+        <div class="feedback-stat">
+          <span>Recebidos</span>
+          <strong id="feedbackStatReceived">0</strong>
+        </div>
+        <div class="feedback-stat">
+          <span>Enviados</span>
+          <strong id="feedbackStatSent">0</strong>
+        </div>
+        <div class="feedback-stat">
+          <span>Nota media</span>
+          <strong id="feedbackStatAvg">-</strong>
+        </div>
+        <div class="feedback-stat">
+          <span>Novos</span>
+          <strong id="feedbackStatUnread">0</strong>
+        </div>
+      </div>
+    </div>
+    <div class="feedback-grid">
+      <div class="feedback-card">
+        <h3>Novo feedback</h3>
+        <div class="form-grid">
+          <div class="field">
+            <label for="feedbackTo">Para</label>
+            <select id="feedbackTo">
+              <option value="">Selecione um colaborador</option>
+            </select>
           </div>
-          <div class="feedback-card">
-            <div class="feedback-tabs">
-              <button class="btn btn--ghost btn--small is-active" type="button" data-feedback-tab="recebidos">
-                Recebidos
-              </button>
-              <button class="btn btn--ghost btn--small" type="button" data-feedback-tab="enviados">
-                Enviados
-              </button>
-            </div>
-            <div id="feedbackList" class="feedback-list"></div>
-            <p id="feedbackEmpty" class="empty-state">Nenhum feedback ainda.</p>
+          <div class="field">
+            <label for="feedbackScore">Avaliacao</label>
+            <select id="feedbackScore">
+              <option value="5">5 - Excelente</option>
+              <option value="4">4 - Muito bom</option>
+              <option value="3">3 - Bom</option>
+              <option value="2">2 - Atencao</option>
+              <option value="1">1 - Precisa melhorar</option>
+            </select>
+          </div>
+          <div class="field" data-full>
+            <label for="feedbackMessage">Mensagem</label>
+            <textarea id="feedbackMessage" rows="3" placeholder="Escreva um feedback claro e respeitoso."></textarea>
           </div>
         </div>
-      </section>
-    </section>
+        <div class="feedback-helper">
+          <div>
+            <strong>Diretrizes rapidas</strong>
+            <ul>
+              <li>Seja especifico no comportamento observado.</li>
+              <li>Descreva impacto e sugira proximo passo.</li>
+              <li>Mantenha o tom construtivo e objetivo.</li>
+            </ul>
+          </div>
+          <div class="feedback-templates">
+            <strong>Modelos de mensagem</strong>
+            <div class="feedback-template-list">
+              <button class="btn btn--ghost btn--small" type="button" data-feedback-template="bom">
+                Elogio tecnico
+              </button>
+              <button class="btn btn--ghost btn--small" type="button" data-feedback-template="melhora">
+                Sugestao de melhoria
+              </button>
+              <button class="btn btn--ghost btn--small" type="button" data-feedback-template="apoio">
+                Apoio em campo
+              </button>
+            </div>
+          </div>
+        </div>
+        <button id="btnEnviarFeedback" class="btn btn--primary" type="button">Enviar feedback</button>
+        <p id="feedbackSendMsg" class="mensagem" aria-live="polite"></p>
+      </div>
+      <div class="feedback-card">
+        <div class="feedback-tabs">
+          <button class="btn btn--ghost btn--small is-active" type="button" data-feedback-tab="recebidos">
+            Recebidos
+          </button>
+          <button class="btn btn--ghost btn--small" type="button" data-feedback-tab="enviados">
+            Enviados
+          </button>
+        </div>
+        <div class="feedback-filters">
+          <div class="field">
+            <label for="feedbackSearch">Buscar</label>
+            <input id="feedbackSearch" type="text" placeholder="Nome ou mensagem" />
+          </div>
+          <div class="field">
+            <label for="feedbackSort">Ordenar</label>
+            <select id="feedbackSort">
+              <option value="recent">Mais recentes</option>
+              <option value="score">Maior nota</option>
+            </select>
+          </div>
+        </div>
+        <div id="feedbackList" class="feedback-list"></div>
+        <p id="feedbackEmpty" class="empty-state">Nenhum feedback ainda.</p>
+      </div>
+    </div>
+  </section>
+</section>
 
     <section class="panel" id="perfil" data-panel="perfil">
       <section class="card profile-card" id="perfilCard">
@@ -3422,4 +3481,5 @@
     <script src="app.js"></script>
   </body>
 </html>
+
 
