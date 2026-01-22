@@ -4383,9 +4383,9 @@ function renderDashboardHome() {
   dashboardHome.innerHTML = `
     <div class="home-shell">
       <div class="home-header">
-        <div>
-          <h2>Inicio estrategico</h2>
-          <p class="hint">Resumo operacional e alertas criticos do dia.</p>
+        <div class="home-header__title">
+          <h2>Centro de controle operacional</h2>
+          <p class="hint">Visao tatico-operacional com indicadores criticos e foco no dia.</p>
         </div>
         <div class="home-header__meta">
           <span class="badge badge--ok">Atualizado</span>
@@ -4454,6 +4454,12 @@ function renderDashboardHome() {
               </div>
               ${chart}
               ${legendRow}
+              <div class="pie-legend">
+                <div><strong>Pontualidade</strong><span>Percentual de entregas no prazo.</span></div>
+                <div><strong>Backlog</strong><span>Tarefas pendentes e nao executadas.</span></div>
+                <div><strong>Concluidas</strong><span>Volume finalizado no periodo atual.</span></div>
+                <div><strong>Atraso medio</strong><span>Desvio medio em dias das atividades.</span></div>
+              </div>
             </div>
           </article>
           <article class="card panel-card">
