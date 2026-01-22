@@ -4659,6 +4659,7 @@ label {
   margin-left: auto;
   padding-left: 12px;
   border-left: 1px dashed rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
 }
 
 .field--date-group .futura-checkbox {
@@ -4671,6 +4672,9 @@ label {
 .field--date-group .futura-checkbox span {
   font-size: 0.85rem;
   color: var(--ink-soft);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .field--date-group .futura-checkbox input {
