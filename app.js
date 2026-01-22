@@ -5864,7 +5864,6 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
     })
     .sort((a, b) => (getTimeValue(parseDate(b.rdoDate)) || 0) - (getTimeValue(parseDate(a.rdoDate)) || 0));
 
-  const rdosAsc = [...rdos].reverse();
   const manutencoesPeriodo = filtrarRelatorioLista(manutencoes, {
     start: range.start,
     end: range.end,
@@ -5980,22 +5979,79 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
     ? Math.round(segurancaResumo.qtPessoasTotal / segurancaResumo.qtPessoasCount)
     : 0;
 
-  const dailyData = rdosAsc.map((item) => {
-    const metricas = item.metricas || {};
-    const date = item.rdoDate ? parseDate(item.rdoDate) : null;
+  const docsMensais = manutencoesPeriodo.reduce(
+    (acc, item) => {
+      const docs = getItemDocs(item) || {};
+      DOC_KEYS.forEach((key) => {
+        if (key === "pt" && !isItemCritico(item)) {
+          return;
+        }
+        if (docs[key]) {
+          acc[key] += 1;
+        }
+      });
+      return acc;
+    },
+    { apr: 0, os: 0, pte: 0, pt: 0 }
+  );
+  const equipesAtivas = new Set(
+    manutencoesPeriodo.map((item) => getRelatorioResponsavel(item)).filter(Boolean)
+  );
+  const concluidasPeriodo = manutencoesPeriodo.filter((item) => item.status === "concluida");
+  const pontuaisPeriodo = concluidasPeriodo.filter((item) => {
+    const data = parseDate(item.data);
+    const doneAt = parseTimestamp(item.doneAt);
+    if (!data || !doneAt) {
+      return false;
+    }
+    return startOfDay(doneAt) <= startOfDay(data);
+  });
+  const pontualidadeEquipe = concluidasPeriodo.length
+    ? Math.round((pontuaisPeriodo.length / concluidasPeriodo.length) * 100)
+    : 0;
+  const criticasCount = manutencoesPeriodo.filter(
+    (item) => item.critico || (item.prioridade || "").toLowerCase() === "critica"
+  ).length;
+
+  const daysTotal = Math.max(1, diffInDays(range.start, range.end) + 1);
+  const dailySeries = Array.from({ length: daysTotal }, (_, index) => {
+    const dia = addDays(range.start, index);
     return {
-      label: date ? formatDate(date) : "-",
-      total: metricas.total || 0,
-      concluidas: metricas.concluidas || 0,
-      overdue: metricas.overdue || 0,
+      date: dia,
+      label: formatDate(dia),
+      total: 0,
+      backlog: 0,
+      concluidas: 0,
+      overdue: 0,
     };
   });
-  const maxDaily = dailyData.reduce((max, item) => Math.max(max, item.total), 1);
+  manutencoesPeriodo.forEach((item) => {
+    const dataRef = getRelatorioItemDate(item);
+    if (!dataRef) {
+      return;
+    }
+    const dia = startOfDay(dataRef);
+    const diff = diffInDays(range.start, dia);
+    if (diff < 0 || diff >= dailySeries.length) {
+      return;
+    }
+    dailySeries[diff].total += 1;
+    if (item.status === "concluida") {
+      dailySeries[diff].concluidas += 1;
+    }
+    if (item.status === "backlog") {
+      dailySeries[diff].backlog += 1;
+    }
+    if (isItemOverdue(item, range.end)) {
+      dailySeries[diff].overdue += 1;
+    }
+  });
+  const maxDaily = dailySeries.reduce((max, item) => Math.max(max, item.total), 1);
   const chartWidth = 560;
   const chartHeight = 140;
-  const barWidth = dailyData.length ? Math.max(12, Math.floor(chartWidth / dailyData.length) - 6) : 12;
+  const barWidth = dailySeries.length ? Math.max(12, Math.floor(chartWidth / dailySeries.length) - 6) : 12;
   const barGap = 6;
-  const bars = dailyData
+  const bars = dailySeries
     .map((item, index) => {
       const height = Math.round((item.total / maxDaily) * (chartHeight - 40));
       const x = index * (barWidth + barGap);
@@ -6012,13 +6068,23 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
       ${bars}
     </svg>
   `;
-  const abertasSemOverdue = Math.max(0, acumulado.abertas - acumulado.overdue);
-  const totalDistribuicao =
-    acumulado.concluidas + acumulado.emExecucao + abertasSemOverdue + acumulado.overdue;
-  const percConclusao = totalDistribuicao ? Math.round((acumulado.concluidas / totalDistribuicao) * 100) : 0;
-  const percExecucao = totalDistribuicao ? Math.round((acumulado.emExecucao / totalDistribuicao) * 100) : 0;
-  const percAbertas = totalDistribuicao ? Math.round((abertasSemOverdue / totalDistribuicao) * 100) : 0;
-  const percOverdue = Math.max(0, 100 - percConclusao - percExecucao - percAbertas);
+  const statusTotals = manutencoesPeriodo.reduce(
+    (acc, item) => {
+      acc.total += 1;
+      acc[item.status] = (acc[item.status] || 0) + 1;
+      return acc;
+    },
+    { total: 0 }
+  );
+  const totalDistribuicao = Math.max(1, manutencoesPeriodo.length);
+  const statusConcluidas = statusTotals.concluida || 0;
+  const statusExecucao = statusTotals.em_execucao || 0;
+  const statusAbertas = (statusTotals.agendada || 0) + (statusTotals.liberada || 0);
+  const statusBacklog = statusTotals.backlog || 0;
+  const percConclusao = Math.round((statusConcluidas / totalDistribuicao) * 100);
+  const percExecucao = Math.round((statusExecucao / totalDistribuicao) * 100);
+  const percAbertas = Math.round((statusAbertas / totalDistribuicao) * 100);
+  const percOverdue = Math.round((statusBacklog / totalDistribuicao) * 100);
   const donutSvg = `
     <svg class="rdo-donut" viewBox="0 0 120 120" role="img" aria-label="Distribuicao de status">
       <circle cx="60" cy="60" r="46" fill="none" stroke="#e5e1d6" stroke-width="16" />
@@ -6033,25 +6099,18 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
     </svg>
   `;
 
-  const statusTotals = manutencoesPeriodo.reduce(
-    (acc, item) => {
-      acc.total += 1;
-      acc[item.status] = (acc[item.status] || 0) + 1;
-      return acc;
-    },
-    { total: 0 }
-  );
   const statusItems = [
     { key: "concluida", label: "Concluidas", color: "#4bd28f" },
     { key: "em_execucao", label: "Em execucao", color: "#5b8def" },
-    { key: "backlog", label: "Backlog", color: "#e2595c" },
+    { key: "liberada", label: "Liberadas", color: "#9aa4af" },
     { key: "agendada", label: "Agendadas", color: "#f6c453" },
+    { key: "backlog", label: "Backlog", color: "#e2595c" },
   ];
   const statusMax = statusItems.reduce((max, item) => Math.max(max, statusTotals[item.key] || 0), 1);
   const statusBars = statusItems
     .map((item, index) => {
       const height = Math.round(((statusTotals[item.key] || 0) / statusMax) * 90);
-      const x = index * 60;
+      const x = index * 52;
       const y = 110 - height;
       return `<g>
         <rect x="${x}" y="${y}" width="40" height="${height}" fill="${item.color}" rx="6" />
@@ -6068,11 +6127,11 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
     </svg>
   `;
 
-  const backlogLineMax = dailyData.reduce((max, item) => Math.max(max, item.overdue), 1);
-  const linePoints = dailyData
+  const backlogLineMax = dailySeries.reduce((max, item) => Math.max(max, item.backlog), 1);
+  const linePoints = dailySeries
     .map((item, index) => {
-      const x = (index / Math.max(1, dailyData.length - 1)) * 520 + 20;
-      const y = 120 - Math.round((item.overdue / backlogLineMax) * 80);
+      const x = (index / Math.max(1, dailySeries.length - 1)) * 520 + 20;
+      const y = 120 - Math.round((item.backlog / backlogLineMax) * 80);
       return `${x},${y}`;
     })
     .join(" ");
@@ -6124,23 +6183,50 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
     )
     .join("");
 
+  const slaMensal = manutencoesPeriodo.filter((item) => item.status === "concluida");
+  const slaNoPrazo = slaMensal.filter((item) => {
+    const data = parseDate(item.data);
+    const doneAt = parseTimestamp(item.doneAt);
+    if (!data || !doneAt) {
+      return false;
+    }
+    return startOfDay(doneAt) <= startOfDay(data);
+  });
+  const slaMensalPercent = slaMensal.length
+    ? Math.round((slaNoPrazo.length / slaMensal.length) * 100)
+    : 0;
   const slaChart = `
     <div class="rdo-month__sla">
       <div class="rdo-month__sla-bar">
-        <span style="width:${slaPercent}%">${slaPercent}% no prazo</span>
+        <span style="width:${slaMensalPercent}%">${slaMensalPercent}% no prazo</span>
       </div>
-      <small>${100 - slaPercent}% fora do SLA</small>
+      <small>${100 - slaMensalPercent}% fora do SLA</small>
     </div>
   `;
 
-  const backlogRate = acumulado.atividades
-    ? Math.round((acumulado.overdue / acumulado.atividades) * 100)
+  const backlogRate = manutencoesPeriodo.length
+    ? Math.round(((statusTotals.backlog || 0) / manutencoesPeriodo.length) * 100)
     : 0;
-  const criticasRate = acumulado.atividades
-    ? Math.round((acumulado.criticas / acumulado.atividades) * 100)
+  const criticasRate = manutencoesPeriodo.length
+    ? Math.round(
+        manutencoesPeriodo.filter(
+          (item) => item.critico || (item.prioridade || "").toLowerCase() === "critica"
+        ).length /
+          manutencoesPeriodo.length *
+          100
+      )
     : 0;
-  const tempoMedioExec = acumulado.concluidas
-    ? formatDuracaoMin(Math.round(acumulado.tempoTotal / Math.max(1, acumulado.concluidas)))
+  const tempoMedioExec = slaMensal.length
+    ? formatDuracaoMin(
+        Math.round(
+          manutencoesPeriodo.reduce((acc, item) => {
+            const duracao = item.conclusao && Number.isFinite(item.conclusao.duracaoMin)
+              ? item.conclusao.duracaoMin
+              : 0;
+            return acc + duracao;
+          }, 0) / Math.max(1, slaMensal.length)
+        )
+      )
     : "-";
   const prevMonthStart = new Date(range.start.getFullYear(), range.start.getMonth() - 1, 1);
   const prevMonthEnd = new Date(range.start.getFullYear(), range.start.getMonth(), 0);
@@ -6150,9 +6236,9 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
   });
   const prevTotal = prevRdos.reduce((acc, item) => acc + ((item.metricas && item.metricas.total) || 0), 0);
   const tendencia = prevTotal
-    ? acumulado.atividades > prevTotal
+    ? manutencoesPeriodo.length > prevTotal
       ? "↑"
-      : acumulado.atividades < prevTotal
+      : manutencoesPeriodo.length < prevTotal
         ? "↓"
         : "→"
     : "→";
@@ -6351,11 +6437,11 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
         <p>${escapeHtml(resumoExec)}</p>
         <div class="rdo-summary-grid rdo-summary-grid--cards">
           <div class="rdo-summary-item"><span>RDOs</span><strong>${acumulado.totalRdos}</strong></div>
-          <div class="rdo-summary-item"><span>Atividades</span><strong>${acumulado.atividades}</strong></div>
-          <div class="rdo-summary-item"><span>Concluidas</span><strong>${acumulado.concluidas}</strong></div>
-          <div class="rdo-summary-item"><span>Em execucao</span><strong>${acumulado.emExecucao}</strong></div>
-          <div class="rdo-summary-item"><span>Criticas</span><strong>${acumulado.criticas}</strong></div>
-          <div class="rdo-summary-item"><span>Overdue</span><strong>${acumulado.overdue}</strong></div>
+          <div class="rdo-summary-item"><span>Atividades</span><strong>${manutencoesPeriodo.length}</strong></div>
+          <div class="rdo-summary-item"><span>Concluidas</span><strong>${statusConcluidas}</strong></div>
+          <div class="rdo-summary-item"><span>Em execucao</span><strong>${statusExecucao}</strong></div>
+          <div class="rdo-summary-item"><span>Criticas</span><strong>${criticasCount}</strong></div>
+          <div class="rdo-summary-item"><span>Backlog</span><strong>${statusBacklog}</strong></div>
           <div class="rdo-summary-item"><span>Docs OK</span><strong>${docsPercent}%</strong></div>
           <div class="rdo-summary-item"><span>SLA no prazo</span><strong>${slaPercent}%</strong></div>
           <div class="rdo-summary-item"><span>Evidencias</span><strong>${acumulado.evidencias}</strong></div>
@@ -6376,10 +6462,12 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
         <div>
           <h4>Volume diario de atividades</h4>
           ${chartSvg}
+          <small>Conta de manutencoes registradas por dia no periodo.</small>
         </div>
         <div>
           <h4>Manutencoes por status</h4>
           ${statusChart}
+          <small>Distribuicao de status (concluidas, backlog, agendadas).</small>
         </div>
         <div>
           <h4>Distribuicao de status</h4>
@@ -6389,13 +6477,15 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
               <span><i class="legend-dot legend-dot--ok"></i>Concluidas (${percConclusao}%)</span>
               <span><i class="legend-dot legend-dot--info"></i>Em execucao (${percExecucao}%)</span>
               <span><i class="legend-dot legend-dot--warn"></i>Abertas (${percAbertas}%)</span>
-              <span><i class="legend-dot legend-dot--danger"></i>Overdue (${percOverdue}%)</span>
+              <span><i class="legend-dot legend-dot--danger"></i>Backlog (${percOverdue}%)</span>
             </div>
           </div>
+          <small>Percentual consolidado do mes por status operacional.</small>
         </div>
         <div>
           <h4>Evolucao diaria do backlog</h4>
           ${backlogChart}
+          <small>Backlog diario com base nas OS atrasadas.</small>
         </div>
         <div>
           <h4>Distribuicao por tipo</h4>
@@ -6405,10 +6495,12 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
               ${pieLegend}
             </div>
           </div>
+          <small>Tipos de manutencao predominantes no periodo.</small>
         </div>
         <div>
           <h4>SLA mensal</h4>
           ${slaChart}
+          <small>Percentual de concluida no prazo vs fora do SLA.</small>
         </div>
       </section>
       <section class="rdo-section rdo-block">
@@ -6420,7 +6512,25 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
           <div><span>KM total</span><strong>${segurancaResumo.kmTotal.toFixed(1)}</strong></div>
           <div><span>Qt. pessoas (media)</span><strong>${pessoasMedia}</strong></div>
           <div><span>Condutores</span><strong>${segurancaResumo.condutores.size}</strong></div>
+          <div><span>APR abertas</span><strong>${docsMensais.apr}</strong></div>
+          <div><span>OS abertas</span><strong>${docsMensais.os}</strong></div>
+          <div><span>PTE abertas</span><strong>${docsMensais.pte}</strong></div>
+          <div><span>PT abertas</span><strong>${docsMensais.pt}</strong></div>
         </div>
+      </section>
+      <section class="rdo-section rdo-block">
+        <h3>Desenvolvimento da equipe ENGELMIG</h3>
+        <div class="rdo-month__grid">
+          <div><span>Projeto</span><strong>SE Boa Sorte II</strong></div>
+          <div><span>Equipes ativas</span><strong>${equipesAtivas.size}</strong></div>
+          <div><span>Execucoes concluidas</span><strong>${concluidasPeriodo.length}</strong></div>
+          <div><span>Pontualidade</span><strong>${pontualidadeEquipe}%</strong></div>
+          <div><span>Backlog</span><strong>${backlogRate}%</strong></div>
+          <div><span>Evolucao mensal</span><strong>${tendencia}</strong></div>
+        </div>
+        <p>
+          Evolucao tecnica do time com foco em disciplina operacional, entrega no prazo e maturidade de processos.
+        </p>
       </section>
       <section class="rdo-section rdo-block">
         <h3>Resumo operacional por dia</h3>
