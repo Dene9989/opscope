@@ -1613,7 +1613,137 @@
 
     <section class="panel page-relatorios" id="relatorios" data-panel="relatorios">
       <section class="card">
-        <h2>Relatorios</h2>
+        <div class="report-header">
+          <div>
+            <h2>Central de relatorios</h2>
+            <p class="hint">
+              Consolide manutencoes, evidencias e indicadores em relatorios completos para engenharia e gestao.
+            </p>
+          </div>
+          <div class="report-actions">
+            <button class="btn btn--ghost btn--small" type="button">Exportar PDF</button>
+            <button class="btn btn--primary btn--small" type="button">Gerar resumo mensal</button>
+          </div>
+        </div>
+        <div class="report-toolbar">
+          <div class="field">
+            <label for="relatorioPeriodo">Periodo</label>
+            <select id="relatorioPeriodo">
+              <option value="7">Ultimos 7 dias</option>
+              <option value="30" selected>Ultimos 30 dias</option>
+              <option value="90">Ultimos 90 dias</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="relatorioStatus">Status</label>
+            <select id="relatorioStatus">
+              <option value="">Todos</option>
+              <option value="concluido">Concluido</option>
+              <option value="em-andamento">Em andamento</option>
+              <option value="pendente">Pendente</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="relatorioResponsavel">Responsavel</label>
+            <select id="relatorioResponsavel">
+              <option value="">Todas as equipes</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="relatorioTipo">Tipo</label>
+            <select id="relatorioTipo">
+              <option value="">Todos</option>
+              <option value="preventiva">Preventiva</option>
+              <option value="corretiva">Corretiva</option>
+              <option value="preditiva">Preditiva</option>
+            </select>
+          </div>
+        </div>
+        <div class="report-summary-grid">
+          <div class="report-summary">
+            <span>Manutencoes no periodo</span>
+            <strong>24</strong>
+            <small>14 concluidas</small>
+          </div>
+          <div class="report-summary">
+            <span>Indicadores criticos</span>
+            <strong>3</strong>
+            <small>Alertas priorizados</small>
+          </div>
+          <div class="report-summary">
+            <span>Evidencias anexadas</span>
+            <strong>68</strong>
+            <small>Fotos, PDFs e registros</small>
+          </div>
+          <div class="report-summary">
+            <span>SLA operacional</span>
+            <strong>92%</strong>
+            <small>Conformidade no prazo</small>
+          </div>
+        </div>
+      </section>
+      <section class="card">
+        <div class="report-header">
+          <div>
+            <h2>Relatorio mensal</h2>
+            <p class="hint">
+              Compilacao completa do dia 1 ate o ultimo dia do mes, pronta para envio ao cliente.
+            </p>
+          </div>
+          <button class="btn btn--primary btn--small" type="button">Gerar relatorio mensal</button>
+        </div>
+        <div class="report-monthly-grid">
+          <div class="field">
+            <label for="relatorioMes">Mes de referencia</label>
+            <input id="relatorioMes" type="month" />
+          </div>
+          <div class="field">
+            <label for="relatorioPeriodoMensal">Periodo consolidado</label>
+            <input id="relatorioPeriodoMensal" type="text" value="01/01/2026 - 31/01/2026" readonly />
+          </div>
+          <div class="field">
+            <label for="relatorioCliente">Cliente</label>
+            <select id="relatorioCliente">
+              <option value="">Selecionar cliente</option>
+            </select>
+          </div>
+        </div>
+        <div class="report-scope">
+          <h3>Escopo automatico do relatorio</h3>
+          <ul class="checklist">
+            <li><span class="is-ok">●</span> Manutencoes programadas e executadas</li>
+            <li><span class="is-ok">●</span> Logs, incidentes e desvios de SLA</li>
+            <li><span class="is-ok">●</span> Evidencias tecnicas e anexos por equipe</li>
+            <li><span class="is-ok">●</span> Indicadores operacionais e comparativos</li>
+            <li><span class="is-ok">●</span> Analise tecnica e recomendacoes</li>
+          </ul>
+        </div>
+        <div class="report-actions">
+          <button class="btn btn--ghost btn--small" type="button">Preview</button>
+          <button class="btn btn--primary btn--small" type="button">Exportar PDF mensal</button>
+        </div>
+      </section>
+      <section class="card">
+        <div class="report-header">
+          <div>
+            <h2>Relatorios diarios (RDO)</h2>
+            <p class="hint">Consolide a operacao do dia com texto tecnico e evidencias.</p>
+          </div>
+          <div class="report-actions">
+            <button class="btn btn--primary btn--small" type="button">Gerar RDO do dia</button>
+            <button class="btn btn--ghost btn--small" type="button">Excluir selecionados</button>
+          </div>
+        </div>
+        <label class="field--checkbox">
+          <span class="checkbox-field">
+            <input type="checkbox" />
+            <span>Exibir excluidos</span>
+          </span>
+        </label>
+        <p class="empty-state">Nenhum RDO gerado.</p>
+      </section>
+      <section class="card">
+        <h2>Relatorios de manutencao</h2>
         <p class="hint">Cada manutencao concluida gera um relatorio auditavel.</p>
         <div id="listaRelatorios" class="report-list"></div>
         <p id="listaRelatoriosVazia" class="empty-state">Nenhuma manutencao concluida.</p>

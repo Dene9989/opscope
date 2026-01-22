@@ -6242,6 +6242,77 @@ textarea:focus {
   gap: 12px;
 }
 
+.report-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.report-header h2 {
+  margin-bottom: 6px;
+}
+
+.report-toolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.report-summary-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.report-summary {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(10, 20, 30, 0.5);
+  padding: 12px 14px;
+  display: grid;
+  gap: 6px;
+  color: #e6edf6;
+}
+
+.report-summary span {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: rgba(230, 237, 246, 0.6);
+}
+
+.report-summary strong {
+  font-size: 1.4rem;
+}
+
+.report-summary small {
+  color: rgba(230, 237, 246, 0.7);
+}
+
+.report-monthly-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.report-scope {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  background: rgba(10, 20, 30, 0.4);
+}
+
+.report-scope h3 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+}
+
 .report-item {
   border-radius: 14px;
   border: 1px solid rgba(19, 32, 42, 0.12);
