@@ -5720,15 +5720,25 @@ textarea:focus {
   border-color: rgba(255, 255, 255, 0.08);
   background: rgba(8, 18, 28, 0.55);
   overflow-x: auto;
+  padding: 6px;
 }
 
 .performance-panel .report__table {
   color: rgba(234, 240, 246, 0.92);
-  min-width: 880px;
+  min-width: 980px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.85rem;
 }
 
 .performance-panel .report__table thead th {
   color: rgba(234, 240, 246, 0.68);
+  text-align: left;
+  padding: 10px 12px;
+  background: rgba(8, 18, 28, 0.9);
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .performance-panel .report__table tbody tr:nth-child(even) {
@@ -5739,9 +5749,50 @@ textarea:focus {
   background: rgba(255, 255, 255, 0.02);
 }
 
+.performance-panel .report__table td {
+  padding: 10px 12px;
+  vertical-align: middle;
+}
+
+.performance-panel .report__table td:first-child {
+  font-weight: 600;
+}
+
+.performance-panel .report__table td:last-child,
+.performance-panel .report__table th:last-child {
+  padding-right: 16px;
+}
+
+.performance-panel .report__table td:nth-child(2),
+.performance-panel .report__table td:nth-child(3),
+.performance-panel .report__table td:nth-child(4),
+.performance-panel .report__table td:nth-child(5),
+.performance-panel .report__table td:nth-child(6),
+.performance-panel .report__table td:nth-child(7),
+.performance-panel .report__table td:nth-child(8),
+.performance-panel .report__table td:nth-child(9),
+.performance-panel .report__table td:nth-child(10),
+.performance-panel .report__table th:nth-child(2),
+.performance-panel .report__table th:nth-child(3),
+.performance-panel .report__table th:nth-child(4),
+.performance-panel .report__table th:nth-child(5),
+.performance-panel .report__table th:nth-child(6),
+.performance-panel .report__table th:nth-child(7),
+.performance-panel .report__table th:nth-child(8),
+.performance-panel .report__table th:nth-child(9),
+.performance-panel .report__table th:nth-child(10) {
+  text-align: center;
+}
+.performance-panel .report__table th,
+.performance-panel .report__table td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
 .performance-panel .report__table tfoot td {
   background: rgba(255, 255, 255, 0.06);
   color: rgba(234, 240, 246, 0.9);
+  padding: 10px 12px;
+  font-weight: 700;
 }
 
 .performance-insights {
@@ -5758,6 +5809,7 @@ textarea:focus {
   padding: 12px 14px;
   display: grid;
   gap: 10px;
+  min-height: 120px;
 }
 
 .performance-insight h3 {
@@ -5795,6 +5847,7 @@ textarea:focus {
   letter-spacing: 0.02em;
   background: rgba(255, 255, 255, 0.08);
   color: rgba(234, 240, 246, 0.9);
+  text-align: center;
 }
 
 .perf-badge--ok {
