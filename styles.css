@@ -2108,7 +2108,7 @@ body.is-visitor .container.auth-only {
 
 .gerencial-head__actions {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto;
+  grid-template-columns: minmax(240px, 1fr) auto;
   gap: 10px;
   align-items: end;
 }
@@ -3795,6 +3795,54 @@ body.is-visitor .container.auth-only {
 .dashboard-home {
   display: grid;
   gap: 18px;
+}
+
+.home-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.home-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.home-header h2 {
+  margin: 0 0 6px;
+  font-size: 1.2rem;
+  color: var(--text);
+}
+
+.home-header .hint {
+  color: var(--muted);
+}
+
+.home-header__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.home-section {
+  display: grid;
+  gap: 12px;
+}
+
+.home-section__title {
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0;
 }
 
 .dashboard-message {

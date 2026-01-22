@@ -4358,76 +4358,101 @@ function renderDashboardHome() {
       </tr>`;
     })
     .join("");
+  const updatedAt = formatDateTime(new Date());
 
   dashboardHome.innerHTML = `
-    <div class="kpi-grid">
-      ${renderKpiCard("VENCE HOJE", kpis.venceHoje)}
-      ${renderKpiCard("ATRASADAS", kpis.atrasadas)}
-      ${renderKpiCard("CRITICAS", kpis.criticas)}
-      ${renderKpiCard("RISCO IMEDIATO", kpis.riscoImediato)}
-    </div>
-    <div class="dashboard-row">
-      <article class="card panel-card">
-        <div class="panel-head">
-          <h3>ALERTAS OPERACIONAIS</h3>
+    <div class="home-shell">
+      <div class="home-header">
+        <div>
+          <h2>Inicio estrategico</h2>
+          <p class="hint">Resumo operacional e alertas criticos do dia.</p>
         </div>
-        ${alertHtml}
-      </article>
-      <article class="card panel-card">
-        <div class="panel-head">
-          <h3>SAUDE OPERACIONAL</h3>
+        <div class="home-header__meta">
+          <span class="badge badge--ok">Atualizado</span>
+          <span class="hint">${updatedAt}</span>
         </div>
-        <div class="health-grid">
-          <div class="health-item">
-            <span>Pontualidade</span>
-            <strong>${saudeOperacional.pontualidadePct}%</strong>
-          </div>
-          <div class="health-item">
-            <span>Backlog</span>
-            <strong>${saudeOperacional.backlogTotal}</strong>
-          </div>
-          <div class="health-item">
-            <span>Concluidas</span>
-            <strong>${saudeOperacional.concluidasPeriodo}</strong>
-          </div>
-          <div class="health-item">
-            <span>Atraso medio</span>
-            <strong>${saudeOperacional.atrasoMedioDias}d</strong>
-          </div>
+      </div>
+
+      <section class="home-section">
+        <h3 class="home-section__title">Indicadores do dia</h3>
+        <div class="kpi-grid">
+          ${renderKpiCard("VENCE HOJE", kpis.venceHoje)}
+          ${renderKpiCard("ATRASADAS", kpis.atrasadas)}
+          ${renderKpiCard("CRITICAS", kpis.criticas)}
+          ${renderKpiCard("RISCO IMEDIATO", kpis.riscoImediato)}
         </div>
-      </article>
-    </div>
-    <div class="dashboard-row">
-      <article class="card panel-card">
-        <div class="panel-head">
-          <h3>EFICIENCIA OPERACIONAL</h3>
-          <span class="trend-tag">+8%</span>
+      </section>
+
+      <section class="home-section">
+        <h3 class="home-section__title">Alertas e saude</h3>
+        <div class="dashboard-row">
+          <article class="card panel-card">
+            <div class="panel-head">
+              <h3>ALERTAS OPERACIONAIS</h3>
+            </div>
+            ${alertHtml}
+          </article>
+          <article class="card panel-card">
+            <div class="panel-head">
+              <h3>SAUDE OPERACIONAL</h3>
+            </div>
+            <div class="health-grid">
+              <div class="health-item">
+                <span>Pontualidade</span>
+                <strong>${saudeOperacional.pontualidadePct}%</strong>
+              </div>
+              <div class="health-item">
+                <span>Backlog</span>
+                <strong>${saudeOperacional.backlogTotal}</strong>
+              </div>
+              <div class="health-item">
+                <span>Concluidas</span>
+                <strong>${saudeOperacional.concluidasPeriodo}</strong>
+              </div>
+              <div class="health-item">
+                <span>Atraso medio</span>
+                <strong>${saudeOperacional.atrasoMedioDias}d</strong>
+              </div>
+            </div>
+          </article>
         </div>
-        <div class="mini-chart">
-          ${chart}
-          ${labelRow}
+      </section>
+
+      <section class="home-section">
+        <h3 class="home-section__title">Performance e previsao</h3>
+        <div class="dashboard-row">
+          <article class="card panel-card">
+            <div class="panel-head">
+              <h3>EFICIENCIA OPERACIONAL</h3>
+              <span class="trend-tag">+8%</span>
+            </div>
+            <div class="mini-chart">
+              ${chart}
+              ${labelRow}
+            </div>
+          </article>
+          <article class="card panel-card">
+            <div class="panel-head">
+              <h3>PROXIMAS ATIVIDADES</h3>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Atividade</th>
+                    <th>Responsavel</th>
+                    <th>Prazo</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${rows || `<tr><td colspan="4" class="empty-state">Sem registros.</td></tr>`}
+                </tbody>
+              </table>
+            </div>
+          </article>
         </div>
-      </article>
-      <article class="card panel-card">
-        <div class="panel-head">
-          <h3>PROXIMAS ATIVIDADES</h3>
-        </div>
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Atividade</th>
-                <th>Responsavel</th>
-                <th>Prazo</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows || `<tr><td colspan="4" class="empty-state">Sem registros.</td></tr>`}
-            </tbody>
-          </table>
-        </div>
-      </article>
+      </section>
     </div>
   `;
 }
