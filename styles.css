@@ -4056,8 +4056,8 @@ body.is-visitor .container.auth-only {
 
 .pie-legend {
   display: grid;
-  gap: 8px;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   font-size: 0.78rem;
   color: var(--muted);
 }
@@ -4073,6 +4073,41 @@ body.is-visitor .container.auth-only {
 
 .pie-legend span {
   color: var(--text);
+}
+
+.pie-legend__item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.pie-legend__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  box-shadow: 0 0 10px currentColor;
+  margin-top: 4px;
+}
+
+.pie-legend__dot--green {
+  color: #22c55e;
+  background: #22c55e;
+}
+
+.pie-legend__dot--blue {
+  color: #3b82f6;
+  background: #3b82f6;
+}
+
+.pie-legend__dot--yellow {
+  color: #facc15;
+  background: #facc15;
+}
+
+.pie-legend__dot--red {
+  color: #ef4444;
+  background: #ef4444;
 }
 
 .mini-chart .chart-grid line {

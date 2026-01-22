@@ -4327,25 +4327,21 @@ function renderDashboardHome() {
   const renderKpiCard = (label, value) =>
     `<article class="kpi-card"><span>${label}</span><strong>${value}</strong></article>`;
 
+  const atrasoMedioPct = Math.round((Number(saudeOperacional.atrasoMedioDias) || 0) * 100);
   const pieValues = [
     Number(saudeOperacional.pontualidadePct) || 0,
     Number(saudeOperacional.backlogTotal) || 0,
     Number(saudeOperacional.concluidasPeriodo) || 0,
-    Number(saudeOperacional.atrasoMedioDias) || 0,
+    atrasoMedioPct,
   ];
   const pieLabels = ["Pontualidade", "Backlog", "Concluidas", "Atraso medio"];
   const pieDisplay = [
     `${saudeOperacional.pontualidadePct}%`,
     String(saudeOperacional.backlogTotal),
     String(saudeOperacional.concluidasPeriodo),
-    `${saudeOperacional.atrasoMedioDias}d`,
+    `${atrasoMedioPct}%`,
   ];
   const chart = buildNeonPieChart(pieValues, pieLabels, pieDisplay);
-  const legendRow = pieLabels.length
-    ? `<div class="chart-labels">${pieLabels
-        .map((label) => `<span>${escapeHtml(label)}</span>`)
-        .join("")}</div>`
-    : "";
 
   const today = startOfDay(new Date());
   const sortedAtividades = Array.isArray(proximasAtividades)
@@ -4458,12 +4454,35 @@ function renderDashboardHome() {
                 Distribuicao operacional em pizza: Pontualidade mostra o percentual de entregas no prazo; Backlog indica tarefas pendentes; Concluidas mostra o volume finalizado no periodo; Atraso medio reflete o desvio medio em dias.
               </div>
               ${chart}
-              ${legendRow}
               <div class="pie-legend">
-                <div><strong>Pontualidade</strong><span>Percentual de entregas no prazo.</span></div>
-                <div><strong>Backlog</strong><span>Tarefas pendentes e nao executadas.</span></div>
-                <div><strong>Concluidas</strong><span>Volume finalizado no periodo atual.</span></div>
-                <div><strong>Atraso medio</strong><span>Desvio medio em dias das atividades.</span></div>
+                <div class="pie-legend__item">
+                  <span class="pie-legend__dot pie-legend__dot--green"></span>
+                  <div>
+                    <strong>Pontualidade</strong>
+                    <span>Percentual de entregas no prazo.</span>
+                  </div>
+                </div>
+                <div class="pie-legend__item">
+                  <span class="pie-legend__dot pie-legend__dot--blue"></span>
+                  <div>
+                    <strong>Backlog</strong>
+                    <span>Tarefas pendentes e nao executadas.</span>
+                  </div>
+                </div>
+                <div class="pie-legend__item">
+                  <span class="pie-legend__dot pie-legend__dot--yellow"></span>
+                  <div>
+                    <strong>Concluidas</strong>
+                    <span>Volume finalizado no periodo atual.</span>
+                  </div>
+                </div>
+                <div class="pie-legend__item">
+                  <span class="pie-legend__dot pie-legend__dot--red"></span>
+                  <div>
+                    <strong>Atraso medio</strong>
+                    <span>Percentual medio de atraso das atividades.</span>
+                  </div>
+                </div>
               </div>
             </div>
           </article>
@@ -4495,14 +4514,23 @@ function renderDashboardHome() {
 }
 
 function buildNeonPieChart(series, labels, displayValues = []) {
-  const values = Array.isArray(series) ? series.filter((value) => typeof value === "number") : [];
-  const safeValues = values.length ? values : [1, 1, 1];
-  const total = safeValues.reduce((sum, value) => sum + value, 0) || 1;
-  const colors = ["#58d2ff", "#f6d08a", "#6ee7b7", "#f472b6", "#f87171"];
+  const base = Array.isArray(series) ? series : [];
+  const safeValues = base.length
+    ? base.map((value) => {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric) || numeric <= 0) {
+          return 0;
+        }
+        return numeric;
+      })
+    : [1, 1, 1, 1];
+  const chartValues = safeValues.map((value) => (value === 0 ? 0.1 : value));
+  const total = chartValues.reduce((sum, value) => sum + value, 0) || 1;
+  const colors = ["#22c55e", "#3b82f6", "#facc15", "#ef4444"];
   const radius = 38;
   const center = 50;
   let startAngle = -Math.PI / 2;
-  const slices = safeValues
+  const slices = chartValues
     .map((value, index) => {
       const angle = (value / total) * Math.PI * 2;
       const endAngle = startAngle + angle;
@@ -4513,7 +4541,7 @@ function buildNeonPieChart(series, labels, displayValues = []) {
       const y2 = center + radius * Math.sin(endAngle);
       const path = `M ${center} ${center} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${radius} ${radius} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
       const label = labels && labels[index] ? labels[index] : `Indicador ${index + 1}`;
-      const display = displayValues[index] ? displayValues[index] : value;
+      const display = displayValues[index] ? displayValues[index] : safeValues[index];
       const title = `${label}: ${display}`;
       startAngle = endAngle;
       return `<path class="pie-slice" d="${path}" fill="${colors[index % colors.length]}"><title>${escapeHtml(title)}</title></path>`;
