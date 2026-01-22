@@ -4334,7 +4334,13 @@ function renderDashboardHome() {
     Number(saudeOperacional.atrasoMedioDias) || 0,
   ];
   const pieLabels = ["Pontualidade", "Backlog", "Concluidas", "Atraso medio"];
-  const chart = buildNeonPieChart(pieValues, pieLabels);
+  const pieDisplay = [
+    `${saudeOperacional.pontualidadePct}%`,
+    String(saudeOperacional.backlogTotal),
+    String(saudeOperacional.concluidasPeriodo),
+    `${saudeOperacional.atrasoMedioDias}d`,
+  ];
+  const chart = buildNeonPieChart(pieValues, pieLabels, pieDisplay);
   const legendRow = pieLabels.length
     ? `<div class="chart-labels">${pieLabels
         .map((label) => `<span>${escapeHtml(label)}</span>`)
@@ -4388,7 +4394,6 @@ function renderDashboardHome() {
           <p class="hint">Visao tatico-operacional com indicadores criticos e foco no dia.</p>
         </div>
         <div class="home-header__meta">
-          <span class="badge badge--ok">Atualizado</span>
           <span class="hint">${updatedAt}</span>
         </div>
       </div>
@@ -4489,7 +4494,7 @@ function renderDashboardHome() {
   startHomeTipsRotation();
 }
 
-function buildNeonPieChart(series, labels) {
+function buildNeonPieChart(series, labels, displayValues = []) {
   const values = Array.isArray(series) ? series.filter((value) => typeof value === "number") : [];
   const safeValues = values.length ? values : [1, 1, 1];
   const total = safeValues.reduce((sum, value) => sum + value, 0) || 1;
@@ -4507,8 +4512,11 @@ function buildNeonPieChart(series, labels) {
       const x2 = center + radius * Math.cos(endAngle);
       const y2 = center + radius * Math.sin(endAngle);
       const path = `M ${center} ${center} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${radius} ${radius} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
+      const label = labels && labels[index] ? labels[index] : `Indicador ${index + 1}`;
+      const display = displayValues[index] ? displayValues[index] : value;
+      const title = `${label}: ${display}`;
       startAngle = endAngle;
-      return `<path class="pie-slice" d="${path}" fill="${colors[index % colors.length]}" />`;
+      return `<path class="pie-slice" d="${path}" fill="${colors[index % colors.length]}"><title>${escapeHtml(title)}</title></path>`;
     })
     .join("");
   const title = labels && labels.length ? labels.join(", ") : "Distribuicao";
