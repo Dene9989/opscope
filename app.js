@@ -1928,11 +1928,20 @@ function renderHealthSummary(snapshot) {
     {
       titulo: "Integridade",
       status: modules.integrity ? modules.integrity.status : "warn",
-      resumo: `Inconsistencias: ${
-        modules.integrity && modules.integrity.issues
-          ? modules.integrity.issues.length
-          : 0
-      }`,
+      resumo: (() => {
+        const issues = modules.integrity && modules.integrity.issues
+          ? modules.integrity.issues
+          : [];
+        const count = issues.length;
+        if (!count) {
+          return "Sem inconsistencias.";
+        }
+        const detail = issues
+          .slice(0, 2)
+          .map((issue) => issue.message || "Inconsistencia")
+          .join(" | ");
+        return `Inconsistencias: ${count}${detail ? ` | ${detail}` : ""}`;
+      })(),
     },
   ];
   cards.forEach((cardData) => {

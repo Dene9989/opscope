@@ -2107,10 +2107,19 @@ body.is-visitor .container.auth-only {
 }
 
 .gerencial-head__actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
   gap: 10px;
-  align-items: flex-end;
+  align-items: end;
+}
+
+.gerencial-head__actions .field input {
+  min-height: 40px;
+}
+
+.gerencial-head__actions .btn {
+  min-height: 40px;
+  align-self: end;
 }
 
 .gerencial-indicators {
@@ -3437,6 +3446,15 @@ body.is-visitor .container.auth-only {
 
 .page-gerencial .files-actions .btn {
   min-height: 40px;
+}
+
+.page-gerencial .files-actions input[type="file"]::file-selector-button {
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: var(--field-bg);
+  color: var(--text-strong);
+  padding: 6px 12px;
+  margin-right: 10px;
 }
 
 .page-gerencial .files-list {
