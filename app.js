@@ -215,6 +215,8 @@ const indicatorAutomationsBadge = document.getElementById("indicatorAutomationsB
 const indicatorAutomationsMeta = document.getElementById("indicatorAutomationsMeta");
 const permissoesSearch = document.getElementById("permissoesSearch");
 const permissoesSummary = document.getElementById("permissoesSummary");
+const gerencialUpdateMessage = document.getElementById("gerencialUpdateMessage");
+const gerencialLastUpdate = document.getElementById("gerencialLastUpdate");
 const gerencialPalette = document.getElementById("gerencialPalette");
 const gerencialPaletteInput = document.getElementById("gerencialPaletteInput");
 const gerencialPaletteList = document.getElementById("gerencialPaletteList");
@@ -975,6 +977,44 @@ function updateGerencialIndicators() {
       : "Nenhuma automacao carregada";
   }
   applyIndicatorStatus(indicatorAutomationsCard, indicatorAutomationsBadge, automationStatus);
+}
+
+function setGerencialUpdateMessage(text, isError = false) {
+  if (!gerencialUpdateMessage) {
+    return;
+  }
+  gerencialUpdateMessage.textContent = text || "";
+  gerencialUpdateMessage.classList.toggle("mensagem--erro", isError);
+}
+
+function setGerencialLastUpdate() {
+  if (!gerencialLastUpdate) {
+    return;
+  }
+  const now = new Date();
+  const name = currentUser ? getDisplayName(currentUser) : "Sistema";
+  gerencialLastUpdate.textContent = `Atualizado em ${formatDateTime(now)} por ${name}`;
+}
+
+async function refreshGerencialAll() {
+  if (!currentUser || !canViewGerencial(currentUser)) {
+    return;
+  }
+  setGerencialUpdateMessage("Atualizando painel...");
+  const results = await Promise.allSettled([
+    carregarHealth(true),
+    carregarApiLogs(true),
+    carregarAutomacoes(true),
+    carregarArquivos(true),
+    carregarPermissoes(true),
+  ]);
+  const failed = results.some((item) => item.status === "rejected");
+  if (failed) {
+    setGerencialUpdateMessage("Atualizacao parcial. Verifique os modulos.", true);
+    return;
+  }
+  setGerencialUpdateMessage("Atualizado com sucesso.");
+  setGerencialLastUpdate();
 }
 
 function loadGerencialTab(tabId, force = false) {
@@ -14988,7 +15028,7 @@ document.addEventListener("keydown", (event) => {
 
 if (btnGerencialRefreshAll) {
   btnGerencialRefreshAll.addEventListener("click", () => {
-    carregarPainelGerencial(true);
+    refreshGerencialAll();
   });
 }
 

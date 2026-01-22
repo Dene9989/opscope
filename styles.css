@@ -2097,6 +2097,15 @@ body.is-visitor .container.auth-only {
   gap: 16px;
 }
 
+.gerencial-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  color: var(--text-muted, var(--ink-soft));
+  font-size: 0.8rem;
+}
+
 .gerencial-head__actions {
   display: flex;
   flex-wrap: wrap;
@@ -2278,8 +2287,8 @@ body.is-visitor .container.auth-only {
 
 .overview-card {
   border-radius: 14px;
-  border: 1px solid rgba(19, 32, 42, 0.12);
-  background: #f8f6f1;
+  border: 1px solid var(--card-border, rgba(19, 32, 42, 0.12));
+  background: var(--card-bg-soft, #f8f6f1);
   padding: 16px;
   display: grid;
   gap: 12px;
@@ -2295,11 +2304,11 @@ body.is-visitor .container.auth-only {
   display: flex;
   justify-content: space-between;
   font-size: 0.9rem;
-  color: var(--ink-soft);
+  color: var(--text-body, var(--ink-soft));
 }
 
 .overview-list strong {
-  color: var(--ink);
+  color: var(--text-strong, var(--ink));
 }
 
 .overview-actions {
@@ -3166,6 +3175,10 @@ body.is-visitor .container.auth-only {
   border-radius: 999px;
   border: 1px solid transparent;
   justify-self: start;
+  min-width: 40px;
+  height: 28px;
+  justify-content: center;
+  text-align: center;
 }
 
 .page-gerencial .health-badge--ok {
@@ -3411,10 +3424,19 @@ body.is-visitor .container.auth-only {
 }
 
 .page-gerencial .files-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) auto;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
+}
+
+.page-gerencial .files-actions input[type="file"] {
+  width: 100%;
+  min-height: 40px;
+}
+
+.page-gerencial .files-actions .btn {
+  min-height: 40px;
 }
 
 .page-gerencial .files-list {
