@@ -5046,6 +5046,16 @@ textarea:focus {
   color: #7a2b1e;
 }
 
+.status-badge--agendada {
+  background: rgba(246, 196, 83, 0.18);
+  color: #7a5b1e;
+}
+
+.status-badge--liberada {
+  background: rgba(91, 141, 239, 0.16);
+  color: #2b4e7a;
+}
+
 .status-badge--cancelada {
   background: rgba(118, 130, 145, 0.2);
   color: #4b5966;
@@ -5167,6 +5177,12 @@ textarea:focus {
 }
 
 .rdo-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rdo-brand__row {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -5401,6 +5417,230 @@ textarea:focus {
   background: rgba(118, 130, 145, 0.16);
   color: #4b5966;
   border-color: rgba(118, 130, 145, 0.35);
+}
+
+.rdo-summary-grid--cards .rdo-summary-item {
+  background: #ffffff;
+  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.06);
+}
+
+.rdo-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.rdo-kpi-card {
+  position: relative;
+  border: 1px solid rgba(19, 32, 42, 0.12);
+  border-radius: 12px;
+  padding: 10px 10px 10px 30px;
+  background: #ffffff;
+  display: grid;
+  gap: 6px;
+}
+
+.rdo-kpi-card span {
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.rdo-kpi-card strong {
+  font-size: 1rem;
+}
+
+.rdo-kpi-card::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 12px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #9aa4af;
+}
+
+.rdo-kpi-card--ok::before {
+  background: #4bd28f;
+}
+
+.rdo-kpi-card--warn::before {
+  background: #f6c453;
+}
+
+.rdo-kpi-card--danger::before {
+  background: #e2595c;
+}
+
+.rdo-kpi-card--info::before {
+  background: #5b8def;
+}
+
+.rdo-kpi-card--neutral::before {
+  background: #9aa4af;
+}
+
+.rdo-month__charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.rdo-month__charts h4 {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-soft);
+}
+
+.rdo-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.rdo-month__donut {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.rdo-donut {
+  width: 120px;
+  height: 120px;
+  display: block;
+}
+
+.rdo-legend {
+  display: grid;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.legend-dot--ok {
+  background: #4bd28f;
+}
+
+.legend-dot--info {
+  background: #5b8def;
+}
+
+.legend-dot--warn {
+  background: #f6c453;
+}
+
+.legend-dot--danger {
+  background: #e2595c;
+}
+
+.rdo-month__sla {
+  display: grid;
+  gap: 6px;
+}
+
+.rdo-month__sla-bar {
+  height: 16px;
+  background: rgba(19, 32, 42, 0.12);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.rdo-month__sla-bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #4bd28f, #9bf7c7);
+  color: #1f2a33;
+  font-size: 0.7rem;
+  text-align: right;
+  padding-right: 8px;
+  line-height: 16px;
+}
+
+.rdo-month__sla small {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.report-table__wrap {
+  border: 1px solid rgba(19, 32, 42, 0.12);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.report__table tbody tr:nth-child(even) {
+  background: rgba(248, 246, 241, 0.7);
+}
+
+.report__table tfoot td {
+  font-weight: 600;
+  background: rgba(248, 246, 241, 0.9);
+}
+
+.priority-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 6px;
+  border-radius: 999px;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border: 1px solid rgba(19, 32, 42, 0.12);
+}
+
+.priority-badge--baixa {
+  background: rgba(91, 141, 239, 0.12);
+  color: #2b4e7a;
+}
+
+.priority-badge--media {
+  background: rgba(246, 196, 83, 0.18);
+  color: #7a5b1e;
+}
+
+.priority-badge--alta {
+  background: rgba(226, 89, 92, 0.18);
+  color: #7a2b1e;
+}
+
+.priority-badge--critica {
+  background: rgba(226, 89, 92, 0.28);
+  color: #7a2b1e;
+}
+
+.rdo-month__day summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.rdo-month__day summary::-webkit-details-marker {
+  display: none;
+}
+
+@media screen {
+  .report-table__wrap {
+    max-height: 260px;
+    overflow: auto;
+  }
+
+  .report__table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
 }
 
 .rdo-evidencias-grid {

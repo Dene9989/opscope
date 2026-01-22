@@ -62,6 +62,9 @@ const relatorioCliente = document.getElementById("relatorioCliente");
 const btnRelatorioMensalPreview = document.getElementById("btnRelatorioMensalPreview");
 const btnRelatorioMensalExportar = document.getElementById("btnRelatorioMensalExportar");
 const btnRelatorioMensalRdo = document.getElementById("btnRelatorioMensalRdo");
+const rdoMensalPreviewModal = document.getElementById("modalRdoMensalPreview");
+const rdoMensalPreviewBody = document.getElementById("rdoMensalPreviewBody");
+const rdoMensalPreviewClose = document.querySelector("[data-rdo-mensal-close]");
 const countAgendadas = document.getElementById("countAgendadas");
 const countLiberadas = document.getElementById("countLiberadas");
 const countBacklog = document.getElementById("countBacklog");
@@ -5840,7 +5843,7 @@ function exportarRelatorioMensal() {
   return abrirJanelaRelatorio(html, "Relatorio mensal - OPSCOPE", true);
 }
 
-function gerarRdoMensal(imprimir = false) {
+function gerarRdoMensal(imprimir = false, returnHtml = false) {
   const range = getMonthlyRange();
   const periodoLabel = `${formatDate(range.start)} - ${formatDate(range.end)}`;
   const rdos = rdoSnapshots
@@ -6533,7 +6536,27 @@ function gerarRdoMensal(imprimir = false) {
       </section>
     </div>
   `;
+  if (returnHtml) {
+    return html;
+  }
   return abrirJanelaRelatorio(html, "RDO mensal - OPSCOPE", imprimir);
+}
+
+function abrirRdoMensalPreview() {
+  if (!rdoMensalPreviewModal || !rdoMensalPreviewBody) {
+    return false;
+  }
+  const html = gerarRdoMensal(false, true);
+  rdoMensalPreviewBody.innerHTML = html;
+  rdoMensalPreviewModal.hidden = false;
+  return true;
+}
+
+function fecharRdoMensalPreview() {
+  if (!rdoMensalPreviewModal) {
+    return;
+  }
+  rdoMensalPreviewModal.hidden = true;
 }
 
 
@@ -16015,9 +16038,9 @@ if (relatorioMes) {
 }
 if (btnRelatorioMensalPreview) {
   btnRelatorioMensalPreview.addEventListener("click", () => {
-    const ok = gerarRdoMensal(false);
+    const ok = abrirRdoMensalPreview();
     if (!ok) {
-      alert("Popup bloqueado. Permita a abertura para visualizar o relatorio.");
+      alert("Nao foi possivel abrir o preview do RDO mensal.");
     }
   });
 }
@@ -16031,9 +16054,19 @@ if (btnRelatorioMensalExportar) {
 }
 if (btnRelatorioMensalRdo) {
   btnRelatorioMensalRdo.addEventListener("click", () => {
-    const ok = gerarRdoMensal(false);
+    const ok = abrirRdoMensalPreview();
     if (!ok) {
-      alert("Popup bloqueado. Permita a abertura para visualizar o RDO mensal.");
+      alert("Nao foi possivel abrir o preview do RDO mensal.");
+    }
+  });
+}
+if (rdoMensalPreviewClose) {
+  rdoMensalPreviewClose.addEventListener("click", fecharRdoMensalPreview);
+}
+if (rdoMensalPreviewModal) {
+  rdoMensalPreviewModal.addEventListener("click", (event) => {
+    if (event.target === rdoMensalPreviewModal) {
+      fecharRdoMensalPreview();
     }
   });
 }
