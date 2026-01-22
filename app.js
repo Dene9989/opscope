@@ -59,7 +59,6 @@ const relatorioMes = document.getElementById("relatorioMes");
 const relatorioInicioMensal = document.getElementById("relatorioInicioMensal");
 const relatorioFimMensal = document.getElementById("relatorioFimMensal");
 const relatorioCliente = document.getElementById("relatorioCliente");
-const btnRelatorioMensalGerar = document.getElementById("btnRelatorioMensalGerar");
 const btnRelatorioMensalPreview = document.getElementById("btnRelatorioMensalPreview");
 const btnRelatorioMensalExportar = document.getElementById("btnRelatorioMensalExportar");
 const btnRelatorioMensalRdo = document.getElementById("btnRelatorioMensalRdo");
@@ -5685,10 +5684,48 @@ function abrirJanelaRelatorio(html, titulo, imprimir) {
           .rdo-summary-item { border: 1px solid #d9d4c8; border-radius: 10px; padding: 6px 8px; display: grid; gap: 2px; background: #fff; }
           .rdo-summary-item span { font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: #425363; }
           .rdo-summary-item strong { font-size: 0.9rem; }
+          .rdo-summary-grid--cards .rdo-summary-item { background: #fff; box-shadow: 0 6px 10px rgba(0,0,0,0.06); }
+          .rdo-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+          .rdo-kpi-card { border: 1px solid #d9d4c8; border-radius: 12px; padding: 10px 10px 10px 30px; background: #fff; display: grid; gap: 6px; position: relative; }
+          .rdo-kpi-card span { font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: #5c6772; }
+          .rdo-kpi-card strong { font-size: 1rem; }
+          .rdo-kpi-card--ok { border-left: 4px solid #4bd28f; }
+          .rdo-kpi-card--warn { border-left: 4px solid #f6c453; }
+          .rdo-kpi-card--danger { border-left: 4px solid #e2595c; }
+          .rdo-kpi-card--info { border-left: 4px solid #5b8def; }
+          .rdo-kpi-card--neutral { border-left: 4px solid #9aa4af; }
+          .rdo-kpi-card::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: #9aa4af; position: absolute; left: 10px; top: 12px; }
+          .rdo-kpi-card--ok::before { background: #4bd28f; }
+          .rdo-kpi-card--warn::before { background: #f6c453; }
+          .rdo-kpi-card--danger::before { background: #e2595c; }
+          .rdo-kpi-card--info::before { background: #5b8def; }
+          .rdo-kpi-card--neutral::before { background: #9aa4af; }
           .rdo-month__sla { display: grid; gap: 6px; }
           .rdo-month__sla-bar { height: 16px; background: #e5e1d6; border-radius: 999px; overflow: hidden; }
           .rdo-month__sla-bar span { display: block; height: 100%; background: linear-gradient(90deg, #4bd28f, #9bf7c7); color: #1f2a33; font-size: 0.7rem; text-align: right; padding-right: 8px; line-height: 16px; }
           .rdo-month__sla small { font-size: 0.75rem; color: #5c6772; }
+          .rdo-note { border: 1px dashed #d9d4c8; border-radius: 12px; padding: 12px 14px; background: #fff; }
+          .rdo-note h3 { margin: 0 0 6px; font-size: 0.95rem; }
+          .report-table__wrap { border: 1px solid #e2ddd2; border-radius: 10px; overflow: hidden; }
+          .report__table tbody tr:nth-child(even) { background: #fbf9f4; }
+          .report__table tfoot td { font-weight: 600; background: #f6f2ea; }
+          .status-badge { display: inline-flex; align-items: center; justify-content: center; padding: 3px 6px; border-radius: 999px; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; }
+          .status-badge--concluida { background: rgba(43, 122, 120, 0.18); color: #1f5759; }
+          .status-badge--em_execucao { background: rgba(91, 141, 239, 0.18); color: #2b4e7a; }
+          .status-badge--backlog { background: rgba(226, 89, 92, 0.18); color: #7a2b1e; }
+          .status-badge--agendada { background: rgba(246, 196, 83, 0.18); color: #7a5b1e; }
+          .status-badge--liberada { background: rgba(91, 141, 239, 0.16); color: #2b4e7a; }
+          .priority-badge { display: inline-flex; align-items: center; justify-content: center; padding: 3px 6px; border-radius: 999px; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; border: 1px solid #d9d4c8; }
+          .priority-badge--baixa { background: rgba(91, 141, 239, 0.12); color: #2b4e7a; }
+          .priority-badge--media { background: rgba(246, 196, 83, 0.18); color: #7a5b1e; }
+          .priority-badge--alta { background: rgba(226, 89, 92, 0.18); color: #7a2b1e; }
+          .priority-badge--critica { background: rgba(226, 89, 92, 0.28); color: #7a2b1e; }
+          .rdo-month__day summary { cursor: pointer; list-style: none; }
+          .rdo-month__day summary::-webkit-details-marker { display: none; }
+          @media screen {
+            .report-table__wrap { max-height: 260px; overflow: auto; }
+            .report__table thead th { position: sticky; top: 0; z-index: 1; }
+          }
           .rdo-items { display: grid; gap: 10px; }
           .rdo-item { border: 1px solid #d9d4c8; border-radius: 12px; padding: 10px 12px; display: grid; gap: 8px; }
           .rdo-item__head { display: flex; justify-content: space-between; gap: 12px; font-size: 0.8rem; color: #425363; }
@@ -5803,7 +5840,7 @@ function exportarRelatorioMensal() {
   return abrirJanelaRelatorio(html, "Relatorio mensal - OPSCOPE", true);
 }
 
-function gerarRdoMensal() {
+function gerarRdoMensal(imprimir = false) {
   const range = getMonthlyRange();
   const periodoLabel = `${formatDate(range.start)} - ${formatDate(range.end)}`;
   const rdos = rdoSnapshots
@@ -5860,6 +5897,7 @@ function gerarRdoMensal() {
     : "-";
   const cliente = relatorioCliente ? relatorioCliente.value || RDO_CLIENTE : RDO_CLIENTE;
   const hashMensal = hashString(`${periodoLabel}|${acumulado.totalRdos}|${cliente}`).slice(0, 8).toUpperCase();
+  const emissor = currentUser ? getUserLabel(currentUser.id) : "Sistema";
   const topSubestacoes = rdos.reduce((acc, item) => {
     const sub = item.filtros && item.filtros.subestacao ? item.filtros.subestacao : "";
     if (!sub) {
@@ -6122,6 +6160,16 @@ function gerarRdoMensal() {
       </tr>`;
     })
     .join("");
+  const resumoDiaTotals = rdos.reduce(
+    (acc, item) => {
+      const metricas = item.metricas || {};
+      acc.total += metricas.total || 0;
+      acc.concluidas += metricas.concluidas || 0;
+      acc.criticas += metricas.criticas || 0;
+      return acc;
+    },
+    { total: 0, concluidas: 0, criticas: 0 }
+  );
 
   const blocos = rdos
     .map((item) => {
@@ -6139,15 +6187,17 @@ function gerarRdoMensal() {
           : metricas.docsTotal
             ? `${Math.round((metricas.docsOk / metricas.docsTotal) * 100)}%`
             : "-";
+      const isEmpty = !metricas.total;
       return `
-        <article class="rdo-month__day">
-          <header class="rdo-month__day-head">
+        <details class="rdo-month__day" ${isEmpty ? "" : "open"}>
+          <summary class="rdo-month__day-head">
             <div>
               <strong>RDO ${escapeHtml(dataLabel)}</strong>
               <span>Emitido em ${escapeHtml(emitidoEm)} por ${escapeHtml(emitidoPor)}</span>
             </div>
             <span class="rdo-badge">Atividades: ${escapeHtml(String(metricas.total || 0))}</span>
-          </header>
+          </summary>
+          ${isEmpty ? "<p>Sem atividades registradas neste dia.</p>" : ""}
           <div class="rdo-month__grid">
             <div>
               <span>Subestacao</span>
@@ -6238,7 +6288,7 @@ function gerarRdoMensal() {
               <p>${escapeHtml(narrativa)}</p>
             </div>
           </div>
-        </article>
+        </details>
       `;
     })
     .join("");
@@ -6246,20 +6296,21 @@ function gerarRdoMensal() {
   const html = `
     <div class="rdo-month rdo-doc">
       <header class="rdo-header">
-        <div class="rdo-brand">
-          <div class="rdo-brand__row">
-            <img class="rdo-logo" src="./assets/engelmig-logo.png" alt="ENGELMIG" width="110" height="40" />
-            <div>
-              <span class="rdo-eyebrow">OPSCOPE</span>
-              <h2 class="rdo-title">RELATORIO MENSAL DE OPERACAO</h2>
-              <p class="rdo-subtitle">Consolidado executivo do periodo</p>
+          <div class="rdo-brand">
+            <div class="rdo-brand__row">
+              <img class="rdo-logo" src="./assets/engelmig-logo.png" alt="ENGELMIG" width="110" height="40" />
+              <div>
+                <span class="rdo-eyebrow">OPSCOPE</span>
+                <h2 class="rdo-title">RELATORIO MENSAL DE OPERACAO</h2>
+                <p class="rdo-subtitle">Consolidado executivo do periodo</p>
+              </div>
             </div>
           </div>
-        </div>
         <div class="rdo-meta">
           <span>RDO-M: ${escapeHtml(hashMensal)}</span>
           <span>Periodo: ${escapeHtml(periodoLabel)}</span>
           <span>Cliente: ${escapeHtml(cliente)}</span>
+          <span>Emitido por: ${escapeHtml(emissor)}</span>
           <span>Emitido em: ${escapeHtml(formatDateTime(new Date()))}</span>
         </div>
       </header>
@@ -6284,7 +6335,7 @@ function gerarRdoMensal() {
       <section class="rdo-section rdo-summary">
         <h3>Resumo Executivo</h3>
         <p>${escapeHtml(resumoExec)}</p>
-        <div class="rdo-summary-grid">
+        <div class="rdo-summary-grid rdo-summary-grid--cards">
           <div class="rdo-summary-item"><span>RDOs</span><strong>${acumulado.totalRdos}</strong></div>
           <div class="rdo-summary-item"><span>Atividades</span><strong>${acumulado.atividades}</strong></div>
           <div class="rdo-summary-item"><span>Concluidas</span><strong>${acumulado.concluidas}</strong></div>
@@ -6299,12 +6350,12 @@ function gerarRdoMensal() {
       </section>
       <section class="rdo-section rdo-block">
         <h3>KPIs Gerenciais</h3>
-        <div class="rdo-summary-grid">
-          <div class="rdo-summary-item"><span>SLA mensal</span><strong>${slaPercent}%</strong></div>
-          <div class="rdo-summary-item"><span>Taxa de backlog</span><strong>${backlogRate}%</strong></div>
-          <div class="rdo-summary-item"><span>Taxa criticas</span><strong>${criticasRate}%</strong></div>
-          <div class="rdo-summary-item"><span>Tempo medio execucao</span><strong>${tempoMedioExec}</strong></div>
-          <div class="rdo-summary-item"><span>Tendencia</span><strong>${tendencia}</strong></div>
+        <div class="rdo-kpi-grid">
+          <div class="rdo-kpi-card rdo-kpi-card--ok"><span>SLA mensal</span><strong>${slaPercent}%</strong></div>
+          <div class="rdo-kpi-card rdo-kpi-card--warn"><span>Taxa de backlog</span><strong>${backlogRate}%</strong></div>
+          <div class="rdo-kpi-card rdo-kpi-card--danger"><span>Taxa criticas</span><strong>${criticasRate}%</strong></div>
+          <div class="rdo-kpi-card rdo-kpi-card--info"><span>Tempo medio execucao</span><strong>${tempoMedioExec}</strong></div>
+          <div class="rdo-kpi-card rdo-kpi-card--neutral"><span>Tendencia</span><strong>${tendencia}</strong></div>
         </div>
       </section>
       <section class="rdo-section rdo-block rdo-month__charts">
@@ -6359,11 +6410,12 @@ function gerarRdoMensal() {
       </section>
       <section class="rdo-section rdo-block">
         <h3>Resumo operacional por dia</h3>
-        <table class="report__table">
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Subestacao</th>
+        <div class="report-table__wrap">
+          <table class="report__table">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Subestacao</th>
               <th>Categoria</th>
               <th>Prioridade</th>
               <th>Usuario</th>
@@ -6375,11 +6427,21 @@ function gerarRdoMensal() {
           <tbody>
             ${linhas || `<tr><td colspan="8">Nenhum RDO no periodo.</td></tr>`}
           </tbody>
-        </table>
+          <tfoot>
+            <tr>
+              <td colspan="5">Total do periodo</td>
+              <td>${resumoDiaTotals.total}</td>
+              <td>${resumoDiaTotals.concluidas}</td>
+              <td>${resumoDiaTotals.criticas}</td>
+            </tr>
+          </tfoot>
+          </table>
+        </div>
       </section>
       <section class="rdo-section rdo-block">
         <h3>Tabela consolidada</h3>
-        <table class="report__table">
+        <div class="report-table__wrap">
+          <table class="report__table">
           <thead>
             <tr>
               <th>Manutencao</th>
@@ -6400,22 +6462,34 @@ function gerarRdoMensal() {
                       const label = data ? formatDate(data) : "-";
                       const responsavel = getRelatorioResponsavel(item) || "-";
                       const status = item.status || "-";
+                      const statusKey = String(status).toLowerCase();
+                      const prioridade = item.prioridade || "-";
+                      const prioridadeKey = String(prioridade).toLowerCase();
                       return `<tr>
                         <td>${escapeHtml(item.titulo || "-")}</td>
                         <td>${escapeHtml(item.local || "-")}</td>
                         <td>${escapeHtml(label)}</td>
                         <td><span class="status-badge status-badge--${escapeHtml(
-                          status
+                          statusKey
                         )}">${escapeHtml(status)}</span></td>
                         <td>${escapeHtml(responsavel)}</td>
-                        <td>${escapeHtml(item.prioridade || "-")}</td>
+                        <td><span class="priority-badge priority-badge--${escapeHtml(
+                          prioridadeKey
+                        )}">${escapeHtml(prioridade)}</span></td>
                       </tr>`;
                     })
                     .join("")
                 : `<tr><td colspan="6">Nenhuma manutencao no periodo.</td></tr>`
             }
           </tbody>
-        </table>
+          <tfoot>
+            <tr>
+              <td colspan="5">Total de manutencoes</td>
+              <td>${manutencoesPeriodo.length}</td>
+            </tr>
+          </tfoot>
+          </table>
+        </div>
       </section>
       <section class="rdo-section rdo-note">
         <h3>Analise tecnica do periodo</h3>
@@ -6459,7 +6533,7 @@ function gerarRdoMensal() {
       </section>
     </div>
   `;
-  return abrirJanelaRelatorio(html, "RDO mensal - OPSCOPE", false);
+  return abrirJanelaRelatorio(html, "RDO mensal - OPSCOPE", imprimir);
 }
 
 
@@ -15939,17 +16013,9 @@ if (relatorioMes) {
     updateMonthlyRangeFromMonth();
   });
 }
-if (btnRelatorioMensalGerar) {
-  btnRelatorioMensalGerar.addEventListener("click", () => {
-    const ok = previewRelatorioMensal();
-    if (!ok) {
-      alert("Popup bloqueado. Permita a abertura para visualizar o relatorio.");
-    }
-  });
-}
 if (btnRelatorioMensalPreview) {
   btnRelatorioMensalPreview.addEventListener("click", () => {
-    const ok = previewRelatorioMensal();
+    const ok = gerarRdoMensal(false);
     if (!ok) {
       alert("Popup bloqueado. Permita a abertura para visualizar o relatorio.");
     }
@@ -15957,7 +16023,7 @@ if (btnRelatorioMensalPreview) {
 }
 if (btnRelatorioMensalExportar) {
   btnRelatorioMensalExportar.addEventListener("click", () => {
-    const ok = exportarRelatorioMensal();
+    const ok = gerarRdoMensal(true);
     if (!ok) {
       alert("Popup bloqueado. Permita a abertura para exportar o PDF.");
     }
@@ -15965,7 +16031,7 @@ if (btnRelatorioMensalExportar) {
 }
 if (btnRelatorioMensalRdo) {
   btnRelatorioMensalRdo.addEventListener("click", () => {
-    const ok = gerarRdoMensal();
+    const ok = gerarRdoMensal(false);
     if (!ok) {
       alert("Popup bloqueado. Permita a abertura para visualizar o RDO mensal.");
     }
