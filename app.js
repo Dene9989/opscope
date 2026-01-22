@@ -68,9 +68,13 @@ const rdoMensalPreviewClose = document.querySelector("[data-rdo-mensal-close]");
 const perfProjetoPeriodo = document.getElementById("perfProjetoPeriodo");
 const perfProjetoFiltro = document.getElementById("perfProjetoFiltro");
 const perfProjetoCards = document.getElementById("perfProjetoCards");
+const perfProjetoInsights = document.getElementById("perfProjetoInsights");
 const perfProjetoTabela = document.getElementById("perfProjetoTabela");
+const perfProjetoTotalConcluidas = document.getElementById("perfProjetoTotalConcluidas");
 const perfProjetoTotalPrazo = document.getElementById("perfProjetoTotalPrazo");
+const perfProjetoTotalSla = document.getElementById("perfProjetoTotalSla");
 const perfProjetoTotalBacklog = document.getElementById("perfProjetoTotalBacklog");
+const perfProjetoTotalCriticas = document.getElementById("perfProjetoTotalCriticas");
 const perfProjetoTotalApr = document.getElementById("perfProjetoTotalApr");
 const perfProjetoTotalOs = document.getElementById("perfProjetoTotalOs");
 const perfProjetoTotalPte = document.getElementById("perfProjetoTotalPte");
@@ -78,10 +82,14 @@ const perfProjetoTotalPt = document.getElementById("perfProjetoTotalPt");
 const perfPessoaPeriodo = document.getElementById("perfPessoaPeriodo");
 const perfPessoaFiltro = document.getElementById("perfPessoaFiltro");
 const perfPessoaCards = document.getElementById("perfPessoaCards");
+const perfPessoaInsights = document.getElementById("perfPessoaInsights");
 const perfPessoaTabela = document.getElementById("perfPessoaTabela");
+const perfPessoaTotalAbertas = document.getElementById("perfPessoaTotalAbertas");
 const perfPessoaTotalConcluidas = document.getElementById("perfPessoaTotalConcluidas");
 const perfPessoaTotalPrazo = document.getElementById("perfPessoaTotalPrazo");
+const perfPessoaTotalSla = document.getElementById("perfPessoaTotalSla");
 const perfPessoaTotalBacklog = document.getElementById("perfPessoaTotalBacklog");
+const perfPessoaTotalCriticas = document.getElementById("perfPessoaTotalCriticas");
 const perfPessoaTotalApr = document.getElementById("perfPessoaTotalApr");
 const perfPessoaTotalOs = document.getElementById("perfPessoaTotalOs");
 const perfPessoaTotalPte = document.getElementById("perfPessoaTotalPte");
@@ -686,8 +694,11 @@ const LEGACY_ROLE_LABELS = {
 
 const FULL_ACCESS_RBAC = new Set(["pcm", "diretor_om", "gerente_contrato"]);
 const RELEASE_OVERRIDE_RBAC = new Set(["pcm", "diretor_om", "gerente_contrato", "supervisor_om"]);
+const PERFORMANCE_TABS = new Set(["performance-projects", "performance-people"]);
 const TAB_PERMISSION_MAP = {
   desempenho: "verRelatorios",
+  "performance-projects": "verRelatorios",
+  "performance-people": "verRelatorios",
   tendencias: "verRelatorios",
   relatorios: ["verRelatorios", "verRDOs"],
   solicitacoes: "verUsuarios",
@@ -1331,6 +1342,19 @@ function canDesativarUsuarios(user) {
   return hasGranularPermission(user, "desativarUsuarios");
 }
 
+function canViewPerformanceTab(user) {
+  if (!user) {
+    return false;
+  }
+  if (user.role === "admin" || user.role === "supervisor") {
+    return true;
+  }
+  if (isFullAccessUser(user)) {
+    return true;
+  }
+  return getCargoLevel(user.cargo) >= getCargoLevel("SUPERVISOR O&M");
+}
+
 function canViewTab(tab, user, secConfig) {
   if (!tab) {
     return false;
@@ -1341,7 +1365,17 @@ function canViewTab(tab, user, secConfig) {
       return false;
     }
     const keys = Array.isArray(permissionKey) ? permissionKey : [permissionKey];
-    return keys.some((key) => hasGranularPermission(user, key));
+    const hasPermission = keys.some((key) => hasGranularPermission(user, key));
+    if (!hasPermission) {
+      return false;
+    }
+    if (PERFORMANCE_TABS.has(tab)) {
+      return canViewPerformanceTab(user);
+    }
+    return true;
+  }
+  if (PERFORMANCE_TABS.has(tab)) {
+    return canViewPerformanceTab(user);
   }
   return Boolean(secConfig && secConfig[tab]);
 }
@@ -3851,7 +3885,7 @@ function getUserLabel(id) {
   }
   const user = getUserById(id);
   if (!user) {
-    return "Desconhecido";
+    return String(id);
   }
   return `${user.name} (${user.matricula})`;
 }
@@ -5643,6 +5677,43 @@ function contarDocsItem(item) {
   };
 }
 
+function calcPercent(value, total) {
+  if (!total) {
+    return 0;
+  }
+  return Math.round((value / total) * 100);
+}
+
+function getPerfSlaClass(value) {
+  if (value >= 90) {
+    return "perf-badge--ok";
+  }
+  if (value >= 75) {
+    return "perf-badge--warn";
+  }
+  return "perf-badge--danger";
+}
+
+function getPerfBacklogClass(value) {
+  if (value <= 10) {
+    return "perf-badge--ok";
+  }
+  if (value <= 25) {
+    return "perf-badge--warn";
+  }
+  return "perf-badge--danger";
+}
+
+function getPerfCriticalClass(value) {
+  if (!value) {
+    return "perf-badge--ok";
+  }
+  if (value <= 2) {
+    return "perf-badge--warn";
+  }
+  return "perf-badge--danger";
+}
+
 function renderPerformanceProjetos() {
   if (!perfProjetoCards || !perfProjetoTabela) {
     return;
@@ -5672,6 +5743,7 @@ function renderPerformanceProjetos() {
         concluida: 0,
         noPrazo: 0,
         backlog: 0,
+        criticas: 0,
         apr: 0,
         os: 0,
         pte: 0,
@@ -5690,6 +5762,9 @@ function renderPerformanceProjetos() {
     if (item.status === "backlog") {
       stats.backlog += 1;
     }
+    if (isItemCritico(item)) {
+      stats.criticas += 1;
+    }
     const docs = contarDocsItem(item);
     stats.apr += docs.apr;
     stats.os += docs.os;
@@ -5697,20 +5772,32 @@ function renderPerformanceProjetos() {
     stats.pt += docs.pt;
   });
 
-  const projetosOrdenados = Object.keys(projetos).sort();
+  const projetosOrdenados = Object.keys(projetos).sort((a, b) => {
+    const diff = projetos[b].concluida - projetos[a].concluida;
+    if (diff !== 0) {
+      return diff;
+    }
+    return a.localeCompare(b);
+  });
   const total = projetosOrdenados.reduce(
     (acc, key) => {
       const stats = projetos[key];
+      acc.concluida += stats.concluida;
       acc.noPrazo += stats.noPrazo;
       acc.backlog += stats.backlog;
+      acc.criticas += stats.criticas;
       acc.apr += stats.apr;
       acc.os += stats.os;
       acc.pte += stats.pte;
       acc.pt += stats.pt;
       return acc;
     },
-    { noPrazo: 0, backlog: 0, apr: 0, os: 0, pte: 0, pt: 0 }
+    { concluida: 0, noPrazo: 0, backlog: 0, criticas: 0, apr: 0, os: 0, pte: 0, pt: 0 }
   );
+  const totalAtividades = total.concluida + total.backlog;
+  const totalSla = calcPercent(total.noPrazo, total.concluida);
+  const totalBacklogRate = calcPercent(total.backlog, totalAtividades);
+  const totalDocs = total.apr + total.os + total.pte + total.pt;
 
   perfProjetoCards.innerHTML = `
     <div class="perf-card">
@@ -5719,18 +5806,28 @@ function renderPerformanceProjetos() {
       <small>Periodo selecionado</small>
     </div>
     <div class="perf-card">
-      <span>Concluidas no prazo</span>
-      <strong>${total.noPrazo}</strong>
-      <small>Compliance por projeto</small>
+      <span>Concluidas</span>
+      <strong>${total.concluida}</strong>
+      <small>${total.noPrazo} no prazo</small>
+    </div>
+    <div class="perf-card">
+      <span>SLA no prazo</span>
+      <strong>${totalSla}%</strong>
+      <small>Indice mensal</small>
     </div>
     <div class="perf-card">
       <span>Backlog</span>
       <strong>${total.backlog}</strong>
-      <small>OS pendentes</small>
+      <small>${totalBacklogRate}% do volume</small>
+    </div>
+    <div class="perf-card">
+      <span>Criticas</span>
+      <strong>${total.criticas}</strong>
+      <small>Riscos no periodo</small>
     </div>
     <div class="perf-card">
       <span>Docs de seguranca</span>
-      <strong>${total.apr + total.os + total.pte + total.pt}</strong>
+      <strong>${totalDocs}</strong>
       <small>APR, OS, PTE, PT</small>
     </div>
   `;
@@ -5739,12 +5836,17 @@ function renderPerformanceProjetos() {
   tbody.innerHTML = "";
   projetosOrdenados.forEach((key) => {
     const stats = projetos[key];
+    const totalItem = stats.concluida + stats.backlog;
+    const sla = calcPercent(stats.noPrazo, stats.concluida);
+    const backlogRate = calcPercent(stats.backlog, totalItem);
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${escapeHtml(key)}</td>
       <td>${stats.concluida}</td>
       <td>${stats.noPrazo}</td>
-      <td>${stats.backlog}</td>
+      <td><span class="perf-badge ${getPerfSlaClass(sla)}">${sla}%</span></td>
+      <td><span class="perf-badge ${getPerfBacklogClass(backlogRate)}">${stats.backlog}</span></td>
+      <td><span class="perf-badge ${getPerfCriticalClass(stats.criticas)}">${stats.criticas}</span></td>
       <td>${stats.apr}</td>
       <td>${stats.os}</td>
       <td>${stats.pte}</td>
@@ -5752,12 +5854,61 @@ function renderPerformanceProjetos() {
     `;
     tbody.append(tr);
   });
+  if (perfProjetoTotalConcluidas) perfProjetoTotalConcluidas.textContent = String(total.concluida);
   if (perfProjetoTotalPrazo) perfProjetoTotalPrazo.textContent = String(total.noPrazo);
+  if (perfProjetoTotalSla) perfProjetoTotalSla.textContent = `${totalSla}%`;
   if (perfProjetoTotalBacklog) perfProjetoTotalBacklog.textContent = String(total.backlog);
+  if (perfProjetoTotalCriticas) perfProjetoTotalCriticas.textContent = String(total.criticas);
   if (perfProjetoTotalApr) perfProjetoTotalApr.textContent = String(total.apr);
   if (perfProjetoTotalOs) perfProjetoTotalOs.textContent = String(total.os);
   if (perfProjetoTotalPte) perfProjetoTotalPte.textContent = String(total.pte);
   if (perfProjetoTotalPt) perfProjetoTotalPt.textContent = String(total.pt);
+
+  if (perfProjetoInsights) {
+    const rankingSla = projetosOrdenados
+      .map((key) => {
+        const stats = projetos[key];
+        return { key, sla: calcPercent(stats.noPrazo, stats.concluida) };
+      })
+      .sort((a, b) => b.sla - a.sla)
+      .slice(0, 3);
+    const rankingBacklog = projetosOrdenados
+      .map((key) => {
+        const stats = projetos[key];
+        const totalItem = stats.concluida + stats.backlog;
+        return {
+          key,
+          backlogRate: calcPercent(stats.backlog, totalItem),
+          backlog: stats.backlog,
+        };
+      })
+      .sort((a, b) => b.backlogRate - a.backlogRate)
+      .slice(0, 3);
+    perfProjetoInsights.innerHTML = `
+      <div class="performance-insight">
+        <h3>Destaques de SLA</h3>
+        <ul>
+          ${rankingSla
+            .map(
+              (item) =>
+                `<li><strong>${escapeHtml(item.key)}</strong><span>${item.sla}% no prazo</span></li>`
+            )
+            .join("")}
+        </ul>
+      </div>
+      <div class="performance-insight">
+        <h3>Risco de backlog</h3>
+        <ul>
+          ${rankingBacklog
+            .map(
+              (item) =>
+                `<li><strong>${escapeHtml(item.key)}</strong><span>${item.backlog} pendencias</span></li>`
+            )
+            .join("")}
+        </ul>
+      </div>
+    `;
+  }
 
   if (perfProjetoFiltro) {
     const atual = perfProjetoFiltro.value;
@@ -5796,6 +5947,27 @@ function renderPerformancePessoas() {
   });
 
   const pessoas = {};
+  const usuariosBase = filtroPessoa
+    ? [filtroPessoa]
+    : users
+        .filter((user) => user && (user.name || user.username))
+        .map((user) => getUserLabel(user.id))
+        .filter(Boolean);
+  usuariosBase.forEach((label) => {
+    if (!pessoas[label]) {
+      pessoas[label] = {
+        abertas: 0,
+        concluida: 0,
+        noPrazo: 0,
+        backlog: 0,
+        criticas: 0,
+        apr: 0,
+        os: 0,
+        pte: 0,
+        pt: 0,
+      };
+    }
+  });
   lista.forEach((item) => {
     const responsavel = getResponsavelLabel(item);
     if (!pessoas[responsavel]) {
@@ -5804,6 +5976,7 @@ function renderPerformancePessoas() {
         concluida: 0,
         noPrazo: 0,
         backlog: 0,
+        criticas: 0,
         apr: 0,
         os: 0,
         pte: 0,
@@ -5825,6 +5998,9 @@ function renderPerformancePessoas() {
     if (item.status === "backlog") {
       stats.backlog += 1;
     }
+    if (isItemCritico(item)) {
+      stats.criticas += 1;
+    }
     const docs = contarDocsItem(item);
     stats.apr += docs.apr;
     stats.os += docs.os;
@@ -5832,21 +6008,36 @@ function renderPerformancePessoas() {
     stats.pt += docs.pt;
   });
 
-  const pessoasOrdenadas = Object.keys(pessoas).sort();
+  const pessoasOrdenadas = Object.keys(pessoas).sort((a, b) => {
+    const diff = pessoas[b].concluida - pessoas[a].concluida;
+    if (diff !== 0) {
+      return diff;
+    }
+    return a.localeCompare(b);
+  });
   const total = pessoasOrdenadas.reduce(
     (acc, key) => {
       const stats = pessoas[key];
+      acc.abertas += stats.abertas;
       acc.concluida += stats.concluida;
       acc.noPrazo += stats.noPrazo;
       acc.backlog += stats.backlog;
+      acc.criticas += stats.criticas;
       acc.apr += stats.apr;
       acc.os += stats.os;
       acc.pte += stats.pte;
       acc.pt += stats.pt;
       return acc;
     },
-    { concluida: 0, noPrazo: 0, backlog: 0, apr: 0, os: 0, pte: 0, pt: 0 }
+    { abertas: 0, concluida: 0, noPrazo: 0, backlog: 0, criticas: 0, apr: 0, os: 0, pte: 0, pt: 0 }
   );
+  const totalAtividades = total.concluida + total.backlog;
+  const totalSla = calcPercent(total.noPrazo, total.concluida);
+  const totalBacklogRate = calcPercent(total.backlog, totalAtividades);
+  const totalDocs = total.apr + total.os + total.pte + total.pt;
+  const mediaConcluida = pessoasOrdenadas.length
+    ? Math.round(total.concluida / pessoasOrdenadas.length)
+    : 0;
 
   perfPessoaCards.innerHTML = `
     <div class="perf-card">
@@ -5855,19 +6046,34 @@ function renderPerformancePessoas() {
       <small>Periodo selecionado</small>
     </div>
     <div class="perf-card">
-      <span>Concluidas no prazo</span>
-      <strong>${total.noPrazo}</strong>
-      <small>Performance da equipe</small>
+      <span>Concluidas</span>
+      <strong>${total.concluida}</strong>
+      <small>${total.noPrazo} no prazo</small>
+    </div>
+    <div class="perf-card">
+      <span>SLA no prazo</span>
+      <strong>${totalSla}%</strong>
+      <small>Indice mensal</small>
     </div>
     <div class="perf-card">
       <span>Backlog</span>
       <strong>${total.backlog}</strong>
-      <small>OS pendentes</small>
+      <small>${totalBacklogRate}% do volume</small>
+    </div>
+    <div class="perf-card">
+      <span>Criticas</span>
+      <strong>${total.criticas}</strong>
+      <small>Riscos no periodo</small>
     </div>
     <div class="perf-card">
       <span>Docs de seguranca</span>
-      <strong>${total.apr + total.os + total.pte + total.pt}</strong>
+      <strong>${totalDocs}</strong>
       <small>APR, OS, PTE, PT</small>
+    </div>
+    <div class="perf-card">
+      <span>Media concluida</span>
+      <strong>${mediaConcluida}</strong>
+      <small>Por colaborador</small>
     </div>
   `;
 
@@ -5875,13 +6081,18 @@ function renderPerformancePessoas() {
   tbody.innerHTML = "";
   pessoasOrdenadas.forEach((key) => {
     const stats = pessoas[key];
+    const totalItem = stats.concluida + stats.backlog;
+    const sla = calcPercent(stats.noPrazo, stats.concluida);
+    const backlogRate = calcPercent(stats.backlog, totalItem);
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${escapeHtml(key)}</td>
       <td>${stats.abertas}</td>
       <td>${stats.concluida}</td>
       <td>${stats.noPrazo}</td>
-      <td>${stats.backlog}</td>
+      <td><span class="perf-badge ${getPerfSlaClass(sla)}">${sla}%</span></td>
+      <td><span class="perf-badge ${getPerfBacklogClass(backlogRate)}">${stats.backlog}</span></td>
+      <td><span class="perf-badge ${getPerfCriticalClass(stats.criticas)}">${stats.criticas}</span></td>
       <td>${stats.apr}</td>
       <td>${stats.os}</td>
       <td>${stats.pte}</td>
@@ -5889,13 +6100,51 @@ function renderPerformancePessoas() {
     `;
     tbody.append(tr);
   });
+  if (perfPessoaTotalAbertas) perfPessoaTotalAbertas.textContent = String(total.abertas);
   if (perfPessoaTotalConcluidas) perfPessoaTotalConcluidas.textContent = String(total.concluida);
   if (perfPessoaTotalPrazo) perfPessoaTotalPrazo.textContent = String(total.noPrazo);
+  if (perfPessoaTotalSla) perfPessoaTotalSla.textContent = `${totalSla}%`;
   if (perfPessoaTotalBacklog) perfPessoaTotalBacklog.textContent = String(total.backlog);
+  if (perfPessoaTotalCriticas) perfPessoaTotalCriticas.textContent = String(total.criticas);
   if (perfPessoaTotalApr) perfPessoaTotalApr.textContent = String(total.apr);
   if (perfPessoaTotalOs) perfPessoaTotalOs.textContent = String(total.os);
   if (perfPessoaTotalPte) perfPessoaTotalPte.textContent = String(total.pte);
   if (perfPessoaTotalPt) perfPessoaTotalPt.textContent = String(total.pt);
+
+  if (perfPessoaInsights) {
+    const rankingEntrega = pessoasOrdenadas
+      .map((key) => ({ key, concluida: pessoas[key].concluida }))
+      .sort((a, b) => b.concluida - a.concluida)
+      .slice(0, 3);
+    const rankingBacklog = pessoasOrdenadas
+      .map((key) => ({ key, backlog: pessoas[key].backlog }))
+      .sort((a, b) => b.backlog - a.backlog)
+      .slice(0, 3);
+    perfPessoaInsights.innerHTML = `
+      <div class="performance-insight">
+        <h3>Top entregas</h3>
+        <ul>
+          ${rankingEntrega
+            .map(
+              (item) =>
+                `<li><strong>${escapeHtml(item.key)}</strong><span>${item.concluida} concluidas</span></li>`
+            )
+            .join("")}
+        </ul>
+      </div>
+      <div class="performance-insight">
+        <h3>Maior backlog</h3>
+        <ul>
+          ${rankingBacklog
+            .map(
+              (item) =>
+                `<li><strong>${escapeHtml(item.key)}</strong><span>${item.backlog} pendencias</span></li>`
+            )
+            .join("")}
+        </ul>
+      </div>
+    `;
+  }
 
   if (perfPessoaFiltro) {
     const atual = perfPessoaFiltro.value;

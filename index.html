@@ -1632,10 +1632,10 @@
       </section>
     </section>
 
-    <section class="panel" id="performance-projects" data-panel="performance-projects">
+    <section class="panel performance-panel" id="performance-projects" data-panel="performance-projects">
       <section class="card">
         <h2>Desempenho por projeto</h2>
-        <p class="hint">Acompanhe produtividade, backlog e documentacoes por projeto.</p>
+        <p class="hint">Acompanhe produtividade, backlog, criticidades e documentacoes por projeto.</p>
         <div class="programacao-toolbar">
           <div class="field">
             <label for="perfProjetoPeriodo">Periodo</label>
@@ -1653,41 +1653,47 @@
           </div>
         </div>
         <div class="perf-grid" id="perfProjetoCards"></div>
+        <div class="performance-insights" id="perfProjetoInsights"></div>
         <div class="report-table__wrap">
           <table class="report__table" id="perfProjetoTabela">
             <thead>
-              <tr>
-                <th>Projeto</th>
-                <th>OS concluidas</th>
-                <th>No prazo</th>
-                <th>Backlog</th>
-                <th>APR</th>
-                <th>OS</th>
-                <th>PTE</th>
-                <th>PT</th>
-              </tr>
+                <tr>
+                  <th>Projeto</th>
+                  <th>Concluidas</th>
+                  <th>No prazo</th>
+                  <th>SLA %</th>
+                  <th>Backlog</th>
+                  <th>Criticas</th>
+                  <th>APR</th>
+                  <th>OS</th>
+                  <th>PTE</th>
+                  <th>PT</th>
+                </tr>
             </thead>
             <tbody></tbody>
             <tfoot>
-              <tr>
-                <td colspan="2">Total</td>
-                <td id="perfProjetoTotalPrazo">0</td>
-                <td id="perfProjetoTotalBacklog">0</td>
-                <td id="perfProjetoTotalApr">0</td>
-                <td id="perfProjetoTotalOs">0</td>
-                <td id="perfProjetoTotalPte">0</td>
-                <td id="perfProjetoTotalPt">0</td>
-              </tr>
+                <tr>
+                  <td>Total</td>
+                  <td id="perfProjetoTotalConcluidas">0</td>
+                  <td id="perfProjetoTotalPrazo">0</td>
+                  <td id="perfProjetoTotalSla">0%</td>
+                  <td id="perfProjetoTotalBacklog">0</td>
+                  <td id="perfProjetoTotalCriticas">0</td>
+                  <td id="perfProjetoTotalApr">0</td>
+                  <td id="perfProjetoTotalOs">0</td>
+                  <td id="perfProjetoTotalPte">0</td>
+                  <td id="perfProjetoTotalPt">0</td>
+                </tr>
             </tfoot>
           </table>
         </div>
       </section>
     </section>
 
-    <section class="panel" id="performance-people" data-panel="performance-people">
+    <section class="panel performance-panel" id="performance-people" data-panel="performance-people">
       <section class="card">
         <h2>Desempenho por colaborador</h2>
-        <p class="hint">Resultados individuais de manutenções, prazos e segurança.</p>
+        <p class="hint">Resultados individuais de manutencoes, prazos e seguranca.</p>
         <div class="programacao-toolbar">
           <div class="field">
             <label for="perfPessoaPeriodo">Periodo</label>
@@ -1705,6 +1711,7 @@
           </div>
         </div>
         <div class="perf-grid" id="perfPessoaCards"></div>
+        <div class="performance-insights" id="perfPessoaInsights"></div>
         <div class="report-table__wrap">
           <table class="report__table" id="perfPessoaTabela">
             <thead>
@@ -1713,7 +1720,9 @@
                 <th>OS abertas</th>
                 <th>Concluidas</th>
                 <th>No prazo</th>
+                <th>SLA %</th>
                 <th>Backlog</th>
+                <th>Criticas</th>
                 <th>APR</th>
                 <th>OS</th>
                 <th>PTE</th>
@@ -1723,10 +1732,13 @@
             <tbody></tbody>
             <tfoot>
               <tr>
-                <td colspan="2">Total</td>
+                <td>Total</td>
+                <td id="perfPessoaTotalAbertas">0</td>
                 <td id="perfPessoaTotalConcluidas">0</td>
                 <td id="perfPessoaTotalPrazo">0</td>
+                <td id="perfPessoaTotalSla">0%</td>
                 <td id="perfPessoaTotalBacklog">0</td>
+                <td id="perfPessoaTotalCriticas">0</td>
                 <td id="perfPessoaTotalApr">0</td>
                 <td id="perfPessoaTotalOs">0</td>
                 <td id="perfPessoaTotalPte">0</td>
@@ -3410,3 +3422,4 @@
     <script src="app.js"></script>
   </body>
 </html>
+
