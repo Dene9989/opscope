@@ -65,6 +65,42 @@ const btnRelatorioMensalRdo = document.getElementById("btnRelatorioMensalRdo");
 const rdoMensalPreviewModal = document.getElementById("modalRdoMensalPreview");
 const rdoMensalPreviewBody = document.getElementById("rdoMensalPreviewBody");
 const rdoMensalPreviewClose = document.querySelector("[data-rdo-mensal-close]");
+const perfProjetoPeriodo = document.getElementById("perfProjetoPeriodo");
+const perfProjetoFiltro = document.getElementById("perfProjetoFiltro");
+const perfProjetoCards = document.getElementById("perfProjetoCards");
+const perfProjetoTabela = document.getElementById("perfProjetoTabela");
+const perfProjetoTotalPrazo = document.getElementById("perfProjetoTotalPrazo");
+const perfProjetoTotalBacklog = document.getElementById("perfProjetoTotalBacklog");
+const perfProjetoTotalApr = document.getElementById("perfProjetoTotalApr");
+const perfProjetoTotalOs = document.getElementById("perfProjetoTotalOs");
+const perfProjetoTotalPte = document.getElementById("perfProjetoTotalPte");
+const perfProjetoTotalPt = document.getElementById("perfProjetoTotalPt");
+const perfPessoaPeriodo = document.getElementById("perfPessoaPeriodo");
+const perfPessoaFiltro = document.getElementById("perfPessoaFiltro");
+const perfPessoaCards = document.getElementById("perfPessoaCards");
+const perfPessoaTabela = document.getElementById("perfPessoaTabela");
+const perfPessoaTotalConcluidas = document.getElementById("perfPessoaTotalConcluidas");
+const perfPessoaTotalPrazo = document.getElementById("perfPessoaTotalPrazo");
+const perfPessoaTotalBacklog = document.getElementById("perfPessoaTotalBacklog");
+const perfPessoaTotalApr = document.getElementById("perfPessoaTotalApr");
+const perfPessoaTotalOs = document.getElementById("perfPessoaTotalOs");
+const perfPessoaTotalPte = document.getElementById("perfPessoaTotalPte");
+const perfPessoaTotalPt = document.getElementById("perfPessoaTotalPt");
+const feedbackTo = document.getElementById("feedbackTo");
+const feedbackScore = document.getElementById("feedbackScore");
+const feedbackMessage = document.getElementById("feedbackMessage");
+const btnEnviarFeedback = document.getElementById("btnEnviarFeedback");
+const feedbackSendMsg = document.getElementById("feedbackSendMsg");
+const feedbackList = document.getElementById("feedbackList");
+const feedbackEmpty = document.getElementById("feedbackEmpty");
+const feedbackBadge = document.getElementById("feedbackBadge");
+const feedbackTabButtons = Array.from(document.querySelectorAll("[data-feedback-tab]"));
+const btnFeedbackInbox = document.getElementById("btnFeedbackInbox");
+const feedbackInboxDot = document.getElementById("feedbackInboxDot");
+const feedbackInboxPanel = document.getElementById("feedbackInboxPanel");
+const feedbackInboxList = document.getElementById("feedbackInboxList");
+const feedbackInboxEmpty = document.getElementById("feedbackInboxEmpty");
+const feedbackInboxLink = document.getElementById("feedbackInboxLink");
 const countAgendadas = document.getElementById("countAgendadas");
 const countLiberadas = document.getElementById("countLiberadas");
 const countBacklog = document.getElementById("countBacklog");
@@ -489,6 +525,7 @@ const USER_KEY = "denemanu.users";
 const REQUEST_KEY = "denemanu.requests";
 const AUDIT_KEY = "denemanu.audit";
 const RDO_KEY = "denemanu.rdo";
+const FEEDBACK_KEY = "opscope.feedbacks";
 const SESSION_KEY = "denemanu.session";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_REAGENDAMENTOS = 3;
@@ -519,8 +556,11 @@ const SECTION_LABELS = {
   execucao: "Execucao do dia",
   backlog: "Backlog",
   desempenho: "Desempenho",
+  "performance-projects": "Desempenho por projeto",
+  "performance-people": "Desempenho por colaborador",
   tendencias: "KPIs e tendencias",
   relatorios: "Relatorios",
+  feedbacks: "Feedbacks",
   perfil: "Meu perfil",
 };
 const ADMIN_SECTIONS = ["solicitacoes", "rastreabilidade", "gerencial", "contas"];
@@ -1368,6 +1408,7 @@ let kpiSnapshot = null;
 let rdoSnapshots = [];
 let rdoPreviewSnapshot = null;
 let rdoSelection = new Set();
+let feedbacks = [];
 let dashboardSummary = null;
 let dashboardError = "";
 let dashboardLastFetch = 0;
@@ -5572,6 +5613,468 @@ function renderRelatorios() {
 
     card.append(info, actions);
     listaRelatorios.append(card);
+  });
+}
+
+function getPeriodoFiltro(value) {
+  const dias = Number(value) || 30;
+  const fim = startOfDay(new Date());
+  const inicio = addDays(fim, -(Math.max(dias, 1) - 1));
+  return { inicio, fim };
+}
+
+function getProjetoLabel(item) {
+  return item.local || item.projeto || item.projectKey || "Sem projeto";
+}
+
+function getResponsavelLabel(item) {
+  const id = getExecutadoPorId(item) || item.doneBy || item.createdBy || "";
+  return getUserLabel(id) || "Sistema";
+}
+
+function contarDocsItem(item) {
+  const docs = getItemDocs(item) || {};
+  const critico = isItemCritico(item);
+  return {
+    apr: docs.apr ? 1 : 0,
+    os: docs.os ? 1 : 0,
+    pte: docs.pte ? 1 : 0,
+    pt: docs.pt && critico ? 1 : 0,
+  };
+}
+
+function renderPerformanceProjetos() {
+  if (!perfProjetoCards || !perfProjetoTabela) {
+    return;
+  }
+  const periodo = getPeriodoFiltro(perfProjetoPeriodo ? perfProjetoPeriodo.value : "30");
+  const filtroProjeto = perfProjetoFiltro ? perfProjetoFiltro.value : "";
+  const lista = manutencoes.filter((item) => {
+    const dataRef = getRelatorioItemDate(item);
+    if (!dataRef) {
+      return false;
+    }
+    const dia = startOfDay(dataRef);
+    if (!inRange(dia, periodo.inicio, periodo.fim)) {
+      return false;
+    }
+    if (filtroProjeto && getProjetoLabel(item) !== filtroProjeto) {
+      return false;
+    }
+    return true;
+  });
+
+  const projetos = {};
+  lista.forEach((item) => {
+    const projeto = getProjetoLabel(item);
+    if (!projetos[projeto]) {
+      projetos[projeto] = {
+        concluida: 0,
+        noPrazo: 0,
+        backlog: 0,
+        apr: 0,
+        os: 0,
+        pte: 0,
+        pt: 0,
+      };
+    }
+    const stats = projetos[projeto];
+    if (item.status === "concluida") {
+      stats.concluida += 1;
+      const data = parseDate(item.data);
+      const doneAt = parseTimestamp(item.doneAt);
+      if (data && doneAt && startOfDay(doneAt) <= startOfDay(data)) {
+        stats.noPrazo += 1;
+      }
+    }
+    if (item.status === "backlog") {
+      stats.backlog += 1;
+    }
+    const docs = contarDocsItem(item);
+    stats.apr += docs.apr;
+    stats.os += docs.os;
+    stats.pte += docs.pte;
+    stats.pt += docs.pt;
+  });
+
+  const projetosOrdenados = Object.keys(projetos).sort();
+  const total = projetosOrdenados.reduce(
+    (acc, key) => {
+      const stats = projetos[key];
+      acc.noPrazo += stats.noPrazo;
+      acc.backlog += stats.backlog;
+      acc.apr += stats.apr;
+      acc.os += stats.os;
+      acc.pte += stats.pte;
+      acc.pt += stats.pt;
+      return acc;
+    },
+    { noPrazo: 0, backlog: 0, apr: 0, os: 0, pte: 0, pt: 0 }
+  );
+
+  perfProjetoCards.innerHTML = `
+    <div class="perf-card">
+      <span>Projetos ativos</span>
+      <strong>${projetosOrdenados.length}</strong>
+      <small>Periodo selecionado</small>
+    </div>
+    <div class="perf-card">
+      <span>Concluidas no prazo</span>
+      <strong>${total.noPrazo}</strong>
+      <small>Compliance por projeto</small>
+    </div>
+    <div class="perf-card">
+      <span>Backlog</span>
+      <strong>${total.backlog}</strong>
+      <small>OS pendentes</small>
+    </div>
+    <div class="perf-card">
+      <span>Docs de seguranca</span>
+      <strong>${total.apr + total.os + total.pte + total.pt}</strong>
+      <small>APR, OS, PTE, PT</small>
+    </div>
+  `;
+
+  const tbody = perfProjetoTabela.querySelector("tbody");
+  tbody.innerHTML = "";
+  projetosOrdenados.forEach((key) => {
+    const stats = projetos[key];
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(key)}</td>
+      <td>${stats.concluida}</td>
+      <td>${stats.noPrazo}</td>
+      <td>${stats.backlog}</td>
+      <td>${stats.apr}</td>
+      <td>${stats.os}</td>
+      <td>${stats.pte}</td>
+      <td>${stats.pt}</td>
+    `;
+    tbody.append(tr);
+  });
+  if (perfProjetoTotalPrazo) perfProjetoTotalPrazo.textContent = String(total.noPrazo);
+  if (perfProjetoTotalBacklog) perfProjetoTotalBacklog.textContent = String(total.backlog);
+  if (perfProjetoTotalApr) perfProjetoTotalApr.textContent = String(total.apr);
+  if (perfProjetoTotalOs) perfProjetoTotalOs.textContent = String(total.os);
+  if (perfProjetoTotalPte) perfProjetoTotalPte.textContent = String(total.pte);
+  if (perfProjetoTotalPt) perfProjetoTotalPt.textContent = String(total.pt);
+
+  if (perfProjetoFiltro) {
+    const atual = perfProjetoFiltro.value;
+    perfProjetoFiltro.innerHTML = `<option value="">Todos os projetos</option>`;
+    projetosOrdenados.forEach((key) => {
+      const opt = document.createElement("option");
+      opt.value = key;
+      opt.textContent = key;
+      perfProjetoFiltro.append(opt);
+    });
+    if (atual && projetosOrdenados.includes(atual)) {
+      perfProjetoFiltro.value = atual;
+    }
+  }
+}
+
+function renderPerformancePessoas() {
+  if (!perfPessoaCards || !perfPessoaTabela) {
+    return;
+  }
+  const periodo = getPeriodoFiltro(perfPessoaPeriodo ? perfPessoaPeriodo.value : "30");
+  const filtroPessoa = perfPessoaFiltro ? perfPessoaFiltro.value : "";
+  const lista = manutencoes.filter((item) => {
+    const dataRef = getRelatorioItemDate(item);
+    if (!dataRef) {
+      return false;
+    }
+    const dia = startOfDay(dataRef);
+    if (!inRange(dia, periodo.inicio, periodo.fim)) {
+      return false;
+    }
+    if (filtroPessoa && getResponsavelLabel(item) !== filtroPessoa) {
+      return false;
+    }
+    return true;
+  });
+
+  const pessoas = {};
+  lista.forEach((item) => {
+    const responsavel = getResponsavelLabel(item);
+    if (!pessoas[responsavel]) {
+      pessoas[responsavel] = {
+        abertas: 0,
+        concluida: 0,
+        noPrazo: 0,
+        backlog: 0,
+        apr: 0,
+        os: 0,
+        pte: 0,
+        pt: 0,
+      };
+    }
+    const stats = pessoas[responsavel];
+    if (item.createdBy && getUserLabel(item.createdBy) === responsavel) {
+      stats.abertas += 1;
+    }
+    if (item.status === "concluida") {
+      stats.concluida += 1;
+      const data = parseDate(item.data);
+      const doneAt = parseTimestamp(item.doneAt);
+      if (data && doneAt && startOfDay(doneAt) <= startOfDay(data)) {
+        stats.noPrazo += 1;
+      }
+    }
+    if (item.status === "backlog") {
+      stats.backlog += 1;
+    }
+    const docs = contarDocsItem(item);
+    stats.apr += docs.apr;
+    stats.os += docs.os;
+    stats.pte += docs.pte;
+    stats.pt += docs.pt;
+  });
+
+  const pessoasOrdenadas = Object.keys(pessoas).sort();
+  const total = pessoasOrdenadas.reduce(
+    (acc, key) => {
+      const stats = pessoas[key];
+      acc.concluida += stats.concluida;
+      acc.noPrazo += stats.noPrazo;
+      acc.backlog += stats.backlog;
+      acc.apr += stats.apr;
+      acc.os += stats.os;
+      acc.pte += stats.pte;
+      acc.pt += stats.pt;
+      return acc;
+    },
+    { concluida: 0, noPrazo: 0, backlog: 0, apr: 0, os: 0, pte: 0, pt: 0 }
+  );
+
+  perfPessoaCards.innerHTML = `
+    <div class="perf-card">
+      <span>Colaboradores ativos</span>
+      <strong>${pessoasOrdenadas.length}</strong>
+      <small>Periodo selecionado</small>
+    </div>
+    <div class="perf-card">
+      <span>Concluidas no prazo</span>
+      <strong>${total.noPrazo}</strong>
+      <small>Performance da equipe</small>
+    </div>
+    <div class="perf-card">
+      <span>Backlog</span>
+      <strong>${total.backlog}</strong>
+      <small>OS pendentes</small>
+    </div>
+    <div class="perf-card">
+      <span>Docs de seguranca</span>
+      <strong>${total.apr + total.os + total.pte + total.pt}</strong>
+      <small>APR, OS, PTE, PT</small>
+    </div>
+  `;
+
+  const tbody = perfPessoaTabela.querySelector("tbody");
+  tbody.innerHTML = "";
+  pessoasOrdenadas.forEach((key) => {
+    const stats = pessoas[key];
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(key)}</td>
+      <td>${stats.abertas}</td>
+      <td>${stats.concluida}</td>
+      <td>${stats.noPrazo}</td>
+      <td>${stats.backlog}</td>
+      <td>${stats.apr}</td>
+      <td>${stats.os}</td>
+      <td>${stats.pte}</td>
+      <td>${stats.pt}</td>
+    `;
+    tbody.append(tr);
+  });
+  if (perfPessoaTotalConcluidas) perfPessoaTotalConcluidas.textContent = String(total.concluida);
+  if (perfPessoaTotalPrazo) perfPessoaTotalPrazo.textContent = String(total.noPrazo);
+  if (perfPessoaTotalBacklog) perfPessoaTotalBacklog.textContent = String(total.backlog);
+  if (perfPessoaTotalApr) perfPessoaTotalApr.textContent = String(total.apr);
+  if (perfPessoaTotalOs) perfPessoaTotalOs.textContent = String(total.os);
+  if (perfPessoaTotalPte) perfPessoaTotalPte.textContent = String(total.pte);
+  if (perfPessoaTotalPt) perfPessoaTotalPt.textContent = String(total.pt);
+
+  if (perfPessoaFiltro) {
+    const atual = perfPessoaFiltro.value;
+    perfPessoaFiltro.innerHTML = `<option value="">Todos os colaboradores</option>`;
+    pessoasOrdenadas.forEach((key) => {
+      const opt = document.createElement("option");
+      opt.value = key;
+      opt.textContent = key;
+      perfPessoaFiltro.append(opt);
+    });
+    if (atual && pessoasOrdenadas.includes(atual)) {
+      perfPessoaFiltro.value = atual;
+    }
+  }
+}
+
+function carregarFeedbacks() {
+  feedbacks = readJson(FEEDBACK_KEY, []);
+}
+
+function salvarFeedbacks(lista) {
+  writeJson(FEEDBACK_KEY, lista);
+  feedbacks = lista;
+}
+
+function getFeedbacksRecebidos(userId) {
+  return feedbacks.filter((item) => item.to === userId);
+}
+
+function getFeedbacksEnviados(userId) {
+  return feedbacks.filter((item) => item.from === userId);
+}
+
+function renderFeedbackList() {
+  if (!feedbackList || !feedbackEmpty) {
+    return;
+  }
+  const activeTab = feedbackTabButtons.find((btn) => btn.classList.contains("is-active"));
+  const mode = activeTab ? activeTab.dataset.feedbackTab : "recebidos";
+  const userId = currentUser ? currentUser.id : "";
+  const lista = mode === "enviados" ? getFeedbacksEnviados(userId) : getFeedbacksRecebidos(userId);
+  feedbackList.innerHTML = "";
+
+  if (!lista.length) {
+    feedbackEmpty.hidden = false;
+    return;
+  }
+  feedbackEmpty.hidden = true;
+
+  lista
+    .slice()
+    .sort((a, b) => (getTimeValue(parseTimestamp(b.createdAt)) || 0) - (getTimeValue(parseTimestamp(a.createdAt)) || 0))
+    .forEach((item) => {
+      const card = document.createElement("div");
+      card.className = `feedback-item ${item.readAt ? "" : "is-unread"}`;
+      const createdAt = item.createdAt ? formatDateTime(parseTimestamp(item.createdAt)) : "-";
+      const peer = mode === "enviados" ? getUserLabel(item.to) : getUserLabel(item.from);
+      card.innerHTML = `
+        <div class="feedback-item__head">
+          <strong>${escapeHtml(peer || "-")}</strong>
+          <span class="feedback-score">Nota ${item.score}</span>
+        </div>
+        <p>${escapeHtml(item.message || "")}</p>
+        <small>${escapeHtml(createdAt)}</small>
+      `;
+      feedbackList.append(card);
+    });
+
+  if (mode === "recebidos") {
+    marcarFeedbacksComoLidos(userId);
+  }
+}
+
+function marcarFeedbacksComoLidos(userId) {
+  let mudou = false;
+  const atualizados = feedbacks.map((item) => {
+    if (item.to === userId && !item.readAt) {
+      mudou = true;
+      return { ...item, readAt: toIsoUtc(new Date()) };
+    }
+    return item;
+  });
+  if (mudou) {
+    salvarFeedbacks(atualizados);
+  }
+  atualizarFeedbackBadge();
+  renderFeedbackInbox();
+}
+
+function atualizarFeedbackBadge() {
+  const userId = currentUser ? currentUser.id : "";
+  const unread = feedbacks.filter((item) => item.to === userId && !item.readAt).length;
+  if (feedbackBadge) {
+    feedbackBadge.textContent = String(unread);
+    feedbackBadge.hidden = unread === 0;
+  }
+  if (feedbackInboxDot) {
+    feedbackInboxDot.hidden = unread === 0;
+  }
+}
+
+function renderFeedbackInbox() {
+  if (!feedbackInboxList || !feedbackInboxEmpty) {
+    return;
+  }
+  const userId = currentUser ? currentUser.id : "";
+  const recebidos = getFeedbacksRecebidos(userId)
+    .slice()
+    .sort((a, b) => (getTimeValue(parseTimestamp(b.createdAt)) || 0) - (getTimeValue(parseTimestamp(a.createdAt)) || 0))
+    .slice(0, 4);
+  feedbackInboxList.innerHTML = "";
+  if (!recebidos.length) {
+    feedbackInboxEmpty.hidden = false;
+    return;
+  }
+  feedbackInboxEmpty.hidden = true;
+  recebidos.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "feedback-inbox-item";
+    const createdAt = item.createdAt ? formatDateTime(parseTimestamp(item.createdAt)) : "-";
+    row.innerHTML = `
+      <strong>${escapeHtml(getUserLabel(item.from) || "-")}</strong>
+      <span>${escapeHtml(item.message || "").slice(0, 60)}...</span>
+      <small>${escapeHtml(createdAt)}</small>
+    `;
+    feedbackInboxList.append(row);
+  });
+}
+
+function enviarFeedback() {
+  if (!currentUser) {
+    return;
+  }
+  const to = feedbackTo ? feedbackTo.value : "";
+  const score = feedbackScore ? Number(feedbackScore.value) : 0;
+  const message = feedbackMessage ? feedbackMessage.value.trim() : "";
+  if (!to || !message || !score) {
+    if (feedbackSendMsg) {
+      feedbackSendMsg.textContent = "Preencha destinatario, avaliacao e mensagem.";
+      feedbackSendMsg.classList.add("mensagem--erro");
+    }
+    return;
+  }
+  const novo = {
+    id: criarId(),
+    from: currentUser.id,
+    to,
+    score,
+    message,
+    createdAt: toIsoUtc(new Date()),
+    readAt: null,
+  };
+  const atualizados = [novo, ...feedbacks];
+  salvarFeedbacks(atualizados);
+  if (feedbackMessage) {
+    feedbackMessage.value = "";
+  }
+  if (feedbackSendMsg) {
+    feedbackSendMsg.textContent = "Feedback enviado com sucesso.";
+    feedbackSendMsg.classList.remove("mensagem--erro");
+  }
+  atualizarFeedbackBadge();
+  renderFeedbackInbox();
+  renderFeedbackList();
+}
+
+function renderFeedbackRecipients() {
+  if (!feedbackTo) {
+    return;
+  }
+  feedbackTo.innerHTML = `<option value="">Selecione um colaborador</option>`;
+  users.forEach((user) => {
+    if (currentUser && user.id === currentUser.id) {
+      return;
+    }
+    const option = document.createElement("option");
+    option.value = user.id;
+    option.textContent = getUserLabel(user.id) || user.nome || user.email || user.id;
+    feedbackTo.append(option);
   });
 }
 
@@ -11662,6 +12165,10 @@ function renderAuthUI() {
   if (configDiasLembrete && configDiasLembrete.value !== String(reminderDays)) {
     configDiasLembrete.value = reminderDays;
   }
+
+  renderFeedbackRecipients();
+  atualizarFeedbackBadge();
+  renderFeedbackInbox();
 }
 
 function initAvatarUpload() {
@@ -12140,6 +12647,10 @@ function renderTudo() {
   renderGrafico();
   renderAuditoria();
   renderRelatorios();
+  renderPerformanceProjetos();
+  renderPerformancePessoas();
+  renderFeedbackList();
+  renderFeedbackInbox();
   renderRdoList();
   renderModelos();
   renderSolicitacoes();
@@ -16120,6 +16631,48 @@ if (listaRelatorios) {
     }
   });
 }
+if (perfProjetoPeriodo) {
+  perfProjetoPeriodo.addEventListener("change", renderPerformanceProjetos);
+}
+if (perfProjetoFiltro) {
+  perfProjetoFiltro.addEventListener("change", renderPerformanceProjetos);
+}
+if (perfPessoaPeriodo) {
+  perfPessoaPeriodo.addEventListener("change", renderPerformancePessoas);
+}
+if (perfPessoaFiltro) {
+  perfPessoaFiltro.addEventListener("change", renderPerformancePessoas);
+}
+if (btnEnviarFeedback) {
+  btnEnviarFeedback.addEventListener("click", enviarFeedback);
+}
+if (feedbackTabButtons.length) {
+  feedbackTabButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      feedbackTabButtons.forEach((other) => other.classList.remove("is-active"));
+      btn.classList.add("is-active");
+      renderFeedbackList();
+    });
+  });
+}
+if (btnFeedbackInbox) {
+  btnFeedbackInbox.addEventListener("click", () => {
+    if (!feedbackInboxPanel) {
+      return;
+    }
+    const isOpen = !feedbackInboxPanel.hidden;
+    feedbackInboxPanel.hidden = isOpen;
+    btnFeedbackInbox.setAttribute("aria-expanded", String(!isOpen));
+  });
+}
+if (feedbackInboxLink) {
+  feedbackInboxLink.addEventListener("click", () => {
+    ativarTab("feedbacks");
+    if (feedbackInboxPanel) {
+      feedbackInboxPanel.hidden = true;
+    }
+  });
+}
 if (relatorioPeriodoFiltro) {
   relatorioPeriodoFiltro.addEventListener("change", renderRelatorios);
 }
@@ -16749,6 +17302,7 @@ limparTemplateForm();
 initSidebarToggle();
 initAvatarUpload();
 rdoSnapshots = carregarRdoSnapshots();
+carregarFeedbacks();
 montarRdoUI();
 carregarSessaoServidor();
 preencherInicioExecucaoNova();
@@ -16762,6 +17316,7 @@ window.addEventListener("storage", (event) => {
       REQUEST_KEY,
       AUDIT_KEY,
       RDO_KEY,
+      FEEDBACK_KEY,
       REMINDER_KEY,
       TEMPLATE_KEY,
     ].includes(event.key)
@@ -16783,6 +17338,7 @@ window.addEventListener("storage", (event) => {
     manutencoes = resultado.normalizadas;
     salvarManutencoes(manutencoes);
     rdoSnapshots = carregarRdoSnapshots();
+    carregarFeedbacks();
     montarRdoUI();
     carregarSessaoServidor();
   }

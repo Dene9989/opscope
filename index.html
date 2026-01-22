@@ -662,6 +662,35 @@
                 <span class="nav-item__label">Desempenho</span>
                 <span class="nav-item__meta"></span>
               </button>
+              <button class="nav-item" type="button" data-tab="performance-projects" data-tooltip="Desempenho por projeto">
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M4 7h16M4 12h10M4 17h16"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Desempenho por projeto</span>
+                <span class="nav-item__meta"></span>
+              </button>
+              <button class="nav-item" type="button" data-tab="performance-people" data-tooltip="Desempenho por colaborador">
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.4 0-8 2.2-8 4.8V21h16v-2.2c0-2.6-3.6-4.8-8-4.8Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                    />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Desempenho por colaborador</span>
+                <span class="nav-item__meta"></span>
+              </button>
               <button class="nav-item" type="button" data-tab="tendencias" data-tooltip="KPIs & Tendencias">
                 <span class="nav-item__ico">
                   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -715,6 +744,49 @@
                 </span>
                 <span class="nav-item__label">Relatorios</span>
                 <span class="nav-item__meta"></span>
+              </button>
+            </div>
+          </section>
+          <section class="nav-group" data-group="pessoas">
+            <button class="nav-group__header" type="button" aria-expanded="true">
+              <span class="nav-group__title">
+                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M5 7h14M5 12h14M5 17h9"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                  />
+                </svg>
+                <span class="nav-group__text">Pessoas</span>
+              </span>
+              <span class="nav-group__chev">ƒ-ó</span>
+            </button>
+            <div class="nav-group__body">
+              <button class="nav-item" type="button" data-tab="feedbacks" data-tooltip="Feedbacks">
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M5 5h14v10H7l-2 2V5Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M8 9h8M8 12h5"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Feedbacks</span>
+                <span class="nav-item__meta">
+                  <span class="badge badge--warn" id="feedbackBadge" hidden>0</span>
+                </span>
               </button>
             </div>
           </section>
@@ -881,6 +953,40 @@
               <div id="painelLembretes" class="notify-panel" hidden>
                 <div id="listaLembretes" class="lembretes"></div>
                 <p id="lembretesVazio" class="empty-state">Nenhuma manutencao proxima.</p>
+              </div>
+            </div>
+            <div class="notify">
+              <button
+                id="btnFeedbackInbox"
+                class="icon-btn"
+                type="button"
+                aria-label="Feedbacks"
+                aria-expanded="false"
+              >
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M4 5h16v10H7l-3 3V5Z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M8 9h8M8 12h5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                  />
+                </svg>
+                <span class="bell-dot" id="feedbackInboxDot" hidden></span>
+              </button>
+              <div id="feedbackInboxPanel" class="notify-panel" hidden>
+                <div id="feedbackInboxList" class="lembretes"></div>
+                <p id="feedbackInboxEmpty" class="empty-state">Nenhum feedback recebido.</p>
+                <button id="feedbackInboxLink" class="btn btn--ghost btn--small" type="button">
+                  Ver todos
+                </button>
               </div>
             </div>
             <div class="user-menu" id="userMenu">
@@ -1526,6 +1632,112 @@
       </section>
     </section>
 
+    <section class="panel" id="performance-projects" data-panel="performance-projects">
+      <section class="card">
+        <h2>Desempenho por projeto</h2>
+        <p class="hint">Acompanhe produtividade, backlog e documentacoes por projeto.</p>
+        <div class="programacao-toolbar">
+          <div class="field">
+            <label for="perfProjetoPeriodo">Periodo</label>
+            <select id="perfProjetoPeriodo">
+              <option value="7">Ultimos 7 dias</option>
+              <option value="30" selected>Ultimos 30 dias</option>
+              <option value="90">Ultimos 90 dias</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="perfProjetoFiltro">Projeto</label>
+            <select id="perfProjetoFiltro">
+              <option value="">Todos os projetos</option>
+            </select>
+          </div>
+        </div>
+        <div class="perf-grid" id="perfProjetoCards"></div>
+        <div class="report-table__wrap">
+          <table class="report__table" id="perfProjetoTabela">
+            <thead>
+              <tr>
+                <th>Projeto</th>
+                <th>OS concluidas</th>
+                <th>No prazo</th>
+                <th>Backlog</th>
+                <th>APR</th>
+                <th>OS</th>
+                <th>PTE</th>
+                <th>PT</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2">Total</td>
+                <td id="perfProjetoTotalPrazo">0</td>
+                <td id="perfProjetoTotalBacklog">0</td>
+                <td id="perfProjetoTotalApr">0</td>
+                <td id="perfProjetoTotalOs">0</td>
+                <td id="perfProjetoTotalPte">0</td>
+                <td id="perfProjetoTotalPt">0</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <section class="panel" id="performance-people" data-panel="performance-people">
+      <section class="card">
+        <h2>Desempenho por colaborador</h2>
+        <p class="hint">Resultados individuais de manutenções, prazos e segurança.</p>
+        <div class="programacao-toolbar">
+          <div class="field">
+            <label for="perfPessoaPeriodo">Periodo</label>
+            <select id="perfPessoaPeriodo">
+              <option value="7">Ultimos 7 dias</option>
+              <option value="30" selected>Ultimos 30 dias</option>
+              <option value="90">Ultimos 90 dias</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="perfPessoaFiltro">Colaborador</label>
+            <select id="perfPessoaFiltro">
+              <option value="">Todos os colaboradores</option>
+            </select>
+          </div>
+        </div>
+        <div class="perf-grid" id="perfPessoaCards"></div>
+        <div class="report-table__wrap">
+          <table class="report__table" id="perfPessoaTabela">
+            <thead>
+              <tr>
+                <th>Colaborador</th>
+                <th>OS abertas</th>
+                <th>Concluidas</th>
+                <th>No prazo</th>
+                <th>Backlog</th>
+                <th>APR</th>
+                <th>OS</th>
+                <th>PTE</th>
+                <th>PT</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2">Total</td>
+                <td id="perfPessoaTotalConcluidas">0</td>
+                <td id="perfPessoaTotalPrazo">0</td>
+                <td id="perfPessoaTotalBacklog">0</td>
+                <td id="perfPessoaTotalApr">0</td>
+                <td id="perfPessoaTotalOs">0</td>
+                <td id="perfPessoaTotalPte">0</td>
+                <td id="perfPessoaTotalPt">0</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
+    </section>
+
     <section class="panel" id="tendencias" data-panel="tendencias">
       <section class="card">
         <h2>KPIs e tendencias</h2>
@@ -1751,6 +1963,54 @@
         <p class="hint">Quem fez, o que fez e quando fez.</p>
         <div id="listaAuditoria" class="audit"></div>
         <p id="auditVazio" class="empty-state">Nenhuma acao registrada.</p>
+      </section>
+    </section>
+
+    <section class="panel" id="feedbacks" data-panel="feedbacks">
+      <section class="card">
+        <h2>Feedbacks entre colaboradores</h2>
+        <p class="hint">Feedbacks sao privados entre remetente e destinatario.</p>
+        <div class="feedback-grid">
+          <div class="feedback-card">
+            <h3>Novo feedback</h3>
+            <div class="form-grid">
+              <div class="field">
+                <label for="feedbackTo">Para</label>
+                <select id="feedbackTo">
+                  <option value="">Selecione um colaborador</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="feedbackScore">Avaliacao</label>
+                <select id="feedbackScore">
+                  <option value="5">5 - Excelente</option>
+                  <option value="4">4 - Muito bom</option>
+                  <option value="3">3 - Bom</option>
+                  <option value="2">2 - Atenção</option>
+                  <option value="1">1 - Precisa melhorar</option>
+                </select>
+              </div>
+              <div class="field" data-full>
+                <label for="feedbackMessage">Mensagem</label>
+                <textarea id="feedbackMessage" rows="3" placeholder="Escreva um feedback claro e respeitoso."></textarea>
+              </div>
+            </div>
+            <button id="btnEnviarFeedback" class="btn btn--primary" type="button">Enviar feedback</button>
+            <p id="feedbackSendMsg" class="mensagem" aria-live="polite"></p>
+          </div>
+          <div class="feedback-card">
+            <div class="feedback-tabs">
+              <button class="btn btn--ghost btn--small is-active" type="button" data-feedback-tab="recebidos">
+                Recebidos
+              </button>
+              <button class="btn btn--ghost btn--small" type="button" data-feedback-tab="enviados">
+                Enviados
+              </button>
+            </div>
+            <div id="feedbackList" class="feedback-list"></div>
+            <p id="feedbackEmpty" class="empty-state">Nenhum feedback ainda.</p>
+          </div>
+        </div>
       </section>
     </section>
 
