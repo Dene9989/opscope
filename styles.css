@@ -645,7 +645,7 @@ h1 {
 }
 
 .topbar-logo__img {
-  height: 64px;
+  height: 100px;
   width: auto;
   display: block;
   object-fit: contain;
@@ -1950,7 +1950,7 @@ body.is-visitor .notify.auth-only {
 }
 
 .auth-brand__logo-img {
-  height: 64px;
+  height: 100px;
   width: auto;
   display: block;
   object-fit: contain;
