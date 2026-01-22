@@ -4611,6 +4611,11 @@ label {
   margin-bottom: 16px;
 }
 
+#nova-manutencao .form-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  align-items: start;
+}
+
 .nova-manutencao__section:not(:first-of-type) {
   margin-top: 24px;
   padding-top: 24px;
@@ -4644,9 +4649,22 @@ label {
   gap: 12px;
 }
 
+.field--date-group .futura-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
 .field--date-group .futura-checkbox span {
   font-size: 0.85rem;
   color: var(--ink-soft);
+}
+
+.field--date-group .futura-checkbox input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
 }
 
 .field--date-group .futura-checkbox input {

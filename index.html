@@ -996,77 +996,110 @@
     <section class="panel" id="nova" data-panel="nova">
       <section class="card" id="nova-manutencao">
         <h2>Nova manutencao</h2>
-        <div class="form-grid">
-          <div class="field">
-            <label for="tipoManutencao">Tipo de manutencao</label>
-            <select id="tipoManutencao">
-              <option value="">Selecione um tipo</option>
-            </select>
+        <div class="nova-manutencao__section">
+          <div class="nova-manutencao__heading">
+            <div>
+              <p class="nova-manutencao__heading-title">Detalhes da manutencao</p>
+              <p class="nova-manutencao__heading-subtitle">
+                Defina o tipo, local, prioridade e data de inicio.
+              </p>
+            </div>
           </div>
-          <div class="field" id="customTipoField" hidden>
-            <label for="tituloManutencao">Tipo personalizado</label>
-            <input id="tituloManutencao" type="text" placeholder="Inspecao diaria SE Boa Sorte II" />
+          <div class="form-grid">
+            <div class="field">
+              <label for="tipoManutencao">Tipo de manutencao</label>
+              <select id="tipoManutencao">
+                <option value="">Selecione um tipo</option>
+              </select>
+            </div>
+            <div class="field" id="customTipoField" hidden>
+              <label for="tituloManutencao">Tipo personalizado</label>
+              <input id="tituloManutencao" type="text" placeholder="Inspecao diaria SE Boa Sorte II" />
+            </div>
+            <div class="field">
+              <label for="subestacaoManutencao">Subestacao</label>
+              <select id="subestacaoManutencao">
+                <option value="SE Boa Sorte II">SE Boa Sorte II</option>
+              </select>
+            </div>
+            <div class="field field--date-group">
+              <div class="field__label-row">
+                <label for="dataManutencao">Inicio da execucao</label>
+                <label class="futura-checkbox" for="futuraManutencao">
+                  <input id="futuraManutencao" type="checkbox" />
+                  <span>Agendar para outra data</span>
+                </label>
+              </div>
+              <input id="dataManutencao" type="date" readonly />
+            </div>
+            <div class="field">
+              <label for="categoriaManutencao">Categoria</label>
+              <select id="categoriaManutencao" required>
+                <option value="">Selecione</option>
+                <option value="Preventiva">Preventiva</option>
+                <option value="Corretiva">Corretiva</option>
+                <option value="Preditiva">Preditiva</option>
+                <option value="Melhoria">Melhoria</option>
+                <option value="Emergencial">Emergencial</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="prioridadeManutencao">Prioridade</label>
+              <select id="prioridadeManutencao" required>
+                <option value="">Selecione</option>
+                <option value="Baixa">Baixa</option>
+                <option value="Media">Media</option>
+                <option value="Alta">Alta</option>
+                <option value="Critica">Critica</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="osReferenciaManutencao">OS / referencia</label>
+              <input id="osReferenciaManutencao" type="text" required />
+            </div>
           </div>
-          <div class="field">
-            <label for="subestacaoManutencao">Subestacao</label>
-            <select id="subestacaoManutencao">
-              <option value="SE Boa Sorte II">SE Boa Sorte II</option>
-            </select>
+        </div>
+        <div class="nova-manutencao__section">
+          <div class="nova-manutencao__heading">
+            <div>
+              <p class="nova-manutencao__heading-title">Participantes e criticidade</p>
+              <p class="nova-manutencao__heading-subtitle">
+                Identifique a equipe responsavel e o nivel de risco da atividade.
+              </p>
+            </div>
           </div>
-          <div class="field">
-            <label for="dataManutencao">Inicio da execucao</label>
-            <input id="dataManutencao" type="date" readonly />
+          <div class="form-grid">
+            <div class="field" data-full>
+              <label for="participantesManutencao">Participantes (separe por ;)</label>
+              <textarea
+                id="participantesManutencao"
+                class="multi-select"
+                rows="2"
+                placeholder="Ex: Denisson; Leonardo; Manoel"
+                required
+              ></textarea>
+              <p class="hint">Informe ao menos 2 participantes.</p>
+              <p id="participantesManutencaoErro" class="field-error" hidden></p>
+            </div>
+            <div class="field">
+              <label for="criticoManutencao">Trabalho critico?</label>
+              <select id="criticoManutencao" required>
+                <option value="nao">Nao</option>
+                <option value="sim">Sim</option>
+              </select>
+            </div>
           </div>
-          <div class="field field--toggle">
-            <label for="futuraManutencao">Agendar para outra data</label>
-            <input id="futuraManutencao" type="checkbox" />
-          </div>
-          <div class="field">
-            <label for="categoriaManutencao">Categoria</label>
-            <select id="categoriaManutencao" required>
-              <option value="">Selecione</option>
-              <option value="Preventiva">Preventiva</option>
-              <option value="Corretiva">Corretiva</option>
-              <option value="Preditiva">Preditiva</option>
-              <option value="Melhoria">Melhoria</option>
-              <option value="Emergencial">Emergencial</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="prioridadeManutencao">Prioridade</label>
-            <select id="prioridadeManutencao" required>
-              <option value="">Selecione</option>
-              <option value="Baixa">Baixa</option>
-              <option value="Media">Media</option>
-              <option value="Alta">Alta</option>
-              <option value="Critica">Critica</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="osReferenciaManutencao">OS / referencia</label>
-            <input id="osReferenciaManutencao" type="text" required />
+        </div>
+        <div class="nova-manutencao__section">
+          <div class="nova-manutencao__heading">
+            <div>
+              <p class="nova-manutencao__heading-title">Documentos obrigatorios</p>
+              <p class="nova-manutencao__heading-subtitle">
+                Anexe as evidencias exigidas antes de iniciar a execucao.
+              </p>
+            </div>
           </div>
           <div class="field" data-full>
-            <label for="participantesManutencao">Participantes (separe por ;)</label>
-            <textarea
-              id="participantesManutencao"
-              class="multi-select"
-              rows="2"
-              placeholder="Ex: Denisson; Leonardo; Manoel"
-              required
-            ></textarea>
-            <p class="hint">Informe ao menos 2 participantes.</p>
-            <p id="participantesManutencaoErro" class="field-error" hidden></p>
-          </div>
-          <div class="field">
-            <label for="criticoManutencao">Trabalho critico?</label>
-            <select id="criticoManutencao" required>
-              <option value="nao">Nao</option>
-              <option value="sim">Sim</option>
-            </select>
-          </div>
-          <div class="field" data-full>
-            <label>Documentos obrigatorios</label>
             <div class="doc-grid">
               <div class="doc-item" data-doc="apr">
                 <div class="doc-head">
@@ -1122,14 +1155,26 @@
               </div>
             </div>
           </div>
-          <div class="field" data-full>
-            <label for="obsManutencao">Descricao tecnica da demanda</label>
-            <textarea
-              id="obsManutencao"
-              rows="3"
-              placeholder="Descreva a demanda tecnica, condicoes e contexto"
-              required
-            ></textarea>
+        </div>
+        <div class="nova-manutencao__section">
+          <div class="nova-manutencao__heading">
+            <div>
+              <p class="nova-manutencao__heading-title">Descricao tecnica</p>
+              <p class="nova-manutencao__heading-subtitle">
+                Registre o contexto e os detalhes tecnicos da demanda.
+              </p>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="field" data-full>
+              <label for="obsManutencao">Descricao tecnica da demanda</label>
+              <textarea
+                id="obsManutencao"
+                rows="3"
+                placeholder="Descreva a demanda tecnica, condicoes e contexto"
+                required
+              ></textarea>
+            </div>
           </div>
         </div>
         <button id="btnAdicionarManutencao" class="btn btn--primary">Iniciar execucao</button>
