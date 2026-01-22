@@ -5729,6 +5729,17 @@ function abrirJanelaRelatorio(html, titulo, imprimir) {
             .report-table__wrap { max-height: 260px; overflow: auto; }
             .report__table thead th { position: sticky; top: 0; z-index: 1; }
           }
+          @media print {
+            body { margin: 16mm; }
+            .rdo-month__charts { grid-template-columns: 1fr; }
+            .rdo-month__charts > div { break-inside: avoid; page-break-inside: avoid; }
+            .rdo-month__donut { grid-template-columns: 1fr; justify-items: center; }
+            .rdo-legend { margin-top: 6px; }
+            .rdo-chart, .rdo-donut { max-width: 100%; height: auto; }
+            h3, h4 { break-after: avoid; page-break-after: avoid; }
+            .report-table__wrap { max-height: none; overflow: visible; }
+            table { page-break-inside: avoid; }
+          }
           .rdo-items { display: grid; gap: 10px; }
           .rdo-item { border: 1px solid #d9d4c8; border-radius: 12px; padding: 10px 12px; display: grid; gap: 8px; }
           .rdo-item__head { display: flex; justify-content: space-between; gap: 12px; font-size: 0.8rem; color: #425363; }
