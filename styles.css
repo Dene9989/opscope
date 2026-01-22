@@ -4649,6 +4649,18 @@ label {
   gap: 12px;
 }
 
+.field--date-group label[for="dataManutencao"] {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.field--date-group .futura-checkbox {
+  margin-left: auto;
+  padding-left: 12px;
+  border-left: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
 .field--date-group .futura-checkbox {
   display: inline-flex;
   align-items: center;
@@ -6214,6 +6226,11 @@ textarea:focus {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
+#nova-manutencao .doc-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
 .doc-item {
   display: grid;
   gap: 8px;
@@ -6235,6 +6252,19 @@ textarea:focus {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+}
+
+.doc-item .btn {
+  min-width: 88px;
+}
+
+.doc-head {
+  padding-bottom: 6px;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.doc-actions .doc-name {
+  flex: 1 1 120px;
 }
 
 .doc-name {
