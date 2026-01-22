@@ -4571,11 +4571,16 @@ function startHomeTipsRotation() {
     return;
   }
   const tips = [
-    "Registre evidencias completas com fotos e observacoes tecnicas: isso acelera auditorias, evita retrabalho e protege o historico de manutencao.",
-    "Antes do turno, valide backlog critico e confirme recursos no campo: isso reduz interrupcoes e garante cumprimento de SLA.",
-    "Mantenha OS e referencias sempre atualizadas: padronizar dados melhora rastreabilidade e agiliza liberacoes futuras.",
-    "Use o painel gerencial para conferir automacoes ativas e evitar duplicidade de acao manual em tarefas recorrentes.",
-    "Priorize atividades com risco imediato e alinhe responsaveis: comunicacao clara reduz falhas e melhora a seguranca.",
+    "Antes de iniciar a atividade, confirme subestacao, OS e referencia no OPSCOPE; isso evita retrabalho e garante que a equipe execute o procedimento correto.",
+    "Use o painel para registrar evidencias completas (fotos, observacoes tecnicas e resultados); um registro detalhado acelera liberacoes futuras e evita duvidas em campo.",
+    "Ao identificar falha recorrente, registre a causa provavel e a acao corretiva; isso ajuda outros tecnicos a repetir o diagnostico com mais rapidez.",
+    "Revise os documentos obrigatorios (APR, OS, PTE, PT) diretamente no sistema; manter anexos consistentes reduz bloqueios e atrasos na execucao.",
+    "Atualize o status assim que finalizar a intervencao; o OPSCOPE sincroniza a equipe e evita que duas frentes atuem no mesmo ponto.",
+    "Em atividades criticas, confirme participantes e horarios no registro; isso facilita auditoria tecnica e garante rastreabilidade total da operacao.",
+    "Use o historico de manutencao para comparar sintomas anteriores; padroes repetidos indicam ajustes na causa raiz e economizam tempo.",
+    "Quando houver atraso, registre o motivo tecnico com clareza; isso protege a equipe e evita retrabalho no fechamento da OS.",
+    "Acompanhe as automacoes para tarefas recorrentes; elas ajudam a lembrar prazos e liberacoes sem depender de controles manuais.",
+    "Se encontrar divergencia entre campo e sistema, registre a observacao no OPSCOPE imediatamente; isso evita falhas de comunicacao entre turnos.",
   ];
   if (homeTipsTimer) {
     window.clearInterval(homeTipsTimer);
