@@ -4616,6 +4616,15 @@ label {
   align-items: start;
 }
 
+#nova-manutencao .nova-manutencao__grid-top,
+#nova-manutencao .nova-manutencao__grid-bottom {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+#nova-manutencao .nova-manutencao__grid-bottom {
+  margin-top: 12px;
+}
+
 .nova-manutencao__section:not(:first-of-type) {
   margin-top: 24px;
   padding-top: 24px;
