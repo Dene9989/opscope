@@ -5669,6 +5669,8 @@ function abrirJanelaRelatorio(html, titulo, imprimir) {
           .rdo-doc { display: grid; gap: 18px; }
           .rdo-header { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 10px; border-bottom: 2px solid #d9d4c8; }
           .rdo-brand { display: grid; gap: 4px; }
+          .rdo-brand__row { display: flex; align-items: center; gap: 12px; }
+          .rdo-logo { width: 72px; height: auto; object-fit: contain; }
           .rdo-eyebrow { font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; color: #5c6772; }
           .rdo-title { font-size: 1.5rem; letter-spacing: 0.08em; text-transform: uppercase; margin: 0; }
           .rdo-subtitle { font-size: 0.9rem; color: #5c6772; margin: 0; }
@@ -5683,6 +5685,10 @@ function abrirJanelaRelatorio(html, titulo, imprimir) {
           .rdo-summary-item { border: 1px solid #d9d4c8; border-radius: 10px; padding: 6px 8px; display: grid; gap: 2px; background: #fff; }
           .rdo-summary-item span { font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: #425363; }
           .rdo-summary-item strong { font-size: 0.9rem; }
+          .rdo-month__sla { display: grid; gap: 6px; }
+          .rdo-month__sla-bar { height: 16px; background: #e5e1d6; border-radius: 999px; overflow: hidden; }
+          .rdo-month__sla-bar span { display: block; height: 100%; background: linear-gradient(90deg, #4bd28f, #9bf7c7); color: #1f2a33; font-size: 0.7rem; text-align: right; padding-right: 8px; line-height: 16px; }
+          .rdo-month__sla small { font-size: 0.75rem; color: #5c6772; }
           .rdo-items { display: grid; gap: 10px; }
           .rdo-item { border: 1px solid #d9d4c8; border-radius: 12px; padding: 10px 12px; display: grid; gap: 8px; }
           .rdo-item__head { display: flex; justify-content: space-between; gap: 12px; font-size: 0.8rem; color: #425363; }
@@ -5808,6 +5814,10 @@ function gerarRdoMensal() {
     .sort((a, b) => (getTimeValue(parseDate(b.rdoDate)) || 0) - (getTimeValue(parseDate(a.rdoDate)) || 0));
 
   const rdosAsc = [...rdos].reverse();
+  const manutencoesPeriodo = filtrarRelatorioLista(manutencoes, {
+    start: range.start,
+    end: range.end,
+  });
   const acumulado = rdos.reduce(
     (acc, item) => {
       const metricas = item.metricas || {};
@@ -5971,6 +5981,130 @@ function gerarRdoMensal() {
     </svg>
   `;
 
+  const statusTotals = manutencoesPeriodo.reduce(
+    (acc, item) => {
+      acc.total += 1;
+      acc[item.status] = (acc[item.status] || 0) + 1;
+      return acc;
+    },
+    { total: 0 }
+  );
+  const statusItems = [
+    { key: "concluida", label: "Concluidas", color: "#4bd28f" },
+    { key: "em_execucao", label: "Em execucao", color: "#5b8def" },
+    { key: "backlog", label: "Backlog", color: "#e2595c" },
+    { key: "agendada", label: "Agendadas", color: "#f6c453" },
+  ];
+  const statusMax = statusItems.reduce((max, item) => Math.max(max, statusTotals[item.key] || 0), 1);
+  const statusBars = statusItems
+    .map((item, index) => {
+      const height = Math.round(((statusTotals[item.key] || 0) / statusMax) * 90);
+      const x = index * 60;
+      const y = 110 - height;
+      return `<g>
+        <rect x="${x}" y="${y}" width="40" height="${height}" fill="${item.color}" rx="6" />
+        <text x="${x + 20}" y="125" text-anchor="middle" font-size="9" fill="#5c6772">${escapeHtml(
+          String(statusTotals[item.key] || 0)
+        )}</text>
+      </g>`;
+    })
+    .join("");
+  const statusChart = `
+    <svg class="rdo-chart" viewBox="0 0 260 140" role="img" aria-label="Manutencoes por status">
+      <rect x="0" y="0" width="260" height="140" fill="#f8f6f1" rx="12" />
+      ${statusBars}
+    </svg>
+  `;
+
+  const backlogLineMax = dailyData.reduce((max, item) => Math.max(max, item.overdue), 1);
+  const linePoints = dailyData
+    .map((item, index) => {
+      const x = (index / Math.max(1, dailyData.length - 1)) * 520 + 20;
+      const y = 120 - Math.round((item.overdue / backlogLineMax) * 80);
+      return `${x},${y}`;
+    })
+    .join(" ");
+  const backlogChart = `
+    <svg class="rdo-chart" viewBox="0 0 560 140" role="img" aria-label="Evolucao diaria do backlog">
+      <rect x="0" y="0" width="560" height="140" fill="#f8f6f1" rx="12" />
+      <polyline fill="none" stroke="#e2595c" stroke-width="3" points="${linePoints}" />
+    </svg>
+  `;
+
+  const tipoDistribuicao = manutencoesPeriodo.reduce((acc, item) => {
+    const tipo = (item.categoria || "Nao informado").toLowerCase();
+    acc[tipo] = (acc[tipo] || 0) + 1;
+    return acc;
+  }, {});
+  const tiposOrdenados = Object.keys(tipoDistribuicao)
+    .map((key, index) => ({
+      key,
+      total: tipoDistribuicao[key],
+      color: ["#4bd28f", "#5b8def", "#f6c453", "#e2595c", "#9a6bff"][index % 5],
+    }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5);
+  const totalTipos = tiposOrdenados.reduce((acc, item) => acc + item.total, 0) || 1;
+  let offset = 25;
+  const pieSlices = tiposOrdenados
+    .map((item) => {
+      const percent = Math.round((item.total / totalTipos) * 100);
+      const slice = `
+        <circle cx="60" cy="60" r="46" fill="none" stroke="${item.color}" stroke-width="16"
+          stroke-dasharray="${percent} ${100 - percent}" stroke-dashoffset="${offset}" />
+      `;
+      offset -= percent;
+      return slice;
+    })
+    .join("");
+  const pieChart = `
+    <svg class="rdo-donut" viewBox="0 0 120 120" role="img" aria-label="Distribuicao por tipo">
+      <circle cx="60" cy="60" r="46" fill="none" stroke="#e5e1d6" stroke-width="16" />
+      ${pieSlices}
+    </svg>
+  `;
+  const pieLegend = tiposOrdenados
+    .map(
+      (item) =>
+        `<span><i class="legend-dot" style="background:${item.color}"></i>${escapeHtml(
+          item.key
+        )} (${item.total})</span>`
+    )
+    .join("");
+
+  const slaChart = `
+    <div class="rdo-month__sla">
+      <div class="rdo-month__sla-bar">
+        <span style="width:${slaPercent}%">${slaPercent}% no prazo</span>
+      </div>
+      <small>${100 - slaPercent}% fora do SLA</small>
+    </div>
+  `;
+
+  const backlogRate = acumulado.atividades
+    ? Math.round((acumulado.overdue / acumulado.atividades) * 100)
+    : 0;
+  const criticasRate = acumulado.atividades
+    ? Math.round((acumulado.criticas / acumulado.atividades) * 100)
+    : 0;
+  const tempoMedioExec = acumulado.concluidas
+    ? formatDuracaoMin(Math.round(acumulado.tempoTotal / Math.max(1, acumulado.concluidas)))
+    : "-";
+  const prevMonthStart = new Date(range.start.getFullYear(), range.start.getMonth() - 1, 1);
+  const prevMonthEnd = new Date(range.start.getFullYear(), range.start.getMonth(), 0);
+  const prevRdos = rdoSnapshots.filter((item) => {
+    const data = item.rdoDate ? parseDate(item.rdoDate) : null;
+    return data ? inRange(startOfDay(data), startOfDay(prevMonthStart), startOfDay(prevMonthEnd)) : false;
+  });
+  const prevTotal = prevRdos.reduce((acc, item) => acc + ((item.metricas && item.metricas.total) || 0), 0);
+  const tendencia = prevTotal
+    ? acumulado.atividades > prevTotal
+      ? "↑"
+      : acumulado.atividades < prevTotal
+        ? "↓"
+        : "→"
+    : "→";
+
   const linhas = rdos
     .map((item) => {
       const dataLabel = item.rdoDate ? formatDate(parseDate(item.rdoDate)) : "-";
@@ -6113,9 +6247,14 @@ function gerarRdoMensal() {
     <div class="rdo-month rdo-doc">
       <header class="rdo-header">
         <div class="rdo-brand">
-          <span class="rdo-eyebrow">OPSCOPE</span>
-          <h2 class="rdo-title">RELATORIO DE OPERACAO MENSAL - HV</h2>
-          <p class="rdo-subtitle">Relatorio Mensal de Operacao</p>
+          <div class="rdo-brand__row">
+            <img class="rdo-logo" src="./assets/engelmig-logo.png" alt="ENGELMIG" width="110" height="40" />
+            <div>
+              <span class="rdo-eyebrow">OPSCOPE</span>
+              <h2 class="rdo-title">RELATORIO MENSAL DE OPERACAO</h2>
+              <p class="rdo-subtitle">Consolidado executivo do periodo</p>
+            </div>
+          </div>
         </div>
         <div class="rdo-meta">
           <span>RDO-M: ${escapeHtml(hashMensal)}</span>
@@ -6158,10 +6297,24 @@ function gerarRdoMensal() {
           <div class="rdo-summary-item"><span>Tempo total</span><strong>${tempoTotalLabel}</strong></div>
         </div>
       </section>
+      <section class="rdo-section rdo-block">
+        <h3>KPIs Gerenciais</h3>
+        <div class="rdo-summary-grid">
+          <div class="rdo-summary-item"><span>SLA mensal</span><strong>${slaPercent}%</strong></div>
+          <div class="rdo-summary-item"><span>Taxa de backlog</span><strong>${backlogRate}%</strong></div>
+          <div class="rdo-summary-item"><span>Taxa criticas</span><strong>${criticasRate}%</strong></div>
+          <div class="rdo-summary-item"><span>Tempo medio execucao</span><strong>${tempoMedioExec}</strong></div>
+          <div class="rdo-summary-item"><span>Tendencia</span><strong>${tendencia}</strong></div>
+        </div>
+      </section>
       <section class="rdo-section rdo-block rdo-month__charts">
         <div>
           <h4>Volume diario de atividades</h4>
           ${chartSvg}
+        </div>
+        <div>
+          <h4>Manutencoes por status</h4>
+          ${statusChart}
         </div>
         <div>
           <h4>Distribuicao de status</h4>
@@ -6174,6 +6327,23 @@ function gerarRdoMensal() {
               <span><i class="legend-dot legend-dot--danger"></i>Overdue (${percOverdue}%)</span>
             </div>
           </div>
+        </div>
+        <div>
+          <h4>Evolucao diaria do backlog</h4>
+          ${backlogChart}
+        </div>
+        <div>
+          <h4>Distribuicao por tipo</h4>
+          <div class="rdo-month__donut">
+            ${pieChart}
+            <div class="rdo-legend">
+              ${pieLegend}
+            </div>
+          </div>
+        </div>
+        <div>
+          <h4>SLA mensal</h4>
+          ${slaChart}
         </div>
       </section>
       <section class="rdo-section rdo-block">
@@ -6206,6 +6376,80 @@ function gerarRdoMensal() {
             ${linhas || `<tr><td colspan="8">Nenhum RDO no periodo.</td></tr>`}
           </tbody>
         </table>
+      </section>
+      <section class="rdo-section rdo-block">
+        <h3>Tabela consolidada</h3>
+        <table class="report__table">
+          <thead>
+            <tr>
+              <th>Manutencao</th>
+              <th>Local</th>
+              <th>Data</th>
+              <th>Status</th>
+              <th>Responsavel</th>
+              <th>Prioridade</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${
+              manutencoesPeriodo.length
+                ? manutencoesPeriodo
+                    .slice(0, 200)
+                    .map((item) => {
+                      const data = getRelatorioItemDate(item);
+                      const label = data ? formatDate(data) : "-";
+                      const responsavel = getRelatorioResponsavel(item) || "-";
+                      const status = item.status || "-";
+                      return `<tr>
+                        <td>${escapeHtml(item.titulo || "-")}</td>
+                        <td>${escapeHtml(item.local || "-")}</td>
+                        <td>${escapeHtml(label)}</td>
+                        <td><span class="status-badge status-badge--${escapeHtml(
+                          status
+                        )}">${escapeHtml(status)}</span></td>
+                        <td>${escapeHtml(responsavel)}</td>
+                        <td>${escapeHtml(item.prioridade || "-")}</td>
+                      </tr>`;
+                    })
+                    .join("")
+                : `<tr><td colspan="6">Nenhuma manutencao no periodo.</td></tr>`
+            }
+          </tbody>
+        </table>
+      </section>
+      <section class="rdo-section rdo-note">
+        <h3>Analise tecnica do periodo</h3>
+        <p>
+          ${escapeHtml(
+            acumulado.overdue
+              ? `Foram identificadas ${acumulado.overdue} atividades overdue, indicando gargalos no fluxo de execucao e necessidade de ajustes na programacao.`
+              : "Nao foram identificadas atividades overdue no periodo."
+          )}
+        </p>
+        <p>
+          ${escapeHtml(
+            acumulado.criticas
+              ? `Houve ${acumulado.criticas} manutencoes criticas; recomenda-se priorizar recursos e revisar planos de contingencia.`
+              : "Sem manutencoes criticas registradas."
+          )}
+        </p>
+        <p>
+          ${escapeHtml(
+            docsPercent < 90
+              ? "O compliance documental ficou abaixo da meta; reforcar captura de evidencias e checklists operacionais."
+              : "Compliance documental dentro do esperado."
+          )}
+        </p>
+      </section>
+      <section class="rdo-section rdo-note">
+        <h3>Conclusao gerencial</h3>
+        <p>
+          ${escapeHtml(
+            acumulado.totalRdos
+              ? `O periodo apresentou ${slaPercent}% de SLA no prazo, com ${acumulado.concluidas} concluidas e ${backlogRate}% de backlog. Recomenda-se manter o foco nas frentes criticas e sustentar a disciplina operacional.`
+              : "Nao houve movimentacao operacional no periodo. Sem impactos registrados."
+          )}
+        </p>
       </section>
       <section class="rdo-section">
         <h3>Detalhamento diario</h3>
