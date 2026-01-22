@@ -41,6 +41,28 @@ const listaExecucaoCriticas = document.getElementById("listaExecucaoCriticas");
 const listaExecucaoCriticasVazia = document.getElementById("listaExecucaoCriticasVazia");
 const listaRelatorios = document.getElementById("listaRelatorios");
 const listaRelatoriosVazia = document.getElementById("listaRelatoriosVazia");
+const relatorioPeriodoFiltro = document.getElementById("relatorioPeriodo");
+const relatorioStatusFiltro = document.getElementById("relatorioStatus");
+const relatorioResponsavelFiltro = document.getElementById("relatorioResponsavel");
+const relatorioTipoFiltro = document.getElementById("relatorioTipoFiltro");
+const btnRelatoriosExportar = document.getElementById("btnRelatoriosExportar");
+const btnRelatoriosResumo = document.getElementById("btnRelatoriosResumo");
+const relatorioResumoTotal = document.getElementById("relatorioResumoTotal");
+const relatorioResumoConcluidas = document.getElementById("relatorioResumoConcluidas");
+const relatorioResumoCriticos = document.getElementById("relatorioResumoCriticos");
+const relatorioResumoAlertas = document.getElementById("relatorioResumoAlertas");
+const relatorioResumoEvidencias = document.getElementById("relatorioResumoEvidencias");
+const relatorioResumoEvidenciasLabel = document.getElementById("relatorioResumoEvidenciasLabel");
+const relatorioResumoSla = document.getElementById("relatorioResumoSla");
+const relatorioResumoSlaLabel = document.getElementById("relatorioResumoSlaLabel");
+const relatorioMes = document.getElementById("relatorioMes");
+const relatorioInicioMensal = document.getElementById("relatorioInicioMensal");
+const relatorioFimMensal = document.getElementById("relatorioFimMensal");
+const relatorioCliente = document.getElementById("relatorioCliente");
+const btnRelatorioMensalGerar = document.getElementById("btnRelatorioMensalGerar");
+const btnRelatorioMensalPreview = document.getElementById("btnRelatorioMensalPreview");
+const btnRelatorioMensalExportar = document.getElementById("btnRelatorioMensalExportar");
+const btnRelatorioMensalRdo = document.getElementById("btnRelatorioMensalRdo");
 const countAgendadas = document.getElementById("countAgendadas");
 const countLiberadas = document.getElementById("countLiberadas");
 const countBacklog = document.getElementById("countBacklog");
@@ -5321,12 +5343,193 @@ function renderExecucao() {
   ]);
 }
 
+function getRelatorioItemDate(item) {
+  return (
+    parseAnyDate(item && item.doneAt) ||
+    parseAnyDate(item && item.data) ||
+    parseAnyDate(item && item.createdAt) ||
+    null
+  );
+}
+
+function getRelatorioResponsavel(item) {
+  const id =
+    getExecutadoPorId(item) ||
+    item.doneBy ||
+    item.responsavel ||
+    item.createdBy ||
+    item.updatedBy ||
+    "";
+  if (item.responsavel && typeof item.responsavel === "string") {
+    return item.responsavel;
+  }
+  return getUserLabel(id);
+}
+
+function mapRelatorioStatusFiltro(valor) {
+  if (!valor) {
+    return null;
+  }
+  if (valor === "concluido") {
+    return ["concluida"];
+  }
+  if (valor === "em-andamento") {
+    return ["em_execucao", "executando"];
+  }
+  if (valor === "pendente") {
+    return ["agendada", "backlog", "liberada", "planejada"];
+  }
+  return null;
+}
+
+function filtrarRelatorioLista(lista, filtros) {
+  return lista.filter((item) => {
+    const baseDate = getRelatorioItemDate(item);
+    if (filtros.start && filtros.end && baseDate) {
+      const dia = startOfDay(baseDate);
+      if (!inRange(dia, filtros.start, filtros.end)) {
+        return false;
+      }
+    }
+    if (filtros.status) {
+      if (!filtros.status.includes(item.status)) {
+        return false;
+      }
+    }
+    if (filtros.tipo) {
+      const categoria = (item.categoria || "").toLowerCase();
+      if (categoria !== filtros.tipo) {
+        return false;
+      }
+    }
+    if (filtros.responsavel) {
+      const responsavel = getRelatorioResponsavel(item);
+      if (responsavel !== filtros.responsavel) {
+        return false;
+      }
+    }
+    return true;
+  });
+}
+
+function contarEvidencias(item) {
+  let total = 0;
+  const grupos = [];
+  if (Array.isArray(item.evidencias)) {
+    grupos.push(item.evidencias);
+  }
+  if (item.registroExecucao && Array.isArray(item.registroExecucao.evidencias)) {
+    grupos.push(item.registroExecucao.evidencias);
+  }
+  if (item.conclusao && Array.isArray(item.conclusao.evidencias)) {
+    grupos.push(item.conclusao.evidencias);
+  }
+  if (Array.isArray(item.anexos)) {
+    grupos.push(item.anexos);
+  }
+  grupos.forEach((grupo) => {
+    total += grupo.length;
+  });
+  return total;
+}
+
+function atualizarResumoRelatorios(lista) {
+  if (!relatorioResumoTotal || !relatorioResumoConcluidas) {
+    return;
+  }
+  const concluidas = lista.filter((item) => item.status === "concluida");
+  const criticos = lista.filter(
+    (item) => item.critico || (item.prioridade || "").toLowerCase() === "critica"
+  );
+  const evidencias = lista.reduce((acc, item) => acc + contarEvidencias(item), 0);
+  const pontuais = concluidas.filter((item) => {
+    const data = parseDate(item.data);
+    const doneAt = parseTimestamp(item.doneAt);
+    if (!data || !doneAt) {
+      return false;
+    }
+    return startOfDay(doneAt) <= startOfDay(data);
+  });
+  const sla = concluidas.length ? Math.round((pontuais.length / concluidas.length) * 100) : 0;
+
+  relatorioResumoTotal.textContent = String(lista.length);
+  relatorioResumoConcluidas.textContent = `${concluidas.length} concluidas`;
+  if (relatorioResumoCriticos) {
+    relatorioResumoCriticos.textContent = String(criticos.length);
+  }
+  if (relatorioResumoAlertas) {
+    relatorioResumoAlertas.textContent = criticos.length ? "Alertas priorizados" : "Sem alertas";
+  }
+  if (relatorioResumoEvidencias) {
+    relatorioResumoEvidencias.textContent = String(evidencias);
+  }
+  if (relatorioResumoEvidenciasLabel) {
+    relatorioResumoEvidenciasLabel.textContent = "Fotos, PDFs e registros";
+  }
+  if (relatorioResumoSla) {
+    relatorioResumoSla.textContent = `${sla}%`;
+  }
+  if (relatorioResumoSlaLabel) {
+    relatorioResumoSlaLabel.textContent = "Conformidade no prazo";
+  }
+}
+
+function atualizarFiltroResponsavel() {
+  if (!relatorioResponsavelFiltro) {
+    return;
+  }
+  const atual = relatorioResponsavelFiltro.value;
+  const valores = new Set();
+  manutencoes.forEach((item) => {
+    const responsavel = getRelatorioResponsavel(item);
+    if (responsavel && responsavel !== "-") {
+      valores.add(responsavel);
+    }
+  });
+  relatorioResponsavelFiltro.innerHTML = "";
+  const optAll = document.createElement("option");
+  optAll.value = "";
+  optAll.textContent = "Todas as equipes";
+  relatorioResponsavelFiltro.append(optAll);
+  Array.from(valores)
+    .sort()
+    .forEach((responsavel) => {
+      const opt = document.createElement("option");
+      opt.value = responsavel;
+      opt.textContent = responsavel;
+      relatorioResponsavelFiltro.append(opt);
+    });
+  if (atual && Array.from(relatorioResponsavelFiltro.options).some((opt) => opt.value === atual)) {
+    relatorioResponsavelFiltro.value = atual;
+  }
+}
+
+function getRelatorioFiltros() {
+  const dias = relatorioPeriodoFiltro ? Number(relatorioPeriodoFiltro.value) : 30;
+  const hoje = startOfDay(new Date());
+  const inicio = addDays(hoje, -(Math.max(dias, 1) - 1));
+  const statusValores = mapRelatorioStatusFiltro(
+    relatorioStatusFiltro ? relatorioStatusFiltro.value : ""
+  );
+  return {
+    start: inicio,
+    end: hoje,
+    status: statusValores,
+    responsavel: relatorioResponsavelFiltro ? relatorioResponsavelFiltro.value : "",
+    tipo: relatorioTipoFiltro ? relatorioTipoFiltro.value : "",
+  };
+}
+
 function renderRelatorios() {
   if (!listaRelatorios || !listaRelatoriosVazia) {
     return;
   }
+  atualizarFiltroResponsavel();
+  const filtros = getRelatorioFiltros();
+  const filtrados = filtrarRelatorioLista(manutencoes, filtros);
+  atualizarResumoRelatorios(filtrados);
   listaRelatorios.innerHTML = "";
-  const concluidas = [...manutencoes]
+  const concluidas = filtrados
     .filter((item) => item.status === "concluida")
     .sort((a, b) => (getTimeValue(b.doneAt) || 0) - (getTimeValue(a.doneAt) || 0));
 
@@ -5369,6 +5572,238 @@ function renderRelatorios() {
     listaRelatorios.append(card);
   });
 }
+
+function buildRelatorioResumoHtml(titulo, periodoLabel, lista) {
+  const concluidas = lista.filter((item) => item.status === "concluida");
+  const criticos = lista.filter(
+    (item) => item.critico || (item.prioridade || "").toLowerCase() === "critica"
+  );
+  const evidencias = lista.reduce((acc, item) => acc + contarEvidencias(item), 0);
+  const pontuais = concluidas.filter((item) => {
+    const data = parseDate(item.data);
+    const doneAt = parseTimestamp(item.doneAt);
+    if (!data || !doneAt) {
+      return false;
+    }
+    return startOfDay(doneAt) <= startOfDay(data);
+  });
+  const sla = concluidas.length ? Math.round((pontuais.length / concluidas.length) * 100) : 0;
+  const linhas = lista
+    .map((item) => {
+      const data = parseDate(item.data);
+      const doneAt = parseTimestamp(item.doneAt);
+      const referencia = doneAt ? formatDate(doneAt) : data ? formatDate(data) : "-";
+      const responsavel = getRelatorioResponsavel(item);
+      return `<tr>
+        <td>${escapeHtml(item.titulo || "-")}</td>
+        <td>${escapeHtml(item.local || "-")}</td>
+        <td>${escapeHtml(referencia)}</td>
+        <td>${escapeHtml(item.status || "-")}</td>
+        <td>${escapeHtml(responsavel || "-")}</td>
+      </tr>`;
+    })
+    .join("");
+
+  return `
+    <div class="report">
+      <header class="report__header">
+        <div class="report__brand">
+          <strong>OPSCOPE</strong>
+          <span>${escapeHtml(titulo)}</span>
+        </div>
+        <div class="report__meta">
+          <div>Periodo: ${escapeHtml(periodoLabel)}</div>
+          <div>Gerado em: ${escapeHtml(formatDateTime(new Date()))}</div>
+        </div>
+      </header>
+      <section class="report__grid">
+        <div><span>Manutencoes</span><strong>${lista.length}</strong></div>
+        <div><span>Concluidas</span><strong>${concluidas.length}</strong></div>
+        <div><span>Criticos</span><strong>${criticos.length}</strong></div>
+        <div><span>Evidencias</span><strong>${evidencias}</strong></div>
+        <div><span>SLA no prazo</span><strong>${sla}%</strong></div>
+      </section>
+      <section class="report__body">
+        <h4>Resumo do periodo</h4>
+        <table class="report__table">
+          <thead>
+            <tr>
+              <th>Manutencao</th>
+              <th>Local</th>
+              <th>Data</th>
+              <th>Status</th>
+              <th>Responsavel</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${linhas || `<tr><td colspan="5">Nenhum registro no periodo.</td></tr>`}
+          </tbody>
+        </table>
+      </section>
+    </div>
+  `;
+}
+
+function abrirJanelaRelatorio(html, titulo, imprimir) {
+  const nova = window.open("", "_blank");
+  if (!nova) {
+    return false;
+  }
+  nova.document.write(`
+    <html>
+      <head>
+        <title>${escapeHtml(titulo)}</title>
+        <style>
+          body { font-family: "Segoe UI", sans-serif; margin: 24px; color: #16202a; }
+          .report__header { display: flex; justify-content: space-between; gap: 16px; border-bottom: 2px solid #d9d4c8; padding-bottom: 12px; }
+          .report__brand strong { font-size: 1.1rem; letter-spacing: 0.2em; display: block; }
+          .report__brand span { font-size: 0.9rem; color: #5c6772; }
+          .report__meta { font-size: 0.85rem; color: #5c6772; display: grid; gap: 6px; text-align: right; }
+          .report__grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 18px 0; }
+          .report__grid div { border: 1px solid #d9d4c8; border-radius: 10px; padding: 10px; }
+          .report__grid span { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: #5c6772; }
+          .report__grid strong { font-size: 1rem; }
+          .report__table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+          .report__table th, .report__table td { border-bottom: 1px solid #e2ddd2; padding: 8px; text-align: left; }
+          .report__table th { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.65rem; background: #f6f2ea; }
+        </style>
+      </head>
+      <body>${html}</body>
+    </html>
+  `);
+  nova.document.close();
+  if (imprimir) {
+    nova.focus();
+    nova.print();
+  }
+  return true;
+}
+
+function updateMonthlyRangeFromMonth() {
+  if (!relatorioMes || !relatorioInicioMensal || !relatorioFimMensal) {
+    return;
+  }
+  if (!relatorioMes.value) {
+    return;
+  }
+  const [anoStr, mesStr] = relatorioMes.value.split("-");
+  const ano = Number(anoStr);
+  const mes = Number(mesStr);
+  if (!ano || !mes) {
+    return;
+  }
+  const inicio = new Date(ano, mes - 1, 1);
+  const fim = new Date(ano, mes, 0);
+  relatorioInicioMensal.value = formatDateISO(inicio);
+  relatorioFimMensal.value = formatDateISO(fim);
+}
+
+function getMonthlyRange() {
+  if (relatorioInicioMensal && relatorioFimMensal && relatorioInicioMensal.value && relatorioFimMensal.value) {
+    const inicio = parseDate(relatorioInicioMensal.value);
+    const fim = parseDate(relatorioFimMensal.value);
+    if (inicio && fim) {
+      return { start: startOfDay(inicio), end: startOfDay(fim) };
+    }
+  }
+  if (relatorioMes && relatorioMes.value) {
+    updateMonthlyRangeFromMonth();
+    const inicio = parseDate(relatorioInicioMensal ? relatorioInicioMensal.value : "");
+    const fim = parseDate(relatorioFimMensal ? relatorioFimMensal.value : "");
+    if (inicio && fim) {
+      return { start: startOfDay(inicio), end: startOfDay(fim) };
+    }
+  }
+  const hoje = startOfDay(new Date());
+  return { start: hoje, end: hoje };
+}
+
+function gerarRelatorioMensalHtml(range) {
+  const periodoLabel = `${formatDate(range.start)} - ${formatDate(range.end)}`;
+  const filtrados = filtrarRelatorioLista(manutencoes, { start: range.start, end: range.end });
+  const titulo = `Relatorio mensal (${relatorioCliente ? relatorioCliente.value || "Cliente" : "Cliente"})`;
+  return buildRelatorioResumoHtml(titulo, periodoLabel, filtrados);
+}
+
+function exportarRelatoriosPdf() {
+  const filtros = getRelatorioFiltros();
+  const filtrados = filtrarRelatorioLista(manutencoes, filtros);
+  const periodoLabel = `${formatDate(filtros.start)} - ${formatDate(filtros.end)}`;
+  const html = buildRelatorioResumoHtml("Central de relatorios", periodoLabel, filtrados);
+  return abrirJanelaRelatorio(html, "Relatorio - OPSCOPE", true);
+}
+
+function gerarResumoMensal() {
+  const range = getMonthlyRange();
+  const filtrados = filtrarRelatorioLista(manutencoes, { start: range.start, end: range.end });
+  atualizarResumoRelatorios(filtrados);
+  const periodoLabel = `${formatDate(range.start)} - ${formatDate(range.end)}`;
+  const html = buildRelatorioResumoHtml("Resumo mensal", periodoLabel, filtrados);
+  return abrirJanelaRelatorio(html, "Resumo mensal - OPSCOPE", false);
+}
+
+function previewRelatorioMensal() {
+  const range = getMonthlyRange();
+  const html = gerarRelatorioMensalHtml(range);
+  return abrirJanelaRelatorio(html, "Relatorio mensal - OPSCOPE", false);
+}
+
+function exportarRelatorioMensal() {
+  const range = getMonthlyRange();
+  const html = gerarRelatorioMensalHtml(range);
+  return abrirJanelaRelatorio(html, "Relatorio mensal - OPSCOPE", true);
+}
+
+function gerarRdoMensal() {
+  const range = getMonthlyRange();
+  const periodoLabel = `${formatDate(range.start)} - ${formatDate(range.end)}`;
+  const rdos = rdoSnapshots.filter((item) => {
+    const data = item.rdoDate ? parseDate(item.rdoDate) : null;
+    return data ? inRange(startOfDay(data), range.start, range.end) : false;
+  });
+  const linhas = rdos
+    .map((item) => {
+      const dataLabel = item.rdoDate ? formatDate(parseDate(item.rdoDate)) : "-";
+      const totalItens = Array.isArray(item.itens) ? item.itens.length : 0;
+      return `<tr>
+        <td>${escapeHtml(dataLabel)}</td>
+        <td>${escapeHtml(String(totalItens))}</td>
+        <td>${escapeHtml(item.responsavel || "-")}</td>
+      </tr>`;
+    })
+    .join("");
+  const html = `
+    <div class="report">
+      <header class="report__header">
+        <div class="report__brand">
+          <strong>OPSCOPE</strong>
+          <span>RDO mensal</span>
+        </div>
+        <div class="report__meta">
+          <div>Periodo: ${escapeHtml(periodoLabel)}</div>
+          <div>Gerado em: ${escapeHtml(formatDateTime(new Date()))}</div>
+        </div>
+      </header>
+      <section class="report__body">
+        <h4>RDOs no periodo</h4>
+        <table class="report__table">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Itens</th>
+              <th>Responsavel</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${linhas || `<tr><td colspan="3">Nenhum RDO no periodo.</td></tr>`}
+          </tbody>
+        </table>
+      </section>
+    </div>
+  `;
+  return abrirJanelaRelatorio(html, "RDO mensal - OPSCOPE", false);
+}
+
 
 function montarRdoUI() {
   const painel = document.getElementById("relatorios");
@@ -14806,6 +15241,75 @@ if (listaRelatorios) {
     const item = manutencoes.find((registro) => registro.id === card.dataset.id);
     if (item) {
       abrirRelatorio(item);
+    }
+  });
+}
+if (relatorioPeriodoFiltro) {
+  relatorioPeriodoFiltro.addEventListener("change", renderRelatorios);
+}
+if (relatorioStatusFiltro) {
+  relatorioStatusFiltro.addEventListener("change", renderRelatorios);
+}
+if (relatorioResponsavelFiltro) {
+  relatorioResponsavelFiltro.addEventListener("change", renderRelatorios);
+}
+if (relatorioTipoFiltro) {
+  relatorioTipoFiltro.addEventListener("change", renderRelatorios);
+}
+if (btnRelatoriosExportar) {
+  btnRelatoriosExportar.addEventListener("click", () => {
+    const ok = exportarRelatoriosPdf();
+    if (!ok) {
+      alert("Popup bloqueado. Permita a abertura para exportar o PDF.");
+    }
+  });
+}
+if (btnRelatoriosResumo) {
+  btnRelatoriosResumo.addEventListener("click", () => {
+    const ok = gerarResumoMensal();
+    if (!ok) {
+      alert("Popup bloqueado. Permita a abertura para visualizar o resumo.");
+    }
+  });
+}
+if (relatorioMes) {
+  if (!relatorioMes.value) {
+    relatorioMes.value = formatDateISO(new Date()).slice(0, 7);
+  }
+  updateMonthlyRangeFromMonth();
+  relatorioMes.addEventListener("change", () => {
+    updateMonthlyRangeFromMonth();
+  });
+}
+if (btnRelatorioMensalGerar) {
+  btnRelatorioMensalGerar.addEventListener("click", () => {
+    const ok = previewRelatorioMensal();
+    if (!ok) {
+      alert("Popup bloqueado. Permita a abertura para visualizar o relatorio.");
+    }
+  });
+}
+if (btnRelatorioMensalPreview) {
+  btnRelatorioMensalPreview.addEventListener("click", () => {
+    const ok = previewRelatorioMensal();
+    if (!ok) {
+      alert("Popup bloqueado. Permita a abertura para visualizar o relatorio.");
+    }
+  });
+}
+if (btnRelatorioMensalExportar) {
+  btnRelatorioMensalExportar.addEventListener("click", () => {
+    const ok = exportarRelatorioMensal();
+    if (!ok) {
+      alert("Popup bloqueado. Permita a abertura para exportar o PDF.");
+    }
+  });
+}
+if (btnRelatorioMensalRdo) {
+  btnRelatorioMensalRdo.addEventListener("click", () => {
+    const ok = gerarRdoMensal();
+    if (!ok) {
+      alert("Popup bloqueado. Permita a abertura para visualizar o RDO mensal.");
     }
   });
 }

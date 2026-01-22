@@ -1621,8 +1621,12 @@
             </p>
           </div>
           <div class="report-actions">
-            <button class="btn btn--ghost btn--small" type="button">Exportar PDF</button>
-            <button class="btn btn--primary btn--small" type="button">Gerar resumo mensal</button>
+            <button id="btnRelatoriosExportar" class="btn btn--ghost btn--small" type="button">
+              Exportar PDF
+            </button>
+            <button id="btnRelatoriosResumo" class="btn btn--primary btn--small" type="button">
+              Gerar resumo mensal
+            </button>
           </div>
         </div>
         <div class="report-toolbar">
@@ -1650,8 +1654,8 @@
             </select>
           </div>
           <div class="field">
-            <label for="relatorioTipo">Tipo</label>
-            <select id="relatorioTipo">
+            <label for="relatorioTipoFiltro">Tipo</label>
+            <select id="relatorioTipoFiltro">
               <option value="">Todos</option>
               <option value="preventiva">Preventiva</option>
               <option value="corretiva">Corretiva</option>
@@ -1662,23 +1666,23 @@
         <div class="report-summary-grid">
           <div class="report-summary">
             <span>Manutencoes no periodo</span>
-            <strong>24</strong>
-            <small>14 concluidas</small>
+            <strong id="relatorioResumoTotal">0</strong>
+            <small id="relatorioResumoConcluidas">0 concluidas</small>
           </div>
           <div class="report-summary">
             <span>Indicadores criticos</span>
-            <strong>3</strong>
-            <small>Alertas priorizados</small>
+            <strong id="relatorioResumoCriticos">0</strong>
+            <small id="relatorioResumoAlertas">Alertas priorizados</small>
           </div>
           <div class="report-summary">
             <span>Evidencias anexadas</span>
-            <strong>68</strong>
-            <small>Fotos, PDFs e registros</small>
+            <strong id="relatorioResumoEvidencias">0</strong>
+            <small id="relatorioResumoEvidenciasLabel">Fotos, PDFs e registros</small>
           </div>
           <div class="report-summary">
             <span>SLA operacional</span>
-            <strong>92%</strong>
-            <small>Conformidade no prazo</small>
+            <strong id="relatorioResumoSla">0%</strong>
+            <small id="relatorioResumoSlaLabel">Conformidade no prazo</small>
           </div>
         </div>
       </section>
@@ -1690,7 +1694,9 @@
               Compilacao completa do dia 1 ate o ultimo dia do mes, pronta para envio ao cliente.
             </p>
           </div>
-          <button class="btn btn--primary btn--small" type="button">Gerar relatorio mensal</button>
+          <button id="btnRelatorioMensalGerar" class="btn btn--primary btn--small" type="button">
+            Gerar relatorio mensal
+          </button>
         </div>
         <div class="report-monthly-grid">
           <div class="field">
@@ -1698,13 +1704,17 @@
             <input id="relatorioMes" type="month" />
           </div>
           <div class="field">
-            <label for="relatorioPeriodoMensal">Periodo consolidado</label>
-            <input id="relatorioPeriodoMensal" type="text" value="01/01/2026 - 31/01/2026" readonly />
+            <label for="relatorioInicioMensal">Periodo inicio</label>
+            <input id="relatorioInicioMensal" type="date" />
+          </div>
+          <div class="field">
+            <label for="relatorioFimMensal">Periodo fim</label>
+            <input id="relatorioFimMensal" type="date" />
           </div>
           <div class="field">
             <label for="relatorioCliente">Cliente</label>
             <select id="relatorioCliente">
-              <option value="">Selecionar cliente</option>
+              <option value="Solarig" selected>Solarig</option>
             </select>
           </div>
         </div>
@@ -1719,28 +1729,16 @@
           </ul>
         </div>
         <div class="report-actions">
-          <button class="btn btn--ghost btn--small" type="button">Preview</button>
-          <button class="btn btn--primary btn--small" type="button">Exportar PDF mensal</button>
+          <button id="btnRelatorioMensalPreview" class="btn btn--ghost btn--small" type="button">
+            Preview
+          </button>
+          <button id="btnRelatorioMensalExportar" class="btn btn--primary btn--small" type="button">
+            Exportar PDF mensal
+          </button>
+          <button id="btnRelatorioMensalRdo" class="btn btn--ghost btn--small" type="button">
+            Gerar RDO mensal
+          </button>
         </div>
-      </section>
-      <section class="card">
-        <div class="report-header">
-          <div>
-            <h2>Relatorios diarios (RDO)</h2>
-            <p class="hint">Consolide a operacao do dia com texto tecnico e evidencias.</p>
-          </div>
-          <div class="report-actions">
-            <button class="btn btn--primary btn--small" type="button">Gerar RDO do dia</button>
-            <button class="btn btn--ghost btn--small" type="button">Excluir selecionados</button>
-          </div>
-        </div>
-        <label class="field--checkbox">
-          <span class="checkbox-field">
-            <input type="checkbox" />
-            <span>Exibir excluidos</span>
-          </span>
-        </label>
-        <p class="empty-state">Nenhum RDO gerado.</p>
       </section>
       <section class="card">
         <h2>Relatorios de manutencao</h2>
