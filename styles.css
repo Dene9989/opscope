@@ -637,6 +637,8 @@ h1 {
 .topbar-logo {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-width: 140px;
   color: var(--sb-text);
   padding-right: 14px;
   margin-right: 6px;
@@ -652,7 +654,7 @@ h1 {
 }
 
 .crumbs {
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   letter-spacing: 0.08em;
   text-transform: none;
   color: var(--sb-muted);
@@ -1950,7 +1952,7 @@ body.is-visitor .notify.auth-only {
 }
 
 .auth-brand__logo-img {
-  height: 100px;
+  height: 200px;
   width: auto;
   display: block;
   object-fit: contain;
