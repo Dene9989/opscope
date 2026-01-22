@@ -1944,11 +1944,18 @@ body.is-visitor .notify.auth-only {
   z-index: 1;
   display: grid;
   gap: var(--space-2);
+  align-items: flex-start;
 }
 
 .auth-brand__logo {
   display: inline-flex;
   align-items: center;
+}
+
+.auth-brand__row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
 }
 
 .auth-brand__logo-img {
@@ -1958,9 +1965,32 @@ body.is-visitor .notify.auth-only {
   object-fit: contain;
 }
 
+.auth-brand__slogan {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  line-height: 1.5;
+  max-width: 260px;
+  background: linear-gradient(90deg, #63ff6a, #ffe56b);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 10px rgba(99, 255, 106, 0.25), 0 0 18px rgba(255, 229, 107, 0.2);
+  animation: sloganFloat 4.5s ease-in-out infinite;
+}
+
 .auth-brand__tagline {
   font-size: 1.05rem;
   color: rgba(231, 238, 247, 0.88);
+}
+
+@keyframes sloganFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
 }
 
 .auth-brand__audit {
