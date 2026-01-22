@@ -1950,6 +1950,7 @@ body.is-visitor .notify.auth-only {
 .auth-brand__logo {
   display: inline-flex;
   align-items: center;
+  margin-left: -10px;
 }
 
 .auth-brand__row {
@@ -1970,11 +1971,8 @@ body.is-visitor .notify.auth-only {
   font-size: 1.1rem;
   line-height: 1.5;
   max-width: 260px;
-  background: linear-gradient(90deg, #63ff6a, #ffe56b);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  text-shadow: 0 0 10px rgba(99, 255, 106, 0.25), 0 0 18px rgba(255, 229, 107, 0.2);
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.18);
   animation: sloganFloat 4.5s ease-in-out infinite;
 }
 
