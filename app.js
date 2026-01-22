@@ -5738,6 +5738,21 @@ function calcDurationMinutes(inicio, fim) {
   return diff;
 }
 
+function getRdoScheduleFromDate(date) {
+  const day = date ? date.getDay() : null;
+  const isFriday = day === 5;
+  const inicio = 7 * 60;
+  const fim = isFriday ? 16 * 60 : 17 * 60;
+  const label = isFriday ? "07:00 - 16:00 (sexta)" : "07:00 - 17:00 (seg-qui)";
+  return { inicio, fim, label };
+}
+
+function calcOverlapMinutes(startA, endA, startB, endB) {
+  const inicio = Math.max(startA, startB);
+  const fim = Math.min(endA, endB);
+  return Math.max(0, fim - inicio);
+}
+
 function renderPerformanceProjetos() {
   if (!perfProjetoCards || !perfProjetoTabela) {
     return;
@@ -7624,7 +7639,10 @@ function montarRdoUI() {
             </div>
           </div>
           <div class="rdo-shift-list" id="rdoJornadaList"></div>
-          <small class="hint">Informe entrada e saida dos colaboradores do projeto BSO2.</small>
+          <small class="hint">
+            Informe entrada e saida dos colaboradores do projeto BSO2. Expediente: 07:00-17:00
+            (seg-qui) e 07:00-16:00 (sex).
+          </small>
         </div>
         <div class="field" data-full>
           <label for="rdoRegistro">Registro gerencial do dia</label>
@@ -8252,6 +8270,9 @@ function renderRdoJornadas(manual = {}) {
   if (!rdoUI.jornadaList) {
     return;
   }
+  const dataStr = rdoUI.data ? rdoUI.data.value : "";
+  const dataBase = dataStr ? parseDate(dataStr) : null;
+  const schedule = getRdoScheduleFromDate(dataBase || new Date());
   const jornadas = Array.isArray(manual.jornadas) ? manual.jornadas : [];
   const jornadasMap = new Map(
     jornadas.map((item) => [String(item.userId || item.nome || item.label || ""), item])
@@ -8295,9 +8316,13 @@ function renderRdoJornadas(manual = {}) {
           <div class="rdo-shift-name">${escapeHtml(label)}</div>
           <div class="rdo-shift-inputs">
             <label>Entrada</label>
-            <input type="time" data-shift="entrada" value="${escapeHtml(ref.entrada || "")}" />
+            <input type="time" data-shift="entrada" value="${escapeHtml(
+              ref.entrada || ""
+            )}" placeholder="07:00" />
             <label>Saida</label>
-            <input type="time" data-shift="saida" value="${escapeHtml(ref.saida || "")}" />
+            <input type="time" data-shift="saida" value="${escapeHtml(
+              ref.saida || ""
+            )}" placeholder="${schedule.fim === 16 * 60 ? "16:00" : "17:00"}" />
           </div>
         </div>
       `;
@@ -9117,8 +9142,15 @@ function renderRdoPreview(snapshot) {
   if (!rdoUI.preview || !rdoUI.previewBody) {
     return;
   }
-  rdoUI.previewBody.innerHTML = buildRdoHtml(snapshot);
-  rdoUI.preview.hidden = false;
+  try {
+    rdoUI.previewBody.innerHTML = buildRdoHtml(snapshot);
+    rdoUI.preview.hidden = false;
+    rdoUI.preview.scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (error) {
+    mostrarMensagemRdo("Nao foi possivel montar o preview do RDO.", true);
+    rdoUI.preview.hidden = false;
+    rdoUI.previewBody.innerHTML = `<p class="empty-state">Preview indisponivel.</p>`;
+  }
 }
 
 function buildRdoHtml(snapshot, options = {}) {
@@ -9163,18 +9195,30 @@ function buildRdoHtml(snapshot, options = {}) {
     ? `OUTRO - ${manual.climaOutro}`
     : manual.clima || "-";
   const jornadas = Array.isArray(manual.jornadas) ? manual.jornadas : [];
+  const schedule = getRdoScheduleFromDate(dataParsed || new Date());
   const jornadasRows = jornadas.map((item) => {
     const entrada = item.entrada || "";
     const saida = item.saida || "";
     const duracaoMin = calcDurationMinutes(entrada, saida);
+    const entradaMin = parseTimeToMinutes(entrada);
+    const saidaMin = parseTimeToMinutes(saida);
+    const expedienteMin =
+      entradaMin === null || saidaMin === null || saidaMin < entradaMin
+        ? 0
+        : calcOverlapMinutes(entradaMin, saidaMin, schedule.inicio, schedule.fim);
+    const extraMin = Math.max(0, duracaoMin - expedienteMin);
     return {
       nome: item.nome || item.label || item.userLabel || "Colaborador",
       entrada: entrada || "-",
       saida: saida || "-",
       duracaoMin,
+      expedienteMin,
+      extraMin,
     };
   });
   const totalJornadaMin = jornadasRows.reduce((acc, row) => acc + (row.duracaoMin || 0), 0);
+  const totalExpedienteMin = jornadasRows.reduce((acc, row) => acc + (row.expedienteMin || 0), 0);
+  const totalExtraCalcMin = jornadasRows.reduce((acc, row) => acc + (row.extraMin || 0), 0);
   const acionamentoMin =
     manual.acionamento && manual.acionamento.ativo
       ? calcDurationMinutes(manual.acionamento.inicio, manual.acionamento.fim)
@@ -9214,6 +9258,8 @@ function buildRdoHtml(snapshot, options = {}) {
             <th>Entrada</th>
             <th>Saida</th>
             <th>Horas</th>
+            <th>Expediente</th>
+            <th>Extra calc</th>
           </tr>
         </thead>
         <tbody>
@@ -9225,6 +9271,8 @@ function buildRdoHtml(snapshot, options = {}) {
                 <td>${escapeHtml(row.entrada)}</td>
                 <td>${escapeHtml(row.saida)}</td>
                 <td>${row.duracaoMin ? escapeHtml(formatDuracaoMin(row.duracaoMin)) : "-"}</td>
+                <td>${row.expedienteMin ? escapeHtml(formatDuracaoMin(row.expedienteMin)) : "-"}</td>
+                <td>${row.extraMin ? escapeHtml(formatDuracaoMin(row.extraMin)) : "-"}</td>
               </tr>
             `
             )
@@ -9247,6 +9295,16 @@ function buildRdoHtml(snapshot, options = {}) {
         <span>Jornada total</span>
         <strong>${totalJornadaMin ? formatDuracaoMin(totalJornadaMin) : "-"}</strong>
         <small>${jornadasRows.length} colaboradores</small>
+      </div>
+      <div class="rdo-summary-item">
+        <span>Expediente</span>
+        <strong>${totalExpedienteMin ? formatDuracaoMin(totalExpedienteMin) : "-"}</strong>
+        <small>Base ${schedule.label}</small>
+      </div>
+      <div class="rdo-summary-item">
+        <span>Extra calculada</span>
+        <strong>${totalExtraCalcMin ? formatDuracaoMin(totalExtraCalcMin) : "-"}</strong>
+        <small>Acima do expediente</small>
       </div>
       <div class="rdo-summary-item">
         <span>Hora extra</span>
