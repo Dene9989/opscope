@@ -4003,8 +4003,11 @@ async function carregarSessaoServidor() {
   }
   await carregarUsuariosServidor();
   renderAuthUI();
-  renderProjectSelector();
-  renderProjectPanel();
+  await refreshProjects();
+  if (!currentUser) {
+    renderProjectSelector();
+    renderProjectPanel();
+  }
   await handleEmailVerification();
   handleFocusFromUrl();
   if (!currentUser) {
@@ -12937,7 +12940,7 @@ function renderProjectSelector() {
   if (!availableProjects.length) {
     const opt = document.createElement("option");
     opt.value = "";
-    opt.textContent = "Sem projetos";
+    opt.textContent = "Sem locais";
     projectSelect.append(opt);
     projectSelect.disabled = true;
   } else {
@@ -13144,10 +13147,19 @@ async function refreshProjects() {
   } catch (error) {
     availableProjects = [];
   }
-  if (activeProjectId && !availableProjects.some((item) => item.id === activeProjectId)) {
+  if (!availableProjects.length) {
+    renderProjectSelector();
+    renderProjectPanel();
+    return;
+  }
+  const activeStillValid = activeProjectId
+    ? availableProjects.some((item) => item.id === activeProjectId)
+    : false;
+  if (!activeStillValid) {
     const fallback = availableProjects[0]?.id || "";
     if (fallback) {
       await setActiveProjectId(fallback, { sync: true, force: true });
+      return;
     }
   }
   renderProjectSelector();
