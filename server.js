@@ -260,14 +260,20 @@ const GRANULAR_ADMIN_PERMISSIONS = {
   verAutomacoes: true,
   verDiagnostico: true,
   verPainelGerencial: true,
+  gerenciarProjetos: false,
+  gerenciarEquipamentos: false,
+  gerenciarEquipeProjeto: false,
+};
+const GRANULAR_PCM_PERMISSIONS = {
+  ...GRANULAR_ADMIN_PERMISSIONS,
   gerenciarProjetos: true,
   gerenciarEquipamentos: true,
   gerenciarEquipeProjeto: true,
 };
 const GRANULAR_DEFAULT_PERMISSIONS = {
-  pcm: GRANULAR_ADMIN_PERMISSIONS,
-  diretor_om: GRANULAR_SUPERVISOR_PERMISSIONS,
-  gerente_contrato: GRANULAR_SUPERVISOR_PERMISSIONS,
+  pcm: GRANULAR_PCM_PERMISSIONS,
+  diretor_om: GRANULAR_ADMIN_PERMISSIONS,
+  gerente_contrato: GRANULAR_ADMIN_PERMISSIONS,
   supervisor_om: GRANULAR_SUPERVISOR_PERMISSIONS,
   tecnico_senior: GRANULAR_BASE_PERMISSIONS,
   tecnico_pleno: GRANULAR_BASE_PERMISSIONS,
@@ -1038,6 +1044,9 @@ function getUserProjectIds(user) {
   if (!user || !user.id) {
     return [];
   }
+  if (isPcmRole(user.rbacRole || user.role)) {
+    return projects.map((project) => project.id).filter(Boolean);
+  }
   const ids = projectUsers
     .filter((entry) => entry && entry.userId === user.id)
     .map((entry) => entry.projectId)
@@ -1059,6 +1068,9 @@ function getProjectIdsForUserId(userId) {
 function userHasProjectAccess(user, projectId) {
   if (!user || !projectId) {
     return false;
+  }
+  if (isPcmRole(user.rbacRole || user.role)) {
+    return true;
   }
   return projectUsers.some(
     (entry) => entry && entry.userId === user.id && entry.projectId === projectId
@@ -1519,6 +1531,10 @@ function isFullAccessRole(role) {
   return FULL_ACCESS_ROLES.has(normalizeRbacRole(role));
 }
 
+function isPcmRole(role) {
+  return normalizeRbacRole(role) === "pcm";
+}
+
 function getUserEmail(user) {
   if (!user) {
     return "";
@@ -1666,10 +1682,19 @@ function getProfileKeyForUser(user) {
 
 function getGranularPermissionsForUser(user) {
   const profileKey = getProfileKeyForUser(user);
-  if (granularPermissions && granularPermissions[profileKey]) {
-    return granularPermissions[profileKey];
+  const base =
+    granularPermissions && granularPermissions[profileKey]
+      ? granularPermissions[profileKey]
+      : GRANULAR_DEFAULT_PERMISSIONS[profileKey] || GRANULAR_BASE_PERMISSIONS;
+  if (!isPcmRole(user && (user.rbacRole || user.role))) {
+    return {
+      ...base,
+      gerenciarProjetos: false,
+      gerenciarEquipamentos: false,
+      gerenciarEquipeProjeto: false,
+    };
   }
-  return GRANULAR_DEFAULT_PERMISSIONS[profileKey] || GRANULAR_BASE_PERMISSIONS;
+  return base;
 }
 
 function hasGranularPermission(user, permissionKey) {
