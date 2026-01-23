@@ -4688,6 +4688,48 @@ label {
   margin-top: 12px;
 }
 
+.project-panel .project-form {
+  display: grid;
+  gap: 16px;
+}
+
+.project-panel .form-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.project-panel .form-actions {
+  margin-top: 4px;
+  gap: 10px;
+}
+
+.project-panel .report-table__wrap {
+  margin-top: 18px;
+  overflow-x: auto;
+}
+
+.project-panel .report__table {
+  width: 100%;
+  table-layout: auto;
+  min-width: 640px;
+}
+
+.project-panel .report__table th,
+.project-panel .report__table td {
+  white-space: normal;
+  word-break: break-word;
+}
+
+.project-panel .table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+#equipeFormUser {
+  min-height: 160px;
+}
+
 #nova-manutencao .form-grid {
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   align-items: start;

@@ -182,6 +182,7 @@ const crumbs = document.getElementById("crumbs");
 const projectTabs = Array.from(document.querySelectorAll("[data-project-tab]"));
 const projectPanels = Array.from(document.querySelectorAll("[data-project-panel]"));
 const projectForm = document.getElementById("projectForm");
+const projectFormSelect = document.getElementById("projectFormSelect");
 const projectFormId = document.getElementById("projectFormId");
 const projectFormCodigo = document.getElementById("projectFormCodigo");
 const projectFormNome = document.getElementById("projectFormNome");
@@ -192,6 +193,7 @@ const projectTable = document.getElementById("projectTable");
 const projectTableBody = document.querySelector("#projectTable tbody");
 const equipamentoForm = document.getElementById("equipamentoForm");
 const equipamentoFormId = document.getElementById("equipamentoFormId");
+const equipamentoFormProject = document.getElementById("equipamentoFormProject");
 const equipamentoFormTag = document.getElementById("equipamentoFormTag");
 const equipamentoFormNome = document.getElementById("equipamentoFormNome");
 const equipamentoFormCategoria = document.getElementById("equipamentoFormCategoria");
@@ -201,6 +203,7 @@ const equipamentoTable = document.getElementById("equipamentoTable");
 const equipamentoTableBody = document.querySelector("#equipamentoTable tbody");
 const equipeForm = document.getElementById("equipeForm");
 const equipeFormUser = document.getElementById("equipeFormUser");
+const equipeSearch = document.getElementById("equipeSearch");
 const equipeTable = document.getElementById("equipeTable");
 const equipeTableBody = document.querySelector("#equipeTable tbody");
 const btnLembretes = document.getElementById("btnBell") || document.getElementById("btnLembretes");
@@ -13121,6 +13124,26 @@ function renderProjetosTable() {
   });
 }
 
+function renderProjectFormSelect() {
+  if (!projectFormSelect) {
+    return;
+  }
+  projectFormSelect.innerHTML = "";
+  const optNew = document.createElement("option");
+  optNew.value = "";
+  optNew.textContent = "Novo projeto";
+  projectFormSelect.append(optNew);
+  availableProjects.forEach((project) => {
+    const opt = document.createElement("option");
+    opt.value = project.id;
+    opt.textContent = getProjectLabel(project);
+    projectFormSelect.append(opt);
+  });
+  if (projectFormId && projectFormId.value) {
+    projectFormSelect.value = projectFormId.value;
+  }
+}
+
 function renderEquipamentosTable() {
   if (!equipamentoTableBody) {
     return;
@@ -13165,15 +13188,26 @@ function renderEquipeSelectOptions() {
   if (!equipeFormUser) {
     return;
   }
+  const selecionados = new Set(
+    Array.from(equipeFormUser.selectedOptions || []).map((option) => option.value)
+  );
   equipeFormUser.innerHTML = "";
+  const termo = equipeSearch ? normalizeSearchValue(equipeSearch.value || "") : "";
   const vinculados = new Set(projectEquipe.map((entry) => entry.userId));
   users.forEach((user) => {
     if (vinculados.has(user.id)) {
       return;
     }
+    const label = `${user.name || user.matricula || user.username || "-"} (${getRoleLabel(user)})`;
+    if (termo && !normalizeSearchValue(label).includes(termo)) {
+      return;
+    }
     const opt = document.createElement("option");
     opt.value = user.id;
-    opt.textContent = `${user.name || user.matricula || user.username || "-"} (${getRoleLabel(user)})`;
+    opt.textContent = label;
+    if (selecionados.has(user.id)) {
+      opt.selected = true;
+    }
     equipeFormUser.append(opt);
   });
 }
@@ -13206,10 +13240,12 @@ function renderEquipeTable() {
 
 function renderProjectPanel() {
   renderProjetosTable();
+  renderProjectFormSelect();
   renderEquipamentosTable();
   renderEquipamentoOptions();
   renderEquipeTable();
   renderEquipeSelectOptions();
+  renderProjectSelectOptions(equipamentoFormProject, activeProjectId);
   setFormDisabled(projectForm, !(currentUser && canManageProjetos(currentUser)));
   setFormDisabled(equipamentoForm, !(currentUser && canManageEquipamentos(currentUser)));
   setFormDisabled(equipeForm, !(currentUser && canManageEquipeProjeto(currentUser)));
@@ -13225,6 +13261,22 @@ function resetProjectForm() {
   if (projectFormId) {
     projectFormId.value = "";
   }
+  if (projectFormSelect) {
+    projectFormSelect.value = "";
+  }
+}
+
+function setProjectFormValues(project) {
+  if (!project) {
+    resetProjectForm();
+    return;
+  }
+  if (projectFormId) projectFormId.value = project.id || "";
+  if (projectFormCodigo) projectFormCodigo.value = project.codigo || "";
+  if (projectFormNome) projectFormNome.value = project.nome || "";
+  if (projectFormCliente) projectFormCliente.value = project.cliente || "";
+  if (projectFormDescricao) projectFormDescricao.value = project.descricao || "";
+  if (projectFormSelect) projectFormSelect.value = project.id || "";
 }
 
 function resetEquipamentoForm() {
@@ -13233,6 +13285,9 @@ function resetEquipamentoForm() {
   }
   if (equipamentoFormId) {
     equipamentoFormId.value = "";
+  }
+  if (equipamentoFormProject) {
+    equipamentoFormProject.value = activeProjectId || "";
   }
 }
 
@@ -18271,6 +18326,20 @@ if (projectSelect) {
   });
 }
 
+if (projectFormSelect) {
+  projectFormSelect.addEventListener("change", () => {
+    const projectId = projectFormSelect.value;
+    if (!projectId) {
+      resetProjectForm();
+      return;
+    }
+    const project = availableProjects.find((item) => item.id === projectId);
+    if (project) {
+      setProjectFormValues(project);
+    }
+  });
+}
+
 if (manutencaoProjeto) {
   manutencaoProjeto.addEventListener("change", (event) => {
     const nextId = event.target.value;
@@ -18283,6 +18352,16 @@ if (manutencaoProjeto) {
 
 if (templateProjeto) {
   templateProjeto.addEventListener("change", (event) => {
+    const nextId = event.target.value;
+    if (!nextId) {
+      return;
+    }
+    setActiveProjectId(nextId);
+  });
+}
+
+if (equipamentoFormProject) {
+  equipamentoFormProject.addEventListener("change", (event) => {
     const nextId = event.target.value;
     if (!nextId) {
       return;
@@ -18364,11 +18443,7 @@ if (projectTable) {
       if (!project) {
         return;
       }
-      if (projectFormId) projectFormId.value = project.id;
-      if (projectFormCodigo) projectFormCodigo.value = project.codigo || "";
-      if (projectFormNome) projectFormNome.value = project.nome || "";
-      if (projectFormCliente) projectFormCliente.value = project.cliente || "";
-      if (projectFormDescricao) projectFormDescricao.value = project.descricao || "";
+      setProjectFormValues(project);
       return;
     }
     if (action.dataset.action === "delete-project") {
@@ -18398,12 +18473,24 @@ if (equipamentoForm) {
       categoria: equipamentoFormCategoria ? equipamentoFormCategoria.value.trim() : "",
       descricao: equipamentoFormDescricao ? equipamentoFormDescricao.value.trim() : "",
     };
+    const targetProjectId = equipamentoFormProject
+      ? equipamentoFormProject.value.trim()
+      : activeProjectId;
     const equipamentoId = equipamentoFormId ? equipamentoFormId.value.trim() : "";
     try {
       if (equipamentoId) {
+        if (targetProjectId && targetProjectId !== activeProjectId) {
+          await setActiveProjectId(targetProjectId);
+        }
         await apiEquipamentosUpdate(equipamentoId, payload);
-      } else if (activeProjectId) {
-        await apiProjetosEquipamentosCreate(activeProjectId, payload);
+      } else if (targetProjectId) {
+        await apiProjetosEquipamentosCreate(targetProjectId, payload);
+        if (targetProjectId !== activeProjectId) {
+          await setActiveProjectId(targetProjectId);
+        }
+      } else {
+        alert("Selecione um projeto para o equipamento.");
+        return;
       }
       resetEquipamentoForm();
       await carregarEquipamentosProjeto();
@@ -18442,6 +18529,9 @@ if (equipamentoTable) {
     }
     if (action.dataset.action === "edit-equipment") {
       if (equipamentoFormId) equipamentoFormId.value = equipamento.id;
+      if (equipamentoFormProject) {
+        equipamentoFormProject.value = equipamento.projectId || activeProjectId || "";
+      }
       if (equipamentoFormTag) equipamentoFormTag.value = equipamento.tag || "";
       if (equipamentoFormNome) equipamentoFormNome.value = equipamento.nome || "";
       if (equipamentoFormCategoria) equipamentoFormCategoria.value = equipamento.categoria || "";
@@ -18482,10 +18572,19 @@ if (equipeForm) {
       if (equipeForm) {
         equipeForm.reset();
       }
+      if (equipeSearch) {
+        equipeSearch.value = "";
+      }
       await carregarEquipeProjeto();
     } catch (error) {
       alert(error && error.message ? error.message : "Falha ao adicionar equipe.");
     }
+  });
+}
+
+if (equipeSearch) {
+  equipeSearch.addEventListener("input", () => {
+    renderEquipeSelectOptions();
   });
 }
 

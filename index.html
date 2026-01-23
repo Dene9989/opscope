@@ -1587,6 +1587,13 @@
           <form id="projectForm" class="project-form">
             <input id="projectFormId" type="hidden" />
             <div class="form-grid">
+              <div class="field field--full">
+                <label for="projectFormSelect">Projeto para editar</label>
+                <select id="projectFormSelect">
+                  <option value="">Novo projeto</option>
+                </select>
+                <p class="hint">Selecione um projeto para editar ou deixe em branco para criar.</p>
+              </div>
               <div class="field">
                 <label for="projectFormCodigo">Codigo</label>
                 <input id="projectFormCodigo" type="text" placeholder="834" required />
@@ -1628,6 +1635,13 @@
             <input id="equipamentoFormId" type="hidden" />
             <div class="form-grid">
               <div class="field">
+                <label for="equipamentoFormProject">Projeto</label>
+                <select id="equipamentoFormProject">
+                  <option value="">Selecione</option>
+                </select>
+                <p class="hint">Equipamentos aparecem apenas no projeto selecionado.</p>
+              </div>
+              <div class="field">
                 <label for="equipamentoFormTag">Tag</label>
                 <input id="equipamentoFormTag" type="text" placeholder="INV-01" required />
               </div>
@@ -1668,7 +1682,12 @@
           <form id="equipeForm" class="project-form">
             <div class="form-grid">
               <div class="field">
-                <label for="equipeFormUser">Usuario</label>
+                <label for="equipeSearch">Buscar colaborador</label>
+                <input id="equipeSearch" type="search" placeholder="Digite o nome do colaborador" />
+                <p class="hint">Digite o primeiro nome para filtrar a lista abaixo.</p>
+              </div>
+              <div class="field field--full">
+                <label for="equipeFormUser">Selecionar usuarios</label>
                 <select id="equipeFormUser" multiple required></select>
               </div>
             </div>
