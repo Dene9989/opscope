@@ -1568,41 +1568,62 @@
         <div class="performance-grid">
           <div class="performance-card">
             <div class="performance-card__header">
-              <h3>Velocidade de execucao</h3>
-              <span class="badge badge--ok">Meta 24h</span>
+              <div class="performance-card__title">
+                <h3>Velocidade de execucao</h3>
+                <span
+                  class="kpi-info kpi-info--dark"
+                  data-tooltip="O que e: percentual de execucoes concluidas em ate 24h.&#10;Como calcula: concluidas no periodo com duracao <= 24h / concluidas com duracao registrada.&#10;Resultado: barra mostra %, tempo medio e ultima semana mostram a media de duracao."
+                  aria-label="Detalhes da velocidade de execucao"
+                >i</span>
+              </div>
+              <span class="badge badge--ok" id="perfExecBadge">Meta 24h</span>
             </div>
-            <div class="progress">
-              <span style="width: 72%;">72%</span>
+            <div class="progress" id="perfExecProgress">
+              <span id="perfExecProgressValue" style="width: 0%;">0%</span>
             </div>
             <div class="performance-meta">
-              <span>Tempo medio: 18h</span>
-              <span>Ultima semana: 21h</span>
+              <span id="perfExecTempoMedio">Tempo medio: -</span>
+              <span id="perfExecSemana">Ultima semana: -</span>
             </div>
           </div>
           <div class="performance-card">
             <div class="performance-card__header">
-              <h3>SLA operacional</h3>
-              <span class="badge badge--warn">Atenção</span>
+              <div class="performance-card__title">
+                <h3>SLA operacional</h3>
+                <span
+                  class="kpi-info kpi-info--dark"
+                  data-tooltip="O que e: percentual de manutencoes concluidas no prazo programado.&#10;Como calcula: concluidas no periodo com data de conclusao <= data programada / concluidas com data programada.&#10;Resultado: barra mostra %, contadores indicam no prazo e fora do prazo."
+                  aria-label="Detalhes do SLA operacional"
+                >i</span>
+              </div>
+              <span class="badge badge--warn" id="perfSlaBadge">Atencao</span>
             </div>
-            <div class="progress progress--warn">
-              <span style="width: 58%;">58%</span>
+            <div class="progress progress--warn" id="perfSlaProgress">
+              <span id="perfSlaProgressValue" style="width: 0%;">0%</span>
             </div>
             <div class="performance-meta">
-              <span>No prazo: 14</span>
-              <span>Fora do prazo: 6</span>
+              <span id="perfSlaNoPrazo">No prazo: 0</span>
+              <span id="perfSlaForaPrazo">Fora do prazo: 0</span>
             </div>
           </div>
           <div class="performance-card">
             <div class="performance-card__header">
-              <h3>Reaberturas</h3>
-              <span class="badge badge--ok">Controlado</span>
+              <div class="performance-card__title">
+                <h3>Reaberturas</h3>
+                <span
+                  class="kpi-info kpi-info--dark"
+                  data-tooltip="O que e: reaberturas de execucao (novo inicio apos conclusao).&#10;Como calcula: conta reinicios de execucao apos concluir; percentual usa concluidas no periodo.&#10;Resultado: barra mostra a taxa, ultimos 7 dias mostra volume recente."
+                  aria-label="Detalhes das reaberturas"
+                >i</span>
+              </div>
+              <span class="badge badge--ok" id="perfReopenBadge">Controlado</span>
             </div>
-            <div class="progress progress--cool">
-              <span style="width: 12%;">12%</span>
+            <div class="progress progress--cool" id="perfReopenProgress">
+              <span id="perfReopenProgressValue" style="width: 0%;">0%</span>
             </div>
             <div class="performance-meta">
-              <span>Ultimos 7 dias: 3</span>
-              <span>Impacto: baixo</span>
+              <span id="perfReopenUltimos">Ultimos 7 dias: 0</span>
+              <span id="perfReopenImpacto">Impacto: baixo</span>
             </div>
           </div>
         </div>
@@ -3481,5 +3502,8 @@
     <script src="app.js"></script>
   </body>
 </html>
+
+
+
 
 

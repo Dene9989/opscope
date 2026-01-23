@@ -6641,9 +6641,25 @@ textarea:focus {
   gap: 10px;
 }
 
+.performance-card__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .performance-card__header h3 {
   margin: 0;
   font-size: 0.95rem;
+}
+
+.performance-card .kpi-info {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(233, 239, 247, 0.78);
+}
+
+.performance-card .kpi-info::after {
+  left: 0;
+  right: auto;
 }
 
 .performance-meta {

@@ -148,6 +148,21 @@ const kpiDrilldownTitulo = document.getElementById("kpiDrilldownTitulo");
 const kpiDrilldownTabela = document.getElementById("kpiDrilldownTabela");
 const kpiDrilldownVazio = document.getElementById("kpiDrilldownVazio");
 const kpiDrilldownLimite = document.getElementById("kpiDrilldownLimite");
+const perfExecBadge = document.getElementById("perfExecBadge");
+const perfExecProgress = document.getElementById("perfExecProgress");
+const perfExecProgressValue = document.getElementById("perfExecProgressValue");
+const perfExecTempoMedio = document.getElementById("perfExecTempoMedio");
+const perfExecSemana = document.getElementById("perfExecSemana");
+const perfSlaBadge = document.getElementById("perfSlaBadge");
+const perfSlaProgress = document.getElementById("perfSlaProgress");
+const perfSlaProgressValue = document.getElementById("perfSlaProgressValue");
+const perfSlaNoPrazo = document.getElementById("perfSlaNoPrazo");
+const perfSlaForaPrazo = document.getElementById("perfSlaForaPrazo");
+const perfReopenBadge = document.getElementById("perfReopenBadge");
+const perfReopenProgress = document.getElementById("perfReopenProgress");
+const perfReopenProgressValue = document.getElementById("perfReopenProgressValue");
+const perfReopenUltimos = document.getElementById("perfReopenUltimos");
+const perfReopenImpacto = document.getElementById("perfReopenImpacto");
 const homeHoje = document.getElementById("homeHoje");
 const homeAtrasadas = document.getElementById("homeAtrasadas");
 const homeCriticas = document.getElementById("homeCriticas");
@@ -5721,6 +5736,221 @@ function getPerfCriticalClass(value) {
     return "perf-badge--warn";
   }
   return "perf-badge--danger";
+}
+
+function clampPercent(value) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function setBadgeState(badge, className, label) {
+  if (!badge) {
+    return;
+  }
+  badge.classList.remove("badge--ok", "badge--warn", "badge--danger");
+  if (className) {
+    badge.classList.add(className);
+  }
+  if (label) {
+    badge.textContent = label;
+  }
+}
+
+function setProgressVariant(progress, variant) {
+  if (!progress) {
+    return;
+  }
+  progress.classList.remove("progress--warn", "progress--cool");
+  if (variant) {
+    progress.classList.add(variant);
+  }
+}
+
+function getExecucaoDuracaoMin(item) {
+  if (item && item.conclusao && Number.isFinite(item.conclusao.duracaoMin)) {
+    return item.conclusao.duracaoMin;
+  }
+  const inicio = getItemInicioExecucaoDate(item);
+  const fim = getItemFimExecucaoDate(item);
+  if (!inicio || !fim) {
+    return null;
+  }
+  const diff = Math.round((fim - inicio) / 60000);
+  if (!Number.isFinite(diff) || diff < 0) {
+    return null;
+  }
+  return diff;
+}
+
+function calcularMediaDuracao(items) {
+  const duracoes = items
+    .map((item) => getExecucaoDuracaoMin(item))
+    .filter((value) => Number.isFinite(value));
+  if (!duracoes.length) {
+    return { media: null, duracoes };
+  }
+  const total = duracoes.reduce((acc, value) => acc + value, 0);
+  return { media: total / duracoes.length, duracoes };
+}
+
+function getReopenEvents() {
+  if (!auditLog || !auditLog.length) {
+    return [];
+  }
+  const grouped = new Map();
+  auditLog.forEach((entry) => {
+    if (!entry || !entry.manutencaoId) {
+      return;
+    }
+    const time = parseTimestamp(entry.timestamp);
+    if (!time) {
+      return;
+    }
+    if (!grouped.has(entry.manutencaoId)) {
+      grouped.set(entry.manutencaoId, []);
+    }
+    grouped.get(entry.manutencaoId).push({ action: entry.action, time });
+  });
+  const events = [];
+  grouped.forEach((entries) => {
+    entries.sort((a, b) => a.time - b.time);
+    let lastComplete = null;
+    entries.forEach((entry) => {
+      if (entry.action === "complete") {
+        lastComplete = entry.time;
+        return;
+      }
+      if (entry.action === "execute" && lastComplete && entry.time > lastComplete) {
+        events.push(entry.time);
+        lastComplete = null;
+      }
+    });
+  });
+  return events;
+}
+
+function renderDesempenho() {
+  if (
+    !perfExecProgressValue &&
+    !perfSlaProgressValue &&
+    !perfReopenProgressValue
+  ) {
+    return;
+  }
+  const periodo = getPeriodoFiltro("30");
+  const semana = getPeriodoFiltro("7");
+  const concluidasPeriodo = manutencoes.filter((item) => {
+    if (item.status !== "concluida") {
+      return false;
+    }
+    const concluidaEm = getItemConclusaoDate(item);
+    if (!concluidaEm) {
+      return false;
+    }
+    return inRange(startOfDay(concluidaEm), periodo.inicio, periodo.fim);
+  });
+  const concluidasSemana = manutencoes.filter((item) => {
+    if (item.status !== "concluida") {
+      return false;
+    }
+    const concluidaEm = getItemConclusaoDate(item);
+    if (!concluidaEm) {
+      return false;
+    }
+    return inRange(startOfDay(concluidaEm), semana.inicio, semana.fim);
+  });
+
+  const metaMin = 24 * 60;
+  const mediaPeriodo = calcularMediaDuracao(concluidasPeriodo);
+  const mediaSemana = calcularMediaDuracao(concluidasSemana);
+  const dentroMeta = mediaPeriodo.duracoes.filter((value) => value <= metaMin).length;
+  const velocidadePct = clampPercent(calcPercent(dentroMeta, mediaPeriodo.duracoes.length));
+
+  if (perfExecProgressValue) {
+    perfExecProgressValue.textContent = `${velocidadePct}%`;
+    perfExecProgressValue.style.width = `${velocidadePct}%`;
+  }
+  if (perfExecTempoMedio) {
+    perfExecTempoMedio.textContent = `Tempo medio: ${
+      mediaPeriodo.media === null ? "-" : formatDuracaoMin(mediaPeriodo.media)
+    }`;
+  }
+  if (perfExecSemana) {
+    perfExecSemana.textContent = `Ultima semana: ${
+      mediaSemana.media === null ? "-" : formatDuracaoMin(mediaSemana.media)
+    }`;
+  }
+  if (perfExecBadge) {
+    const badgeClass = velocidadePct >= 90 ? "badge--ok" : velocidadePct >= 75 ? "badge--warn" : "badge--danger";
+    setBadgeState(perfExecBadge, badgeClass, "Meta 24h");
+  }
+
+  const slaStats = concluidasPeriodo.reduce(
+    (acc, item) => {
+      const sla = isSlaCompliant(item);
+      if (sla === true) {
+        acc.noPrazo += 1;
+      } else if (sla === false) {
+        acc.foraPrazo += 1;
+      }
+      return acc;
+    },
+    { noPrazo: 0, foraPrazo: 0 }
+  );
+  const slaPct = clampPercent(calcPercent(slaStats.noPrazo, slaStats.noPrazo + slaStats.foraPrazo));
+
+  if (perfSlaProgressValue) {
+    perfSlaProgressValue.textContent = `${slaPct}%`;
+    perfSlaProgressValue.style.width = `${slaPct}%`;
+  }
+  if (perfSlaNoPrazo) {
+    perfSlaNoPrazo.textContent = `No prazo: ${slaStats.noPrazo}`;
+  }
+  if (perfSlaForaPrazo) {
+    perfSlaForaPrazo.textContent = `Fora do prazo: ${slaStats.foraPrazo}`;
+  }
+  if (perfSlaBadge) {
+    const label = slaPct >= 90 ? "No prazo" : slaPct >= 75 ? "Atencao" : "Critico";
+    const badgeClass = slaPct >= 90 ? "badge--ok" : slaPct >= 75 ? "badge--warn" : "badge--danger";
+    setBadgeState(perfSlaBadge, badgeClass, label);
+  }
+  if (perfSlaProgress) {
+    const variant = slaPct >= 90 ? "" : "progress--warn";
+    setProgressVariant(perfSlaProgress, variant);
+  }
+
+  const reopenEvents = getReopenEvents();
+  const reopensPeriodo = reopenEvents.filter((time) =>
+    inRange(startOfDay(time), periodo.inicio, periodo.fim)
+  ).length;
+  const reopensSemana = reopenEvents.filter((time) =>
+    inRange(startOfDay(time), semana.inicio, semana.fim)
+  ).length;
+  const reopensBase = concluidasPeriodo.length || reopensPeriodo;
+  const reopensPct = clampPercent(calcPercent(reopensPeriodo, reopensBase));
+
+  if (perfReopenProgressValue) {
+    perfReopenProgressValue.textContent = `${reopensPct}%`;
+    perfReopenProgressValue.style.width = `${reopensPct}%`;
+  }
+  if (perfReopenUltimos) {
+    perfReopenUltimos.textContent = `Ultimos 7 dias: ${reopensSemana}`;
+  }
+  if (perfReopenImpacto) {
+    const impacto = reopensPct <= 10 ? "baixo" : reopensPct <= 20 ? "moderado" : "alto";
+    perfReopenImpacto.textContent = `Impacto: ${impacto}`;
+  }
+  if (perfReopenBadge) {
+    const badgeClass = reopensPct <= 10 ? "badge--ok" : reopensPct <= 20 ? "badge--warn" : "badge--danger";
+    const label = reopensPct <= 10 ? "Controlado" : reopensPct <= 20 ? "Atencao" : "Critico";
+    setBadgeState(perfReopenBadge, badgeClass, label);
+  }
+  if (perfReopenProgress) {
+    const variant = reopensPct <= 10 ? "progress--cool" : "progress--warn";
+    setProgressVariant(perfReopenProgress, variant);
+  }
 }
 
 function parseTimeToMinutes(value) {
@@ -13346,6 +13576,7 @@ function renderTudo() {
   });
   renderExecucao();
   renderKPIs();
+  renderDesempenho();
   renderGrafico();
   renderAuditoria();
   renderRelatorios();
