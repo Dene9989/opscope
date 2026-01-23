@@ -559,11 +559,29 @@ async function initDatabase() {
   await dbPool.query(
     `CREATE TABLE IF NOT EXISTS ${DB_STORE_TABLE} (
       key TEXT PRIMARY KEY,
-      payload JSONB NOT NULL,
+      payload TEXT NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`
   );
+  try {
+    const typeCheck = await dbPool.query(
+      `SELECT data_type
+       FROM information_schema.columns
+       WHERE table_name = $1 AND column_name = 'payload'`,
+      [DB_STORE_TABLE]
+    );
+    const currentType = typeCheck.rows[0]?.data_type || "";
+    if (currentType && currentType !== "text") {
+      await dbPool.query(
+        `ALTER TABLE ${DB_STORE_TABLE}
+         ALTER COLUMN payload TYPE TEXT
+         USING payload::text`
+      );
+    }
+  } catch (error) {
+    console.warn("[db] Falha ao ajustar coluna payload:", error.message || error);
+  }
   dbReady = true;
 }
 
@@ -571,12 +589,16 @@ async function upsertStorePayload(key, payload) {
   if (!dbReady || !dbPool || !key) {
     return;
   }
+  let serialized = JSON.stringify(payload);
+  if (typeof serialized !== "string") {
+    serialized = "null";
+  }
   await dbPool.query(
     `INSERT INTO ${DB_STORE_TABLE} (key, payload, updated_at)
      VALUES ($1, $2, NOW())
      ON CONFLICT (key)
      DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()`,
-    [key, payload]
+    [key, serialized]
   );
 }
 
@@ -591,7 +613,19 @@ async function fetchStorePayload(key) {
   if (!result || !result.rowCount) {
     return null;
   }
-  return result.rows[0].payload;
+  const raw = result.rows[0].payload;
+  if (raw === null || typeof raw === "undefined") {
+    return null;
+  }
+  if (typeof raw !== "string") {
+    return raw;
+  }
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    console.warn("[db] Payload invalido para", key);
+    return null;
+  }
 }
 
 function queueDbWrite(filePath, data) {
