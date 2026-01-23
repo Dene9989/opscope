@@ -436,8 +436,6 @@ function normalizeProject(record) {
     nome: String(record && record.nome ? record.nome : "").trim(),
     cliente: String(record && record.cliente ? record.cliente : "").trim(),
     descricao: String(record && record.descricao ? record.descricao : "").trim(),
-    dataInicio: record && record.dataInicio ? String(record.dataInicio) : "",
-    dataFim: record && record.dataFim ? String(record.dataFim) : "",
     createdAt: record && record.createdAt ? record.createdAt : now,
     updatedAt: record && record.updatedAt ? record.updatedAt : now,
   };
@@ -1024,6 +1022,19 @@ function ensureDefaultProject() {
 }
 
 function mapUserRoleToProjectRole(user) {
+  const cargo = normalizeCargo(user && user.cargo);
+  if (cargo.includes("diretor")) {
+    return "Diretor";
+  }
+  if (cargo.includes("gerente")) {
+    return "Gerente";
+  }
+  if (cargo.includes("supervisor")) {
+    return "Supervisor";
+  }
+  if (cargo.includes("tecnico")) {
+    return "Tecnico";
+  }
   const role = normalizeRbacRole(user && (user.rbacRole || user.role));
   if (role === "pcm") {
     return "Gerente";
@@ -2620,8 +2631,6 @@ app.post("/api/projetos", requireAuth, requirePermission("gerenciarProjetos"), (
     nome,
     cliente: payload.cliente || "",
     descricao: payload.descricao || "",
-    dataInicio: payload.dataInicio || "",
-    dataFim: payload.dataFim || "",
   });
   projects = projects.concat(record);
   saveProjects(projects);
@@ -2714,25 +2723,40 @@ app.post(
   requireProjectAccess,
   (req, res) => {
     const projectId = req.projectId;
-    const userId = String(req.body.userId || "").trim();
-    const papel = String(req.body.papel || "").trim();
-    if (!userId || !papel) {
-      return res.status(400).json({ message: "Usuario e papel sao obrigatorios." });
+    const ids = Array.isArray(req.body.userIds)
+      ? req.body.userIds
+      : req.body.userId
+        ? [req.body.userId]
+        : [];
+    const userIds = ids.map((value) => String(value || "").trim()).filter(Boolean);
+    if (!userIds.length) {
+      return res.status(400).json({ message: "Usuarios obrigatorios." });
     }
-    const alvo = users.find((item) => item.id === userId);
-    if (!alvo) {
-      return res.status(404).json({ message: "Usuario nao encontrado." });
+    const created = [];
+    for (const userId of userIds) {
+      const alvo = users.find((item) => item.id === userId);
+      if (!alvo) {
+        continue;
+      }
+      const exists = projectUsers.some(
+        (entry) => entry.userId === userId && entry.projectId === projectId
+      );
+      if (exists) {
+        continue;
+      }
+      const entry = normalizeProjectUser({
+        projectId,
+        userId,
+        papel: mapUserRoleToProjectRole(alvo),
+      });
+      created.push(entry);
     }
-    const exists = projectUsers.some(
-      (entry) => entry.userId === userId && entry.projectId === projectId
-    );
-    if (exists) {
-      return res.status(409).json({ message: "Usuario ja vinculado ao projeto." });
+    if (!created.length) {
+      return res.status(409).json({ message: "Usuarios ja vinculados ou invalidos." });
     }
-    const entry = normalizeProjectUser({ projectId, userId, papel });
-    projectUsers = projectUsers.concat(entry);
+    projectUsers = projectUsers.concat(created);
     saveProjectUsers(projectUsers);
-    return res.json({ entry });
+    return res.json({ entries: created });
   }
 );
 

@@ -186,8 +186,6 @@ const projectFormCodigo = document.getElementById("projectFormCodigo");
 const projectFormNome = document.getElementById("projectFormNome");
 const projectFormCliente = document.getElementById("projectFormCliente");
 const projectFormDescricao = document.getElementById("projectFormDescricao");
-const projectFormInicio = document.getElementById("projectFormInicio");
-const projectFormFim = document.getElementById("projectFormFim");
 const projectFormCancel = document.getElementById("projectFormCancel");
 const projectTable = document.getElementById("projectTable");
 const projectTableBody = document.querySelector("#projectTable tbody");
@@ -202,7 +200,6 @@ const equipamentoTable = document.getElementById("equipamentoTable");
 const equipamentoTableBody = document.querySelector("#equipamentoTable tbody");
 const equipeForm = document.getElementById("equipeForm");
 const equipeFormUser = document.getElementById("equipeFormUser");
-const equipeFormPapel = document.getElementById("equipeFormPapel");
 const equipeTable = document.getElementById("equipeTable");
 const equipeTableBody = document.querySelector("#equipeTable tbody");
 const btnLembretes = document.getElementById("btnBell") || document.getElementById("btnLembretes");
@@ -620,7 +617,7 @@ const SECTION_LABELS = {
   modelos: "Modelos e recorrencias",
   execucao: "Execucao do dia",
   backlog: "Backlog",
-  projetos: "Projetos",
+  projetos: "Locais de trabalho",
   desempenho: "Desempenho",
   "performance-projects": "Desempenho por projeto",
   "performance-people": "Desempenho por colaborador",
@@ -12957,7 +12954,7 @@ function renderProjectSelector() {
     }
   }
   if (projectSelectLabel) {
-    projectSelectLabel.textContent = "Projeto ativo";
+    projectSelectLabel.textContent = "Local ativo";
   }
   if (projectManageBtn) {
     const canManage =
@@ -12995,9 +12992,6 @@ function renderProjetosTable() {
   }
   availableProjects.forEach((project) => {
     const tr = document.createElement("tr");
-    const periodo = project.dataInicio || project.dataFim
-      ? `${project.dataInicio || "-"} -> ${project.dataFim || "-"}`
-      : "-";
     const actions = [];
     actions.push(`<button type="button" class="btn btn--ghost btn--small" data-action="set-active">Ativar</button>`);
     if (currentUser && canManageProjetos(currentUser)) {
@@ -13009,7 +13003,6 @@ function renderProjetosTable() {
       <td>${escapeHtml(project.codigo || "-")}</td>
       <td>${escapeHtml(project.nome || "-")}</td>
       <td>${escapeHtml(project.cliente || "-")}</td>
-      <td>${escapeHtml(periodo)}</td>
       <td class="table-actions">${actions.join(" ")}</td>
     `;
     projectTableBody.append(tr);
@@ -13061,11 +13054,11 @@ function renderEquipeSelectOptions() {
     return;
   }
   equipeFormUser.innerHTML = "";
-  const optAll = document.createElement("option");
-  optAll.value = "";
-  optAll.textContent = "Selecione um usuario";
-  equipeFormUser.append(optAll);
+  const vinculados = new Set(projectEquipe.map((entry) => entry.userId));
   users.forEach((user) => {
+    if (vinculados.has(user.id)) {
+      return;
+    }
     const opt = document.createElement("option");
     opt.value = user.id;
     opt.textContent = `${user.name || user.matricula || user.username || "-"} (${getRoleLabel(user)})`;
@@ -18129,20 +18122,18 @@ if (projectTabs.length) {
   });
 }
 
-if (projectForm) {
-  projectForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    if (!currentUser || !canManageProjetos(currentUser)) {
-      return;
-    }
-    const payload = {
-      codigo: projectFormCodigo ? projectFormCodigo.value.trim() : "",
-      nome: projectFormNome ? projectFormNome.value.trim() : "",
-      cliente: projectFormCliente ? projectFormCliente.value.trim() : "",
-      descricao: projectFormDescricao ? projectFormDescricao.value.trim() : "",
-      dataInicio: projectFormInicio ? projectFormInicio.value : "",
-      dataFim: projectFormFim ? projectFormFim.value : "",
-    };
+  if (projectForm) {
+    projectForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!currentUser || !canManageProjetos(currentUser)) {
+        return;
+      }
+      const payload = {
+        codigo: projectFormCodigo ? projectFormCodigo.value.trim() : "",
+        nome: projectFormNome ? projectFormNome.value.trim() : "",
+        cliente: projectFormCliente ? projectFormCliente.value.trim() : "",
+        descricao: projectFormDescricao ? projectFormDescricao.value.trim() : "",
+      };
     const projectId = projectFormId ? projectFormId.value.trim() : "";
     try {
       if (projectId) {
@@ -18195,8 +18186,6 @@ if (projectTable) {
       if (projectFormNome) projectFormNome.value = project.nome || "";
       if (projectFormCliente) projectFormCliente.value = project.cliente || "";
       if (projectFormDescricao) projectFormDescricao.value = project.descricao || "";
-      if (projectFormInicio) projectFormInicio.value = project.dataInicio || "";
-      if (projectFormFim) projectFormFim.value = project.dataFim || "";
       return;
     }
     if (action.dataset.action === "delete-project") {
@@ -18297,13 +18286,16 @@ if (equipeForm) {
     if (!currentUser || !canManageEquipeProjeto(currentUser)) {
       return;
     }
-    const userId = equipeFormUser ? equipeFormUser.value : "";
-    const papel = equipeFormPapel ? equipeFormPapel.value : "";
-    if (!userId || !papel || !activeProjectId) {
+    const selected = equipeFormUser
+      ? Array.from(equipeFormUser.selectedOptions)
+          .map((option) => option.value)
+          .filter(Boolean)
+      : [];
+    if (!selected.length || !activeProjectId) {
       return;
     }
     try {
-      await apiProjetosEquipeAdd(activeProjectId, { userId, papel });
+      await apiProjetosEquipeAdd(activeProjectId, { userIds: selected });
       if (equipeForm) {
         equipeForm.reset();
       }

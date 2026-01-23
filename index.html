@@ -604,7 +604,7 @@
                   <span class="badge badge--neutral" id="badgeBacklog">0</span>
                 </span>
               </button>
-              <button class="nav-item" type="button" data-tab="projetos" data-tooltip="Projetos">
+              <button class="nav-item" type="button" data-tab="projetos" data-tooltip="Locais de trabalho">
                 <span class="nav-item__ico">
                   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                     <path
@@ -617,7 +617,7 @@
                     />
                   </svg>
                 </span>
-                <span class="nav-item__label">Projetos</span>
+                <span class="nav-item__label">Locais de trabalho</span>
                 <span class="nav-item__meta"></span>
               </button>
               <button class="nav-item" type="button" data-tab="solicitacoes" data-tooltip="Solicitacoes pendentes" data-admin-only>
@@ -939,7 +939,7 @@
           </div>
           <div class="topbar-right">
             <div class="project-switcher">
-              <span class="project-switcher__label" id="projectSelectLabel">Projeto ativo</span>
+              <span class="project-switcher__label" id="projectSelectLabel">Local ativo</span>
               <div class="project-switcher__control">
                 <select id="projectSelect" aria-label="Selecionar projeto">
                   <option value="">Sem projetos</option>
@@ -1563,8 +1563,8 @@
     <section class="panel" id="projetos" data-panel="projetos">
       <section class="card">
         <div class="section-title">
-          <h2>Projetos corporativos</h2>
-          <p class="hint">Cadastre projetos, equipamentos e equipe vinculada.</p>
+          <h2>Locais de trabalho</h2>
+          <p class="hint">Cadastre locais, equipamentos e equipe vinculada.</p>
         </div>
         <div class="project-tabs">
           <button class="tab-btn is-active" type="button" data-project-tab="lista">Projetos</button>
@@ -1589,15 +1589,7 @@
               </div>
               <div class="field field--full">
                 <label for="projectFormDescricao">Descricao</label>
-                <textarea id="projectFormDescricao" rows="2" placeholder="Detalhes do projeto"></textarea>
-              </div>
-              <div class="field">
-                <label for="projectFormInicio">Data inicio</label>
-                <input id="projectFormInicio" type="date" />
-              </div>
-              <div class="field">
-                <label for="projectFormFim">Data fim</label>
-                <input id="projectFormFim" type="date" />
+                <textarea id="projectFormDescricao" rows="2" placeholder="Detalhes do local de trabalho"></textarea>
               </div>
             </div>
             <div class="form-actions">
@@ -1612,7 +1604,6 @@
                   <th>Codigo</th>
                   <th>Nome</th>
                   <th>Cliente</th>
-                  <th>Periodo</th>
                   <th>Acoes</th>
                 </tr>
               </thead>
@@ -1666,18 +1657,7 @@
             <div class="form-grid">
               <div class="field">
                 <label for="equipeFormUser">Usuario</label>
-                <select id="equipeFormUser" required>
-                  <option value="">Selecione um usuario</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="equipeFormPapel">Papel</label>
-                <select id="equipeFormPapel" required>
-                  <option value="Diretor">Diretor</option>
-                  <option value="Gerente">Gerente</option>
-                  <option value="Supervisor">Supervisor</option>
-                  <option value="Tecnico">Tecnico</option>
-                </select>
+                <select id="equipeFormUser" multiple required></select>
               </div>
             </div>
             <div class="form-actions">
