@@ -188,6 +188,7 @@ const projectFormCodigo = document.getElementById("projectFormCodigo");
 const projectFormNome = document.getElementById("projectFormNome");
 const projectFormCliente = document.getElementById("projectFormCliente");
 const projectFormDescricao = document.getElementById("projectFormDescricao");
+const projectFormLocais = document.getElementById("projectFormLocais");
 const projectFormCancel = document.getElementById("projectFormCancel");
 const projectTable = document.getElementById("projectTable");
 const projectTableBody = document.querySelector("#projectTable tbody");
@@ -774,6 +775,7 @@ const FULL_ACCESS_RBAC = new Set(["pcm", "diretor_om", "gerente_contrato"]);
 const RELEASE_OVERRIDE_RBAC = new Set(["pcm", "diretor_om", "gerente_contrato", "supervisor_om"]);
 const MASTER_MATRICULA = "35269";
 const MASTER_USERNAME = "denisson.alves";
+const DEFAULT_PROJECT_LOCAIS = ["LZC-BOS2", "LZC-PCT4", "LZC-LT", "LZC-BSO2/LZC-PCT4"];
 const PERFORMANCE_TABS = new Set(["performance-projects", "performance-people"]);
 const TAB_PERMISSION_MAP = {
   desempenho: "verRelatorios",
@@ -4011,6 +4013,8 @@ function reloadProjectState() {
   rdoSnapshots = carregarRdoSnapshots();
   carregarFeedbacks();
   montarRdoUI();
+  renderRdoLocaisOptions();
+  updateRdoShiftLabels();
   renderTudo();
 }
 
@@ -4140,6 +4144,58 @@ function getActiveProjectClient() {
 function isDefaultProjectActive() {
   const project = getActiveProject();
   return project && String(project.codigo || "").trim() === DEFAULT_PROJECT_CODE;
+}
+
+function normalizeLocaisList(value) {
+  if (!value) {
+    return [];
+  }
+  let items = [];
+  if (Array.isArray(value)) {
+    items = value;
+  } else if (typeof value === "string") {
+    items = value.split(/[\n,;]+/g);
+  } else {
+    return [];
+  }
+  const normalized = items
+    .map((item) => String(item || "").trim())
+    .filter(Boolean);
+  return Array.from(new Set(normalized));
+}
+
+function parseProjectLocaisInput(value) {
+  return normalizeLocaisList(value);
+}
+
+function getActiveProjectLocais() {
+  const project = getActiveProject();
+  const locais = project && Array.isArray(project.locais) ? project.locais : [];
+  if (!locais.length && isDefaultProjectActive()) {
+    return DEFAULT_PROJECT_LOCAIS.slice();
+  }
+  return normalizeLocaisList(locais);
+}
+
+function getDefaultRdoLocal() {
+  const locais = getActiveProjectLocais();
+  return locais.length ? locais[0] : "";
+}
+
+function getActiveProjectShortLabel() {
+  const project = getActiveProject();
+  if (!project) {
+    return "projeto";
+  }
+  const codigo = String(project.codigo || "").trim();
+  const nome = String(project.nome || "").trim();
+  if (codigo) {
+    return `projeto ${codigo}`;
+  }
+  if (nome) {
+    return `projeto ${nome}`;
+  }
+  return "projeto";
 }
 
 function getSubestacoesBase() {
@@ -8158,10 +8214,7 @@ function montarRdoUI() {
           <div class="field">
             <label for="rdoLocal">Local</label>
             <select id="rdoLocal">
-              <option value="LZC-BOS2">LZC-BOS2</option>
-              <option value="LZC-PCT4">LZC-PCT4</option>
-              <option value="LZC-LT">LZC-LT</option>
-              <option value="LZC-BSO2/LZC-PCT4">LZC-BSO2/LZC-PCT4</option>
+              <option value="">Sem locais</option>
             </select>
           </div>
           <div class="field" id="rdoClimaOutroField" hidden>
@@ -8194,7 +8247,7 @@ function montarRdoUI() {
           </div>
         </div>
         <div class="field rdo-shift-block" data-full>
-          <label>Horas e acionamentos (projeto BSO2)</label>
+          <label id="rdoShiftLabel">Horas e acionamentos</label>
           <div class="rdo-shift-toggles">
             <label class="checkbox-field">
               <input id="rdoAcionamentoToggle" type="checkbox" />
@@ -8214,8 +8267,8 @@ function montarRdoUI() {
             </div>
           </div>
           <div class="rdo-shift-list" id="rdoJornadaList"></div>
-          <small class="hint">
-            Informe entrada e saida dos colaboradores do projeto BSO2. Expediente: 07:00-17:00
+          <small class="hint" id="rdoShiftHint">
+            Informe entrada e saida dos colaboradores do projeto. Expediente: 07:00-17:00
             (seg-qui) e 07:00-16:00 (sex).
           </small>
         </div>
@@ -8309,6 +8362,8 @@ function montarRdoUI() {
   rdoUI.local = modal.querySelector("#rdoLocal");
   rdoUI.numeroSi = modal.querySelector("#rdoSi");
   rdoUI.numeroSgi = modal.querySelector("#rdoSgi");
+  rdoUI.shiftLabel = modal.querySelector("#rdoShiftLabel");
+  rdoUI.shiftHint = modal.querySelector("#rdoShiftHint");
   rdoUI.preview = modal.querySelector("#rdoPreview");
   rdoUI.previewBody = modal.querySelector("#rdoPreviewBody");
   rdoUI.mensagem = modal.querySelector("#rdoMensagem");
@@ -8322,6 +8377,9 @@ function montarRdoUI() {
   rdoUI.deleteMensagem = modalDelete.querySelector("#rdoDeleteMensagem");
   rdoUI.btnDeleteConfirm = modalDelete.querySelector("#btnRdoDeleteConfirm");
   rdoUI.btnDeleteCancel = modalDelete.querySelector("#btnRdoDeleteCancel");
+
+  renderRdoLocaisOptions();
+  updateRdoShiftLabels();
 
   if (rdoUI.btnGerar) {
     rdoUI.btnGerar.addEventListener("click", () => abrirRdoModal());
@@ -8734,7 +8792,7 @@ function abrirRdoModal(snapshot) {
     rdoUI.bloqueio.value = manual.bloqueio || "N/A";
   }
   if (rdoUI.local) {
-    rdoUI.local.value = manual.local || "LZC-BOS2";
+    renderRdoLocaisOptions(manual.local || "");
   }
   if (rdoUI.numeroSi) {
     rdoUI.numeroSi.value = manual.numeroSi || "";
@@ -8831,14 +8889,74 @@ function atualizarClimaOutroRdo() {
   }
 }
 
-function isUserFromBso2(user) {
-  const projeto = normalizeSearchValue(getUserProjectLabel(user));
-  return (
-    projeto.includes("bso2") ||
-    projeto.includes("bos2") ||
-    projeto.includes("boa sorte ii") ||
-    projeto.includes("boa sorte 2")
-  );
+function renderRdoLocaisOptions(selected) {
+  if (!rdoUI.local) {
+    return;
+  }
+  const locais = getActiveProjectLocais();
+  rdoUI.local.innerHTML = "";
+  const selectedValue = selected ? String(selected).trim() : "";
+  if (selectedValue && !locais.includes(selectedValue)) {
+    const opt = document.createElement("option");
+    opt.value = selectedValue;
+    opt.textContent = selectedValue;
+    rdoUI.local.append(opt);
+  }
+  if (!locais.length) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "Sem locais";
+    rdoUI.local.append(opt);
+    rdoUI.local.disabled = true;
+    return;
+  }
+  rdoUI.local.disabled = false;
+  locais.forEach((local) => {
+    const opt = document.createElement("option");
+    opt.value = local;
+    opt.textContent = local;
+    rdoUI.local.append(opt);
+  });
+  const safeSelected = selectedValue && locais.includes(selectedValue) ? selectedValue : locais[0];
+  if (safeSelected) {
+    rdoUI.local.value = safeSelected;
+  }
+}
+
+function updateRdoShiftLabels() {
+  const label = getActiveProjectShortLabel();
+  if (rdoUI.shiftLabel) {
+    rdoUI.shiftLabel.textContent = `Horas e acionamentos (${label})`;
+  }
+  if (rdoUI.shiftHint) {
+    rdoUI.shiftHint.textContent = `Informe entrada e saida dos colaboradores do ${label}. Expediente: 07:00-17:00 (seg-qui) e 07:00-16:00 (sex).`;
+  }
+}
+
+function getActiveProjectEquipeIds() {
+  const ids = Array.isArray(projectEquipe)
+    ? projectEquipe.map((entry) => entry && entry.userId).filter(Boolean)
+    : [];
+  return new Set(ids);
+}
+
+function isUserFromActiveProject(user) {
+  if (!user) {
+    return false;
+  }
+  if (activeProjectId && user.projectId && user.projectId === activeProjectId) {
+    return true;
+  }
+  const equipeIds = getActiveProjectEquipeIds();
+  if (equipeIds.size && equipeIds.has(user.id)) {
+    return true;
+  }
+  const targetLabel = normalizeSearchValue(getProjectLabel(getActiveProject()));
+  const userLabel = normalizeSearchValue(getUserProjectLabel(user));
+  if (targetLabel && userLabel && userLabel.includes(targetLabel)) {
+    return true;
+  }
+  return false;
 }
 
 function renderRdoJornadas(manual = {}) {
@@ -8854,11 +8972,12 @@ function renderRdoJornadas(manual = {}) {
   );
   const colaboradores = users
     .filter((user) => user && (user.name || user.username))
-    .filter(isUserFromBso2)
+    .filter(isUserFromActiveProject)
     .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 
   if (!colaboradores.length && !jornadas.length) {
-    rdoUI.jornadaList.innerHTML = `<p class="empty-state">Nenhum colaborador BSO2 cadastrado.</p>`;
+    const label = getActiveProjectShortLabel();
+    rdoUI.jornadaList.innerHTML = `<p class="empty-state">Nenhum colaborador do ${escapeHtml(label)} cadastrado.</p>`;
     return;
   }
 
@@ -9773,7 +9892,7 @@ function buildRdoHtml(snapshot, options = {}) {
     snapshot.projectCode ||
     (snapshot.filtros && snapshot.filtros.subestacao ? snapshot.filtros.subestacao : RDO_PROJETO);
   const cliente = snapshot.projectClient || getActiveProjectClient();
-  const local = manual.local || "LZC-BOS2";
+  const local = manual.local || getDefaultRdoLocal();
   const climaValor = manual.clima === "OUTRO" && manual.climaOutro
     ? `OUTRO - ${manual.climaOutro}`
     : manual.clima || "-";
@@ -13319,6 +13438,9 @@ function resetProjectForm() {
   if (projectFormSelect) {
     projectFormSelect.value = "";
   }
+  if (projectFormLocais) {
+    projectFormLocais.value = "";
+  }
 }
 
 function setProjectFormValues(project) {
@@ -13331,6 +13453,10 @@ function setProjectFormValues(project) {
   if (projectFormNome) projectFormNome.value = project.nome || "";
   if (projectFormCliente) projectFormCliente.value = project.cliente || "";
   if (projectFormDescricao) projectFormDescricao.value = project.descricao || "";
+  if (projectFormLocais) {
+    const locais = Array.isArray(project.locais) ? project.locais : [];
+    projectFormLocais.value = locais.join("\n");
+  }
   if (projectFormSelect) projectFormSelect.value = project.id || "";
 }
 
@@ -18125,11 +18251,10 @@ loginForm.addEventListener("submit", async (event) => {
   try {
     const data = await apiLogin(login, senha);
     currentUser = data.user;
-    await carregarUsuariosServidor();
     mostrarMensagemConta(`Bem-vindo, ${currentUser.name}.`);
     loginSenha.value = "";
     esconderAuthPanels();
-    renderTudo();
+    await carregarSessaoServidor();
   } catch (error) {
     const message = error && error.message ? error.message : "Usuario ou senha invalidos.";
     mostrarMensagemConta(message, true);
@@ -18465,6 +18590,7 @@ if (projectTabs.length) {
         nome: projectFormNome ? projectFormNome.value.trim() : "",
         cliente: projectFormCliente ? projectFormCliente.value.trim() : "",
         descricao: projectFormDescricao ? projectFormDescricao.value.trim() : "",
+        locais: parseProjectLocaisInput(projectFormLocais ? projectFormLocais.value : ""),
       };
     const projectId = projectFormId ? projectFormId.value.trim() : "";
     try {

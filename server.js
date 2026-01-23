@@ -144,6 +144,7 @@ const FILE_ALLOWED_MIME = new Map([
 ]);
 const DEFAULT_PROJECT_CODE = "834";
 const DEFAULT_PROJECT_NAME = "PARACATU/SOLARIG (Boa Sorte II)";
+const DEFAULT_PROJECT_LOCAIS = ["LZC-BOS2", "LZC-PCT4", "LZC-LT", "LZC-BSO2/LZC-PCT4"];
 const AUTOMATION_DEFAULTS = [
   {
     id: "maintenance_critical_email",
@@ -697,6 +698,24 @@ function registerShutdownHandlers() {
   process.on("SIGINT", shutdown);
 }
 
+function normalizeLocaisList(value) {
+  if (!value) {
+    return [];
+  }
+  let items = [];
+  if (Array.isArray(value)) {
+    items = value;
+  } else if (typeof value === "string") {
+    items = value.split(/[\n,;]+/g);
+  } else {
+    return [];
+  }
+  const normalized = items
+    .map((item) => String(item || "").trim())
+    .filter(Boolean);
+  return Array.from(new Set(normalized));
+}
+
 function normalizeProject(record) {
   const now = new Date().toISOString();
   return {
@@ -705,6 +724,7 @@ function normalizeProject(record) {
     nome: String(record && record.nome ? record.nome : "").trim(),
     cliente: String(record && record.cliente ? record.cliente : "").trim(),
     descricao: String(record && record.descricao ? record.descricao : "").trim(),
+    locais: normalizeLocaisList(record && record.locais ? record.locais : []),
     createdAt: record && record.createdAt ? record.createdAt : now,
     updatedAt: record && record.updatedAt ? record.updatedAt : now,
   };
@@ -715,7 +735,12 @@ function loadProjects() {
   if (!Array.isArray(data)) {
     return [];
   }
-  return data.filter((item) => item && typeof item === "object");
+  return data
+    .filter((item) => item && typeof item === "object")
+    .map((item) => ({
+      ...item,
+      locais: normalizeLocaisList(item.locais || []),
+    }));
 }
 
 function saveProjects(list) {
@@ -1280,10 +1305,22 @@ function ensureDefaultProject() {
       nome: DEFAULT_PROJECT_NAME,
       cliente: "",
       descricao: "",
-      dataInicio: "",
-      dataFim: "",
+      locais: DEFAULT_PROJECT_LOCAIS,
     });
     list = list.concat(defaultProject);
+    projects = list;
+    saveProjects(projects);
+  }
+  if (
+    defaultProject &&
+    (!Array.isArray(defaultProject.locais) || defaultProject.locais.length === 0)
+  ) {
+    defaultProject = {
+      ...defaultProject,
+      locais: DEFAULT_PROJECT_LOCAIS.slice(),
+      updatedAt: new Date().toISOString(),
+    };
+    list = list.map((item) => (item.id === defaultProject.id ? defaultProject : item));
     projects = list;
     saveProjects(projects);
   }
@@ -3006,6 +3043,7 @@ app.post("/api/projetos", requireAuth, requirePermission("gerenciarProjetos"), (
   const payload = req.body && typeof req.body === "object" ? req.body : {};
   const codigo = String(payload.codigo || "").trim();
   const nome = String(payload.nome || "").trim();
+  const locais = normalizeLocaisList(payload.locais || []);
   if (!codigo || !nome) {
     return res.status(400).json({ message: "Codigo e nome sao obrigatorios." });
   }
@@ -3017,6 +3055,7 @@ app.post("/api/projetos", requireAuth, requirePermission("gerenciarProjetos"), (
     nome,
     cliente: payload.cliente || "",
     descricao: payload.descricao || "",
+    locais,
   });
   projects = projects.concat(record);
   saveProjects(projects);
@@ -3048,6 +3087,8 @@ app.put("/api/projetos/:id", requireAuth, requirePermission("gerenciarProjetos")
   const current = projects[index];
   const codigo = "codigo" in payload ? String(payload.codigo || "").trim() : current.codigo;
   const nome = "nome" in payload ? String(payload.nome || "").trim() : current.nome;
+  const locais =
+    "locais" in payload ? normalizeLocaisList(payload.locais || []) : current.locais || [];
   if (!codigo || !nome) {
     return res.status(400).json({ message: "Codigo e nome sao obrigatorios." });
   }
@@ -3062,6 +3103,7 @@ app.put("/api/projetos/:id", requireAuth, requirePermission("gerenciarProjetos")
     ...payload,
     codigo,
     nome,
+    locais,
     updatedAt: new Date().toISOString(),
   });
   projects[index] = updated;
