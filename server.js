@@ -1118,7 +1118,12 @@ function mapUserRoleToProjectRole(user) {
 
 function canSeeAllProjects(role) {
   const normalized = normalizeRbacRole(role);
-  return normalized === "pcm" || normalized === "diretor" || normalized === "gerente" || normalized === "supervisor";
+  return (
+    normalized === "pcm" ||
+    normalized === "diretor_om" ||
+    normalized === "gerente_contrato" ||
+    normalized === "supervisor_om"
+  );
 }
 
 function getUserProjectIds(user) {
@@ -2763,14 +2768,19 @@ app.post("/api/projetos", requireAuth, requirePermission("gerenciarProjetos"), (
   projects = projects.concat(record);
   saveProjects(projects);
   const actor = req.currentUser || getSessionUser(req);
-  if (actor && !userHasProjectAccess(actor, record.id)) {
-    const entry = normalizeProjectUser({
-      projectId: record.id,
-      userId: actor.id,
-      papel: mapUserRoleToProjectRole(actor),
-    });
-    projectUsers = projectUsers.concat(entry);
-    saveProjectUsers(projectUsers);
+  if (actor) {
+    const exists = projectUsers.some(
+      (entry) => entry && entry.userId === actor.id && entry.projectId === record.id
+    );
+    if (!exists) {
+      const entry = normalizeProjectUser({
+        projectId: record.id,
+        userId: actor.id,
+        papel: mapUserRoleToProjectRole(actor),
+      });
+      projectUsers = projectUsers.concat(entry);
+      saveProjectUsers(projectUsers);
+    }
   }
   return res.json({ project: record });
 });
