@@ -3,6 +3,7 @@ const tipoManutencao = document.getElementById("tipoManutencao");
 const customTipoField = document.getElementById("customTipoField");
 const tituloManutencao = document.getElementById("tituloManutencao");
 const subestacaoManutencao = document.getElementById("subestacaoManutencao");
+const equipamentoManutencao = document.getElementById("equipamentoManutencao");
 const dataManutencao = document.getElementById("dataManutencao");
 const futuraManutencao = document.getElementById("futuraManutencao");
 const obsManutencao = document.getElementById("obsManutencao");
@@ -173,6 +174,37 @@ const homePontual = document.getElementById("homePontual");
 const homeBacklog = document.getElementById("homeBacklog");
 const homeConcluidas = document.getElementById("homeConcluidas");
 const homeAtrasoMedio = document.getElementById("homeAtrasoMedio");
+const projectSelect = document.getElementById("projectSelect");
+const projectSelectLabel = document.getElementById("projectSelectLabel");
+const projectManageBtn = document.getElementById("projectManageBtn");
+const crumbs = document.getElementById("crumbs");
+const projectTabs = Array.from(document.querySelectorAll("[data-project-tab]"));
+const projectPanels = Array.from(document.querySelectorAll("[data-project-panel]"));
+const projectForm = document.getElementById("projectForm");
+const projectFormId = document.getElementById("projectFormId");
+const projectFormCodigo = document.getElementById("projectFormCodigo");
+const projectFormNome = document.getElementById("projectFormNome");
+const projectFormCliente = document.getElementById("projectFormCliente");
+const projectFormDescricao = document.getElementById("projectFormDescricao");
+const projectFormInicio = document.getElementById("projectFormInicio");
+const projectFormFim = document.getElementById("projectFormFim");
+const projectFormCancel = document.getElementById("projectFormCancel");
+const projectTable = document.getElementById("projectTable");
+const projectTableBody = document.querySelector("#projectTable tbody");
+const equipamentoForm = document.getElementById("equipamentoForm");
+const equipamentoFormId = document.getElementById("equipamentoFormId");
+const equipamentoFormTag = document.getElementById("equipamentoFormTag");
+const equipamentoFormNome = document.getElementById("equipamentoFormNome");
+const equipamentoFormCategoria = document.getElementById("equipamentoFormCategoria");
+const equipamentoFormDescricao = document.getElementById("equipamentoFormDescricao");
+const equipamentoFormCancel = document.getElementById("equipamentoFormCancel");
+const equipamentoTable = document.getElementById("equipamentoTable");
+const equipamentoTableBody = document.querySelector("#equipamentoTable tbody");
+const equipeForm = document.getElementById("equipeForm");
+const equipeFormUser = document.getElementById("equipeFormUser");
+const equipeFormPapel = document.getElementById("equipeFormPapel");
+const equipeTable = document.getElementById("equipeTable");
+const equipeTableBody = document.querySelector("#equipeTable tbody");
 const btnLembretes = document.getElementById("btnBell") || document.getElementById("btnLembretes");
 const lembretesCount = document.getElementById("bellDot") || document.getElementById("lembretesCount");
 const painelLembretes = document.getElementById("painelLembretes");
@@ -559,6 +591,7 @@ const AUDIT_KEY = "denemanu.audit";
 const RDO_KEY = "denemanu.rdo";
 const FEEDBACK_KEY = "opscope.feedbacks";
 const SESSION_KEY = "denemanu.session";
+const ACTIVE_PROJECT_KEY = "opscope.activeProjectId";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_REAGENDAMENTOS = 3;
 const OUTROS_ALERT_THRESHOLD = 3;
@@ -587,6 +620,7 @@ const SECTION_LABELS = {
   modelos: "Modelos e recorrencias",
   execucao: "Execucao do dia",
   backlog: "Backlog",
+  projetos: "Projetos",
   desempenho: "Desempenho",
   "performance-projects": "Desempenho por projeto",
   "performance-people": "Desempenho por colaborador",
@@ -641,12 +675,20 @@ const GRANULAR_PERMISSION_LABELS = {
   verAutomacoes: "Ver automacoes",
   verDiagnostico: "Ver diagnostico",
   verPainelGerencial: "Ver painel gerencial",
+  gerenciarProjetos: "Gerenciar projetos",
+  gerenciarEquipamentos: "Gerenciar equipamentos",
+  gerenciarEquipeProjeto: "Gerenciar equipe do projeto",
 };
 const PERMISSION_GROUPS = [
   {
     key: "perfil",
     label: "Perfis e usuarios",
     items: ["editarPerfil", "editarPerfilOutros", "verUsuarios", "convidarUsuarios", "desativarUsuarios"],
+  },
+  {
+    key: "projetos",
+    label: "Projetos corporativos",
+    items: ["gerenciarProjetos", "gerenciarEquipamentos", "gerenciarEquipeProjeto"],
   },
   {
     key: "arquivos",
@@ -725,6 +767,7 @@ const TAB_PERMISSION_MAP = {
   "performance-people": "verRelatorios",
   tendencias: "verRelatorios",
   relatorios: ["verRelatorios", "verRDOs"],
+  projetos: ["gerenciarProjetos", "gerenciarEquipamentos", "gerenciarEquipeProjeto"],
   solicitacoes: "verUsuarios",
   contas: "verUsuarios",
   gerencial: "verPainelGerencial",
@@ -933,6 +976,18 @@ function canExportRelatorios(user) {
 
 function canViewGerencial(user) {
   return hasGranularPermission(user, "verPainelGerencial");
+}
+
+function canManageProjetos(user) {
+  return hasGranularPermission(user, "gerenciarProjetos");
+}
+
+function canManageEquipamentos(user) {
+  return hasGranularPermission(user, "gerenciarEquipamentos");
+}
+
+function canManageEquipeProjeto(user) {
+  return hasGranularPermission(user, "gerenciarEquipeProjeto");
 }
 
 function canAccessGerencialTab(tabId, user) {
@@ -1448,6 +1503,10 @@ let users = [];
 let requests = [];
 let auditLog = [];
 let currentUser = null;
+let activeProjectId = "";
+let availableProjects = [];
+let projectEquipamentos = [];
+let projectEquipe = [];
 let adminPermissionCatalog = [];
 let reminderDays = DEFAULT_REMINDER_DAYS;
 let loadingTimeout = null;
@@ -1572,6 +1631,20 @@ function writeJson(key, value) {
     console.error(`Falha ao salvar ${key} no storage.`, error);
     return false;
   }
+}
+
+function getProjectStorageKey(baseKey) {
+  if (!activeProjectId) {
+    return baseKey;
+  }
+  return `${baseKey}.${activeProjectId}`;
+}
+
+function isProjectStorageKey(eventKey, baseKey) {
+  if (!eventKey) {
+    return false;
+  }
+  return eventKey === baseKey || eventKey.startsWith(`${baseKey}.`);
 }
 
 const API_BASE = "";
@@ -3620,7 +3693,7 @@ function criarId() {
 }
 
 function carregarManutencoes() {
-  const data = readJson(STORAGE_KEY, []);
+  const data = readJson(getProjectStorageKey(STORAGE_KEY), []);
   if (!Array.isArray(data)) {
     return [];
   }
@@ -3628,7 +3701,14 @@ function carregarManutencoes() {
 }
 
 function salvarManutencoes(lista) {
-  writeJson(STORAGE_KEY, lista);
+  const sanitized = Array.isArray(lista)
+    ? lista.map((item) =>
+        item && typeof item === "object" && activeProjectId
+          ? { ...item, projectId: item.projectId || activeProjectId }
+          : item
+      )
+    : [];
+  writeJson(getProjectStorageKey(STORAGE_KEY), sanitized);
   scheduleMaintenanceSync(lista);
 }
 
@@ -3651,7 +3731,7 @@ function salvarUsuarios(lista) {
 }
 
 function carregarSolicitacoes() {
-  const data = readJson(REQUEST_KEY, []);
+  const data = readJson(getProjectStorageKey(REQUEST_KEY), []);
   if (!Array.isArray(data)) {
     return [];
   }
@@ -3659,11 +3739,11 @@ function carregarSolicitacoes() {
 }
 
 function salvarSolicitacoes(lista) {
-  writeJson(REQUEST_KEY, lista);
+  writeJson(getProjectStorageKey(REQUEST_KEY), lista);
 }
 
 function carregarAuditoria() {
-  const data = readJson(AUDIT_KEY, []);
+  const data = readJson(getProjectStorageKey(AUDIT_KEY), []);
   if (!Array.isArray(data)) {
     return [];
   }
@@ -3671,11 +3751,11 @@ function carregarAuditoria() {
 }
 
 function salvarAuditoria(lista) {
-  writeJson(AUDIT_KEY, lista);
+  writeJson(getProjectStorageKey(AUDIT_KEY), lista);
 }
 
 function carregarTemplates() {
-  const data = readJson(TEMPLATE_KEY, []);
+  const data = readJson(getProjectStorageKey(TEMPLATE_KEY), []);
   if (!Array.isArray(data)) {
     return [];
   }
@@ -3683,11 +3763,11 @@ function carregarTemplates() {
 }
 
 function salvarTemplates(lista) {
-  writeJson(TEMPLATE_KEY, lista);
+  writeJson(getProjectStorageKey(TEMPLATE_KEY), lista);
 }
 
 function carregarRdoSnapshots() {
-  const data = readJson(RDO_KEY, []);
+  const data = readJson(getProjectStorageKey(RDO_KEY), []);
   if (!Array.isArray(data)) {
     return [];
   }
@@ -3695,7 +3775,7 @@ function carregarRdoSnapshots() {
 }
 
 function salvarRdoSnapshots(lista) {
-  writeJson(RDO_KEY, lista);
+  writeJson(getProjectStorageKey(RDO_KEY), lista);
 }
 
 function garantirTemplatesPadrao() {
@@ -3848,16 +3928,86 @@ function salvarSessao() {
   return;
 }
 
+function persistActiveProjectId(projectId) {
+  if (!projectId) {
+    localStorage.removeItem(ACTIVE_PROJECT_KEY);
+    return;
+  }
+  localStorage.setItem(ACTIVE_PROJECT_KEY, projectId);
+}
+
+function reloadProjectState() {
+  templates = carregarTemplates();
+  garantirTemplatesPadrao();
+  const normalizados = normalizarTemplates(templates);
+  templates = normalizados.normalizadas;
+  if (normalizados.mudou) {
+    salvarTemplates(templates);
+  }
+  requests = carregarSolicitacoes();
+  auditLog = carregarAuditoria();
+  iniciarAuditChain();
+  carregarConfiguracoes();
+  manutencoes = carregarManutencoes();
+  gerarManutencoesRecorrentes();
+  const resultado = normalizarManutencoes(manutencoes);
+  manutencoes = resultado.normalizadas;
+  salvarManutencoes(manutencoes);
+  rdoSnapshots = carregarRdoSnapshots();
+  carregarFeedbacks();
+  montarRdoUI();
+  renderTudo();
+}
+
+async function setActiveProjectId(nextId, options = {}) {
+  const trimmed = String(nextId || "").trim();
+  if (!trimmed) {
+    activeProjectId = "";
+    persistActiveProjectId("");
+    return;
+  }
+  if (activeProjectId === trimmed && !options.force) {
+    return;
+  }
+  activeProjectId = trimmed;
+  persistActiveProjectId(trimmed);
+  if (options.sync !== false) {
+    try {
+      await apiProjetosSetActive(trimmed);
+    } catch (error) {
+      // noop: fallback local
+    }
+  }
+  reloadProjectState();
+  loadDashboardSummary(true);
+  renderProjectSelector();
+  renderProjectPanel();
+  await carregarEquipeProjeto();
+  await carregarEquipamentosProjeto();
+}
+
 async function carregarSessaoServidor() {
   try {
     const data = await apiRequest("/api/auth/me");
     currentUser = data.user || null;
+    availableProjects = Array.isArray(data.projects) ? data.projects : [];
+    const storedProjectId = localStorage.getItem(ACTIVE_PROJECT_KEY) || "";
+    const validStored = availableProjects.some((item) => item.id === storedProjectId);
+    const resolvedProjectId =
+      data.activeProjectId ||
+      (validStored ? storedProjectId : availableProjects[0]?.id || "");
+    if (resolvedProjectId) {
+      await setActiveProjectId(resolvedProjectId, { sync: false, force: true });
+    }
   } catch (error) {
     currentUser = null;
+    availableProjects = [];
+    activeProjectId = "";
   }
   await carregarUsuariosServidor();
   renderAuthUI();
-  renderTudo();
+  renderProjectSelector();
+  renderProjectPanel();
   await handleEmailVerification();
   handleFocusFromUrl();
   if (!currentUser) {
@@ -3878,6 +4028,7 @@ async function carregarUsuariosServidor() {
   }
   await carregarPermissoesAdmin();
   renderUsuarios();
+  renderEquipeSelectOptions();
 }
 
 async function carregarPermissoesAdmin() {
@@ -3960,6 +4111,7 @@ function normalizarManutencoes(lista) {
     if (!item || typeof item !== "object") {
       return item;
     }
+    const projectId = activeProjectId || item.projectId || "";
     const createdAt = normalizeIso(item.createdAt);
     const updatedAt = normalizeIso(item.updatedAt);
     const doneAt = normalizeIso(item.doneAt);
@@ -4014,6 +4166,7 @@ function normalizarManutencoes(lista) {
       changes.push({ id: item.id, from: statusOriginal, to: novoStatus });
       return {
         ...item,
+        projectId: item.projectId || projectId,
         status: novoStatus,
         updatedAt: toIsoUtc(new Date()),
         updatedBy: SYSTEM_USER_ID,
@@ -4026,6 +4179,7 @@ function normalizarManutencoes(lista) {
     }
     return {
       ...item,
+      projectId: item.projectId || projectId,
       status: statusOriginal,
       createdAt,
       updatedAt,
@@ -4437,6 +4591,10 @@ function renderHome() {
 
 function renderDashboardHome() {
   if (!dashboardHome) {
+    return;
+  }
+  if (currentUser && !activeProjectId) {
+    dashboardHome.innerHTML = `<p class="dashboard-message">Selecione um projeto ativo.</p>`;
     return;
   }
   if (!dashboardSummary) {
@@ -6440,11 +6598,11 @@ function renderPerformancePessoas() {
 }
 
 function carregarFeedbacks() {
-  feedbacks = readJson(FEEDBACK_KEY, []);
+  feedbacks = readJson(getProjectStorageKey(FEEDBACK_KEY), []);
 }
 
 function salvarFeedbacks(lista) {
-  writeJson(FEEDBACK_KEY, lista);
+  writeJson(getProjectStorageKey(FEEDBACK_KEY), lista);
   feedbacks = lista;
 }
 
@@ -9399,6 +9557,9 @@ async function gerarSnapshotRdo(persistir = false) {
     manual,
     registroGerencial,
     limiteEvidencias: limite,
+    projectId: activeProjectId,
+    projectLabel: getActiveProject() ? getActiveProject().nome : "",
+    projectCode: getActiveProject() ? getActiveProject().codigo : "",
     createdAt: toIsoUtc(agora),
     createdBy: currentUser ? currentUser.id : "",
     itens: itensRdo,
@@ -9472,7 +9633,9 @@ function buildRdoHtml(snapshot, options = {}) {
     <span id="rdoEngelmigFallback" class="rdo-logo-fallback">ENGELMIG</span>
   `;
   const manual = snapshot.manual || {};
-  const projeto = snapshot.filtros && snapshot.filtros.subestacao ? snapshot.filtros.subestacao : RDO_PROJETO;
+  const projeto = snapshot.projectLabel ||
+    snapshot.projectCode ||
+    (snapshot.filtros && snapshot.filtros.subestacao ? snapshot.filtros.subestacao : RDO_PROJETO);
   const local = manual.local || "LZC-BOS2";
   const climaValor = manual.clima === "OUTRO" && manual.climaOutro
     ? `OUTRO - ${manual.climaOutro}`
@@ -12765,6 +12928,270 @@ function renderUsuarios() {
   });
 }
 
+function getActiveProject() {
+  return availableProjects.find((project) => project.id === activeProjectId) || null;
+}
+
+function renderProjectSelector() {
+  if (!projectSelect) {
+    return;
+  }
+  projectSelect.innerHTML = "";
+  if (!availableProjects.length) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "Sem projetos";
+    projectSelect.append(opt);
+    projectSelect.disabled = true;
+  } else {
+    availableProjects.forEach((project) => {
+      const opt = document.createElement("option");
+      const label = `${project.codigo || "-"} - ${project.nome || "-"}`;
+      opt.value = project.id;
+      opt.textContent = label;
+      projectSelect.append(opt);
+    });
+    projectSelect.disabled = false;
+    if (activeProjectId) {
+      projectSelect.value = activeProjectId;
+    }
+  }
+  if (projectSelectLabel) {
+    projectSelectLabel.textContent = "Projeto ativo";
+  }
+  if (projectManageBtn) {
+    const canManage =
+      currentUser &&
+      (canManageProjetos(currentUser) ||
+        canManageEquipamentos(currentUser) ||
+        canManageEquipeProjeto(currentUser));
+    projectManageBtn.hidden = !canManage;
+  }
+  if (crumbs) {
+    const activeProject = getActiveProject();
+    crumbs.textContent = activeProject ? activeProject.nome : "Projeto nao definido";
+  }
+}
+
+function setProjectTab(tab) {
+  if (!projectTabs.length || !projectPanels.length) {
+    return;
+  }
+  projectTabs.forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.projectTab === tab);
+  });
+  projectPanels.forEach((panel) => {
+    panel.hidden = panel.dataset.projectPanel !== tab;
+  });
+}
+
+function renderProjetosTable() {
+  if (!projectTableBody) {
+    return;
+  }
+  projectTableBody.innerHTML = "";
+  if (!availableProjects.length) {
+    return;
+  }
+  availableProjects.forEach((project) => {
+    const tr = document.createElement("tr");
+    const periodo = project.dataInicio || project.dataFim
+      ? `${project.dataInicio || "-"} -> ${project.dataFim || "-"}`
+      : "-";
+    const actions = [];
+    actions.push(`<button type="button" class="btn btn--ghost btn--small" data-action="set-active">Ativar</button>`);
+    if (currentUser && canManageProjetos(currentUser)) {
+      actions.push(`<button type="button" class="btn btn--ghost btn--small" data-action="edit-project">Editar</button>`);
+      actions.push(`<button type="button" class="btn btn--ghost btn--small btn--danger" data-action="delete-project">Excluir</button>`);
+    }
+    tr.dataset.projectId = project.id;
+    tr.innerHTML = `
+      <td>${escapeHtml(project.codigo || "-")}</td>
+      <td>${escapeHtml(project.nome || "-")}</td>
+      <td>${escapeHtml(project.cliente || "-")}</td>
+      <td>${escapeHtml(periodo)}</td>
+      <td class="table-actions">${actions.join(" ")}</td>
+    `;
+    projectTableBody.append(tr);
+  });
+}
+
+function renderEquipamentosTable() {
+  if (!equipamentoTableBody) {
+    return;
+  }
+  equipamentoTableBody.innerHTML = "";
+  if (!projectEquipamentos.length) {
+    return;
+  }
+  projectEquipamentos.forEach((equip) => {
+    const tr = document.createElement("tr");
+    const actions = [];
+    if (currentUser && canManageEquipamentos(currentUser)) {
+      actions.push(`<button type="button" class="btn btn--ghost btn--small" data-action="edit-equipment">Editar</button>`);
+      actions.push(`<button type="button" class="btn btn--ghost btn--small btn--danger" data-action="delete-equipment">Excluir</button>`);
+    }
+    tr.dataset.equipmentId = equip.id;
+    tr.innerHTML = `
+      <td>${escapeHtml(equip.tag || "-")}</td>
+      <td>${escapeHtml(equip.nome || "-")}</td>
+      <td>${escapeHtml(equip.categoria || "-")}</td>
+      <td>${escapeHtml(equip.descricao || "-")}</td>
+      <td class="table-actions">${actions.join(" ")}</td>
+    `;
+    equipamentoTableBody.append(tr);
+  });
+}
+
+function renderEquipamentoOptions() {
+  if (!equipamentoManutencao) {
+    return;
+  }
+  equipamentoManutencao.innerHTML = `<option value="">Selecione um equipamento</option>`;
+  projectEquipamentos.forEach((equip) => {
+    const option = document.createElement("option");
+    option.value = equip.id;
+    option.textContent = `${equip.tag || "-"} - ${equip.nome || "-"}`;
+    equipamentoManutencao.append(option);
+  });
+}
+
+function renderEquipeSelectOptions() {
+  if (!equipeFormUser) {
+    return;
+  }
+  equipeFormUser.innerHTML = "";
+  const optAll = document.createElement("option");
+  optAll.value = "";
+  optAll.textContent = "Selecione um usuario";
+  equipeFormUser.append(optAll);
+  users.forEach((user) => {
+    const opt = document.createElement("option");
+    opt.value = user.id;
+    opt.textContent = `${user.name || user.matricula || user.username || "-"} (${getRoleLabel(user)})`;
+    equipeFormUser.append(opt);
+  });
+}
+
+function renderEquipeTable() {
+  if (!equipeTableBody) {
+    return;
+  }
+  equipeTableBody.innerHTML = "";
+  if (!projectEquipe.length) {
+    return;
+  }
+  projectEquipe.forEach((entry) => {
+    const user = entry.user || {};
+    const tr = document.createElement("tr");
+    const actions = [];
+    if (currentUser && canManageEquipeProjeto(currentUser)) {
+      actions.push(`<button type="button" class="btn btn--ghost btn--small btn--danger" data-action="remove-team">Remover</button>`);
+    }
+    tr.dataset.userId = entry.userId;
+    tr.innerHTML = `
+      <td>${escapeHtml(user.name || user.matricula || "-")}</td>
+      <td>${escapeHtml(user.cargo || "-")}</td>
+      <td>${escapeHtml(entry.papel || "-")}</td>
+      <td class="table-actions">${actions.join(" ")}</td>
+    `;
+    equipeTableBody.append(tr);
+  });
+}
+
+function renderProjectPanel() {
+  renderProjetosTable();
+  renderEquipamentosTable();
+  renderEquipamentoOptions();
+  renderEquipeTable();
+  renderEquipeSelectOptions();
+  setFormDisabled(projectForm, !(currentUser && canManageProjetos(currentUser)));
+  setFormDisabled(equipamentoForm, !(currentUser && canManageEquipamentos(currentUser)));
+  setFormDisabled(equipeForm, !(currentUser && canManageEquipeProjeto(currentUser)));
+  if (projectPanels.length && !projectPanels.some((panel) => !panel.hidden)) {
+    setProjectTab("lista");
+  }
+}
+
+function resetProjectForm() {
+  if (projectForm) {
+    projectForm.reset();
+  }
+  if (projectFormId) {
+    projectFormId.value = "";
+  }
+}
+
+function resetEquipamentoForm() {
+  if (equipamentoForm) {
+    equipamentoForm.reset();
+  }
+  if (equipamentoFormId) {
+    equipamentoFormId.value = "";
+  }
+}
+
+function setFormDisabled(form, disabled) {
+  if (!form) {
+    return;
+  }
+  const fields = Array.from(form.querySelectorAll("input, select, textarea, button"));
+  fields.forEach((field) => {
+    field.disabled = disabled;
+  });
+}
+
+async function refreshProjects() {
+  if (!currentUser) {
+    return;
+  }
+  try {
+    const data = await apiProjetosList();
+    availableProjects = Array.isArray(data.projects) ? data.projects : [];
+  } catch (error) {
+    availableProjects = [];
+  }
+  if (activeProjectId && !availableProjects.some((item) => item.id === activeProjectId)) {
+    const fallback = availableProjects[0]?.id || "";
+    if (fallback) {
+      await setActiveProjectId(fallback, { sync: true, force: true });
+    }
+  }
+  renderProjectSelector();
+  renderProjectPanel();
+}
+
+async function carregarEquipamentosProjeto() {
+  if (!currentUser || !activeProjectId) {
+    projectEquipamentos = [];
+    renderEquipamentosTable();
+    return;
+  }
+  try {
+    const data = await apiProjetosEquipamentosList(activeProjectId);
+    projectEquipamentos = Array.isArray(data.equipamentos) ? data.equipamentos : [];
+  } catch (error) {
+    projectEquipamentos = [];
+  }
+  renderEquipamentosTable();
+  renderEquipamentoOptions();
+}
+
+async function carregarEquipeProjeto() {
+  if (!currentUser || !activeProjectId) {
+    projectEquipe = [];
+    renderEquipeTable();
+    return;
+  }
+  try {
+    const data = await apiProjetosEquipeList(activeProjectId);
+    projectEquipe = Array.isArray(data.equipe) ? data.equipe : [];
+  } catch (error) {
+    projectEquipe = [];
+  }
+  renderEquipeTable();
+}
+
 function renderPerfil() {
   if (!perfilNome) {
     return;
@@ -13588,6 +14015,7 @@ function renderTudo() {
   renderModelos();
   renderSolicitacoes();
   renderUsuarios();
+  renderProjectPanel();
   renderPerfil();
   renderSubestacoes();
   renderTipoOptions();
@@ -13654,6 +14082,7 @@ async function adicionarManutencao() {
   }
 
   const local = subestacaoManutencao ? subestacaoManutencao.value.trim() : "";
+  const equipamentoId = equipamentoManutencao ? equipamentoManutencao.value.trim() : "";
   const data = dataManutencao
     ? dataManutencao.value || formatDateISO(new Date())
     : "";
@@ -13674,11 +14103,19 @@ async function adicionarManutencao() {
   const criticoValor = criticoManutencao ? criticoManutencao.value : "nao";
   const critico = criticoValor === "sim";
 
+  if (!activeProjectId) {
+    mostrarMensagemManutencao("Selecione um projeto ativo antes de criar.", true);
+    return;
+  }
   if (!titulo || !local || !data || !categoria || !prioridade) {
     mostrarMensagemManutencao(
       "Preencha tipo, subestacao, inicio da execucao, categoria e prioridade.",
       true
     );
+    return;
+  }
+  if (!equipamentoId) {
+    mostrarMensagemManutencao("Informe o equipamento da manutencao.", true);
     return;
   }
   if (!observacao) {
@@ -13757,6 +14194,8 @@ async function adicionarManutencao() {
     titulo,
     local,
     data,
+    projectId: activeProjectId,
+    equipamentoId,
     observacao,
     templateId,
     status: "em_execucao",
@@ -13813,6 +14252,9 @@ async function adicionarManutencao() {
   }
   if (subestacaoManutencao && SUBESTACOES.length > 0) {
     subestacaoManutencao.value = SUBESTACOES[0];
+  }
+  if (equipamentoManutencao) {
+    equipamentoManutencao.value = "";
   }
   if (futuraManutencao) {
     futuraManutencao.checked = false;
@@ -16498,8 +16940,88 @@ async function apiDashboardSummary() {
   return apiRequest("/api/dashboard/summary");
 }
 
+async function apiProjetosList() {
+  return apiRequest("/api/projetos");
+}
+
+async function apiProjetosCreate(payload) {
+  return apiRequest("/api/projetos", {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiProjetosUpdate(projectId, payload) {
+  return apiRequest(`/api/projetos/${encodeURIComponent(projectId)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiProjetosDelete(projectId) {
+  return apiRequest(`/api/projetos/${encodeURIComponent(projectId)}`, {
+    method: "DELETE",
+  });
+}
+
+async function apiProjetosEquipeList(projectId) {
+  return apiRequest(`/api/projetos/${encodeURIComponent(projectId)}/equipe`);
+}
+
+async function apiProjetosEquipeAdd(projectId, payload) {
+  return apiRequest(`/api/projetos/${encodeURIComponent(projectId)}/equipe`, {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiProjetosEquipeRemove(projectId, userId) {
+  return apiRequest(
+    `/api/projetos/${encodeURIComponent(projectId)}/equipe/${encodeURIComponent(userId)}`,
+    { method: "DELETE" }
+  );
+}
+
+async function apiProjetosEquipamentosList(projectId) {
+  return apiRequest(`/api/projetos/${encodeURIComponent(projectId)}/equipamentos`);
+}
+
+async function apiProjetosEquipamentosCreate(projectId, payload) {
+  return apiRequest(`/api/projetos/${encodeURIComponent(projectId)}/equipamentos`, {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiEquipamentosUpdate(equipamentoId, payload) {
+  return apiRequest(`/api/equipamentos/${encodeURIComponent(equipamentoId)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiEquipamentosDelete(equipamentoId) {
+  return apiRequest(`/api/equipamentos/${encodeURIComponent(equipamentoId)}`, {
+    method: "DELETE",
+  });
+}
+
+async function apiProjetosGetActive() {
+  return apiRequest("/api/projetos/active");
+}
+
+async function apiProjetosSetActive(projectId) {
+  return apiRequest("/api/projetos/active", {
+    method: "POST",
+    body: JSON.stringify({ projectId }),
+  });
+}
+
 async function syncMaintenanceNow(items, force) {
   if (!currentUser) {
+    return;
+  }
+  if (!activeProjectId) {
     return;
   }
   if (maintenanceSyncPromise) {
@@ -16522,6 +17044,9 @@ async function syncMaintenanceNow(items, force) {
 
 function scheduleMaintenanceSync(items, force) {
   if (!currentUser) {
+    return;
+  }
+  if (!activeProjectId) {
     return;
   }
   if (force) {
@@ -16547,6 +17072,9 @@ function scheduleMaintenanceSync(items, force) {
 
 async function loadDashboardSummary(force) {
   if (!currentUser) {
+    return;
+  }
+  if (!activeProjectId) {
     return;
   }
   const agora = Date.now();
@@ -17576,6 +18104,247 @@ if (perfPessoaPeriodo) {
 if (perfPessoaFiltro) {
   perfPessoaFiltro.addEventListener("change", renderPerformancePessoas);
 }
+
+if (projectSelect) {
+  projectSelect.addEventListener("change", (event) => {
+    const nextId = event.target.value;
+    if (!nextId) {
+      return;
+    }
+    setActiveProjectId(nextId);
+  });
+}
+
+if (projectManageBtn) {
+  projectManageBtn.addEventListener("click", () => {
+    ativarTab("projetos");
+  });
+}
+
+if (projectTabs.length) {
+  projectTabs.forEach((button) => {
+    button.addEventListener("click", () => {
+      setProjectTab(button.dataset.projectTab);
+    });
+  });
+}
+
+if (projectForm) {
+  projectForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!currentUser || !canManageProjetos(currentUser)) {
+      return;
+    }
+    const payload = {
+      codigo: projectFormCodigo ? projectFormCodigo.value.trim() : "",
+      nome: projectFormNome ? projectFormNome.value.trim() : "",
+      cliente: projectFormCliente ? projectFormCliente.value.trim() : "",
+      descricao: projectFormDescricao ? projectFormDescricao.value.trim() : "",
+      dataInicio: projectFormInicio ? projectFormInicio.value : "",
+      dataFim: projectFormFim ? projectFormFim.value : "",
+    };
+    const projectId = projectFormId ? projectFormId.value.trim() : "";
+    try {
+      if (projectId) {
+        await apiProjetosUpdate(projectId, payload);
+      } else {
+        await apiProjetosCreate(payload);
+      }
+      resetProjectForm();
+      await refreshProjects();
+    } catch (error) {
+      alert(error && error.message ? error.message : "Falha ao salvar projeto.");
+    }
+  });
+}
+
+if (projectFormCancel) {
+  projectFormCancel.addEventListener("click", () => {
+    resetProjectForm();
+  });
+}
+
+if (projectTable) {
+  projectTable.addEventListener("click", async (event) => {
+    const action = event.target.closest("[data-action]");
+    if (!action) {
+      return;
+    }
+    const row = event.target.closest("tr");
+    if (!row) {
+      return;
+    }
+    const projectId = row.dataset.projectId;
+    if (!projectId) {
+      return;
+    }
+    if (action.dataset.action === "set-active") {
+      await setActiveProjectId(projectId);
+      return;
+    }
+    if (!currentUser || !canManageProjetos(currentUser)) {
+      return;
+    }
+    if (action.dataset.action === "edit-project") {
+      const project = availableProjects.find((item) => item.id === projectId);
+      if (!project) {
+        return;
+      }
+      if (projectFormId) projectFormId.value = project.id;
+      if (projectFormCodigo) projectFormCodigo.value = project.codigo || "";
+      if (projectFormNome) projectFormNome.value = project.nome || "";
+      if (projectFormCliente) projectFormCliente.value = project.cliente || "";
+      if (projectFormDescricao) projectFormDescricao.value = project.descricao || "";
+      if (projectFormInicio) projectFormInicio.value = project.dataInicio || "";
+      if (projectFormFim) projectFormFim.value = project.dataFim || "";
+      return;
+    }
+    if (action.dataset.action === "delete-project") {
+      const ok = confirm("Excluir projeto? Essa acao nao pode ser desfeita.");
+      if (!ok) {
+        return;
+      }
+      try {
+        await apiProjetosDelete(projectId);
+        await refreshProjects();
+      } catch (error) {
+        alert(error && error.message ? error.message : "Falha ao excluir projeto.");
+      }
+    }
+  });
+}
+
+if (equipamentoForm) {
+  equipamentoForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!currentUser || !canManageEquipamentos(currentUser)) {
+      return;
+    }
+    const payload = {
+      tag: equipamentoFormTag ? equipamentoFormTag.value.trim() : "",
+      nome: equipamentoFormNome ? equipamentoFormNome.value.trim() : "",
+      categoria: equipamentoFormCategoria ? equipamentoFormCategoria.value.trim() : "",
+      descricao: equipamentoFormDescricao ? equipamentoFormDescricao.value.trim() : "",
+    };
+    const equipamentoId = equipamentoFormId ? equipamentoFormId.value.trim() : "";
+    try {
+      if (equipamentoId) {
+        await apiEquipamentosUpdate(equipamentoId, payload);
+      } else if (activeProjectId) {
+        await apiProjetosEquipamentosCreate(activeProjectId, payload);
+      }
+      resetEquipamentoForm();
+      await carregarEquipamentosProjeto();
+    } catch (error) {
+      alert(error && error.message ? error.message : "Falha ao salvar equipamento.");
+    }
+  });
+}
+
+if (equipamentoFormCancel) {
+  equipamentoFormCancel.addEventListener("click", () => {
+    resetEquipamentoForm();
+  });
+}
+
+if (equipamentoTable) {
+  equipamentoTable.addEventListener("click", async (event) => {
+    const action = event.target.closest("[data-action]");
+    if (!action) {
+      return;
+    }
+    const row = event.target.closest("tr");
+    if (!row) {
+      return;
+    }
+    const equipamentoId = row.dataset.equipmentId;
+    if (!equipamentoId) {
+      return;
+    }
+    if (!currentUser || !canManageEquipamentos(currentUser)) {
+      return;
+    }
+    const equipamento = projectEquipamentos.find((item) => item.id === equipamentoId);
+    if (!equipamento) {
+      return;
+    }
+    if (action.dataset.action === "edit-equipment") {
+      if (equipamentoFormId) equipamentoFormId.value = equipamento.id;
+      if (equipamentoFormTag) equipamentoFormTag.value = equipamento.tag || "";
+      if (equipamentoFormNome) equipamentoFormNome.value = equipamento.nome || "";
+      if (equipamentoFormCategoria) equipamentoFormCategoria.value = equipamento.categoria || "";
+      if (equipamentoFormDescricao) equipamentoFormDescricao.value = equipamento.descricao || "";
+      return;
+    }
+    if (action.dataset.action === "delete-equipment") {
+      const ok = confirm("Excluir equipamento?");
+      if (!ok) {
+        return;
+      }
+      try {
+        await apiEquipamentosDelete(equipamentoId);
+        await carregarEquipamentosProjeto();
+      } catch (error) {
+        alert(error && error.message ? error.message : "Falha ao excluir equipamento.");
+      }
+    }
+  });
+}
+
+if (equipeForm) {
+  equipeForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!currentUser || !canManageEquipeProjeto(currentUser)) {
+      return;
+    }
+    const userId = equipeFormUser ? equipeFormUser.value : "";
+    const papel = equipeFormPapel ? equipeFormPapel.value : "";
+    if (!userId || !papel || !activeProjectId) {
+      return;
+    }
+    try {
+      await apiProjetosEquipeAdd(activeProjectId, { userId, papel });
+      if (equipeForm) {
+        equipeForm.reset();
+      }
+      await carregarEquipeProjeto();
+    } catch (error) {
+      alert(error && error.message ? error.message : "Falha ao adicionar equipe.");
+    }
+  });
+}
+
+if (equipeTable) {
+  equipeTable.addEventListener("click", async (event) => {
+    const action = event.target.closest("[data-action]");
+    if (!action) {
+      return;
+    }
+    const row = event.target.closest("tr");
+    if (!row) {
+      return;
+    }
+    const userId = row.dataset.userId;
+    if (!userId) {
+      return;
+    }
+    if (!currentUser || !canManageEquipeProjeto(currentUser)) {
+      return;
+    }
+    if (action.dataset.action === "remove-team") {
+      const ok = confirm("Remover usuario do projeto?");
+      if (!ok || !activeProjectId) {
+        return;
+      }
+      try {
+        await apiProjetosEquipeRemove(activeProjectId, userId);
+        await carregarEquipeProjeto();
+      } catch (error) {
+        alert(error && error.message ? error.message : "Falha ao remover usuario.");
+      }
+    }
+  });
+}
 if (btnEnviarFeedback) {
   btnEnviarFeedback.addEventListener("click", enviarFeedback);
 }
@@ -18248,36 +19017,29 @@ iniciarAuditChain();
 currentUser = null;
 carregarConfiguracoes();
 
-manutencoes = carregarManutencoes();
-gerarManutencoesRecorrentes();
-const resultadoInicial = normalizarManutencoes(manutencoes);
-manutencoes = resultadoInicial.normalizadas;
-salvarManutencoes(manutencoes);
 renderSubestacoes();
 renderTipoOptions();
 limparTemplateForm();
 initSidebarToggle();
 initAvatarUpload();
-rdoSnapshots = carregarRdoSnapshots();
-carregarFeedbacks();
-montarRdoUI();
 carregarSessaoServidor();
 preencherInicioExecucaoNova();
 
 window.addEventListener("focus", atualizarSeNecessario);
 window.addEventListener("storage", (event) => {
-  if (
-    [
-      STORAGE_KEY,
-      USER_KEY,
-      REQUEST_KEY,
-      AUDIT_KEY,
-      RDO_KEY,
-      FEEDBACK_KEY,
-      REMINDER_KEY,
-      TEMPLATE_KEY,
-    ].includes(event.key)
-  ) {
+  const keysBase = [
+    STORAGE_KEY,
+    REQUEST_KEY,
+    AUDIT_KEY,
+    RDO_KEY,
+    FEEDBACK_KEY,
+    REMINDER_KEY,
+    TEMPLATE_KEY,
+  ];
+  const isRelevant =
+    event.key === USER_KEY ||
+    keysBase.some((base) => isProjectStorageKey(event.key, base));
+  if (isRelevant) {
     users = carregarUsuarios();
     templates = carregarTemplates();
     garantirTemplatesPadrao();

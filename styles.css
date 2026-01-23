@@ -533,6 +533,34 @@ h1 {
   margin-left: auto;
 }
 
+.project-switcher {
+  display: grid;
+  gap: 4px;
+  min-width: 220px;
+}
+
+.project-switcher__label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--sb-text-soft, rgba(233, 239, 247, 0.7));
+}
+
+.project-switcher__control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-switcher select {
+  background: rgba(15, 26, 36, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #e9eff7;
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+}
+
 .user-menu {
   position: relative;
   display: inline-flex;
@@ -4609,6 +4637,55 @@ label {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
   margin-bottom: 16px;
+}
+
+.field--full {
+  grid-column: 1 / -1;
+}
+
+.project-form {
+  margin-bottom: 20px;
+}
+
+.project-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.tab-btn {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(9, 20, 30, 0.6);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.tab-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.tab-btn.is-active {
+  background: rgba(92, 216, 160, 0.18);
+  border-color: rgba(92, 216, 160, 0.6);
+  color: #d8f3e7;
+}
+
+.table-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.project-panel {
+  margin-top: 12px;
 }
 
 #nova-manutencao .form-grid {

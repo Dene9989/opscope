@@ -604,6 +604,22 @@
                   <span class="badge badge--neutral" id="badgeBacklog">0</span>
                 </span>
               </button>
+              <button class="nav-item" type="button" data-tab="projetos" data-tooltip="Projetos">
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M4 7h6l2 2h8v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Projetos</span>
+                <span class="nav-item__meta"></span>
+              </button>
               <button class="nav-item" type="button" data-tab="solicitacoes" data-tooltip="Solicitacoes pendentes" data-admin-only>
                 <span class="nav-item__ico">
                   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -922,6 +938,17 @@
             Subesta&ccedil;&otilde;es e Linhas de Transmiss&atilde;o
           </div>
           <div class="topbar-right">
+            <div class="project-switcher">
+              <span class="project-switcher__label" id="projectSelectLabel">Projeto ativo</span>
+              <div class="project-switcher__control">
+                <select id="projectSelect" aria-label="Selecionar projeto">
+                  <option value="">Sem projetos</option>
+                </select>
+                <button id="projectManageBtn" class="btn btn--ghost btn--small" type="button">
+                  Gerenciar
+                </button>
+              </div>
+            </div>
             <div class="notify">
               <button
                 id="btnBell"
@@ -1126,6 +1153,12 @@
               <label for="subestacaoManutencao">Subestacao</label>
               <select id="subestacaoManutencao">
                 <option value="SE Boa Sorte II">SE Boa Sorte II</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="equipamentoManutencao">Equipamento</label>
+              <select id="equipamentoManutencao" required>
+                <option value="">Selecione um equipamento</option>
               </select>
             </div>
           </div>
@@ -1524,6 +1557,147 @@
         <p class="hint">Itens atrasados aparecem aqui automaticamente para replanejamento.</p>
         <div id="listaBacklog" class="manutencoes"></div>
         <p id="listaBacklogVazia" class="empty-state">Nenhuma manutencao em backlog.</p>
+      </section>
+    </section>
+
+    <section class="panel" id="projetos" data-panel="projetos">
+      <section class="card">
+        <div class="section-title">
+          <h2>Projetos corporativos</h2>
+          <p class="hint">Cadastre projetos, equipamentos e equipe vinculada.</p>
+        </div>
+        <div class="project-tabs">
+          <button class="tab-btn is-active" type="button" data-project-tab="lista">Projetos</button>
+          <button class="tab-btn" type="button" data-project-tab="equipamentos">Equipamentos</button>
+          <button class="tab-btn" type="button" data-project-tab="equipe">Equipe do projeto</button>
+        </div>
+        <div class="project-panel" data-project-panel="lista">
+          <form id="projectForm" class="project-form">
+            <input id="projectFormId" type="hidden" />
+            <div class="form-grid">
+              <div class="field">
+                <label for="projectFormCodigo">Codigo</label>
+                <input id="projectFormCodigo" type="text" placeholder="834" required />
+              </div>
+              <div class="field">
+                <label for="projectFormNome">Nome</label>
+                <input id="projectFormNome" type="text" placeholder="PARACATU/SOLARIG (Boa Sorte II)" required />
+              </div>
+              <div class="field">
+                <label for="projectFormCliente">Cliente</label>
+                <input id="projectFormCliente" type="text" placeholder="SOLARIG" />
+              </div>
+              <div class="field field--full">
+                <label for="projectFormDescricao">Descricao</label>
+                <textarea id="projectFormDescricao" rows="2" placeholder="Detalhes do projeto"></textarea>
+              </div>
+              <div class="field">
+                <label for="projectFormInicio">Data inicio</label>
+                <input id="projectFormInicio" type="date" />
+              </div>
+              <div class="field">
+                <label for="projectFormFim">Data fim</label>
+                <input id="projectFormFim" type="date" />
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn--primary" type="submit">Salvar</button>
+              <button class="btn btn--ghost" type="button" id="projectFormCancel">Limpar</button>
+            </div>
+          </form>
+          <div class="report-table__wrap">
+            <table class="report__table" id="projectTable">
+              <thead>
+                <tr>
+                  <th>Codigo</th>
+                  <th>Nome</th>
+                  <th>Cliente</th>
+                  <th>Periodo</th>
+                  <th>Acoes</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="project-panel" data-project-panel="equipamentos" hidden>
+          <form id="equipamentoForm" class="project-form">
+            <input id="equipamentoFormId" type="hidden" />
+            <div class="form-grid">
+              <div class="field">
+                <label for="equipamentoFormTag">Tag</label>
+                <input id="equipamentoFormTag" type="text" placeholder="INV-01" required />
+              </div>
+              <div class="field">
+                <label for="equipamentoFormNome">Nome</label>
+                <input id="equipamentoFormNome" type="text" placeholder="Inversor Principal" required />
+              </div>
+              <div class="field">
+                <label for="equipamentoFormCategoria">Categoria</label>
+                <input id="equipamentoFormCategoria" type="text" placeholder="Inversor" />
+              </div>
+              <div class="field field--full">
+                <label for="equipamentoFormDescricao">Descricao</label>
+                <textarea id="equipamentoFormDescricao" rows="2" placeholder="Detalhes do equipamento"></textarea>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn--primary" type="submit">Salvar</button>
+              <button class="btn btn--ghost" type="button" id="equipamentoFormCancel">Limpar</button>
+            </div>
+          </form>
+          <div class="report-table__wrap">
+            <table class="report__table" id="equipamentoTable">
+              <thead>
+                <tr>
+                  <th>Tag</th>
+                  <th>Nome</th>
+                  <th>Categoria</th>
+                  <th>Descricao</th>
+                  <th>Acoes</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="project-panel" data-project-panel="equipe" hidden>
+          <form id="equipeForm" class="project-form">
+            <div class="form-grid">
+              <div class="field">
+                <label for="equipeFormUser">Usuario</label>
+                <select id="equipeFormUser" required>
+                  <option value="">Selecione um usuario</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="equipeFormPapel">Papel</label>
+                <select id="equipeFormPapel" required>
+                  <option value="Diretor">Diretor</option>
+                  <option value="Gerente">Gerente</option>
+                  <option value="Supervisor">Supervisor</option>
+                  <option value="Tecnico">Tecnico</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn--primary" type="submit">Adicionar</button>
+            </div>
+          </form>
+          <div class="report-table__wrap">
+            <table class="report__table" id="equipeTable">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Cargo</th>
+                  <th>Papel</th>
+                  <th>Acoes</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
       </section>
     </section>
 

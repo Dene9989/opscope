@@ -61,6 +61,9 @@ const HEALTH_TASKS_FILE = path.join(DATA_DIR, "health_tasks.json");
 const BACKUP_DIR = path.join(DATA_DIR, "backups");
 const FILES_META_FILE = path.join(DATA_DIR, "files.json");
 const PERMISSOES_FILE = path.join(DATA_DIR, "permissoes.json");
+const PROJECTS_FILE = path.join(DATA_DIR, "projects.json");
+const EQUIPAMENTOS_FILE = path.join(DATA_DIR, "equipamentos.json");
+const PROJECT_USERS_FILE = path.join(DATA_DIR, "project_users.json");
 const FILES_DIR = path.join(UPLOADS_DIR, "files");
 const SMTP_HOST = process.env.SMTP_HOST || "";
 const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
@@ -91,6 +94,8 @@ const FILE_ALLOWED_MIME = new Map([
   ["image/jpeg", "jpg"],
   ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "docx"],
 ]);
+const DEFAULT_PROJECT_CODE = "834";
+const DEFAULT_PROJECT_NAME = "PARACATU/SOLARIG (Boa Sorte II)";
 const AUTOMATION_DEFAULTS = [
   {
     id: "maintenance_critical_email",
@@ -191,6 +196,9 @@ const GRANULAR_PERMISSION_CATALOG = [
   { key: "verAutomacoes", label: "Ver automacoes" },
   { key: "verDiagnostico", label: "Ver diagnostico" },
   { key: "verPainelGerencial", label: "Ver painel gerencial" },
+  { key: "gerenciarProjetos", label: "Gerenciar projetos" },
+  { key: "gerenciarEquipamentos", label: "Gerenciar equipamentos" },
+  { key: "gerenciarEquipeProjeto", label: "Gerenciar equipe do projeto" },
 ];
 const GRANULAR_PERMISSION_KEYS = new Set(
   GRANULAR_PERMISSION_CATALOG.map((permission) => permission.key)
@@ -227,6 +235,9 @@ const GRANULAR_BASE_PERMISSIONS = {
   verAutomacoes: false,
   verDiagnostico: false,
   verPainelGerencial: false,
+  gerenciarProjetos: false,
+  gerenciarEquipamentos: false,
+  gerenciarEquipeProjeto: false,
 };
 const GRANULAR_SUPERVISOR_PERMISSIONS = {
   ...GRANULAR_BASE_PERMISSIONS,
@@ -249,6 +260,9 @@ const GRANULAR_ADMIN_PERMISSIONS = {
   verAutomacoes: true,
   verDiagnostico: true,
   verPainelGerencial: true,
+  gerenciarProjetos: true,
+  gerenciarEquipamentos: true,
+  gerenciarEquipeProjeto: true,
 };
 const GRANULAR_DEFAULT_PERMISSIONS = {
   pcm: GRANULAR_ADMIN_PERMISSIONS,
@@ -268,6 +282,7 @@ const DEFAULT_SECTIONS = {
   modelos: true,
   execucao: true,
   backlog: true,
+  projetos: true,
   desempenho: true,
   tendencias: true,
   relatorios: true,
@@ -407,6 +422,67 @@ function writeJson(filePath, data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
+function normalizeProject(record) {
+  const now = new Date().toISOString();
+  return {
+    id: record && record.id ? String(record.id) : crypto.randomUUID(),
+    codigo: String(record && record.codigo ? record.codigo : "").trim(),
+    nome: String(record && record.nome ? record.nome : "").trim(),
+    cliente: String(record && record.cliente ? record.cliente : "").trim(),
+    descricao: String(record && record.descricao ? record.descricao : "").trim(),
+    dataInicio: record && record.dataInicio ? String(record.dataInicio) : "",
+    dataFim: record && record.dataFim ? String(record.dataFim) : "",
+    createdAt: record && record.createdAt ? record.createdAt : now,
+    updatedAt: record && record.updatedAt ? record.updatedAt : now,
+  };
+}
+
+function loadProjects() {
+  const data = readJson(PROJECTS_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.filter((item) => item && typeof item === "object");
+}
+
+function saveProjects(list) {
+  writeJson(PROJECTS_FILE, list);
+}
+
+function normalizeProjectUser(record) {
+  return {
+    id: record && record.id ? String(record.id) : crypto.randomUUID(),
+    projectId: String(record && record.projectId ? record.projectId : "").trim(),
+    userId: String(record && record.userId ? record.userId : "").trim(),
+    papel: String(record && record.papel ? record.papel : "").trim(),
+    createdAt: record && record.createdAt ? record.createdAt : new Date().toISOString(),
+  };
+}
+
+function loadProjectUsers() {
+  const data = readJson(PROJECT_USERS_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.filter((item) => item && typeof item === "object");
+}
+
+function saveProjectUsers(list) {
+  writeJson(PROJECT_USERS_FILE, list);
+}
+
+function loadEquipamentos() {
+  const data = readJson(EQUIPAMENTOS_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.filter((item) => item && typeof item === "object");
+}
+
+function saveEquipamentos(list) {
+  writeJson(EQUIPAMENTOS_FILE, list);
+}
+
 function shouldRedactLogKey(key) {
   const normalized = String(key || "").toLowerCase();
   return (
@@ -502,6 +578,7 @@ function normalizeAutomations(list) {
     const stored = storedMap.get(automation.id);
     output.push({
       ...automation,
+      projectId: stored && stored.projectId ? stored.projectId : automation.projectId || "",
       enabled: stored && typeof stored.enabled === "boolean" ? stored.enabled : automation.enabled,
       condition: { ...automation.condition, ...(stored ? stored.condition : {}) },
       action: { ...automation.action, ...(stored ? stored.action : {}) },
@@ -905,6 +982,170 @@ function canEditProfile(actor, target) {
   return actorLevel > targetLevel;
 }
 
+function getProjectById(id) {
+  const target = String(id || "").trim();
+  if (!target) {
+    return null;
+  }
+  return projects.find((project) => project && project.id === target) || null;
+}
+
+function getProjectByCode(code) {
+  const target = String(code || "").trim();
+  if (!target) {
+    return null;
+  }
+  return projects.find((project) => String(project.codigo || "").trim() === target) || null;
+}
+
+function ensureDefaultProject() {
+  let list = Array.isArray(projects) ? projects.slice() : [];
+  let defaultProject = getProjectByCode(DEFAULT_PROJECT_CODE);
+  if (!defaultProject) {
+    defaultProject = normalizeProject({
+      codigo: DEFAULT_PROJECT_CODE,
+      nome: DEFAULT_PROJECT_NAME,
+      cliente: "",
+      descricao: "",
+      dataInicio: "",
+      dataFim: "",
+    });
+    list = list.concat(defaultProject);
+    projects = list;
+    saveProjects(projects);
+  }
+  return defaultProject;
+}
+
+function mapUserRoleToProjectRole(user) {
+  const role = normalizeRbacRole(user && (user.rbacRole || user.role));
+  if (role === "pcm") {
+    return "Gerente";
+  }
+  if (role === "diretor_om") {
+    return "Diretor";
+  }
+  if (role === "gerente_contrato") {
+    return "Gerente";
+  }
+  if (role === "supervisor_om") {
+    return "Supervisor";
+  }
+  return "Tecnico";
+}
+
+function getUserProjectIds(user) {
+  if (!user || !user.id) {
+    return [];
+  }
+  const ids = projectUsers
+    .filter((entry) => entry && entry.userId === user.id)
+    .map((entry) => entry.projectId)
+    .filter(Boolean);
+  return Array.from(new Set(ids));
+}
+
+function getProjectIdsForUserId(userId) {
+  const id = String(userId || "").trim();
+  if (!id) {
+    return [];
+  }
+  return projectUsers
+    .filter((entry) => entry && entry.userId === id)
+    .map((entry) => entry.projectId)
+    .filter(Boolean);
+}
+
+function userHasProjectAccess(user, projectId) {
+  if (!user || !projectId) {
+    return false;
+  }
+  return projectUsers.some(
+    (entry) => entry && entry.userId === user.id && entry.projectId === projectId
+  );
+}
+
+function ensureUserProjectLinks(defaultProjectId) {
+  if (!Array.isArray(users) || !users.length) {
+    return;
+  }
+  const existing = new Set(
+    projectUsers.map((entry) => `${entry.userId || ""}:${entry.projectId || ""}`)
+  );
+  const created = [];
+  users.forEach((user) => {
+    const key = `${user.id}:${defaultProjectId}`;
+    if (existing.has(key)) {
+      return;
+    }
+    created.push(
+      normalizeProjectUser({
+        projectId: defaultProjectId,
+        userId: user.id,
+        papel: mapUserRoleToProjectRole(user),
+      })
+    );
+  });
+  if (created.length) {
+    projectUsers = projectUsers.concat(created);
+    saveProjectUsers(projectUsers);
+  }
+}
+
+function migrateRecordsProjectId(list, defaultProjectId) {
+  if (!Array.isArray(list)) {
+    return { list: [], changed: false };
+  }
+  let changed = false;
+  const updated = list.map((item) => {
+    if (!item || typeof item !== "object") {
+      return item;
+    }
+    if (!item.projectId) {
+      changed = true;
+      return { ...item, projectId: defaultProjectId };
+    }
+    if (!getProjectById(item.projectId)) {
+      changed = true;
+      return { ...item, projectId: defaultProjectId };
+    }
+    return item;
+  });
+  return { list: updated, changed };
+}
+
+function ensureProjectSeedData() {
+  projects = loadProjects();
+  const defaultProject = ensureDefaultProject();
+  projectUsers = loadProjectUsers();
+  ensureUserProjectLinks(defaultProject.id);
+  equipamentos = loadEquipamentos();
+
+  const maintenance = loadMaintenanceData();
+  const maintenanceMigration = migrateRecordsProjectId(maintenance, defaultProject.id);
+  if (maintenanceMigration.changed) {
+    writeJson(MAINTENANCE_FILE, maintenanceMigration.list);
+  }
+
+  const auditMigration = migrateRecordsProjectId(auditLog, defaultProject.id);
+  if (auditMigration.changed) {
+    auditLog = auditMigration.list;
+    writeJson(AUDIT_FILE, auditLog);
+  }
+
+  const filesMigration = migrateRecordsProjectId(filesMeta, defaultProject.id);
+  if (filesMigration.changed) {
+    filesMeta = filesMigration.list;
+    writeJson(FILES_META_FILE, filesMeta);
+  }
+
+  const automationMigration = migrateRecordsProjectId(automations, defaultProject.id);
+  if (automationMigration.changed) {
+    automations = automationMigration.list;
+    saveAutomations(automations);
+  }
+}
+
 function normalizeProjectKey(value) {
   return String(value || "").trim().toUpperCase();
 }
@@ -913,6 +1154,22 @@ function getUserProjectKey(user) {
   const raw =
     (user && (user.projeto || user.projectKey || user.localizacao || user.location)) || "HV";
   return normalizeProjectKey(raw || "HV");
+}
+
+function getActiveProjectId(req, user) {
+  if (!user) {
+    return null;
+  }
+  const fromSession = req && req.session ? String(req.session.activeProjectId || "").trim() : "";
+  if (fromSession && userHasProjectAccess(user, fromSession)) {
+    return fromSession;
+  }
+  const ids = getUserProjectIds(user);
+  if (ids.length) {
+    return ids[0];
+  }
+  const fallback = ensureDefaultProject();
+  return fallback ? fallback.id : null;
 }
 
 function parseDateOnly(value) {
@@ -1149,6 +1406,9 @@ async function runAutomationsForItems(event, items, actor, ip) {
       continue;
     }
     for (const item of items) {
+      if (automation.projectId && item && item.projectId !== automation.projectId) {
+        continue;
+      }
       if (!matchesAutomationCondition(automation, item)) {
         continue;
       }
@@ -1167,8 +1427,10 @@ async function runAutomationsForItems(event, items, actor, ip) {
           status: result.status,
           itemId: item.id || "",
           message: result.message || "",
+          projectId: automation.projectId || item.projectId || "",
         },
-        ip || "unknown"
+        ip || "unknown",
+        automation.projectId || item.projectId || null
       );
       changed = true;
     }
@@ -1187,10 +1449,18 @@ function sha256(input) {
   return crypto.createHash("sha256").update(input).digest("hex");
 }
 
-function appendAudit(action, userId, details, ip) {
+function appendAudit(action, userId, details, ip, projectId = null) {
   const timestamp = new Date().toISOString();
   const prevHash = auditLog.length ? auditLog[auditLog.length - 1].hash : "";
-  const payload = JSON.stringify({ action, userId, details, ip, timestamp, prevHash });
+  const payload = JSON.stringify({
+    action,
+    userId,
+    details,
+    ip,
+    timestamp,
+    prevHash,
+    projectId,
+  });
   const hash = sha256(payload);
   const entry = {
     id: crypto.randomUUID(),
@@ -1201,6 +1471,7 @@ function appendAudit(action, userId, details, ip) {
     timestamp,
     prevHash,
     hash,
+    projectId: projectId || (details && details.projectId ? details.projectId : null),
   };
   auditLog.push(entry);
   writeJson(AUDIT_FILE, auditLog);
@@ -1832,7 +2103,21 @@ function requireAdmin(req, res, next) {
   return next();
 }
 
-function buildDashboardSummary(items, projectKey) {
+function requireProjectAccess(req, res, next) {
+  const user = req.currentUser || getSessionUser(req);
+  const projectId =
+    String(req.params.id || req.body.projectId || req.query.projectId || "").trim();
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto obrigatorio." });
+  }
+  if (!userHasProjectAccess(user, projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  req.projectId = projectId;
+  return next();
+}
+
+function buildDashboardSummary(items, projectId) {
   const today = startOfDay(new Date());
   const pendingItems = [];
   const completedItems = [];
@@ -2050,36 +2335,44 @@ function buildDashboardSummary(items, projectKey) {
     },
     meta: {
       generatedAt: new Date().toISOString(),
-      project: projectKey,
+      project: projectId,
     },
   };
 }
 
-function getDashboardSummaryForProject(projectKey) {
-  const key = normalizeProjectKey(projectKey || "HV") || "HV";
+function getDefaultProjectId() {
+  const defaultProject = ensureDefaultProject();
+  return defaultProject ? defaultProject.id : null;
+}
+
+function getDashboardSummaryForProject(projectId) {
+  const key = String(projectId || "").trim();
+  const fallbackId = getDefaultProjectId();
+  const resolved = key || fallbackId || "";
   const now = Date.now();
-  const cached = DASHBOARD_CACHE.get(key);
+  const cached = DASHBOARD_CACHE.get(resolved);
   if (cached && cached.expiresAt > now) {
     return cached.payload;
   }
   const dataset = loadMaintenanceData();
   const filtered = dataset.filter((item) => {
-    const itemProject = normalizeProjectKey(
-      item.projeto || item.unidade || item.projectKey || item.project || "HV"
-    );
-    return itemProject === key;
+    const itemProject = item && item.projectId ? item.projectId : fallbackId;
+    return itemProject && itemProject === resolved;
   });
   if (IS_DEV && filtered.length === 0) {
-    console.warn("[dashboard] Dataset vazio para project", key);
+    console.warn("[dashboard] Dataset vazio para project", resolved);
   }
-  const payload = buildDashboardSummary(filtered, key);
-  DASHBOARD_CACHE.set(key, { expiresAt: now + DASHBOARD_CACHE_TTL_MS, payload });
+  const payload = buildDashboardSummary(filtered, resolved);
+  DASHBOARD_CACHE.set(resolved, { expiresAt: now + DASHBOARD_CACHE_TTL_MS, payload });
   return payload;
 }
 
 ensureDataDir();
 ensureUploadDirs();
 migrateLegacyAvatars();
+let projects = [];
+let projectUsers = [];
+let equipamentos = [];
 const usersFileExists = fs.existsSync(USERS_FILE);
 let users = readJson(USERS_FILE, []);
 if (!usersFileExists) {
@@ -2117,6 +2410,10 @@ users = users.map(normalizeUserRecord);
 writeJson(USERS_FILE, users);
 ensureMasterAccount();
 seedAdmin();
+projects = loadProjects();
+projectUsers = loadProjectUsers();
+equipamentos = loadEquipamentos();
+ensureProjectSeedData();
 
 app.use(express.json({ limit: "20mb" }));
 app.use(
@@ -2206,6 +2503,10 @@ app.post("/api/auth/login", async (req, res) => {
   }
   clearFailures(ip, login);
   req.session.userId = user.id;
+  const activeProjectId = getActiveProjectId({ session: req.session }, user);
+  if (activeProjectId) {
+    req.session.activeProjectId = activeProjectId;
+  }
   appendAudit("login_success", user.id, {}, ip);
   return res.json({ user: sanitizeUser(user) });
 });
@@ -2223,8 +2524,305 @@ app.get("/api/auth/me", (req, res) => {
   if (!user) {
     return res.status(401).json({ message: "Nao autenticado." });
   }
-  return res.json({ user: sanitizeUser(user) });
+  const ids = getUserProjectIds(user);
+  const available = projects
+    .filter((project) => project && ids.includes(project.id))
+    .map((project) => {
+      const entry = projectUsers.find(
+        (item) => item && item.projectId === project.id && item.userId === user.id
+      );
+      return { ...project, papel: entry ? entry.papel : "" };
+    });
+  const activeProjectId = getActiveProjectId(req, user);
+  if (activeProjectId) {
+    req.session.activeProjectId = activeProjectId;
+  }
+  return res.json({
+    user: sanitizeUser(user),
+    projects: available,
+    activeProjectId: activeProjectId || "",
+  });
 });
+
+app.get("/api/projetos/active", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const activeProjectId = getActiveProjectId(req, user);
+  if (activeProjectId) {
+    req.session.activeProjectId = activeProjectId;
+  }
+  return res.json({ activeProjectId: activeProjectId || "" });
+});
+
+app.post("/api/projetos/active", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const projectId = String(req.body.projectId || "").trim();
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto invalido." });
+  }
+  if (!userHasProjectAccess(user, projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  req.session.activeProjectId = projectId;
+  return res.json({ ok: true, activeProjectId: projectId });
+});
+
+app.get("/api/projetos", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const ids = getUserProjectIds(user);
+  const list = projects
+    .filter((project) => project && ids.includes(project.id))
+    .map((project) => {
+      const entry = projectUsers.find(
+        (item) => item && item.projectId === project.id && item.userId === user.id
+      );
+      return { ...project, papel: entry ? entry.papel : "" };
+    });
+  return res.json({ projects: list });
+});
+
+app.post("/api/projetos", requireAuth, requirePermission("gerenciarProjetos"), (req, res) => {
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const codigo = String(payload.codigo || "").trim();
+  const nome = String(payload.nome || "").trim();
+  if (!codigo || !nome) {
+    return res.status(400).json({ message: "Codigo e nome sao obrigatorios." });
+  }
+  if (projects.some((project) => String(project.codigo || "").trim() === codigo)) {
+    return res.status(409).json({ message: "Codigo de projeto ja existe." });
+  }
+  const record = normalizeProject({
+    codigo,
+    nome,
+    cliente: payload.cliente || "",
+    descricao: payload.descricao || "",
+    dataInicio: payload.dataInicio || "",
+    dataFim: payload.dataFim || "",
+  });
+  projects = projects.concat(record);
+  saveProjects(projects);
+  const actor = req.currentUser || getSessionUser(req);
+  if (actor && !userHasProjectAccess(actor, record.id)) {
+    const entry = normalizeProjectUser({
+      projectId: record.id,
+      userId: actor.id,
+      papel: mapUserRoleToProjectRole(actor),
+    });
+    projectUsers = projectUsers.concat(entry);
+    saveProjectUsers(projectUsers);
+  }
+  return res.json({ project: record });
+});
+
+app.put("/api/projetos/:id", requireAuth, requirePermission("gerenciarProjetos"), (req, res) => {
+  const projectId = String(req.params.id || "").trim();
+  const index = projects.findIndex((project) => project && project.id === projectId);
+  if (index === -1) {
+    return res.status(404).json({ message: "Projeto nao encontrado." });
+  }
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const current = projects[index];
+  const codigo = "codigo" in payload ? String(payload.codigo || "").trim() : current.codigo;
+  const nome = "nome" in payload ? String(payload.nome || "").trim() : current.nome;
+  if (!codigo || !nome) {
+    return res.status(400).json({ message: "Codigo e nome sao obrigatorios." });
+  }
+  if (
+    codigo !== current.codigo &&
+    projects.some((project) => String(project.codigo || "").trim() === codigo)
+  ) {
+    return res.status(409).json({ message: "Codigo de projeto ja existe." });
+  }
+  const updated = normalizeProject({
+    ...current,
+    ...payload,
+    codigo,
+    nome,
+    updatedAt: new Date().toISOString(),
+  });
+  projects[index] = updated;
+  saveProjects(projects);
+  return res.json({ project: updated });
+});
+
+app.delete(
+  "/api/projetos/:id",
+  requireAuth,
+  requirePermission("gerenciarProjetos"),
+  (req, res) => {
+    const projectId = String(req.params.id || "").trim();
+    const defaultProject = ensureDefaultProject();
+    if (defaultProject && defaultProject.id === projectId) {
+      return res.status(400).json({ message: "Projeto inicial nao pode ser removido." });
+    }
+    const index = projects.findIndex((project) => project && project.id === projectId);
+    if (index === -1) {
+      return res.status(404).json({ message: "Projeto nao encontrado." });
+    }
+    projects.splice(index, 1);
+    saveProjects(projects);
+    projectUsers = projectUsers.filter((entry) => entry.projectId !== projectId);
+    saveProjectUsers(projectUsers);
+    equipamentos = equipamentos.filter((equip) => equip.projectId !== projectId);
+    saveEquipamentos(equipamentos);
+    return res.json({ ok: true });
+  }
+);
+
+app.get("/api/projetos/:id/equipe", requireAuth, requireProjectAccess, (req, res) => {
+  const projectId = req.projectId;
+  const equipe = projectUsers
+    .filter((entry) => entry.projectId === projectId)
+    .map((entry) => {
+      const user = users.find((item) => item.id === entry.userId);
+      return {
+        ...entry,
+        user: user ? sanitizeUser(user) : null,
+      };
+    });
+  return res.json({ equipe });
+});
+
+app.post(
+  "/api/projetos/:id/equipe",
+  requireAuth,
+  requirePermission("gerenciarEquipeProjeto"),
+  requireProjectAccess,
+  (req, res) => {
+    const projectId = req.projectId;
+    const userId = String(req.body.userId || "").trim();
+    const papel = String(req.body.papel || "").trim();
+    if (!userId || !papel) {
+      return res.status(400).json({ message: "Usuario e papel sao obrigatorios." });
+    }
+    const alvo = users.find((item) => item.id === userId);
+    if (!alvo) {
+      return res.status(404).json({ message: "Usuario nao encontrado." });
+    }
+    const exists = projectUsers.some(
+      (entry) => entry.userId === userId && entry.projectId === projectId
+    );
+    if (exists) {
+      return res.status(409).json({ message: "Usuario ja vinculado ao projeto." });
+    }
+    const entry = normalizeProjectUser({ projectId, userId, papel });
+    projectUsers = projectUsers.concat(entry);
+    saveProjectUsers(projectUsers);
+    return res.json({ entry });
+  }
+);
+
+app.delete(
+  "/api/projetos/:id/equipe/:userId",
+  requireAuth,
+  requirePermission("gerenciarEquipeProjeto"),
+  requireProjectAccess,
+  (req, res) => {
+    const projectId = req.projectId;
+    const userId = String(req.params.userId || "").trim();
+    const before = projectUsers.length;
+    projectUsers = projectUsers.filter(
+      (entry) => !(entry.projectId === projectId && entry.userId === userId)
+    );
+    if (projectUsers.length === before) {
+      return res.status(404).json({ message: "Vinculo nao encontrado." });
+    }
+    saveProjectUsers(projectUsers);
+    return res.json({ ok: true });
+  }
+);
+
+app.get("/api/projetos/:id/equipamentos", requireAuth, requireProjectAccess, (req, res) => {
+  const projectId = req.projectId;
+  const list = equipamentos.filter((item) => item.projectId === projectId);
+  return res.json({ equipamentos: list });
+});
+
+app.post(
+  "/api/projetos/:id/equipamentos",
+  requireAuth,
+  requirePermission("gerenciarEquipamentos"),
+  requireProjectAccess,
+  (req, res) => {
+    const projectId = req.projectId;
+    const payload = req.body && typeof req.body === "object" ? req.body : {};
+    const tag = String(payload.tag || "").trim();
+    const nome = String(payload.nome || "").trim();
+    if (!tag || !nome) {
+      return res.status(400).json({ message: "Tag e nome sao obrigatorios." });
+    }
+    const record = {
+      id: crypto.randomUUID(),
+      projectId,
+      tag,
+      nome,
+      categoria: String(payload.categoria || "").trim(),
+      descricao: String(payload.descricao || "").trim(),
+      metadata: payload.metadata && typeof payload.metadata === "object" ? payload.metadata : {},
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    equipamentos = equipamentos.concat(record);
+    saveEquipamentos(equipamentos);
+    return res.json({ equipamento: record });
+  }
+);
+
+app.put(
+  "/api/equipamentos/:id",
+  requireAuth,
+  requirePermission("gerenciarEquipamentos"),
+  (req, res) => {
+    const equipamentoId = String(req.params.id || "").trim();
+    const index = equipamentos.findIndex((item) => item.id === equipamentoId);
+    if (index === -1) {
+      return res.status(404).json({ message: "Equipamento nao encontrado." });
+    }
+    const equipamento = equipamentos[index];
+    const user = req.currentUser || getSessionUser(req);
+    if (!userHasProjectAccess(user, equipamento.projectId)) {
+      return res.status(403).json({ message: "Nao autorizado." });
+    }
+    const payload = req.body && typeof req.body === "object" ? req.body : {};
+    const updated = {
+      ...equipamento,
+      tag: "tag" in payload ? String(payload.tag || "").trim() : equipamento.tag,
+      nome: "nome" in payload ? String(payload.nome || "").trim() : equipamento.nome,
+      categoria:
+        "categoria" in payload ? String(payload.categoria || "").trim() : equipamento.categoria,
+      descricao:
+        "descricao" in payload ? String(payload.descricao || "").trim() : equipamento.descricao,
+      metadata:
+        "metadata" in payload && payload.metadata && typeof payload.metadata === "object"
+          ? payload.metadata
+          : equipamento.metadata,
+      updatedAt: new Date().toISOString(),
+    };
+    equipamentos[index] = updated;
+    saveEquipamentos(equipamentos);
+    return res.json({ equipamento: updated });
+  }
+);
+
+app.delete(
+  "/api/equipamentos/:id",
+  requireAuth,
+  requirePermission("gerenciarEquipamentos"),
+  (req, res) => {
+    const equipamentoId = String(req.params.id || "").trim();
+    const index = equipamentos.findIndex((item) => item.id === equipamentoId);
+    if (index === -1) {
+      return res.status(404).json({ message: "Equipamento nao encontrado." });
+    }
+    const equipamento = equipamentos[index];
+    const user = req.currentUser || getSessionUser(req);
+    if (!userHasProjectAccess(user, equipamento.projectId)) {
+      return res.status(403).json({ message: "Nao autorizado." });
+    }
+    equipamentos.splice(index, 1);
+    saveEquipamentos(equipamentos);
+    return res.json({ ok: true });
+  }
+);
 
 app.patch("/api/profile", requireAuth, (req, res) => {
   const actor = req.currentUser || getSessionUser(req);
@@ -2363,13 +2961,28 @@ app.delete("/api/profile/avatar", requireAuth, (req, res) => {
 });
 
 app.get("/api/auth/users", requireAuth, (req, res) => {
-  const list = users.map((user) => sanitizeUser(user));
-  return res.json({ users: list });
+  const actor = req.currentUser || getSessionUser(req);
+  const activeProjectId = getActiveProjectId(req, actor);
+  const filtered = activeProjectId
+    ? users.filter((user) => userHasProjectAccess(user, activeProjectId))
+    : [actor].filter(Boolean);
+  return res.json({ users: filtered.map((user) => sanitizeUser(user)) });
 });
 
 app.get("/api/admin/users", requireAuth, requirePermission("verUsuarios"), (req, res) => {
-  const list = users.map((user) => sanitizeUser(user));
-  return res.json({ users: list });
+  const actor = req.currentUser || getSessionUser(req);
+  if (actor && isFullAccessRole(actor.rbacRole || actor.role)) {
+    return res.json({ users: users.map((user) => sanitizeUser(user)) });
+  }
+  const allowedProjects = new Set(getUserProjectIds(actor));
+  const filtered = users.filter((user) => {
+    if (!user || !user.id) {
+      return false;
+    }
+    const ids = getProjectIdsForUserId(user.id);
+    return ids.some((id) => allowedProjects.has(id));
+  });
+  return res.json({ users: filtered.map((user) => sanitizeUser(user)) });
 });
 
 app.get("/api/admin/permissions", requireAuth, requirePermission("verUsuarios"), (req, res) => {
@@ -2475,7 +3088,13 @@ app.get("/api/admin/logs", requireAuth, requirePermission("verLogsAPI"), (req, r
 });
 
 app.get("/api/admin/automations", requireAuth, requirePermission("verAutomacoes"), (req, res) => {
-  return res.json({ automations });
+  const user = req.currentUser || getSessionUser(req);
+  const projectId = getActiveProjectId(req, user);
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+  }
+  const list = automations.filter((item) => item && item.projectId === projectId);
+  return res.json({ automations: list });
 });
 
 app.patch(
@@ -2483,12 +3102,20 @@ app.patch(
   requireAuth,
   requirePermission("gerenciarAutomacoes"),
   (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const projectId = getActiveProjectId(req, user);
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+  }
   const automationId = String(req.params.id || "").trim();
   const index = automations.findIndex((item) => item.id === automationId);
   if (index === -1) {
     return res.status(404).json({ message: "Automacao nao encontrada." });
   }
   const current = automations[index];
+  if (current.projectId && current.projectId !== projectId) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
   const payload = req.body && typeof req.body === "object" ? req.body : {};
   const updated = {
     ...current,
@@ -2504,17 +3131,24 @@ app.patch(
   appendAudit(
     "automation_update",
     req.currentUser ? req.currentUser.id : null,
-    { automationId, enabled: updated.enabled },
-    getClientIp(req)
+    { automationId, enabled: updated.enabled, projectId },
+    getClientIp(req),
+    projectId
   );
   return res.json({ ok: true, automations });
   }
 );
 
 app.get("/api/admin/files", requireAuth, requirePermission("verArquivos"), (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const projectId = getActiveProjectId(req, user);
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+  }
   const type = String(req.query.type || "").trim().toLowerCase();
   const search = String(req.query.search || "").trim().toLowerCase();
   let list = Array.isArray(filesMeta) ? filesMeta.slice() : [];
+  list = list.filter((item) => item && item.projectId === projectId);
   if (type && FILE_TYPE_CONFIG[type]) {
     list = list.filter((item) => item.type === type);
   }
@@ -2535,6 +3169,11 @@ app.post(
   requirePermission("uploadArquivos"),
   express.raw({ type: "multipart/form-data", limit: FILE_MAX_BYTES + 1024 * 1024 }),
   (req, res) => {
+    const user = req.currentUser || getSessionUser(req);
+    const projectId = getActiveProjectId(req, user);
+    if (!projectId) {
+      return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+    }
     const parsed = parseMultipartForm(req);
     if (!parsed || !parsed.file) {
       return res.status(400).json({ message: "Arquivo nao enviado." });
@@ -2577,26 +3216,32 @@ app.post(
       createdAt: new Date().toISOString(),
       createdBy: actor ? actor.id : "",
       createdByName: actor ? actor.name : "",
+      projectId,
     };
     filesMeta = Array.isArray(filesMeta) ? filesMeta.concat(entry) : [entry];
     writeJson(FILES_META_FILE, filesMeta);
     appendAudit(
       "file_upload",
       actor ? actor.id : null,
-      { fileId: entry.id, name: entry.originalName, type: entry.type },
-      getClientIp(req)
+      { fileId: entry.id, name: entry.originalName, type: entry.type, projectId },
+      getClientIp(req),
+      projectId
     );
     return res.json({ ok: true, file: entry });
   }
 );
 
 app.delete("/api/admin/files/:id", requireAuth, requirePermission("excluirArquivos"), (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
   const fileId = String(req.params.id || "").trim();
   const index = Array.isArray(filesMeta) ? filesMeta.findIndex((item) => item.id === fileId) : -1;
   if (index === -1) {
     return res.status(404).json({ message: "Arquivo nao encontrado." });
   }
   const file = filesMeta[index];
+  if (!userHasProjectAccess(user, file.projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
   const typeConfig = getFileTypeConfig(file.type);
   if (typeConfig) {
     const filePath = path.join(FILES_DIR, typeConfig.dir, file.name);
@@ -2613,43 +3258,40 @@ app.delete("/api/admin/files/:id", requireAuth, requirePermission("excluirArquiv
   appendAudit(
     "file_delete",
     req.currentUser ? req.currentUser.id : null,
-    { fileId, name: file.originalName },
-    getClientIp(req)
+    { fileId, name: file.originalName, projectId: file.projectId || "" },
+    getClientIp(req),
+    file.projectId || null
   );
   return res.json({ ok: true });
 });
 
 app.post("/api/maintenance/sync", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
-  const projectKey = getUserProjectKey(user);
+  const projectId = getActiveProjectId(req, user);
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+  }
   const incoming = Array.isArray(req.body.items) ? req.body.items : [];
   const sanitized = incoming
     .filter((item) => item && typeof item === "object")
     .map((item) => ({
       ...item,
-      projeto: projectKey,
-      projectKey,
+      projectId,
     }));
   const existing = loadMaintenanceData();
   const existingProject = existing.filter((item) => {
-    const itemProject = normalizeProjectKey(
-      item.projeto || item.projectKey || item.project || item.unidade || "HV"
-    );
-    return itemProject === projectKey;
+    return item && item.projectId === projectId;
   });
   const existingIds = new Set(existingProject.map((item) => item.id).filter(Boolean));
   const createdItems = sanitized.filter(
     (item) => item && item.id && !existingIds.has(item.id)
   );
   const filtered = existing.filter((item) => {
-    const itemProject = normalizeProjectKey(
-      item.projeto || item.projectKey || item.project || item.unidade || "HV"
-    );
-    return itemProject !== projectKey;
+    return !(item && item.projectId === projectId);
   });
   const merged = [...filtered, ...sanitized];
   writeJson(MAINTENANCE_FILE, merged);
-  DASHBOARD_CACHE.delete(projectKey);
+  DASHBOARD_CACHE.delete(projectId);
   if (createdItems.length) {
     const ip = getClientIp(req);
     runAutomationsForItems("maintenance_created", createdItems, user, ip).catch((error) => {
@@ -2659,12 +3301,15 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
       );
     });
   }
-  return res.json({ ok: true, count: sanitized.length, project: projectKey });
+  return res.json({ ok: true, count: sanitized.length, project: projectId });
 });
 
 app.post("/api/maintenance/release", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
-  const projectKey = getUserProjectKey(user);
+  const projectId = getActiveProjectId(req, user);
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+  }
   const maintenanceId = String(req.body.id || "").trim();
   const justificativa = String(req.body.justificativa || "").trim();
   const payloadDate =
@@ -2679,10 +3324,7 @@ app.post("/api/maintenance/release", requireAuth, (req, res) => {
     if (!item || String(item.id || "") !== maintenanceId) {
       return false;
     }
-    const itemProject = normalizeProjectKey(
-      item.projeto || item.projectKey || item.project || item.unidade || "HV"
-    );
-    return itemProject === projectKey;
+    return item && item.projectId === projectId;
   });
 
   const dueDate = getDueDate(candidate) || parseDateOnly(payloadDate);
@@ -2696,9 +3338,10 @@ app.post("/api/maintenance/release", requireAuth, (req, res) => {
         {
           manutencaoId: maintenanceId || null,
           dataProgramada: formatDateISO(dueDate),
-          project: projectKey,
+          projectId,
         },
-        getClientIp(req)
+        getClientIp(req),
+        projectId
       );
       return res
         .status(403)
@@ -2717,9 +3360,10 @@ app.post("/api/maintenance/release", requireAuth, (req, res) => {
         dataProgramada: formatDateISO(dueDate),
         justificativa,
         role: normalizeRbacRole(user.rbacRole || user.role),
-        project: projectKey,
+        projectId,
       },
-      getClientIp(req)
+      getClientIp(req),
+      projectId
     );
     return res.json({
       ok: true,
@@ -2935,6 +3579,16 @@ app.post("/api/auth/register", async (req, res) => {
     verifications.push(verification);
   }
   users.push(user);
+  const defaultProject = ensureDefaultProject();
+  if (defaultProject) {
+    const entry = normalizeProjectUser({
+      projectId: defaultProject.id,
+      userId: user.id,
+      papel: mapUserRoleToProjectRole(user),
+    });
+    projectUsers = projectUsers.concat(entry);
+    saveProjectUsers(projectUsers);
+  }
   invites = invites.filter((item) => item.code !== convite);
   writeJson(USERS_FILE, users);
   writeJson(INVITES_FILE, invites);
@@ -2982,8 +3636,8 @@ app.get("/api/auth/verify", (req, res) => {
 
 app.get("/api/dashboard/summary", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
-  const projectKey = getUserProjectKey(user);
-  const payload = getDashboardSummaryForProject(projectKey);
+  const projectId = getActiveProjectId(req, user);
+  const payload = getDashboardSummaryForProject(projectId);
   return res.json(payload);
 });
 
