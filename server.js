@@ -3434,6 +3434,19 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
   return res.json({ ok: true, count: sanitized.length, project: projectId });
 });
 
+app.get("/api/maintenance", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const projectId = getActiveProjectId(req, user);
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+  }
+  if (!userHasProjectAccess(user, projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  const list = loadMaintenanceData().filter((item) => item && item.projectId === projectId);
+  return res.json({ items: list, projectId });
+});
+
 app.post("/api/maintenance/release", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   const projectId = getActiveProjectId(req, user);

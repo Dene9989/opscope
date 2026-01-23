@@ -606,7 +606,7 @@ const RDO_SETOR = "O&M - ENGELMIG";
 const RDO_PROJETO = "LZC-BOS-SUB1";
 const SYSTEM_USER_ID = "system";
 const CUSTOM_TIPO_OPTION = "__custom";
-const SUBESTACOES = ["SE Boa Sorte II"];
+const SUBESTACOES = ["834 - PARACATU/SOLARIG (Boa Sorte II)"];
 const WEEKDAYS = ["Domingo", "Segunda", "Terca", "Quarta", "Quinta", "Sexta", "Sabado"];
 const WEEKDAYS_SHORT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
 const DEFAULT_DAILY_DAYS = [1, 2, 3, 4, 5];
@@ -1531,6 +1531,7 @@ let maintenanceSyncTimer = null;
 let maintenanceSyncPromise = null;
 let maintenanceLastSync = 0;
 let maintenanceLastUserId = null;
+const maintenanceLoadedProjects = new Set();
 let healthSnapshot = null;
 let healthLoading = false;
 let apiLogsState = {
@@ -3780,7 +3781,7 @@ function garantirTemplatesPadrao() {
     return;
   }
   const hoje = formatDateISO(new Date());
-  const subestacao = SUBESTACOES[0] || "SE Boa Sorte II";
+  const subestacao = SUBESTACOES[0] || "834 - PARACATU/SOLARIG (Boa Sorte II)";
   const criarPadrao = (nome, config) => {
     const agoraIso = toIsoUtc(new Date());
     const modelo = {
@@ -3981,6 +3982,7 @@ async function setActiveProjectId(nextId, options = {}) {
   renderProjectPanel();
   await carregarEquipeProjeto();
   await carregarEquipamentosProjeto();
+  await carregarManutencoesServidor(true);
 }
 
 async function carregarSessaoServidor() {
@@ -13227,6 +13229,28 @@ async function carregarEquipamentosProjeto() {
   renderEquipamentoOptions();
 }
 
+async function carregarManutencoesServidor(force = false) {
+  if (!currentUser || !activeProjectId) {
+    return;
+  }
+  if (!force && maintenanceLoadedProjects.has(activeProjectId)) {
+    return;
+  }
+  try {
+    const data = await apiMaintenanceList();
+    if (data && Array.isArray(data.items)) {
+      manutencoes = data.items;
+      const resultado = normalizarManutencoes(manutencoes);
+      manutencoes = resultado.normalizadas;
+      salvarManutencoes(manutencoes);
+      maintenanceLoadedProjects.add(activeProjectId);
+      renderTudo();
+    }
+  } catch (error) {
+    // fallback silencioso
+  }
+}
+
 async function carregarEquipeProjeto() {
   if (!currentUser || !activeProjectId) {
     projectEquipe = [];
@@ -13449,7 +13473,9 @@ function renderAuthUI() {
     btnSair.hidden = false;
     esconderAuthPanels();
     if (maintenanceLastUserId !== currentUser.id) {
-      scheduleMaintenanceSync(manutencoes, true);
+      if (maintenanceLoadedProjects.has(activeProjectId)) {
+        scheduleMaintenanceSync(manutencoes, true);
+      }
     }
   } else {
     usuarioAtual.textContent = "Visitante";
@@ -16978,6 +17004,10 @@ async function apiMaintenanceSync(items) {
   });
 }
 
+async function apiMaintenanceList() {
+  return apiRequest("/api/maintenance");
+}
+
 async function apiMaintenanceRelease(payload) {
   return apiRequest("/api/maintenance/release", {
     method: "POST",
@@ -17096,6 +17126,9 @@ function scheduleMaintenanceSync(items, force) {
     return;
   }
   if (!activeProjectId) {
+    return;
+  }
+  if (!maintenanceLoadedProjects.has(activeProjectId)) {
     return;
   }
   if (force) {
