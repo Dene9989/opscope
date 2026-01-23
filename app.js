@@ -4103,6 +4103,12 @@ function getProjectLabel(project) {
   return `${project.codigo || "-"} - ${project.nome || "-"}`;
 }
 
+function getActiveProjectClient() {
+  const project = getActiveProject();
+  const cliente = project && project.cliente ? String(project.cliente).trim() : "";
+  return cliente || RDO_CLIENTE;
+}
+
 function isDefaultProjectActive() {
   const project = getActiveProject();
   return project && String(project.codigo || "").trim() === DEFAULT_PROJECT_CODE;
@@ -7149,7 +7155,8 @@ function getMonthlyRange() {
 function gerarRelatorioMensalHtml(range) {
   const periodoLabel = `${formatDate(range.start)} - ${formatDate(range.end)}`;
   const filtrados = filtrarRelatorioLista(manutencoes, { start: range.start, end: range.end });
-  const titulo = `Relatorio mensal (${relatorioCliente ? relatorioCliente.value || "Cliente" : "Cliente"})`;
+  const clienteProjeto = getActiveProjectClient();
+  const titulo = `Relatorio mensal (${relatorioCliente ? relatorioCliente.value || clienteProjeto : clienteProjeto})`;
   return buildRelatorioResumoHtml(titulo, periodoLabel, filtrados);
 }
 
@@ -7236,7 +7243,7 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
   const tempoTotalLabel = acumulado.tempoTotal
     ? formatDuracaoMin(acumulado.tempoTotal)
     : "-";
-  const cliente = relatorioCliente ? relatorioCliente.value || RDO_CLIENTE : RDO_CLIENTE;
+  const cliente = relatorioCliente ? relatorioCliente.value || clienteProjeto : clienteProjeto;
   const projetoAtivo = getActiveProject();
   const projetoLabel = projetoAtivo ? getProjectLabel(projetoAtivo) : RDO_PROJETO;
   const hashMensal = hashString(`${periodoLabel}|${acumulado.totalRdos}|${cliente}`).slice(0, 8).toUpperCase();
@@ -9658,6 +9665,7 @@ async function gerarSnapshotRdo(persistir = false) {
     projectId: activeProjectId,
     projectLabel: getActiveProject() ? getActiveProject().nome : "",
     projectCode: getActiveProject() ? getActiveProject().codigo : "",
+    projectClient: getActiveProject() ? getActiveProject().cliente : "",
     createdAt: toIsoUtc(agora),
     createdBy: currentUser ? currentUser.id : "",
     itens: itensRdo,
@@ -9731,9 +9739,11 @@ function buildRdoHtml(snapshot, options = {}) {
     <span id="rdoEngelmigFallback" class="rdo-logo-fallback">ENGELMIG</span>
   `;
   const manual = snapshot.manual || {};
-  const projeto = snapshot.projectLabel ||
+  const projeto =
+    snapshot.projectLabel ||
     snapshot.projectCode ||
     (snapshot.filtros && snapshot.filtros.subestacao ? snapshot.filtros.subestacao : RDO_PROJETO);
+  const cliente = snapshot.projectClient || getActiveProjectClient();
   const local = manual.local || "LZC-BOS2";
   const climaValor = manual.clima === "OUTRO" && manual.climaOutro
     ? `OUTRO - ${manual.climaOutro}`
@@ -9986,7 +9996,7 @@ function buildRdoHtml(snapshot, options = {}) {
         </div>
         <div>
           <span>Cliente</span>
-          <strong>${escapeHtml(RDO_CLIENTE)}</strong>
+          <strong>${escapeHtml(cliente)}</strong>
         </div>
         <div>
           <span>Setor</span>
@@ -13083,6 +13093,22 @@ function renderProjectSelector() {
   }
   renderProjectSelectOptions(manutencaoProjeto, activeProjectId);
   renderProjectSelectOptions(templateProjeto, activeProjectId);
+  renderRelatorioClienteSelect();
+}
+
+function renderRelatorioClienteSelect() {
+  if (!relatorioCliente) {
+    return;
+  }
+  const activeProject = getActiveProject();
+  const cliente = activeProject && activeProject.cliente ? String(activeProject.cliente).trim() : "";
+  const value = cliente || RDO_CLIENTE;
+  relatorioCliente.innerHTML = "";
+  const opt = document.createElement("option");
+  opt.value = value;
+  opt.textContent = value;
+  relatorioCliente.append(opt);
+  relatorioCliente.value = value;
 }
 
 function setProjectTab(tab) {

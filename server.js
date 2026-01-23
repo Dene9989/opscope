@@ -30,7 +30,7 @@ const MASTER_PASSWORD = process.env.MASTER_PASSWORD || ADMIN_PASSWORD;
 const INVITE_TTL_HOURS = 24;
 const VERIFICATION_TTL_HOURS = Number(process.env.VERIFICATION_TTL_HOURS) || 24;
 
-const DATA_DIR = path.join(__dirname, "data");
+const LEGACY_DATA_DIR = path.join(__dirname, "data");
 const LEGACY_STORAGE_DIR = path.join(__dirname, "storage");
 const STORAGE_DIR = process.env.OPSCOPE_STORAGE_DIR
   ? path.resolve(process.env.OPSCOPE_STORAGE_DIR)
@@ -42,7 +42,10 @@ const STORAGE_DIR = process.env.OPSCOPE_STORAGE_DIR
         path.resolve(__dirname, ".."),
       "opscope-storage"
     );
-const LEGACY_USERS_FILE = path.join(DATA_DIR, "users.json");
+const DATA_DIR = process.env.OPSCOPE_DATA_DIR
+  ? path.resolve(process.env.OPSCOPE_DATA_DIR)
+  : path.join(STORAGE_DIR, "data");
+const LEGACY_USERS_FILE = path.join(LEGACY_DATA_DIR, "users.json");
 const LEGACY_USERS_STORAGE_FILE = path.join(LEGACY_STORAGE_DIR, "users.json");
 const USERS_FILE = path.join(STORAGE_DIR, "users.json");
 const INVITES_FILE = path.join(DATA_DIR, "invites.json");
@@ -335,6 +338,47 @@ const USER_LOCK_MS = 15 * 60 * 1000;
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+}
+
+function migrateLegacyDataDir() {
+  if (DATA_DIR === LEGACY_DATA_DIR) {
+    return;
+  }
+  if (!fs.existsSync(LEGACY_DATA_DIR)) {
+    return;
+  }
+  const files = [
+    "invites.json",
+    "audit.json",
+    "maintenance.json",
+    "automations.json",
+    "api_logs.json",
+    "health_tasks.json",
+    "files.json",
+    "permissoes.json",
+    "projects.json",
+    "equipamentos.json",
+    "project_users.json",
+  ];
+  files.forEach((name) => {
+    const from = path.join(LEGACY_DATA_DIR, name);
+    const to = path.join(DATA_DIR, name);
+    if (fs.existsSync(from) && !fs.existsSync(to)) {
+      fs.copyFileSync(from, to);
+    }
+  });
+  const legacyBackups = path.join(LEGACY_DATA_DIR, "backups");
+  const newBackups = path.join(DATA_DIR, "backups");
+  if (fs.existsSync(legacyBackups) && !fs.existsSync(newBackups)) {
+    fs.mkdirSync(newBackups, { recursive: true });
+    fs.readdirSync(legacyBackups).forEach((entry) => {
+      const from = path.join(legacyBackups, entry);
+      const to = path.join(newBackups, entry);
+      if (fs.statSync(from).isFile() && !fs.existsSync(to)) {
+        fs.copyFileSync(from, to);
+      }
+    });
   }
 }
 
@@ -2451,6 +2495,7 @@ function getDashboardSummaryForProject(projectId) {
 }
 
 ensureDataDir();
+migrateLegacyDataDir();
 ensureUploadDirs();
 migrateLegacyAvatars();
 let projects = [];
