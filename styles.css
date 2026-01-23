@@ -4691,6 +4691,10 @@ label {
 .project-panel .project-form {
   display: grid;
   gap: 16px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(135deg, rgba(12, 26, 40, 0.92), rgba(12, 34, 52, 0.92));
 }
 
 .project-panel .form-grid {
@@ -4706,6 +4710,9 @@ label {
 .project-panel .report-table__wrap {
   margin-top: 18px;
   overflow-x: auto;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 22, 34, 0.9);
 }
 
 .project-panel .report__table {
@@ -4718,6 +4725,33 @@ label {
 .project-panel .report__table td {
   white-space: normal;
   word-break: break-word;
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  color: var(--text);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.project-panel .report__table thead th {
+  background: rgba(6, 18, 30, 0.9);
+  color: rgba(235, 240, 246, 0.9);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.project-panel .report__table tbody tr:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.project-panel .report__table tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.project-panel .report__table tbody tr:hover {
+  background: rgba(200, 146, 61, 0.12);
 }
 
 .project-panel .table-actions {
