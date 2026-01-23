@@ -3,6 +3,7 @@ const tipoManutencao = document.getElementById("tipoManutencao");
 const customTipoField = document.getElementById("customTipoField");
 const tituloManutencao = document.getElementById("tituloManutencao");
 const subestacaoManutencao = document.getElementById("subestacaoManutencao");
+const manutencaoProjeto = document.getElementById("manutencaoProjeto");
 const equipamentoManutencao = document.getElementById("equipamentoManutencao");
 const dataManutencao = document.getElementById("dataManutencao");
 const futuraManutencao = document.getElementById("futuraManutencao");
@@ -370,6 +371,7 @@ const logsFilterFrom = document.getElementById("logsFilterFrom");
 const logsFilterTo = document.getElementById("logsFilterTo");
 const templateForm = document.getElementById("templateForm");
 const templateNome = document.getElementById("templateNome");
+const templateProjeto = document.getElementById("templateProjeto");
 const templateSubestacao = document.getElementById("templateSubestacao");
 const templateFrequencia = document.getElementById("templateFrequencia");
 const templateNomeErro = document.getElementById("templateNomeErro");
@@ -603,10 +605,20 @@ const DOC_LABELS = {
 };
 const RDO_CLIENTE = "SOLARIG";
 const RDO_SETOR = "O&M - ENGELMIG";
-const RDO_PROJETO = "LZC-BOS-SUB1";
+const RDO_PROJETO = "834 - PARACATU/SOLARIG (Boa Sorte II)";
 const SYSTEM_USER_ID = "system";
 const CUSTOM_TIPO_OPTION = "__custom";
-const SUBESTACOES = ["834 - PARACATU/SOLARIG (Boa Sorte II)"];
+const DEFAULT_PROJECT_CODE = "834";
+const DEFAULT_PROJECT_LABEL = "834 - PARACATU/SOLARIG (Boa Sorte II)";
+const SUBESTACOES = [];
+const DEFAULT_TEMPLATE_NAMES = new Set([
+  "Inspecao diaria da subestacao",
+  "Inspecao mensal da subestacao",
+  "Inspecao semanal do GMG BSO2",
+  "Inspecao semanal dos GMG PCT4",
+  "Inspecao mensal do GMG BSO2",
+  "Inspecao mensal dos GMG PCT4",
+]);
 const WEEKDAYS = ["Domingo", "Segunda", "Terca", "Quarta", "Quinta", "Sexta", "Sabado"];
 const WEEKDAYS_SHORT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
 const DEFAULT_DAILY_DAYS = [1, 2, 3, 4, 5];
@@ -3601,17 +3613,24 @@ function formatOverdue(diff) {
 
 function renderSubestacoes() {
   const selects = [subestacaoManutencao, templateSubestacao].filter(Boolean);
+  const subestacoes = getSubestacoesBase();
   selects.forEach((select) => {
     const atual = select.value;
     select.innerHTML = "";
-    SUBESTACOES.forEach((nome) => {
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Selecione";
+    select.append(placeholder);
+    subestacoes.forEach((nome) => {
       const option = document.createElement("option");
       option.value = nome;
       option.textContent = nome;
       select.append(option);
     });
-    if (atual && SUBESTACOES.includes(atual)) {
+    if (atual && subestacoes.includes(atual)) {
       select.value = atual;
+    } else if (!atual && subestacoes.length) {
+      select.value = subestacoes[0];
     }
   });
 }
@@ -3780,8 +3799,11 @@ function garantirTemplatesPadrao() {
   if (templates.length > 0) {
     return;
   }
+  if (!isDefaultProjectActive()) {
+    return;
+  }
   const hoje = formatDateISO(new Date());
-  const subestacao = SUBESTACOES[0] || "834 - PARACATU/SOLARIG (Boa Sorte II)";
+  const subestacao = getSubestacoesBase()[0] || DEFAULT_PROJECT_LABEL;
   const criarPadrao = (nome, config) => {
     const agoraIso = toIsoUtc(new Date());
     const modelo = {
@@ -3936,6 +3958,10 @@ function persistActiveProjectId(projectId) {
 
 function reloadProjectState() {
   templates = carregarTemplates();
+  if (!isDefaultProjectActive() && shouldClearDefaultTemplates(templates)) {
+    templates = [];
+    salvarTemplates(templates);
+  }
   garantirTemplatesPadrao();
   const normalizados = normalizarTemplates(templates);
   templates = normalizados.normalizadas;
@@ -4074,6 +4100,27 @@ function getProjectLabel(project) {
   return `${project.codigo || "-"} - ${project.nome || "-"}`;
 }
 
+function isDefaultProjectActive() {
+  const project = getActiveProject();
+  return project && String(project.codigo || "").trim() === DEFAULT_PROJECT_CODE;
+}
+
+function getSubestacoesBase() {
+  const project = getActiveProject();
+  return project ? [getProjectLabel(project)] : [];
+}
+
+function isDefaultSeedTemplate(template) {
+  if (!template || typeof template !== "object") {
+    return false;
+  }
+  return template.createdBy === SYSTEM_USER_ID && DEFAULT_TEMPLATE_NAMES.has(template.nome);
+}
+
+function shouldClearDefaultTemplates(list) {
+  return Array.isArray(list) && list.length > 0 && list.every(isDefaultSeedTemplate);
+}
+
 function getUserProjectLabel(user) {
   if (!user) {
     return "-";
@@ -4105,6 +4152,7 @@ function renderProjectSelectOptions(select, selectedId) {
       select.append(opt);
     });
   }
+  select.disabled = !availableProjects.length;
   if (selectedId) {
     select.value = selectedId;
   }
@@ -5409,7 +5457,7 @@ function renderProgramacao() {
   if (filtroProgramacaoSubestacao) {
     const atual = filtroProgramacaoSubestacao.value;
     const subestacoes = Array.from(
-      new Set([...SUBESTACOES, ...existentes.map((item) => item.local).filter(Boolean)])
+      new Set([...getSubestacoesBase(), ...existentes.map((item) => item.local).filter(Boolean)])
     ).sort((a, b) => a.localeCompare(b, "pt-BR"));
     filtroProgramacaoSubestacao.innerHTML = "";
     const optionAll = document.createElement("option");
@@ -7186,6 +7234,8 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
     ? formatDuracaoMin(acumulado.tempoTotal)
     : "-";
   const cliente = relatorioCliente ? relatorioCliente.value || RDO_CLIENTE : RDO_CLIENTE;
+  const projetoAtivo = getActiveProject();
+  const projetoLabel = projetoAtivo ? getProjectLabel(projetoAtivo) : RDO_PROJETO;
   const hashMensal = hashString(`${periodoLabel}|${acumulado.totalRdos}|${cliente}`).slice(0, 8).toUpperCase();
   const emissor = currentUser ? getUserLabel(currentUser.id) : "Sistema";
   const topSubestacoes = rdos.reduce((acc, item) => {
@@ -7694,7 +7744,7 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
       <div class="rdo-header-info">
         <div>
           <span>Projeto/Planta</span>
-          <strong>${escapeHtml(RDO_PROJETO)}</strong>
+          <strong>${escapeHtml(projetoLabel)}</strong>
         </div>
         <div>
           <span>Cliente</span>
@@ -7798,7 +7848,7 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
       <section class="rdo-section rdo-block">
         <h3>Desenvolvimento da equipe ENGELMIG</h3>
         <div class="rdo-month__grid">
-          <div><span>Projeto</span><strong>SE Boa Sorte II</strong></div>
+          <div><span>Projeto</span><strong>${escapeHtml(projetoLabel)}</strong></div>
           <div><span>Equipes ativas</span><strong>${equipesAtivas.size}</strong></div>
           <div><span>Execucoes concluidas</span><strong>${concluidasPeriodo.length}</strong></div>
           <div><span>Pontualidade</span><strong>${pontualidadeEquipe}%</strong></div>
@@ -8941,7 +8991,7 @@ function atualizarFiltrosRdo(baseItems) {
       baseItems
         .map((item) => getItemSubestacao(item))
         .filter(Boolean)
-        .concat(SUBESTACOES)
+        .concat(getSubestacoesBase())
     )
   ).sort((a, b) => a.localeCompare(b, "pt-BR"));
   const categorias = Array.from(
@@ -10590,7 +10640,7 @@ function atualizarFiltrosKpi(baseItems) {
       baseItems
         .map((item) => getItemSubestacao(item))
         .filter(Boolean)
-        .concat(SUBESTACOES)
+        .concat(getSubestacoesBase())
     )
   ).sort((a, b) => a.localeCompare(b, "pt-BR"));
   const categorias = Array.from(
@@ -12319,6 +12369,7 @@ function limparTemplateForm() {
   templateForm.dataset.templateId = "";
   clearTemplateErrors();
   mostrarMensagemTemplate("");
+  renderProjectSelectOptions(templateProjeto, activeProjectId);
   if (templateInicio) {
     templateInicio.value = formatDateISO(new Date());
   }
@@ -12414,6 +12465,14 @@ function salvarModelo(event) {
     mostrarMensagemTemplate("Apenas administradores podem criar modelos.", true);
     return;
   }
+  if (!activeProjectId) {
+    mostrarMensagemTemplate("Selecione um projeto ativo antes de salvar.", true);
+    return;
+  }
+  if (templateProjeto && templateProjeto.value && templateProjeto.value !== activeProjectId) {
+    mostrarMensagemTemplate("O projeto selecionado e diferente do ativo. Troque o projeto e tente novamente.", true);
+    return;
+  }
   clearTemplateErrors();
   mostrarMensagemTemplate("");
   const nome = templateNome ? templateNome.value.trim() : "";
@@ -12421,7 +12480,10 @@ function salvarModelo(event) {
     setFieldError(templateNomeErro, "Informe o nome do modelo.");
     return;
   }
-  const subestacao = templateSubestacao ? templateSubestacao.value.trim() : "";
+  const subestacao =
+    (templateSubestacao ? templateSubestacao.value.trim() : "") ||
+    getSubestacoesBase()[0] ||
+    "";
   const frequencia = templateFrequencia ? templateFrequencia.value : "none";
   const inicio = templateInicio ? templateInicio.value : formatDateISO(new Date());
 
@@ -12576,7 +12638,7 @@ function renderModelos() {
   if (templateFilterSubestacao) {
     const atual = templateFilterSubestacao.value;
     const subestacoes = Array.from(
-      new Set([...SUBESTACOES, ...existentes.map((item) => item.subestacao).filter(Boolean)])
+      new Set([...getSubestacoesBase(), ...existentes.map((item) => item.subestacao).filter(Boolean)])
     ).sort((a, b) => a.localeCompare(b, "pt-BR"));
     templateFilterSubestacao.innerHTML = "";
     const optionAll = document.createElement("option");
@@ -13016,6 +13078,8 @@ function renderProjectSelector() {
     const activeProject = getActiveProject();
     crumbs.textContent = activeProject ? activeProject.nome : "Projeto nao definido";
   }
+  renderProjectSelectOptions(manutencaoProjeto, activeProjectId);
+  renderProjectSelectOptions(templateProjeto, activeProjectId);
 }
 
 function setProjectTab(tab) {
@@ -13237,7 +13301,7 @@ async function carregarManutencoesServidor(force = false) {
     return;
   }
   try {
-    const data = await apiMaintenanceList();
+    const data = await apiMaintenanceList(activeProjectId);
     if (data && Array.isArray(data.items)) {
       manutencoes = data.items;
       const resultado = normalizarManutencoes(manutencoes);
@@ -14141,6 +14205,11 @@ async function adicionarManutencao() {
   if (!requirePermission("complete")) {
     return;
   }
+  if (manutencaoProjeto && manutencaoProjeto.value && manutencaoProjeto.value !== activeProjectId) {
+    await setActiveProjectId(manutencaoProjeto.value);
+    mostrarMensagemManutencao("Projeto ativo alterado. Revise os dados e clique em salvar novamente.", true);
+    return;
+  }
   const tipoSelecionado = tipoManutencao ? tipoManutencao.value : "";
   let titulo = "";
   let templateId = null;
@@ -14157,7 +14226,10 @@ async function adicionarManutencao() {
     titulo = tituloManutencao ? tituloManutencao.value.trim() : "";
   }
 
-  const local = subestacaoManutencao ? subestacaoManutencao.value.trim() : "";
+  const local =
+    (subestacaoManutencao ? subestacaoManutencao.value.trim() : "") ||
+    getSubestacoesBase()[0] ||
+    "";
   const equipamentoId = equipamentoManutencao ? equipamentoManutencao.value.trim() : "";
   const data = dataManutencao
     ? dataManutencao.value || formatDateISO(new Date())
@@ -14326,8 +14398,9 @@ async function adicionarManutencao() {
     tipoManutencao.value = templates.length === 0 ? CUSTOM_TIPO_OPTION : "";
     atualizarTipoSelecionado();
   }
-  if (subestacaoManutencao && SUBESTACOES.length > 0) {
-    subestacaoManutencao.value = SUBESTACOES[0];
+  const baseSubestacoes = getSubestacoesBase();
+  if (subestacaoManutencao && baseSubestacoes.length > 0) {
+    subestacaoManutencao.value = baseSubestacoes[0];
   }
   if (equipamentoManutencao) {
     equipamentoManutencao.value = "";
@@ -17004,8 +17077,9 @@ async function apiMaintenanceSync(items) {
   });
 }
 
-async function apiMaintenanceList() {
-  return apiRequest("/api/maintenance");
+async function apiMaintenanceList(projectId) {
+  const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
+  return apiRequest(`/api/maintenance${query}`);
 }
 
 async function apiMaintenanceRelease(payload) {
@@ -18189,6 +18263,26 @@ if (perfPessoaFiltro) {
 
 if (projectSelect) {
   projectSelect.addEventListener("change", (event) => {
+    const nextId = event.target.value;
+    if (!nextId) {
+      return;
+    }
+    setActiveProjectId(nextId);
+  });
+}
+
+if (manutencaoProjeto) {
+  manutencaoProjeto.addEventListener("change", (event) => {
+    const nextId = event.target.value;
+    if (!nextId) {
+      return;
+    }
+    setActiveProjectId(nextId);
+  });
+}
+
+if (templateProjeto) {
+  templateProjeto.addEventListener("change", (event) => {
     const nextId = event.target.value;
     if (!nextId) {
       return;

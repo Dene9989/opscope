@@ -3436,7 +3436,8 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
 
 app.get("/api/maintenance", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
-  const projectId = getActiveProjectId(req, user);
+  const fromQuery = String(req.query.projectId || "").trim();
+  const projectId = fromQuery || getActiveProjectId(req, user);
   if (!projectId) {
     return res.status(400).json({ message: "Projeto ativo obrigatorio." });
   }
