@@ -57,27 +57,9 @@ const DATA_FILE_NAMES = [
   "project_users.json",
 ];
 
-function hasDataFiles(dir) {
-  if (!dir || !fs.existsSync(dir)) {
-    return false;
-  }
-  return DATA_FILE_NAMES.some((name) => fs.existsSync(path.join(dir, name)));
-}
-
-function resolveDataDir() {
-  if (process.env.OPSCOPE_DATA_DIR) {
-    return path.resolve(process.env.OPSCOPE_DATA_DIR);
-  }
-  if (hasDataFiles(STORAGE_DATA_DIR)) {
-    return STORAGE_DATA_DIR;
-  }
-  if (hasDataFiles(STORAGE_DIR)) {
-    return STORAGE_DIR;
-  }
-  return STORAGE_DIR;
-}
-
-const DATA_DIR = resolveDataDir();
+const DATA_DIR = process.env.OPSCOPE_DATA_DIR
+  ? path.resolve(process.env.OPSCOPE_DATA_DIR)
+  : STORAGE_DATA_DIR;
 const LEGACY_USERS_FILE = path.join(LEGACY_DATA_DIR, "users.json");
 const LEGACY_USERS_STORAGE_FILE = path.join(LEGACY_STORAGE_DIR, "users.json");
 const USERS_FILE = path.join(STORAGE_DIR, "users.json");
@@ -375,7 +357,7 @@ function ensureDataDir() {
 }
 
 function migrateLegacyDataDir() {
-  const candidates = [LEGACY_DATA_DIR, STORAGE_DATA_DIR];
+  const candidates = [LEGACY_DATA_DIR, STORAGE_DIR, STORAGE_DATA_DIR];
   candidates.forEach((legacyDir) => {
     if (!legacyDir || legacyDir === DATA_DIR) {
       return;
