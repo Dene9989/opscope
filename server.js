@@ -16,6 +16,12 @@ try {
 } catch (error) {
   nodemailer = null;
 }
+let Pool;
+try {
+  ({ Pool } = require("pg"));
+} catch (error) {
+  Pool = null;
+}
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -43,6 +49,12 @@ const STORAGE_DIR = process.env.OPSCOPE_STORAGE_DIR
       "opscope-storage"
     );
 const STORAGE_DATA_DIR = path.join(STORAGE_DIR, "data");
+const DATABASE_URL = process.env.OPSCOPE_DATABASE_URL || process.env.DATABASE_URL || "";
+const DB_ENABLED = Boolean(DATABASE_URL);
+const DB_STORE_TABLE = "opscope_store";
+let dbPool = null;
+let dbReady = false;
+let dbWriteQueue = Promise.resolve();
 const DATA_FILE_NAMES = [
   "invites.json",
   "audit.json",
@@ -85,6 +97,21 @@ const PERMISSOES_FILE = path.join(DATA_DIR, "permissoes.json");
 const PROJECTS_FILE = path.join(DATA_DIR, "projects.json");
 const EQUIPAMENTOS_FILE = path.join(DATA_DIR, "equipamentos.json");
 const PROJECT_USERS_FILE = path.join(DATA_DIR, "project_users.json");
+const STORE_FILES = [
+  USERS_FILE,
+  VERIFICATIONS_FILE,
+  INVITES_FILE,
+  AUDIT_FILE,
+  MAINTENANCE_FILE,
+  AUTOMATIONS_FILE,
+  API_LOG_FILE,
+  HEALTH_TASKS_FILE,
+  FILES_META_FILE,
+  PERMISSOES_FILE,
+  PROJECTS_FILE,
+  EQUIPAMENTOS_FILE,
+  PROJECT_USERS_FILE,
+];
 const FILES_DIR = path.join(UPLOADS_DIR, "files");
 const SMTP_HOST = process.env.SMTP_HOST || "";
 const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
@@ -485,12 +512,155 @@ function readJson(filePath, fallback) {
   }
 }
 
-function writeJson(filePath, data) {
+function writeJson(filePath, data, options = {}) {
   const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  if (!options.skipDb) {
+    queueDbWrite(filePath, data);
+  }
+}
+
+function getStoreKey(filePath) {
+  if (!filePath) {
+    return "";
+  }
+  const resolved = path.resolve(filePath);
+  const storageRoot = path.resolve(STORAGE_DIR);
+  if (resolved.startsWith(storageRoot)) {
+    return path.relative(storageRoot, resolved).replace(/\\/g, "/");
+  }
+  const dataRoot = path.resolve(DATA_DIR);
+  if (resolved.startsWith(dataRoot)) {
+    const rel = path.relative(dataRoot, resolved).replace(/\\/g, "/");
+    return rel.startsWith("data/") ? rel : `data/${rel}`;
+  }
+  return path.basename(resolved);
+}
+
+function shouldUseDb() {
+  return DB_ENABLED && Pool;
+}
+
+async function initDatabase() {
+  if (!shouldUseDb()) {
+    return;
+  }
+  const needsSsl =
+    process.env.PGSSLMODE === "require" ||
+    DATABASE_URL.includes("sslmode=require") ||
+    process.env.NODE_ENV === "production";
+  dbPool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
+  });
+  await dbPool.query(
+    `CREATE TABLE IF NOT EXISTS ${DB_STORE_TABLE} (
+      key TEXT PRIMARY KEY,
+      payload JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`
+  );
+  dbReady = true;
+}
+
+async function upsertStorePayload(key, payload) {
+  if (!dbReady || !dbPool || !key) {
+    return;
+  }
+  await dbPool.query(
+    `INSERT INTO ${DB_STORE_TABLE} (key, payload, updated_at)
+     VALUES ($1, $2, NOW())
+     ON CONFLICT (key)
+     DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()`,
+    [key, payload]
+  );
+}
+
+async function fetchStorePayload(key) {
+  if (!dbReady || !dbPool || !key) {
+    return null;
+  }
+  const result = await dbPool.query(
+    `SELECT payload FROM ${DB_STORE_TABLE} WHERE key = $1`,
+    [key]
+  );
+  if (!result || !result.rowCount) {
+    return null;
+  }
+  return result.rows[0].payload;
+}
+
+function queueDbWrite(filePath, data) {
+  if (!dbReady || !dbPool) {
+    return;
+  }
+  const key = getStoreKey(filePath);
+  if (!key) {
+    return;
+  }
+  dbWriteQueue = dbWriteQueue
+    .then(() => upsertStorePayload(key, data))
+    .catch((error) => {
+      console.warn("[db] Falha ao salvar", key, error.message || error);
+    });
+}
+
+async function flushDbWrites() {
+  if (!dbReady) {
+    return;
+  }
+  try {
+    await dbWriteQueue;
+  } catch (error) {
+    // noop
+  }
+}
+
+async function syncStoreFile(filePath) {
+  const key = getStoreKey(filePath);
+  if (!key || !dbReady) {
+    return;
+  }
+  const remotePayload = await fetchStorePayload(key);
+  if (remotePayload !== null && typeof remotePayload !== "undefined") {
+    writeJson(filePath, remotePayload, { skipDb: true });
+    return;
+  }
+  if (!fs.existsSync(filePath)) {
+    return;
+  }
+  const localPayload = readJson(filePath, null);
+  if (localPayload !== null && typeof localPayload !== "undefined") {
+    await upsertStorePayload(key, localPayload);
+  }
+}
+
+async function syncStoreFiles() {
+  if (!dbReady) {
+    return;
+  }
+  for (const filePath of STORE_FILES) {
+    await syncStoreFile(filePath);
+  }
+}
+
+function registerShutdownHandlers() {
+  if (!dbReady) {
+    return;
+  }
+  const shutdown = async () => {
+    await flushDbWrites();
+    if (dbPool) {
+      await dbPool.end().catch(() => {});
+    }
+    process.exit(0);
+  };
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
 }
 
 function normalizeProject(record) {
@@ -2520,55 +2690,71 @@ function getDashboardSummaryForProject(projectId) {
   return payload;
 }
 
-ensureDataDir();
-logStoragePaths();
-migrateLegacyDataDir();
-ensureUploadDirs();
-migrateLegacyAvatars();
 let projects = [];
 let projectUsers = [];
 let equipamentos = [];
-const usersFileExists = fs.existsSync(USERS_FILE);
-let users = readJson(USERS_FILE, []);
-if (!usersFileExists) {
-  const legacyCandidates = [LEGACY_USERS_STORAGE_FILE, LEGACY_USERS_FILE];
-  for (const legacyPath of legacyCandidates) {
-    if (!fs.existsSync(legacyPath)) {
-      continue;
-    }
-    const legacyUsers = readJson(legacyPath, []);
-    if (legacyUsers.length) {
-      users = legacyUsers;
-      writeJson(USERS_FILE, users);
-      break;
+let users = [];
+let invites = [];
+let auditLog = [];
+let verifications = [];
+let apiLogs = [];
+let healthTasks = [];
+let automations = [];
+let granularPermissions = null;
+let filesMeta = [];
+
+async function bootstrap() {
+  ensureDataDir();
+  logStoragePaths();
+  migrateLegacyDataDir();
+  ensureUploadDirs();
+  migrateLegacyAvatars();
+  await initDatabase();
+  await syncStoreFiles();
+  registerShutdownHandlers();
+
+  const usersFileExists = fs.existsSync(USERS_FILE);
+  users = readJson(USERS_FILE, []);
+  if (!usersFileExists) {
+    const legacyCandidates = [LEGACY_USERS_STORAGE_FILE, LEGACY_USERS_FILE];
+    for (const legacyPath of legacyCandidates) {
+      if (!fs.existsSync(legacyPath)) {
+        continue;
+      }
+      const legacyUsers = readJson(legacyPath, []);
+      if (legacyUsers.length) {
+        users = legacyUsers;
+        writeJson(USERS_FILE, users);
+        break;
+      }
     }
   }
+  invites = readJson(INVITES_FILE, []);
+  auditLog = readJson(AUDIT_FILE, []);
+  verifications = readJson(VERIFICATIONS_FILE, []);
+  apiLogs = readJson(API_LOG_FILE, []);
+  healthTasks = normalizeHealthTasks(readJson(HEALTH_TASKS_FILE, []));
+  saveHealthTasks(healthTasks);
+  automations = normalizeAutomations(readJson(AUTOMATIONS_FILE, []));
+  saveAutomations(automations);
+  granularPermissions = normalizeGranularPermissions(readJson(PERMISSOES_FILE, null));
+  if (!fs.existsSync(PERMISSOES_FILE)) {
+    writeJson(PERMISSOES_FILE, granularPermissions);
+  }
+  filesMeta = readJson(FILES_META_FILE, []);
+  if (!Array.isArray(filesMeta)) {
+    filesMeta = [];
+  }
+  cleanupVerifications();
+  users = users.map(normalizeUserRecord);
+  writeJson(USERS_FILE, users);
+  ensureMasterAccount();
+  seedAdmin();
+  projects = loadProjects();
+  projectUsers = loadProjectUsers();
+  equipamentos = loadEquipamentos();
+  ensureProjectSeedData();
 }
-let invites = readJson(INVITES_FILE, []);
-let auditLog = readJson(AUDIT_FILE, []);
-let verifications = readJson(VERIFICATIONS_FILE, []);
-let apiLogs = readJson(API_LOG_FILE, []);
-let healthTasks = normalizeHealthTasks(readJson(HEALTH_TASKS_FILE, []));
-saveHealthTasks(healthTasks);
-let automations = normalizeAutomations(readJson(AUTOMATIONS_FILE, []));
-saveAutomations(automations);
-let granularPermissions = normalizeGranularPermissions(readJson(PERMISSOES_FILE, null));
-if (!fs.existsSync(PERMISSOES_FILE)) {
-  writeJson(PERMISSOES_FILE, granularPermissions);
-}
-let filesMeta = readJson(FILES_META_FILE, []);
-if (!Array.isArray(filesMeta)) {
-  filesMeta = [];
-}
-cleanupVerifications();
-users = users.map(normalizeUserRecord);
-writeJson(USERS_FILE, users);
-ensureMasterAccount();
-seedAdmin();
-projects = loadProjects();
-projectUsers = loadProjectUsers();
-equipamentos = loadEquipamentos();
-ensureProjectSeedData();
 
 app.use(express.json({ limit: "20mb" }));
 app.use(
@@ -3883,6 +4069,13 @@ app.get("/api/dashboard/summary", requireAuth, (req, res) => {
   return res.json(payload);
 });
 
-app.listen(PORT, () => {
-  console.log(`OPSCOPE auth server rodando em http://localhost:${PORT}`);
-});
+bootstrap()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`OPSCOPE auth server rodando em http://localhost:${PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error("Falha ao iniciar OPSCOPE:", error);
+    process.exit(1);
+  });
