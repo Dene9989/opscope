@@ -1330,9 +1330,33 @@ function canSeeAllProjects(role) {
   );
 }
 
+function isMasterUser(user) {
+  if (!user) {
+    return false;
+  }
+  const matricula = String(user.matricula || "").trim();
+  const username = String(user.username || "").trim().toLowerCase();
+  const masterMatricula = String(MASTER_MATRICULA || "").trim();
+  const masterUsername = String(MASTER_USERNAME || "").trim().toLowerCase();
+  return (masterMatricula && matricula === masterMatricula) || (masterUsername && username === masterUsername);
+}
+
+function canDeleteMaintenance(user) {
+  if (!user) {
+    return false;
+  }
+  if (isMasterUser(user)) {
+    return true;
+  }
+  return normalizeRbacRole(user.rbacRole || user.role) === "pcm";
+}
+
 function getUserProjectIds(user) {
   if (!user || !user.id) {
     return [];
+  }
+  if (isMasterUser(user)) {
+    return projects.map((project) => project.id).filter(Boolean);
   }
   if (canSeeAllProjects(user.rbacRole || user.role)) {
     return projects.map((project) => project.id).filter(Boolean);
@@ -1358,6 +1382,9 @@ function getProjectIdsForUserId(userId) {
 function userHasProjectAccess(user, projectId) {
   if (!user || !projectId) {
     return false;
+  }
+  if (isMasterUser(user)) {
+    return true;
   }
   if (canSeeAllProjects(user.rbacRole || user.role)) {
     return true;
@@ -2422,6 +2449,9 @@ function hasPermission(user, permissionKey) {
   if (!user) {
     return false;
   }
+  if (isMasterUser(user)) {
+    return true;
+  }
   if (isFullAccessRole(user.rbacRole || user.role)) {
     return true;
   }
@@ -2441,6 +2471,9 @@ function requireAuth(req, res, next) {
 function requirePermission(permissionKey) {
   return (req, res, next) => {
     const user = req.currentUser || getSessionUser(req);
+    if (isMasterUser(user)) {
+      return next();
+    }
     const isLegacy = String(permissionKey || "").startsWith("admin:");
     const allowed = isLegacy
       ? hasPermission(user, permissionKey)
@@ -2454,7 +2487,7 @@ function requirePermission(permissionKey) {
 
 function requireAdmin(req, res, next) {
   const user = req.currentUser || getSessionUser(req);
-  if (!user || !isFullAccessRole(user.rbacRole || user.role)) {
+  if (!user || (!isMasterUser(user) && !isFullAccessRole(user.rbacRole || user.role))) {
     return res.status(403).json({ message: "Nao autorizado." });
   }
   return next();
@@ -3743,6 +3776,43 @@ app.get("/api/maintenance", requireAuth, (req, res) => {
   }
   const list = loadMaintenanceData().filter((item) => item && item.projectId === projectId);
   return res.json({ items: list, projectId });
+});
+
+app.delete("/api/maintenance/:id", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const maintenanceId = String(req.params.id || "").trim();
+  const fromQuery = String(req.query.projectId || "").trim();
+  const projectId = fromQuery || getActiveProjectId(req, user);
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+  }
+  if (!maintenanceId) {
+    return res.status(400).json({ message: "Manutencao invalida." });
+  }
+  if (!userHasProjectAccess(user, projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  if (!canDeleteMaintenance(user)) {
+    return res.status(403).json({ message: "Apenas PCM pode remover manutencoes." });
+  }
+  const dataset = loadMaintenanceData();
+  const index = dataset.findIndex(
+    (item) => item && String(item.id || "") === maintenanceId && item.projectId === projectId
+  );
+  if (index === -1) {
+    return res.status(404).json({ message: "Manutencao nao encontrada." });
+  }
+  dataset.splice(index, 1);
+  writeJson(MAINTENANCE_FILE, dataset);
+  DASHBOARD_CACHE.delete(projectId);
+  appendAudit(
+    "maintenance_delete",
+    user ? user.id : null,
+    { manutencaoId: maintenanceId, projectId },
+    getClientIp(req),
+    projectId
+  );
+  return res.json({ ok: true, removedId: maintenanceId, projectId });
 });
 
 app.post("/api/maintenance/release", requireAuth, (req, res) => {

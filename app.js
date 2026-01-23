@@ -772,6 +772,8 @@ const LEGACY_ROLE_LABELS = {
 
 const FULL_ACCESS_RBAC = new Set(["pcm", "diretor_om", "gerente_contrato"]);
 const RELEASE_OVERRIDE_RBAC = new Set(["pcm", "diretor_om", "gerente_contrato", "supervisor_om"]);
+const MASTER_MATRICULA = "35269";
+const MASTER_USERNAME = "denisson.alves";
 const PERFORMANCE_TABS = new Set(["performance-projects", "performance-people"]);
 const TAB_PERMISSION_MAP = {
   desempenho: "verRelatorios",
@@ -893,9 +895,24 @@ function canEditProfile(actor, target) {
   return actorLevel > targetLevel;
 }
 
+function isMasterUser(user) {
+  if (!user) {
+    return false;
+  }
+  const matricula = String(user.matricula || "").trim();
+  const username = String(user.username || "").trim().toLowerCase();
+  return (
+    (MASTER_MATRICULA && matricula === MASTER_MATRICULA) ||
+    (MASTER_USERNAME && username === MASTER_USERNAME.toLowerCase())
+  );
+}
+
 function isFullAccessUser(user) {
   if (!user) {
     return false;
+  }
+  if (isMasterUser(user)) {
+    return true;
   }
   const rbacRole = String(user.rbacRole || "").trim().toLowerCase();
   return user.role === "admin" || FULL_ACCESS_RBAC.has(rbacRole);
@@ -910,6 +927,17 @@ function canOverrideRelease(user) {
   }
   const rbacRole = String(user.rbacRole || "").trim().toLowerCase();
   return RELEASE_OVERRIDE_RBAC.has(rbacRole);
+}
+
+function canDeleteMaintenance(user) {
+  if (!user) {
+    return false;
+  }
+  if (isMasterUser(user)) {
+    return true;
+  }
+  const rbacRole = String(user.rbacRole || "").trim().toLowerCase();
+  return rbacRole === "pcm";
 }
 
 function canAdminUsersRead() {
@@ -5386,13 +5414,14 @@ function criarCardManutencao(item, permissoes, options = {}) {
     actions.append(criarBotaoAcao("Historico", "history"));
   }
 
+  const podeExcluir = canDeleteMaintenance(currentUser);
   if (
-    permite("remove") &&
+    podeExcluir &&
     item.status !== "concluida" &&
     item.status !== "em_execucao" &&
     item.status !== "encerramento"
   ) {
-    actions.append(criarBotaoAcao("Remover", "remove", true));
+    actions.append(criarBotaoAcao("Excluir", "remove", true));
   }
 
   card.append(rail, header);
@@ -16934,19 +16963,27 @@ function imprimirRelatorio() {
 }
 
 function removerManutencao(index) {
-  if (!requirePermission("remove")) {
+  if (!canDeleteMaintenance(currentUser)) {
+    mostrarMensagemManutencao("Apenas PCM pode excluir manutencoes.", true);
     return;
   }
   const item = manutencoes[index];
-  const confirmar = window.confirm("Remover esta manutencao?");
+  const confirmar = window.confirm("Excluir esta manutencao?");
   if (!confirmar) {
     return;
   }
-  manutencoes.splice(index, 1);
-  salvarManutencoes(manutencoes);
-  logAction("remove", item, { resumo: "Removida" });
-  renderTudo();
-  mostrarMensagemManutencao("Manutencao removida.");
+  apiMaintenanceDelete(item.id, activeProjectId)
+    .then(() => {
+      manutencoes = manutencoes.filter((entry) => entry && entry.id !== item.id);
+      salvarManutencoes(manutencoes);
+      logAction("remove", item, { resumo: "Excluida" });
+      renderTudo();
+      mostrarMensagemManutencao("Manutencao excluida.");
+    })
+    .catch((error) => {
+      const message = error && error.message ? error.message : "Falha ao excluir manutencao.";
+      mostrarMensagemManutencao(message, true);
+    });
 }
 
 function agirNaManutencao(event) {
@@ -17161,6 +17198,13 @@ async function apiMaintenanceSync(items) {
 async function apiMaintenanceList(projectId) {
   const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
   return apiRequest(`/api/maintenance${query}`);
+}
+
+async function apiMaintenanceDelete(maintenanceId, projectId) {
+  const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
+  return apiRequest(`/api/maintenance/${encodeURIComponent(maintenanceId)}${query}`, {
+    method: "DELETE",
+  });
 }
 
 async function apiMaintenanceRelease(payload) {
