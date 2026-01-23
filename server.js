@@ -57,9 +57,12 @@ const DATA_FILE_NAMES = [
   "project_users.json",
 ];
 
-const DATA_DIR = process.env.OPSCOPE_DATA_DIR
+const ENV_DATA_DIR = process.env.OPSCOPE_DATA_DIR
   ? path.resolve(process.env.OPSCOPE_DATA_DIR)
-  : STORAGE_DATA_DIR;
+  : "";
+const ENV_DATA_IS_LEGACY =
+  ENV_DATA_DIR && path.resolve(ENV_DATA_DIR).toLowerCase() === LEGACY_DATA_DIR.toLowerCase();
+const DATA_DIR = ENV_DATA_DIR && !ENV_DATA_IS_LEGACY ? ENV_DATA_DIR : STORAGE_DATA_DIR;
 const LEGACY_USERS_FILE = path.join(LEGACY_DATA_DIR, "users.json");
 const LEGACY_USERS_STORAGE_FILE = path.join(LEGACY_STORAGE_DIR, "users.json");
 const USERS_FILE = path.join(STORAGE_DIR, "users.json");
@@ -353,6 +356,19 @@ const USER_LOCK_MS = 15 * 60 * 1000;
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+}
+
+function logStoragePaths() {
+  const envData = process.env.OPSCOPE_DATA_DIR || "";
+  const envStorage = process.env.OPSCOPE_STORAGE_DIR || "";
+  console.log("[storage] DATA_DIR=", DATA_DIR);
+  console.log("[storage] STORAGE_DIR=", STORAGE_DIR);
+  if (envData) {
+    console.log("[storage] OPSCOPE_DATA_DIR=", envData);
+  }
+  if (envStorage) {
+    console.log("[storage] OPSCOPE_STORAGE_DIR=", envStorage);
   }
 }
 
@@ -2500,6 +2516,7 @@ function getDashboardSummaryForProject(projectId) {
 }
 
 ensureDataDir();
+logStoragePaths();
 migrateLegacyDataDir();
 ensureUploadDirs();
 migrateLegacyAvatars();
