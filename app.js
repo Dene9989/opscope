@@ -4065,6 +4065,49 @@ function getUserLabel(id) {
   return `${user.name} (${user.matricula})`;
 }
 
+function getProjectLabel(project) {
+  if (!project) {
+    return "";
+  }
+  return `${project.codigo || "-"} - ${project.nome || "-"}`;
+}
+
+function getUserProjectLabel(user) {
+  if (!user) {
+    return "-";
+  }
+  const projectId = user.projectId || "";
+  if (projectId && Array.isArray(availableProjects)) {
+    const project = availableProjects.find((item) => item.id === projectId);
+    if (project) {
+      return getProjectLabel(project);
+    }
+  }
+  return user.projeto || user.localizacao || "-";
+}
+
+function renderProjectSelectOptions(select, selectedId) {
+  if (!select) {
+    return;
+  }
+  const baseOption = document.createElement("option");
+  baseOption.value = "";
+  baseOption.textContent = "Selecione";
+  select.innerHTML = "";
+  select.append(baseOption);
+  if (Array.isArray(availableProjects)) {
+    availableProjects.forEach((project) => {
+      const opt = document.createElement("option");
+      opt.value = project.id;
+      opt.textContent = getProjectLabel(project);
+      select.append(opt);
+    });
+  }
+  if (selectedId) {
+    select.value = selectedId;
+  }
+}
+
 function isAdmin() {
   return Boolean(currentUser && isFullAccessUser(currentUser));
 }
@@ -8698,7 +8741,7 @@ function atualizarClimaOutroRdo() {
 }
 
 function isUserFromBso2(user) {
-  const projeto = normalizeSearchValue(user.projeto || user.localizacao || "");
+  const projeto = normalizeSearchValue(getUserProjectLabel(user));
   return (
     projeto.includes("bso2") ||
     projeto.includes("bos2") ||
@@ -12874,7 +12917,7 @@ function renderUsuarios() {
   const filtrados = users.filter((user) => {
     const nome = normalizeSearchValue(user.name || "");
     const cargo = normalizeSearchValue(user.cargo || "");
-    const projeto = normalizeSearchValue(user.projeto || user.localizacao || "");
+    const projeto = normalizeSearchValue(getUserProjectLabel(user));
     const matricula = normalizeSearchValue(user.matricula || user.username || "");
     const ativo = user.active !== false;
 
@@ -12922,7 +12965,7 @@ function renderUsuarios() {
     meta.textContent = `Matricula: ${user.matricula || "-"} | Perfil: ${roleLabel}`;
     const detalhes = document.createElement("p");
     detalhes.className = "account-meta";
-    detalhes.textContent = `Cargo: ${user.cargo || "-"} | Projeto: ${user.projeto || user.localizacao || "-"}`;
+    detalhes.textContent = `Cargo: ${user.cargo || "-"} | Projeto: ${getUserProjectLabel(user)}`;
     item.append(header, meta, detalhes);
     listaUsuarios.append(item);
   });
@@ -13312,7 +13355,7 @@ function renderPerfil() {
     perfilCargo.textContent = formatProfileValue(currentUser.cargo);
   }
   if (perfilProjeto) {
-    perfilProjeto.textContent = formatProfileValue(currentUser.projeto);
+    perfilProjeto.textContent = formatProfileValue(getUserProjectLabel(currentUser));
   }
   if (perfilUen) {
     perfilUen.textContent = formatProfileValue(currentUser.uen);
@@ -13343,7 +13386,7 @@ function renderPerfil() {
   }
   const perfilProjetoInputAtual = document.getElementById("perfilProjetoInput");
   if (perfilProjetoInputAtual) {
-    perfilProjetoInputAtual.value = currentUser.projeto || "";
+    renderProjectSelectOptions(perfilProjetoInputAtual, currentUser.projectId || "");
   }
   const btnSalvarAtual = document.getElementById("btnPerfilSalvar");
   if (btnSalvarAtual) {
@@ -14590,7 +14633,7 @@ function abrirUserDrawer(userId) {
     drawerRole.value = rbacRole;
   }
   if (drawerProjeto) {
-    drawerProjeto.value = user.projeto || user.localizacao || "";
+    renderProjectSelectOptions(drawerProjeto, user.projectId || "");
   }
   if (drawerActive) {
     drawerActive.checked = user.active !== false;
@@ -14656,13 +14699,12 @@ async function salvarUserDrawer(event) {
     }
     const cargo = drawerCargo ? drawerCargo.value.trim() : "";
     const rbacRole = drawerRole ? drawerRole.value : user.rbacRole;
-    const projeto = drawerProjeto ? drawerProjeto.value.trim() : "";
+    const projetoId = drawerProjeto ? drawerProjeto.value.trim() : "";
     const permissions = collectDrawerPermissions();
     payload.name = nome;
     payload.cargo = cargo;
     payload.rbacRole = rbacRole;
-    payload.projeto = projeto;
-    payload.localizacao = projeto;
+    payload.projectId = projetoId;
     payload.permissions = permissions;
   }
   if (podeDesativar) {
@@ -17753,8 +17795,8 @@ document.addEventListener("click", (event) => {
   if (uenInput && uenValue !== (currentUser.uen || "")) {
     payload.uen = uenValue;
   }
-  if (projetoInput && projetoValue !== (currentUser.projeto || "")) {
-    payload.projeto = projetoValue;
+  if (projetoInput && projetoValue !== (currentUser.projectId || "")) {
+    payload.projectId = projetoValue;
   }
   if (!Object.keys(payload).length) {
     setPerfilSaveMessage("Nenhuma alteracao para salvar.");

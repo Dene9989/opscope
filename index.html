@@ -2361,8 +2361,10 @@
               <input id="perfilUenInput" type="text" placeholder="Informe a UEN" />
             </div>
             <div class="field">
-              <label for="perfilProjetoInput">Projeto(s)</label>
-              <input id="perfilProjetoInput" type="text" placeholder="Informe o projeto" />
+              <label for="perfilProjetoInput">Projeto</label>
+              <select id="perfilProjetoInput">
+                <option value="">Selecione</option>
+              </select>
             </div>
             <p id="perfilSaveMsg" class="field-error" hidden></p>
           </div>
@@ -2908,7 +2910,9 @@
           </div>
           <div class="field">
             <label for="drawerProjeto">Projeto / Localiza&ccedil;&atilde;o</label>
-            <input id="drawerProjeto" type="text" />
+            <select id="drawerProjeto">
+              <option value="">Selecione</option>
+            </select>
           </div>
           <div class="field field--toggle">
             <label for="drawerActive">Conta ativa</label>

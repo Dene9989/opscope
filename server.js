@@ -1051,11 +1051,16 @@ function mapUserRoleToProjectRole(user) {
   return "Tecnico";
 }
 
+function canSeeAllProjects(role) {
+  const normalized = normalizeRbacRole(role);
+  return normalized === "pcm" || normalized === "diretor" || normalized === "gerente" || normalized === "supervisor";
+}
+
 function getUserProjectIds(user) {
   if (!user || !user.id) {
     return [];
   }
-  if (isPcmRole(user.rbacRole || user.role)) {
+  if (canSeeAllProjects(user.rbacRole || user.role)) {
     return projects.map((project) => project.id).filter(Boolean);
   }
   const ids = projectUsers
@@ -1080,7 +1085,7 @@ function userHasProjectAccess(user, projectId) {
   if (!user || !projectId) {
     return false;
   }
-  if (isPcmRole(user.rbacRole || user.role)) {
+  if (canSeeAllProjects(user.rbacRole || user.role)) {
     return true;
   }
   return projectUsers.some(
@@ -1128,6 +1133,24 @@ function ensureUserProjectLink(user, projectId) {
     papel: mapUserRoleToProjectRole(user),
   });
   projectUsers = projectUsers.concat(record);
+  saveProjectUsers(projectUsers);
+}
+
+function setUserProjectAssignment(user, projectId) {
+  if (!user || !user.id) {
+    return;
+  }
+  const target = String(projectId || "").trim();
+  projectUsers = projectUsers.filter((entry) => entry && entry.userId !== user.id);
+  if (target) {
+    projectUsers = projectUsers.concat(
+      normalizeProjectUser({
+        projectId: target,
+        userId: user.id,
+        papel: mapUserRoleToProjectRole(user),
+      })
+    );
+  }
   saveProjectUsers(projectUsers);
 }
 
@@ -1187,6 +1210,13 @@ function ensureProjectSeedData() {
 
 function normalizeProjectKey(value) {
   return String(value || "").trim().toUpperCase();
+}
+
+function getProjectLabel(project) {
+  if (!project) {
+    return "";
+  }
+  return `${project.codigo || "-"} - ${project.nome || "-"}`;
 }
 
 function getUserProjectKey(user) {
@@ -1766,6 +1796,7 @@ function sanitizeUser(user) {
     projeto: user.projeto || "",
     uen: user.uen || "",
     localizacao: user.localizacao || "",
+    projectId: user.projectId || "",
     active: user.active !== false,
     permissions: buildPermissions(rbacRole, user.permissions),
     granularPermissions: getGranularPermissionsForUser(user),
@@ -2927,6 +2958,23 @@ app.patch("/api/profile", requireAuth, (req, res) => {
   if ("uen" in req.body) {
     updates.uen = String(req.body.uen || "").trim();
   }
+  if ("projectId" in req.body) {
+    const projectId = String(req.body.projectId || "").trim();
+    if (projectId) {
+      const project = getProjectById(projectId);
+      if (!project) {
+        return res.status(400).json({ message: "Projeto invalido." });
+      }
+      const label = getProjectLabel(project);
+      updates.projectId = projectId;
+      updates.projeto = label;
+      updates.localizacao = label;
+    } else {
+      updates.projectId = "";
+      updates.projeto = "";
+      updates.localizacao = "";
+    }
+  }
   if ("projeto" in req.body) {
     updates.projeto = String(req.body.projeto || "").trim();
   } else if ("project" in req.body) {
@@ -2940,6 +2988,9 @@ app.patch("/api/profile", requireAuth, (req, res) => {
   const updated = normalizeUserRecord({ ...users[index], ...updates });
   users[index] = updated;
   writeJson(USERS_FILE, users);
+  if ("projectId" in req.body) {
+    setUserProjectAssignment(updated, updated.projectId || "");
+  }
   appendAudit(
     "profile_update",
     actor.id,
@@ -3474,6 +3525,7 @@ app.patch("/api/admin/users/:id", requireAuth, requirePermission("verUsuarios"),
     "name" in req.body ||
     "cargo" in req.body ||
     "jobTitle" in req.body ||
+    "projectId" in req.body ||
     "projeto" in req.body ||
     "project" in req.body ||
     "uen" in req.body ||
@@ -3496,6 +3548,23 @@ app.patch("/api/admin/users/:id", requireAuth, requirePermission("verUsuarios"),
     updates.cargo = String(req.body.cargo || "").trim();
   } else if ("jobTitle" in req.body) {
     updates.cargo = String(req.body.jobTitle || "").trim();
+  }
+  if ("projectId" in req.body) {
+    const projectId = String(req.body.projectId || "").trim();
+    if (projectId) {
+      const project = getProjectById(projectId);
+      if (!project) {
+        return res.status(400).json({ message: "Projeto invalido." });
+      }
+      const label = getProjectLabel(project);
+      updates.projectId = projectId;
+      updates.projeto = label;
+      updates.localizacao = label;
+    } else {
+      updates.projectId = "";
+      updates.projeto = "";
+      updates.localizacao = "";
+    }
   }
   if ("projeto" in req.body) {
     updates.projeto = String(req.body.projeto || "").trim();
@@ -3534,6 +3603,9 @@ app.patch("/api/admin/users/:id", requireAuth, requirePermission("verUsuarios"),
   const updated = normalizeUserRecord({ ...current, ...updates });
   users[userIndex] = updated;
   writeJson(USERS_FILE, users);
+  if ("projectId" in req.body) {
+    setUserProjectAssignment(updated, updated.projectId || "");
+  }
   appendAudit(
     "admin_user_update",
     req.session.userId,
