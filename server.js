@@ -42,9 +42,42 @@ const STORAGE_DIR = process.env.OPSCOPE_STORAGE_DIR
         path.resolve(__dirname, ".."),
       "opscope-storage"
     );
-const DATA_DIR = process.env.OPSCOPE_DATA_DIR
-  ? path.resolve(process.env.OPSCOPE_DATA_DIR)
-  : path.join(STORAGE_DIR, "data");
+const STORAGE_DATA_DIR = path.join(STORAGE_DIR, "data");
+const DATA_FILE_NAMES = [
+  "invites.json",
+  "audit.json",
+  "maintenance.json",
+  "automations.json",
+  "api_logs.json",
+  "health_tasks.json",
+  "files.json",
+  "permissoes.json",
+  "projects.json",
+  "equipamentos.json",
+  "project_users.json",
+];
+
+function hasDataFiles(dir) {
+  if (!dir || !fs.existsSync(dir)) {
+    return false;
+  }
+  return DATA_FILE_NAMES.some((name) => fs.existsSync(path.join(dir, name)));
+}
+
+function resolveDataDir() {
+  if (process.env.OPSCOPE_DATA_DIR) {
+    return path.resolve(process.env.OPSCOPE_DATA_DIR);
+  }
+  if (hasDataFiles(STORAGE_DATA_DIR)) {
+    return STORAGE_DATA_DIR;
+  }
+  if (hasDataFiles(STORAGE_DIR)) {
+    return STORAGE_DIR;
+  }
+  return STORAGE_DIR;
+}
+
+const DATA_DIR = resolveDataDir();
 const LEGACY_USERS_FILE = path.join(LEGACY_DATA_DIR, "users.json");
 const LEGACY_USERS_STORAGE_FILE = path.join(LEGACY_STORAGE_DIR, "users.json");
 const USERS_FILE = path.join(STORAGE_DIR, "users.json");
@@ -342,44 +375,34 @@ function ensureDataDir() {
 }
 
 function migrateLegacyDataDir() {
-  if (DATA_DIR === LEGACY_DATA_DIR) {
-    return;
-  }
-  if (!fs.existsSync(LEGACY_DATA_DIR)) {
-    return;
-  }
-  const files = [
-    "invites.json",
-    "audit.json",
-    "maintenance.json",
-    "automations.json",
-    "api_logs.json",
-    "health_tasks.json",
-    "files.json",
-    "permissoes.json",
-    "projects.json",
-    "equipamentos.json",
-    "project_users.json",
-  ];
-  files.forEach((name) => {
-    const from = path.join(LEGACY_DATA_DIR, name);
-    const to = path.join(DATA_DIR, name);
-    if (fs.existsSync(from) && !fs.existsSync(to)) {
-      fs.copyFileSync(from, to);
+  const candidates = [LEGACY_DATA_DIR, STORAGE_DATA_DIR];
+  candidates.forEach((legacyDir) => {
+    if (!legacyDir || legacyDir === DATA_DIR) {
+      return;
     }
-  });
-  const legacyBackups = path.join(LEGACY_DATA_DIR, "backups");
-  const newBackups = path.join(DATA_DIR, "backups");
-  if (fs.existsSync(legacyBackups) && !fs.existsSync(newBackups)) {
-    fs.mkdirSync(newBackups, { recursive: true });
-    fs.readdirSync(legacyBackups).forEach((entry) => {
-      const from = path.join(legacyBackups, entry);
-      const to = path.join(newBackups, entry);
-      if (fs.statSync(from).isFile() && !fs.existsSync(to)) {
+    if (!fs.existsSync(legacyDir)) {
+      return;
+    }
+    DATA_FILE_NAMES.forEach((name) => {
+      const from = path.join(legacyDir, name);
+      const to = path.join(DATA_DIR, name);
+      if (fs.existsSync(from) && !fs.existsSync(to)) {
         fs.copyFileSync(from, to);
       }
     });
-  }
+    const legacyBackups = path.join(legacyDir, "backups");
+    const newBackups = path.join(DATA_DIR, "backups");
+    if (fs.existsSync(legacyBackups) && !fs.existsSync(newBackups)) {
+      fs.mkdirSync(newBackups, { recursive: true });
+      fs.readdirSync(legacyBackups).forEach((entry) => {
+        const from = path.join(legacyBackups, entry);
+        const to = path.join(newBackups, entry);
+        if (fs.statSync(from).isFile() && !fs.existsSync(to)) {
+          fs.copyFileSync(from, to);
+        }
+      });
+    }
+  });
 }
 
 function ensureUploadDirs() {
