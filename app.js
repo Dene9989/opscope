@@ -13143,9 +13143,11 @@ async function refreshProjects() {
   }
   try {
     const data = await apiProjetosList();
-    availableProjects = Array.isArray(data.projects) ? data.projects : [];
+    if (Array.isArray(data.projects)) {
+      availableProjects = data.projects;
+    }
   } catch (error) {
-    availableProjects = [];
+    // Mantem o que ja carregou de /api/auth/me caso a rota de projetos falhe.
   }
   if (!availableProjects.length) {
     renderProjectSelector();

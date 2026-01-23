@@ -1115,6 +1115,22 @@ function ensureUserProjectLinks(defaultProjectId) {
   }
 }
 
+function ensureUserProjectLink(user, projectId) {
+  if (!user || !user.id || !projectId) {
+    return;
+  }
+  if (projectUsers.some((entry) => entry && entry.userId === user.id && entry.projectId === projectId)) {
+    return;
+  }
+  const record = normalizeProjectUser({
+    projectId,
+    userId: user.id,
+    papel: mapUserRoleToProjectRole(user),
+  });
+  projectUsers = projectUsers.concat(record);
+  saveProjectUsers(projectUsers);
+}
+
 function migrateRecordsProjectId(list, defaultProjectId) {
   if (!Array.isArray(list)) {
     return { list: [], changed: false };
@@ -2560,7 +2576,14 @@ app.get("/api/auth/me", (req, res) => {
   if (!user) {
     return res.status(401).json({ message: "Nao autenticado." });
   }
-  const ids = getUserProjectIds(user);
+  let ids = getUserProjectIds(user);
+  if (!ids.length) {
+    const defaultProject = ensureDefaultProject();
+    if (defaultProject) {
+      ensureUserProjectLink(user, defaultProject.id);
+      ids = getUserProjectIds(user);
+    }
+  }
   const available = projects
     .filter((project) => project && ids.includes(project.id))
     .map((project) => {
@@ -2604,7 +2627,14 @@ app.post("/api/projetos/active", requireAuth, (req, res) => {
 
 app.get("/api/projetos", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
-  const ids = getUserProjectIds(user);
+  let ids = getUserProjectIds(user);
+  if (!ids.length) {
+    const defaultProject = ensureDefaultProject();
+    if (defaultProject) {
+      ensureUserProjectLink(user, defaultProject.id);
+      ids = getUserProjectIds(user);
+    }
+  }
   const list = projects
     .filter((project) => project && ids.includes(project.id))
     .map((project) => {
