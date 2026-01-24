@@ -965,18 +965,22 @@
       <div class="backdrop" id="sidebarBackdrop" hidden></div>
       <div class="main">
         <header class="topbar">
-          <button class="icon-btn" id="btnSidebar" type="button" aria-label="Alternar menu lateral">
-            &#9776;
-          </button>
-          <div class="topbar-logo" aria-label="OPSCOPE">
-            <img class="topbar-logo__img" src="assets/img/opscope-logo.png" alt="OPSCOPE" />
+          <div class="topbar-left">
+            <button class="icon-btn" id="btnSidebar" type="button" aria-label="Alternar menu lateral">
+              &#9776;
+            </button>
+            <div class="topbar-logo" aria-label="OPSCOPE">
+              <img class="topbar-logo__img" src="assets/img/opscope-logo.png" alt="OPSCOPE" />
+            </div>
           </div>
 
-          <div class="crumbs" id="crumbs">
-            <span class="crumbs__label">Projeto:</span>
-            <span class="crumbs__project">-</span>
-            <span class="crumbs__sep">&#8250;</span>
-            <span class="crumbs__module">-</span>
+          <div class="topbar-center" aria-live="polite">
+            <div class="crumbs" id="crumbs">
+              <span class="crumbs__label">Projeto:</span>
+              <span class="crumbs__project">-</span>
+              <span class="crumbs__sep">&#8250;</span>
+              <span class="crumbs__module">-</span>
+            </div>
           </div>
           <div class="topbar-right">
             <button id="btnDashboard" class="btn btn--ghost btn--small topbar-dashboard" type="button" aria-label="Voltar ao Dashboard">
@@ -992,7 +996,7 @@
               </svg>
               <span>Voltar ao Dashboard</span>
             </button>
-            <button id="btnHelp" class="btn btn--ghost btn--small topbar-help" type="button" aria-label="Ajuda e como usar">
+            <button id="btnHelp" class="btn btn--ghost btn--small topbar-help" type="button" aria-label="Ajuda">
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6" />
                 <path
@@ -1004,19 +1008,19 @@
                 />
                 <circle cx="12" cy="16.6" r="1" fill="currentColor" />
               </svg>
-              <span>Ajuda / Como usar</span>
+              <span>Ajuda</span>
             </button>
             <div class="project-switcher">
-              <span class="project-switcher__label" id="projectSelectLabel">Projeto ativo</span>
+              <label class="project-switcher__label" id="projectSelectLabel" for="projectSelect">Projeto ativo</label>
               <div class="project-switcher__control">
                 <select id="projectSelect" aria-label="Selecionar projeto ativo">
                   <option value="">Sem projetos</option>
                 </select>
-                <button id="projectManageBtn" class="btn btn--ghost btn--small" type="button">
-                  Gerenciar Projeto
-                </button>
               </div>
             </div>
+            <button id="projectManageBtn" class="btn btn--ghost btn--small" type="button">
+              Gerenciar Projeto
+            </button>
             <div class="notify">
               <button
                 id="btnBell"
