@@ -251,6 +251,7 @@ const pmpProcedimentos = document.getElementById("pmpProcedimentos");
 const pmpProcedimentoFile = document.getElementById("pmpProcedimentoFile");
 const pmpProcedimentoUpload = document.getElementById("pmpProcedimentoUpload");
 const pmpProcedimentoView = document.getElementById("pmpProcedimentoView");
+const pmpProcedimentoRemove = document.getElementById("pmpProcedimentoRemove");
 const pmpProcedimentoName = document.getElementById("pmpProcedimentoName");
 const pmpChecklistList = document.getElementById("pmpChecklistList");
 const pmpChecklistItem = document.getElementById("pmpChecklistItem");
@@ -1094,6 +1095,14 @@ function canUploadPmpProcedimento(user) {
   }
   const rbacRole = String(user.rbacRole || "").trim().toLowerCase();
   return rbacRole === "pcm";
+}
+
+function canManagePmpActivities(user) {
+  return canUploadPmpProcedimento(user);
+}
+
+function canExecutePmp(user) {
+  return Boolean(user);
 }
 
 function canAdminUsersRead() {
@@ -14358,8 +14367,9 @@ function updatePmpImportButton() {
     return;
   }
   const projectId = (pmpFiltroProjeto && pmpFiltroProjeto.value) || activeProjectId || "";
-  const canManage = Boolean(currentUser && hasGranularPermission(currentUser, "gerenciarPMP"));
+  const canManage = Boolean(currentUser && canManagePmpActivities(currentUser));
   pmpImportBtn.disabled = !canManage || !projectId;
+  pmpImportBtn.hidden = !canManage;
 }
 
 function getPmpFilteredActivities() {
@@ -14566,7 +14576,7 @@ async function salvarPmpActivity(event) {
   if (event) {
     event.preventDefault();
   }
-  if (!currentUser || !hasGranularPermission(currentUser, "gerenciarPMP")) {
+  if (!currentUser || !canManagePmpActivities(currentUser)) {
     if (pmpFormMensagem) {
       pmpFormMensagem.textContent = "Sem permissao para gerenciar PMP.";
     }
@@ -14660,10 +14670,11 @@ function renderPmpModule() {
   if (!pmpGridBody || !pmpGridHead) {
     return;
   }
-  const canManagePmp = Boolean(currentUser && hasGranularPermission(currentUser, "gerenciarPMP"));
+  const canManagePmp = Boolean(currentUser && canManagePmpActivities(currentUser));
   const canUploadProcedimento = Boolean(currentUser && canUploadPmpProcedimento(currentUser));
   if (pmpForm) {
     setFormDisabled(pmpForm, !canManagePmp);
+    pmpForm.hidden = !canManagePmp;
   }
   if (pmpProcedimentoUpload) {
     pmpProcedimentoUpload.hidden = !canUploadProcedimento;
@@ -14672,8 +14683,13 @@ function renderPmpModule() {
   if (pmpProcedimentoFile) {
     pmpProcedimentoFile.disabled = !canUploadProcedimento;
   }
+  if (pmpProcedimentoRemove) {
+    pmpProcedimentoRemove.hidden = !canUploadProcedimento || !pmpProcedimentoDoc;
+    pmpProcedimentoRemove.disabled = !canUploadProcedimento || !pmpProcedimentoDoc;
+  }
   if (pmpDuplicarPlano) {
     pmpDuplicarPlano.disabled = !canManagePmp;
+    pmpDuplicarPlano.hidden = !canManagePmp;
   }
   if (pmpExportPdf) {
     pmpExportPdf.disabled = !canManagePmp;
@@ -15236,6 +15252,12 @@ function setPmpProcedimentoDoc(doc) {
   if (pmpProcedimentoView) {
     pmpProcedimentoView.hidden = !(pmpProcedimentoDoc && pmpProcedimentoDoc.url);
   }
+  if (pmpProcedimentoRemove) {
+    pmpProcedimentoRemove.hidden = !pmpProcedimentoDoc;
+  }
+  if (pmpProcedimentoUpload) {
+    pmpProcedimentoUpload.textContent = pmpProcedimentoDoc ? "Alterar PDF" : "Anexar PDF";
+  }
 }
 
 function openPmpProcedimento(doc) {
@@ -15408,13 +15430,14 @@ function openPmpCellModal(activityId, periodKey) {
     execRecord && execRecord.executorId ? execRecord.executorId : ""
   );
 
-  const canManage = Boolean(currentUser && hasGranularPermission(currentUser, "gerenciarPMP"));
+  const canManage = Boolean(currentUser && canManagePmpActivities(currentUser));
+  const canExecute = Boolean(currentUser && canExecutePmp(currentUser));
   if (pmpCellMarkCancel) {
     pmpCellMarkCancel.hidden = !canManage;
     pmpCellMarkCancel.disabled = statusInfo.status === "cancelled";
   }
   if (pmpCellSave) {
-    pmpCellSave.disabled = !canManage;
+    pmpCellSave.disabled = !canExecute;
   }
   if (pmpCellUnset) {
     pmpCellUnset.disabled = !canManage || statusInfo.status === "empty";
@@ -15433,7 +15456,7 @@ function openPmpCellModal(activityId, periodKey) {
   ];
   cellInputs.forEach((input) => {
     if (input) {
-      input.disabled = !canManage;
+      input.disabled = !canExecute;
     }
   });
   pmpCellContext = {
@@ -15472,7 +15495,7 @@ async function marcarPmpCancelada() {
   if (!pmpCellContext || !pmpCellContext.activityId) {
     return;
   }
-  if (!currentUser || !hasGranularPermission(currentUser, "gerenciarPMP")) {
+  if (!currentUser || !canManagePmpActivities(currentUser)) {
     return;
   }
   const confirmacao = window.confirm("Marcar atividade como cancelada neste periodo?");
@@ -15505,7 +15528,7 @@ async function salvarPmpExecucaoManual() {
   if (!pmpCellContext || !pmpCellContext.activityId) {
     return;
   }
-  if (!currentUser || !hasGranularPermission(currentUser, "gerenciarPMP")) {
+  if (!currentUser || !canExecutePmp(currentUser)) {
     return;
   }
   const scheduledFor = pmpCellScheduledInput && pmpCellScheduledInput.value
@@ -15548,7 +15571,7 @@ async function removerPmpExecucaoManual() {
   if (!pmpCellContext || !pmpCellContext.executionId) {
     return;
   }
-  if (!currentUser || !hasGranularPermission(currentUser, "gerenciarPMP")) {
+  if (!currentUser || !canManagePmpActivities(currentUser)) {
     return;
   }
   const confirmacao = window.confirm("Remover execucao manual deste periodo?");
@@ -15571,7 +15594,7 @@ async function marcarPmpNaoPrevista() {
   if (!pmpCellContext || !pmpCellContext.activityId) {
     return;
   }
-  if (!currentUser || !hasGranularPermission(currentUser, "gerenciarPMP")) {
+  if (!currentUser || !canManagePmpActivities(currentUser)) {
     return;
   }
   const confirmacao = window.confirm("Marcar este periodo como nao previsto?");
@@ -22660,6 +22683,27 @@ if (pmpProcedimentoFile) {
 if (pmpProcedimentoView) {
   pmpProcedimentoView.addEventListener("click", () => {
     openPmpProcedimento(pmpProcedimentoDoc);
+  });
+}
+if (pmpProcedimentoRemove) {
+  pmpProcedimentoRemove.addEventListener("click", () => {
+    if (!currentUser || !canUploadPmpProcedimento(currentUser)) {
+      if (pmpFormMensagem) {
+        pmpFormMensagem.textContent = "Somente PCM pode remover procedimentos.";
+      }
+      return;
+    }
+    if (!pmpProcedimentoDoc) {
+      return;
+    }
+    const confirmar = window.confirm("Remover o procedimento anexado?");
+    if (!confirmar) {
+      return;
+    }
+    setPmpProcedimentoDoc(null);
+    if (pmpFormMensagem) {
+      pmpFormMensagem.textContent = "Procedimento removido. Salve a atividade para aplicar.";
+    }
   });
 }
 if (pmpGridBody) {

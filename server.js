@@ -1569,6 +1569,16 @@ function canDeleteMaintenance(user) {
   return normalizeRbacRole(user.rbacRole || user.role) === "pcm";
 }
 
+function canManagePmpActivities(user) {
+  if (!user) {
+    return false;
+  }
+  if (isMasterUser(user)) {
+    return true;
+  }
+  return normalizeRbacRole(user.rbacRole || user.role) === "pcm";
+}
+
 function getUserProjectIds(user) {
   if (!user || !user.id) {
     return [];
@@ -3528,6 +3538,9 @@ app.get("/api/pmp/activities", requireAuth, (req, res) => {
 
 app.post("/api/pmp/activities", requireAuth, requirePermission("gerenciarPMP"), (req, res) => {
   const user = req.currentUser || getSessionUser(req);
+  if (!canManagePmpActivities(user)) {
+    return res.status(403).json({ message: "Apenas PCM pode gerenciar PMP." });
+  }
   const payload = req.body && typeof req.body === "object" ? req.body : {};
   const projectId = String(payload.projectId || "").trim();
   if (!projectId) {
@@ -3560,6 +3573,9 @@ app.post("/api/pmp/activities", requireAuth, requirePermission("gerenciarPMP"), 
 
 app.put("/api/pmp/activities/:id", requireAuth, requirePermission("gerenciarPMP"), (req, res) => {
   const user = req.currentUser || getSessionUser(req);
+  if (!canManagePmpActivities(user)) {
+    return res.status(403).json({ message: "Apenas PCM pode gerenciar PMP." });
+  }
   const activityId = String(req.params.id || "").trim();
   const index = pmpActivities.findIndex((item) => item && item.id === activityId);
   if (index === -1) {
@@ -3605,6 +3621,9 @@ app.delete(
   requirePermission("gerenciarPMP"),
   (req, res) => {
     const user = req.currentUser || getSessionUser(req);
+    if (!canManagePmpActivities(user)) {
+      return res.status(403).json({ message: "Apenas PCM pode gerenciar PMP." });
+    }
     const activityId = String(req.params.id || "").trim();
     const index = pmpActivities.findIndex((item) => item && item.id === activityId);
     if (index === -1) {
@@ -3646,7 +3665,7 @@ app.get("/api/pmp/executions", requireAuth, (req, res) => {
   return res.json({ executions: list });
 });
 
-app.post("/api/pmp/executions", requireAuth, requirePermission("gerenciarPMP"), (req, res) => {
+app.post("/api/pmp/executions", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   const payload = req.body && typeof req.body === "object" ? req.body : {};
   const activityId = String(payload.activityId || "").trim();
@@ -3662,6 +3681,10 @@ app.post("/api/pmp/executions", requireAuth, requirePermission("gerenciarPMP"), 
   }
   const periodKey = String(payload.periodKey || "").trim();
   const scheduledFor = String(payload.scheduledFor || "").trim();
+  const status = String(payload.status || "").trim().toLowerCase();
+  if ((status === "cancelada" || status === "removida") && !canManagePmpActivities(user)) {
+    return res.status(403).json({ message: "Apenas PCM pode cancelar ou remover execucoes PMP." });
+  }
   const existingIndex = pmpExecutions.findIndex(
     (item) =>
       item.activityId === activityId &&
@@ -3690,9 +3713,11 @@ app.post("/api/pmp/executions", requireAuth, requirePermission("gerenciarPMP"), 
 app.delete(
   "/api/pmp/executions/:id",
   requireAuth,
-  requirePermission("gerenciarPMP"),
   (req, res) => {
     const user = req.currentUser || getSessionUser(req);
+    if (!canManagePmpActivities(user)) {
+      return res.status(403).json({ message: "Apenas PCM pode remover execucoes PMP." });
+    }
     const execId = String(req.params.id || "").trim();
     const index = pmpExecutions.findIndex((item) => item && item.id === execId);
     if (index === -1) {
@@ -3710,6 +3735,9 @@ app.delete(
 
 app.post("/api/pmp/duplicate", requireAuth, requirePermission("gerenciarPMP"), (req, res) => {
   const user = req.currentUser || getSessionUser(req);
+  if (!canManagePmpActivities(user)) {
+    return res.status(403).json({ message: "Apenas PCM pode gerenciar PMP." });
+  }
   const payload = req.body && typeof req.body === "object" ? req.body : {};
   const projectId = String(payload.projectId || "").trim();
   const sourceYear = Number(payload.sourceYear || 0);
