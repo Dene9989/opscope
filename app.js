@@ -248,6 +248,10 @@ const pmpResponsavel = document.getElementById("pmpResponsavel");
 const pmpDescricao = document.getElementById("pmpDescricao");
 const pmpObservacoes = document.getElementById("pmpObservacoes");
 const pmpProcedimentos = document.getElementById("pmpProcedimentos");
+const pmpProcedimentoFile = document.getElementById("pmpProcedimentoFile");
+const pmpProcedimentoUpload = document.getElementById("pmpProcedimentoUpload");
+const pmpProcedimentoView = document.getElementById("pmpProcedimentoView");
+const pmpProcedimentoName = document.getElementById("pmpProcedimentoName");
 const pmpChecklistList = document.getElementById("pmpChecklistList");
 const pmpChecklistItem = document.getElementById("pmpChecklistItem");
 const pmpChecklistLink = document.getElementById("pmpChecklistLink");
@@ -1078,6 +1082,20 @@ function canDeleteMaintenance(user) {
   return rbacRole === "pcm";
 }
 
+function canUploadPmpProcedimento(user) {
+  if (!user) {
+    return false;
+  }
+  if (isMasterUser(user)) {
+    return true;
+  }
+  if (user.role === "admin") {
+    return true;
+  }
+  const rbacRole = String(user.rbacRole || "").trim().toLowerCase();
+  return rbacRole === "pcm";
+}
+
 function canAdminUsersRead() {
   if (!currentUser) {
     return false;
@@ -1691,6 +1709,7 @@ const pmpEquipamentosCache = new Map();
 const pmpMaintenanceCache = new Map();
 let pmpChecklistItems = [];
 let pmpFormOrigem = "manual";
+let pmpProcedimentoDoc = null;
 let pmpImportItems = [];
 let pmpImportSelection = new Set();
 let pmpLastSnapshot = null;
@@ -5304,8 +5323,13 @@ function renderLembretes() {
   listaLembretes.innerHTML = "";
   const hoje = startOfDay(new Date());
   const readSet = getReadNotificationIds();
+  const scopedManutencoes = activeProjectId
+    ? manutencoes.filter(
+        (item) => item && (!item.projectId || item.projectId === activeProjectId)
+      )
+    : [];
 
-  const proximos = manutencoes
+  const proximos = scopedManutencoes
     .filter((item) => item.status === "agendada" || item.status === "liberada")
     .map((item) => {
       const data = parseDate(item.data);
@@ -13195,6 +13219,60 @@ function addPmpChecklistItem() {
   renderPmpChecklist();
 }
 
+async function uploadPmpProcedimento(file) {
+  if (!file) {
+    return;
+  }
+  if (!currentUser || !canUploadPmpProcedimento(currentUser)) {
+    if (pmpFormMensagem) {
+      pmpFormMensagem.textContent = "Somente PCM pode anexar procedimentos.";
+    }
+    return;
+  }
+  const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+  if (!isPdf) {
+    if (pmpFormMensagem) {
+      pmpFormMensagem.textContent = "Envie um arquivo PDF.";
+    }
+    return;
+  }
+  if (file.size > FILE_MAX_BYTES) {
+    if (pmpFormMensagem) {
+      pmpFormMensagem.textContent = "Arquivo acima de 10 MB.";
+    }
+    return;
+  }
+  if (pmpProcedimentoUpload) {
+    pmpProcedimentoUpload.disabled = true;
+  }
+  if (pmpFormMensagem) {
+    pmpFormMensagem.textContent = "Enviando procedimento...";
+  }
+  try {
+    const formData = new FormData();
+    formData.append("type", "procedure");
+    formData.append("file", file);
+    const data = await apiUploadFile(formData);
+    if (data && data.file) {
+      setPmpProcedimentoDoc(data.file);
+      if (pmpFormMensagem) {
+        pmpFormMensagem.textContent = "Procedimento anexado. Salve a atividade para vincular.";
+      }
+    }
+  } catch (error) {
+    if (pmpFormMensagem) {
+      pmpFormMensagem.textContent = error.message || "Falha ao enviar procedimento.";
+    }
+  } finally {
+    if (pmpProcedimentoUpload) {
+      pmpProcedimentoUpload.disabled = false;
+    }
+    if (pmpProcedimentoFile) {
+      pmpProcedimentoFile.value = "";
+    }
+  }
+}
+
 function resolvePmpExecutionDate(value) {
   if (value instanceof Date) {
     return value;
@@ -14414,6 +14492,7 @@ function resetPmpForm() {
   }
   pmpChecklistItems = [];
   pmpFormOrigem = "manual";
+  setPmpProcedimentoDoc(null);
   setPmpSelectedMeses(null);
   renderPmpChecklist();
 }
@@ -14468,6 +14547,7 @@ function preencherPmpForm(activity) {
   if (pmpProcedimentos) {
     pmpProcedimentos.value = activity.procedimentos || "";
   }
+  setPmpProcedimentoDoc(activity.procedimentoDoc || null);
   pmpChecklistItems = normalizePmpChecklistItems(activity.checklist || []);
   pmpFormOrigem = activity.origem || "manual";
   if (activity && Object.prototype.hasOwnProperty.call(activity, "meses")) {
@@ -14517,6 +14597,7 @@ async function salvarPmpActivity(event) {
     descricao: pmpDescricao ? pmpDescricao.value.trim() : "",
     observacoes: pmpObservacoes ? pmpObservacoes.value.trim() : "",
     procedimentos: pmpProcedimentos ? pmpProcedimentos.value.trim() : "",
+    procedimentoDoc: pmpProcedimentoDoc || null,
     checklist: pmpChecklistItems.slice(),
     origem: pmpFormOrigem || "manual",
     ano: getPmpYearValue(),
@@ -14580,8 +14661,16 @@ function renderPmpModule() {
     return;
   }
   const canManagePmp = Boolean(currentUser && hasGranularPermission(currentUser, "gerenciarPMP"));
+  const canUploadProcedimento = Boolean(currentUser && canUploadPmpProcedimento(currentUser));
   if (pmpForm) {
     setFormDisabled(pmpForm, !canManagePmp);
+  }
+  if (pmpProcedimentoUpload) {
+    pmpProcedimentoUpload.hidden = !canUploadProcedimento;
+    pmpProcedimentoUpload.disabled = !canUploadProcedimento;
+  }
+  if (pmpProcedimentoFile) {
+    pmpProcedimentoFile.disabled = !canUploadProcedimento;
   }
   if (pmpDuplicarPlano) {
     pmpDuplicarPlano.disabled = !canManagePmp;
@@ -14742,6 +14831,19 @@ function renderPmpModule() {
       nameCell.append(nameWrap, actions);
     } else {
       nameCell.append(nameWrap);
+    }
+    if (activity.procedimentoDoc && activity.procedimentoDoc.url) {
+      const procedureWrap = document.createElement("div");
+      procedureWrap.className = "pmp-procedure";
+      const procedureBtn = document.createElement("button");
+      procedureBtn.type = "button";
+      procedureBtn.className = "btn btn--ghost btn--small pmp-procedure-btn";
+      procedureBtn.dataset.pmpAction = "view-procedure";
+      procedureBtn.dataset.pmpId = activity.id;
+      procedureBtn.textContent = "Visualizar procedimento";
+      procedureBtn.title = activity.procedimentoDoc.originalName || activity.procedimentoDoc.name || "";
+      procedureWrap.append(procedureBtn);
+      nameCell.append(procedureWrap);
     }
     row.append(nameCell);
 
@@ -15106,6 +15208,43 @@ function parsePmpTextList(text) {
     .split(/\n+/g)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function normalizePmpProcedimentoDoc(doc) {
+  if (!doc || typeof doc !== "object") {
+    return null;
+  }
+  const url = String(doc.url || doc.dataUrl || "").trim();
+  if (!url) {
+    return null;
+  }
+  const name = String(doc.originalName || doc.name || "Procedimento.pdf").trim();
+  return {
+    id: doc.id ? String(doc.id) : "",
+    url,
+    name,
+    originalName: name,
+    mime: doc.mime ? String(doc.mime) : "application/pdf",
+  };
+}
+
+function setPmpProcedimentoDoc(doc) {
+  pmpProcedimentoDoc = normalizePmpProcedimentoDoc(doc);
+  if (pmpProcedimentoName) {
+    pmpProcedimentoName.textContent = pmpProcedimentoDoc ? pmpProcedimentoDoc.name : "Nenhum arquivo";
+  }
+  if (pmpProcedimentoView) {
+    pmpProcedimentoView.hidden = !(pmpProcedimentoDoc && pmpProcedimentoDoc.url);
+  }
+}
+
+function openPmpProcedimento(doc) {
+  const safeDoc = normalizePmpProcedimentoDoc(doc);
+  if (!safeDoc || !safeDoc.url) {
+    window.alert("Procedimento nao encontrado.");
+    return;
+  }
+  abrirPreview(safeDoc.url);
 }
 
 function renderPmpCellExecutorOptions(projectId, selectedId) {
@@ -22501,6 +22640,28 @@ if (pmpProjeto) {
     renderPmpResponsavelOptions(pmpProjeto.value);
   });
 }
+if (pmpProcedimentoUpload && pmpProcedimentoFile) {
+  pmpProcedimentoUpload.addEventListener("click", () => {
+    if (!currentUser || !canUploadPmpProcedimento(currentUser)) {
+      if (pmpFormMensagem) {
+        pmpFormMensagem.textContent = "Somente PCM pode anexar procedimentos.";
+      }
+      return;
+    }
+    pmpProcedimentoFile.click();
+  });
+}
+if (pmpProcedimentoFile) {
+  pmpProcedimentoFile.addEventListener("change", () => {
+    const file = pmpProcedimentoFile.files && pmpProcedimentoFile.files[0];
+    uploadPmpProcedimento(file);
+  });
+}
+if (pmpProcedimentoView) {
+  pmpProcedimentoView.addEventListener("click", () => {
+    openPmpProcedimento(pmpProcedimentoDoc);
+  });
+}
 if (pmpGridBody) {
   pmpGridBody.addEventListener("click", (event) => {
     const botao = event.target.closest("[data-pmp-action]");
@@ -22517,6 +22678,12 @@ if (pmpGridBody) {
       }
       if (botao.dataset.pmpAction === "delete") {
         removerPmpActivity(activityId);
+      }
+      if (botao.dataset.pmpAction === "view-procedure") {
+        const activity = pmpActivities.find((item) => item.id === activityId);
+        if (activity) {
+          openPmpProcedimento(activity.procedimentoDoc || null);
+        }
       }
       return;
     }

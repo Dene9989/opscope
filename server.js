@@ -139,6 +139,7 @@ const FILE_TYPE_CONFIG = {
   evidence: { label: "Evidencias", dir: "evidencias" },
   rdo: { label: "Anexos de RDO", dir: "rdos" },
   audit: { label: "Documentos de auditoria", dir: "auditoria" },
+  procedure: { label: "Procedimentos PMP", dir: "procedimentos" },
 };
 const FILE_ALLOWED_MIME = new Map([
   ["application/pdf", "pdf"],
@@ -833,6 +834,23 @@ function normalizePmpActivity(record) {
   const meses = mesesRaw
     .map((value) => Number(value))
     .filter((value) => Number.isFinite(value) && value >= 0 && value <= 11);
+  const procedimentoDocRaw = record && record.procedimentoDoc ? record.procedimentoDoc : null;
+  let procedimentoDoc = null;
+  if (procedimentoDocRaw && typeof procedimentoDocRaw === "object") {
+    const url = String(procedimentoDocRaw.url || procedimentoDocRaw.dataUrl || "").trim();
+    if (url) {
+      const nome = String(
+        procedimentoDocRaw.originalName || procedimentoDocRaw.name || "Procedimento.pdf"
+      ).trim();
+      procedimentoDoc = {
+        id: procedimentoDocRaw.id ? String(procedimentoDocRaw.id) : "",
+        url,
+        name: nome,
+        originalName: nome,
+        mime: String(procedimentoDocRaw.mime || "application/pdf"),
+      };
+    }
+  }
   const onlyWeekdays = Boolean(record && record.onlyWeekdays);
   const tipoManutencao = String(
     record && (record.tipoManutencao || record.tipo) ? record.tipoManutencao || record.tipo : ""
@@ -869,6 +887,7 @@ function normalizePmpActivity(record) {
     frequencia: String(record && record.frequencia ? record.frequencia : "").trim(),
     meses,
     onlyWeekdays,
+    procedimentoDoc,
     tecnicosEstimados: Math.max(0, Number(record && record.tecnicosEstimados ? record.tecnicosEstimados : 0) || 0),
     duracaoMinutos: parseDurationToMinutes(record && record.duracaoMinutos ? record.duracaoMinutos : record.duracao),
     responsavelId: String(record && record.responsavelId ? record.responsavelId : "").trim(),

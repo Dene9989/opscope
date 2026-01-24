@@ -8452,6 +8452,26 @@ textarea:focus {
   gap: 6px;
 }
 
+.pmp-procedure {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pmp-procedure .btn {
+  font-size: 0.72rem;
+  padding: 6px 10px;
+}
+
+.pmp-procedimento .doc-actions {
+  align-items: center;
+}
+
+.pmp-procedimento .doc-name {
+  min-width: 140px;
+}
+
 .pmp-import__table-wrap {
   border-radius: 12px;
   border: 1px solid rgba(120, 150, 175, 0.18);

@@ -1858,6 +1858,24 @@
                   placeholder="Liste os passos tecnicos, requisitos e anexos (URLs)"
                 ></textarea>
               </div>
+              <div class="field" data-full>
+                <div class="doc-item pmp-procedimento">
+                  <div class="doc-head">
+                    <span>Procedimento (PDF)</span>
+                  </div>
+                  <div class="doc-actions">
+                    <input id="pmpProcedimentoFile" type="file" accept=".pdf" hidden />
+                    <button id="pmpProcedimentoUpload" class="btn btn--ghost btn--small" type="button">
+                      Anexar PDF
+                    </button>
+                    <button id="pmpProcedimentoView" class="btn btn--ghost btn--small" type="button" hidden>
+                      Visualizar procedimento
+                    </button>
+                    <span id="pmpProcedimentoName" class="doc-name">Nenhum arquivo</span>
+                  </div>
+                  <small class="hint">Somente PCM pode anexar. Os demais apenas visualizam.</small>
+                </div>
+              </div>
             </div>
           </div>
           <div class="pmp-form__actions">
