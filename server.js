@@ -97,6 +97,8 @@ const PERMISSOES_FILE = path.join(DATA_DIR, "permissoes.json");
 const PROJECTS_FILE = path.join(DATA_DIR, "projects.json");
 const EQUIPAMENTOS_FILE = path.join(DATA_DIR, "equipamentos.json");
 const PROJECT_USERS_FILE = path.join(DATA_DIR, "project_users.json");
+const PMP_ACTIVITIES_FILE = path.join(DATA_DIR, "pmp_activities.json");
+const PMP_EXECUTIONS_FILE = path.join(DATA_DIR, "pmp_executions.json");
 const STORE_FILES = [
   USERS_FILE,
   VERIFICATIONS_FILE,
@@ -111,6 +113,8 @@ const STORE_FILES = [
   PROJECTS_FILE,
   EQUIPAMENTOS_FILE,
   PROJECT_USERS_FILE,
+  PMP_ACTIVITIES_FILE,
+  PMP_EXECUTIONS_FILE,
 ];
 const FILES_DIR = path.join(UPLOADS_DIR, "files");
 const SMTP_HOST = process.env.SMTP_HOST || "";
@@ -248,6 +252,7 @@ const GRANULAR_PERMISSION_CATALOG = [
   { key: "gerenciarProjetos", label: "Gerenciar projetos" },
   { key: "gerenciarEquipamentos", label: "Gerenciar equipamentos" },
   { key: "gerenciarEquipeProjeto", label: "Gerenciar equipe do projeto" },
+  { key: "gerenciarPMP", label: "Gerenciar PMP/Cronograma" },
 ];
 const GRANULAR_PERMISSION_KEYS = new Set(
   GRANULAR_PERMISSION_CATALOG.map((permission) => permission.key)
@@ -287,6 +292,7 @@ const GRANULAR_BASE_PERMISSIONS = {
   gerenciarProjetos: false,
   gerenciarEquipamentos: false,
   gerenciarEquipeProjeto: false,
+  gerenciarPMP: false,
 };
 const GRANULAR_SUPERVISOR_PERMISSIONS = {
   ...GRANULAR_BASE_PERMISSIONS,
@@ -312,12 +318,14 @@ const GRANULAR_ADMIN_PERMISSIONS = {
   gerenciarProjetos: false,
   gerenciarEquipamentos: false,
   gerenciarEquipeProjeto: false,
+  gerenciarPMP: false,
 };
 const GRANULAR_PCM_PERMISSIONS = {
   ...GRANULAR_ADMIN_PERMISSIONS,
   gerenciarProjetos: true,
   gerenciarEquipamentos: true,
   gerenciarEquipeProjeto: true,
+  gerenciarPMP: true,
 };
 const GRANULAR_DEFAULT_PERMISSIONS = {
   pcm: GRANULAR_PCM_PERMISSIONS,
@@ -335,6 +343,7 @@ const DEFAULT_SECTIONS = {
   programacao: true,
   nova: true,
   modelos: true,
+  pmp: true,
   execucao: true,
   backlog: true,
   projetos: true,
@@ -779,6 +788,96 @@ function loadEquipamentos() {
 
 function saveEquipamentos(list) {
   writeJson(EQUIPAMENTOS_FILE, list);
+}
+
+function parseDurationToMinutes(value) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(0, Math.round(value));
+  }
+  const text = String(value || "").trim();
+  if (!text) {
+    return 0;
+  }
+  if (text.includes(":")) {
+    const [h, m] = text.split(":");
+    const hours = Number(h);
+    const minutes = Number(m);
+    if (Number.isFinite(hours) && Number.isFinite(minutes)) {
+      return Math.max(0, Math.round(hours * 60 + minutes));
+    }
+  }
+  const numeric = Number(text);
+  if (Number.isFinite(numeric)) {
+    return Math.max(0, Math.round(numeric));
+  }
+  return 0;
+}
+
+function normalizePmpActivity(record) {
+  const now = new Date().toISOString();
+  const year = Number(record && record.ano ? record.ano : new Date().getFullYear());
+  return {
+    id: record && record.id ? String(record.id) : crypto.randomUUID(),
+    projectId: String(record && record.projectId ? record.projectId : "").trim(),
+    equipamentoId: String(record && record.equipamentoId ? record.equipamentoId : "").trim(),
+    nome: String(record && record.nome ? record.nome : "").trim(),
+    descricao: String(record && record.descricao ? record.descricao : "").trim(),
+    codigo: String(record && record.codigo ? record.codigo : "").trim(),
+    frequencia: String(record && record.frequencia ? record.frequencia : "").trim(),
+    tecnicosEstimados: Math.max(0, Number(record && record.tecnicosEstimados ? record.tecnicosEstimados : 0) || 0),
+    duracaoMinutos: parseDurationToMinutes(record && record.duracaoMinutos ? record.duracaoMinutos : record.duracao),
+    responsavelId: String(record && record.responsavelId ? record.responsavelId : "").trim(),
+    procedimentos: String(record && record.procedimentos ? record.procedimentos : "").trim(),
+    ano: Number.isFinite(year) ? year : new Date().getFullYear(),
+    inicio: String(record && record.inicio ? record.inicio : "").trim(),
+    createdAt: record && record.createdAt ? record.createdAt : now,
+    createdBy: record && record.createdBy ? record.createdBy : "",
+    updatedAt: record && record.updatedAt ? record.updatedAt : now,
+    updatedBy: record && record.updatedBy ? record.updatedBy : "",
+  };
+}
+
+function normalizePmpExecution(record) {
+  const now = new Date().toISOString();
+  return {
+    id: record && record.id ? String(record.id) : crypto.randomUUID(),
+    activityId: String(record && record.activityId ? record.activityId : "").trim(),
+    projectId: String(record && record.projectId ? record.projectId : "").trim(),
+    periodKey: String(record && record.periodKey ? record.periodKey : "").trim(),
+    scheduledFor: String(record && record.scheduledFor ? record.scheduledFor : "").trim(),
+    executedAt: String(record && record.executedAt ? record.executedAt : "").trim(),
+    executorId: String(record && record.executorId ? record.executorId : "").trim(),
+    status: String(record && record.status ? record.status : "").trim(),
+    source: String(record && record.source ? record.source : "").trim(),
+    osId: String(record && record.osId ? record.osId : "").trim(),
+    rdoId: String(record && record.rdoId ? record.rdoId : "").trim(),
+    createdAt: record && record.createdAt ? record.createdAt : now,
+    updatedAt: record && record.updatedAt ? record.updatedAt : now,
+  };
+}
+
+function loadPmpActivities() {
+  const data = readJson(PMP_ACTIVITIES_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.filter((item) => item && typeof item === "object");
+}
+
+function savePmpActivities(list) {
+  writeJson(PMP_ACTIVITIES_FILE, list);
+}
+
+function loadPmpExecutions() {
+  const data = readJson(PMP_EXECUTIONS_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.filter((item) => item && typeof item === "object");
+}
+
+function savePmpExecutions(list) {
+  writeJson(PMP_EXECUTIONS_FILE, list);
 }
 
 function shouldRedactLogKey(key) {
@@ -2797,6 +2896,8 @@ function getDashboardSummaryForProject(projectId) {
 let projects = [];
 let projectUsers = [];
 let equipamentos = [];
+let pmpActivities = [];
+let pmpExecutions = [];
 let users = [];
 let invites = [];
 let auditLog = [];
@@ -2857,6 +2958,14 @@ async function bootstrap() {
   projects = loadProjects();
   projectUsers = loadProjectUsers();
   equipamentos = loadEquipamentos();
+  pmpActivities = loadPmpActivities().map(normalizePmpActivity);
+  if (!fs.existsSync(PMP_ACTIVITIES_FILE)) {
+    savePmpActivities(pmpActivities);
+  }
+  pmpExecutions = loadPmpExecutions().map(normalizePmpExecution);
+  if (!fs.existsSync(PMP_EXECUTIONS_FILE)) {
+    savePmpExecutions(pmpExecutions);
+  }
   ensureProjectSeedData();
 }
 
@@ -3131,6 +3240,10 @@ app.delete(
     saveProjectUsers(projectUsers);
     equipamentos = equipamentos.filter((equip) => equip.projectId !== projectId);
     saveEquipamentos(equipamentos);
+    pmpActivities = pmpActivities.filter((activity) => activity.projectId !== projectId);
+    savePmpActivities(pmpActivities);
+    pmpExecutions = pmpExecutions.filter((exec) => exec.projectId !== projectId);
+    savePmpExecutions(pmpExecutions);
     return res.json({ ok: true });
   }
 );
@@ -3305,6 +3418,252 @@ app.delete(
     return res.json({ ok: true });
   }
 );
+
+app.get("/api/pmp/activities", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const projectId = String(req.query.projectId || "").trim();
+  const year = Number(req.query.year || 0);
+  const allowed = new Set(getUserProjectIds(user));
+  if (projectId && !allowed.has(projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  let list = pmpActivities.filter((item) => item && allowed.has(item.projectId));
+  if (projectId) {
+    list = list.filter((item) => item.projectId === projectId);
+  }
+  if (Number.isFinite(year) && year > 0) {
+    list = list.filter((item) => Number(item.ano) === year);
+  }
+  return res.json({ activities: list });
+});
+
+app.post("/api/pmp/activities", requireAuth, requirePermission("gerenciarPMP"), (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const projectId = String(payload.projectId || "").trim();
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto obrigatorio." });
+  }
+  if (!userHasProjectAccess(user, projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  const nome = String(payload.nome || "").trim();
+  if (!nome) {
+    return res.status(400).json({ message: "Nome da atividade obrigatorio." });
+  }
+  const equipamentoId = String(payload.equipamentoId || "").trim();
+  if (equipamentoId) {
+    const equipamento = equipamentos.find((item) => item.id === equipamentoId);
+    if (!equipamento || equipamento.projectId !== projectId) {
+      return res.status(400).json({ message: "Equipamento invalido para o projeto." });
+    }
+  }
+  const record = normalizePmpActivity({
+    ...payload,
+    projectId,
+    createdBy: user ? user.id : "",
+    updatedBy: user ? user.id : "",
+  });
+  pmpActivities = pmpActivities.concat(record);
+  savePmpActivities(pmpActivities);
+  return res.json({ activity: record });
+});
+
+app.put("/api/pmp/activities/:id", requireAuth, requirePermission("gerenciarPMP"), (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const activityId = String(req.params.id || "").trim();
+  const index = pmpActivities.findIndex((item) => item && item.id === activityId);
+  if (index === -1) {
+    return res.status(404).json({ message: "Atividade nao encontrada." });
+  }
+  const current = pmpActivities[index];
+  if (!userHasProjectAccess(user, current.projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const projectId =
+    "projectId" in payload ? String(payload.projectId || "").trim() : current.projectId;
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto obrigatorio." });
+  }
+  if (!userHasProjectAccess(user, projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  const equipamentoId =
+    "equipamentoId" in payload ? String(payload.equipamentoId || "").trim() : current.equipamentoId;
+  if (equipamentoId) {
+    const equipamento = equipamentos.find((item) => item.id === equipamentoId);
+    if (!equipamento || equipamento.projectId !== projectId) {
+      return res.status(400).json({ message: "Equipamento invalido para o projeto." });
+    }
+  }
+  const updated = normalizePmpActivity({
+    ...current,
+    ...payload,
+    projectId,
+    equipamentoId,
+    updatedAt: new Date().toISOString(),
+    updatedBy: user ? user.id : "",
+  });
+  pmpActivities[index] = updated;
+  savePmpActivities(pmpActivities);
+  return res.json({ activity: updated });
+});
+
+app.delete(
+  "/api/pmp/activities/:id",
+  requireAuth,
+  requirePermission("gerenciarPMP"),
+  (req, res) => {
+    const user = req.currentUser || getSessionUser(req);
+    const activityId = String(req.params.id || "").trim();
+    const index = pmpActivities.findIndex((item) => item && item.id === activityId);
+    if (index === -1) {
+      return res.status(404).json({ message: "Atividade nao encontrada." });
+    }
+    const current = pmpActivities[index];
+    if (!userHasProjectAccess(user, current.projectId)) {
+      return res.status(403).json({ message: "Nao autorizado." });
+    }
+    pmpActivities.splice(index, 1);
+    savePmpActivities(pmpActivities);
+    pmpExecutions = pmpExecutions.filter((exec) => exec.activityId !== activityId);
+    savePmpExecutions(pmpExecutions);
+    return res.json({ ok: true });
+  }
+);
+
+app.get("/api/pmp/executions", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const projectId = String(req.query.projectId || "").trim();
+  const year = Number(req.query.year || 0);
+  const allowed = new Set(getUserProjectIds(user));
+  if (projectId && !allowed.has(projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  let list = pmpExecutions.filter((item) => item && allowed.has(item.projectId));
+  if (projectId) {
+    list = list.filter((item) => item.projectId === projectId);
+  }
+  if (Number.isFinite(year) && year > 0) {
+    list = list.filter((item) => {
+      if (!item.scheduledFor) {
+        return false;
+      }
+      const data = new Date(item.scheduledFor);
+      return Number.isFinite(data.getTime()) && data.getFullYear() === year;
+    });
+  }
+  return res.json({ executions: list });
+});
+
+app.post("/api/pmp/executions", requireAuth, requirePermission("gerenciarPMP"), (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const activityId = String(payload.activityId || "").trim();
+  if (!activityId) {
+    return res.status(400).json({ message: "Atividade obrigatoria." });
+  }
+  const activity = pmpActivities.find((item) => item.id === activityId);
+  if (!activity) {
+    return res.status(404).json({ message: "Atividade nao encontrada." });
+  }
+  if (!userHasProjectAccess(user, activity.projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  const periodKey = String(payload.periodKey || "").trim();
+  const scheduledFor = String(payload.scheduledFor || "").trim();
+  const existingIndex = pmpExecutions.findIndex(
+    (item) =>
+      item.activityId === activityId &&
+      periodKey &&
+      item.periodKey === periodKey &&
+      item.projectId === activity.projectId
+  );
+  const record = normalizePmpExecution({
+    ...payload,
+    activityId,
+    projectId: activity.projectId,
+    periodKey,
+    scheduledFor,
+    executorId: payload.executorId || (user ? user.id : ""),
+    updatedAt: new Date().toISOString(),
+  });
+  if (existingIndex >= 0) {
+    pmpExecutions[existingIndex] = { ...pmpExecutions[existingIndex], ...record };
+  } else {
+    pmpExecutions = pmpExecutions.concat(record);
+  }
+  savePmpExecutions(pmpExecutions);
+  return res.json({ execution: record });
+});
+
+app.delete(
+  "/api/pmp/executions/:id",
+  requireAuth,
+  requirePermission("gerenciarPMP"),
+  (req, res) => {
+    const user = req.currentUser || getSessionUser(req);
+    const execId = String(req.params.id || "").trim();
+    const index = pmpExecutions.findIndex((item) => item && item.id === execId);
+    if (index === -1) {
+      return res.status(404).json({ message: "Execucao nao encontrada." });
+    }
+    const exec = pmpExecutions[index];
+    if (!userHasProjectAccess(user, exec.projectId)) {
+      return res.status(403).json({ message: "Nao autorizado." });
+    }
+    pmpExecutions.splice(index, 1);
+    savePmpExecutions(pmpExecutions);
+    return res.json({ ok: true });
+  }
+);
+
+app.post("/api/pmp/duplicate", requireAuth, requirePermission("gerenciarPMP"), (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const projectId = String(payload.projectId || "").trim();
+  const sourceYear = Number(payload.sourceYear || 0);
+  const targetYear = Number(payload.targetYear || 0);
+  if (!projectId || !sourceYear || !targetYear) {
+    return res.status(400).json({ message: "Projeto e anos sao obrigatorios." });
+  }
+  if (!userHasProjectAccess(user, projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  const existentes = pmpActivities.filter(
+    (item) => item.projectId === projectId && Number(item.ano) === targetYear
+  );
+  const existenteKey = new Set(
+    existentes.map((item) => `${item.codigo}|${item.equipamentoId}|${item.nome}`.toLowerCase())
+  );
+  const base = pmpActivities.filter(
+    (item) => item.projectId === projectId && Number(item.ano) === sourceYear
+  );
+  const created = [];
+  base.forEach((item) => {
+    const key = `${item.codigo}|${item.equipamentoId}|${item.nome}`.toLowerCase();
+    if (existenteKey.has(key)) {
+      return;
+    }
+    const copy = normalizePmpActivity({
+      ...item,
+      id: crypto.randomUUID(),
+      ano: targetYear,
+      createdAt: new Date().toISOString(),
+      createdBy: user ? user.id : "",
+      updatedAt: new Date().toISOString(),
+      updatedBy: user ? user.id : "",
+    });
+    created.push(copy);
+  });
+  if (!created.length) {
+    return res.json({ ok: true, created: [] });
+  }
+  pmpActivities = pmpActivities.concat(created);
+  savePmpActivities(pmpActivities);
+  return res.json({ ok: true, created });
+});
 
 app.patch("/api/profile", requireAuth, (req, res) => {
   const actor = req.currentUser || getSessionUser(req);

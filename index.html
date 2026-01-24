@@ -537,6 +537,28 @@
                 <span class="nav-item__label">Modelos & Recorrencias</span>
                 <span class="nav-item__meta"></span>
               </button>
+              <button class="nav-item" type="button" data-tab="pmp" data-tooltip="PMP / Cronograma">
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M8 4h8a2 2 0 0 1 2 2v3h2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9h2V6a2 2 0 0 1 2-2Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M9 12h6M9 16h6M8 7h8"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </span>
+                <span class="nav-item__label">PMP / Cronograma</span>
+                <span class="nav-item__meta"></span>
+              </button>
             </div>
           </section>
           <section class="nav-group" data-group="execucao">
@@ -1535,6 +1557,225 @@
             <div id="listaModelos" class="template-list"></div>
             <p id="modelosVazio" class="empty-state">Nenhum modelo cadastrado.</p>
           </div>
+        </div>
+      </section>
+    </section>
+
+    <section class="panel page-pmp" id="pmp" data-panel="pmp">
+      <section class="card pmp-card">
+        <div class="pmp-header">
+          <div>
+            <h2>PMP / Cronograma</h2>
+            <p class="hint">
+              Planejamento anual de manutencoes preventivas por projeto e equipamento.
+            </p>
+          </div>
+          <div class="pmp-header__actions">
+            <button id="pmpDuplicarPlano" class="btn btn--ghost btn--small" type="button">
+              Duplicar plano
+            </button>
+            <button id="pmpExportPdf" class="btn btn--ghost btn--small" type="button">
+              Exportar PDF
+            </button>
+            <button id="pmpExportExcel" class="btn btn--ghost btn--small" type="button">
+              Exportar Excel
+            </button>
+          </div>
+        </div>
+
+        <div class="pmp-filters">
+          <div class="field">
+            <label for="pmpAno">Ano do plano</label>
+            <select id="pmpAno"></select>
+          </div>
+          <div class="field">
+            <label for="pmpView">Visualizacao</label>
+            <select id="pmpView">
+              <option value="month">Mensal</option>
+              <option value="week">Semanal</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pmpFiltroProjeto">Projeto</label>
+            <select id="pmpFiltroProjeto">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pmpFiltroFrequencia">Frequencia</label>
+            <select id="pmpFiltroFrequencia">
+              <option value="">Todas</option>
+              <option value="diaria">Diaria</option>
+              <option value="semanal">Semanal</option>
+              <option value="mensal">Mensal</option>
+              <option value="bimestral">Bimestral</option>
+              <option value="trimestral">Trimestral</option>
+              <option value="semestral">Semestral</option>
+              <option value="anual">Anual</option>
+              <option value="bienal">Bienal</option>
+              <option value="trienal">Trienal</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pmpFiltroEquipamento">Equipamento</label>
+            <select id="pmpFiltroEquipamento">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pmpFiltroResponsavel">Responsavel</label>
+            <select id="pmpFiltroResponsavel">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pmpFiltroStatus">Status</label>
+            <select id="pmpFiltroStatus">
+              <option value="">Todos</option>
+              <option value="conforme">Conforme</option>
+              <option value="atraso">Em atraso</option>
+              <option value="pendente">Nao executada</option>
+              <option value="agendada">Agendada</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pmpHorasDisponiveis">Horas disponiveis/semana</label>
+            <input id="pmpHorasDisponiveis" type="number" min="0" step="1" value="40" />
+          </div>
+          <div class="field" data-full>
+            <label for="pmpBusca">Buscar atividade</label>
+            <input id="pmpBusca" type="text" placeholder="Nome, codigo ou equipamento" />
+          </div>
+        </div>
+
+        <div class="pmp-kpis">
+          <div class="pmp-kpi">
+            <span>Total previstas</span>
+            <strong id="pmpTotalPrevistas">0</strong>
+          </div>
+          <div class="pmp-kpi">
+            <span>Conforme no prazo</span>
+            <strong id="pmpTotalConforme">0%</strong>
+          </div>
+          <div class="pmp-kpi">
+            <span>Atrasadas</span>
+            <strong id="pmpTotalAtraso">0%</strong>
+          </div>
+          <div class="pmp-kpi">
+            <span>Nao executadas</span>
+            <strong id="pmpTotalNaoExecutadas">0%</strong>
+          </div>
+          <div class="pmp-kpi">
+            <span>Horas planejadas</span>
+            <strong id="pmpHorasPlanejadas">0h</strong>
+          </div>
+          <div class="pmp-kpi">
+            <span>Horas executadas</span>
+            <strong id="pmpHorasExecutadas">0h</strong>
+          </div>
+          <div class="pmp-kpi">
+            <span>Carga semanal (prevista x disponivel)</span>
+            <strong id="pmpCargaSemanal">0h / 0h</strong>
+          </div>
+        </div>
+
+        <form id="pmpForm" class="pmp-form">
+          <div class="section-title">
+            <h3 id="pmpFormTitle">Cadastrar atividade PMP</h3>
+            <p>Registre atividade preventiva, frequencia e vinculos.</p>
+          </div>
+          <input id="pmpFormId" type="hidden" />
+          <div class="form-grid pmp-form__grid">
+            <div class="field">
+              <label for="pmpNome">Nome da atividade</label>
+              <input id="pmpNome" type="text" placeholder="Inspecao termografica" required />
+            </div>
+            <div class="field">
+              <label for="pmpCodigo">Codigo / Tag</label>
+              <input id="pmpCodigo" type="text" placeholder="PM-INV-001" />
+            </div>
+            <div class="field">
+              <label for="pmpProjeto">Projeto</label>
+              <select id="pmpProjeto" required>
+                <option value="">Selecione</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="pmpEquipamento">Equipamento vinculado</label>
+              <select id="pmpEquipamento">
+                <option value="">Selecione</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="pmpFrequencia">Frequencia</label>
+              <select id="pmpFrequencia" required>
+                <option value="">Selecione</option>
+                <option value="diaria">Diaria</option>
+                <option value="semanal">Semanal</option>
+                <option value="mensal">Mensal</option>
+                <option value="bimestral">Bimestral</option>
+                <option value="trimestral">Trimestral</option>
+                <option value="semestral">Semestral</option>
+                <option value="anual">Anual</option>
+                <option value="bienal">Bienal</option>
+                <option value="trienal">Trienal</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="pmpInicio">Inicio da vigencia</label>
+              <input id="pmpInicio" type="date" />
+            </div>
+            <div class="field">
+              <label for="pmpTecnicos">Tecnicos estimados</label>
+              <input id="pmpTecnicos" type="number" min="0" step="1" value="0" />
+            </div>
+            <div class="field">
+              <label for="pmpDuracao">Duracao (HH:MM)</label>
+              <input id="pmpDuracao" type="text" placeholder="02:30" />
+            </div>
+            <div class="field">
+              <label for="pmpResponsavel">Responsavel</label>
+              <select id="pmpResponsavel">
+                <option value="">Selecione</option>
+              </select>
+            </div>
+            <div class="field" data-full>
+              <label for="pmpDescricao">Descricao</label>
+              <textarea id="pmpDescricao" rows="2" placeholder="Detalhes tecnicos da atividade"></textarea>
+            </div>
+            <div class="field" data-full>
+              <label for="pmpProcedimentos">Procedimentos / checklist</label>
+              <textarea
+                id="pmpProcedimentos"
+                rows="3"
+                placeholder="Liste os passos tecnicos, requisitos e anexos (URLs)"
+              ></textarea>
+            </div>
+          </div>
+          <div class="pmp-form__actions">
+            <button class="btn btn--primary btn--small" type="submit">Salvar atividade</button>
+            <button id="pmpFormCancel" class="btn btn--ghost btn--small" type="button">
+              Limpar formulario
+            </button>
+          </div>
+          <p id="pmpFormMensagem" class="mensagem" aria-live="polite"></p>
+        </form>
+
+        <div class="pmp-legend">
+          <span class="pmp-status pmp-status--on-time">Conforme</span>
+          <span class="pmp-status pmp-status--late">Atrasada</span>
+          <span class="pmp-status pmp-status--missed">Nao executada</span>
+          <span class="pmp-status pmp-status--scheduled">Agendada</span>
+        </div>
+
+        <div class="pmp-grid-wrap">
+          <table class="pmp-grid" id="pmpGrid">
+            <thead>
+              <tr id="pmpGridHead"></tr>
+            </thead>
+            <tbody id="pmpGridBody"></tbody>
+          </table>
+          <p id="pmpGridVazio" class="empty-state">Nenhuma atividade PMP cadastrada.</p>
         </div>
       </section>
     </section>

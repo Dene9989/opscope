@@ -8030,3 +8030,254 @@ textarea:focus {
 .home-header .hint {
   font-size: 0.95rem;
 }
+
+.page-pmp .pmp-card {
+  display: grid;
+  gap: 20px;
+}
+
+.pmp-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.pmp-header__actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pmp-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(14, 30, 45, 0.55);
+  border: 1px solid rgba(120, 150, 175, 0.18);
+}
+
+.pmp-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.pmp-kpi {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(14, 30, 45, 0.6);
+  border: 1px solid rgba(120, 150, 175, 0.18);
+  display: grid;
+  gap: 6px;
+}
+
+.pmp-kpi span {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(220, 230, 240, 0.7);
+}
+
+.pmp-kpi strong {
+  font-size: 1.2rem;
+  color: #f5f7fb;
+}
+
+.pmp-form {
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(10, 24, 36, 0.7);
+  border: 1px solid rgba(120, 150, 175, 0.2);
+  display: grid;
+  gap: 16px;
+}
+
+.pmp-form__actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pmp-legend {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  color: rgba(220, 230, 240, 0.8);
+}
+
+.pmp-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(15, 27, 40, 0.7);
+  border: 1px solid rgba(120, 150, 175, 0.2);
+}
+
+.pmp-status::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.pmp-status--on-time::before {
+  background: #22c55e;
+}
+
+.pmp-status--late::before {
+  background: #f59e0b;
+}
+
+.pmp-status--missed::before {
+  background: #ef4444;
+}
+
+.pmp-status--scheduled::before {
+  background: #3b82f6;
+}
+
+.pmp-grid-wrap {
+  position: relative;
+  overflow: auto;
+  border-radius: 16px;
+  border: 1px solid rgba(120, 150, 175, 0.2);
+  background: rgba(10, 20, 30, 0.6);
+}
+
+.pmp-grid {
+  border-collapse: collapse;
+  min-width: 980px;
+  width: 100%;
+}
+
+.pmp-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: rgba(15, 30, 44, 0.95);
+  color: #f5f7fb;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid rgba(120, 150, 175, 0.25);
+}
+
+.pmp-grid th,
+.pmp-grid td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(120, 150, 175, 0.15);
+  text-align: left;
+  font-size: 0.82rem;
+  color: rgba(230, 235, 245, 0.9);
+  white-space: nowrap;
+}
+
+.pmp-grid tbody tr:hover td {
+  background: rgba(30, 55, 80, 0.35);
+}
+
+.pmp-col-name,
+.pmp-col-code,
+.pmp-col-equip {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: rgba(12, 24, 36, 0.95);
+  min-width: 240px;
+}
+
+.pmp-col-code {
+  left: 240px;
+  z-index: 2;
+  min-width: 160px;
+}
+
+.pmp-col-equip {
+  left: 400px;
+  z-index: 2;
+  min-width: 160px;
+}
+
+.pmp-grid th.pmp-col-name,
+.pmp-grid th.pmp-col-code,
+.pmp-grid th.pmp-col-equip {
+  z-index: 6;
+  background: rgba(18, 32, 46, 0.98);
+}
+
+.pmp-cell {
+  text-align: center;
+  font-weight: 600;
+  border-radius: 10px;
+}
+
+.pmp-cell--on-time {
+  background: rgba(34, 197, 94, 0.18);
+  color: #86efac;
+}
+
+.pmp-cell--late {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+}
+
+.pmp-cell--missed {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fecaca;
+}
+
+.pmp-cell--scheduled {
+  background: rgba(59, 130, 246, 0.2);
+  color: #bfdbfe;
+}
+
+.pmp-cell--empty {
+  color: rgba(200, 210, 225, 0.5);
+}
+
+.pmp-grid .pmp-actions {
+  display: flex;
+  gap: 6px;
+}
+
+@media (max-width: 1024px) {
+  .pmp-col-name {
+    min-width: 200px;
+  }
+  .pmp-col-code {
+    left: 200px;
+    min-width: 140px;
+  }
+  .pmp-col-equip {
+    left: 340px;
+    min-width: 140px;
+  }
+}
+
+@media (max-width: 768px) {
+  .pmp-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .pmp-grid {
+    min-width: 840px;
+  }
+  .pmp-col-name {
+    min-width: 180px;
+  }
+  .pmp-col-code {
+    left: 180px;
+    min-width: 130px;
+  }
+  .pmp-col-equip {
+    left: 310px;
+    min-width: 130px;
+  }
+}
