@@ -727,6 +727,13 @@ function normalizeLocaisList(value) {
 
 function normalizeProject(record) {
   const now = new Date().toISOString();
+  const pmpHoras = Number(
+    record && record.pmpHorasDisponiveis !== undefined
+      ? record.pmpHorasDisponiveis
+      : record && record.pmpHorasSemana !== undefined
+        ? record.pmpHorasSemana
+        : 40
+  );
   return {
     id: record && record.id ? String(record.id) : crypto.randomUUID(),
     codigo: String(record && record.codigo ? record.codigo : "").trim(),
@@ -734,6 +741,7 @@ function normalizeProject(record) {
     cliente: String(record && record.cliente ? record.cliente : "").trim(),
     descricao: String(record && record.descricao ? record.descricao : "").trim(),
     locais: normalizeLocaisList(record && record.locais ? record.locais : []),
+    pmpHorasDisponiveis: Number.isFinite(pmpHoras) ? Math.max(0, pmpHoras) : 40,
     createdAt: record && record.createdAt ? record.createdAt : now,
     updatedAt: record && record.updatedAt ? record.updatedAt : now,
   };
@@ -749,6 +757,9 @@ function loadProjects() {
     .map((item) => ({
       ...item,
       locais: normalizeLocaisList(item.locais || []),
+      pmpHorasDisponiveis: Number.isFinite(Number(item.pmpHorasDisponiveis))
+        ? Math.max(0, Number(item.pmpHorasDisponiveis))
+        : 40,
     }));
 }
 
@@ -816,17 +827,42 @@ function parseDurationToMinutes(value) {
 function normalizePmpActivity(record) {
   const now = new Date().toISOString();
   const year = Number(record && record.ano ? record.ano : new Date().getFullYear());
+  const origemRaw = String(record && record.origem ? record.origem : "").trim().toLowerCase();
+  const origem = origemRaw === "importado" ? "importado" : "manual";
+  const checklistRaw = record && record.checklist ? record.checklist : [];
+  const checklist = Array.isArray(checklistRaw)
+    ? checklistRaw
+        .map((item) => {
+          if (!item) {
+            return null;
+          }
+          if (typeof item === "string") {
+            const text = item.trim();
+            return text ? { descricao: text, link: "" } : null;
+          }
+          const descricao = String(item.descricao || item.label || "").trim();
+          const link = String(item.link || item.url || "").trim();
+          if (!descricao && !link) {
+            return null;
+          }
+          return { descricao, link };
+        })
+        .filter(Boolean)
+    : [];
   return {
     id: record && record.id ? String(record.id) : crypto.randomUUID(),
     projectId: String(record && record.projectId ? record.projectId : "").trim(),
     equipamentoId: String(record && record.equipamentoId ? record.equipamentoId : "").trim(),
     nome: String(record && record.nome ? record.nome : "").trim(),
     descricao: String(record && record.descricao ? record.descricao : "").trim(),
+    observacoes: String(record && record.observacoes ? record.observacoes : "").trim(),
     codigo: String(record && record.codigo ? record.codigo : "").trim(),
     frequencia: String(record && record.frequencia ? record.frequencia : "").trim(),
     tecnicosEstimados: Math.max(0, Number(record && record.tecnicosEstimados ? record.tecnicosEstimados : 0) || 0),
     duracaoMinutos: parseDurationToMinutes(record && record.duracaoMinutos ? record.duracaoMinutos : record.duracao),
     responsavelId: String(record && record.responsavelId ? record.responsavelId : "").trim(),
+    checklist,
+    origem,
     procedimentos: String(record && record.procedimentos ? record.procedimentos : "").trim(),
     ano: Number.isFinite(year) ? year : new Date().getFullYear(),
     inicio: String(record && record.inicio ? record.inicio : "").trim(),
@@ -851,6 +887,7 @@ function normalizePmpExecution(record) {
     source: String(record && record.source ? record.source : "").trim(),
     osId: String(record && record.osId ? record.osId : "").trim(),
     rdoId: String(record && record.rdoId ? record.rdoId : "").trim(),
+    observacao: String(record && record.observacao ? record.observacao : "").trim(),
     createdAt: record && record.createdAt ? record.createdAt : now,
     updatedAt: record && record.updatedAt ? record.updatedAt : now,
   };
@@ -1405,6 +1442,7 @@ function ensureDefaultProject() {
       cliente: "",
       descricao: "",
       locais: DEFAULT_PROJECT_LOCAIS,
+      pmpHorasDisponiveis: 40,
     });
     list = list.concat(defaultProject);
     projects = list;
@@ -1417,6 +1455,10 @@ function ensureDefaultProject() {
     defaultProject = {
       ...defaultProject,
       locais: DEFAULT_PROJECT_LOCAIS.slice(),
+      pmpHorasDisponiveis:
+        Number.isFinite(Number(defaultProject.pmpHorasDisponiveis))
+          ? defaultProject.pmpHorasDisponiveis
+          : 40,
       updatedAt: new Date().toISOString(),
     };
     list = list.map((item) => (item.id === defaultProject.id ? defaultProject : item));
@@ -3153,6 +3195,7 @@ app.post("/api/projetos", requireAuth, requirePermission("gerenciarProjetos"), (
   const codigo = String(payload.codigo || "").trim();
   const nome = String(payload.nome || "").trim();
   const locais = normalizeLocaisList(payload.locais || []);
+  const pmpHorasDisponiveis = Number(payload.pmpHorasDisponiveis);
   if (!codigo || !nome) {
     return res.status(400).json({ message: "Codigo e nome sao obrigatorios." });
   }
@@ -3165,6 +3208,7 @@ app.post("/api/projetos", requireAuth, requirePermission("gerenciarProjetos"), (
     cliente: payload.cliente || "",
     descricao: payload.descricao || "",
     locais,
+    pmpHorasDisponiveis: Number.isFinite(pmpHorasDisponiveis) ? pmpHorasDisponiveis : undefined,
   });
   projects = projects.concat(record);
   saveProjects(projects);
@@ -3198,6 +3242,10 @@ app.put("/api/projetos/:id", requireAuth, requirePermission("gerenciarProjetos")
   const nome = "nome" in payload ? String(payload.nome || "").trim() : current.nome;
   const locais =
     "locais" in payload ? normalizeLocaisList(payload.locais || []) : current.locais || [];
+  const pmpHorasDisponiveis =
+    "pmpHorasDisponiveis" in payload
+      ? Number(payload.pmpHorasDisponiveis)
+      : Number(current.pmpHorasDisponiveis);
   if (!codigo || !nome) {
     return res.status(400).json({ message: "Codigo e nome sao obrigatorios." });
   }
@@ -3213,6 +3261,7 @@ app.put("/api/projetos/:id", requireAuth, requirePermission("gerenciarProjetos")
     codigo,
     nome,
     locais,
+    pmpHorasDisponiveis: Number.isFinite(pmpHorasDisponiveis) ? pmpHorasDisponiveis : undefined,
     updatedAt: new Date().toISOString(),
   });
   projects[index] = updated;

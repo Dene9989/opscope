@@ -1571,6 +1571,9 @@
             </p>
           </div>
           <div class="pmp-header__actions">
+            <button id="pmpImportBtn" class="btn btn--ghost btn--small" type="button" disabled>
+              Importar manutenções existentes
+            </button>
             <button id="pmpDuplicarPlano" class="btn btn--ghost btn--small" type="button">
               Duplicar plano
             </button>
@@ -1629,6 +1632,14 @@
             </select>
           </div>
           <div class="field">
+            <label for="pmpFiltroOrigem">Origem</label>
+            <select id="pmpFiltroOrigem">
+              <option value="">Todas</option>
+              <option value="manual">Manual</option>
+              <option value="importado">Importado</option>
+            </select>
+          </div>
+          <div class="field">
             <label for="pmpFiltroStatus">Status</label>
             <select id="pmpFiltroStatus">
               <option value="">Todos</option>
@@ -1636,6 +1647,7 @@
               <option value="atraso">Em atraso</option>
               <option value="pendente">Nao executada</option>
               <option value="agendada">Agendada</option>
+              <option value="cancelada">Cancelada</option>
             </select>
           </div>
           <div class="field">
@@ -1676,6 +1688,10 @@
           <div class="pmp-kpi">
             <span>Carga semanal (prevista x disponivel)</span>
             <strong id="pmpCargaSemanal">0h / 0h</strong>
+            <div class="pmp-kpi__bar">
+              <span id="pmpCargaBar" class="pmp-kpi__bar-fill" style="width: 0%"></span>
+            </div>
+            <small id="pmpCargaBarHint" class="pmp-kpi__hint">0% utilizado</small>
           </div>
         </div>
 
@@ -1685,71 +1701,134 @@
             <p>Registre atividade preventiva, frequencia e vinculos.</p>
           </div>
           <input id="pmpFormId" type="hidden" />
-          <div class="form-grid pmp-form__grid">
-            <div class="field">
-              <label for="pmpNome">Nome da atividade</label>
-              <input id="pmpNome" type="text" placeholder="Inspecao termografica" required />
+          <div class="pmp-form-section">
+            <div class="section-title">
+              <h4>Identificacao</h4>
+              <p>Nome, codigo, projeto e equipamento.</p>
             </div>
-            <div class="field">
-              <label for="pmpCodigo">Codigo / Tag</label>
-              <input id="pmpCodigo" type="text" placeholder="PM-INV-001" />
+            <div class="form-grid">
+              <div class="field">
+                <label for="pmpNome">Nome da atividade</label>
+                <input id="pmpNome" type="text" placeholder="Inspecao termografica" required />
+              </div>
+              <div class="field">
+                <label for="pmpCodigo">Codigo / Tag</label>
+                <input id="pmpCodigo" type="text" placeholder="PM-INV-001" />
+              </div>
+              <div class="field">
+                <label for="pmpProjeto">Projeto</label>
+                <select id="pmpProjeto" required>
+                  <option value="">Selecione</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="pmpEquipamento">Equipamento vinculado</label>
+                <select id="pmpEquipamento">
+                  <option value="">Selecione</option>
+                </select>
+              </div>
             </div>
-            <div class="field">
-              <label for="pmpProjeto">Projeto</label>
-              <select id="pmpProjeto" required>
-                <option value="">Selecione</option>
-              </select>
+          </div>
+
+          <div class="pmp-form-section">
+            <div class="section-title">
+              <h4>Frequencia</h4>
+              <p>Periodicidade e inicio da vigencia.</p>
             </div>
-            <div class="field">
-              <label for="pmpEquipamento">Equipamento vinculado</label>
-              <select id="pmpEquipamento">
-                <option value="">Selecione</option>
-              </select>
+            <div class="form-grid">
+              <div class="field">
+                <label for="pmpFrequencia">Frequencia</label>
+                <select id="pmpFrequencia" required>
+                  <option value="">Selecione</option>
+                  <option value="diaria">Diaria</option>
+                  <option value="semanal">Semanal</option>
+                  <option value="mensal">Mensal</option>
+                  <option value="bimestral">Bimestral</option>
+                  <option value="trimestral">Trimestral</option>
+                  <option value="semestral">Semestral</option>
+                  <option value="anual">Anual</option>
+                  <option value="bienal">Bienal</option>
+                  <option value="trienal">Trienal</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="pmpInicio">Inicio da vigencia</label>
+                <input id="pmpInicio" type="date" />
+              </div>
             </div>
-            <div class="field">
-              <label for="pmpFrequencia">Frequencia</label>
-              <select id="pmpFrequencia" required>
-                <option value="">Selecione</option>
-                <option value="diaria">Diaria</option>
-                <option value="semanal">Semanal</option>
-                <option value="mensal">Mensal</option>
-                <option value="bimestral">Bimestral</option>
-                <option value="trimestral">Trimestral</option>
-                <option value="semestral">Semestral</option>
-                <option value="anual">Anual</option>
-                <option value="bienal">Bienal</option>
-                <option value="trienal">Trienal</option>
-              </select>
+          </div>
+
+          <div class="pmp-form-section">
+            <div class="section-title">
+              <h4>Recursos</h4>
+              <p>Equipe estimada, duracao e responsavel fixo.</p>
             </div>
-            <div class="field">
-              <label for="pmpInicio">Inicio da vigencia</label>
-              <input id="pmpInicio" type="date" />
+            <div class="form-grid">
+              <div class="field">
+                <label for="pmpTecnicos">Tecnicos estimados</label>
+                <input id="pmpTecnicos" type="number" min="0" step="1" value="0" />
+              </div>
+              <div class="field">
+                <label for="pmpDuracao">Duracao (HH:MM)</label>
+                <input id="pmpDuracao" type="text" placeholder="02:30" />
+              </div>
+              <div class="field">
+                <label for="pmpResponsavel">Responsavel</label>
+                <select id="pmpResponsavel">
+                  <option value="">Selecione</option>
+                </select>
+              </div>
             </div>
-            <div class="field">
-              <label for="pmpTecnicos">Tecnicos estimados</label>
-              <input id="pmpTecnicos" type="number" min="0" step="1" value="0" />
-            </div>
-            <div class="field">
-              <label for="pmpDuracao">Duracao (HH:MM)</label>
-              <input id="pmpDuracao" type="text" placeholder="02:30" />
-            </div>
-            <div class="field">
-              <label for="pmpResponsavel">Responsavel</label>
-              <select id="pmpResponsavel">
-                <option value="">Selecione</option>
-              </select>
+          </div>
+
+          <div class="pmp-form-section">
+            <div class="section-title">
+              <h4>Checklist</h4>
+              <p>Adicione itens e links de evidencias.</p>
             </div>
             <div class="field" data-full>
-              <label for="pmpDescricao">Descricao</label>
-              <textarea id="pmpDescricao" rows="2" placeholder="Detalhes tecnicos da atividade"></textarea>
+              <ul id="pmpChecklistList" class="checklist"></ul>
             </div>
-            <div class="field" data-full>
-              <label for="pmpProcedimentos">Procedimentos / checklist</label>
-              <textarea
-                id="pmpProcedimentos"
-                rows="3"
-                placeholder="Liste os passos tecnicos, requisitos e anexos (URLs)"
-              ></textarea>
+            <div class="form-grid">
+              <div class="field">
+                <label for="pmpChecklistItem">Descricao do item</label>
+                <input id="pmpChecklistItem" type="text" placeholder="Ex.: Verificar isolacao" />
+              </div>
+              <div class="field">
+                <label for="pmpChecklistLink">Link / evidencias</label>
+                <input id="pmpChecklistLink" type="text" placeholder="https://..." />
+              </div>
+              <div class="field">
+                <label>&nbsp;</label>
+                <button id="pmpChecklistAdd" class="btn btn--ghost btn--small" type="button">
+                  Adicionar item
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="pmp-form-section">
+            <div class="section-title">
+              <h4>Observacoes</h4>
+              <p>Descricao tecnica, observacoes e procedimentos.</p>
+            </div>
+            <div class="form-grid">
+              <div class="field" data-full>
+                <label for="pmpDescricao">Descricao tecnica</label>
+                <textarea id="pmpDescricao" rows="2" placeholder="Detalhes tecnicos da atividade"></textarea>
+              </div>
+              <div class="field" data-full>
+                <label for="pmpObservacoes">Observacoes da atividade</label>
+                <textarea id="pmpObservacoes" rows="2" placeholder="Contexto, riscos, premissas"></textarea>
+              </div>
+              <div class="field" data-full>
+                <label for="pmpProcedimentos">Procedimentos / checklist tecnico</label>
+                <textarea
+                  id="pmpProcedimentos"
+                  rows="3"
+                  placeholder="Liste os passos tecnicos, requisitos e anexos (URLs)"
+                ></textarea>
+              </div>
             </div>
           </div>
           <div class="pmp-form__actions">
@@ -1766,6 +1845,7 @@
           <span class="pmp-status pmp-status--late">Atrasada</span>
           <span class="pmp-status pmp-status--missed">Nao executada</span>
           <span class="pmp-status pmp-status--scheduled">Agendada</span>
+          <span class="pmp-status pmp-status--cancelled">Cancelada</span>
         </div>
 
         <div class="pmp-grid-wrap">
@@ -3927,6 +4007,89 @@
             <strong>RDO mensal (preview)</strong>
           </div>
           <div id="rdoMensalPreviewBody"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="modalPmpImport" class="modal" hidden>
+      <div class="modal__content modal__content--wide">
+        <div class="modal__header">
+          <div>
+            <h3>Importar manutencoes existentes</h3>
+            <p class="hint">Selecione manutencoes do projeto para criar atividades PMP.</p>
+          </div>
+          <button class="btn btn--ghost btn--small" type="button" data-pmp-import-close>Fechar</button>
+        </div>
+        <div class="modal__form">
+          <div class="form-grid">
+            <div class="field" data-full>
+              <label for="pmpImportSearch">Buscar manutencao</label>
+              <input id="pmpImportSearch" type="text" placeholder="Nome, codigo, equipamento" />
+            </div>
+          </div>
+          <div class="pmp-import">
+            <div class="pmp-import__table-wrap">
+              <table class="pmp-import__table">
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th>Manutencao</th>
+                    <th>Codigo / tag</th>
+                    <th>Equipamento</th>
+                    <th>Frequencia</th>
+                    <th>Tecnicos</th>
+                    <th>Duracao</th>
+                    <th>Ultima execucao</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="pmpImportList"></tbody>
+              </table>
+              <p id="pmpImportEmpty" class="empty-state">Nenhuma manutencao encontrada.</p>
+            </div>
+          </div>
+          <div class="modal__actions">
+            <button id="pmpImportCancel" class="btn btn--ghost" type="button">Cancelar</button>
+            <button id="pmpImportConfirm" class="btn btn--primary" type="button">Importar selecionadas</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="modalPmpCell" class="modal" hidden>
+      <div class="modal__content">
+        <div class="modal__header">
+          <div>
+            <h3 id="pmpCellTitle">Detalhes da atividade</h3>
+            <p id="pmpCellMeta" class="hint">-</p>
+          </div>
+          <button class="btn btn--ghost btn--small" type="button" data-pmp-cell-close>Fechar</button>
+        </div>
+        <div class="modal__form">
+          <div class="pmp-cell-detail">
+            <div class="pmp-cell-section">
+              <h4>Execucao</h4>
+              <ul id="pmpCellExecList" class="pmp-cell-list"></ul>
+            </div>
+            <div class="pmp-cell-section">
+              <h4>Evidencias</h4>
+              <ul id="pmpCellEvidencias" class="pmp-cell-list"></ul>
+            </div>
+            <div class="pmp-cell-section">
+              <h4>Checklist</h4>
+              <ul id="pmpCellChecklist" class="checklist"></ul>
+            </div>
+            <div class="pmp-cell-section">
+              <h4>Observacoes</h4>
+              <p id="pmpCellObservacoes" class="pmp-cell-text">-</p>
+              <h4>Procedimentos</h4>
+              <p id="pmpCellProcedimentos" class="pmp-cell-text">-</p>
+            </div>
+          </div>
+          <div class="modal__actions">
+            <button id="pmpCellMarkCancel" class="btn btn--ghost btn--danger" type="button">Marcar cancelada</button>
+            <button id="pmpCellClose" class="btn btn--ghost" type="button">Fechar</button>
+          </div>
         </div>
       </div>
     </div>

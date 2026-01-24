@@ -213,6 +213,7 @@ const pmpFiltroProjeto = document.getElementById("pmpFiltroProjeto");
 const pmpFiltroFrequencia = document.getElementById("pmpFiltroFrequencia");
 const pmpFiltroEquipamento = document.getElementById("pmpFiltroEquipamento");
 const pmpFiltroResponsavel = document.getElementById("pmpFiltroResponsavel");
+const pmpFiltroOrigem = document.getElementById("pmpFiltroOrigem");
 const pmpFiltroStatus = document.getElementById("pmpFiltroStatus");
 const pmpHorasDisponiveis = document.getElementById("pmpHorasDisponiveis");
 const pmpBusca = document.getElementById("pmpBusca");
@@ -223,6 +224,8 @@ const pmpTotalNaoExecutadas = document.getElementById("pmpTotalNaoExecutadas");
 const pmpHorasPlanejadas = document.getElementById("pmpHorasPlanejadas");
 const pmpHorasExecutadas = document.getElementById("pmpHorasExecutadas");
 const pmpCargaSemanal = document.getElementById("pmpCargaSemanal");
+const pmpCargaBar = document.getElementById("pmpCargaBar");
+const pmpCargaBarHint = document.getElementById("pmpCargaBarHint");
 const pmpForm = document.getElementById("pmpForm");
 const pmpFormId = document.getElementById("pmpFormId");
 const pmpFormTitle = document.getElementById("pmpFormTitle");
@@ -238,14 +241,38 @@ const pmpTecnicos = document.getElementById("pmpTecnicos");
 const pmpDuracao = document.getElementById("pmpDuracao");
 const pmpResponsavel = document.getElementById("pmpResponsavel");
 const pmpDescricao = document.getElementById("pmpDescricao");
+const pmpObservacoes = document.getElementById("pmpObservacoes");
 const pmpProcedimentos = document.getElementById("pmpProcedimentos");
+const pmpChecklistList = document.getElementById("pmpChecklistList");
+const pmpChecklistItem = document.getElementById("pmpChecklistItem");
+const pmpChecklistLink = document.getElementById("pmpChecklistLink");
+const pmpChecklistAdd = document.getElementById("pmpChecklistAdd");
 const pmpGrid = document.getElementById("pmpGrid");
 const pmpGridHead = document.getElementById("pmpGridHead");
 const pmpGridBody = document.getElementById("pmpGridBody");
 const pmpGridVazio = document.getElementById("pmpGridVazio");
+const pmpImportBtn = document.getElementById("pmpImportBtn");
 const pmpDuplicarPlano = document.getElementById("pmpDuplicarPlano");
 const pmpExportPdf = document.getElementById("pmpExportPdf");
 const pmpExportExcel = document.getElementById("pmpExportExcel");
+const modalPmpImport = document.getElementById("modalPmpImport");
+const pmpImportSearch = document.getElementById("pmpImportSearch");
+const pmpImportList = document.getElementById("pmpImportList");
+const pmpImportEmpty = document.getElementById("pmpImportEmpty");
+const pmpImportCancel = document.getElementById("pmpImportCancel");
+const pmpImportConfirm = document.getElementById("pmpImportConfirm");
+const pmpImportClose = document.querySelector("[data-pmp-import-close]");
+const modalPmpCell = document.getElementById("modalPmpCell");
+const pmpCellTitle = document.getElementById("pmpCellTitle");
+const pmpCellMeta = document.getElementById("pmpCellMeta");
+const pmpCellExecList = document.getElementById("pmpCellExecList");
+const pmpCellEvidencias = document.getElementById("pmpCellEvidencias");
+const pmpCellChecklist = document.getElementById("pmpCellChecklist");
+const pmpCellObservacoes = document.getElementById("pmpCellObservacoes");
+const pmpCellProcedimentos = document.getElementById("pmpCellProcedimentos");
+const pmpCellMarkCancel = document.getElementById("pmpCellMarkCancel");
+const pmpCellClose = document.getElementById("pmpCellClose");
+const pmpCellCloseBtn = document.querySelector("[data-pmp-cell-close]");
 const btnLembretes = document.getElementById("btnBell") || document.getElementById("btnLembretes");
 const lembretesCount = document.getElementById("bellDot") || document.getElementById("lembretesCount");
 const painelLembretes = document.getElementById("painelLembretes");
@@ -665,6 +692,7 @@ const DEFAULT_TEMPLATE_NAMES = new Set([
 const WEEKDAYS = ["Domingo", "Segunda", "Terca", "Quarta", "Quinta", "Sexta", "Sabado"];
 const WEEKDAYS_SHORT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
 const DEFAULT_DAILY_DAYS = [1, 2, 3, 4, 5];
+const PMP_TOLERANCE_DAYS = 3;
 const PMP_FREQUENCIES = [
   { value: "diaria", label: "Diaria", unit: "day", interval: 1 },
   { value: "semanal", label: "Semanal", unit: "week", interval: 1 },
@@ -678,9 +706,17 @@ const PMP_FREQUENCIES = [
 ];
 const PMP_STATUS_LABELS = {
   on_time: "Conforme",
-  late: "Em atraso",
+  late: "Atrasada",
   missed: "Nao executada",
   scheduled: "Agendada",
+  cancelled: "Cancelada",
+};
+const PMP_STATUS_FILTER_MAP = {
+  conforme: "on_time",
+  atraso: "late",
+  pendente: "missed",
+  agendada: "scheduled",
+  cancelada: "cancelled",
 };
 const SECTION_LABELS = {
   inicio: "Inicio",
@@ -1616,6 +1652,13 @@ let projectEquipe = [];
 let pmpActivities = [];
 let pmpExecutions = [];
 const pmpEquipamentosCache = new Map();
+const pmpMaintenanceCache = new Map();
+let pmpChecklistItems = [];
+let pmpFormOrigem = "manual";
+let pmpImportItems = [];
+let pmpImportSelection = new Set();
+let pmpLastSnapshot = null;
+let pmpCellContext = null;
 let adminPermissionCatalog = [];
 let reminderDays = DEFAULT_REMINDER_DAYS;
 let loadingTimeout = null;
@@ -13017,6 +13060,79 @@ function parseDurationToMinutes(value) {
   return 0;
 }
 
+function normalizePmpChecklistItems(list) {
+  if (!Array.isArray(list)) {
+    return [];
+  }
+  return list
+    .map((item) => {
+      if (!item) {
+        return null;
+      }
+      if (typeof item === "string") {
+        const text = item.trim();
+        return text ? { descricao: text, link: "" } : null;
+      }
+      const descricao = String(item.descricao || item.label || "").trim();
+      const link = String(item.link || item.url || "").trim();
+      if (!descricao && !link) {
+        return null;
+      }
+      return { descricao, link };
+    })
+    .filter(Boolean);
+}
+
+function renderPmpChecklist() {
+  if (!pmpChecklistList) {
+    return;
+  }
+  pmpChecklistList.innerHTML = "";
+  if (!pmpChecklistItems.length) {
+    const vazio = document.createElement("li");
+    vazio.textContent = "Nenhum item adicionado.";
+    pmpChecklistList.append(vazio);
+    return;
+  }
+  pmpChecklistItems.forEach((item, index) => {
+    const li = document.createElement("li");
+    const label = document.createElement("span");
+    label.textContent = item.descricao || "Item";
+    li.append(label);
+    if (item.link) {
+      const link = document.createElement("a");
+      link.href = item.link;
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.textContent = "Abrir";
+      li.append(link);
+    }
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn--ghost btn--small";
+    btn.dataset.pmpChecklistRemove = String(index);
+    btn.textContent = "Remover";
+    li.append(btn);
+    pmpChecklistList.append(li);
+  });
+}
+
+function addPmpChecklistItem() {
+  const descricao = pmpChecklistItem ? pmpChecklistItem.value.trim() : "";
+  const link = pmpChecklistLink ? pmpChecklistLink.value.trim() : "";
+  if (!descricao && !link) {
+    return;
+  }
+  pmpChecklistItems = [...pmpChecklistItems, { descricao, link }];
+  if (pmpChecklistItem) {
+    pmpChecklistItem.value = "";
+  }
+  if (pmpChecklistLink) {
+    pmpChecklistLink.value = "";
+  }
+  renderPmpChecklist();
+}
+
 function resolvePmpExecutionDate(value) {
   if (value instanceof Date) {
     return value;
@@ -13222,6 +13338,15 @@ function getPeriodKeyForDate(viewMode, date, year) {
   return `M${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
+function getPmpDiffDays(a, b) {
+  if (!a || !b) {
+    return null;
+  }
+  const startA = startOfDay(a);
+  const startB = startOfDay(b);
+  return Math.round((startA - startB) / DAY_MS);
+}
+
 function setExecutionMap(map, activityId, periodKey, payload) {
   if (!activityId || !periodKey) {
     return;
@@ -13230,6 +13355,28 @@ function setExecutionMap(map, activityId, periodKey, payload) {
     map.set(activityId, new Map());
   }
   map.get(activityId).set(periodKey, payload);
+}
+
+function getPmpStatusForPeriod(activity, period, periodKey, viewMode, manualMap, autoMap, today) {
+  const manual = manualMap.get(activity.id) ? manualMap.get(activity.id).get(periodKey) : null;
+  const auto = autoMap.get(activity.id) ? autoMap.get(activity.id).get(periodKey) : null;
+  const exec = manual || auto;
+  const dueDate = getDueDateForPeriod(activity, period, viewMode);
+  if (exec && exec.status === "cancelada") {
+    return { status: "cancelled", exec, executedAt: null, dueDate };
+  }
+  const executedAt = exec ? resolvePmpExecutionDate(exec.executedAt) : null;
+  if (executedAt) {
+    const diff = dueDate ? getPmpDiffDays(executedAt, dueDate) : 0;
+    if (dueDate && diff !== null && Math.abs(diff) > PMP_TOLERANCE_DAYS) {
+      return { status: "late", exec, executedAt, dueDate };
+    }
+    return { status: "on_time", exec, executedAt, dueDate };
+  }
+  if (period.end < today) {
+    return { status: "missed", exec: null, executedAt: null, dueDate };
+  }
+  return { status: "scheduled", exec: null, executedAt: null, dueDate };
 }
 
 function getExecutionsByActivity() {
@@ -13250,52 +13397,300 @@ function getExecutionsByActivity() {
   return manual;
 }
 
-function buildAutoExecutionMap(activities) {
-  const auto = new Map();
-  if (!manutencoes.length) {
-    return auto;
+function mapTemplateFrequencyToPmp(template) {
+  if (!template || !template.frequencia) {
+    return "";
   }
-  const year = getPmpYearValue();
-  const view = getPmpViewMode();
-  manutencoes.forEach((item) => {
-    if (!item || item.status !== "concluida") {
+  const freq = String(template.frequencia).toLowerCase();
+  if (freq === "daily") {
+    return "diaria";
+  }
+  if (freq === "weekly") {
+    return "semanal";
+  }
+  if (freq === "monthly") {
+    return "mensal";
+  }
+  return "";
+}
+
+function getMaintenanceCodigo(item) {
+  return String(item && (item.codigo || item.tag || item.subestacao) ? item.codigo || item.tag || item.subestacao : "")
+    .trim();
+}
+
+function getMaintenanceOsReferencia(item) {
+  if (!item) {
+    return "";
+  }
+  if (item.osReferencia) {
+    return String(item.osReferencia || "").trim();
+  }
+  const liberacao = getLiberacao(item);
+  if (liberacao && liberacao.osNumero) {
+    return String(liberacao.osNumero || "").trim();
+  }
+  return "";
+}
+
+function getMaintenanceParticipantsCount(item) {
+  if (!item) {
+    return 0;
+  }
+  const liberacao = getLiberacao(item) || {};
+  const participantes = Array.isArray(liberacao.participantes) ? liberacao.participantes : [];
+  if (participantes.length) {
+    return participantes.length;
+  }
+  if (Array.isArray(item.participantes)) {
+    return item.participantes.length;
+  }
+  if (typeof item.participantes === "string") {
+    return item.participantes.split(/[;,]/).map((p) => p.trim()).filter(Boolean).length;
+  }
+  if (item.conclusao && Array.isArray(item.conclusao.participantes)) {
+    return item.conclusao.participantes.length;
+  }
+  return 0;
+}
+
+function getMaintenanceDurationMinutes(item) {
+  if (!item) {
+    return 0;
+  }
+  if (item.conclusao && Number.isFinite(item.conclusao.duracaoMin)) {
+    return Math.max(0, Math.round(item.conclusao.duracaoMin));
+  }
+  if (Number.isFinite(item.duracaoMin)) {
+    return Math.max(0, Math.round(item.duracaoMin));
+  }
+  const inicio = getItemInicioExecucaoDate(item);
+  const fim = getItemFimExecucaoDate(item) || getItemConclusaoDate(item);
+  if (inicio && fim) {
+    return Math.max(0, Math.round((fim - inicio) / 60000));
+  }
+  return 0;
+}
+
+function getMaintenanceEvidencias(item) {
+  const evidencias = [];
+  if (!item) {
+    return evidencias;
+  }
+  if (Array.isArray(item.evidencias)) {
+    evidencias.push(...item.evidencias);
+  }
+  if (item.registroExecucao && Array.isArray(item.registroExecucao.evidencias)) {
+    evidencias.push(...item.registroExecucao.evidencias);
+  }
+  if (item.conclusao && Array.isArray(item.conclusao.evidencias)) {
+    evidencias.push(...item.conclusao.evidencias);
+  }
+  if (Array.isArray(item.anexos)) {
+    evidencias.push(...item.anexos);
+  }
+  return evidencias;
+}
+
+function getPmpMaintenanceList(projectId) {
+  if (!projectId) {
+    return [];
+  }
+  if (pmpMaintenanceCache.has(projectId)) {
+    return pmpMaintenanceCache.get(projectId);
+  }
+  if (projectId === activeProjectId && Array.isArray(manutencoes)) {
+    return manutencoes;
+  }
+  return [];
+}
+
+async function ensurePmpMaintenanceCache(projectId) {
+  if (!projectId) {
+    return [];
+  }
+  if (pmpMaintenanceCache.has(projectId)) {
+    return pmpMaintenanceCache.get(projectId);
+  }
+  try {
+    const data = await apiMaintenanceList(projectId);
+    if (data && Array.isArray(data.items)) {
+      const normalized = normalizarManutencoes(data.items);
+      const list = normalized.normalizadas;
+      pmpMaintenanceCache.set(projectId, list);
+      return list;
+    }
+  } catch (error) {
+    // noop
+  }
+  pmpMaintenanceCache.set(projectId, []);
+  return [];
+}
+
+function buildPmpImportItems(projectId, items) {
+  const groups = new Map();
+  items.forEach((item) => {
+    if (!item || item.projectId !== projectId) {
       return;
+    }
+    const template = item.templateId ? getTemplateById(item.templateId) : null;
+    const nomeBase = template && template.nome
+      ? template.nome
+      : item.titulo || item.nome || item.descricao || "-";
+    const key = item.templateId || `${normalizeSearchValue(nomeBase)}|${item.equipamentoId || ""}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        id: key,
+        projectId,
+        templateId: item.templateId || "",
+        nome: nomeBase,
+        codigo: getMaintenanceCodigo(item),
+        equipamentoId: item.equipamentoId || "",
+        frequencia: mapTemplateFrequencyToPmp(template),
+        status: template && template.ativo === false ? "Inativo" : "Ativo",
+        totalDuracao: 0,
+        duracaoCount: 0,
+        totalTecnicos: 0,
+        tecnicosCount: 0,
+        ultimaExecucao: null,
+      });
+    }
+    const entry = groups.get(key);
+    const duracao = getMaintenanceDurationMinutes(item);
+    if (duracao > 0) {
+      entry.totalDuracao += duracao;
+      entry.duracaoCount += 1;
+    }
+    const tecnicos = getMaintenanceParticipantsCount(item);
+    if (tecnicos > 0) {
+      entry.totalTecnicos += tecnicos;
+      entry.tecnicosCount += 1;
     }
     const execDate = getItemConclusaoDate(item) || getItemFimExecucaoDate(item);
-    if (!execDate || execDate.getFullYear() !== year) {
+    if (execDate && (!entry.ultimaExecucao || execDate > entry.ultimaExecucao)) {
+      entry.ultimaExecucao = execDate;
+    }
+  });
+  return Array.from(groups.values())
+    .map((entry) => ({
+      id: entry.id,
+      projectId: entry.projectId,
+      templateId: entry.templateId,
+      nome: entry.nome,
+      codigo: entry.codigo,
+      equipamentoId: entry.equipamentoId,
+      frequencia: entry.frequencia,
+      tecnicosEstimados: entry.tecnicosCount
+        ? Math.round(entry.totalTecnicos / entry.tecnicosCount)
+        : 0,
+      duracaoMinutos: entry.duracaoCount
+        ? Math.round(entry.totalDuracao / entry.duracaoCount)
+        : 0,
+      ultimaExecucao: entry.ultimaExecucao,
+      status: entry.status,
+    }))
+    .sort((a, b) => (a.nome || "").localeCompare(b.nome || ""));
+}
+
+function buildAutoExecutionMap(activities, periods, viewMode, year) {
+  const auto = new Map();
+  if (!activities.length) {
+    return auto;
+  }
+  const periodMap = new Map(periods.map((period) => [period.key, period]));
+  const byProject = new Map();
+  activities.forEach((activity) => {
+    if (!activity) {
       return;
     }
-    const periodKey = getPeriodKeyForDate(view, execDate, year);
-    if (!periodKey) {
+    const list = byProject.get(activity.projectId) || [];
+    list.push(activity);
+    byProject.set(activity.projectId, list);
+  });
+  byProject.forEach((projectActivities, projectId) => {
+    const items = getPmpMaintenanceList(projectId);
+    if (!items.length) {
       return;
     }
-    activities.forEach((activity) => {
-      if (!activity || activity.projectId !== item.projectId) {
+    const scheduleMeta = new Map();
+    projectActivities.forEach((activity) => {
+      const scheduledKeys = getScheduledPeriodKeys(activity, year, viewMode, periods);
+      const dueDates = new Map();
+      scheduledKeys.forEach((key) => {
+        const period = periodMap.get(key);
+        if (period) {
+          dueDates.set(key, getDueDateForPeriod(activity, period, viewMode));
+        }
+      });
+      scheduleMeta.set(activity.id, { scheduledKeys, dueDates });
+    });
+    items.forEach((item) => {
+      if (!item || item.status !== "concluida") {
         return;
       }
-      const equipMatch =
-        activity.equipamentoId && item.equipamentoId && activity.equipamentoId === item.equipamentoId;
-      const nomeMatch = activity.nome
-        ? normalizeSearchValue(item.titulo || "").includes(normalizeSearchValue(activity.nome))
-        : false;
-      const codigoMatch = activity.codigo
-        ? normalizeSearchValue(item.titulo || "").includes(normalizeSearchValue(activity.codigo))
-        : false;
-      if (!equipMatch && !nomeMatch && !codigoMatch) {
+      const execDate = getItemConclusaoDate(item) || getItemFimExecucaoDate(item);
+      if (!execDate || execDate.getFullYear() !== year) {
         return;
       }
-      const existing = auto.get(activity.id)?.get(periodKey);
-      if (existing) {
-        return;
-      }
-      const executorId = getExecutadoPorId(item) || item.executadaPor || item.doneBy || "";
-      setExecutionMap(auto, activity.id, periodKey, {
-        executedAt: execDate,
-        executorId,
-        source: "auto",
-        status: "concluida",
-        manutencaoId: item.id,
-        osReferencia: item.osReferencia || "",
+      projectActivities.forEach((activity) => {
+        if (!activity || activity.projectId !== projectId) {
+          return;
+        }
+        const equipMatch =
+          activity.equipamentoId &&
+          item.equipamentoId &&
+          activity.equipamentoId === item.equipamentoId;
+        const tituloBase = normalizeSearchValue(
+          item.titulo || item.nome || item.descricao || ""
+        );
+        const nomeMatch = activity.nome
+          ? tituloBase.includes(normalizeSearchValue(activity.nome))
+          : false;
+        const codigoMatch = activity.codigo
+          ? tituloBase.includes(normalizeSearchValue(activity.codigo))
+          : false;
+        if (!equipMatch && !nomeMatch && !codigoMatch) {
+          return;
+        }
+        const meta = scheduleMeta.get(activity.id);
+        if (!meta) {
+          return;
+        }
+        let bestKey = "";
+        let bestDiff = Infinity;
+        meta.scheduledKeys.forEach((key) => {
+          const dueDate = meta.dueDates.get(key);
+          const diff = dueDate ? getPmpDiffDays(execDate, dueDate) : null;
+          if (diff === null) {
+            return;
+          }
+          const diffAbs = Math.abs(diff);
+          if (diffAbs <= PMP_TOLERANCE_DAYS && diffAbs < bestDiff) {
+            bestDiff = diffAbs;
+            bestKey = key;
+          }
+        });
+        if (!bestKey) {
+          const periodKey = getPeriodKeyForDate(viewMode, execDate, year);
+          if (periodKey && meta.scheduledKeys.has(periodKey)) {
+            bestKey = periodKey;
+          }
+        }
+        if (!bestKey) {
+          return;
+        }
+        if (auto.get(activity.id)?.get(bestKey)) {
+          return;
+        }
+        const executorId = getExecutadoPorId(item) || item.executadaPor || item.doneBy || "";
+        setExecutionMap(auto, activity.id, bestKey, {
+          executedAt: execDate,
+          executorId,
+          source: "auto",
+          status: "concluida",
+          manutencaoId: item.id,
+          osReferencia: getMaintenanceOsReferencia(item),
+        });
       });
     });
   });
@@ -13476,14 +13871,90 @@ function renderPmpResponsavelOptions(targetProjectId) {
   pmpFiltroResponsavel.value = lista.some((item) => item.id === filtroValue) ? filtroValue : "";
 }
 
+function getPmpProjectHorasDisponiveis(projectId) {
+  if (!projectId) {
+    return 0;
+  }
+  const project = availableProjects.find((item) => item.id === projectId);
+  const value = project && Number.isFinite(Number(project.pmpHorasDisponiveis))
+    ? Number(project.pmpHorasDisponiveis)
+    : 40;
+  return Math.max(0, value);
+}
+
+function syncPmpHorasDisponiveisInput(projectId) {
+  if (!pmpHorasDisponiveis) {
+    return;
+  }
+  if (document.activeElement === pmpHorasDisponiveis) {
+    return;
+  }
+  const resolved = projectId || activeProjectId || "";
+  if (!resolved) {
+    return;
+  }
+  const value = getPmpProjectHorasDisponiveis(resolved);
+  pmpHorasDisponiveis.value = String(value);
+}
+
+let pmpHorasSaveTimer = null;
+function schedulePmpHorasDisponiveisSave() {
+  if (!pmpHorasDisponiveis) {
+    return;
+  }
+  if (!currentUser || !canManageProjetos(currentUser)) {
+    return;
+  }
+  const projectId = pmpFiltroProjeto ? pmpFiltroProjeto.value : activeProjectId;
+  if (!projectId) {
+    return;
+  }
+  if (pmpHorasSaveTimer) {
+    clearTimeout(pmpHorasSaveTimer);
+  }
+  pmpHorasSaveTimer = setTimeout(async () => {
+    const valor = Number(pmpHorasDisponiveis.value || 0);
+    if (!Number.isFinite(valor)) {
+      return;
+    }
+    try {
+      const data = await apiProjetosUpdate(projectId, { pmpHorasDisponiveis: Math.max(0, valor) });
+      if (data && data.project) {
+        availableProjects = availableProjects.map((item) =>
+          item.id === data.project.id ? data.project : item
+        );
+      }
+    } catch (error) {
+      if (pmpFormMensagem) {
+        pmpFormMensagem.textContent = "Erro ao salvar horas disponiveis do PMP.";
+      }
+    }
+  }, 500);
+}
+
+function updatePmpImportButton() {
+  if (!pmpImportBtn) {
+    return;
+  }
+  const projectId = pmpFiltroProjeto ? pmpFiltroProjeto.value : "";
+  const canManage = Boolean(currentUser && hasGranularPermission(currentUser, "gerenciarPMP"));
+  pmpImportBtn.disabled = !canManage || !projectId;
+}
+
 function getPmpFilteredActivities() {
   const year = getPmpYearValue();
+  const viewMode = getPmpViewMode();
+  const periods = getPmpPeriods(viewMode, year);
+  const today = startOfDay(new Date());
   const termo = normalizeSearchValue(pmpBusca ? pmpBusca.value : "");
   const filtroProjeto = pmpFiltroProjeto ? pmpFiltroProjeto.value : "";
   const filtroFrequencia = pmpFiltroFrequencia ? pmpFiltroFrequencia.value : "";
   const filtroEquipamento = pmpFiltroEquipamento ? pmpFiltroEquipamento.value : "";
   const filtroResponsavel = pmpFiltroResponsavel ? pmpFiltroResponsavel.value : "";
+  const filtroOrigem = pmpFiltroOrigem ? pmpFiltroOrigem.value : "";
   const filtroStatus = pmpFiltroStatus ? pmpFiltroStatus.value : "";
+  const manualMap = getExecutionsByActivity();
+  const autoMap = buildAutoExecutionMap(pmpActivities, periods, viewMode, year);
   return pmpActivities.filter((activity) => {
     if (filtroProjeto && activity.projectId !== filtroProjeto) {
       return false;
@@ -13495,6 +13966,9 @@ function getPmpFilteredActivities() {
       return false;
     }
     if (filtroResponsavel && activity.responsavelId !== filtroResponsavel) {
+      return false;
+    }
+    if (filtroOrigem && (activity.origem || "manual") !== filtroOrigem) {
       return false;
     }
     const activityYear = activity.ano ? Number(activity.ano) : year;
@@ -13510,29 +13984,23 @@ function getPmpFilteredActivities() {
       }
     }
     if (filtroStatus) {
-      const viewMode = getPmpViewMode();
-      const periods = getPmpPeriods(viewMode, year);
+      const targetStatus = PMP_STATUS_FILTER_MAP[filtroStatus] || "";
       const scheduledKeys = getScheduledPeriodKeys(activity, year, viewMode, periods);
-      const manualMap = getExecutionsByActivity();
-      const autoMap = buildAutoExecutionMap([activity]);
       const anyMatch = periods.some((period) => {
         const periodKey = period.key;
         if (!scheduledKeys.has(periodKey)) {
           return false;
         }
-        const manual = manualMap.get(activity.id) ? manualMap.get(activity.id).get(periodKey) : null;
-        const auto = autoMap.get(activity.id) ? autoMap.get(activity.id).get(periodKey) : null;
-        const exec = manual || auto;
-        const dueDate = getDueDateForPeriod(activity, period, viewMode);
-        const today = startOfDay(new Date());
-        let status = "scheduled";
-        const executedAt = exec ? resolvePmpExecutionDate(exec.executedAt) : null;
-        if (executedAt) {
-          status = dueDate && executedAt > dueDate ? "atraso" : "conforme";
-        } else {
-          status = period.end < today ? "pendente" : "agendada";
-        }
-        return status === filtroStatus;
+        const statusInfo = getPmpStatusForPeriod(
+          activity,
+          period,
+          periodKey,
+          viewMode,
+          manualMap,
+          autoMap,
+          today
+        );
+        return statusInfo.status === targetStatus;
       });
       if (!anyMatch) {
         return false;
@@ -13573,12 +14041,24 @@ function resetPmpForm() {
   if (pmpDescricao) {
     pmpDescricao.value = "";
   }
+  if (pmpObservacoes) {
+    pmpObservacoes.value = "";
+  }
   if (pmpProcedimentos) {
     pmpProcedimentos.value = "";
+  }
+  if (pmpChecklistItem) {
+    pmpChecklistItem.value = "";
+  }
+  if (pmpChecklistLink) {
+    pmpChecklistLink.value = "";
   }
   if (pmpFormMensagem) {
     pmpFormMensagem.textContent = "";
   }
+  pmpChecklistItems = [];
+  pmpFormOrigem = "manual";
+  renderPmpChecklist();
 }
 
 function preencherPmpForm(activity) {
@@ -13618,9 +14098,15 @@ function preencherPmpForm(activity) {
   if (pmpDescricao) {
     pmpDescricao.value = activity.descricao || "";
   }
+  if (pmpObservacoes) {
+    pmpObservacoes.value = activity.observacoes || "";
+  }
   if (pmpProcedimentos) {
     pmpProcedimentos.value = activity.procedimentos || "";
   }
+  pmpChecklistItems = normalizePmpChecklistItems(activity.checklist || []);
+  pmpFormOrigem = activity.origem || "manual";
+  renderPmpChecklist();
   renderPmpEquipamentoOptions(activity.projectId);
   if (pmpEquipamento) {
     pmpEquipamento.value = activity.equipamentoId || "";
@@ -13657,7 +14143,10 @@ async function salvarPmpActivity(event) {
     duracaoMinutos: parseDurationToMinutes(pmpDuracao ? pmpDuracao.value : ""),
     responsavelId: pmpResponsavel ? pmpResponsavel.value : "",
     descricao: pmpDescricao ? pmpDescricao.value.trim() : "",
+    observacoes: pmpObservacoes ? pmpObservacoes.value.trim() : "",
     procedimentos: pmpProcedimentos ? pmpProcedimentos.value.trim() : "",
+    checklist: pmpChecklistItems.slice(),
+    origem: pmpFormOrigem || "manual",
     ano: getPmpYearValue(),
   };
   const id = pmpFormId ? pmpFormId.value : "";
@@ -13731,20 +14220,44 @@ function renderPmpModule() {
   if (pmpExportExcel) {
     pmpExportExcel.disabled = !canManagePmp;
   }
+  if (pmpHorasDisponiveis) {
+    pmpHorasDisponiveis.disabled = !(currentUser && canManageProjetos(currentUser));
+  }
+  updatePmpImportButton();
   renderPmpYearOptions();
   renderPmpProjetoOptions();
   const year = getPmpYearValue();
   const viewMode = getPmpViewMode();
   const filtroProjeto = pmpFiltroProjeto ? pmpFiltroProjeto.value : "";
+  syncPmpHorasDisponiveisInput(filtroProjeto || activeProjectId);
   renderPmpEquipamentoOptions(filtroProjeto || activeProjectId);
   renderPmpResponsavelOptions(filtroProjeto || activeProjectId);
   const filtrados = getPmpFilteredActivities();
 
+  const pendingMaintenance = new Set();
+  filtrados.forEach((activity) => {
+    if (activity && activity.projectId) {
+      pendingMaintenance.add(activity.projectId);
+    }
+  });
+  const pendingLoads = [];
+  pendingMaintenance.forEach((projectId) => {
+    if (!pmpMaintenanceCache.has(projectId)) {
+      pendingLoads.push(ensurePmpMaintenanceCache(projectId));
+    }
+  });
+  if (pendingLoads.length) {
+    Promise.all(pendingLoads).then(() => {
+      renderPmpModule();
+    });
+  }
+
   const periods = getPmpPeriods(viewMode, year);
   const scheduledKeysMap = new Map();
   const manualMap = getExecutionsByActivity();
-  const autoMap = buildAutoExecutionMap(filtrados);
+  const autoMap = buildAutoExecutionMap(filtrados, periods, viewMode, year);
   const today = startOfDay(new Date());
+  pmpLastSnapshot = { year, viewMode, periods, manualMap, autoMap, activities: filtrados };
 
   pmpGridHead.innerHTML = "";
   const headers = [
@@ -13775,6 +14288,7 @@ function renderPmpModule() {
   let lateCells = 0;
   let missedCells = 0;
   let scheduledCells = 0;
+  let cancelledCells = 0;
   let totalPlannedMinutes = 0;
   let totalPlannedCapacityMinutes = 0;
   let totalExecutedMinutes = 0;
@@ -13860,56 +14374,66 @@ function renderPmpModule() {
       totalCells += 1;
       const duracaoBase = Number(activity.duracaoMinutos || 0);
       const tecnicosBase = Number(activity.tecnicosEstimados || 1);
-      const manual = manualMap.get(activity.id) ? manualMap.get(activity.id).get(periodKey) : null;
-      const auto = autoMap.get(activity.id) ? autoMap.get(activity.id).get(periodKey) : null;
-      const exec = manual || auto;
-      const dueDate = getDueDateForPeriod(activity, period, viewMode);
-      let status = "scheduled";
-      const executedAt = exec ? resolvePmpExecutionDate(exec.executedAt) : null;
-      if (executedAt) {
-        if (dueDate && executedAt > dueDate) {
-          status = "late";
-          lateCells += 1;
-        } else {
-          status = "on_time";
-          onTimeCells += 1;
-        }
-        totalExecutedMinutes += Number(activity.duracaoMinutos || 0);
+      const statusInfo = getPmpStatusForPeriod(
+        activity,
+        period,
+        periodKey,
+        viewMode,
+        manualMap,
+        autoMap,
+        today
+      );
+      const status = statusInfo.status;
+      if (status === "on_time") {
+        onTimeCells += 1;
+      } else if (status === "late") {
+        lateCells += 1;
+      } else if (status === "cancelled") {
+        cancelledCells += 1;
+        missedCells += 1;
+      } else if (status === "missed") {
+        missedCells += 1;
       } else {
-        if (period.end < today) {
-          status = "missed";
-          missedCells += 1;
-        } else {
-          status = "scheduled";
-          scheduledCells += 1;
-        }
+        scheduledCells += 1;
+      }
+      if (statusInfo.executedAt) {
+        totalExecutedMinutes += Number(activity.duracaoMinutos || 0);
       }
       totalPlannedMinutes += duracaoBase;
       totalPlannedCapacityMinutes += duracaoBase * (Number.isFinite(tecnicosBase) ? tecnicosBase : 1);
       cell.className = `pmp-cell pmp-cell--${status}`;
       const tooltipLines = [];
       tooltipLines.push(`Previsto: ${formatDate(period.start)} - ${formatDate(period.end)}`);
-      if (executedAt) {
-        tooltipLines.push(`Executado em: ${formatDate(executedAt)}`);
-        const executorId = exec && exec.executorId ? exec.executorId : "";
+      if (statusInfo.dueDate) {
+        tooltipLines.push(`Data prevista: ${formatDate(statusInfo.dueDate)}`);
+      }
+      if (statusInfo.executedAt) {
+        tooltipLines.push(`Executado em: ${formatDate(statusInfo.executedAt)}`);
+        const executorId =
+          statusInfo.exec && statusInfo.exec.executorId ? statusInfo.exec.executorId : "";
         if (executorId) {
           tooltipLines.push(`Executor: ${getUserLabel(executorId)}`);
         }
-        if (exec && exec.osReferencia) {
-          tooltipLines.push(`OS: ${exec.osReferencia}`);
+        if (statusInfo.exec && statusInfo.exec.osReferencia) {
+          tooltipLines.push(`OS: ${statusInfo.exec.osReferencia}`);
         }
-      } else {
-        tooltipLines.push(`Status: ${PMP_STATUS_LABELS[status] || status}`);
       }
-      cell.title = tooltipLines.join("\n");
+      tooltipLines.push(`Status: ${PMP_STATUS_LABELS[status] || status}`);
+      cell.title = tooltipLines.join("\\n");
+      cell.dataset.pmpCell = "true";
+      cell.dataset.activityId = activity.id;
+      cell.dataset.periodKey = periodKey;
+      cell.dataset.status = status;
       cell.textContent =
         status === "on_time"
-          ? "✔"
+          ? "OK"
           : status === "late"
             ? "!"
             : status === "missed"
-              ? "×"
-              : "•";
+              ? "X"
+              : status === "cancelled"
+                ? "-"
+                : ".";
       row.append(cell);
     });
 
@@ -13948,7 +14472,344 @@ function renderPmpModule() {
       ? Math.round((totalPlannedCapacityMinutes / totalWeeks) / 60)
       : 0;
     pmpCargaSemanal.textContent = `${previstoHoras}h / ${disponivel}h`;
+    const ratio = disponivel > 0 ? previstoHoras / disponivel : 0;
+    if (pmpCargaBar) {
+      const percent = Math.min(160, Math.round(ratio * 100));
+      pmpCargaBar.style.width = `${percent}%`;
+      pmpCargaBar.classList.toggle("is-warning", ratio > 1);
+    }
+    if (pmpCargaBarHint) {
+      pmpCargaBarHint.textContent = `${Math.round(ratio * 100)}% utilizado`;
+    }
   }
+}
+
+function closePmpImportModal() {
+  if (modalPmpImport) {
+    modalPmpImport.hidden = true;
+  }
+}
+
+function updatePmpImportConfirmState() {
+  if (pmpImportConfirm) {
+    pmpImportConfirm.disabled = pmpImportSelection.size === 0;
+    pmpImportConfirm.textContent =
+      pmpImportSelection.size > 0
+        ? `Importar (${pmpImportSelection.size})`
+        : "Importar selecionadas";
+  }
+}
+
+function renderPmpImportList() {
+  if (!pmpImportList) {
+    return;
+  }
+  const term = normalizeSearchValue(pmpImportSearch ? pmpImportSearch.value : "");
+  pmpImportList.innerHTML = "";
+  const items = pmpImportItems.filter((item) => {
+    if (!term) {
+      return true;
+    }
+    const equipamento = getEquipamentoNomeById(item.projectId, item.equipamentoId);
+    const text = normalizeSearchValue(
+      `${item.nome || ""} ${item.codigo || ""} ${equipamento || ""}`
+    );
+    return text.includes(term);
+  });
+  items.forEach((item) => {
+    const tr = document.createElement("tr");
+    const tdCheck = document.createElement("td");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = pmpImportSelection.has(item.id);
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) {
+        pmpImportSelection.add(item.id);
+      } else {
+        pmpImportSelection.delete(item.id);
+      }
+      updatePmpImportConfirmState();
+    });
+    tdCheck.append(checkbox);
+    tr.append(tdCheck);
+
+    const tdNome = document.createElement("td");
+    tdNome.textContent = item.nome || "-";
+    tr.append(tdNome);
+
+    const tdCodigo = document.createElement("td");
+    tdCodigo.textContent = item.codigo || "-";
+    tr.append(tdCodigo);
+
+    const tdEquip = document.createElement("td");
+    tdEquip.textContent = getEquipamentoNomeById(item.projectId, item.equipamentoId) || "-";
+    tr.append(tdEquip);
+
+    const tdFreq = document.createElement("td");
+    tdFreq.textContent = item.frequencia
+      ? (getPmpFrequency(item.frequencia) || { label: item.frequencia }).label
+      : "-";
+    tr.append(tdFreq);
+
+    const tdTec = document.createElement("td");
+    tdTec.textContent = item.tecnicosEstimados ? String(item.tecnicosEstimados) : "-";
+    tr.append(tdTec);
+
+    const tdDur = document.createElement("td");
+    tdDur.textContent = item.duracaoMinutos ? formatDuracaoMin(item.duracaoMinutos) : "-";
+    tr.append(tdDur);
+
+    const tdUltima = document.createElement("td");
+    tdUltima.textContent = item.ultimaExecucao ? formatDate(item.ultimaExecucao) : "-";
+    tr.append(tdUltima);
+
+    const tdStatus = document.createElement("td");
+    tdStatus.textContent = item.status || "-";
+    tr.append(tdStatus);
+
+    pmpImportList.append(tr);
+  });
+  if (pmpImportEmpty) {
+    pmpImportEmpty.hidden = items.length > 0;
+  }
+  updatePmpImportConfirmState();
+}
+
+async function openPmpImportModal() {
+  if (!modalPmpImport || !pmpFiltroProjeto) {
+    return;
+  }
+  const projectId = pmpFiltroProjeto.value;
+  if (!projectId) {
+    if (pmpFormMensagem) {
+      pmpFormMensagem.textContent = "Selecione um projeto para importar manutencoes.";
+    }
+    return;
+  }
+  if (!currentUser || !hasGranularPermission(currentUser, "gerenciarPMP")) {
+    return;
+  }
+  if (pmpImportSearch) {
+    pmpImportSearch.value = "";
+  }
+  pmpImportSelection = new Set();
+  modalPmpImport.hidden = false;
+  await ensurePmpEquipamentos(projectId);
+  const items = await ensurePmpMaintenanceCache(projectId);
+  pmpImportItems = buildPmpImportItems(projectId, items);
+  renderPmpImportList();
+}
+
+async function confirmPmpImport() {
+  if (!pmpFiltroProjeto) {
+    return;
+  }
+  const projectId = pmpFiltroProjeto.value;
+  if (!projectId) {
+    return;
+  }
+  const selecionados = pmpImportItems.filter((item) => pmpImportSelection.has(item.id));
+  if (!selecionados.length) {
+    return;
+  }
+  if (pmpImportConfirm) {
+    pmpImportConfirm.disabled = true;
+  }
+  const ano = getPmpYearValue();
+  const inicioPadrao = formatDateISO(new Date());
+  let fallbackFreq = false;
+  const created = [];
+  for (const item of selecionados) {
+    const frequencia = item.frequencia || "mensal";
+    if (!item.frequencia) {
+      fallbackFreq = true;
+    }
+    try {
+      const payload = {
+        nome: item.nome || "Atividade importada",
+        codigo: item.codigo || "",
+        projectId,
+        equipamentoId: item.equipamentoId || "",
+        frequencia,
+        inicio: inicioPadrao,
+        tecnicosEstimados: item.tecnicosEstimados || 0,
+        duracaoMinutos: item.duracaoMinutos || 0,
+        responsavelId: "",
+        descricao: "",
+        observacoes: "Importado do OS/RDO",
+        procedimentos: "",
+        checklist: [],
+        origem: "importado",
+        ano,
+      };
+      const data = await apiPmpActivitiesCreate(payload);
+      if (data && data.activity) {
+        created.push(data.activity);
+      }
+    } catch (error) {
+      // ignore to continue others
+    }
+  }
+  if (created.length) {
+    pmpActivities = pmpActivities.concat(created);
+    preencherPmpForm(created[created.length - 1]);
+    renderTudo();
+  }
+  if (pmpFormMensagem) {
+    pmpFormMensagem.textContent = fallbackFreq
+      ? "Importacao concluida. Revise a frequencia das atividades importadas."
+      : "Importacao concluida.";
+  }
+  closePmpImportModal();
+}
+
+function closePmpCellModal() {
+  if (modalPmpCell) {
+    modalPmpCell.hidden = true;
+  }
+  pmpCellContext = null;
+}
+
+function renderPmpCellList(target, items, emptyLabel) {
+  if (!target) {
+    return;
+  }
+  target.innerHTML = "";
+  if (!items.length) {
+    const li = document.createElement("li");
+    li.textContent = emptyLabel || "-";
+    target.append(li);
+    return;
+  }
+  items.forEach((item) => {
+    const li = document.createElement("li");
+    li.textContent = item;
+    target.append(li);
+  });
+}
+
+function openPmpCellModal(activityId, periodKey) {
+  if (!modalPmpCell || !pmpLastSnapshot) {
+    return;
+  }
+  const activity =
+    pmpLastSnapshot.activities.find((item) => item.id === activityId) ||
+    pmpActivities.find((item) => item.id === activityId);
+  const period = pmpLastSnapshot.periods.find((item) => item.key === periodKey);
+  if (!activity || !period) {
+    return;
+  }
+  const statusInfo = getPmpStatusForPeriod(
+    activity,
+    period,
+    periodKey,
+    pmpLastSnapshot.viewMode,
+    pmpLastSnapshot.manualMap,
+    pmpLastSnapshot.autoMap,
+    startOfDay(new Date())
+  );
+  const project = availableProjects.find((item) => item.id === activity.projectId);
+  if (pmpCellTitle) {
+    pmpCellTitle.textContent = activity.nome || "Atividade PMP";
+  }
+  if (pmpCellMeta) {
+    const projectLabel = project ? getProjectLabel(project) : "-";
+    pmpCellMeta.textContent = `Projeto: ${projectLabel} | Periodo: ${period.label} (${formatDate(
+      period.start
+    )} - ${formatDate(period.end)}) | Status: ${PMP_STATUS_LABELS[statusInfo.status] || "-"}`;
+  }
+  const execEntries = [];
+  if (statusInfo.exec) {
+    const tipo = statusInfo.exec.source === "auto" ? "Automatico" : "Manual";
+    const data = statusInfo.executedAt ? formatDate(statusInfo.executedAt) : "-";
+    const executor = statusInfo.exec.executorId ? getUserLabel(statusInfo.exec.executorId) : "-";
+    const os = statusInfo.exec.osReferencia || "-";
+    execEntries.push(`${tipo}: ${data} | ${executor} | OS ${os}`);
+  }
+  renderPmpCellList(pmpCellExecList, execEntries, "Sem execucao registrada.");
+
+  let evidencias = [];
+  if (statusInfo.exec && statusInfo.exec.manutencaoId) {
+    const list = getPmpMaintenanceList(activity.projectId);
+    const encontrado = list.find((item) => item && item.id === statusInfo.exec.manutencaoId);
+    evidencias = getMaintenanceEvidencias(encontrado).map((evidencia) => {
+      if (typeof evidencia === "string") {
+        return evidencia;
+      }
+      return evidencia.nome || evidencia.name || evidencia.url || "Arquivo";
+    });
+  }
+  renderPmpCellList(pmpCellEvidencias, evidencias, "Sem evidencias registradas.");
+
+  const checklist = normalizePmpChecklistItems(activity.checklist || []);
+  renderPmpCellList(
+    pmpCellChecklist,
+    checklist.map((item) => `${item.descricao || "Item"}${item.link ? ` (${item.link})` : ""}`),
+    "Sem checklist."
+  );
+
+  if (pmpCellObservacoes) {
+    pmpCellObservacoes.textContent = activity.observacoes || "-";
+  }
+  if (pmpCellProcedimentos) {
+    pmpCellProcedimentos.textContent = activity.procedimentos || "-";
+  }
+
+  const canManage = Boolean(currentUser && hasGranularPermission(currentUser, "gerenciarPMP"));
+  if (pmpCellMarkCancel) {
+    pmpCellMarkCancel.hidden = !canManage;
+    pmpCellMarkCancel.disabled = statusInfo.status === "cancelled";
+  }
+  pmpCellContext = {
+    activityId: activity.id,
+    periodKey,
+    scheduledFor: statusInfo.dueDate ? formatDateISO(statusInfo.dueDate) : "",
+  };
+  modalPmpCell.hidden = false;
+}
+
+async function marcarPmpCancelada() {
+  if (!pmpCellContext || !pmpCellContext.activityId) {
+    return;
+  }
+  if (!currentUser || !hasGranularPermission(currentUser, "gerenciarPMP")) {
+    return;
+  }
+  const confirmacao = window.confirm("Marcar atividade como cancelada neste periodo?");
+  if (!confirmacao) {
+    return;
+  }
+  try {
+    const data = await apiPmpExecutionSave({
+      activityId: pmpCellContext.activityId,
+      periodKey: pmpCellContext.periodKey,
+      scheduledFor: pmpCellContext.scheduledFor,
+      status: "cancelada",
+    });
+    if (data && data.execution) {
+      const idx = pmpExecutions.findIndex((item) => item.id === data.execution.id);
+      if (idx >= 0) {
+        pmpExecutions[idx] = data.execution;
+      } else {
+        const byKey = pmpExecutions.findIndex(
+          (item) =>
+            item.activityId === data.execution.activityId &&
+            item.periodKey === data.execution.periodKey
+        );
+        if (byKey >= 0) {
+          pmpExecutions[byKey] = data.execution;
+        } else {
+          pmpExecutions = pmpExecutions.concat(data.execution);
+        }
+      }
+      renderTudo();
+    }
+  } catch (error) {
+    if (pmpFormMensagem) {
+      pmpFormMensagem.textContent = "Erro ao marcar atividade cancelada.";
+    }
+  }
+  closePmpCellModal();
 }
 
 async function carregarPmpDados() {
@@ -13978,8 +14839,9 @@ function buildPmpSnapshot() {
   const activities = getPmpFilteredActivities();
   const periods = getPmpPeriods(viewMode, year);
   const manualMap = getExecutionsByActivity();
-  const autoMap = buildAutoExecutionMap(activities);
-  return { year, viewMode, activities, periods, manualMap, autoMap };
+  const autoMap = buildAutoExecutionMap(activities, periods, viewMode, year);
+  const today = startOfDay(new Date());
+  return { year, viewMode, activities, periods, manualMap, autoMap, today };
 }
 
 function exportarPmpExcel() {
@@ -14023,23 +14885,16 @@ function exportarPmpExcel() {
         values.push("");
         return;
       }
-      const manual = snapshot.manualMap.get(activity.id)
-        ? snapshot.manualMap.get(activity.id).get(periodKey)
-        : null;
-      const auto = snapshot.autoMap.get(activity.id)
-        ? snapshot.autoMap.get(activity.id).get(periodKey)
-        : null;
-      const exec = manual || auto;
-      const dueDate = getDueDateForPeriod(activity, period, snapshot.viewMode);
-      const today = startOfDay(new Date());
-      let status = "Agendada";
-      const executedAt = exec ? resolvePmpExecutionDate(exec.executedAt) : null;
-      if (executedAt) {
-        status = dueDate && executedAt > dueDate ? "Em atraso" : "Conforme";
-      } else if (period.end < today) {
-        status = "Nao executada";
-      }
-      values.push(status);
+      const statusInfo = getPmpStatusForPeriod(
+        activity,
+        period,
+        periodKey,
+        snapshot.viewMode,
+        snapshot.manualMap,
+        snapshot.autoMap,
+        snapshot.today
+      );
+      values.push(PMP_STATUS_LABELS[statusInfo.status] || "Agendada");
     });
     return values.map(escapeCsv).join(",");
   });
@@ -14065,6 +14920,16 @@ function exportarPmpPdf() {
   let onTimeCells = 0;
   let lateCells = 0;
   let missedCells = 0;
+  let cancelledCells = 0;
+  let totalPlannedMinutes = 0;
+  let totalExecutedMinutes = 0;
+  const statusClassMap = {
+    on_time: "on-time",
+    late: "late",
+    missed: "missed",
+    scheduled: "scheduled",
+    cancelled: "cancelled",
+  };
   const rows = snapshot.activities
     .map((activity) => {
       const project = availableProjects.find((item) => item.id === activity.projectId);
@@ -14086,33 +14951,32 @@ function exportarPmpPdf() {
             return `<td class="pmp-cell empty">-</td>`;
           }
           totalCells += 1;
-          const manual = snapshot.manualMap.get(activity.id)
-            ? snapshot.manualMap.get(activity.id).get(periodKey)
-            : null;
-          const auto = snapshot.autoMap.get(activity.id)
-            ? snapshot.autoMap.get(activity.id).get(periodKey)
-            : null;
-          const exec = manual || auto;
-          const dueDate = getDueDateForPeriod(activity, period, snapshot.viewMode);
-          const today = startOfDay(new Date());
-          let statusClass = "scheduled";
-          let label = "Agendada";
-          const executedAt = exec ? resolvePmpExecutionDate(exec.executedAt) : null;
-          if (executedAt) {
-            if (dueDate && executedAt > dueDate) {
-              statusClass = "late";
-              label = "Atraso";
-              lateCells += 1;
-            } else {
-              statusClass = "on-time";
-              label = "Conforme";
-              onTimeCells += 1;
-            }
-          } else if (period.end < today) {
-            statusClass = "missed";
-            label = "Nao";
+          totalPlannedMinutes += Number(activity.duracaoMinutos || 0);
+          const statusInfo = getPmpStatusForPeriod(
+            activity,
+            period,
+            periodKey,
+            snapshot.viewMode,
+            snapshot.manualMap,
+            snapshot.autoMap,
+            snapshot.today
+          );
+          const status = statusInfo.status;
+          if (status === "on_time") {
+            onTimeCells += 1;
+          } else if (status === "late") {
+            lateCells += 1;
+          } else if (status === "cancelled") {
+            cancelledCells += 1;
+            missedCells += 1;
+          } else if (status === "missed") {
             missedCells += 1;
           }
+          if (statusInfo.executedAt) {
+            totalExecutedMinutes += Number(activity.duracaoMinutos || 0);
+          }
+          const statusClass = statusClassMap[status] || "scheduled";
+          const label = PMP_STATUS_LABELS[status] || "Agendada";
           return `<td class="pmp-cell ${statusClass}">${label}</td>`;
         })
         .join("");
@@ -14130,12 +14994,33 @@ function exportarPmpPdf() {
     .join("");
   const headerCols = snapshot.periods.map((period) => `<th>${period.label}</th>`).join("");
   const percentBase = totalCells || 1;
+  const projectFilter = pmpFiltroProjeto ? pmpFiltroProjeto.value : "";
+  const selectedProject = projectFilter
+    ? availableProjects.find((item) => item.id === projectFilter)
+    : null;
+  const projectLabel = selectedProject ? getProjectLabel(selectedProject) : "Todos os projetos";
   const kpiHtml = `
     <div class="pmp-kpi">
       <span>Total previstas: ${totalCells}</span>
       <span>Conforme: ${Math.round((onTimeCells / percentBase) * 100)}%</span>
       <span>Atraso: ${Math.round((lateCells / percentBase) * 100)}%</span>
       <span>Nao executadas: ${Math.round((missedCells / percentBase) * 100)}%</span>
+      <span>Canceladas: ${cancelledCells}</span>
+      <span>Horas planejadas: ${
+        totalPlannedMinutes ? formatDuracaoMin(totalPlannedMinutes) : "00:00"
+      }</span>
+      <span>Horas executadas: ${
+        totalExecutedMinutes ? formatDuracaoMin(totalExecutedMinutes) : "00:00"
+      }</span>
+    </div>
+  `;
+  const legendHtml = `
+    <div class="pmp-legend">
+      <span class="legend-item on-time">Conforme</span>
+      <span class="legend-item late">Atrasada</span>
+      <span class="legend-item missed">Nao executada</span>
+      <span class="legend-item scheduled">Agendada</span>
+      <span class="legend-item cancelled">Cancelada</span>
     </div>
   `;
   const html = `
@@ -14154,14 +15039,26 @@ function exportarPmpPdf() {
           .pmp-cell.late { background: #fef3c7; }
           .pmp-cell.missed { background: #fee2e2; }
           .pmp-cell.scheduled { background: #dbeafe; }
+          .pmp-cell.cancelled { background: #e2e8f0; }
           .pmp-cell.empty { color: #9aa6b2; }
-          .pmp-kpi { margin-top: 14px; display: flex; gap: 16px; font-size: 10px; color: #425363; }
+          .pmp-kpi { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 16px; font-size: 10px; color: #425363; }
+          .pmp-legend { margin-top: 10px; display: flex; gap: 12px; flex-wrap: wrap; font-size: 10px; color: #425363; }
+          .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+          .legend-item::before { content: ""; width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+          .legend-item.on-time::before { background: #22c55e; }
+          .legend-item.late::before { background: #f59e0b; }
+          .legend-item.missed::before { background: #ef4444; }
+          .legend-item.scheduled::before { background: #3b82f6; }
+          .legend-item.cancelled::before { background: #94a3b8; }
           @page { size: A4 landscape; margin: 16mm; }
         </style>
       </head>
       <body>
         <h1>PMP / Cronograma ${snapshot.year}</h1>
-        <p>Visualizacao: ${snapshot.viewMode === "week" ? "Semanal" : "Mensal"}</p>
+        <p>Projeto: ${escapeHtml(projectLabel)} | Visualizacao: ${
+          snapshot.viewMode === "week" ? "Semanal" : "Mensal"
+        }</p>
+        ${legendHtml}
         <table>
           <thead>
             <tr>
@@ -14843,6 +15740,7 @@ async function carregarManutencoesServidor(force = false) {
       const resultado = normalizarManutencoes(manutencoes);
       manutencoes = resultado.normalizadas;
       salvarManutencoes(manutencoes);
+      pmpMaintenanceCache.set(activeProjectId, manutencoes);
       maintenanceLoadedProjects.add(activeProjectId);
       renderTudo();
     }
@@ -20853,6 +21751,9 @@ if (pmpView) {
 if (pmpFiltroProjeto) {
   pmpFiltroProjeto.addEventListener("change", () => {
     renderPmpEquipamentoOptions(pmpFiltroProjeto.value);
+    renderPmpResponsavelOptions(pmpFiltroProjeto.value);
+    syncPmpHorasDisponiveisInput(pmpFiltroProjeto.value);
+    updatePmpImportButton();
     renderPmpModule();
   });
 }
@@ -20865,11 +21766,17 @@ if (pmpFiltroEquipamento) {
 if (pmpFiltroResponsavel) {
   pmpFiltroResponsavel.addEventListener("change", renderPmpModule);
 }
+if (pmpFiltroOrigem) {
+  pmpFiltroOrigem.addEventListener("change", renderPmpModule);
+}
 if (pmpFiltroStatus) {
   pmpFiltroStatus.addEventListener("change", renderPmpModule);
 }
 if (pmpHorasDisponiveis) {
-  pmpHorasDisponiveis.addEventListener("input", renderPmpModule);
+  pmpHorasDisponiveis.addEventListener("input", () => {
+    renderPmpModule();
+    schedulePmpHorasDisponiveisSave();
+  });
 }
 if (pmpBusca) {
   pmpBusca.addEventListener("input", renderPmpModule);
@@ -20883,23 +21790,68 @@ if (pmpProjeto) {
 if (pmpGridBody) {
   pmpGridBody.addEventListener("click", (event) => {
     const botao = event.target.closest("[data-pmp-action]");
+    if (botao) {
+      const activityId = botao.dataset.pmpId;
+      if (!activityId) {
+        return;
+      }
+      if (botao.dataset.pmpAction === "edit") {
+        const activity = pmpActivities.find((item) => item.id === activityId);
+        if (activity) {
+          preencherPmpForm(activity);
+        }
+      }
+      if (botao.dataset.pmpAction === "delete") {
+        removerPmpActivity(activityId);
+      }
+      return;
+    }
+    const cell = event.target.closest("td[data-pmp-cell]");
+    if (cell && cell.dataset.activityId && cell.dataset.periodKey) {
+      openPmpCellModal(cell.dataset.activityId, cell.dataset.periodKey);
+    }
+  });
+}
+if (pmpChecklistAdd) {
+  pmpChecklistAdd.addEventListener("click", addPmpChecklistItem);
+}
+if (pmpChecklistList) {
+  pmpChecklistList.addEventListener("click", (event) => {
+    const botao = event.target.closest("[data-pmp-checklist-remove]");
     if (!botao) {
       return;
     }
-    const activityId = botao.dataset.pmpId;
-    if (!activityId) {
+    const index = Number(botao.dataset.pmpChecklistRemove);
+    if (!Number.isFinite(index)) {
       return;
     }
-    if (botao.dataset.pmpAction === "edit") {
-      const activity = pmpActivities.find((item) => item.id === activityId);
-      if (activity) {
-        preencherPmpForm(activity);
-      }
-    }
-    if (botao.dataset.pmpAction === "delete") {
-      removerPmpActivity(activityId);
-    }
+    pmpChecklistItems = pmpChecklistItems.filter((_, idx) => idx !== index);
+    renderPmpChecklist();
   });
+}
+if (pmpImportBtn) {
+  pmpImportBtn.addEventListener("click", openPmpImportModal);
+}
+if (pmpImportCancel) {
+  pmpImportCancel.addEventListener("click", closePmpImportModal);
+}
+if (pmpImportClose) {
+  pmpImportClose.addEventListener("click", closePmpImportModal);
+}
+if (pmpImportSearch) {
+  pmpImportSearch.addEventListener("input", renderPmpImportList);
+}
+if (pmpImportConfirm) {
+  pmpImportConfirm.addEventListener("click", confirmPmpImport);
+}
+if (pmpCellClose) {
+  pmpCellClose.addEventListener("click", closePmpCellModal);
+}
+if (pmpCellCloseBtn) {
+  pmpCellCloseBtn.addEventListener("click", closePmpCellModal);
+}
+if (pmpCellMarkCancel) {
+  pmpCellMarkCancel.addEventListener("click", marcarPmpCancelada);
 }
 if (pmpDuplicarPlano) {
   pmpDuplicarPlano.addEventListener("click", duplicarPmpPlano);
