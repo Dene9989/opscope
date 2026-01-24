@@ -209,6 +209,8 @@ const equipeTable = document.getElementById("equipeTable");
 const equipeTableBody = document.querySelector("#equipeTable tbody");
 const pmpAno = document.getElementById("pmpAno");
 const pmpView = document.getElementById("pmpView");
+const pmpMes = document.getElementById("pmpMes");
+const pmpMesField = document.getElementById("pmpMesField");
 const pmpFiltroProjeto = document.getElementById("pmpFiltroProjeto");
 const pmpFiltroFrequencia = document.getElementById("pmpFiltroFrequencia");
 const pmpFiltroEquipamento = document.getElementById("pmpFiltroEquipamento");
@@ -693,6 +695,20 @@ const WEEKDAYS = ["Domingo", "Segunda", "Terca", "Quarta", "Quinta", "Sexta", "S
 const WEEKDAYS_SHORT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
 const DEFAULT_DAILY_DAYS = [1, 2, 3, 4, 5];
 const PMP_TOLERANCE_DAYS = 3;
+const PMP_MONTH_LABELS = [
+  "Jan",
+  "Fev",
+  "Mar",
+  "Abr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Set",
+  "Out",
+  "Nov",
+  "Dez",
+];
 const PMP_FREQUENCIES = [
   { value: "diaria", label: "Diaria", unit: "day", interval: 1 },
   { value: "semanal", label: "Semanal", unit: "week", interval: 1 },
@@ -706,16 +722,17 @@ const PMP_FREQUENCIES = [
 ];
 const PMP_STATUS_LABELS = {
   on_time: "Conforme",
-  late: "Atrasada",
-  missed: "Nao executada",
-  scheduled: "Agendada",
+  late: "Fora da janela",
+  missed: "Atrasada",
+  scheduled: "Planejada",
   cancelled: "Cancelada",
+  empty: "Nao prevista",
 };
 const PMP_STATUS_FILTER_MAP = {
   conforme: "on_time",
-  atraso: "late",
-  pendente: "missed",
-  agendada: "scheduled",
+  planejada: "scheduled",
+  atrasada: "missed",
+  fora_janela: "late",
   cancelada: "cancelled",
 };
 const SECTION_LABELS = {
@@ -13146,7 +13163,16 @@ function getPmpYearValue() {
   return Number.isFinite(valor) && valor > 0 ? valor : current;
 }
 
+function getPmpMonthValue() {
+  const current = new Date().getMonth();
+  const valor = pmpMes ? Number(pmpMes.value) : current;
+  return Number.isFinite(valor) && valor >= 0 && valor <= 11 ? valor : current;
+}
+
 function getPmpViewMode() {
+  if (pmpView && pmpView.value === "day") {
+    return "day";
+  }
   return pmpView && pmpView.value === "week" ? "week" : "month";
 }
 
@@ -13187,25 +13213,26 @@ function getWeekNumber(date) {
   return Math.floor((diff + startOffset) / 7) + 1;
 }
 
-function getPmpPeriods(viewMode, year) {
+function getPmpPeriods(viewMode, year, monthIndex) {
   if (viewMode === "week") {
     return buildWeeksInYear(year);
   }
-  const meses = [
-    "Jan",
-    "Fev",
-    "Mar",
-    "Abr",
-    "Mai",
-    "Jun",
-    "Jul",
-    "Ago",
-    "Set",
-    "Out",
-    "Nov",
-    "Dez",
-  ];
-  return meses.map((label, idx) => {
+  if (viewMode === "day") {
+    const month = Number.isFinite(monthIndex) ? monthIndex : new Date().getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    return Array.from({ length: daysInMonth }, (_, idx) => {
+      const day = idx + 1;
+      const start = new Date(year, month, day);
+      return {
+        index: idx,
+        label: String(day).padStart(2, "0"),
+        start,
+        end: start,
+        key: `D${String(day).padStart(2, "0")}`,
+      };
+    });
+  }
+  return PMP_MONTH_LABELS.map((label, idx) => {
     const start = new Date(year, idx, 1);
     const end = new Date(year, idx + 1, 0);
     return {
@@ -13273,6 +13300,82 @@ function getScheduledMonths(activity, year) {
   return months;
 }
 
+function getScheduledDays(activity, year, monthIndex) {
+  const freq = getPmpFrequency(activity && activity.frequencia);
+  if (!freq || !Number.isFinite(monthIndex)) {
+    return new Set();
+  }
+  const start = getActivityStartDate(activity, year);
+  const startYear = start.getFullYear();
+  const startMonth = start.getMonth();
+  if (year < startYear) {
+    return new Set();
+  }
+  if (year === startYear && monthIndex < startMonth) {
+    return new Set();
+  }
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+  const days = new Set();
+  const startDay = start.getDate();
+  if (freq.unit === "day") {
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const date = new Date(year, monthIndex, day);
+      if (date < start) {
+        continue;
+      }
+      days.add(day);
+    }
+    return days;
+  }
+  if (freq.unit === "week") {
+    const startDow = start.getDay();
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const date = new Date(year, monthIndex, day);
+      if (date < start || date.getDay() !== startDow) {
+        continue;
+      }
+      if (freq.interval > 1) {
+        const diffDays = Math.round((startOfDay(date) - startOfDay(start)) / DAY_MS);
+        const diffWeeks = Math.floor(diffDays / 7);
+        if (diffWeeks < 0 || diffWeeks % freq.interval !== 0) {
+          continue;
+        }
+      }
+      days.add(day);
+    }
+    return days;
+  }
+  if (freq.unit === "month") {
+    const monthDiff = (year - startYear) * 12 + (monthIndex - startMonth);
+    if (monthDiff < 0 || monthDiff % freq.interval !== 0) {
+      return new Set();
+    }
+    const day = Math.min(startDay, daysInMonth);
+    const date = new Date(year, monthIndex, day);
+    if (date < start) {
+      return new Set();
+    }
+    days.add(day);
+    return days;
+  }
+  if (freq.unit === "year") {
+    const yearDiff = year - startYear;
+    if (yearDiff < 0 || yearDiff % freq.interval !== 0) {
+      return new Set();
+    }
+    if (monthIndex !== startMonth) {
+      return new Set();
+    }
+    const day = Math.min(startDay, daysInMonth);
+    const date = new Date(year, monthIndex, day);
+    if (date < start) {
+      return new Set();
+    }
+    days.add(day);
+  }
+  return days;
+}
+
 function getScheduledWeeks(activity, year, weeks) {
   const freq = getPmpFrequency(activity && activity.frequencia);
   if (!freq) {
@@ -13318,7 +13421,11 @@ function getScheduledWeeks(activity, year, weeks) {
   return weeksSet;
 }
 
-function getScheduledPeriodKeys(activity, year, viewMode, periods) {
+function getScheduledPeriodKeys(activity, year, viewMode, periods, monthIndex) {
+  if (viewMode === "day") {
+    const daysSet = getScheduledDays(activity, year, monthIndex);
+    return new Set(Array.from(daysSet).map((value) => `D${String(value).padStart(2, "0")}`));
+  }
   if (viewMode === "week") {
     const weeksSet = getScheduledWeeks(activity, year, periods);
     return new Set(Array.from(weeksSet).map((value) => `W${String(value).padStart(2, "0")}`));
@@ -13327,9 +13434,15 @@ function getScheduledPeriodKeys(activity, year, viewMode, periods) {
   return new Set(Array.from(months).map((value) => `M${String(value + 1).padStart(2, "0")}`));
 }
 
-function getPeriodKeyForDate(viewMode, date, year) {
+function getPeriodKeyForDate(viewMode, date, year, monthIndex) {
   if (!date || date.getFullYear() !== year) {
     return "";
+  }
+  if (viewMode === "day") {
+    if (!Number.isFinite(monthIndex) || date.getMonth() !== monthIndex) {
+      return "";
+    }
+    return `D${String(date.getDate()).padStart(2, "0")}`;
   }
   if (viewMode === "week") {
     const week = getWeekNumber(date);
@@ -13383,6 +13496,7 @@ function getExecutionsByActivity() {
   const manual = new Map();
   const year = getPmpYearValue();
   const view = getPmpViewMode();
+  const monthIndex = getPmpMonthValue();
   pmpExecutions.forEach((exec) => {
     if (!exec || !exec.activityId) {
       return;
@@ -13390,7 +13504,11 @@ function getExecutionsByActivity() {
     let periodKey = exec.periodKey;
     if (!periodKey && exec.scheduledFor) {
       const date = parseAnyDate(exec.scheduledFor);
-      periodKey = getPeriodKeyForDate(view, date, year);
+      periodKey = getPeriodKeyForDate(view, date, year, monthIndex);
+    }
+    if (!periodKey && exec.executedAt) {
+      const date = parseAnyDate(exec.executedAt);
+      periodKey = getPeriodKeyForDate(view, date, year, monthIndex);
     }
     setExecutionMap(manual, exec.activityId, periodKey, exec);
   });
@@ -13592,7 +13710,7 @@ function buildPmpImportItems(projectId, items) {
     .sort((a, b) => (a.nome || "").localeCompare(b.nome || ""));
 }
 
-function buildAutoExecutionMap(activities, periods, viewMode, year) {
+function buildAutoExecutionMap(activities, periods, viewMode, year, monthIndex) {
   const auto = new Map();
   if (!activities.length) {
     return auto;
@@ -13614,7 +13732,7 @@ function buildAutoExecutionMap(activities, periods, viewMode, year) {
     }
     const scheduleMeta = new Map();
     projectActivities.forEach((activity) => {
-      const scheduledKeys = getScheduledPeriodKeys(activity, year, viewMode, periods);
+      const scheduledKeys = getScheduledPeriodKeys(activity, year, viewMode, periods, monthIndex);
       const dueDates = new Map();
       scheduledKeys.forEach((key) => {
         const period = periodMap.get(key);
@@ -13671,7 +13789,7 @@ function buildAutoExecutionMap(activities, periods, viewMode, year) {
           }
         });
         if (!bestKey) {
-          const periodKey = getPeriodKeyForDate(viewMode, execDate, year);
+          const periodKey = getPeriodKeyForDate(viewMode, execDate, year, monthIndex);
           if (periodKey && meta.scheduledKeys.has(periodKey)) {
             bestKey = periodKey;
           }
@@ -13698,6 +13816,9 @@ function buildAutoExecutionMap(activities, periods, viewMode, year) {
 }
 
 function getDueDateForPeriod(activity, period, viewMode) {
+  if (viewMode === "day") {
+    return period.start;
+  }
   if (viewMode === "month") {
     return getScheduledDateForMonth(activity, period.start.getFullYear(), period.start.getMonth());
   }
@@ -13764,6 +13885,23 @@ function renderPmpYearOptions() {
     pmpAno.append(option);
   });
   pmpAno.value = sorted.includes(selected) ? String(selected) : String(current);
+}
+
+function renderPmpMonthOptions() {
+  if (!pmpMes) {
+    return;
+  }
+  const current = new Date().getMonth();
+  const selected = Number(pmpMes.value);
+  pmpMes.innerHTML = "";
+  PMP_MONTH_LABELS.forEach((label, idx) => {
+    const option = document.createElement("option");
+    option.value = String(idx);
+    option.textContent = label;
+    pmpMes.append(option);
+  });
+  const fallback = Number.isFinite(selected) ? selected : current;
+  pmpMes.value = PMP_MONTH_LABELS[fallback] ? String(fallback) : String(current);
 }
 
 function renderPmpProjetoOptions() {
@@ -13944,7 +14082,8 @@ function updatePmpImportButton() {
 function getPmpFilteredActivities() {
   const year = getPmpYearValue();
   const viewMode = getPmpViewMode();
-  const periods = getPmpPeriods(viewMode, year);
+  const monthIndex = getPmpMonthValue();
+  const periods = getPmpPeriods(viewMode, year, monthIndex);
   const today = startOfDay(new Date());
   const termo = normalizeSearchValue(pmpBusca ? pmpBusca.value : "");
   const filtroProjeto = pmpFiltroProjeto ? pmpFiltroProjeto.value : "";
@@ -13954,7 +14093,7 @@ function getPmpFilteredActivities() {
   const filtroOrigem = pmpFiltroOrigem ? pmpFiltroOrigem.value : "";
   const filtroStatus = pmpFiltroStatus ? pmpFiltroStatus.value : "";
   const manualMap = getExecutionsByActivity();
-  const autoMap = buildAutoExecutionMap(pmpActivities, periods, viewMode, year);
+  const autoMap = buildAutoExecutionMap(pmpActivities, periods, viewMode, year, monthIndex);
   return pmpActivities.filter((activity) => {
     if (filtroProjeto && activity.projectId !== filtroProjeto) {
       return false;
@@ -13985,7 +14124,7 @@ function getPmpFilteredActivities() {
     }
     if (filtroStatus) {
       const targetStatus = PMP_STATUS_FILTER_MAP[filtroStatus] || "";
-      const scheduledKeys = getScheduledPeriodKeys(activity, year, viewMode, periods);
+      const scheduledKeys = getScheduledPeriodKeys(activity, year, viewMode, periods, monthIndex);
       const anyMatch = periods.some((period) => {
         const periodKey = period.key;
         if (!scheduledKeys.has(periodKey)) {
@@ -14226,8 +14365,13 @@ function renderPmpModule() {
   updatePmpImportButton();
   renderPmpYearOptions();
   renderPmpProjetoOptions();
+  renderPmpMonthOptions();
   const year = getPmpYearValue();
   const viewMode = getPmpViewMode();
+  const monthIndex = getPmpMonthValue();
+  if (pmpMesField) {
+    pmpMesField.hidden = viewMode !== "day";
+  }
   const filtroProjeto = pmpFiltroProjeto ? pmpFiltroProjeto.value : "";
   syncPmpHorasDisponiveisInput(filtroProjeto || activeProjectId);
   renderPmpEquipamentoOptions(filtroProjeto || activeProjectId);
@@ -14252,12 +14396,20 @@ function renderPmpModule() {
     });
   }
 
-  const periods = getPmpPeriods(viewMode, year);
+  const periods = getPmpPeriods(viewMode, year, monthIndex);
   const scheduledKeysMap = new Map();
   const manualMap = getExecutionsByActivity();
-  const autoMap = buildAutoExecutionMap(filtrados, periods, viewMode, year);
+  const autoMap = buildAutoExecutionMap(filtrados, periods, viewMode, year, monthIndex);
   const today = startOfDay(new Date());
-  pmpLastSnapshot = { year, viewMode, periods, manualMap, autoMap, activities: filtrados };
+  pmpLastSnapshot = {
+    year,
+    viewMode,
+    monthIndex,
+    periods,
+    manualMap,
+    autoMap,
+    activities: filtrados,
+  };
 
   pmpGridHead.innerHTML = "";
   const headers = [
@@ -14292,6 +14444,14 @@ function renderPmpModule() {
   let totalPlannedMinutes = 0;
   let totalPlannedCapacityMinutes = 0;
   let totalExecutedMinutes = 0;
+  const statusIconMap = {
+    on_time: "&#x2705;",
+    scheduled: "&#x1F535;",
+    missed: "&#x1F534;",
+    late: "&#x26A0;&#xFE0F;",
+    cancelled: "&#x1F6AB;",
+    empty: "&#x2B1C;",
+  };
 
   if (!filtrados.length) {
     if (pmpGridVazio) {
@@ -14311,7 +14471,7 @@ function renderPmpModule() {
     const duracaoLabel = activity.duracaoMinutos
       ? formatDuracaoMin(activity.duracaoMinutos)
       : "-";
-    const scheduledKeys = getScheduledPeriodKeys(activity, year, viewMode, periods);
+    const scheduledKeys = getScheduledPeriodKeys(activity, year, viewMode, periods, monthIndex);
     scheduledKeysMap.set(activity.id, scheduledKeys);
 
     const nameCell = document.createElement("td");
@@ -14367,7 +14527,15 @@ function renderPmpModule() {
       const cell = document.createElement("td");
       if (!scheduledKeys.has(periodKey)) {
         cell.className = "pmp-cell pmp-cell--empty";
-        cell.textContent = "-";
+        const tooltipLines = [];
+        if (viewMode === "day") {
+          tooltipLines.push(`Data: ${formatDate(period.start)}`);
+        } else {
+          tooltipLines.push(`Periodo: ${formatDate(period.start)} - ${formatDate(period.end)}`);
+        }
+        tooltipLines.push(`Status: ${PMP_STATUS_LABELS.empty || "Nao prevista"}`);
+        cell.title = tooltipLines.join("\\n");
+        cell.innerHTML = statusIconMap.empty;
         row.append(cell);
         return;
       }
@@ -14403,8 +14571,12 @@ function renderPmpModule() {
       totalPlannedCapacityMinutes += duracaoBase * (Number.isFinite(tecnicosBase) ? tecnicosBase : 1);
       cell.className = `pmp-cell pmp-cell--${status}`;
       const tooltipLines = [];
-      tooltipLines.push(`Previsto: ${formatDate(period.start)} - ${formatDate(period.end)}`);
-      if (statusInfo.dueDate) {
+      if (viewMode === "day") {
+        tooltipLines.push(`Data: ${formatDate(period.start)}`);
+      } else {
+        tooltipLines.push(`Periodo: ${formatDate(period.start)} - ${formatDate(period.end)}`);
+      }
+      if (statusInfo.dueDate && viewMode !== "day") {
         tooltipLines.push(`Data prevista: ${formatDate(statusInfo.dueDate)}`);
       }
       if (statusInfo.executedAt) {
@@ -14415,7 +14587,9 @@ function renderPmpModule() {
           tooltipLines.push(`Executor: ${getUserLabel(executorId)}`);
         }
         if (statusInfo.exec && statusInfo.exec.osReferencia) {
-          tooltipLines.push(`OS: ${statusInfo.exec.osReferencia}`);
+          tooltipLines.push(`OS/RDO: ${statusInfo.exec.osReferencia}`);
+        } else if (statusInfo.exec && statusInfo.exec.manutencaoId) {
+          tooltipLines.push(`OS/RDO: ${statusInfo.exec.manutencaoId}`);
         }
       }
       tooltipLines.push(`Status: ${PMP_STATUS_LABELS[status] || status}`);
@@ -14424,16 +14598,7 @@ function renderPmpModule() {
       cell.dataset.activityId = activity.id;
       cell.dataset.periodKey = periodKey;
       cell.dataset.status = status;
-      cell.textContent =
-        status === "on_time"
-          ? "OK"
-          : status === "late"
-            ? "!"
-            : status === "missed"
-              ? "X"
-              : status === "cancelled"
-                ? "-"
-                : ".";
+      cell.innerHTML = statusIconMap[status] || statusIconMap.scheduled;
       row.append(cell);
     });
 
@@ -14714,9 +14879,13 @@ function openPmpCellModal(activityId, periodKey) {
   }
   if (pmpCellMeta) {
     const projectLabel = project ? getProjectLabel(project) : "-";
-    pmpCellMeta.textContent = `Projeto: ${projectLabel} | Periodo: ${period.label} (${formatDate(
-      period.start
-    )} - ${formatDate(period.end)}) | Status: ${PMP_STATUS_LABELS[statusInfo.status] || "-"}`;
+    const periodoTexto =
+      pmpLastSnapshot.viewMode === "day"
+        ? `Data: ${formatDate(period.start)}`
+        : `Periodo: ${period.label} (${formatDate(period.start)} - ${formatDate(period.end)})`;
+    pmpCellMeta.textContent = `Projeto: ${projectLabel} | ${periodoTexto} | Status: ${
+      PMP_STATUS_LABELS[statusInfo.status] || "-"
+    }`;
   }
   const execEntries = [];
   if (statusInfo.exec) {
@@ -14836,12 +15005,14 @@ async function carregarPmpDados() {
 function buildPmpSnapshot() {
   const year = getPmpYearValue();
   const viewMode = getPmpViewMode();
+  const monthIndex = getPmpMonthValue();
   const activities = getPmpFilteredActivities();
-  const periods = getPmpPeriods(viewMode, year);
+  const periods = getPmpPeriods(viewMode, year, monthIndex);
   const manualMap = getExecutionsByActivity();
-  const autoMap = buildAutoExecutionMap(activities, periods, viewMode, year);
+  const autoMap = buildAutoExecutionMap(activities, periods, viewMode, year, monthIndex);
   const today = startOfDay(new Date());
-  return { year, viewMode, activities, periods, manualMap, autoMap, today };
+  const monthLabel = PMP_MONTH_LABELS[monthIndex] || String(monthIndex + 1).padStart(2, "0");
+  return { year, viewMode, monthIndex, monthLabel, activities, periods, manualMap, autoMap, today };
 }
 
 function exportarPmpExcel() {
@@ -14868,7 +15039,8 @@ function exportarPmpExcel() {
       activity,
       snapshot.year,
       snapshot.viewMode,
-      snapshot.periods
+      snapshot.periods,
+      snapshot.monthIndex
     );
     const values = [
       project ? getProjectLabel(project) : "",
@@ -14882,7 +15054,7 @@ function exportarPmpExcel() {
     snapshot.periods.forEach((period) => {
       const periodKey = period.key;
       if (!scheduledKeys.has(periodKey)) {
-        values.push("");
+        values.push(snapshot.viewMode === "day" ? (PMP_STATUS_LABELS.empty || "Nao prevista") : "");
         return;
       }
       const statusInfo = getPmpStatusForPeriod(
@@ -14894,7 +15066,7 @@ function exportarPmpExcel() {
         snapshot.autoMap,
         snapshot.today
       );
-      values.push(PMP_STATUS_LABELS[statusInfo.status] || "Agendada");
+      values.push(PMP_STATUS_LABELS[statusInfo.status] || "Planejada");
     });
     return values.map(escapeCsv).join(",");
   });
@@ -14903,7 +15075,8 @@ function exportarPmpExcel() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `pmp-${snapshot.year}-${snapshot.viewMode}.csv`;
+  const monthSuffix = snapshot.viewMode === "day" ? `-${snapshot.monthLabel}` : "";
+  link.download = `pmp-${snapshot.year}-${snapshot.viewMode}${monthSuffix}.csv`;
   document.body.append(link);
   link.click();
   link.remove();
@@ -14942,13 +15115,18 @@ function exportarPmpPdf() {
         activity,
         snapshot.year,
         snapshot.viewMode,
-        snapshot.periods
+        snapshot.periods,
+        snapshot.monthIndex
       );
       const cells = snapshot.periods
         .map((period) => {
           const periodKey = period.key;
           if (!scheduledKeys.has(periodKey)) {
-            return `<td class="pmp-cell empty">-</td>`;
+            const emptyLabel =
+              snapshot.viewMode === "day"
+                ? PMP_STATUS_LABELS.empty || "Nao prevista"
+                : "-";
+            return `<td class="pmp-cell empty">${escapeHtml(emptyLabel)}</td>`;
           }
           totalCells += 1;
           totalPlannedMinutes += Number(activity.duracaoMinutos || 0);
@@ -14976,7 +15154,7 @@ function exportarPmpPdf() {
             totalExecutedMinutes += Number(activity.duracaoMinutos || 0);
           }
           const statusClass = statusClassMap[status] || "scheduled";
-          const label = PMP_STATUS_LABELS[status] || "Agendada";
+          const label = PMP_STATUS_LABELS[status] || "Planejada";
           return `<td class="pmp-cell ${statusClass}">${label}</td>`;
         })
         .join("");
@@ -15003,8 +15181,8 @@ function exportarPmpPdf() {
     <div class="pmp-kpi">
       <span>Total previstas: ${totalCells}</span>
       <span>Conforme: ${Math.round((onTimeCells / percentBase) * 100)}%</span>
-      <span>Atraso: ${Math.round((lateCells / percentBase) * 100)}%</span>
-      <span>Nao executadas: ${Math.round((missedCells / percentBase) * 100)}%</span>
+      <span>Fora da janela: ${Math.round((lateCells / percentBase) * 100)}%</span>
+      <span>Atrasadas: ${Math.round((missedCells / percentBase) * 100)}%</span>
       <span>Canceladas: ${cancelledCells}</span>
       <span>Horas planejadas: ${
         totalPlannedMinutes ? formatDuracaoMin(totalPlannedMinutes) : "00:00"
@@ -15017,9 +15195,10 @@ function exportarPmpPdf() {
   const legendHtml = `
     <div class="pmp-legend">
       <span class="legend-item on-time">Conforme</span>
-      <span class="legend-item late">Atrasada</span>
-      <span class="legend-item missed">Nao executada</span>
-      <span class="legend-item scheduled">Agendada</span>
+      <span class="legend-item missed">Atrasada</span>
+      <span class="legend-item scheduled">Planejada</span>
+      <span class="legend-item late">Fora da janela</span>
+      <span class="legend-item empty">Nao prevista</span>
       <span class="legend-item cancelled">Cancelada</span>
     </div>
   `;
@@ -15049,6 +15228,7 @@ function exportarPmpPdf() {
           .legend-item.late::before { background: #f59e0b; }
           .legend-item.missed::before { background: #ef4444; }
           .legend-item.scheduled::before { background: #3b82f6; }
+          .legend-item.empty::before { background: #94a3b8; }
           .legend-item.cancelled::before { background: #94a3b8; }
           @page { size: A4 landscape; margin: 16mm; }
         </style>
@@ -15056,7 +15236,11 @@ function exportarPmpPdf() {
       <body>
         <h1>PMP / Cronograma ${snapshot.year}</h1>
         <p>Projeto: ${escapeHtml(projectLabel)} | Visualizacao: ${
-          snapshot.viewMode === "week" ? "Semanal" : "Mensal"
+          snapshot.viewMode === "day"
+            ? `Diario (${snapshot.monthLabel})`
+            : snapshot.viewMode === "week"
+              ? "Semanal"
+              : "Mensal"
         }</p>
         ${legendHtml}
         <table>
@@ -21747,6 +21931,9 @@ if (pmpAno) {
 }
 if (pmpView) {
   pmpView.addEventListener("change", renderPmpModule);
+}
+if (pmpMes) {
+  pmpMes.addEventListener("change", renderPmpModule);
 }
 if (pmpFiltroProjeto) {
   pmpFiltroProjeto.addEventListener("change", () => {
