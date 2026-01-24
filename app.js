@@ -4385,302 +4385,424 @@ function renderBreadcrumb() {
   )}</span>`;
 }
 
-const HELP_ROLE_CONTENT = {
-  tecnico: {
-    label: "T\u00e9cnico",
-    items: [
-      "Executar manuten\u00e7\u00f5es conforme procedimentos aprovados.",
-      "Marcar atividades como conclu\u00eddas ap\u00f3s validar evid\u00eancias.",
-      "Anexar evid\u00eancias e seguir o checklist obrigat\u00f3rio.",
-    ],
-  },
-  supervisor: {
-    label: "Supervisor",
-    items: [
-      "Revisar manuten\u00e7\u00f5es e aprovar execu\u00e7\u00f5es quando aplic\u00e1vel.",
-      "Acompanhar backlog e priorizar atividades cr\u00edticas.",
-      "Organizar a programa\u00e7\u00e3o da equipe por projeto e per\u00edodo.",
-    ],
-  },
-  gerente: {
-    label: "Gerente",
-    items: [
-      "Interpretar KPIs e identificar desvios de desempenho.",
-      "Gerar relat\u00f3rios e consolidar resultados do projeto.",
-      "Comparar desempenho entre projetos e orientar ajustes.",
-    ],
-  },
-  administrador: {
-    label: "Administrador",
-    items: [
-      "Cadastrar e gerenciar usu\u00e1rios e equipes.",
-      "Definir permiss\u00f5es e perfis de acesso por fun\u00e7\u00e3o.",
-      "Editar planos base, templates e padr\u00f5es do sistema.",
-    ],
-  },
-};
+const HELP_OVERVIEW = [
+  "A OPSCOPE \u00e9 uma plataforma de gest\u00e3o operacional e manuten\u00e7\u00e3o que centraliza processos, evid\u00eancias e indicadores.",
+  "Ela organiza a rotina entre planejamento, execu\u00e7\u00e3o, controle e relat\u00f3rios em um fluxo \u00fanico, com rastreabilidade e padroniza\u00e7\u00e3o.",
+  "Fluxo principal: Planejamento -> Execu\u00e7\u00e3o -> Controle -> Relat\u00f3rios.",
+];
+
+const HELP_NAVIGATION = [
+  "Use o menu lateral (sidebar) para alternar entre m\u00f3dulos.",
+  "Troque o projeto ativo no seletor de projetos antes de iniciar qualquer a\u00e7\u00e3o.",
+  "O breadcrumb mostra Projeto e M\u00f3dulo atuais; utilize-o para se orientar.",
+  "Notifica\u00e7\u00f5es destacam prazos e pend\u00eancias; mensagens concentram feedbacks.",
+  "Filtros e buscas refinam listas por status, per\u00edodo, prioridade e equipe.",
+];
+
+const HELP_BEST_PRACTICES = [
+  "Padronize nomes, descri\u00e7\u00f5es e categorias para facilitar auditoria.",
+  "Registre evid\u00eancias completas antes de concluir uma execu\u00e7\u00e3o.",
+  "Mantenha os status atualizados para refletir a realidade operacional.",
+  "Revise o projeto ativo antes de salvar altera\u00e7\u00f5es.",
+  "Utilize checklists para garantir conformidade e seguran\u00e7a.",
+];
 
 const HELP_GLOSSARY = [
   { term: "OS", desc: "Ordem de Servi\u00e7o vinculada \u00e0 execu\u00e7\u00e3o." },
   { term: "RDO", desc: "Relat\u00f3rio Di\u00e1rio de Opera\u00e7\u00e3o." },
   { term: "PMP", desc: "Plano de Manuten\u00e7\u00e3o Preventiva." },
-  { term: "KPI", desc: "Indicador-chave de desempenho." },
   { term: "SLA", desc: "N\u00edvel de servi\u00e7o acordado." },
   { term: "Backlog", desc: "Fila de atividades pendentes." },
+  { term: "KPI", desc: "Indicador-chave de desempenho." },
+  { term: "Conforme", desc: "Atividade executada dentro do padr\u00e3o esperado." },
+  { term: "N\u00e3o conforme", desc: "Atividade com desvios ou pend\u00eancias relevantes." },
 ];
 
-function getHelpProfile(user) {
-  const fallback = HELP_ROLE_CONTENT.tecnico;
+const HELP_EXAMPLES = [
+  "Execu\u00e7\u00e3o de manuten\u00e7\u00e3o com checklist e evid\u00eancias anexadas.",
+  "Preenchimento do RDO di\u00e1rio com jornada, clima e ocorr\u00eancias.",
+  "Uso do PMP para programar atividades preventivas ao longo do ano.",
+  "Gera\u00e7\u00e3o de relat\u00f3rios com exporta\u00e7\u00e3o em PDF ou Excel.",
+];
+
+const HELP_SUPPORT = [
+  "Consulte a base interna de conhecimento da opera\u00e7\u00e3o.",
+  "Acione o PCM/O&M respons\u00e1vel pelo projeto para d\u00favidas operacionais.",
+  "Registre chamados na Central de Suporte OPSCOPE quando necess\u00e1rio.",
+];
+
+const HELP_MODULES = {
+  inicio: {
+    purpose: "Centraliza indicadores, alertas e atalhos do projeto ativo.",
+    when: "Use no in\u00edcio do dia para revisar prioridades e pend\u00eancias.",
+    examples: [
+      "Abrir Execu\u00e7\u00e3o do Dia a partir dos alertas.",
+      "Identificar pend\u00eancias cr\u00edticas antes de iniciar a rotina.",
+    ],
+  },
+  programacao: {
+    purpose: "Organiza a agenda de manuten\u00e7\u00f5es e libera\u00e7\u00f5es.",
+    when: "Use para planejar datas, recursos e acompanhar status.",
+    examples: [
+      "Reprogramar uma atividade atrasada com novo prazo.",
+      "Registrar observa\u00e7\u00e3o operacional antes da execu\u00e7\u00e3o.",
+    ],
+  },
+  nova: {
+    purpose: "Registra novas manuten\u00e7\u00f5es e tarefas operacionais.",
+    when: "Use sempre que uma nova OS precisar ser criada.",
+    examples: [
+      "Criar uma nova OS com prioridade e categoria.",
+      "Vincular equipamentos e participantes antes de salvar.",
+    ],
+  },
+  modelos: {
+    purpose: "Padroniza modelos e recorr\u00eancias de manuten\u00e7\u00e3o.",
+    when: "Use para manter modelos consistentes e repet\u00edveis.",
+    examples: [
+      "Criar um modelo mensal para inspe\u00e7\u00f5es preventivas.",
+      "Ativar ou revisar recorr\u00eancias vigentes.",
+    ],
+  },
+  pmp: {
+    purpose: "Organiza o Plano de Manuten\u00e7\u00e3o Preventiva (PMP).",
+    when: "Use para programar atividades preventivas no calend\u00e1rio.",
+    examples: [
+      "Importar manuten\u00e7\u00f5es existentes para o PMP.",
+      "Ajustar frequ\u00eancia e respons\u00e1veis.",
+    ],
+  },
+  execucao: {
+    purpose: "Registra e acompanha execu\u00e7\u00f5es do dia.",
+    when: "Use durante a opera\u00e7\u00e3o para registrar in\u00edcio, fim e evid\u00eancias.",
+    examples: [
+      "Iniciar uma execu\u00e7\u00e3o e anexar evid\u00eancias.",
+      "Encerrar atividade com OS e descri\u00e7\u00e3o t\u00e9cnica.",
+    ],
+  },
+  backlog: {
+    purpose: "Controla atividades pendentes e atrasadas.",
+    when: "Use para justificar pend\u00eancias e reprogramar prazos.",
+    examples: [
+      "Registrar motivo de backlog por indisponibilidade.",
+      "Priorizar atividades cr\u00edticas para a pr\u00f3xima semana.",
+    ],
+  },
+  solicitacoes: {
+    purpose: "Gerencia solicita\u00e7\u00f5es de acesso e aprova\u00e7\u00f5es.",
+    when: "Use para aprovar ou recusar solicita\u00e7\u00f5es pendentes.",
+    examples: [
+      "Aprovar solicita\u00e7\u00e3o com justificativa registrada.",
+      "Recusar solicita\u00e7\u00e3o com motivo claro.",
+    ],
+  },
+};
+
+Object.assign(HELP_MODULES, {
+  projetos: {
+    purpose: "Administra projetos, locais, equipes e equipamentos.",
+    when: "Use quando for necess\u00e1rio ajustar dados do projeto.",
+    examples: [
+      "Cadastrar novos locais de trabalho.",
+      "Atualizar informa\u00e7\u00f5es de equipamentos.",
+    ],
+  },
+  desempenho: {
+    purpose: "Apresenta indicadores de desempenho consolidados.",
+    when: "Use para acompanhar resultados do projeto.",
+    examples: [
+      "Comparar KPI do m\u00eas atual com per\u00edodo anterior.",
+      "Identificar aumento de backlog.",
+    ],
+  },
+  "performance-projects": {
+    purpose: "Compara desempenho entre projetos.",
+    when: "Use para analisar SLA e criticidade por contrato.",
+    examples: ["Comparar dois projetos e identificar desvios."],
+  },
+  "performance-people": {
+    purpose: "Analisa desempenho por colaborador.",
+    when: "Use para balancear carga e identificar gargalos.",
+    examples: ["Revisar ranking de colaboradores por execu\u00e7\u00e3o."],
+  },
+  tendencias: {
+    purpose: "Exibe KPIs e tend\u00eancias de longo prazo.",
+    when: "Use para avaliar padr\u00f5es e riscos operacionais.",
+    examples: ["Avaliar tend\u00eancia trimestral de SLA."],
+  },
+  relatorios: {
+    purpose: "Gera relat\u00f3rios operacionais e gerenciais.",
+    when: "Use para consolidar resultados e exportar dados.",
+    examples: [
+      "Gerar relat\u00f3rio mensal e exportar PDF.",
+      "Emitir RDO mensal para o cliente.",
+    ],
+  },
+  feedbacks: {
+    purpose: "Centraliza feedbacks operacionais.",
+    when: "Use para registrar feedbacks e acompanhar retornos.",
+    examples: ["Enviar feedback ap\u00f3s execu\u00e7\u00e3o conclu\u00edda."],
+  },
+  rastreabilidade: {
+    purpose: "Permite auditar hist\u00f3rico de execu\u00e7\u00f5es.",
+    when: "Use para consultar registros e evid\u00eancias.",
+    examples: ["Buscar uma OS e verificar status e evid\u00eancias."],
+  },
+  gerencial: {
+    purpose: "Re\u00fane configura\u00e7\u00f5es e diagn\u00f3sticos do sistema.",
+    when: "Use para governan\u00e7a e ajustes globais.",
+    examples: ["Revisar logs e permiss\u00f5es quando autorizado."],
+  },
+  contas: {
+    purpose: "Gerencia contas, equipes e permiss\u00f5es.",
+    when: "Use para administrar usu\u00e1rios e perfis.",
+    examples: ["Inativar usu\u00e1rio e ajustar cargo."],
+  },
+  perfil: {
+    purpose: "Exibe e permite ajustar informa\u00e7\u00f5es do perfil.",
+    when: "Use para atualizar dados pessoais quando permitido.",
+    examples: ["Atualizar telefone e confirmar altera\u00e7\u00f5es."],
+  },
+});
+
+const HELP_MODULE_ACTIONS = {
+  inicio: [
+    { label: "Visualizar indicadores e alertas do projeto ativo.", allow: () => true },
+    { label: "Acessar atalhos para m\u00f3dulos operacionais.", allow: () => true },
+  ],
+  programacao: [
+    { label: "Visualizar agenda e filtros operacionais.", allow: () => true },
+    { label: "Reprogramar prazos e janelas de execu\u00e7\u00e3o.", allow: () => can("reschedule") },
+    { label: "Editar observa\u00e7\u00f5es e dados de manuten\u00e7\u00e3o.", allow: () => can("edit") },
+    { label: "Liberar ou registrar execu\u00e7\u00f5es.", allow: () => can("complete") },
+    { label: "Remover registros quando autorizado.", allow: () => can("remove") },
+  ],
+  nova: [
+    { label: "Criar manuten\u00e7\u00f5es e definir prioridades.", allow: () => can("create") },
+    { label: "Anexar evid\u00eancias, documentos e checklists.", allow: () => can("create") },
+    { label: "Visualizar par\u00e2metros do projeto ativo.", allow: () => true },
+  ],
+  modelos: [
+    { label: "Visualizar modelos e recorr\u00eancias.", allow: () => true },
+    { label: "Criar ou editar modelos conforme permiss\u00e3o.", allow: () => can("create") || can("edit") },
+    { label: "Ativar ou desativar modelos.", allow: () => can("edit") },
+  ],
+  pmp: [
+    { label: "Visualizar o cronograma PMP.", allow: () => true },
+    { label: "Cadastrar e editar atividades PMP.", allow: () => canManagePmpActivities(currentUser) },
+    { label: "Anexar procedimentos e documentos PMP.", allow: () => canUploadPmpProcedimento(currentUser) },
+    { label: "Exportar o plano PMP quando permitido.", allow: () => canManagePmpActivities(currentUser) },
+  ],
+  execucao: [
+    { label: "Registrar in\u00edcio e t\u00e9rmino das execu\u00e7\u00f5es.", allow: () => can("complete") },
+    { label: "Anexar evid\u00eancias e concluir atividades.", allow: () => can("complete") },
+    { label: "Visualizar pend\u00eancias do dia.", allow: () => true },
+  ],
+  backlog: [
+    { label: "Visualizar atividades pendentes e prioriza\u00e7\u00f5es.", allow: () => true },
+    { label: "Registrar motivo de backlog.", allow: () => can("edit") },
+    { label: "Reprogramar datas e recursos.", allow: () => can("reschedule") },
+  ],
+  solicitacoes: [
+    { label: "Visualizar solicita\u00e7\u00f5es pendentes.", allow: () => true },
+    { label: "Aprovar ou recusar solicita\u00e7\u00f5es.", allow: () => can("edit") || isAdmin() },
+  ],
+};
+
+Object.assign(HELP_MODULE_ACTIONS, {
+  projetos: [
+    { label: "Visualizar dados do projeto ativo.", allow: () => true },
+    { label: "Gerenciar projetos e contratos.", allow: () => canManageProjetos(currentUser) },
+    { label: "Gerenciar equipamentos e tags.", allow: () => canManageEquipamentos(currentUser) },
+    { label: "Gerenciar equipe do projeto.", allow: () => canManageEquipeProjeto(currentUser) },
+  ],
+  desempenho: [{ label: "Visualizar indicadores consolidados.", allow: () => true }],
+  "performance-projects": [{ label: "Comparar desempenho entre projetos.", allow: () => true }],
+  "performance-people": [{ label: "Comparar desempenho por colaborador.", allow: () => true }],
+  tendencias: [{ label: "Analisar tend\u00eancias e KPIs.", allow: () => true }],
+  relatorios: [
+    { label: "Visualizar relat\u00f3rios gerenciais.", allow: () => canViewRelatorios(currentUser) },
+    { label: "Exportar relat\u00f3rios em PDF ou Excel.", allow: () => canExportRelatorios(currentUser) },
+  ],
+  feedbacks: [{ label: "Enviar e acompanhar feedbacks.", allow: () => true }],
+  rastreabilidade: [
+    { label: "Consultar hist\u00f3rico e auditoria de execu\u00e7\u00f5es.", allow: () => true },
+  ],
+  gerencial: [
+    { label: "Acessar configura\u00e7\u00f5es gerais do sistema.", allow: () => canViewGerencial(currentUser) },
+    { label: "Revisar diagn\u00f3sticos e logs (quando permitido).", allow: () =>
+        canAccessGerencialTab("diagnostico", currentUser) || canAccessGerencialTab("logs", currentUser) },
+    { label: "Gerenciar permiss\u00f5es e perfis.", allow: () => canAccessGerencialTab("permissoes", currentUser) },
+    { label: "Administrar arquivos e automa\u00e7\u00f5es.", allow: () =>
+        canAccessGerencialTab("arquivos", currentUser) || canAccessGerencialTab("automacoes", currentUser) },
+  ],
+  contas: [
+    { label: "Visualizar contas e equipes.", allow: () => true },
+    { label: "Cadastrar e editar usu\u00e1rios.", allow: () => canViewUsuarios(currentUser) && isAdmin() },
+  ],
+  perfil: [
+    { label: "Visualizar dados do perfil.", allow: () => true },
+    { label: "Editar informa\u00e7\u00f5es pessoais quando permitido.", allow: () =>
+        Boolean(currentUser && canEditProfile(currentUser, currentUser)) },
+  ],
+});
+
+function getHelpRoleKey(user) {
   if (!user) {
-    return fallback;
+    return "tecnico";
   }
   const cargo = normalizeCargo(user.cargo);
   const role = String(user.role || user.rbacRole || "").trim().toLowerCase();
   if (cargo.includes("admin") || role === "admin" || role === "administrator") {
-    return HELP_ROLE_CONTENT.administrador;
+    return "administrador";
   }
-  if (cargo.includes("gerente") || cargo.includes("diretor") || role.includes("gerente") || role.includes("manager")) {
-    return HELP_ROLE_CONTENT.gerente;
+  if (cargo.includes("gerente") || cargo.includes("coordenador") || cargo.includes("diretor") || role.includes("gerente")) {
+    return "gerente";
   }
   if (cargo.includes("supervisor") || role.includes("supervisor")) {
-    return HELP_ROLE_CONTENT.supervisor;
+    return "supervisor";
   }
   if (cargo.includes("tecnico") || role.includes("tecnico") || role.includes("executor")) {
-    return HELP_ROLE_CONTENT.tecnico;
+    return "tecnico";
   }
-  return fallback;
+  return "tecnico";
 }
 
-function getModuleHelpItems(moduleKey, moduleLabel) {
-  const label = moduleLabel || "m\u00f3dulo";
-  switch (moduleKey) {
-    case "inicio":
-      return [
-        "Monitore alertas, prazos e indicadores principais do projeto ativo.",
-        "Use os cards para acessar rapidamente os m\u00f3dulos operacionais.",
-        "Valide pend\u00eancias cr\u00edticas antes de iniciar novas execu\u00e7\u00f5es.",
-      ];
-    case "programacao":
-      return [
-        "Filtre por subesta\u00e7\u00e3o, status e per\u00edodo para organizar a agenda.",
-        "Replaneje datas e registre observa\u00e7\u00f5es operacionais.",
-        "Acompanhe libera\u00e7\u00f5es e atividades pendentes.",
-      ];
-    case "nova":
-      return [
-        "Cadastre a manuten\u00e7\u00e3o com tipo, prioridade e prazo.",
-        "Vincule projeto, equipamento e participantes respons\u00e1veis.",
-        "Anexe documentos e defina checklist obrigat\u00f3rio.",
-      ];
-    case "modelos":
-      return [
-        "Crie modelos recorrentes para padronizar atividades.",
-        "Ative ou desative modelos conforme o contrato.",
-        "Revise campos obrigat\u00f3rios antes de salvar.",
-      ];
-    case "pmp":
-      return [
-        "Defina frequ\u00eancia e janela de execu\u00e7\u00e3o das atividades.",
-        "Atribua respons\u00e1veis e ajuste a carga semanal.",
-        "Importe manuten\u00e7\u00f5es existentes quando aplic\u00e1vel.",
-      ];
-    case "execucao":
-      return [
-        "Selecione a atividade e registre in\u00edcio/fim da execu\u00e7\u00e3o.",
-        "Anexe evid\u00eancias e complete o checklist obrigat\u00f3rio.",
-        "Finalize com OS/Refer\u00eancia e observa\u00e7\u00f5es t\u00e9cnicas.",
-      ];
-    case "backlog":
-      return [
-        "Priorize pend\u00eancias e registre motivo de backlog.",
-        "Replaneje prazos conforme disponibilidade da equipe.",
-        "Acompanhe itens cr\u00edticos e atrasados.",
-      ];
-    case "solicitacoes":
-      return [
-        "Avalie solicita\u00e7\u00f5es pendentes e aprove ou recuse.",
-        "Registre justificativas de decis\u00e3o quando necess\u00e1rio.",
-        "Acompanhe o hist\u00f3rico de aprova\u00e7\u00f5es.",
-      ];
-    case "projetos":
-      return [
-        "Cadastre locais, equipamentos e equipes do projeto.",
-        "Atualize dados de cliente e escopo.",
-        "Defina respons\u00e1veis e par\u00e2metros padr\u00e3o.",
-      ];
-    case "desempenho":
-      return [
-        "Analise indicadores globais do projeto.",
-        "Compare resultados por per\u00edodo.",
-        "Identifique tend\u00eancias de execu\u00e7\u00e3o e backlog.",
-      ];
-    case "performance-projects":
-      return [
-        "Compare desempenho entre projetos ativos.",
-        "Use filtros para isolar contratos e clientes.",
-        "Avalie volume, SLA e criticidade.",
-      ];
-    case "performance-people":
-      return [
-        "Compare desempenho por colaborador.",
-        "Identifique gargalos e distribui\u00e7\u00e3o de carga.",
-        "Use os dados para reequilibrar a equipe.",
-      ];
-    case "tendencias":
-      return [
-        "Acompanhe KPIs e tend\u00eancias de longo prazo.",
-        "Ajuste filtros por categoria, prioridade e subesta\u00e7\u00e3o.",
-        "Exporte gr\u00e1ficos quando necess\u00e1rio.",
-      ];
-    case "relatorios":
-      return [
-        "Configure filtros e per\u00edodo antes de gerar o relat\u00f3rio.",
-        "Exporte em PDF ou Excel conforme necessidade.",
-        "Valide dados de OS e evid\u00eancias antes de compartilhar.",
-      ];
-    case "feedbacks":
-      return [
-        "Envie feedbacks objetivos com contexto operacional.",
-        "Acompanhe feedbacks recebidos e pendentes.",
-        "Priorize retornos cr\u00edticos da opera\u00e7\u00e3o.",
-      ];
-    case "rastreabilidade":
-      return [
-        "Consulte hist\u00f3rico de execu\u00e7\u00e3o e auditoria.",
-        "Abra registros para visualizar evid\u00eancias.",
-        "Use filtros para localizar OS espec\u00edficas.",
-      ];
-    case "gerencial":
-      return [
-        "Acesse configura\u00e7\u00f5es gerais e permiss\u00f5es.",
-        "Revise diagn\u00f3sticos e logs quando aplic\u00e1vel.",
-        "Gerencie modelos e integra\u00e7\u00f5es do sistema.",
-      ];
-    case "contas":
-      return [
-        "Cadastre usu\u00e1rios e defina cargos.",
-        "Ajuste permiss\u00f5es e status de acesso.",
-        "Acompanhe auditoria de altera\u00e7\u00f5es.",
-      ];
-    case "perfil":
-      return [
-        "Atualize seus dados e prefer\u00eancias.",
-        "Ajuste senha e foto conforme as pol\u00edticas.",
-        "Revise seus acessos e notificac\u00f5es.",
-      ];
-    default:
-      return [
-        `Revise os filtros e indicadores do m\u00f3dulo ${label}.`,
-        "Acesse detalhes nos cards e listas conforme sua permiss\u00e3o.",
-        "Confirme o projeto ativo antes de executar a\u00e7\u00f5es.",
-      ];
-  }
+function getHelpRoleLabel(roleKey) {
+  const labels = {
+    tecnico: "T\u00e9cnico",
+    supervisor: "Supervisor",
+    gerente: "Gerente / Coordenador",
+    administrador: "Administrador",
+  };
+  return labels[roleKey] || "T\u00e9cnico";
 }
 
-function getModuleExampleItems(moduleKey, moduleLabel) {
-  const label = moduleLabel || "m\u00f3dulo";
-  switch (moduleKey) {
-    case "inicio":
-      return [
-        "Verificar alertas cr\u00edticos e abrir Execu\u00e7\u00e3o do Dia.",
-        "Consultar pend\u00eancias e ir para Programa\u00e7\u00e3o.",
-      ];
-    case "programacao":
-      return [
-        "Filtrar por subesta\u00e7\u00e3o e reagendar uma atividade atrasada.",
-        "Liberar execu\u00e7\u00e3o e registrar observa\u00e7\u00e3o operacional.",
-      ];
-    case "nova":
-      return [
-        "Criar uma nova OS vinculada ao projeto ativo.",
-        "Anexar checklist e participantes antes de salvar.",
-      ];
-    case "modelos":
-      return [
-        "Criar modelo de inspe\u00e7\u00e3o mensal e ativ\u00e1-lo.",
-        "Editar campos padr\u00e3o de um modelo existente.",
-      ];
-    case "pmp":
-      return [
-        "Importar manuten\u00e7\u00f5es existentes e gerar cronograma anual.",
-        "Ajustar frequ\u00eancia de uma atividade cr\u00edtica.",
-      ];
-    case "execucao":
-      return [
-        "Registrar execu\u00e7\u00e3o de uma manuten\u00e7\u00e3o e anexar evid\u00eancias.",
-        "Encerrar atividade com OS/Refer\u00eancia e observa\u00e7\u00e3o t\u00e9cnica.",
-      ];
-    case "backlog":
-      return [
-        "Registrar motivo de backlog e replanejar prazo.",
-        "Priorizar itens cr\u00edticos para a pr\u00f3xima semana.",
-      ];
-    case "solicitacoes":
-      return [
-        "Aprovar solicita\u00e7\u00e3o de acesso de novo colaborador.",
-        "Recusar solicita\u00e7\u00e3o com justificativa registrada.",
-      ];
-    case "projetos":
-      return [
-        "Cadastrar um novo local de trabalho com cliente e equipe.",
-        "Atualizar dados de um equipamento do projeto.",
-      ];
-    case "desempenho":
-      return [
-        "Comparar KPI do m\u00eas atual com o m\u00eas anterior.",
-        "Identificar aumento de backlog e acionar equipe.",
-      ];
-    case "performance-projects":
-      return [
-        "Selecionar dois projetos e comparar SLA.",
-        "Analisar criticidade por contrato.",
-      ];
-    case "performance-people":
-      return [
-        "Ver ranking de colaboradores e ajustar escala.",
-        "Identificar sobrecarga em uma equipe.",
-      ];
-    case "tendencias":
-      return [
-        "Exportar gr\u00e1fico de tend\u00eancia trimestral.",
-        "Avaliar impacto de prioridade nos indicadores.",
-      ];
-    case "relatorios":
-      return [
-        "Gerar relat\u00f3rio mensal e exportar PDF.",
-        "Filtrar por respons\u00e1vel e exportar Excel.",
-      ];
-    case "feedbacks":
-      return [
-        "Enviar feedback sobre execu\u00e7\u00e3o conclu\u00edda.",
-        "Responder feedback recebido com a\u00e7\u00e3o corretiva.",
-      ];
-    case "rastreabilidade":
-      return [
-        "Buscar uma OS e abrir o hist\u00f3rico completo.",
-        "Validar evid\u00eancias anexadas em uma execu\u00e7\u00e3o.",
-      ];
-    case "gerencial":
-      return [
-        "Revisar logs e atualizar permiss\u00f5es.",
-        "Habilitar integra\u00e7\u00f5es conforme contrato.",
-      ];
-    case "contas":
-      return [
-        "Inativar usu\u00e1rio e ajustar cargo.",
-        "Atualizar permiss\u00f5es de um novo supervisor.",
-      ];
-    case "perfil":
-      return [
-        "Atualizar telefone e salvar altera\u00e7\u00f5es.",
-        "Trocar foto e confirmar.",
-      ];
-    default:
-      return [
-        `Executar uma a\u00e7\u00e3o comum no ${label}.`,
-        "Revisar detalhes antes de confirmar.",
-      ];
+function getRoleHelpData(roleKey, user) {
+  const canRdoGenerate = Boolean(user && canGerarRelatorio(user));
+  const canRel = Boolean(user && canViewRelatorios(user));
+  const canExport = Boolean(user && canExportRelatorios(user));
+  const baseTechCan = [
+    "Executar e registrar manuten\u00e7\u00f5es do projeto ativo.",
+    "Preencher checklists e registrar evid\u00eancias (fotos e documentos).",
+    "Atualizar status das atividades (Agendada, Executada, Conforme, Atrasada).",
+    "Finalizar atividades com OS e descri\u00e7\u00e3o t\u00e9cnica.",
+  ];
+  if (canRdoGenerate) {
+    baseTechCan.push("Preencher o RDO di\u00e1rio com registros da opera\u00e7\u00e3o.");
   }
+
+  const baseTechHow = [
+    "Siga os procedimentos aprovados antes de iniciar a execu\u00e7\u00e3o.",
+    "Registre in\u00edcio e fim das atividades conforme o padr\u00e3o.",
+    "Anexe evid\u00eancias obrigat\u00f3rias e confirme o checklist.",
+  ];
+  if (canRdoGenerate) {
+    baseTechHow.push("Preencha o RDO di\u00e1rio com jornada, clima e ocorr\u00eancias.");
+  }
+
+  const baseTechRestrictions = [
+    "Configura\u00e7\u00f5es de usu\u00e1rios, permiss\u00f5es e par\u00e2metros globais.",
+    "Edi\u00e7\u00e3o de projetos, equipes e templates (restrito \u00e0 gest\u00e3o).",
+  ];
+
+  const baseTechPractices = [
+    "Mantenha evid\u00eancias organizadas e completas.",
+    "Registre observa\u00e7\u00f5es t\u00e9cnicas em caso de exce\u00e7\u00f5es.",
+    "N\u00e3o finalize atividades sem OS e valida\u00e7\u00e3o.",
+  ];
+
+  if (roleKey === "supervisor") {
+    const supervisorExtras = [
+      "Revisar execu\u00e7\u00f5es e validar evid\u00eancias da equipe.",
+      "Controlar backlog e priorizar atividades cr\u00edticas.",
+      "Acompanhar equipe e distribuir carga de trabalho.",
+      "Garantir cumprimento do PMP e prazos contratuais.",
+    ];
+    const atrasoActions = [
+      "Registrar motivo do atraso e reprogramar prazo.",
+      "Comunicar riscos ao gestor e ajustar recursos.",
+      "Priorizar atividades com impacto em SLA.",
+    ];
+    return {
+      title: "Supervisor",
+      intro: "Perfil respons\u00e1vel por execu\u00e7\u00e3o e valida\u00e7\u00e3o da equipe.",
+      sections: [
+        { title: "O que voc\u00ea pode fazer", items: baseTechCan.concat(supervisorExtras) },
+        { title: "Como atuar no dia a dia", items: baseTechHow },
+        { title: "A\u00e7\u00f5es em atraso ou n\u00e3o conformidade", items: atrasoActions },
+        { title: "Boas pr\u00e1ticas operacionais", items: baseTechPractices },
+      ],
+    };
+  }
+
+  if (roleKey === "gerente") {
+    const managerIndicators = [
+      "Interpretar KPIs, tend\u00eancias e SLA do projeto.",
+      "Comparar desempenho entre projetos e colaboradores.",
+      "Identificar desvios e definir planos de a\u00e7\u00e3o.",
+    ];
+    const managerReports = [
+      "Gerar relat\u00f3rios gerenciais para tomada de decis\u00e3o.",
+      "Emitir RDO di\u00e1rio e RDO mensal quando permitido.",
+      "Exportar dados para auditoria e contratos.",
+    ].filter((item) => {
+      if (item.includes("RDO") && !canRdoGenerate) {
+        return false;
+      }
+      if (item.includes("Exportar") && !canExport) {
+        return false;
+      }
+      if (item.includes("relat\u00f3rios") && !canRel) {
+        return false;
+      }
+      return true;
+    });
+    return {
+      title: "Gerente / Coordenador",
+      intro: "Perfil focado em gest\u00e3o, an\u00e1lise de desempenho e relat\u00f3rios.",
+      sections: [
+        { title: "Indicadores e an\u00e1lise", items: managerIndicators },
+        { title: "Relat\u00f3rios e consolida\u00e7\u00e3o", items: managerReports },
+        { title: "Boas pr\u00e1ticas de gest\u00e3o", items: [
+          "Defina metas claras e acompanhe desvios semanalmente.",
+          "Garanta alinhamento entre planejamento e execu\u00e7\u00e3o.",
+          "Use dados para orientar ajustes de equipe e contrato.",
+        ] },
+      ],
+    };
+  }
+
+  if (roleKey === "administrador") {
+    return {
+      title: "Administrador",
+      intro: "Perfil respons\u00e1vel por configura\u00e7\u00e3o, governan\u00e7a e seguran\u00e7a da OPSCOPE.",
+      sections: [
+        { title: "Configura\u00e7\u00f5es do sistema", items: [
+          "Cadastrar e gerenciar usu\u00e1rios e perfis.",
+          "Definir permiss\u00f5es e acessos por cargo.",
+          "Administrar projetos, equipes e equipamentos.",
+          "Configurar templates, padr\u00f5es e PMP.",
+        ] },
+        { title: "Boas pr\u00e1ticas de governan\u00e7a", items: [
+          "Revisar permiss\u00f5es periodicamente.",
+          "Padronizar cadastros para evitar inconsist\u00eancias.",
+          "Auditar logs e registros sens\u00edveis.",
+        ] },
+      ],
+    };
+  }
+
+  return {
+    title: "T\u00e9cnico",
+    intro: "Perfil focado na execu\u00e7\u00e3o das atividades de manuten\u00e7\u00e3o.",
+    sections: [
+      { title: "O que voc\u00ea pode fazer", items: baseTechCan },
+      { title: "Como executar as atividades", items: baseTechHow },
+      { title: "O que n\u00e3o pode acessar", items: baseTechRestrictions },
+      { title: "Boas pr\u00e1ticas operacionais", items: baseTechPractices },
+    ],
+  };
 }
 
 function buildHelpList(items = []) {
@@ -4706,6 +4828,49 @@ function buildHelpGlossary(items = []) {
     .join("")}</dl>`;
 }
 
+function buildHelpParagraphs(paragraphs = []) {
+  return paragraphs
+    .map((item) => `<p class=\"help-section__text\">${escapeHtml(item)}</p>`)
+    .join("");
+}
+
+function buildHelpSubsections(sections = []) {
+  return sections
+    .map(
+      (section) => `
+        <div class="help-subsection">
+          <h5>${escapeHtml(section.title)}</h5>
+          ${buildHelpList(section.items)}
+        </div>
+      `
+    )
+    .join("");
+}
+
+function getModuleHelpData(moduleKey, moduleLabel) {
+  const fallback = {
+    purpose: `Conte\u00fado de apoio para o m\u00f3dulo ${moduleLabel || "atual"}.`,
+    when: "Utilize conforme a rotina operacional do projeto.",
+    examples: ["Revise filtros e indicadores antes de confirmar a\u00e7\u00f5es."],
+  };
+  return HELP_MODULES[moduleKey] || fallback;
+}
+
+function getModuleActions(moduleKey) {
+  const entries = HELP_MODULE_ACTIONS[moduleKey] || [];
+  const allowed = entries.filter((item) => {
+    try {
+      return item.allow();
+    } catch (error) {
+      return false;
+    }
+  });
+  if (!allowed.length) {
+    return ["Somente visualiza\u00e7\u00e3o conforme permiss\u00e3o."];
+  }
+  return allowed.map((item) => item.label);
+}
+
 function renderHelpModal() {
   if (!modalHelp || !helpContent || !helpTitle || !helpMeta) {
     return;
@@ -4714,72 +4879,71 @@ function renderHelpModal() {
   const projectLabel = activeProject ? getProjectLabel(activeProject) : "Projeto n\u00e3o definido";
   const moduleKey = getActiveTabKey();
   const moduleLabel = getActiveTabLabel();
-  const profile = getHelpProfile(currentUser);
+  const roleKey = getHelpRoleKey(currentUser);
+  const roleData = getRoleHelpData(roleKey, currentUser);
   const cargoLabel = currentUser && String(currentUser.cargo || "").trim();
-  const profileLabel = cargoLabel || profile.label;
-  helpTitle.textContent = "Ajuda / Como usar";
-  helpMeta.textContent = `M\u00f3dulo: ${moduleLabel} \u2022 Projeto: ${projectLabel} \u2022 Perfil: ${profileLabel}`;
+  const profileLabel = cargoLabel || getHelpRoleLabel(roleKey);
+  const moduleHelp = getModuleHelpData(moduleKey, moduleLabel);
+  const moduleActions = getModuleActions(moduleKey);
 
-  const navigationItems = [
-    "Use o menu lateral para alternar entre m\u00f3dulos.",
-    "Confira o breadcrumb para saber projeto e m\u00f3dulo atuais.",
-    "Utilize o seletor de projeto antes de executar a\u00e7\u00f5es.",
-    "Acesse notifica\u00e7\u00f5es e feedbacks no canto superior direito.",
-  ];
-
-  const bestPracticeItems = [
-    "Valide dados e evid\u00eancias antes de concluir uma execu\u00e7\u00e3o.",
-    "Registre observa\u00e7\u00f5es t\u00e9cnicas sempre que houver exce\u00e7\u00f5es.",
-    "Mantenha checklists atualizados e completos.",
-    "Revise o projeto ativo antes de salvar altera\u00e7\u00f5es.",
-  ];
-
-  const supportItems = [
-    "Central de Suporte OPSCOPE (abertura de chamados).",
-    "Base de conhecimento interna da opera\u00e7\u00e3o.",
-    "Contato com PCM/O&M respons\u00e1vel pelo projeto.",
-    "Pol\u00edticas e SLAs vigentes do contrato.",
-  ];
+  helpTitle.textContent = "Ajuda / Como usar a OPSCOPE";
+  helpMeta.textContent = `M\u00f3dulo: ${moduleLabel} \u00b7 Projeto: ${projectLabel} \u00b7 Perfil: ${profileLabel}`;
 
   helpContent.innerHTML = `
     <div class="help-intro">
-      <strong>\uD83E\uDDED AJUDA / COMO USAR A OPSCOPE</strong>
-      <p>Conte\u00fado contextual ao m\u00f3dulo atual e ao seu perfil de acesso.</p>
+      <strong>Ajuda / Como usar a OPSCOPE</strong>
+      <p>Documenta\u00e7\u00e3o operacional contextual ao m\u00f3dulo, projeto e perfil.</p>
     </div>
     <section class="help-section">
-      <h4 class="help-section__title">\u2705 Vis\u00e3o Geral da OPSCOPE</h4>
-      <p class="help-section__text">
-        A OPSCOPE centraliza opera\u00e7\u00e3o, manuten\u00e7\u00e3o e relat\u00f3rios em um \u00fanico fluxo, garantindo rastreabilidade,
-        evid\u00eancias e padroniza\u00e7\u00e3o de processos.
-      </p>
+      <h4 class="help-section__title">Vis\u00e3o Geral da OPSCOPE</h4>
+      ${buildHelpParagraphs(HELP_OVERVIEW)}
     </section>
     <section class="help-section">
-      <h4 class="help-section__title">\uD83E\uDDED Navega\u00e7\u00e3o por Se\u00e7\u00e3o</h4>
-      ${buildHelpList(navigationItems)}
+      <h4 class="help-section__title">Navega\u00e7\u00e3o na Plataforma</h4>
+      ${buildHelpList(HELP_NAVIGATION)}
     </section>
     <section class="help-section">
-      <h4 class="help-section__title">\u2699\uFE0F Como usar o m\u00f3dulo atual</h4>
-      ${buildHelpList(getModuleHelpItems(moduleKey, moduleLabel))}
-      <div class="help-role">
-        <h5>Instru\u00e7\u00f5es para ${escapeHtml(profile.label)}</h5>
-        ${buildHelpList(profile.items)}
+      <h4 class="help-section__title">Como usar o M\u00f3dulo Atual</h4>
+      <div class="help-subsection">
+        <h5>Para que serve</h5>
+        <p class="help-section__text">${escapeHtml(moduleHelp.purpose)}</p>
+      </div>
+      <div class="help-subsection">
+        <h5>Quando usar</h5>
+        <p class="help-section__text">${escapeHtml(moduleHelp.when)}</p>
+        <p class="help-section__text">As a\u00e7\u00f5es abaixo aplicam-se ao projeto ativo: ${escapeHtml(
+          projectLabel
+        )}.</p>
+      </div>
+      <div class="help-subsection">
+        <h5>O que voc\u00ea pode fazer</h5>
+        ${buildHelpList(moduleActions)}
+      </div>
+      <div class="help-subsection">
+        <h5>Exemplos pr\u00e1ticos no m\u00f3dulo</h5>
+        ${buildHelpList(moduleHelp.examples)}
       </div>
     </section>
     <section class="help-section">
-      <h4 class="help-section__title">\uD83D\uDCA1 Boas pr\u00e1ticas</h4>
-      ${buildHelpList(bestPracticeItems)}
+      <h4 class="help-section__title">Se\u00e7\u00e3o por Cargo: ${escapeHtml(roleData.title)}</h4>
+      <p class="help-section__text">${escapeHtml(roleData.intro)}</p>
+      ${buildHelpSubsections(roleData.sections)}
     </section>
     <section class="help-section">
-      <h4 class="help-section__title">\uD83D\uDCD8 Gloss\u00e1rio de termos t\u00e9cnicos</h4>
+      <h4 class="help-section__title">Boas Pr\u00e1ticas Gerais</h4>
+      ${buildHelpList(HELP_BEST_PRACTICES)}
+    </section>
+    <section class="help-section">
+      <h4 class="help-section__title">Gloss\u00e1rio de Termos</h4>
       ${buildHelpGlossary(HELP_GLOSSARY)}
     </section>
     <section class="help-section">
-      <h4 class="help-section__title">\uD83D\uDEE0\uFE0F Exemplos pr\u00e1ticos de uso</h4>
-      ${buildHelpList(getModuleExampleItems(moduleKey, moduleLabel))}
+      <h4 class="help-section__title">Exemplos Pr\u00e1ticos</h4>
+      ${buildHelpList(HELP_EXAMPLES)}
     </section>
     <section class="help-section">
-      <h4 class="help-section__title">\uD83D\uDD17 Links \u00fateis / suporte</h4>
-      ${buildHelpList(supportItems)}
+      <h4 class="help-section__title">Suporte</h4>
+      ${buildHelpList(HELP_SUPPORT)}
     </section>
   `;
 }

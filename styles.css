@@ -7705,6 +7705,18 @@ textarea:focus {
   gap: 10px;
 }
 
+.help-subsection {
+  display: grid;
+  gap: 6px;
+}
+
+.help-subsection h5 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
 .help-section__title {
   font-size: 0.8rem;
   text-transform: uppercase;
