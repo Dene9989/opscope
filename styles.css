@@ -691,6 +691,43 @@ h1 {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: center;
+}
+
+.crumbs__label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--sb-muted);
+  margin-right: 6px;
+}
+
+.crumbs__project {
+  color: var(--sb-text);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.crumbs__sep {
+  margin: 0 6px;
+  color: var(--sb-muted);
+}
+
+.crumbs__module {
+  color: var(--sb-text);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.topbar .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topbar .btn .icon {
+  width: 18px;
+  height: 18px;
 }
 
 .icon-btn {
@@ -7617,6 +7654,121 @@ textarea:focus {
   margin-top: 12px;
 }
 
+.help-content {
+  display: grid;
+  gap: 16px;
+}
+
+.help-intro {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+}
+
+.help-intro strong {
+  font-size: 0.95rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.help-intro p {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.help-section {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  display: grid;
+  gap: 10px;
+}
+
+.help-section__title {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+}
+
+.help-section__text {
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.help-list {
+  list-style: none;
+  display: grid;
+  gap: 8px;
+  padding-left: 0;
+  margin: 0;
+}
+
+.help-list li {
+  position: relative;
+  padding-left: 18px;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.help-list li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--accent);
+}
+
+.help-role {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(15, 36, 54, 0.4);
+  border: 1px solid var(--border);
+}
+
+.help-role h5 {
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.help-glossary {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.help-glossary__item {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+}
+
+.help-glossary__item dt {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.help-glossary__item dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.help-empty {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .report {
   display: grid;
   gap: 18px;
@@ -7965,6 +8117,16 @@ textarea:focus {
 
   .topbar-right .user-chip {
     display: none;
+  }
+
+  .topbar-dashboard span,
+  .topbar-help span {
+    display: none;
+  }
+
+  .topbar-dashboard,
+  .topbar-help {
+    padding: 6px 10px;
   }
 
   .kpi-grid {

@@ -179,6 +179,13 @@ const projectSelect = document.getElementById("projectSelect");
 const projectSelectLabel = document.getElementById("projectSelectLabel");
 const projectManageBtn = document.getElementById("projectManageBtn");
 const crumbs = document.getElementById("crumbs");
+const btnDashboard = document.getElementById("btnDashboard");
+const btnHelp = document.getElementById("btnHelp");
+const modalHelp = document.getElementById("modalHelp");
+const helpTitle = document.getElementById("helpTitle");
+const helpMeta = document.getElementById("helpMeta");
+const helpContent = document.getElementById("helpContent");
+const btnHelpClose = document.getElementById("btnHelpClose");
 const projectTabs = Array.from(document.querySelectorAll("[data-project-tab]"));
 const projectPanels = Array.from(document.querySelectorAll("[data-project-panel]"));
 const projectForm = document.getElementById("projectForm");
@@ -4310,6 +4317,486 @@ function getProjectLabel(project) {
     return "";
   }
   return `${project.codigo || "-"} - ${project.nome || "-"}`;
+}
+
+const TAB_LABELS = {
+  inicio: "In\u00edcio",
+  programacao: "Programa\u00e7\u00e3o",
+  nova: "Nova Manuten\u00e7\u00e3o",
+  modelos: "Modelos e Recorr\u00eancias",
+  pmp: "PMP / Cronograma",
+  execucao: "Execu\u00e7\u00e3o do Dia",
+  backlog: "Backlog",
+  solicitacoes: "Solicita\u00e7\u00f5es Pendentes",
+  projetos: "Locais de Trabalho",
+  desempenho: "Desempenho Geral",
+  "performance-projects": "Desempenho por Projeto",
+  "performance-people": "Desempenho por Colaborador",
+  tendencias: "KPIs e Tend\u00eancias",
+  relatorios: "Relat\u00f3rios Gerenciais",
+  feedbacks: "Feedbacks",
+  rastreabilidade: "Hist\u00f3rico de Execu\u00e7\u00e3o",
+  gerencial: "Configura\u00e7\u00f5es Gerais",
+  contas: "Equipe / Usu\u00e1rios",
+  perfil: "Meu Perfil",
+};
+
+function getActiveTabKey() {
+  const activeBtn = Array.from(tabButtons || []).find(
+    (botao) => botao.classList.contains("is-active") || botao.classList.contains("active")
+  );
+  if (activeBtn && activeBtn.dataset.tab) {
+    return activeBtn.dataset.tab;
+  }
+  const activePanel = Array.from(panels || []).find((panel) =>
+    panel.classList.contains("is-active")
+  );
+  return activePanel ? activePanel.dataset.panel : "inicio";
+}
+
+function getActiveTabLabel() {
+  const activeBtn = Array.from(tabButtons || []).find(
+    (botao) => botao.classList.contains("is-active") || botao.classList.contains("active")
+  );
+  if (activeBtn) {
+    const labelEl = activeBtn.querySelector(".nav-item__label");
+    const label = labelEl ? labelEl.textContent.trim() : "";
+    if (label) {
+      return label;
+    }
+    const tab = activeBtn.dataset.tab || "";
+    return TAB_LABELS[tab] || tab || "In\u00edcio";
+  }
+  const tabKey = getActiveTabKey();
+  return TAB_LABELS[tabKey] || "In\u00edcio";
+}
+
+function renderBreadcrumb() {
+  if (!crumbs) {
+    return;
+  }
+  const activeProject = getActiveProject();
+  const projectLabel = activeProject ? getProjectLabel(activeProject) : "Projeto n\u00e3o definido";
+  const moduleLabel = getActiveTabLabel();
+  crumbs.innerHTML = `<span class=\"crumbs__label\">Projeto:</span> <span class=\"crumbs__project\">${escapeHtml(
+    projectLabel
+  )}</span> <span class=\"crumbs__sep\">&#8250;</span> <span class=\"crumbs__module\">${escapeHtml(
+    moduleLabel
+  )}</span>`;
+}
+
+const HELP_ROLE_CONTENT = {
+  tecnico: {
+    label: "T\u00e9cnico",
+    items: [
+      "Executar manuten\u00e7\u00f5es conforme procedimentos aprovados.",
+      "Marcar atividades como conclu\u00eddas ap\u00f3s validar evid\u00eancias.",
+      "Anexar evid\u00eancias e seguir o checklist obrigat\u00f3rio.",
+    ],
+  },
+  supervisor: {
+    label: "Supervisor",
+    items: [
+      "Revisar manuten\u00e7\u00f5es e aprovar execu\u00e7\u00f5es quando aplic\u00e1vel.",
+      "Acompanhar backlog e priorizar atividades cr\u00edticas.",
+      "Organizar a programa\u00e7\u00e3o da equipe por projeto e per\u00edodo.",
+    ],
+  },
+  gerente: {
+    label: "Gerente",
+    items: [
+      "Interpretar KPIs e identificar desvios de desempenho.",
+      "Gerar relat\u00f3rios e consolidar resultados do projeto.",
+      "Comparar desempenho entre projetos e orientar ajustes.",
+    ],
+  },
+  administrador: {
+    label: "Administrador",
+    items: [
+      "Cadastrar e gerenciar usu\u00e1rios e equipes.",
+      "Definir permiss\u00f5es e perfis de acesso por fun\u00e7\u00e3o.",
+      "Editar planos base, templates e padr\u00f5es do sistema.",
+    ],
+  },
+};
+
+const HELP_GLOSSARY = [
+  { term: "OS", desc: "Ordem de Servi\u00e7o vinculada \u00e0 execu\u00e7\u00e3o." },
+  { term: "RDO", desc: "Relat\u00f3rio Di\u00e1rio de Opera\u00e7\u00e3o." },
+  { term: "PMP", desc: "Plano de Manuten\u00e7\u00e3o Preventiva." },
+  { term: "KPI", desc: "Indicador-chave de desempenho." },
+  { term: "SLA", desc: "N\u00edvel de servi\u00e7o acordado." },
+  { term: "Backlog", desc: "Fila de atividades pendentes." },
+];
+
+function getHelpProfile(user) {
+  const fallback = HELP_ROLE_CONTENT.tecnico;
+  if (!user) {
+    return fallback;
+  }
+  const cargo = normalizeCargo(user.cargo);
+  const role = String(user.role || user.rbacRole || "").trim().toLowerCase();
+  if (cargo.includes("admin") || role === "admin" || role === "administrator") {
+    return HELP_ROLE_CONTENT.administrador;
+  }
+  if (cargo.includes("gerente") || cargo.includes("diretor") || role.includes("gerente") || role.includes("manager")) {
+    return HELP_ROLE_CONTENT.gerente;
+  }
+  if (cargo.includes("supervisor") || role.includes("supervisor")) {
+    return HELP_ROLE_CONTENT.supervisor;
+  }
+  if (cargo.includes("tecnico") || role.includes("tecnico") || role.includes("executor")) {
+    return HELP_ROLE_CONTENT.tecnico;
+  }
+  return fallback;
+}
+
+function getModuleHelpItems(moduleKey, moduleLabel) {
+  const label = moduleLabel || "m\u00f3dulo";
+  switch (moduleKey) {
+    case "inicio":
+      return [
+        "Monitore alertas, prazos e indicadores principais do projeto ativo.",
+        "Use os cards para acessar rapidamente os m\u00f3dulos operacionais.",
+        "Valide pend\u00eancias cr\u00edticas antes de iniciar novas execu\u00e7\u00f5es.",
+      ];
+    case "programacao":
+      return [
+        "Filtre por subesta\u00e7\u00e3o, status e per\u00edodo para organizar a agenda.",
+        "Replaneje datas e registre observa\u00e7\u00f5es operacionais.",
+        "Acompanhe libera\u00e7\u00f5es e atividades pendentes.",
+      ];
+    case "nova":
+      return [
+        "Cadastre a manuten\u00e7\u00e3o com tipo, prioridade e prazo.",
+        "Vincule projeto, equipamento e participantes respons\u00e1veis.",
+        "Anexe documentos e defina checklist obrigat\u00f3rio.",
+      ];
+    case "modelos":
+      return [
+        "Crie modelos recorrentes para padronizar atividades.",
+        "Ative ou desative modelos conforme o contrato.",
+        "Revise campos obrigat\u00f3rios antes de salvar.",
+      ];
+    case "pmp":
+      return [
+        "Defina frequ\u00eancia e janela de execu\u00e7\u00e3o das atividades.",
+        "Atribua respons\u00e1veis e ajuste a carga semanal.",
+        "Importe manuten\u00e7\u00f5es existentes quando aplic\u00e1vel.",
+      ];
+    case "execucao":
+      return [
+        "Selecione a atividade e registre in\u00edcio/fim da execu\u00e7\u00e3o.",
+        "Anexe evid\u00eancias e complete o checklist obrigat\u00f3rio.",
+        "Finalize com OS/Refer\u00eancia e observa\u00e7\u00f5es t\u00e9cnicas.",
+      ];
+    case "backlog":
+      return [
+        "Priorize pend\u00eancias e registre motivo de backlog.",
+        "Replaneje prazos conforme disponibilidade da equipe.",
+        "Acompanhe itens cr\u00edticos e atrasados.",
+      ];
+    case "solicitacoes":
+      return [
+        "Avalie solicita\u00e7\u00f5es pendentes e aprove ou recuse.",
+        "Registre justificativas de decis\u00e3o quando necess\u00e1rio.",
+        "Acompanhe o hist\u00f3rico de aprova\u00e7\u00f5es.",
+      ];
+    case "projetos":
+      return [
+        "Cadastre locais, equipamentos e equipes do projeto.",
+        "Atualize dados de cliente e escopo.",
+        "Defina respons\u00e1veis e par\u00e2metros padr\u00e3o.",
+      ];
+    case "desempenho":
+      return [
+        "Analise indicadores globais do projeto.",
+        "Compare resultados por per\u00edodo.",
+        "Identifique tend\u00eancias de execu\u00e7\u00e3o e backlog.",
+      ];
+    case "performance-projects":
+      return [
+        "Compare desempenho entre projetos ativos.",
+        "Use filtros para isolar contratos e clientes.",
+        "Avalie volume, SLA e criticidade.",
+      ];
+    case "performance-people":
+      return [
+        "Compare desempenho por colaborador.",
+        "Identifique gargalos e distribui\u00e7\u00e3o de carga.",
+        "Use os dados para reequilibrar a equipe.",
+      ];
+    case "tendencias":
+      return [
+        "Acompanhe KPIs e tend\u00eancias de longo prazo.",
+        "Ajuste filtros por categoria, prioridade e subesta\u00e7\u00e3o.",
+        "Exporte gr\u00e1ficos quando necess\u00e1rio.",
+      ];
+    case "relatorios":
+      return [
+        "Configure filtros e per\u00edodo antes de gerar o relat\u00f3rio.",
+        "Exporte em PDF ou Excel conforme necessidade.",
+        "Valide dados de OS e evid\u00eancias antes de compartilhar.",
+      ];
+    case "feedbacks":
+      return [
+        "Envie feedbacks objetivos com contexto operacional.",
+        "Acompanhe feedbacks recebidos e pendentes.",
+        "Priorize retornos cr\u00edticos da opera\u00e7\u00e3o.",
+      ];
+    case "rastreabilidade":
+      return [
+        "Consulte hist\u00f3rico de execu\u00e7\u00e3o e auditoria.",
+        "Abra registros para visualizar evid\u00eancias.",
+        "Use filtros para localizar OS espec\u00edficas.",
+      ];
+    case "gerencial":
+      return [
+        "Acesse configura\u00e7\u00f5es gerais e permiss\u00f5es.",
+        "Revise diagn\u00f3sticos e logs quando aplic\u00e1vel.",
+        "Gerencie modelos e integra\u00e7\u00f5es do sistema.",
+      ];
+    case "contas":
+      return [
+        "Cadastre usu\u00e1rios e defina cargos.",
+        "Ajuste permiss\u00f5es e status de acesso.",
+        "Acompanhe auditoria de altera\u00e7\u00f5es.",
+      ];
+    case "perfil":
+      return [
+        "Atualize seus dados e prefer\u00eancias.",
+        "Ajuste senha e foto conforme as pol\u00edticas.",
+        "Revise seus acessos e notificac\u00f5es.",
+      ];
+    default:
+      return [
+        `Revise os filtros e indicadores do m\u00f3dulo ${label}.`,
+        "Acesse detalhes nos cards e listas conforme sua permiss\u00e3o.",
+        "Confirme o projeto ativo antes de executar a\u00e7\u00f5es.",
+      ];
+  }
+}
+
+function getModuleExampleItems(moduleKey, moduleLabel) {
+  const label = moduleLabel || "m\u00f3dulo";
+  switch (moduleKey) {
+    case "inicio":
+      return [
+        "Verificar alertas cr\u00edticos e abrir Execu\u00e7\u00e3o do Dia.",
+        "Consultar pend\u00eancias e ir para Programa\u00e7\u00e3o.",
+      ];
+    case "programacao":
+      return [
+        "Filtrar por subesta\u00e7\u00e3o e reagendar uma atividade atrasada.",
+        "Liberar execu\u00e7\u00e3o e registrar observa\u00e7\u00e3o operacional.",
+      ];
+    case "nova":
+      return [
+        "Criar uma nova OS vinculada ao projeto ativo.",
+        "Anexar checklist e participantes antes de salvar.",
+      ];
+    case "modelos":
+      return [
+        "Criar modelo de inspe\u00e7\u00e3o mensal e ativ\u00e1-lo.",
+        "Editar campos padr\u00e3o de um modelo existente.",
+      ];
+    case "pmp":
+      return [
+        "Importar manuten\u00e7\u00f5es existentes e gerar cronograma anual.",
+        "Ajustar frequ\u00eancia de uma atividade cr\u00edtica.",
+      ];
+    case "execucao":
+      return [
+        "Registrar execu\u00e7\u00e3o de uma manuten\u00e7\u00e3o e anexar evid\u00eancias.",
+        "Encerrar atividade com OS/Refer\u00eancia e observa\u00e7\u00e3o t\u00e9cnica.",
+      ];
+    case "backlog":
+      return [
+        "Registrar motivo de backlog e replanejar prazo.",
+        "Priorizar itens cr\u00edticos para a pr\u00f3xima semana.",
+      ];
+    case "solicitacoes":
+      return [
+        "Aprovar solicita\u00e7\u00e3o de acesso de novo colaborador.",
+        "Recusar solicita\u00e7\u00e3o com justificativa registrada.",
+      ];
+    case "projetos":
+      return [
+        "Cadastrar um novo local de trabalho com cliente e equipe.",
+        "Atualizar dados de um equipamento do projeto.",
+      ];
+    case "desempenho":
+      return [
+        "Comparar KPI do m\u00eas atual com o m\u00eas anterior.",
+        "Identificar aumento de backlog e acionar equipe.",
+      ];
+    case "performance-projects":
+      return [
+        "Selecionar dois projetos e comparar SLA.",
+        "Analisar criticidade por contrato.",
+      ];
+    case "performance-people":
+      return [
+        "Ver ranking de colaboradores e ajustar escala.",
+        "Identificar sobrecarga em uma equipe.",
+      ];
+    case "tendencias":
+      return [
+        "Exportar gr\u00e1fico de tend\u00eancia trimestral.",
+        "Avaliar impacto de prioridade nos indicadores.",
+      ];
+    case "relatorios":
+      return [
+        "Gerar relat\u00f3rio mensal e exportar PDF.",
+        "Filtrar por respons\u00e1vel e exportar Excel.",
+      ];
+    case "feedbacks":
+      return [
+        "Enviar feedback sobre execu\u00e7\u00e3o conclu\u00edda.",
+        "Responder feedback recebido com a\u00e7\u00e3o corretiva.",
+      ];
+    case "rastreabilidade":
+      return [
+        "Buscar uma OS e abrir o hist\u00f3rico completo.",
+        "Validar evid\u00eancias anexadas em uma execu\u00e7\u00e3o.",
+      ];
+    case "gerencial":
+      return [
+        "Revisar logs e atualizar permiss\u00f5es.",
+        "Habilitar integra\u00e7\u00f5es conforme contrato.",
+      ];
+    case "contas":
+      return [
+        "Inativar usu\u00e1rio e ajustar cargo.",
+        "Atualizar permiss\u00f5es de um novo supervisor.",
+      ];
+    case "perfil":
+      return [
+        "Atualizar telefone e salvar altera\u00e7\u00f5es.",
+        "Trocar foto e confirmar.",
+      ];
+    default:
+      return [
+        `Executar uma a\u00e7\u00e3o comum no ${label}.`,
+        "Revisar detalhes antes de confirmar.",
+      ];
+  }
+}
+
+function buildHelpList(items = []) {
+  if (!items.length) {
+    return "<p class=\"help-empty\">Conte\u00fado indispon\u00edvel para este perfil.</p>";
+  }
+  return `<ul class=\"help-list\">${items
+    .map((item) => `<li>${escapeHtml(item)}</li>`)
+    .join("")}</ul>`;
+}
+
+function buildHelpGlossary(items = []) {
+  if (!items.length) {
+    return "";
+  }
+  return `<dl class=\"help-glossary\">${items
+    .map(
+      (item) =>
+        `<div class=\"help-glossary__item\"><dt>${escapeHtml(
+          item.term
+        )}</dt><dd>${escapeHtml(item.desc)}</dd></div>`
+    )
+    .join("")}</dl>`;
+}
+
+function renderHelpModal() {
+  if (!modalHelp || !helpContent || !helpTitle || !helpMeta) {
+    return;
+  }
+  const activeProject = getActiveProject();
+  const projectLabel = activeProject ? getProjectLabel(activeProject) : "Projeto n\u00e3o definido";
+  const moduleKey = getActiveTabKey();
+  const moduleLabel = getActiveTabLabel();
+  const profile = getHelpProfile(currentUser);
+  const cargoLabel = currentUser && String(currentUser.cargo || "").trim();
+  const profileLabel = cargoLabel || profile.label;
+  helpTitle.textContent = "Ajuda / Como usar";
+  helpMeta.textContent = `M\u00f3dulo: ${moduleLabel} \u2022 Projeto: ${projectLabel} \u2022 Perfil: ${profileLabel}`;
+
+  const navigationItems = [
+    "Use o menu lateral para alternar entre m\u00f3dulos.",
+    "Confira o breadcrumb para saber projeto e m\u00f3dulo atuais.",
+    "Utilize o seletor de projeto antes de executar a\u00e7\u00f5es.",
+    "Acesse notifica\u00e7\u00f5es e feedbacks no canto superior direito.",
+  ];
+
+  const bestPracticeItems = [
+    "Valide dados e evid\u00eancias antes de concluir uma execu\u00e7\u00e3o.",
+    "Registre observa\u00e7\u00f5es t\u00e9cnicas sempre que houver exce\u00e7\u00f5es.",
+    "Mantenha checklists atualizados e completos.",
+    "Revise o projeto ativo antes de salvar altera\u00e7\u00f5es.",
+  ];
+
+  const supportItems = [
+    "Central de Suporte OPSCOPE (abertura de chamados).",
+    "Base de conhecimento interna da opera\u00e7\u00e3o.",
+    "Contato com PCM/O&M respons\u00e1vel pelo projeto.",
+    "Pol\u00edticas e SLAs vigentes do contrato.",
+  ];
+
+  helpContent.innerHTML = `
+    <div class="help-intro">
+      <strong>\uD83E\uDDED AJUDA / COMO USAR A OPSCOPE</strong>
+      <p>Conte\u00fado contextual ao m\u00f3dulo atual e ao seu perfil de acesso.</p>
+    </div>
+    <section class="help-section">
+      <h4 class="help-section__title">\u2705 Vis\u00e3o Geral da OPSCOPE</h4>
+      <p class="help-section__text">
+        A OPSCOPE centraliza opera\u00e7\u00e3o, manuten\u00e7\u00e3o e relat\u00f3rios em um \u00fanico fluxo, garantindo rastreabilidade,
+        evid\u00eancias e padroniza\u00e7\u00e3o de processos.
+      </p>
+    </section>
+    <section class="help-section">
+      <h4 class="help-section__title">\uD83E\uDDED Navega\u00e7\u00e3o por Se\u00e7\u00e3o</h4>
+      ${buildHelpList(navigationItems)}
+    </section>
+    <section class="help-section">
+      <h4 class="help-section__title">\u2699\uFE0F Como usar o m\u00f3dulo atual</h4>
+      ${buildHelpList(getModuleHelpItems(moduleKey, moduleLabel))}
+      <div class="help-role">
+        <h5>Instru\u00e7\u00f5es para ${escapeHtml(profile.label)}</h5>
+        ${buildHelpList(profile.items)}
+      </div>
+    </section>
+    <section class="help-section">
+      <h4 class="help-section__title">\uD83D\uDCA1 Boas pr\u00e1ticas</h4>
+      ${buildHelpList(bestPracticeItems)}
+    </section>
+    <section class="help-section">
+      <h4 class="help-section__title">\uD83D\uDCD8 Gloss\u00e1rio de termos t\u00e9cnicos</h4>
+      ${buildHelpGlossary(HELP_GLOSSARY)}
+    </section>
+    <section class="help-section">
+      <h4 class="help-section__title">\uD83D\uDEE0\uFE0F Exemplos pr\u00e1ticos de uso</h4>
+      ${buildHelpList(getModuleExampleItems(moduleKey, moduleLabel))}
+    </section>
+    <section class="help-section">
+      <h4 class="help-section__title">\uD83D\uDD17 Links \u00fateis / suporte</h4>
+      ${buildHelpList(supportItems)}
+    </section>
+  `;
+}
+
+function openHelpModal() {
+  if (!modalHelp) {
+    return;
+  }
+  renderHelpModal();
+  modalHelp.hidden = false;
+}
+
+function closeHelpModal() {
+  if (!modalHelp) {
+    return;
+  }
+  modalHelp.hidden = true;
 }
 
 function getActiveProjectClient() {
@@ -16294,7 +16781,7 @@ function renderProjectSelector() {
   if (!availableProjects.length) {
     const opt = document.createElement("option");
     opt.value = "";
-    opt.textContent = "Sem locais";
+    opt.textContent = "Sem projetos";
     projectSelect.append(opt);
     projectSelect.disabled = true;
   } else {
@@ -16311,7 +16798,7 @@ function renderProjectSelector() {
     }
   }
   if (projectSelectLabel) {
-    projectSelectLabel.textContent = "Local ativo";
+    projectSelectLabel.textContent = "Projeto ativo";
   }
   if (projectManageBtn) {
     const canManage =
@@ -16322,8 +16809,7 @@ function renderProjectSelector() {
     projectManageBtn.hidden = !canManage;
   }
   if (crumbs) {
-    const activeProject = getActiveProject();
-    crumbs.textContent = activeProject ? activeProject.nome : "Projeto nao definido";
+    renderBreadcrumb();
   }
   renderProjectSelectOptions(manutencaoProjeto, activeProjectId);
   renderProjectSelectOptions(templateProjeto, activeProjectId);
@@ -20262,6 +20748,9 @@ function ativarTab(nome) {
   panels.forEach((panel) => {
     panel.classList.toggle("is-active", panel.dataset.panel === nome);
   });
+  if (crumbs) {
+    renderBreadcrumb();
+  }
 }
 
 async function apiLogin(login, senha) {
@@ -21152,6 +21641,36 @@ if (btnLembretes) {
   });
 }
 
+if (btnDashboard) {
+  btnDashboard.addEventListener("click", () => {
+    abrirPainelComCarregamento("inicio");
+  });
+}
+
+if (btnHelp) {
+  btnHelp.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (!currentUser) {
+      return;
+    }
+    openHelpModal();
+  });
+}
+
+if (btnHelpClose) {
+  btnHelpClose.addEventListener("click", () => {
+    closeHelpModal();
+  });
+}
+
+if (modalHelp) {
+  modalHelp.addEventListener("click", (event) => {
+    if (event.target === modalHelp) {
+      closeHelpModal();
+    }
+  });
+}
+
 if (btnUserMenu) {
   btnUserMenu.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -21225,6 +21744,7 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     fecharPainelLembretes();
     fecharUserMenu();
+    closeHelpModal();
   }
 });
 
