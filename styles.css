@@ -8153,6 +8153,29 @@ textarea:focus {
   flex-wrap: wrap;
 }
 
+.pmp-months {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 8px;
+}
+
+.pmp-month {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(120, 150, 175, 0.2);
+  background: rgba(12, 26, 40, 0.6);
+  font-size: 0.75rem;
+  color: rgba(230, 235, 245, 0.9);
+  cursor: pointer;
+}
+
+.pmp-month input {
+  accent-color: #22c55e;
+}
+
 .pmp-legend {
   position: sticky;
   top: 12px;
@@ -8166,6 +8189,15 @@ textarea:focus {
   border-radius: 12px;
   background: rgba(10, 20, 30, 0.85);
   border: 1px solid rgba(120, 150, 175, 0.18);
+}
+
+.pmp-type-legend {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  color: rgba(220, 230, 240, 0.8);
+  margin-top: 6px;
 }
 
 .pmp-status {
@@ -8207,6 +8239,53 @@ textarea:focus {
 
 .pmp-status--cancelled::before {
   background: #94a3b8;
+}
+
+.pmp-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 150, 175, 0.2);
+  background: rgba(15, 27, 40, 0.7);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pmp-type::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.pmp-type--preventiva::before {
+  background: #22c55e;
+}
+
+.pmp-type--corretiva::before {
+  background: #ef4444;
+}
+
+.pmp-type--preditiva::before {
+  background: #f59e0b;
+}
+
+.pmp-type--inspecao::before {
+  background: #3b82f6;
+}
+
+.pmp-type--outra::before {
+  background: #94a3b8;
+}
+
+.pmp-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .pmp-grid-wrap {
@@ -8313,7 +8392,7 @@ textarea:focus {
 
 .pmp-cell--empty {
   color: rgba(200, 210, 225, 0.5);
-  cursor: default;
+  cursor: pointer;
 }
 
 .pmp-grid .pmp-actions {
@@ -8358,6 +8437,14 @@ textarea:focus {
 .pmp-cell-detail {
   display: grid;
   gap: 16px;
+}
+
+.pmp-cell-form {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(120, 150, 175, 0.2);
+  display: grid;
+  gap: 12px;
 }
 
 .pmp-cell-section h4 {

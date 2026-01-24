@@ -829,6 +829,15 @@ function normalizePmpActivity(record) {
   const year = Number(record && record.ano ? record.ano : new Date().getFullYear());
   const origemRaw = String(record && record.origem ? record.origem : "").trim().toLowerCase();
   const origem = origemRaw === "importado" ? "importado" : "manual";
+  const mesesRaw = Array.isArray(record && record.meses ? record.meses : [])
+    ? record.meses
+    : [];
+  const meses = mesesRaw
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value) && value >= 0 && value <= 11);
+  const tipoManutencao = String(
+    record && (record.tipoManutencao || record.tipo) ? record.tipoManutencao || record.tipo : ""
+  ).trim();
   const checklistRaw = record && record.checklist ? record.checklist : [];
   const checklist = Array.isArray(checklistRaw)
     ? checklistRaw
@@ -857,7 +866,9 @@ function normalizePmpActivity(record) {
     descricao: String(record && record.descricao ? record.descricao : "").trim(),
     observacoes: String(record && record.observacoes ? record.observacoes : "").trim(),
     codigo: String(record && record.codigo ? record.codigo : "").trim(),
+    tipoManutencao,
     frequencia: String(record && record.frequencia ? record.frequencia : "").trim(),
+    meses,
     tecnicosEstimados: Math.max(0, Number(record && record.tecnicosEstimados ? record.tecnicosEstimados : 0) || 0),
     duracaoMinutos: parseDurationToMinutes(record && record.duracaoMinutos ? record.duracaoMinutos : record.duracao),
     responsavelId: String(record && record.responsavelId ? record.responsavelId : "").trim(),
@@ -875,6 +886,14 @@ function normalizePmpActivity(record) {
 
 function normalizePmpExecution(record) {
   const now = new Date().toISOString();
+  const evidenciasRaw = record && record.evidencias ? record.evidencias : [];
+  const evidencias = Array.isArray(evidenciasRaw)
+    ? evidenciasRaw.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+  const checklistRaw = record && record.checklist ? record.checklist : [];
+  const checklist = Array.isArray(checklistRaw)
+    ? checklistRaw.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
   return {
     id: record && record.id ? String(record.id) : crypto.randomUUID(),
     activityId: String(record && record.activityId ? record.activityId : "").trim(),
@@ -888,6 +907,8 @@ function normalizePmpExecution(record) {
     osId: String(record && record.osId ? record.osId : "").trim(),
     rdoId: String(record && record.rdoId ? record.rdoId : "").trim(),
     observacao: String(record && record.observacao ? record.observacao : "").trim(),
+    evidencias,
+    checklist,
     createdAt: record && record.createdAt ? record.createdAt : now,
     updatedAt: record && record.updatedAt ? record.updatedAt : now,
   };

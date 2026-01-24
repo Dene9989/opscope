@@ -1711,20 +1711,31 @@
               <h4>Identificacao</h4>
               <p>Nome, codigo, projeto e equipamento.</p>
             </div>
-            <div class="form-grid">
-              <div class="field">
-                <label for="pmpNome">Nome da atividade</label>
-                <input id="pmpNome" type="text" placeholder="Inspecao termografica" required />
-              </div>
-              <div class="field">
-                <label for="pmpCodigo">Codigo / Tag</label>
-                <input id="pmpCodigo" type="text" placeholder="PM-INV-001" />
-              </div>
-              <div class="field">
-                <label for="pmpProjeto">Projeto</label>
-                <select id="pmpProjeto" required>
-                  <option value="">Selecione</option>
-                </select>
+              <div class="form-grid">
+                <div class="field">
+                  <label for="pmpNome">Nome da atividade</label>
+                  <input id="pmpNome" type="text" placeholder="Inspecao termografica" required />
+                </div>
+                <div class="field">
+                  <label for="pmpCodigo">Codigo / Tag</label>
+                  <input id="pmpCodigo" type="text" placeholder="PM-INV-001" />
+                </div>
+                <div class="field">
+                  <label for="pmpTipo">Tipo da manutencao</label>
+                  <select id="pmpTipo">
+                    <option value="">Selecione</option>
+                    <option value="preventiva">Preventiva</option>
+                    <option value="corretiva">Corretiva</option>
+                    <option value="preditiva">Preditiva</option>
+                    <option value="inspecao">Inspecao</option>
+                    <option value="outra">Outra</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="pmpProjeto">Projeto</label>
+                  <select id="pmpProjeto" required>
+                    <option value="">Selecione</option>
+                  </select>
               </div>
               <div class="field">
                 <label for="pmpEquipamento">Equipamento vinculado</label>
@@ -1741,10 +1752,10 @@
               <p>Periodicidade e inicio da vigencia.</p>
             </div>
             <div class="form-grid">
-              <div class="field">
-                <label for="pmpFrequencia">Frequencia</label>
-                <select id="pmpFrequencia" required>
-                  <option value="">Selecione</option>
+                <div class="field">
+                  <label for="pmpFrequencia">Frequencia</label>
+                  <select id="pmpFrequencia" required>
+                    <option value="">Selecione</option>
                   <option value="diaria">Diaria</option>
                   <option value="semanal">Semanal</option>
                   <option value="mensal">Mensal</option>
@@ -1756,12 +1767,17 @@
                   <option value="trienal">Trienal</option>
                 </select>
               </div>
-              <div class="field">
-                <label for="pmpInicio">Inicio da vigencia</label>
-                <input id="pmpInicio" type="date" />
+                <div class="field">
+                  <label for="pmpInicio">Inicio da vigencia</label>
+                  <input id="pmpInicio" type="date" />
+                </div>
+                <div class="field" data-full>
+                  <label for="pmpMeses">Meses de execucao</label>
+                  <div id="pmpMeses" class="pmp-months"></div>
+                  <small class="hint">Se nenhum mes for desmarcado, vale o ano inteiro.</small>
+                </div>
               </div>
             </div>
-          </div>
 
           <div class="pmp-form-section">
             <div class="section-title">
@@ -1852,6 +1868,13 @@
           <span class="pmp-status pmp-status--late">Fora da janela</span>
           <span class="pmp-status pmp-status--empty">Nao prevista</span>
           <span class="pmp-status pmp-status--cancelled">Cancelada</span>
+        </div>
+        <div class="pmp-type-legend">
+          <span class="pmp-type pmp-type--preventiva">Preventiva</span>
+          <span class="pmp-type pmp-type--corretiva">Corretiva</span>
+          <span class="pmp-type pmp-type--preditiva">Preditiva</span>
+          <span class="pmp-type pmp-type--inspecao">Inspecao</span>
+          <span class="pmp-type pmp-type--outra">Outra</span>
         </div>
 
         <div class="pmp-grid-wrap">
@@ -4092,7 +4115,39 @@
               <p id="pmpCellProcedimentos" class="pmp-cell-text">-</p>
             </div>
           </div>
+          <div class="pmp-cell-form">
+            <h4>Editar execucao</h4>
+            <div class="form-grid">
+              <div class="field">
+                <label for="pmpCellScheduled">Data prevista</label>
+                <input id="pmpCellScheduled" type="date" />
+              </div>
+              <div class="field">
+                <label for="pmpCellExecuted">Data executada</label>
+                <input id="pmpCellExecuted" type="date" />
+              </div>
+              <div class="field">
+                <label for="pmpCellExecutor">Tecnico responsavel</label>
+                <select id="pmpCellExecutor"></select>
+              </div>
+              <div class="field" data-full>
+                <label for="pmpCellObsInput">Observacao da execucao</label>
+                <textarea id="pmpCellObsInput" rows="2" placeholder="Observacoes da execucao"></textarea>
+              </div>
+              <div class="field" data-full>
+                <label for="pmpCellEvidenciasInput">Evidencias (uma por linha)</label>
+                <textarea id="pmpCellEvidenciasInput" rows="2" placeholder="Links, arquivos ou IDs"></textarea>
+              </div>
+              <div class="field" data-full>
+                <label for="pmpCellChecklistInput">Checklist da execucao (uma por linha)</label>
+                <textarea id="pmpCellChecklistInput" rows="2" placeholder="Itens executados"></textarea>
+              </div>
+            </div>
+          </div>
           <div class="modal__actions">
+            <button id="pmpCellSave" class="btn btn--primary" type="button">Salvar execucao</button>
+            <button id="pmpCellRemove" class="btn btn--ghost btn--danger" type="button">Remover execucao</button>
+            <button id="pmpCellUnset" class="btn btn--ghost" type="button">Nao prevista</button>
             <button id="pmpCellMarkCancel" class="btn btn--ghost btn--danger" type="button">Marcar cancelada</button>
             <button id="pmpCellClose" class="btn btn--ghost" type="button">Fechar</button>
           </div>
