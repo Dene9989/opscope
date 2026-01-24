@@ -7732,6 +7732,31 @@ textarea:focus {
   color: #5b6772;
 }
 
+.app-shell ~ .footer.auth-only {
+  position: relative;
+  padding-left: calc(var(--sidebar-width) + 20px);
+}
+
+.app-shell ~ .footer.auth-only::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--sidebar-width);
+  background: var(--sb-bg);
+  border-right: 1px solid var(--sb-border);
+  pointer-events: none;
+}
+
+.app-shell.is-collapsed ~ .footer.auth-only {
+  padding-left: calc(var(--sidebar-collapsed) + 20px);
+}
+
+.app-shell.is-collapsed ~ .footer.auth-only::before {
+  width: var(--sidebar-collapsed);
+}
+
 @keyframes floatIn {
   from {
     opacity: 0;
@@ -7868,6 +7893,14 @@ textarea:focus {
 }
 
 @media (max-width: 1023px) {
+  .app-shell ~ .footer.auth-only {
+    padding-left: 20px;
+  }
+
+  .app-shell ~ .footer.auth-only::before {
+    display: none;
+  }
+
   .app,
   .app-shell {
     grid-template-columns: 1fr;
