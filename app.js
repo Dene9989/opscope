@@ -3086,7 +3086,7 @@ function renderFilesList() {
     preview.className = "file-preview";
     if (String(file.mime || "").startsWith("image/")) {
       const img = document.createElement("img");
-      img.src = file.url;
+      img.src = resolvePublicUrl(file.url);
       img.alt = file.originalName || file.name;
       preview.append(img);
     } else {
@@ -3111,7 +3111,7 @@ function renderFilesList() {
     const actions = document.createElement("div");
     actions.className = "file-actions";
     const open = document.createElement("a");
-    open.href = file.url;
+    open.href = resolvePublicUrl(file.url);
     open.target = "_blank";
     open.rel = "noopener";
     open.className = "btn btn--ghost btn--small";
@@ -4723,6 +4723,22 @@ function base64ToBlob(base64, mimeType) {
   return new Blob(slices, { type: mimeType || "application/octet-stream" });
 }
 
+function isAbsoluteUrl(url) {
+  return /^https?:\/\//i.test(url || "");
+}
+
+function resolvePublicUrl(url) {
+  if (!url) {
+    return "";
+  }
+  if (isAbsoluteUrl(url) || url.startsWith("data:")) {
+    return url;
+  }
+  const base = API_BASE ? API_BASE.replace(/\/$/, "") : window.location.origin;
+  const path = url.startsWith("/") ? url : `/${url}`;
+  return `${base}${path}`;
+}
+
 function openInNewTab(url) {
   if (!url) {
     return;
@@ -4785,7 +4801,7 @@ async function abrirDocumento(doc) {
     window.alert("Documento nao encontrado.");
     return;
   }
-  const url = dataUrl || doc.url;
+  const url = resolvePublicUrl(dataUrl || doc.url);
   if (!url) {
     window.alert("Documento nao encontrado.");
     return;
@@ -15230,7 +15246,7 @@ function normalizePmpProcedimentoDoc(doc) {
   if (!doc || typeof doc !== "object") {
     return null;
   }
-  const url = String(doc.url || doc.dataUrl || "").trim();
+  const url = resolvePublicUrl(String(doc.url || doc.dataUrl || "").trim());
   if (!url) {
     return null;
   }
