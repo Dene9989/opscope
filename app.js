@@ -22401,9 +22401,9 @@ if (equipamentoFormProject) {
   });
 }
 
-if (projectManageBtn) {
+if (projectManageBtn && !projectManageBtn.dataset.tab) {
   projectManageBtn.addEventListener("click", () => {
-    ativarTab("projetos");
+    abrirPainelComCarregamento("projetos");
   });
 }
 

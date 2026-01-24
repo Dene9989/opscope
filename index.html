@@ -934,6 +934,27 @@
               <span class="nav-group__chev">&#9662;</span>
             </button>
             <div class="nav-group__body">
+              <button
+                id="projectManageBtn"
+                class="nav-item"
+                type="button"
+                data-tab="projetos"
+                data-tooltip="Gerenciar Projeto"
+              >
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M4 6h6l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Gerenciar Projeto</span>
+                <span class="nav-item__meta"></span>
+              </button>
               <button class="nav-item" type="button" data-tab="gerencial" data-tooltip="Configura&ccedil;&otilde;es Gerais" data-admin-only>
                 <span class="nav-item__ico">
                   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -1011,16 +1032,13 @@
               <span>Ajuda / Como usar</span>
             </button>
             <div class="project-switcher">
-              <label class="project-switcher__label" id="projectSelectLabel" for="projectSelect">Projeto ativo</label>
+              <label class="project-switcher__label visually-hidden" id="projectSelectLabel" for="projectSelect">Projeto ativo</label>
               <div class="project-switcher__control">
                 <select id="projectSelect" aria-label="Selecionar projeto ativo">
                   <option value="">Sem projetos</option>
                 </select>
               </div>
             </div>
-            <button id="projectManageBtn" class="btn btn--ghost btn--small" type="button">
-              Gerenciar Projeto
-            </button>
             <div class="notify">
               <button
                 id="btnBell"

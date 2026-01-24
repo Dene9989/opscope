@@ -544,7 +544,7 @@ h1 {
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-shrink: 0;
 }
 
@@ -552,7 +552,7 @@ h1 {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 220px;
+  min-width: 200px;
 }
 
 .project-switcher__label {
@@ -565,7 +565,19 @@ h1 {
 .project-switcher__control {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+}
+
+.visually-hidden {
+  border: 0;
+  clip: rect(0 0 0 0);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  width: 1px;
+  white-space: nowrap;
 }
 
 .project-switcher select {
