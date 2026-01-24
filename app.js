@@ -5331,10 +5331,17 @@ function renderLembretes() {
     if (changed) {
       saveReadNotificationIds(readSet);
     }
-    const total = proximos.filter(({ item }) => !readSet.has(String(item.id))).length;
-    lembretesCount.textContent = lembretesCount.id === "bellDot" ? "" : total;
-    lembretesCount.hidden = total === 0;
-    lembretesCount.classList.toggle("is-zero", total === 0);
+    const total = proximos.length;
+    const unreadTotal = proximos.filter(({ item }) => !readSet.has(String(item.id))).length;
+    if (lembretesCount.id === "bellDot") {
+      lembretesCount.textContent = "";
+      lembretesCount.hidden = total === 0;
+      lembretesCount.classList.toggle("is-zero", total === 0);
+    } else {
+      lembretesCount.textContent = unreadTotal;
+      lembretesCount.hidden = unreadTotal === 0;
+      lembretesCount.classList.toggle("is-zero", unreadTotal === 0);
+    }
   }
 
   if (proximos.length === 0) {
@@ -7051,12 +7058,13 @@ function marcarFeedbacksComoLidos(userId) {
 function atualizarFeedbackBadge() {
   const userId = currentUser ? currentUser.id : "";
   const unread = feedbacks.filter((item) => item.to === userId && !item.readAt).length;
+  const total = feedbacks.filter((item) => item.to === userId).length;
   if (feedbackBadge) {
     feedbackBadge.textContent = String(unread);
     feedbackBadge.hidden = unread === 0;
   }
   if (feedbackInboxDot) {
-    feedbackInboxDot.hidden = unread === 0;
+    feedbackInboxDot.hidden = total === 0;
   }
 }
 
@@ -7077,11 +7085,11 @@ function renderFeedbackInbox() {
   feedbackInboxEmpty.hidden = true;
   recebidos.forEach((item) => {
     const row = document.createElement("div");
-    row.className = "feedback-inbox-item";
+    row.className = `feedback-inbox-item${item.readAt ? "" : " is-unread"}`;
     const createdAt = item.createdAt ? formatDateTime(parseTimestamp(item.createdAt)) : "-";
     row.innerHTML = `
       <strong>${escapeHtml(getUserLabel(item.from) || "-")}</strong>
-      <span>${escapeHtml(item.message || "").slice(0, 60)}...</span>
+      <span>${escapeHtml(item.message || "").slice(0, 60)}${item.message && item.message.length > 60 ? "..." : ""}</span>
       <small>${escapeHtml(createdAt)}</small>
     `;
     feedbackInboxList.append(row);
