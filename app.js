@@ -240,6 +240,7 @@ const pmpProjeto = document.getElementById("pmpProjeto");
 const pmpEquipamento = document.getElementById("pmpEquipamento");
 const pmpFrequencia = document.getElementById("pmpFrequencia");
 const pmpInicio = document.getElementById("pmpInicio");
+const pmpOnlyWeekdays = document.getElementById("pmpOnlyWeekdays");
 const pmpMesesWrap = document.getElementById("pmpMeses");
 const pmpTecnicos = document.getElementById("pmpTecnicos");
 const pmpDuracao = document.getElementById("pmpDuracao");
@@ -13078,6 +13079,18 @@ function getPmpTipoInfo(value) {
   return PMP_TIPOS.find((item) => item.value === normalized) || null;
 }
 
+function isWeekend(date) {
+  if (!date) {
+    return false;
+  }
+  const day = date.getDay();
+  return day === 0 || day === 6;
+}
+
+function shouldSkipWeekend(activity, date) {
+  return Boolean(activity && activity.onlyWeekdays) && isWeekend(date);
+}
+
 function parseDurationToMinutes(value) {
   if (typeof value === "number" && Number.isFinite(value)) {
     return Math.max(0, Math.round(value));
@@ -13305,6 +13318,9 @@ function getScheduledMonths(activity, year) {
       return new Set();
     }
     const result = new Set([startMonth]);
+    if (shouldSkipWeekend(activity, getScheduledDateForMonth(activity, year, startMonth))) {
+      return new Set();
+    }
     if (allowed) {
       return new Set(Array.from(result).filter((month) => allowed.has(month)));
     }
@@ -13317,6 +13333,10 @@ function getScheduledMonths(activity, year) {
       if (year === startYear && m < startMonth) {
         continue;
       }
+      const date = getScheduledDateForMonth(activity, year, m);
+      if (shouldSkipWeekend(activity, date)) {
+        continue;
+      }
       months.add(m);
     }
     if (allowed) {
@@ -13327,6 +13347,10 @@ function getScheduledMonths(activity, year) {
   const months = new Set();
   const first = year === startYear ? startMonth : 0;
   for (let m = first; m < 12; m += 1) {
+    const date = getScheduledDateForMonth(activity, year, m);
+    if (shouldSkipWeekend(activity, date)) {
+      continue;
+    }
     months.add(m);
   }
   if (allowed) {
@@ -13361,6 +13385,9 @@ function getScheduledDays(activity, year, monthIndex) {
       if (date < start) {
         continue;
       }
+      if (shouldSkipWeekend(activity, date)) {
+        continue;
+      }
       days.add(day);
     }
     return days;
@@ -13370,6 +13397,9 @@ function getScheduledDays(activity, year, monthIndex) {
     for (let day = 1; day <= daysInMonth; day += 1) {
       const date = new Date(year, monthIndex, day);
       if (date < start || date.getDay() !== startDow) {
+        continue;
+      }
+      if (shouldSkipWeekend(activity, date)) {
         continue;
       }
       if (freq.interval > 1) {
@@ -13393,6 +13423,9 @@ function getScheduledDays(activity, year, monthIndex) {
     if (date < start) {
       return new Set();
     }
+    if (shouldSkipWeekend(activity, date)) {
+      return new Set();
+    }
     days.add(day);
     return days;
   }
@@ -13407,6 +13440,9 @@ function getScheduledDays(activity, year, monthIndex) {
     const day = Math.min(startDay, daysInMonth);
     const date = new Date(year, monthIndex, day);
     if (date < start) {
+      return new Set();
+    }
+    if (shouldSkipWeekend(activity, date)) {
       return new Set();
     }
     days.add(day);
@@ -13441,6 +13477,9 @@ function getScheduledWeeks(activity, year, weeks) {
       const startDow = start.getDay();
       const offset = (startDow + 6) % 7;
       const scheduledDate = addDays(week.start, offset);
+      if (shouldSkipWeekend(activity, scheduledDate)) {
+        return;
+      }
       if (allowed && !allowed.has(scheduledDate.getMonth())) {
         return;
       }
@@ -13464,6 +13503,9 @@ function getScheduledWeeks(activity, year, weeks) {
       return weeksSet;
     }
     const date = getScheduledDateForMonth(activity, year, start.getMonth());
+    if (shouldSkipWeekend(activity, date)) {
+      return weeksSet;
+    }
     if (allowed && !allowed.has(date.getMonth())) {
       return weeksSet;
     }
@@ -14332,6 +14374,9 @@ function resetPmpForm() {
   if (pmpInicio) {
     pmpInicio.value = "";
   }
+  if (pmpOnlyWeekdays) {
+    pmpOnlyWeekdays.checked = false;
+  }
   if (pmpTecnicos) {
     pmpTecnicos.value = "0";
   }
@@ -14394,6 +14439,9 @@ function preencherPmpForm(activity) {
   if (pmpInicio) {
     pmpInicio.value = activity.inicio || "";
   }
+  if (pmpOnlyWeekdays) {
+    pmpOnlyWeekdays.checked = Boolean(activity.onlyWeekdays);
+  }
   if (pmpTecnicos) {
     pmpTecnicos.value = Number(activity.tecnicosEstimados || 0);
   }
@@ -14453,6 +14501,7 @@ async function salvarPmpActivity(event) {
     equipamentoId: pmpEquipamento ? pmpEquipamento.value : "",
     frequencia,
     inicio: pmpInicio ? pmpInicio.value : "",
+    onlyWeekdays: pmpOnlyWeekdays ? Boolean(pmpOnlyWeekdays.checked) : false,
     meses: getPmpSelectedMeses(),
     tecnicosEstimados: pmpTecnicos ? Number(pmpTecnicos.value || 0) : 0,
     duracaoMinutos: parseDurationToMinutes(pmpDuracao ? pmpDuracao.value : ""),

@@ -8478,8 +8478,32 @@ textarea:focus {
   border: 1px solid rgba(120, 150, 175, 0.35);
 }
 
+#modalPmpCell .modal__header {
+  position: sticky;
+  top: 0;
+  background: #0f1c2a;
+  padding-top: 4px;
+  padding-bottom: 10px;
+  z-index: 2;
+}
+
 #modalPmpCell .modal__header .hint {
   color: rgba(220, 230, 240, 0.7);
+}
+
+#modalPmpCell .btn--ghost {
+  color: #e8eef5;
+  border-color: rgba(232, 238, 245, 0.3);
+}
+
+#modalPmpCell .btn--ghost.btn--danger {
+  color: #f0a382;
+  border-color: rgba(240, 163, 130, 0.55);
+}
+
+#modalPmpCell .btn--ghost:hover {
+  background: rgba(232, 238, 245, 0.08);
+  box-shadow: none;
 }
 
 #modalPmpCell .modal__form label,

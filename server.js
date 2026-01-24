@@ -833,6 +833,7 @@ function normalizePmpActivity(record) {
   const meses = mesesRaw
     .map((value) => Number(value))
     .filter((value) => Number.isFinite(value) && value >= 0 && value <= 11);
+  const onlyWeekdays = Boolean(record && record.onlyWeekdays);
   const tipoManutencao = String(
     record && (record.tipoManutencao || record.tipo) ? record.tipoManutencao || record.tipo : ""
   ).trim();
@@ -867,6 +868,7 @@ function normalizePmpActivity(record) {
     tipoManutencao,
     frequencia: String(record && record.frequencia ? record.frequencia : "").trim(),
     meses,
+    onlyWeekdays,
     tecnicosEstimados: Math.max(0, Number(record && record.tecnicosEstimados ? record.tecnicosEstimados : 0) || 0),
     duracaoMinutos: parseDurationToMinutes(record && record.duracaoMinutos ? record.duracaoMinutos : record.duracao),
     responsavelId: String(record && record.responsavelId ? record.responsavelId : "").trim(),
