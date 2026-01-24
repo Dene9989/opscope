@@ -829,9 +829,7 @@ function normalizePmpActivity(record) {
   const year = Number(record && record.ano ? record.ano : new Date().getFullYear());
   const origemRaw = String(record && record.origem ? record.origem : "").trim().toLowerCase();
   const origem = origemRaw === "importado" ? "importado" : "manual";
-  const mesesRaw = Array.isArray(record && record.meses ? record.meses : [])
-    ? record.meses
-    : [];
+  const mesesRaw = Array.isArray(record && record.meses) ? record.meses : [];
   const meses = mesesRaw
     .map((value) => Number(value))
     .filter((value) => Number.isFinite(value) && value >= 0 && value <= 11);
