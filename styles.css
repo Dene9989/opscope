@@ -4953,8 +4953,9 @@ select {
   gap: 8px;
   padding: 10px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--line);
-  background: var(--color-surface-alt);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #0f2436;
+  color: var(--text);
 }
 
 .rich-editor:focus-within {
@@ -4971,6 +4972,7 @@ select {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: #0c1f30;
   font-family: inherit;
+  color: var(--text);
 }
 
 .rich-toolbar__group {
@@ -4981,8 +4983,8 @@ select {
 
 .rich-btn {
   border: 1px solid rgba(255, 255, 255, 0.12);
-  background: #0f2436;
-  color: var(--ink);
+  background: #10273b;
+  color: inherit;
   border-radius: 6px;
   padding: 6px 8px;
   font-size: 0.8rem;
@@ -5000,8 +5002,8 @@ select {
 
 .rich-select {
   border: 1px solid rgba(255, 255, 255, 0.12);
-  background: #0f2436;
-  color: var(--ink);
+  background: #10273b;
+  color: inherit;
   border-radius: 6px;
   padding: 6px 8px;
   font-size: 0.8rem;
@@ -5013,7 +5015,8 @@ select {
   border-radius: 8px;
   border: 1px dashed rgba(255, 255, 255, 0.2);
   background: #0b1a28;
-  color: var(--ink);
+  color: inherit;
+  caret-color: currentColor;
   line-height: 1.6;
   white-space: pre-wrap;
   font-family: inherit;
@@ -5027,7 +5030,11 @@ select {
 
 .rich-editor__content:empty::before {
   content: attr(data-placeholder);
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.rich-editor__content * {
+  color: inherit;
 }
 
 input[type="text"],
