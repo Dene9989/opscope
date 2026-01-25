@@ -8,6 +8,11 @@ const equipamentoManutencao = document.getElementById("equipamentoManutencao");
 const dataManutencao = document.getElementById("dataManutencao");
 const futuraManutencao = document.getElementById("futuraManutencao");
 const obsManutencao = document.getElementById("obsManutencao");
+const obsManutencaoEditor = document.getElementById("obsManutencaoEditor");
+const obsManutencaoHtml = document.getElementById("obsManutencaoHtml");
+const obsManutencaoToolbar = document.querySelector(
+  "[data-rich-toolbar='obsManutencao']"
+);
 const categoriaManutencao = document.getElementById("categoriaManutencao");
 const prioridadeManutencao = document.getElementById("prioridadeManutencao");
 const osReferenciaManutencao = document.getElementById("osReferenciaManutencao");
@@ -3260,6 +3265,98 @@ function setFieldError(element, mensagem) {
   element.hidden = true;
 }
 
+function syncObsEditor(forceSanitize = false) {
+  if (!obsManutencaoEditor || !obsManutencaoHtml || !obsManutencao) {
+    return;
+  }
+  const raw = obsManutencaoEditor.innerHTML || "";
+  const sanitized = forceSanitize ? sanitizeRichText(raw) : raw;
+  if (forceSanitize && raw !== sanitized) {
+    obsManutencaoEditor.innerHTML = sanitized;
+  }
+  obsManutencaoHtml.value = sanitized;
+  obsManutencao.value = stripHtml(sanitized).trim();
+}
+
+function setObsEditorContent({ html = "", text = "" } = {}) {
+  if (!obsManutencaoEditor || !obsManutencaoHtml || !obsManutencao) {
+    return;
+  }
+  const sanitized = html ? sanitizeRichText(html) : "";
+  obsManutencaoEditor.innerHTML = sanitized || "";
+  if (!sanitized && text) {
+    obsManutencaoEditor.textContent = text;
+  }
+  obsManutencaoHtml.value = sanitized;
+  obsManutencao.value = (text || stripHtml(sanitized)).trim();
+}
+
+function initRichEditors() {
+  if (!obsManutencaoEditor || !obsManutencaoToolbar || !obsManutencao) {
+    return;
+  }
+  try {
+    document.execCommand("defaultParagraphSeparator", false, "p");
+  } catch (error) {
+    // ignore
+  }
+  obsManutencaoEditor.addEventListener("input", () => {
+    syncObsEditor(false);
+  });
+  obsManutencaoEditor.addEventListener("blur", () => {
+    syncObsEditor(true);
+  });
+  obsManutencaoEditor.addEventListener("paste", (event) => {
+    if (!event.clipboardData) {
+      return;
+    }
+    const html = event.clipboardData.getData("text/html");
+    const text = event.clipboardData.getData("text/plain");
+    if (!html && !text) {
+      return;
+    }
+    event.preventDefault();
+    if (html) {
+      const sanitized = sanitizeRichText(html);
+      document.execCommand("insertHTML", false, sanitized);
+      syncObsEditor(false);
+      return;
+    }
+    document.execCommand("insertText", false, text);
+    syncObsEditor(false);
+  });
+  obsManutencaoToolbar.addEventListener("click", (event) => {
+    const btn = event.target.closest("button[data-cmd]");
+    if (!btn) {
+      return;
+    }
+    event.preventDefault();
+    const cmd = btn.dataset.cmd;
+    let value = btn.dataset.value || null;
+    if (cmd === "formatBlock" && value && !value.startsWith("<")) {
+      value = `<${value}>`;
+    }
+    document.execCommand(cmd, false, value);
+    obsManutencaoEditor.focus();
+    syncObsEditor(false);
+  });
+  obsManutencaoToolbar.addEventListener("change", (event) => {
+    const select = event.target.closest("select[data-cmd]");
+    if (!select) {
+      return;
+    }
+    const cmd = select.dataset.cmd;
+    const value = select.value;
+    if (value) {
+      document.execCommand(cmd, false, value);
+      select.value = "";
+      obsManutencaoEditor.focus();
+      syncObsEditor(false);
+    }
+  });
+  syncObsEditor(true);
+}
+
 function clearTemplateErrors() {
   setFieldError(templateNomeErro, "");
   setFieldError(templateInicioErro, "");
@@ -3910,8 +4007,17 @@ function atualizarTipoSelecionado() {
     if (template && subestacaoManutencao) {
       subestacaoManutencao.value = template.subestacao || subestacaoManutencao.value;
     }
-    if (template && obsManutencao && !obsManutencao.value && template.observacao) {
-      obsManutencao.value = template.observacao;
+    if (
+      template &&
+      obsManutencao &&
+      !obsManutencao.value &&
+      (!obsManutencaoHtml || !obsManutencaoHtml.value) &&
+      (template.observacao || template.observacaoHtml)
+    ) {
+      setObsEditorContent({
+        html: template.observacaoHtml || "",
+        text: template.observacao || "",
+      });
     }
   }
 }
@@ -6208,10 +6314,15 @@ function criarCardManutencao(item, permissoes, options = {}) {
     info.append(alerta);
   }
 
-  if (item.observacao) {
-    const obs = document.createElement("p");
-    obs.className = "obs";
-    obs.textContent = item.observacao;
+  if (item.observacao || item.observacaoHtml) {
+    const obs = document.createElement("div");
+    if (item.observacaoHtml) {
+      obs.className = "obs obs--rich";
+      obs.innerHTML = sanitizeRichText(item.observacaoHtml);
+    } else {
+      obs.className = "obs";
+      obs.textContent = item.observacao;
+    }
     info.append(obs);
   }
 
@@ -10602,6 +10713,142 @@ function escapeHtml(valor) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+function stripHtml(html) {
+  const container = document.createElement("div");
+  container.innerHTML = html || "";
+  return container.textContent || "";
+}
+
+function sanitizeRichText(html) {
+  const allowedTags = new Set([
+    "B",
+    "STRONG",
+    "I",
+    "EM",
+    "U",
+    "P",
+    "BR",
+    "UL",
+    "OL",
+    "LI",
+    "BLOCKQUOTE",
+    "H3",
+    "DIV",
+    "SPAN",
+    "FONT",
+  ]);
+  const allowedFonts = new Set(["Segoe UI", "Arial", "Georgia", "Courier New"]);
+  const allowedSizes = new Set(["2", "3", "4", "5", "6"]);
+  const allowedStyleProps = new Set([
+    "font-family",
+    "font-size",
+    "font-weight",
+    "font-style",
+    "text-decoration",
+  ]);
+
+  const root = document.createElement("div");
+  root.innerHTML = html || "";
+
+  const cleanNode = (node) => {
+    Array.from(node.childNodes).forEach((child) => {
+      if (child.nodeType === Node.COMMENT_NODE) {
+        child.remove();
+        return;
+      }
+      if (child.nodeType === Node.TEXT_NODE) {
+        return;
+      }
+      if (child.nodeType !== Node.ELEMENT_NODE) {
+        child.remove();
+        return;
+      }
+      const tag = child.tagName.toUpperCase();
+      if (!allowedTags.has(tag)) {
+        const fragment = document.createDocumentFragment();
+        while (child.firstChild) {
+          fragment.append(child.firstChild);
+        }
+        child.replaceWith(fragment);
+        return;
+      }
+
+      if (tag === "FONT") {
+        const face = child.getAttribute("face") || "";
+        const size = child.getAttribute("size") || "";
+        Array.from(child.attributes).forEach((attr) => {
+          if (!["face", "size"].includes(attr.name)) {
+            child.removeAttribute(attr.name);
+          }
+        });
+        if (face && !allowedFonts.has(face)) {
+          child.removeAttribute("face");
+        }
+        if (size && !allowedSizes.has(size)) {
+          child.removeAttribute("size");
+        }
+      } else if (tag === "SPAN") {
+        const style = child.getAttribute("style") || "";
+        if (style) {
+          const safeStyles = [];
+          style.split(";").forEach((rule) => {
+            const [rawProp, rawValue] = rule.split(":");
+            if (!rawProp || !rawValue) {
+              return;
+            }
+            const prop = rawProp.trim().toLowerCase();
+            const value = rawValue.trim();
+            if (!allowedStyleProps.has(prop)) {
+              return;
+            }
+            if (prop === "font-family") {
+              const font = value.replace(/['\"]/g, "");
+              if (!allowedFonts.has(font)) {
+                return;
+              }
+              safeStyles.push(`font-family:${font}`);
+              return;
+            }
+            if (prop === "font-size") {
+              const px = value.replace("px", "");
+              const pxVal = Number(px);
+              if (!Number.isFinite(pxVal) || pxVal < 10 || pxVal > 22) {
+                return;
+              }
+              safeStyles.push(`font-size:${pxVal}px`);
+              return;
+            }
+            if (prop === "text-decoration") {
+              if (value.toLowerCase().includes("underline")) {
+                safeStyles.push("text-decoration: underline");
+              }
+              return;
+            }
+            safeStyles.push(`${prop}:${value}`);
+          });
+          if (safeStyles.length) {
+            child.setAttribute("style", safeStyles.join("; "));
+          } else {
+            child.removeAttribute("style");
+          }
+        }
+        Array.from(child.attributes).forEach((attr) => {
+          if (attr.name !== "style") {
+            child.removeAttribute(attr.name);
+          }
+        });
+      } else {
+        Array.from(child.attributes).forEach((attr) => child.removeAttribute(attr.name));
+      }
+
+      cleanNode(child);
+    });
+  };
+
+  cleanNode(root);
+  return root.innerHTML;
 }
 
 function hashString(valor) {
@@ -18211,7 +18458,16 @@ async function adicionarManutencao() {
   if (dataManutencao && !dataManutencao.value) {
     dataManutencao.value = data;
   }
-  const observacao = obsManutencao ? obsManutencao.value.trim() : "";
+  if (obsManutencaoEditor) {
+    syncObsEditor(true);
+  }
+  const observacaoHtmlRaw = obsManutencaoHtml ? obsManutencaoHtml.value.trim() : "";
+  const observacaoHtml = observacaoHtmlRaw ? sanitizeRichText(observacaoHtmlRaw) : "";
+  const observacao = observacaoHtml
+    ? stripHtml(observacaoHtml).trim()
+    : obsManutencao
+      ? obsManutencao.value.trim()
+      : "";
   const categoria = categoriaManutencao ? categoriaManutencao.value.trim() : "";
   const prioridade = prioridadeManutencao ? prioridadeManutencao.value.trim() : "";
   const osReferencia = osReferenciaManutencao ? osReferenciaManutencao.value.trim() : "";
@@ -18319,6 +18575,7 @@ async function adicionarManutencao() {
     projectId: activeProjectId,
     equipamentoId,
     observacao,
+    observacaoHtml,
     templateId,
     status: "em_execucao",
     categoria,
@@ -18387,6 +18644,12 @@ async function adicionarManutencao() {
   }
   if (obsManutencao) {
     obsManutencao.value = "";
+  }
+  if (obsManutencaoHtml) {
+    obsManutencaoHtml.value = "";
+  }
+  if (obsManutencaoEditor) {
+    obsManutencaoEditor.innerHTML = "";
   }
   if (categoriaManutencao) {
     categoriaManutencao.value = "";
@@ -18460,6 +18723,7 @@ function editarManutencao(index) {
     titulo: tituloLimpo,
     local: localLimpo,
     observacao: novaObs.trim(),
+    observacaoHtml: "",
     updatedAt: toIsoUtc(new Date()),
     updatedBy: currentUser.id,
   };
@@ -18491,6 +18755,7 @@ function registrarObservacao(index) {
   const atualizado = {
     ...item,
     observacao: obsLimpa,
+    observacaoHtml: "",
     updatedAt: toIsoUtc(new Date()),
     updatedBy: currentUser.id,
   };
@@ -23516,6 +23781,7 @@ renderTipoOptions();
 limparTemplateForm();
 initSidebarToggle();
 initAvatarUpload();
+initRichEditors();
 carregarSessaoServidor();
 preencherInicioExecucaoNova();
 

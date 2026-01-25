@@ -4947,6 +4947,89 @@ select {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+.rich-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--color-surface-alt);
+}
+
+.rich-editor:focus-within {
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.rich-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0c1f30;
+  font-family: inherit;
+}
+
+.rich-toolbar__group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rich-btn {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #0f2436;
+  color: var(--ink);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.rich-btn:hover {
+  background: #12304a;
+}
+
+.rich-btn .u {
+  text-decoration: underline;
+}
+
+.rich-select {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #0f2436;
+  color: var(--ink);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 0.8rem;
+}
+
+.rich-editor__content {
+  min-height: 140px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  background: #0b1a28;
+  color: var(--ink);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  font-family: inherit;
+  outline: none;
+}
+
+.rich-editor__content:focus {
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.rich-editor__content:empty::before {
+  content: attr(data-placeholder);
+  color: rgba(255, 255, 255, 0.45);
+}
+
 input[type="text"],
 input[type="password"],
 input[type="date"],
@@ -7195,6 +7278,44 @@ textarea:focus {
   font-size: 0.9rem;
   color: #4e5a66;
   margin-top: 6px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.obs--rich {
+  color: #c7d2db;
+}
+
+.obs--rich p {
+  margin: 0 0 8px;
+}
+
+.obs--rich div {
+  margin: 0 0 8px;
+}
+
+.obs--rich h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  color: #d6e0e8;
+}
+
+.obs--rich p:last-child,
+.obs--rich div:last-child,
+.obs--rich h3:last-child {
+  margin-bottom: 0;
+}
+
+.obs--rich ul,
+.obs--rich ol {
+  margin: 6px 0 6px 18px;
+}
+
+.obs--rich blockquote {
+  margin: 6px 0;
+  padding-left: 10px;
+  border-left: 2px solid rgba(255, 255, 255, 0.2);
+  color: #9fb3c4;
 }
 
 .status {

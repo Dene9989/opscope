@@ -1396,21 +1396,119 @@
         <div class="nova-manutencao__section">
           <div class="nova-manutencao__heading">
             <div>
-              <p class="nova-manutencao__heading-title">Descrição técnica</p>
+              <p class="nova-manutencao__heading-title">Descri&ccedil;&atilde;o t&eacute;cnica</p>
               <p class="nova-manutencao__heading-subtitle">
-                Registre o contexto e os detalhes técnicos da demanda.
+                Registre o contexto e os detalhes t&eacute;cnicos da demanda.
               </p>
             </div>
           </div>
           <div class="form-grid">
             <div class="field" data-full>
-              <label for="obsManutencao">Descrição técnica da demanda</label>
-              <textarea
-                id="obsManutencao"
-                rows="3"
-                placeholder="Descreva a demanda técnica, condicoes e contexto"
-                required
-              ></textarea>
+              <label for="obsManutencaoEditor">Descri&ccedil;&atilde;o t&eacute;cnica da demanda</label>
+              <div class="rich-editor" data-rich-editor="obsManutencao">
+                <div
+                  class="rich-toolbar"
+                  data-rich-toolbar="obsManutencao"
+                  role="toolbar"
+                  aria-label="Ferramentas de formata&ccedil;&atilde;o"
+                >
+                  <div class="rich-toolbar__group">
+                    <select class="rich-select" data-cmd="fontName" aria-label="Fonte">
+                      <option value="">Fonte</option>
+                      <option value="Segoe UI">Segoe UI</option>
+                      <option value="Arial">Arial</option>
+                      <option value="Georgia">Georgia</option>
+                      <option value="Courier New">Courier New</option>
+                    </select>
+                    <select class="rich-select" data-cmd="fontSize" aria-label="Tamanho da fonte">
+                      <option value="">Tamanho</option>
+                      <option value="2">12 px</option>
+                      <option value="3">14 px</option>
+                      <option value="4">16 px</option>
+                      <option value="5">18 px</option>
+                      <option value="6">20 px</option>
+                    </select>
+                  </div>
+                  <div class="rich-toolbar__group">
+                    <button class="rich-btn" type="button" data-cmd="bold" title="Negrito">
+                      <strong>B</strong>
+                    </button>
+                    <button class="rich-btn" type="button" data-cmd="italic" title="It&aacute;lico">
+                      <em>I</em>
+                    </button>
+                    <button class="rich-btn" type="button" data-cmd="underline" title="Sublinhado">
+                      <span class="u">U</span>
+                    </button>
+                  </div>
+                  <div class="rich-toolbar__group">
+                    <button
+                      class="rich-btn"
+                      type="button"
+                      data-cmd="insertUnorderedList"
+                      title="Lista com marcadores"
+                    >
+                      &#8226; Lista
+                    </button>
+                    <button
+                      class="rich-btn"
+                      type="button"
+                      data-cmd="insertOrderedList"
+                      title="Lista numerada"
+                    >
+                      1. Lista
+                    </button>
+                  </div>
+                  <div class="rich-toolbar__group">
+                    <button class="rich-btn" type="button" data-cmd="formatBlock" data-value="p" title="Texto">
+                      Texto
+                    </button>
+                    <button
+                      class="rich-btn"
+                      type="button"
+                      data-cmd="formatBlock"
+                      data-value="h3"
+                      title="T&iacute;tulo"
+                    >
+                      T&iacute;tulo
+                    </button>
+                    <button
+                      class="rich-btn"
+                      type="button"
+                      data-cmd="formatBlock"
+                      data-value="blockquote"
+                      title="Cita&ccedil;&atilde;o"
+                    >
+                      Cita&ccedil;&atilde;o
+                    </button>
+                  </div>
+                  <div class="rich-toolbar__group">
+                    <button
+                      class="rich-btn"
+                      type="button"
+                      data-cmd="removeFormat"
+                      title="Limpar formata&ccedil;&atilde;o"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                </div>
+                <div
+                  id="obsManutencaoEditor"
+                  class="rich-editor__content"
+                  contenteditable="true"
+                  role="textbox"
+                  aria-multiline="true"
+                  data-placeholder="Descreva a demanda t&eacute;cnica, condi&ccedil;&otilde;es e contexto"
+                ></div>
+                <textarea
+                  id="obsManutencao"
+                  class="visually-hidden"
+                  rows="3"
+                  aria-hidden="true"
+                  tabindex="-1"
+                ></textarea>
+                <input id="obsManutencaoHtml" type="hidden" />
+              </div>
             </div>
           </div>
         </div>
