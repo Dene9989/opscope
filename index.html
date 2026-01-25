@@ -292,10 +292,10 @@
                 </div>
                 <small id="capsLockRegistro" class="caps-hint" hidden>Caps Lock ativado</small>
                 <ul id="reqSenhaRules" class="password-rules">
-                  <li data-rule="length">Minimo 12 caracteres</li>
+                  <li data-rule="length">Mínimo 12 caracteres</li>
                   <li data-rule="upper">1 letra maiuscula</li>
                   <li data-rule="lower">1 letra minuscula</li>
-                  <li data-rule="number">1 numero</li>
+                  <li data-rule="number">1 número</li>
                   <li data-rule="symbol">1 simbolo</li>
                 </ul>
                 <p id="reqSenhaErro" class="field-error" hidden></p>
@@ -1149,7 +1149,7 @@
 
     <section class="panel" id="programacao" data-panel="programacao">
       <section class="card" id="painel">
-        <h2>Painel de manutencoes</h2>
+        <h2>Painel de manutenções</h2>
         <div class="stats">
           <div class="stat">
             <span id="countAgendadas">0</span>
@@ -1165,7 +1165,7 @@
           </div>
           <div class="stat">
             <span id="countEmExecucao">0</span>
-            <small>em execucao</small>
+            <small>em execução</small>
           </div>
           <div class="stat">
             <span id="countEncerramento">0</span>
@@ -1173,17 +1173,17 @@
           </div>
           <div class="stat">
             <span id="countConcluidas">0</span>
-            <small>concluidas</small>
+            <small>concluídas</small>
           </div>
         </div>
-        <p class="hint">Se a data passar sem conclusao, a manutencao vira backlog.</p>
+        <p class="hint">Se a data passar sem conclusão, a manutenção vira backlog.</p>
       </section>
 
       <section class="card" id="lista-programacao">
-        <h2>Programacao</h2>
+        <h2>Programação</h2>
         <div class="programacao-toolbar">
           <div class="field">
-            <label for="filtroProgramacaoSubestacao">Subestacao</label>
+            <label for="filtroProgramacaoSubestacao">Subestação</label>
             <select id="filtroProgramacaoSubestacao">
               <option value="">Todas</option>
             </select>
@@ -1194,37 +1194,37 @@
               <option value="">Todos</option>
               <option value="agendada">Agendada</option>
               <option value="liberada">Liberada</option>
-              <option value="em_execucao">Em execucao</option>
+              <option value="em_execucao">Em execução</option>
               <option value="encerramento">Encerramento</option>
               <option value="hoje">Vence hoje</option>
               <option value="backlog">Backlog</option>
             </select>
           </div>
           <div class="field">
-            <label for="filtroProgramacaoPeriodo">Periodo</label>
+            <label for="filtroProgramacaoPeriodo">Período</label>
             <select id="filtroProgramacaoPeriodo">
               <option value="">Todos</option>
               <option value="hoje">Hoje</option>
               <option value="semana">Semana</option>
-              <option value="mes">Mes</option>
+              <option value="mes">Mês</option>
             </select>
           </div>
         </div>
         <p id="alertaProgramacao" class="alert alert--warning" hidden></p>
         <div id="listaAgendadas" class="manutencoes"></div>
-        <p id="listaAgendadasVazia" class="empty-state">Nenhuma manutencao agendada.</p>
+        <p id="listaAgendadasVazia" class="empty-state">Nenhuma manutenção agendada.</p>
       </section>
     </section>
 
     <section class="panel" id="nova" data-panel="nova">
       <section class="card" id="nova-manutencao">
-        <h2>Nova manutencao</h2>
+        <h2>Nova manutenção</h2>
         <div class="nova-manutencao__section">
           <div class="nova-manutencao__heading">
             <div>
-              <p class="nova-manutencao__heading-title">Detalhes da manutencao</p>
+              <p class="nova-manutencao__heading-title">Detalhes da manutenção</p>
               <p class="nova-manutencao__heading-subtitle">
-                Defina o tipo, local, prioridade e data de inicio.
+                Defina o tipo, local, prioridade e data de início.
               </p>
             </div>
           </div>
@@ -1236,17 +1236,17 @@
               </select>
             </div>
             <div class="field">
-              <label for="tipoManutencao">Tipo de manutencao</label>
+              <label for="tipoManutencao">Tipo de manutenção</label>
               <select id="tipoManutencao">
                 <option value="">Selecione um tipo</option>
               </select>
             </div>
             <div class="field" id="customTipoField" hidden>
               <label for="tituloManutencao">Tipo personalizado</label>
-              <input id="tituloManutencao" type="text" placeholder="Inspecao diaria 834 - PARACATU/SOLARIG (Boa Sorte II)" />
+              <input id="tituloManutencao" type="text" placeholder="Inspeção diária 834 - PARACATU/SOLARIG (Boa Sorte II)" />
             </div>
             <div class="field">
-              <label for="subestacaoManutencao">Subestacao</label>
+              <label for="subestacaoManutencao">Subestação</label>
               <select id="subestacaoManutencao">
                 <option value="">Selecione</option>
               </select>
@@ -1261,7 +1261,7 @@
           <div class="form-grid nova-manutencao__grid-bottom">
             <div class="field field--date-group">
               <div class="field__label-row">
-                <label for="dataManutencao">Inicio da execucao</label>
+                <label for="dataManutencao">Início da execução</label>
                 <label class="futura-checkbox" for="futuraManutencao">
                   <input id="futuraManutencao" type="checkbox" />
                   <span>Agendar para outra data</span>
@@ -1285,13 +1285,13 @@
               <select id="prioridadeManutencao" required>
                 <option value="">Selecione</option>
                 <option value="Baixa">Baixa</option>
-                <option value="Media">Media</option>
+                <option value="Media">Média</option>
                 <option value="Alta">Alta</option>
-                <option value="Critica">Critica</option>
+                <option value="Critica">Crítica</option>
               </select>
             </div>
             <div class="field">
-              <label for="osReferenciaManutencao">OS / referencia</label>
+              <label for="osReferenciaManutencao">OS / referência</label>
               <input id="osReferenciaManutencao" type="text" required />
             </div>
           </div>
@@ -1301,7 +1301,7 @@
             <div>
               <p class="nova-manutencao__heading-title">Participantes e criticidade</p>
               <p class="nova-manutencao__heading-subtitle">
-                Identifique a equipe responsavel e o nivel de risco da atividade.
+                Identifique a equipe responsável e o nível de risco da atividade.
               </p>
             </div>
           </div>
@@ -1319,9 +1319,9 @@
               <p id="participantesManutencaoErro" class="field-error" hidden></p>
             </div>
             <div class="field">
-              <label for="criticoManutencao">Trabalho critico?</label>
+              <label for="criticoManutencao">Trabalho crítico?</label>
               <select id="criticoManutencao" required>
-                <option value="nao">Nao</option>
+                <option value="nao">Não</option>
                 <option value="sim">Sim</option>
               </select>
             </div>
@@ -1330,9 +1330,9 @@
         <div class="nova-manutencao__section">
           <div class="nova-manutencao__heading">
             <div>
-              <p class="nova-manutencao__heading-title">Documentos obrigatorios</p>
+              <p class="nova-manutencao__heading-title">Documentos obrigatórios</p>
               <p class="nova-manutencao__heading-subtitle">
-                Anexe as evidencias exigidas antes de iniciar a execucao.
+                Anexe as evidências exigidas antes de iniciar a execução.
               </p>
             </div>
           </div>
@@ -1396,25 +1396,25 @@
         <div class="nova-manutencao__section">
           <div class="nova-manutencao__heading">
             <div>
-              <p class="nova-manutencao__heading-title">Descricao tecnica</p>
+              <p class="nova-manutencao__heading-title">Descrição técnica</p>
               <p class="nova-manutencao__heading-subtitle">
-                Registre o contexto e os detalhes tecnicos da demanda.
+                Registre o contexto e os detalhes técnicos da demanda.
               </p>
             </div>
           </div>
           <div class="form-grid">
             <div class="field" data-full>
-              <label for="obsManutencao">Descricao tecnica da demanda</label>
+              <label for="obsManutencao">Descrição técnica da demanda</label>
               <textarea
                 id="obsManutencao"
                 rows="3"
-                placeholder="Descreva a demanda tecnica, condicoes e contexto"
+                placeholder="Descreva a demanda técnica, condicoes e contexto"
                 required
               ></textarea>
             </div>
           </div>
         </div>
-        <button id="btnAdicionarManutencao" class="btn btn--primary">Iniciar execucao</button>
+        <button id="btnAdicionarManutencao" class="btn btn--primary">Iniciar execução</button>
         <p class="hint">Lembretes aparecem com <strong id="diasLembrete">7</strong> dias de antecedencia.</p>
         <p id="mensagemManutencao" class="mensagem" aria-live="polite"></p>
       </section>
@@ -1423,17 +1423,17 @@
     <section class="panel page-modelos" id="modelos" data-panel="modelos">
       <section class="card" id="modelosManutencao">
         <h2>Modelos e recorrencias</h2>
-        <p class="hint">Crie tipos e recorrencias automaticas para aparecerem na programacao.</p>
+        <p class="hint">Crie tipos e recorrencias automaticas para aparecerem na programação.</p>
         <div class="template-grid">
           <form id="templateForm" class="template-form">
             <div class="template-section">
               <div class="section-title">
-                <h3>Identificacao</h3>
+                <h3>Identificação</h3>
                 <p>Modelo, unidade e recorrencia.</p>
               </div>
               <div class="field">
                 <label for="templateNome">Nome do modelo</label>
-                <input id="templateNome" type="text" placeholder="Inspecao diaria" />
+                <input id="templateNome" type="text" placeholder="Inspeção diária" />
                 <p id="templateNomeErro" class="field-error" hidden></p>
               </div>
               <div class="field">
@@ -1443,7 +1443,7 @@
                 </select>
               </div>
               <div class="field">
-                <label for="templateSubestacao">Subestacao</label>
+                <label for="templateSubestacao">Subestação</label>
                 <select id="templateSubestacao">
                   <option value="">Selecione</option>
                 </select>
@@ -1452,13 +1452,13 @@
                 <label for="templateFrequencia">Tipo de recorrencia</label>
                 <select id="templateFrequencia">
                   <option value="none">Sem recorrencia (apenas modelo)</option>
-                  <option value="daily">Diaria</option>
+                  <option value="daily">Diária</option>
                   <option value="weekly">Semanal</option>
                   <option value="monthly">Mensal</option>
                 </select>
               </div>
               <div class="field" id="templateInicioField">
-                <label for="templateInicio">Data de inicio</label>
+                <label for="templateInicio">Data de início</label>
                 <input id="templateInicio" type="date" />
                 <p id="templateInicioErro" class="field-error" hidden></p>
               </div>
@@ -1552,12 +1552,12 @@
                 </div>
               </div>
               <div class="field" id="templateMonthlyDayField" hidden>
-                <label for="templateMonthlyDay">Dia do mes</label>
+                <label for="templateMonthlyDay">Dia do mês</label>
                 <input id="templateMonthlyDay" type="number" min="1" max="31" value="10" />
                 <p id="templateMonthlyDayErro" class="field-error" hidden></p>
               </div>
               <div class="field" id="templateMonthlyDaysField" data-full hidden>
-                <label>Dias do mes</label>
+                <label>Dias do mês</label>
                 <input id="templateMonthlyDaysInput" type="text" placeholder="Ex.: 10, 25" />
                 <div id="templateMonthlyDaysChips" class="chip-row"></div>
                 <p id="templateMonthlyDaysErro" class="field-error" hidden></p>
@@ -1565,12 +1565,12 @@
             </div>
             <div class="template-section">
               <div class="section-title">
-                <h3>Observacoes e status</h3>
+                <h3>Observações e status</h3>
                 <p>Contexto e resumo automatico.</p>
               </div>
               <div class="field" data-full>
-                <label for="templateObs">Observacoes padrao do servico</label>
-                <textarea id="templateObs" rows="3" placeholder="Equipe, materiais, observacoes"></textarea>
+                <label for="templateObs">Observações padrao do servico</label>
+                <textarea id="templateObs" rows="3" placeholder="Equipe, materiais, observações"></textarea>
               </div>
               <div class="recurrence-summary" id="templateResumo">
                 <strong>Resumo da recorrencia</strong>
@@ -1583,7 +1583,7 @@
             </div>
             <div class="template-section template-section--actions">
               <div class="section-title">
-                <h3>Acoes</h3>
+                <h3>Ações</h3>
                 <p>Salvar ou limpar o formulario.</p>
               </div>
               <div class="manager-actions">
@@ -1607,10 +1607,10 @@
             <div class="template-toolbar">
               <div class="field">
                 <label for="templateSearch">Buscar modelo</label>
-                <input id="templateSearch" type="text" placeholder="Ex.: inspecao" />
+                <input id="templateSearch" type="text" placeholder="Ex.: inspeção" />
               </div>
               <div class="field">
-                <label for="templateFilterSubestacao">Subestacao</label>
+                <label for="templateFilterSubestacao">Subestação</label>
                 <select id="templateFilterSubestacao">
                   <option value="">Todas</option>
                 </select>
@@ -1635,7 +1635,7 @@
           <div>
             <h2>PMP / Cronograma</h2>
             <p class="hint">
-              Planejamento anual de manutencoes preventivas por projeto e equipamento.
+              Planejamento anual de manutenções preventivas por projeto e equipamento.
             </p>
           </div>
           <div class="pmp-header__actions">
@@ -1660,7 +1660,7 @@
             <select id="pmpAno"></select>
           </div>
           <div class="field">
-            <label for="pmpView">Visualizacao</label>
+            <label for="pmpView">Visualização</label>
             <select id="pmpView">
               <option value="day">Diario (por dia)</option>
               <option value="month">Mensal</option>
@@ -1678,10 +1678,10 @@
             </select>
           </div>
           <div class="field">
-            <label for="pmpFiltroFrequencia">Frequencia</label>
+            <label for="pmpFiltroFrequencia">Frequência</label>
             <select id="pmpFiltroFrequencia">
               <option value="">Todas</option>
-              <option value="diaria">Diaria</option>
+              <option value="diaria">Diária</option>
               <option value="semanal">Semanal</option>
               <option value="mensal">Mensal</option>
               <option value="bimestral">Bimestral</option>
@@ -1699,7 +1699,7 @@
             </select>
           </div>
           <div class="field">
-            <label for="pmpFiltroResponsavel">Responsavel</label>
+            <label for="pmpFiltroResponsavel">Responsável</label>
             <select id="pmpFiltroResponsavel">
               <option value="">Todos</option>
             </select>
@@ -1759,7 +1759,7 @@
             <strong id="pmpHorasExecutadas">0h</strong>
           </div>
           <div class="pmp-kpi">
-            <span>Carga semanal (prevista x disponivel)</span>
+            <span>Carga semanal (prevista x disponível)</span>
             <strong id="pmpCargaSemanal">0h / 0h</strong>
             <div class="pmp-kpi__bar">
               <span id="pmpCargaBar" class="pmp-kpi__bar-fill" style="width: 0%"></span>
@@ -1771,31 +1771,31 @@
         <form id="pmpForm" class="pmp-form">
           <div class="section-title">
             <h3 id="pmpFormTitle">Cadastrar atividade PMP</h3>
-            <p>Registre atividade preventiva, frequencia e vinculos.</p>
+            <p>Registre atividade preventiva, frequência e vinculos.</p>
           </div>
           <input id="pmpFormId" type="hidden" />
           <div class="pmp-form-section">
             <div class="section-title">
-              <h4>Identificacao</h4>
+              <h4>Identificação</h4>
               <p>Nome, codigo, projeto e equipamento.</p>
             </div>
               <div class="form-grid">
                 <div class="field">
                   <label for="pmpNome">Nome da atividade</label>
-                  <input id="pmpNome" type="text" placeholder="Inspecao termografica" required />
+                  <input id="pmpNome" type="text" placeholder="Inspeção termográfica" required />
                 </div>
                 <div class="field">
                   <label for="pmpCodigo">Codigo / Tag</label>
                   <input id="pmpCodigo" type="text" placeholder="PM-INV-001" />
                 </div>
                 <div class="field">
-                  <label for="pmpTipo">Tipo da manutencao</label>
+                  <label for="pmpTipo">Tipo da manutenção</label>
                   <select id="pmpTipo">
                     <option value="">Selecione</option>
                     <option value="preventiva">Preventiva</option>
                     <option value="corretiva">Corretiva</option>
                     <option value="preditiva">Preditiva</option>
-                    <option value="inspecao">Inspecao</option>
+                    <option value="inspecao">Inspeção</option>
                     <option value="outra">Outra</option>
                   </select>
                 </div>
@@ -1816,15 +1816,15 @@
 
           <div class="pmp-form-section">
             <div class="section-title">
-              <h4>Frequencia</h4>
-              <p>Periodicidade e inicio da vigencia.</p>
+              <h4>Frequência</h4>
+              <p>Periodicidade e início da vigência.</p>
             </div>
             <div class="form-grid">
                 <div class="field">
-                  <label for="pmpFrequencia">Frequencia</label>
+                  <label for="pmpFrequencia">Frequência</label>
                   <select id="pmpFrequencia" required>
                     <option value="">Selecione</option>
-                  <option value="diaria">Diaria</option>
+                  <option value="diaria">Diária</option>
                   <option value="semanal">Semanal</option>
                   <option value="mensal">Mensal</option>
                   <option value="bimestral">Bimestral</option>
@@ -1836,11 +1836,11 @@
                 </select>
               </div>
                 <div class="field">
-                  <label for="pmpInicio">Inicio da vigencia</label>
+                  <label for="pmpInicio">Início da vigência</label>
                   <input id="pmpInicio" type="date" />
                 </div>
                 <div class="field">
-                  <label for="pmpOnlyWeekdays">Dias de execucao</label>
+                  <label for="pmpOnlyWeekdays">Dias de execução</label>
                   <label class="pmp-month">
                     <input id="pmpOnlyWeekdays" type="checkbox" />
                     <span>Somente seg-sex</span>
@@ -1848,9 +1848,9 @@
                   <small class="hint">Desmarcado permite fim de semana.</small>
                 </div>
                 <div class="field" data-full>
-                  <label for="pmpMeses">Meses de execucao</label>
+                  <label for="pmpMeses">Meses de execução</label>
                   <div id="pmpMeses" class="pmp-months"></div>
-                  <small class="hint">Se nenhum mes for desmarcado, vale o ano inteiro.</small>
+                  <small class="hint">Se nenhum mês for desmarcado, vale o ano inteiro.</small>
                 </div>
               </div>
             </div>
@@ -1858,19 +1858,19 @@
           <div class="pmp-form-section">
             <div class="section-title">
               <h4>Recursos</h4>
-              <p>Equipe estimada, duracao e responsavel fixo.</p>
+              <p>Equipe estimada, duração e responsável fixo.</p>
             </div>
             <div class="form-grid">
               <div class="field">
-                <label for="pmpTecnicos">Tecnicos estimados</label>
+                <label for="pmpTecnicos">Técnicos estimados</label>
                 <input id="pmpTecnicos" type="number" min="0" step="1" value="0" />
               </div>
               <div class="field">
-                <label for="pmpDuracao">Duracao (HH:MM)</label>
+                <label for="pmpDuracao">Duração (HH:MM)</label>
                 <input id="pmpDuracao" type="text" placeholder="02:30" />
               </div>
               <div class="field">
-                <label for="pmpResponsavel">Responsavel</label>
+                <label for="pmpResponsavel">Responsável</label>
                 <select id="pmpResponsavel">
                   <option value="">Selecione</option>
                 </select>
@@ -1881,18 +1881,18 @@
           <div class="pmp-form-section">
             <div class="section-title">
               <h4>Checklist</h4>
-              <p>Adicione itens e links de evidencias.</p>
+              <p>Adicione itens e links de evidências.</p>
             </div>
             <div class="field" data-full>
               <ul id="pmpChecklistList" class="checklist"></ul>
             </div>
             <div class="form-grid">
               <div class="field">
-                <label for="pmpChecklistItem">Descricao do item</label>
-                <input id="pmpChecklistItem" type="text" placeholder="Ex.: Verificar isolacao" />
+                <label for="pmpChecklistItem">Descrição do item</label>
+                <input id="pmpChecklistItem" type="text" placeholder="Ex.: Verificar isolação" />
               </div>
               <div class="field">
-                <label for="pmpChecklistLink">Link / evidencias</label>
+                <label for="pmpChecklistLink">Link / evidências</label>
                 <input id="pmpChecklistLink" type="text" placeholder="https://..." />
               </div>
               <div class="field">
@@ -1906,24 +1906,24 @@
 
           <div class="pmp-form-section">
             <div class="section-title">
-              <h4>Observacoes</h4>
-              <p>Descricao tecnica, observacoes e procedimentos.</p>
+              <h4>Observações</h4>
+              <p>Descrição técnica, observações e procedimentos.</p>
             </div>
             <div class="form-grid">
               <div class="field" data-full>
-                <label for="pmpDescricao">Descricao tecnica</label>
-                <textarea id="pmpDescricao" rows="2" placeholder="Detalhes tecnicos da atividade"></textarea>
+                <label for="pmpDescricao">Descrição técnica</label>
+                <textarea id="pmpDescricao" rows="2" placeholder="Detalhes técnicos da atividade"></textarea>
               </div>
               <div class="field" data-full>
-                <label for="pmpObservacoes">Observacoes da atividade</label>
+                <label for="pmpObservacoes">Observações da atividade</label>
                 <textarea id="pmpObservacoes" rows="2" placeholder="Contexto, riscos, premissas"></textarea>
               </div>
               <div class="field" data-full>
-                <label for="pmpProcedimentos">Procedimentos / checklist tecnico</label>
+                <label for="pmpProcedimentos">Procedimentos / checklist técnico</label>
                 <textarea
                   id="pmpProcedimentos"
                   rows="3"
-                  placeholder="Liste os passos tecnicos, requisitos e anexos (URLs)"
+                  placeholder="Liste os passos técnicos, requisitos e anexos (URLs)"
                 ></textarea>
               </div>
               <div class="field" data-full>
@@ -1968,14 +1968,14 @@
           <span class="pmp-status pmp-status--missed">Atrasada</span>
           <span class="pmp-status pmp-status--scheduled">Planejada</span>
           <span class="pmp-status pmp-status--late">Fora da janela</span>
-          <span class="pmp-status pmp-status--empty">Nao prevista</span>
+          <span class="pmp-status pmp-status--empty">Não prevista</span>
           <span class="pmp-status pmp-status--cancelled">Cancelada</span>
         </div>
         <div class="pmp-type-legend">
           <span class="pmp-type pmp-type--preventiva">Preventiva</span>
           <span class="pmp-type pmp-type--corretiva">Corretiva</span>
           <span class="pmp-type pmp-type--preditiva">Preditiva</span>
-          <span class="pmp-type pmp-type--inspecao">Inspecao</span>
+          <span class="pmp-type pmp-type--inspecao">Inspeção</span>
           <span class="pmp-type pmp-type--outra">Outra</span>
         </div>
 
@@ -1993,23 +1993,23 @@
 
     <section class="panel" id="execucao" data-panel="execucao">
       <section class="card">
-        <h2>Execucao do dia</h2>
+        <h2>Execução do dia</h2>
         <p class="hint">Priorize o que vence hoje e o que esta atrasado.</p>
         <div class="exec-grid">
           <div class="exec-column">
-            <h3>Manutencoes do dia</h3>
+            <h3>Manutenções do dia</h3>
             <div id="listaExecucaoHoje" class="manutencoes"></div>
-            <p id="listaExecucaoHojeVazia" class="empty-state">Nenhuma manutencao para hoje.</p>
+            <p id="listaExecucaoHojeVazia" class="empty-state">Nenhuma manutenção para hoje.</p>
           </div>
           <div class="exec-column">
-            <h3>Manutencoes vencidas</h3>
+            <h3>Manutenções vencidas</h3>
             <div id="listaExecucaoVencidas" class="manutencoes"></div>
-            <p id="listaExecucaoVencidasVazia" class="empty-state">Nenhuma manutencao vencida.</p>
+            <p id="listaExecucaoVencidasVazia" class="empty-state">Nenhuma manutenção vencida.</p>
           </div>
           <div class="exec-column">
-            <h3>Manutencoes criticas</h3>
+            <h3>Manutenções críticas</h3>
             <div id="listaExecucaoCriticas" class="manutencoes"></div>
-            <p id="listaExecucaoCriticasVazia" class="empty-state">Nenhuma manutencao critica.</p>
+            <p id="listaExecucaoCriticasVazia" class="empty-state">Nenhuma manutenção crítica.</p>
           </div>
         </div>
       </section>
@@ -2020,7 +2020,7 @@
         <h2>Backlog</h2>
         <p class="hint">Itens atrasados aparecem aqui automaticamente para replanejamento.</p>
         <div id="listaBacklog" class="manutencoes"></div>
-        <p id="listaBacklogVazia" class="empty-state">Nenhuma manutencao em backlog.</p>
+        <p id="listaBacklogVazia" class="empty-state">Nenhuma manutenção em backlog.</p>
       </section>
     </section>
 
@@ -2059,7 +2059,7 @@
                 <input id="projectFormCliente" type="text" placeholder="NOME DA CLIENTE" />
               </div>
               <div class="field field--full">
-                <label for="projectFormDescricao">Descricao</label>
+                <label for="projectFormDescricao">Descrição</label>
                 <textarea id="projectFormDescricao" rows="2" placeholder="Detalhes do local de trabalho"></textarea>
               </div>
               <div class="field field--full">
@@ -2084,7 +2084,7 @@
                   <th>Codigo</th>
                   <th>Nome</th>
                   <th>Cliente</th>
-                  <th>Acoes</th>
+                  <th>Ações</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -2115,7 +2115,7 @@
                 <input id="equipamentoFormCategoria" type="text" placeholder="Inversor" />
               </div>
               <div class="field field--full">
-                <label for="equipamentoFormDescricao">Descricao</label>
+                <label for="equipamentoFormDescricao">Descrição</label>
                 <textarea id="equipamentoFormDescricao" rows="2" placeholder="Detalhes do equipamento"></textarea>
               </div>
             </div>
@@ -2131,8 +2131,8 @@
                   <th>Tag</th>
                   <th>Nome</th>
                   <th>Categoria</th>
-                  <th>Descricao</th>
-                  <th>Acoes</th>
+                  <th>Descrição</th>
+                  <th>Ações</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -2148,7 +2148,7 @@
                 <p class="hint">Digite o primeiro nome para filtrar a lista abaixo.</p>
               </div>
               <div class="field field--full">
-                <label for="equipeFormUser">Selecionar usuarios</label>
+                <label for="equipeFormUser">Selecionar usuários</label>
                 <select id="equipeFormUser" multiple required></select>
               </div>
             </div>
@@ -2163,7 +2163,7 @@
                   <th>Nome</th>
                   <th>Cargo</th>
                   <th>Papel</th>
-                  <th>Acoes</th>
+                  <th>Ações</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -2175,9 +2175,9 @@
 
     <section class="panel" id="solicitacoes" data-panel="solicitacoes" data-admin-only>
       <section class="card" id="adminSolicitacoes">
-        <h2>Solicitacoes pendentes</h2>
+        <h2>Solicitações pendentes</h2>
         <div id="listaSolicitacoes" class="account-list"></div>
-        <p id="solicitacoesVazio" class="empty-state">Nenhuma solicitacao pendente.</p>
+        <p id="solicitacoesVazio" class="empty-state">Nenhuma solicitação pendente.</p>
       </section>
     </section>
 
@@ -2188,17 +2188,17 @@
           <div class="kpi-card">
             <span>Total</span>
             <strong id="kpiTotal">0</strong>
-            <small>Manutencoes</small>
+            <small>Manutenções</small>
           </div>
           <div class="kpi-card">
-            <span>Conclusao</span>
+            <span>Conclusão</span>
             <strong id="kpiConclusao">0%</strong>
-            <small id="kpiConcluidas">0 concluidas</small>
+            <small id="kpiConcluidas">0 concluídas</small>
           </div>
           <div class="kpi-card">
             <span>Backlog</span>
             <strong id="kpiBacklog">0</strong>
-            <small>Pendencias</small>
+            <small>Pendências</small>
           </div>
           <div class="kpi-card">
             <span>Pontualidade</span>
@@ -2206,7 +2206,7 @@
             <small>Concluidas no prazo</small>
           </div>
           <div class="kpi-card">
-            <span>Media atraso</span>
+            <span>Média de atraso</span>
             <strong id="kpiAtraso">0</strong>
             <small>Dias</small>
           </div>
@@ -2215,11 +2215,11 @@
           <div class="performance-card">
             <div class="performance-card__header">
               <div class="performance-card__title">
-                <h3>Velocidade de execucao</h3>
+                <h3>Velocidade de execução</h3>
                 <span
                   class="kpi-info kpi-info--dark"
-                  data-tooltip="O que e: percentual de execucoes concluidas em ate 24h.&#10;Como calcula: concluidas no periodo com duracao <= 24h / concluidas com duracao registrada.&#10;Resultado: barra mostra %, tempo medio e ultima semana mostram a media de duracao."
-                  aria-label="Detalhes da velocidade de execucao"
+                  data-tooltip="O que é: percentual de execuções concluídas em até 24h.&#10;Como calcula: concluídas no período com duração <= 24h / concluídas com duração registrada.&#10;Resultado: barra mostra %, tempo médio e última semana mostram a média de duração."
+                  aria-label="Detalhes da velocidade de execução"
                 >i</span>
               </div>
               <span class="badge badge--ok" id="perfExecBadge">Meta 24h</span>
@@ -2228,8 +2228,8 @@
               <span id="perfExecProgressValue" style="width: 0%;">0%</span>
             </div>
             <div class="performance-meta">
-              <span id="perfExecTempoMedio">Tempo medio: -</span>
-              <span id="perfExecSemana">Ultima semana: -</span>
+              <span id="perfExecTempoMedio">Tempo médio: -</span>
+              <span id="perfExecSemana">última semana: -</span>
             </div>
           </div>
           <div class="performance-card">
@@ -2238,11 +2238,11 @@
                 <h3>SLA operacional</h3>
                 <span
                   class="kpi-info kpi-info--dark"
-                  data-tooltip="O que e: percentual de manutencoes concluidas no prazo programado.&#10;Como calcula: concluidas no periodo com data de conclusao <= data programada / concluidas com data programada.&#10;Resultado: barra mostra %, contadores indicam no prazo e fora do prazo."
+                  data-tooltip="O que é: percentual de manutenções concluídas no prazo programado.&#10;Como calcula: concluídas no período com data de conclusão <= data programada / concluídas com data programada.&#10;Resultado: barra mostra %, contadores indicam no prazo e fora do prazo."
                   aria-label="Detalhes do SLA operacional"
                 >i</span>
               </div>
-              <span class="badge badge--warn" id="perfSlaBadge">Atencao</span>
+              <span class="badge badge--warn" id="perfSlaBadge">Atenção</span>
             </div>
             <div class="progress progress--warn" id="perfSlaProgress">
               <span id="perfSlaProgressValue" style="width: 0%;">0%</span>
@@ -2258,7 +2258,7 @@
                 <h3>Reaberturas</h3>
                 <span
                   class="kpi-info kpi-info--dark"
-                  data-tooltip="O que e: reaberturas de execucao (novo inicio apos conclusao).&#10;Como calcula: conta reinicios de execucao apos concluir; percentual usa concluidas no periodo.&#10;Resultado: barra mostra a taxa, ultimos 7 dias mostra volume recente."
+                  data-tooltip="O que é: reaberturas de execução (novo início após conclusão).&#10;Como calcula: conta reinícios de execução após concluir; percentual usa concluídas no período.&#10;Resultado: barra mostra a taxa, últimos 7 dias mostra volume recente."
                   aria-label="Detalhes das reaberturas"
                 >i</span>
               </div>
@@ -2268,7 +2268,7 @@
               <span id="perfReopenProgressValue" style="width: 0%;">0%</span>
             </div>
             <div class="performance-meta">
-              <span id="perfReopenUltimos">Ultimos 7 dias: 0</span>
+              <span id="perfReopenUltimos">últimos 7 dias: 0</span>
               <span id="perfReopenImpacto">Impacto: baixo</span>
             </div>
           </div>
@@ -2276,7 +2276,7 @@
         <div class="performance-list">
           <div class="performance-item">
             <div>
-              <strong>Fila critica</strong>
+              <strong>Fila crítica</strong>
               <p>Atividades acima de 48h sem resposta.</p>
             </div>
             <span class="badge badge--danger">2 itens</span>
@@ -2284,13 +2284,13 @@
           <div class="performance-item">
             <div>
               <strong>Equipe em destaque</strong>
-              <p>GMG BSO2 com melhor tempo medio.</p>
+              <p>GMG BSO2 com melhor tempo médio.</p>
             </div>
             <span class="badge badge--ok">Top 1</span>
           </div>
           <div class="performance-item">
             <div>
-              <strong>Previsao de pico</strong>
+              <strong>Previsão de pico</strong>
               <p>Quarta-feira com maior volume de OS.</p>
             </div>
             <span class="badge badge--warn">Planejar</span>
@@ -2302,14 +2302,14 @@
     <section class="panel performance-panel" id="performance-projects" data-panel="performance-projects">
       <section class="card">
         <h2>Desempenho por projeto</h2>
-        <p class="hint">Acompanhe produtividade, backlog, criticidades e documentacoes por projeto.</p>
+        <p class="hint">Acompanhe produtividade, backlog, criticidades e documentações por projeto.</p>
         <div class="programacao-toolbar">
           <div class="field">
-            <label for="perfProjetoPeriodo">Periodo</label>
+            <label for="perfProjetoPeriodo">Período</label>
             <select id="perfProjetoPeriodo">
-              <option value="7">Ultimos 7 dias</option>
-              <option value="30" selected>Ultimos 30 dias</option>
-              <option value="90">Ultimos 90 dias</option>
+              <option value="7">últimos 7 dias</option>
+              <option value="30" selected>últimos 30 dias</option>
+              <option value="90">últimos 90 dias</option>
             </select>
           </div>
           <div class="field">
@@ -2330,7 +2330,7 @@
                   <th>No prazo</th>
                   <th>SLA %</th>
                   <th>Backlog</th>
-                  <th>Criticas</th>
+                  <th>Críticas</th>
                   <th>APR</th>
                   <th>OS</th>
                   <th>PTE</th>
@@ -2360,14 +2360,14 @@
     <section class="panel performance-panel" id="performance-people" data-panel="performance-people">
       <section class="card">
         <h2>Desempenho por colaborador</h2>
-        <p class="hint">Resultados individuais de manutencoes, prazos e seguranca.</p>
+        <p class="hint">Resultados individuais de manutenções, prazos e seguranca.</p>
         <div class="programacao-toolbar">
           <div class="field">
-            <label for="perfPessoaPeriodo">Periodo</label>
+            <label for="perfPessoaPeriodo">Período</label>
             <select id="perfPessoaPeriodo">
-              <option value="7">Ultimos 7 dias</option>
-              <option value="30" selected>Ultimos 30 dias</option>
-              <option value="90">Ultimos 90 dias</option>
+              <option value="7">últimos 7 dias</option>
+              <option value="30" selected>últimos 30 dias</option>
+              <option value="90">últimos 90 dias</option>
             </select>
           </div>
           <div class="field">
@@ -2389,7 +2389,7 @@
                 <th>No prazo</th>
                 <th>SLA %</th>
                 <th>Backlog</th>
-                <th>Criticas</th>
+                <th>Críticas</th>
                 <th>APR</th>
                 <th>OS</th>
                 <th>PTE</th>
@@ -2422,7 +2422,7 @@
         <h2>KPIs e tendencias</h2>
         <div class="programacao-toolbar">
           <div class="field">
-            <label for="kpiPeriodo">Periodo</label>
+            <label for="kpiPeriodo">Período</label>
             <select id="kpiPeriodo">
               <option value="7">7d</option>
               <option value="30" selected>30d</option>
@@ -2430,7 +2430,7 @@
             </select>
           </div>
           <div class="field">
-            <label for="kpiSubestacao">Subestacao</label>
+            <label for="kpiSubestacao">Subestação</label>
             <select id="kpiSubestacao">
               <option value="">Todas</option>
             </select>
@@ -2472,10 +2472,10 @@
         </div>
       </section>
       <section class="card">
-        <h2>Gestao por usuario</h2>
+        <h2>Gestao por usuário</h2>
         <div class="programacao-toolbar">
           <div class="field">
-            <label for="kpiUsuarioFiltro">Usuario</label>
+            <label for="kpiUsuarioFiltro">Usuário</label>
             <select id="kpiUsuarioFiltro">
               <option value="">Todos</option>
             </select>
@@ -2506,9 +2506,9 @@
       <section class="card">
         <div class="report-header">
           <div>
-            <h2>Central de relatorios</h2>
+            <h2>Central de relatórios</h2>
             <p class="hint">
-              Consolide manutencoes, evidencias e indicadores em relatorios completos para engenharia e gestao.
+              Consolide manutenções, evidências e indicadores em relatórios completos para engenharia e gestao.
             </p>
           </div>
           <div class="report-actions">
@@ -2522,24 +2522,24 @@
         </div>
         <div class="report-toolbar">
           <div class="field">
-            <label for="relatorioPeriodo">Periodo</label>
+            <label for="relatorioPeriodo">Período</label>
             <select id="relatorioPeriodo">
-              <option value="7">Ultimos 7 dias</option>
-              <option value="30" selected>Ultimos 30 dias</option>
-              <option value="90">Ultimos 90 dias</option>
+              <option value="7">últimos 7 dias</option>
+              <option value="30" selected>últimos 30 dias</option>
+              <option value="90">últimos 90 dias</option>
             </select>
           </div>
           <div class="field">
             <label for="relatorioStatus">Status</label>
             <select id="relatorioStatus">
               <option value="">Todos</option>
-              <option value="concluido">Concluido</option>
+              <option value="concluido">Concluído</option>
               <option value="em-andamento">Em andamento</option>
               <option value="pendente">Pendente</option>
             </select>
           </div>
           <div class="field">
-            <label for="relatorioResponsavel">Responsavel</label>
+            <label for="relatorioResponsavel">Responsável</label>
             <select id="relatorioResponsavel">
               <option value="">Todas as equipes</option>
             </select>
@@ -2556,17 +2556,17 @@
         </div>
         <div class="report-summary-grid">
           <div class="report-summary">
-            <span>Manutencoes no periodo</span>
+            <span>Manutenções no período</span>
             <strong id="relatorioResumoTotal">0</strong>
-            <small id="relatorioResumoConcluidas">0 concluidas</small>
+            <small id="relatorioResumoConcluidas">0 concluídas</small>
           </div>
           <div class="report-summary">
-            <span>Indicadores criticos</span>
+            <span>Indicadores críticos</span>
             <strong id="relatorioResumoCriticos">0</strong>
             <small id="relatorioResumoAlertas">Alertas priorizados</small>
           </div>
           <div class="report-summary">
-            <span>Evidencias anexadas</span>
+            <span>Evidências anexadas</span>
             <strong id="relatorioResumoEvidencias">0</strong>
             <small id="relatorioResumoEvidenciasLabel">Fotos, PDFs e registros</small>
           </div>
@@ -2580,23 +2580,23 @@
       <section class="card">
         <div class="report-header">
           <div>
-            <h2>Relatorio mensal</h2>
+            <h2>Relatório mensal</h2>
             <p class="hint">
-              Compilacao completa do dia 1 ate o ultimo dia do mes, pronta para envio ao cliente.
+              Compilação completa do dia 1 até o último dia do mês, pronta para envio ao cliente.
             </p>
           </div>
         </div>
         <div class="report-monthly-grid">
           <div class="field">
-            <label for="relatorioMes">Mes de referencia</label>
+            <label for="relatorioMes">Mês de referência</label>
             <input id="relatorioMes" type="month" />
           </div>
           <div class="field">
-            <label for="relatorioInicioMensal">Periodo inicio</label>
+            <label for="relatorioInicioMensal">Período de início</label>
             <input id="relatorioInicioMensal" type="date" />
           </div>
           <div class="field">
-            <label for="relatorioFimMensal">Periodo fim</label>
+            <label for="relatorioFimMensal">Período fim</label>
             <input id="relatorioFimMensal" type="date" />
           </div>
           <div class="field">
@@ -2607,13 +2607,13 @@
           </div>
         </div>
         <div class="report-scope">
-          <h3>Escopo automatico do relatorio</h3>
+          <h3>Escopo automatico do relatório</h3>
           <ul class="checklist">
-            <li><span class="is-ok">●</span> Manutencoes programadas e executadas</li>
+            <li><span class="is-ok">●</span> Manutenções programadas e executadas</li>
             <li><span class="is-ok">●</span> Logs, incidentes e desvios de SLA</li>
-            <li><span class="is-ok">●</span> Evidencias tecnicas e anexos por equipe</li>
+            <li><span class="is-ok">●</span> Evidências técnicas e anexos por equipe</li>
             <li><span class="is-ok">●</span> Indicadores operacionais e comparativos</li>
-            <li><span class="is-ok">●</span> Analise tecnica e recomendacoes</li>
+            <li><span class="is-ok">●</span> Analise técnica e recomendações</li>
           </ul>
         </div>
         <div class="report-actions">
@@ -2629,10 +2629,10 @@
         </div>
       </section>
       <section class="card">
-        <h2>Relatorios de manutencao</h2>
-        <p class="hint">Cada manutencao concluida gera um relatorio auditavel.</p>
+        <h2>Relatórios de manutenção</h2>
+        <p class="hint">Cada manutenção concluída gera um relatório auditável.</p>
         <div id="listaRelatorios" class="report-list"></div>
-        <p id="listaRelatoriosVazia" class="empty-state">Nenhuma manutencao concluida.</p>
+        <p id="listaRelatoriosVazia" class="empty-state">Nenhuma manutenção concluída.</p>
       </section>
     </section>
 
@@ -2641,7 +2641,7 @@
         <h2>Rastreabilidade operacional</h2>
         <p class="hint">Quem fez, o que fez e quando fez.</p>
         <div id="listaAuditoria" class="audit"></div>
-        <p id="auditVazio" class="empty-state">Nenhuma acao registrada.</p>
+        <p id="auditVazio" class="empty-state">Nenhuma ação registrada.</p>
       </section>
     </section>
 
@@ -2662,7 +2662,7 @@
           <strong id="feedbackStatSent">0</strong>
         </div>
         <div class="feedback-stat">
-          <span>Nota media</span>
+          <span>Nota média</span>
           <strong id="feedbackStatAvg">-</strong>
         </div>
         <div class="feedback-stat">
@@ -2682,12 +2682,12 @@
             </select>
           </div>
           <div class="field">
-            <label for="feedbackScore">Avaliacao</label>
+            <label for="feedbackScore">Avaliação</label>
             <select id="feedbackScore">
               <option value="5">5 - Excelente</option>
               <option value="4">4 - Muito bom</option>
               <option value="3">3 - Bom</option>
-              <option value="2">2 - Atencao</option>
+              <option value="2">2 - Atenção</option>
               <option value="1">1 - Precisa melhorar</option>
             </select>
           </div>
@@ -2709,7 +2709,7 @@
             <strong>Modelos de mensagem</strong>
             <div class="feedback-template-list">
               <button class="btn btn--ghost btn--small" type="button" data-feedback-template="bom">
-                Elogio tecnico
+                Elogio técnico
               </button>
               <button class="btn btn--ghost btn--small" type="button" data-feedback-template="melhora">
                 Sugestao de melhoria
@@ -2816,7 +2816,7 @@
                 <p id="perfilAtribuicoes" class="profile-text">-</p>
               </div>
               <div class="profile-item" data-full>
-                <span class="account-label">Permissoes</span>
+                <span class="account-label">Permissões</span>
                 <p id="perfilPermissoes" class="profile-text">-</p>
               </div>
               <div class="profile-item" data-full>
@@ -2873,7 +2873,7 @@
           </div>
           <div class="gerencial-head__actions">
             <div class="field field--compact">
-              <label for="gerencialPaletteTrigger">Buscar modulo ou acao</label>
+              <label for="gerencialPaletteTrigger">Buscar modulo ou ação</label>
               <input id="gerencialPaletteTrigger" type="search" placeholder="Ctrl+K para buscar" />
             </div>
             <button id="btnGerencialPalette" class="btn btn--ghost btn--small" type="button">Buscar</button>
@@ -2902,8 +2902,8 @@
               </svg>
             </span>
             <div class="indicator-card__body">
-              <strong>Status tecnico</strong>
-              <span id="indicatorHealthMeta">Diagnostico em tempo real</span>
+              <strong>Status técnico</strong>
+              <span id="indicatorHealthMeta">Diagnóstico em tempo real</span>
             </div>
             <div class="indicator-card__actions">
               <span class="indicator-card__count" id="indicatorHealthCount">-</span>
@@ -2935,7 +2935,7 @@
             </span>
             <div class="indicator-card__body">
               <strong>Erros de API</strong>
-              <span id="indicatorLogsMeta">Ultimas requisicoes</span>
+              <span id="indicatorLogsMeta">últimas requisicoes</span>
             </div>
             <div class="indicator-card__actions">
               <span class="indicator-card__count" id="indicatorLogsCount">-</span>
@@ -2998,8 +2998,8 @@
               </svg>
             </span>
             <div class="indicator-card__body">
-              <strong>Automacoes</strong>
-              <span id="indicatorAutomationsMeta">Rotinas em execucao</span>
+              <strong>Automações</strong>
+              <span id="indicatorAutomationsMeta">Rotinas em execução</span>
             </div>
             <div class="indicator-card__actions">
               <span class="indicator-card__count" id="indicatorAutomationsCount">-</span>
@@ -3017,22 +3017,22 @@
         <div class="gerencial-tabs" role="tablist" aria-label="Modulos gerenciais">
           <button class="gerencial-tab is-active" type="button" role="tab" data-tab-target="geral">Geral</button>
           <button class="gerencial-tab" type="button" role="tab" data-tab-target="diagnostico" data-permission="verDiagnostico">
-            Diagnostico
+            Diagnóstico
           </button>
           <button class="gerencial-tab" type="button" role="tab" data-tab-target="logs" data-permission="verLogsAPI">
             Logs de API
           </button>
           <button class="gerencial-tab" type="button" role="tab" data-tab-target="permissoes">
-            Permissoes
+            Permissões
           </button>
           <button class="gerencial-tab" type="button" role="tab" data-tab-target="arquivos" data-permission="verArquivos">
             Arquivos
           </button>
           <button class="gerencial-tab" type="button" role="tab" data-tab-target="automacoes" data-permission="verAutomacoes">
-            Automacoes
+            Automações
           </button>
           <button class="gerencial-tab" type="button" role="tab" data-tab-target="operacoes">
-            Operacoes
+            Operações
           </button>
         </div>
 
@@ -3045,11 +3045,11 @@
                   <li><span>Alertas ativos</span><strong>3</strong></li>
                   <li><span>Erros de API</span><strong>2</strong></li>
                   <li><span>Arquivos pendentes</span><strong>4</strong></li>
-                  <li><span>Permissoes criticas</span><strong>1</strong></li>
+                  <li><span>Permissões críticas</span><strong>1</strong></li>
                 </ul>
               </div>
               <div class="overview-card">
-                <h3>Acoes rapidas</h3>
+                <h3>Ações rapidas</h3>
                 <div class="overview-actions">
                   <button id="btnGerencialRefreshAll" class="btn btn--primary btn--small" type="button">
                     Atualizar painel
@@ -3058,10 +3058,10 @@
                     Ir para logs
                   </button>
                   <button id="btnGerencialGoPermissoes" class="btn btn--ghost btn--small" type="button">
-                    Ajustar permissoes
+                    Ajustar permissões
                   </button>
                 </div>
-                <p class="hint">Atalhos para funcoes criticas do dia.</p>
+                <p class="hint">Atalhos para funcoes críticas do dia.</p>
               </div>
             </div>
           </section>
@@ -3070,8 +3070,8 @@
             <section class="card" id="gerencialHealth">
               <div class="card-head">
                 <div>
-                  <h2>Diagnostico do sistema</h2>
-                  <p class="hint">Status tecnico dos modulos e integridade dos dados.</p>
+                  <h2>Diagnóstico do sistema</h2>
+                  <p class="hint">Status técnico dos modulos e integridade dos dados.</p>
                 </div>
                 <div class="card-actions">
                   <button id="btnHealthRunAll" class="btn btn--primary btn--small" type="button">
@@ -3098,7 +3098,7 @@
               <div class="card-head">
                 <div>
                   <h2>Logs de API</h2>
-                  <p class="hint">Historico tecnico das requisicoes mais recentes.</p>
+                  <p class="hint">Historico técnico das requisicoes mais recentes.</p>
                 </div>
                 <div class="card-actions">
                   <button id="btnLogsExport" class="btn btn--primary btn--small" type="button">Exportar</button>
@@ -3111,7 +3111,7 @@
                   <input id="logsFilterEndpoint" type="text" placeholder="/api/maintenance" />
                 </div>
                 <div class="field">
-                  <label for="logsFilterUser">Usuario/ID</label>
+                  <label for="logsFilterUser">Usuário/ID</label>
                   <input id="logsFilterUser" type="text" placeholder="userId" />
                 </div>
                 <div class="field">
@@ -3150,18 +3150,18 @@
             <section class="card" id="gerencialPermissoes">
               <div class="card-head">
                 <div>
-                  <h2>Permissoes granulares</h2>
-                  <p class="hint">Defina acessos por perfil para funcoes criticas.</p>
+                  <h2>Permissões granulares</h2>
+                  <p class="hint">Defina acessos por perfil para funcoes críticas.</p>
                 </div>
                 <button id="btnPermissoesSalvar" class="btn btn--primary btn--small" type="button">
-                  Salvar permissoes
+                  Salvar permissões
                 </button>
               </div>
               <div class="permissions-toolbar">
                 <div id="permissoesSummary" class="permissions-summary"></div>
                 <div class="field field--compact">
-                  <label for="permissoesSearch">Filtrar permissoes</label>
-                  <input id="permissoesSearch" type="search" placeholder="Buscar por modulo ou acao" />
+                  <label for="permissoesSearch">Filtrar permissões</label>
+                  <input id="permissoesSearch" type="search" placeholder="Buscar por modulo ou ação" />
                 </div>
               </div>
               <div id="permissoesList" class="permissions-grid"></div>
@@ -3174,7 +3174,7 @@
               <div class="card-head">
                 <div>
                   <h2>Arquivos do sistema</h2>
-                  <p class="hint">Anexos operacionais e evidencias centralizadas.</p>
+                  <p class="hint">Anexos operacionais e evidências centralizadas.</p>
                 </div>
                 <button id="btnFilesRefresh" class="btn btn--ghost btn--small" type="button">Atualizar</button>
               </div>
@@ -3183,7 +3183,7 @@
                   <label for="filesFilterType">Tipo</label>
                   <select id="filesFilterType">
                     <option value="">Todos</option>
-                    <option value="evidence">Evidencias</option>
+                    <option value="evidence">Evidências</option>
                     <option value="rdo">Anexos de RDO</option>
                     <option value="audit">Documentos de auditoria</option>
                   </select>
@@ -3196,7 +3196,7 @@
                   <label for="filesUploadType">Tipo do upload</label>
                   <select id="filesUploadType">
                     <option value="">Selecionar</option>
-                    <option value="evidence">Evidencias</option>
+                    <option value="evidence">Evidências</option>
                     <option value="rdo">Anexos de RDO</option>
                     <option value="audit">Documentos de auditoria</option>
                   </select>
@@ -3206,7 +3206,7 @@
                   <button id="btnFilesUpload" class="btn btn--primary btn--small" type="button">Enviar</button>
                 </div>
               </div>
-              <small class="hint">PDF, PNG, JPG ou DOCX ate 10 MB por arquivo.</small>
+              <small class="hint">PDF, PNG, JPG ou DOCX até 10 MB por arquivo.</small>
               <div id="filesList" class="files-list"></div>
               <p id="filesEmpty" class="empty-state" hidden>Nenhum arquivo encontrado.</p>
               <p id="filesMessage" class="mensagem" aria-live="polite"></p>
@@ -3217,8 +3217,8 @@
             <section class="card" id="gerencialAutomations">
               <div class="card-head">
                 <div>
-                  <h2>Automacoes (MVP)</h2>
-                  <p class="hint">Gatilhos iniciais para manutencoes criticas.</p>
+                  <h2>Automações (MVP)</h2>
+                  <p class="hint">Gatilhos iniciais para manutenções críticas.</p>
                 </div>
                 <button id="btnAutomationRefresh" class="btn btn--ghost btn--small" type="button">Atualizar</button>
               </div>
@@ -3231,7 +3231,7 @@
             <section class="card">
               <div class="manager-grid">
                 <div class="manager-card">
-                  <h3>Configuracoes</h3>
+                  <h3>Configurações</h3>
                   <div class="field">
                     <label for="configDiasLembrete">Dias de lembrete</label>
                     <input id="configDiasLembrete" type="number" min="1" max="60" />
@@ -3255,12 +3255,12 @@
                 <div class="manager-card">
                   <h3>Limpezas controladas</h3>
                   <div class="field">
-                    <label for="inputDiasLimpeza">Dias para limpar concluidas</label>
+                    <label for="inputDiasLimpeza">Dias para limpar concluídas</label>
                     <input id="inputDiasLimpeza" type="number" min="1" max="365" value="30" />
                   </div>
                   <div class="manager-actions">
                     <button id="btnLimparConcluidas" class="btn btn--ghost btn--small" type="button">
-                      Limpar concluidas
+                      Limpar concluídas
                     </button>
                     <button id="btnLimparAuditoria" class="btn btn--ghost btn--small" type="button">
                       Limpar auditoria
@@ -3268,13 +3268,13 @@
                   </div>
                 </div>
                 <div class="manager-card">
-                  <h3>Atualizacao operacional</h3>
+                  <h3>Atualização operacional</h3>
                   <div class="manager-actions">
                     <button id="btnRecalcularBacklog" class="btn btn--ghost btn--small" type="button">
                       Recalcular backlog
                     </button>
                     <button id="btnGerarRelatorio" class="btn btn--ghost btn--small" type="button">
-                      Gerar relatorio
+                      Gerar relatório
                     </button>
                   </div>
                   <div id="relatorioGerencial" class="manager-report"></div>
@@ -3288,7 +3288,7 @@
 
       <div id="gerencialPalette" class="command-palette" hidden>
         <div class="command-palette__overlay" data-palette-close></div>
-        <div class="command-palette__panel" role="dialog" aria-modal="true" aria-label="Buscar modulo ou acao">
+        <div class="command-palette__panel" role="dialog" aria-modal="true" aria-label="Buscar modulo ou ação">
           <div class="command-palette__header">
             <span class="command-palette__kicker">Command Palette</span>
             <button class="btn btn--ghost btn--small" type="button" data-palette-close>Fechar</button>
@@ -3296,7 +3296,7 @@
           <input
             id="gerencialPaletteInput"
             type="search"
-            placeholder="Digite para buscar modulos e acoes"
+            placeholder="Digite para buscar modulos e ações"
             autocomplete="off"
           />
           <div id="gerencialPaletteList" class="command-palette__list"></div>
@@ -3334,7 +3334,7 @@
             <input id="userFiltroCargo" type="text" placeholder="Cargo" />
           </div>
           <div class="field">
-            <label for="userFiltroProjeto">Projeto / Localizacao</label>
+            <label for="userFiltroProjeto">Projeto / Localização</label>
             <input id="userFiltroProjeto" type="text" placeholder="Projeto ou local" />
           </div>
           <div class="field">
@@ -3427,7 +3427,7 @@
   <div id="modalReagendar" class="modal" hidden>
     <div class="modal__content">
       <div class="modal__header">
-        <h3>Reagendar manutencao</h3>
+        <h3>Reagendar manutenção</h3>
         <button id="btnFecharReagendar" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
           <span aria-hidden="true">x</span>
         </button>
@@ -3447,13 +3447,13 @@
               <option value="Indisponibilidade operacional">Indisponibilidade operacional</option>
               <option value="Falta de equipe ou recurso">Falta de equipe ou recurso</option>
               <option value="Conflito com outra atividade">Conflito com outra atividade</option>
-              <option value="Solicitacao operacional / COS">Solicitacao operacional / COS</option>
-              <option value="Aguardando liberacao">Aguardando liberacao</option>
+              <option value="Solicitacao operacional / COS">Solicitação operacional / COS</option>
+              <option value="Aguardando liberacao">Aguardando liberação</option>
               <option value="Outros">Outros</option>
             </select>
           </div>
           <div class="field" data-full>
-            <label for="reagendarObs">Observacao complementar</label>
+            <label for="reagendarObs">Observação complementar</label>
             <textarea id="reagendarObs" rows="3" placeholder="Detalhes adicionais"></textarea>
             <p class="hint">Obrigatorio quando o motivo for Outros.</p>
           </div>
@@ -3470,7 +3470,7 @@
   <div id="modalBacklogMotivo" class="modal" hidden>
     <div class="modal__content">
       <div class="modal__header">
-        <h3>Motivo da nao execucao</h3>
+        <h3>Motivo da não execução</h3>
         <button id="btnFecharBacklogMotivo" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
           <span aria-hidden="true">x</span>
         </button>
@@ -3486,13 +3486,13 @@
               <option value="Indisponibilidade operacional">Indisponibilidade operacional</option>
               <option value="Falta de equipe ou recurso">Falta de equipe ou recurso</option>
               <option value="Conflito com outra atividade">Conflito com outra atividade</option>
-              <option value="Solicitacao operacional / COS">Solicitacao operacional / COS</option>
-              <option value="Aguardando liberacao">Aguardando liberacao</option>
+              <option value="Solicitacao operacional / COS">Solicitação operacional / COS</option>
+              <option value="Aguardando liberacao">Aguardando liberação</option>
               <option value="Outros">Outros</option>
             </select>
           </div>
           <div class="field" data-full>
-            <label for="backlogMotivoObs">Observacao complementar</label>
+            <label for="backlogMotivoObs">Observação complementar</label>
             <textarea id="backlogMotivoObs" rows="3" placeholder="Detalhes adicionais"></textarea>
             <p class="hint">Obrigatorio quando o motivo for Outros.</p>
           </div>
@@ -3509,7 +3509,7 @@
   <div id="modalLiberacao" class="modal" hidden>
     <div class="modal__content">
       <div class="modal__header">
-        <h3>Liberar execucao</h3>
+        <h3>Liberar execução</h3>
         <button id="btnFecharLiberacao" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
           <span aria-hidden="true">x</span>
         </button>
@@ -3518,14 +3518,14 @@
         <input id="liberacaoId" type="hidden" />
         <div class="form-grid">
           <div class="field">
-            <label for="liberacaoOs">No OS / referencia</label>
+            <label for="liberacaoOs">Nº OS / referência</label>
             <input id="liberacaoOs" type="text" required />
           </div>
           <div class="field">
-            <label for="liberacaoCritico">Trabalho critico?</label>
+            <label for="liberacaoCritico">Trabalho crítico?</label>
             <select id="liberacaoCritico" required>
               <option value="">Selecione</option>
-              <option value="nao">Nao</option>
+              <option value="nao">Não</option>
               <option value="sim">Sim</option>
             </select>
           </div>
@@ -3542,7 +3542,7 @@
             <p id="liberacaoParticipantesErro" class="field-error" hidden></p>
           </div>
           <div class="field" data-full>
-            <label>Documentos obrigatorios</label>
+            <label>Documentos obrigatórios</label>
             <div class="doc-grid">
               <div class="doc-item" data-doc="apr">
                 <div class="doc-head">
@@ -3599,12 +3599,12 @@
             </div>
           </div>
           <div class="field" data-full>
-            <label>Checklist de liberacao</label>
+            <label>Checklist de liberação</label>
             <ul id="liberacaoChecklist" class="checklist"></ul>
           </div>
         </div>
         <div class="modal__actions">
-          <button class="btn btn--primary" type="submit">Salvar liberacao</button>
+          <button class="btn btn--primary" type="submit">Salvar liberação</button>
           <button id="btnCancelarLiberacao" class="btn btn--ghost" type="button">Cancelar</button>
         </div>
         <p id="mensagemLiberacao" class="mensagem" aria-live="polite"></p>
@@ -3617,7 +3617,7 @@
       <div class="modal__header">
         <div>
           <h3>Justificativa obrigatoria</h3>
-          <p id="overrideInfo" class="hint">Liberacao antes da data prevista.</p>
+          <p id="overrideInfo" class="hint">Liberação antes da data prevista.</p>
         </div>
         <button id="btnFecharOverride" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
           <span aria-hidden="true">x</span>
@@ -3629,12 +3629,12 @@
           <textarea
             id="overrideMotivo"
             rows="3"
-            placeholder="Descreva o motivo da liberacao antecipada"
+            placeholder="Descreva o motivo da liberação antecipada"
             required
           ></textarea>
         </div>
         <div class="modal__actions">
-          <button class="btn btn--primary" type="submit">Confirmar liberacao</button>
+          <button class="btn btn--primary" type="submit">Confirmar liberação</button>
           <button id="btnCancelarOverride" class="btn btn--ghost" type="button">Cancelar</button>
         </div>
         <p id="overrideMensagem" class="mensagem" aria-live="polite"></p>
@@ -3645,7 +3645,7 @@
   <div id="modalHistorico" class="modal" hidden>
     <div class="modal__content">
       <div class="modal__header">
-        <h3>Historico da manutencao</h3>
+        <h3>Historico da manutenção</h3>
         <button id="btnFecharHistorico" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
           <span aria-hidden="true">x</span>
         </button>
@@ -3655,10 +3655,10 @@
       <div class="history-actions">
         <button id="btnHistoricoMais" class="btn btn--ghost btn--small" type="button">Mostrar mais</button>
         <button id="btnHistoricoExportar" class="btn btn--ghost btn--small" type="button">
-          Exportar historico (CSV)
+          Exportar histórico (CSV)
         </button>
         <button id="btnHistoricoExportarPdf" class="btn btn--primary btn--small" type="button">
-          Exportar historico (PDF)
+          Exportar histórico (PDF)
         </button>
       </div>
       <p id="historicoVazio" class="empty-state">Nenhum registro encontrado.</p>
@@ -3697,17 +3697,17 @@
   <div id="modalInicioExecucao" class="modal" hidden>
     <div class="modal__content">
       <div class="modal__header">
-        <h3>Iniciar execucao</h3>
+        <h3>Iniciar execução</h3>
         <button id="btnFecharInicioExecucao" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
           <span aria-hidden="true">x</span>
         </button>
       </div>
       <input id="inicioExecucaoId" type="hidden" />
       <p class="hint">
-        Deseja iniciar a execucao desta manutencao agora? O horario de inicio sera registrado automaticamente.
+        Deseja iniciar a execução desta manutenção agora? O horário de início será registrado automaticamente.
       </p>
       <div class="modal__actions">
-        <button id="btnConfirmarInicioExecucao" class="btn btn--primary" type="button">Iniciar execucao</button>
+        <button id="btnConfirmarInicioExecucao" class="btn btn--primary" type="button">Iniciar execução</button>
         <button id="btnCancelarInicioExecucao" class="btn btn--ghost" type="button">Cancelar</button>
       </div>
       <p id="mensagemInicioExecucao" class="mensagem" aria-live="polite"></p>
@@ -3717,7 +3717,7 @@
   <div id="modalCancelarInicio" class="modal" hidden>
     <div class="modal__content">
       <div class="modal__header">
-        <h3>Cancelar inicio de execucao</h3>
+        <h3>Cancelar início de execução</h3>
         <button id="btnFecharCancelarInicio" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
           <span aria-hidden="true">x</span>
         </button>
@@ -3731,14 +3731,14 @@
               <option value="">Selecione</option>
               <option value="Clique acidental">Clique acidental</option>
               <option value="Atividade adiada por decisao operacional">Atividade adiada por decisao operacional</option>
-              <option value="Falta de liberacao / documentacao inconsistente">Falta de liberacao / documentacao inconsistente</option>
+              <option value="Falta de liberacao / documentacao inconsistente">Falta de liberação / documentação inconsistente</option>
               <option value="Condicao climatica">Condicao climatica</option>
               <option value="Indisponibilidade de equipe/recurso">Indisponibilidade de equipe/recurso</option>
               <option value="Outros">Outros</option>
             </select>
           </div>
           <div class="field" data-full>
-            <label for="cancelarInicioObs">Observacao</label>
+            <label for="cancelarInicioObs">Observação</label>
             <textarea id="cancelarInicioObs" rows="3" placeholder="Detalhes do cancelamento"></textarea>
             <p class="hint">Obrigatorio quando o motivo for Outros.</p>
           </div>
@@ -3755,7 +3755,7 @@
   <div id="modalRegistroExecucao" class="modal" hidden>
     <div class="modal__content">
       <div class="modal__header">
-        <h3>Registrar execucao</h3>
+        <h3>Registrar execução</h3>
         <button id="btnFecharRegistroExecucao" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
           <span aria-hidden="true">x</span>
         </button>
@@ -3768,7 +3768,7 @@
             <input id="registroTipo" type="text" readonly />
           </div>
           <div class="field">
-            <label>Subestacao</label>
+            <label>Subestação</label>
             <input id="registroSubestacao" type="text" readonly />
           </div>
           <div class="field">
@@ -3788,11 +3788,11 @@
             <select id="registroExecutadaPor" required></select>
           </div>
           <div class="field">
-            <label for="registroInicio">Inicio da execucao</label>
+            <label for="registroInicio">Início da execução</label>
             <input id="registroInicio" type="text" readonly />
           </div>
           <div class="field">
-            <label>OS / referencia</label>
+            <label>OS / referência</label>
             <input id="registroOsNumero" type="text" readonly />
           </div>
           <div class="field" data-full>
@@ -3807,30 +3807,30 @@
             <label for="registroResultado">Resultado</label>
             <select id="registroResultado" required>
               <option value="">Selecione</option>
-              <option value="concluida">Concluida</option>
+              <option value="concluida">Concluída</option>
               <option value="ressalva">Concluida com ressalva</option>
-              <option value="nao_executada">Nao executada</option>
+              <option value="nao_executada">Não executada</option>
             </select>
           </div>
           <div class="field" data-full>
-            <label for="registroComentario">Descricao tecnica da execucao</label>
+            <label for="registroComentario">Descrição técnica da execução</label>
             <textarea id="registroComentario" rows="3" required></textarea>
           </div>
           <div class="field" data-full>
-            <label for="registroObsExecucao">Observacao de execucao (opcional)</label>
+            <label for="registroObsExecucao">Observação de execução (opcional)</label>
             <textarea id="registroObsExecucao" rows="3" placeholder="Notas adicionais"></textarea>
           </div>
         </div>
         <div class="modal__actions">
           <button class="btn btn--primary" type="submit">Salvar registro</button>
-          <button id="btnCancelarExecucao" class="btn btn--danger" type="button" hidden>Cancelar execucao</button>
+          <button id="btnCancelarExecucao" class="btn btn--danger" type="button" hidden>Cancelar execução</button>
           <button id="btnCancelarRegistroExecucao" class="btn btn--ghost" type="button">Cancelar</button>
         </div>
         <p id="mensagemRegistroExecucao" class="mensagem" aria-live="polite"></p>
       </form>
       <form id="formCancelarExecucao" class="modal__form" hidden>
         <div class="modal__header">
-          <h4>Cancelar execucao</h4>
+          <h4>Cancelar execução</h4>
         </div>
         <div class="form-grid">
           <div class="field" data-full>
@@ -3850,7 +3850,7 @@
   <div id="modalConclusao" class="modal" hidden>
     <div class="modal__content">
       <div class="modal__header">
-        <h3>Encerrar manutencao</h3>
+        <h3>Encerrar manutenção</h3>
         <button id="btnFecharConclusao" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
           <span aria-hidden="true">x</span>
         </button>
@@ -3863,7 +3863,7 @@
             <input id="conclusaoTipo" type="text" readonly />
           </div>
           <div class="field">
-            <label>Subestacao</label>
+            <label>Subestação</label>
             <input id="conclusaoSubestacao" type="text" readonly />
           </div>
           <div class="field">
@@ -3887,7 +3887,7 @@
             <input id="conclusaoEncerradaPor" type="text" readonly />
           </div>
           <div class="field">
-            <label for="conclusaoInicio">Inicio</label>
+            <label for="conclusaoInicio">Início</label>
             <input id="conclusaoInicio" type="text" readonly />
           </div>
           <div class="field">
@@ -3903,11 +3903,11 @@
             <input id="conclusaoResultado" type="text" readonly />
           </div>
           <div class="field" data-full>
-            <label for="conclusaoComentario">Descricao tecnica</label>
+            <label for="conclusaoComentario">Descrição técnica</label>
             <textarea id="conclusaoComentario" rows="3" readonly></textarea>
           </div>
           <div class="field" data-full>
-            <label for="conclusaoObsExecucao">Observacao de execucao (opcional)</label>
+            <label for="conclusaoObsExecucao">Observação de execução (opcional)</label>
             <textarea id="conclusaoObsExecucao" rows="3" readonly></textarea>
           </div>
           <div class="field" data-full>
@@ -3919,11 +3919,11 @@
             <div id="conclusaoDocs" class="doc-list"></div>
           </div>
           <div class="field" data-full>
-            <label for="conclusaoReferencia">No OS / referencia (obrigatorio)</label>
+            <label for="conclusaoReferencia">Nº OS / referência (obrigatório)</label>
             <input id="conclusaoReferencia" type="text" placeholder="Ex.: OS 123456" required />
           </div>
           <div class="field" data-full>
-            <label for="conclusaoEvidencia1">Evidencias (minimo 4 fotos)</label>
+            <label for="conclusaoEvidencia1">Evidências (mínimo 4 fotos)</label>
             <div class="evidence-picker">
               <div class="photo-slot">
                 <button class="btn btn--icon btn--ghost btn--camera" type="button" data-evidencia-btn="1" aria-label="Adicionar foto 1">
@@ -4034,10 +4034,10 @@
           </div>
         </div>
         <div class="modal__actions">
-          <button class="btn btn--primary" type="submit">Concluir manutencao</button>
+          <button class="btn btn--primary" type="submit">Concluir manutenção</button>
           <button id="btnCancelarConclusao" class="btn btn--ghost" type="button">Cancelar</button>
         </div>
-        <p class="hint">Preencha OS, horario de fim e evidencias para encerrar.</p>
+        <p class="hint">Preencha OS, horário de fim e evidências para encerrar.</p>
         <p id="mensagemConclusao" class="mensagem" aria-live="polite"></p>
       </form>
     </div>
@@ -4046,7 +4046,7 @@
   <div id="modalRelatorio" class="modal" hidden>
     <div class="modal__content modal__content--wide">
       <div class="modal__header">
-        <h3>Relatorio de manutencao</h3>
+        <h3>Relatório de manutenção</h3>
         <button id="btnFecharRelatorio" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
           <span aria-hidden="true">x</span>
         </button>
@@ -4057,7 +4057,7 @@
             <img id="relatorioLogo" src="assets/engelmig-logo.png" alt="ENGELMIG" />
             <div>
               <strong>OPSCOPE</strong>
-              <span>Relatorio de manutencao</span>
+              <span>Relatório de manutenção</span>
             </div>
           </div>
           <div class="report__meta">
@@ -4073,7 +4073,7 @@
               <strong id="relatorioAbertaEm">-</strong>
             </div>
             <div>
-              <span>Inicio</span>
+              <span>Início</span>
               <strong id="relatorioInicio">-</strong>
             </div>
             <div>
@@ -4110,15 +4110,15 @@
             </div>
           </div>
           <div class="report__desc">
-            <h4>Descricao tecnica</h4>
+            <h4>Descrição técnica</h4>
             <p id="relatorioDescricao">-</p>
           </div>
           <div class="report__desc">
-            <h4>Observacao de execucao</h4>
+            <h4>Observação de execução</h4>
             <p id="relatorioObsExecucao">-</p>
           </div>
           <div> 
-            <h4>Evidencias</h4>
+            <h4>Evidências</h4>
             <div id="relatorioEvidencias" class="report__evidencias"></div>
           </div>
         </section>
@@ -4127,7 +4127,7 @@
         </footer>
       </div>
       <div class="modal__actions">
-        <button id="btnImprimirRelatorio" class="btn btn--primary" type="button">Imprimir relatorio</button>
+        <button id="btnImprimirRelatorio" class="btn btn--primary" type="button">Imprimir relatório</button>
         <button id="btnExportarPDF" class="btn btn--ghost" type="button">Exportar PDF</button>
       </div>
     </div>
@@ -4159,15 +4159,15 @@
       <div class="modal__content modal__content--wide">
         <div class="modal__header">
           <div>
-            <h3>Importar manutencoes existentes</h3>
-            <p class="hint">Selecione manutencoes do projeto para criar atividades PMP.</p>
+            <h3>Importar manutenções existentes</h3>
+            <p class="hint">Selecione manutenções do projeto para criar atividades PMP.</p>
           </div>
           <button class="btn btn--ghost btn--small" type="button" data-pmp-import-close>Fechar</button>
         </div>
         <div class="modal__form">
           <div class="form-grid">
             <div class="field" data-full>
-              <label for="pmpImportSearch">Buscar manutencao</label>
+              <label for="pmpImportSearch">Buscar manutenção</label>
               <input id="pmpImportSearch" type="text" placeholder="Nome, codigo, equipamento" />
             </div>
           </div>
@@ -4177,19 +4177,19 @@
                 <thead>
                   <tr>
                     <th></th>
-                    <th>Manutencao</th>
+                    <th>Manutenção</th>
                     <th>Codigo / tag</th>
                     <th>Equipamento</th>
-                    <th>Frequencia</th>
-                    <th>Tecnicos</th>
-                    <th>Duracao</th>
-                    <th>Ultima execucao</th>
+                    <th>Frequência</th>
+                    <th>Técnicos</th>
+                    <th>Duração</th>
+                    <th>última execução</th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody id="pmpImportList"></tbody>
               </table>
-              <p id="pmpImportEmpty" class="empty-state">Nenhuma manutencao encontrada.</p>
+              <p id="pmpImportEmpty" class="empty-state">Nenhuma manutenção encontrada.</p>
             </div>
           </div>
           <div class="modal__actions">
@@ -4212,11 +4212,11 @@
         <div class="modal__form">
           <div class="pmp-cell-detail">
             <div class="pmp-cell-section">
-              <h4>Execucao</h4>
+              <h4>Execução</h4>
               <ul id="pmpCellExecList" class="pmp-cell-list"></ul>
             </div>
             <div class="pmp-cell-section">
-              <h4>Evidencias</h4>
+              <h4>Evidências</h4>
               <ul id="pmpCellEvidencias" class="pmp-cell-list"></ul>
             </div>
             <div class="pmp-cell-section">
@@ -4224,14 +4224,14 @@
               <ul id="pmpCellChecklist" class="checklist"></ul>
             </div>
             <div class="pmp-cell-section">
-              <h4>Observacoes</h4>
+              <h4>Observações</h4>
               <p id="pmpCellObservacoes" class="pmp-cell-text">-</p>
               <h4>Procedimentos</h4>
               <p id="pmpCellProcedimentos" class="pmp-cell-text">-</p>
             </div>
           </div>
           <div class="pmp-cell-form">
-            <h4>Editar execucao</h4>
+            <h4>Editar execução</h4>
             <div class="form-grid">
               <div class="field">
                 <label for="pmpCellScheduled">Data prevista</label>
@@ -4242,27 +4242,27 @@
                 <input id="pmpCellExecuted" type="date" />
               </div>
               <div class="field">
-                <label for="pmpCellExecutor">Tecnico responsavel</label>
+                <label for="pmpCellExecutor">Técnico responsável</label>
                 <select id="pmpCellExecutor"></select>
               </div>
               <div class="field" data-full>
-                <label for="pmpCellObsInput">Observacao da execucao</label>
-                <textarea id="pmpCellObsInput" rows="2" placeholder="Observacoes da execucao"></textarea>
+                <label for="pmpCellObsInput">Observação da execução</label>
+                <textarea id="pmpCellObsInput" rows="2" placeholder="Observações da execução"></textarea>
               </div>
               <div class="field" data-full>
-                <label for="pmpCellEvidenciasInput">Evidencias (uma por linha)</label>
+                <label for="pmpCellEvidenciasInput">Evidências (uma por linha)</label>
                 <textarea id="pmpCellEvidenciasInput" rows="2" placeholder="Links, arquivos ou IDs"></textarea>
               </div>
               <div class="field" data-full>
-                <label for="pmpCellChecklistInput">Checklist da execucao (uma por linha)</label>
+                <label for="pmpCellChecklistInput">Checklist da execução (uma por linha)</label>
                 <textarea id="pmpCellChecklistInput" rows="2" placeholder="Itens executados"></textarea>
               </div>
             </div>
           </div>
           <div class="modal__actions">
-            <button id="pmpCellSave" class="btn btn--primary" type="button">Salvar execucao</button>
-            <button id="pmpCellRemove" class="btn btn--ghost btn--danger" type="button">Remover execucao</button>
-            <button id="pmpCellUnset" class="btn btn--ghost" type="button">Nao prevista</button>
+            <button id="pmpCellSave" class="btn btn--primary" type="button">Salvar execução</button>
+            <button id="pmpCellRemove" class="btn btn--ghost btn--danger" type="button">Remover execução</button>
+            <button id="pmpCellUnset" class="btn btn--ghost" type="button">Não prevista</button>
             <button id="pmpCellMarkCancel" class="btn btn--ghost btn--danger" type="button">Marcar cancelada</button>
             <button id="pmpCellClose" class="btn btn--ghost" type="button">Fechar</button>
           </div>

@@ -708,12 +708,12 @@ const DEFAULT_PROJECT_CODE = "834";
 const DEFAULT_PROJECT_LABEL = "834 - PARACATU/SOLARIG (Boa Sorte II)";
 const SUBESTACOES = [];
 const DEFAULT_TEMPLATE_NAMES = new Set([
-  "Inspecao diaria da subestacao",
-  "Inspecao mensal da subestacao",
-  "Inspecao semanal do GMG BSO2",
-  "Inspecao semanal dos GMG PCT4",
-  "Inspecao mensal do GMG BSO2",
-  "Inspecao mensal dos GMG PCT4",
+  "Inspeção diária da subestação",
+  "Inspeção mensal da subestação",
+  "Inspeção semanal do GMG BSO2",
+  "Inspeção semanal dos GMG PCT4",
+  "Inspeção mensal do GMG BSO2",
+  "Inspeção mensal dos GMG PCT4",
 ]);
 const WEEKDAYS = ["Domingo", "Segunda", "Terca", "Quarta", "Quinta", "Sexta", "Sabado"];
 const WEEKDAYS_SHORT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
@@ -734,7 +734,7 @@ const PMP_MONTH_LABELS = [
   "Dez",
 ];
 const PMP_FREQUENCIES = [
-  { value: "diaria", label: "Diaria", unit: "day", interval: 1 },
+  { value: "diaria", label: "Diária", unit: "day", interval: 1 },
   { value: "semanal", label: "Semanal", unit: "week", interval: 1 },
   { value: "mensal", label: "Mensal", unit: "month", interval: 1 },
   { value: "bimestral", label: "Bimestral", unit: "month", interval: 2 },
@@ -750,7 +750,7 @@ const PMP_STATUS_LABELS = {
   missed: "Atrasada",
   scheduled: "Planejada",
   cancelled: "Cancelada",
-  empty: "Nao prevista",
+  empty: "Não prevista",
 };
 const PMP_STATUS_FILTER_MAP = {
   conforme: "on_time",
@@ -763,23 +763,23 @@ const PMP_TIPOS = [
   { value: "preventiva", label: "Preventiva", short: "PREV" },
   { value: "corretiva", label: "Corretiva", short: "COR" },
   { value: "preditiva", label: "Preditiva", short: "PRED" },
-  { value: "inspecao", label: "Inspecao", short: "INSP" },
+  { value: "inspecao", label: "Inspeção", short: "INSP" },
   { value: "outra", label: "Outra", short: "OUT" },
 ];
 const SECTION_LABELS = {
-  inicio: "Inicio",
-  programacao: "Programacao",
-  nova: "Nova manutencao",
-  modelos: "Modelos e recorrencias",
+  inicio: "Início",
+  programacao: "Programação",
+  nova: "Nova manutenção",
+  modelos: "Modelos e recorrências",
   pmp: "PMP / Cronograma",
-  execucao: "Execucao do dia",
+  execucao: "Execução do dia",
   backlog: "Backlog",
   projetos: "Locais de trabalho",
   desempenho: "Desempenho",
   "performance-projects": "Desempenho por projeto",
   "performance-people": "Desempenho por colaborador",
-  tendencias: "KPIs e tendencias",
-  relatorios: "Relatorios",
+  tendencias: "KPIs e tendências",
+  relatorios: "Relatórios",
   feedbacks: "Feedbacks",
   perfil: "Meu perfil",
 };
@@ -794,9 +794,9 @@ const STATUS_LABELS = {
   agendada: "Agendada",
   liberada: "Liberada",
   backlog: "Backlog",
-  em_execucao: "Em execucao",
+  em_execucao: "Em execução",
   encerramento: "Encerramento",
-  concluida: "Concluida",
+  concluida: "Concluída",
 };
 
 const PERMISSIONS = {
@@ -810,9 +810,9 @@ const PERMISSIONS = {
 const GRANULAR_PERMISSION_LABELS = {
   editarPerfil: "Editar perfil (UEN/Projeto)",
   editarPerfilOutros: "Editar perfil de outros",
-  verUsuarios: "Ver usuarios",
-  convidarUsuarios: "Convidar usuarios",
-  desativarUsuarios: "Desativar usuarios",
+  verUsuarios: "Ver usuários",
+  convidarUsuarios: "Convidar usuários",
+  desativarUsuarios: "Desativar usuários",
   verArquivos: "Ver arquivos",
   uploadArquivos: "Enviar arquivos",
   excluirArquivos: "Excluir arquivos",
@@ -820,14 +820,14 @@ const GRANULAR_PERMISSION_LABELS = {
   verRDOs: "Ver RDOs",
   gerarRDOs: "Gerar RDOs",
   excluirRDOs: "Excluir RDOs",
-  verRelatorios: "Ver relatorios",
-  exportarRelatorios: "Exportar relatorios",
+  verRelatorios: "Ver relatórios",
+  exportarRelatorios: "Exportar relatórios",
   reexecutarTarefas: "Reexecutar tarefas",
   verLogsAPI: "Ver logs de API",
   limparLogsAPI: "Limpar logs de API",
-  gerenciarAutomacoes: "Gerenciar automacoes",
-  verAutomacoes: "Ver automacoes",
-  verDiagnostico: "Ver diagnostico",
+  gerenciarAutomacoes: "Gerenciar automações",
+  verAutomacoes: "Ver automações",
+  verDiagnostico: "Ver diagnóstico",
   verPainelGerencial: "Ver painel gerencial",
   gerenciarProjetos: "Gerenciar projetos",
   gerenciarEquipamentos: "Gerenciar equipamentos",
@@ -837,7 +837,7 @@ const GRANULAR_PERMISSION_LABELS = {
 const PERMISSION_GROUPS = [
   {
     key: "perfil",
-    label: "Perfis e usuarios",
+    label: "Perfis e usuários",
     items: ["editarPerfil", "editarPerfilOutros", "verUsuarios", "convidarUsuarios", "desativarUsuarios"],
   },
   {
@@ -862,12 +862,12 @@ const PERMISSION_GROUPS = [
   },
   {
     key: "relatorios",
-    label: "Relatorios",
+    label: "Relatórios",
     items: ["verRelatorios", "exportarRelatorios"],
   },
   {
     key: "diagnostico",
-    label: "Diagnostico",
+    label: "Diagnóstico",
     items: ["verDiagnostico", "reexecutarTarefas"],
   },
   {
@@ -877,7 +877,7 @@ const PERMISSION_GROUPS = [
   },
   {
     key: "automacoes",
-    label: "Automacoes",
+    label: "Automações",
     items: ["verAutomacoes", "gerenciarAutomacoes"],
   },
   {
@@ -1230,7 +1230,7 @@ const gerencialLoadedTabs = new Set();
 
 function getIndicatorStatusLabel(status, count) {
   if (status === "error") {
-    return `${count} criticos`;
+    return `${count} críticos`;
   }
   if (status === "warn") {
     return `${count} alertas`;
@@ -1264,7 +1264,7 @@ function summarizeHealthIndicators(snapshot) {
     return {
       status: "warn",
       alerts: 0,
-      meta: "Diagnostico indisponivel",
+      meta: "Diagnóstico indisponível",
     };
   }
   const modules = snapshot.modules;
@@ -1282,7 +1282,7 @@ function summarizeHealthIndicators(snapshot) {
   const alerts = moduleAlerts + taskAlerts + issueAlerts;
   const hasError = moduleStatuses.includes("error") || issues.some((item) => item.level === "error");
   const status = hasError ? "error" : alerts > 0 ? "warn" : "ok";
-  const meta = snapshot.generatedAt ? `Atualizado em ${formatHealthDate(snapshot.generatedAt)}` : "Diagnostico ativo";
+  const meta = snapshot.generatedAt ? `Atualizado em ${formatHealthDate(snapshot.generatedAt)}` : "Diagnóstico ativo";
   return { status, alerts, meta };
 }
 
@@ -1311,7 +1311,7 @@ function updateGerencialIndicators() {
     indicatorLogsBadge.textContent = getIndicatorStatusLabel(logStatus, logErrors);
   }
   if (indicatorLogsMeta) {
-    indicatorLogsMeta.textContent = apiLogsState.items.length ? "Ultimas requisicoes" : "Sem logs carregados";
+    indicatorLogsMeta.textContent = apiLogsState.items.length ? "Últimas requisições" : "Sem logs carregados";
   }
   applyIndicatorStatus(indicatorLogsCard, indicatorLogsBadge, logStatus);
 
@@ -1340,7 +1340,7 @@ function updateGerencialIndicators() {
   if (indicatorAutomationsMeta) {
     indicatorAutomationsMeta.textContent = automationCount
       ? `${automationCount} regras`
-      : "Nenhuma automacao carregada";
+      : "Nenhuma automação carregada";
   }
   applyIndicatorStatus(indicatorAutomationsCard, indicatorAutomationsBadge, automationStatus);
 }
@@ -1376,7 +1376,7 @@ async function refreshGerencialAll() {
   ]);
   const failed = results.some((item) => item.status === "rejected");
   if (failed) {
-    setGerencialUpdateMessage("Atualizacao parcial. Verifique os modulos.", true);
+    setGerencialUpdateMessage("Atualização parcial. Verifique os módulos.", true);
     return;
   }
   setGerencialUpdateMessage("Atualizado com sucesso.");
@@ -1514,13 +1514,13 @@ function getGerencialPaletteItems() {
       selector: "#btnGerencialRefreshAll",
     },
     {
-      label: "Reexecutar tudo (diagnostico)",
+      label: "Reexecutar tudo (diagnóstico)",
       tab: "diagnostico",
       selector: "#btnHealthRunAll",
       permission: "reexecutarTarefas",
     },
     {
-      label: "Atualizar diagnostico",
+      label: "Atualizar diagnóstico",
       tab: "diagnostico",
       selector: "#btnRefreshHealth",
       permission: "verDiagnostico",
@@ -1538,7 +1538,7 @@ function getGerencialPaletteItems() {
       permission: "verLogsAPI",
     },
     {
-      label: "Salvar permissoes",
+      label: "Salvar permissões",
       tab: "permissoes",
       selector: "#btnPermissoesSalvar",
     },
@@ -1562,7 +1562,7 @@ function getGerencialPaletteItems() {
     if (item.permission && !hasGranularPermission(currentUser, item.permission)) {
       return;
     }
-    items.push({ ...item, type: "action", hint: "Executar acao" });
+    items.push({ ...item, type: "action", hint: "Executar ação" });
   });
   return items;
 }
@@ -1676,15 +1676,15 @@ const ACTION_LABELS = {
   edit: "Editar",
   remove: "Remover",
   reschedule: "Reagendar",
-  release: "Liberacao registrada",
-  execute: "Execucao iniciada",
-  cancel_start: "Inicio cancelado",
-  execute_register: "Registro de execucao",
+  release: "Liberação registrada",
+  execute: "Execução iniciada",
+  cancel_start: "Início cancelado",
+  execute_register: "Registro de execução",
   complete: "Concluir",
-  note: "Observacao",
-  backlog_auto: "Backlog automatico",
-  backlog_reason: "Motivo nao executada",
-  rdo_delete: "RDO excluido",
+  note: "Observação",
+  backlog_auto: "Backlog automático",
+  backlog_reason: "Motivo não executada",
+  rdo_delete: "RDO excluído",
 };
 
 const MAINTENANCE_STATE_LABELS = {
@@ -1694,9 +1694,9 @@ const MAINTENANCE_STATE_LABELS = {
 };
 
 const RESULTADO_LABELS = {
-  concluida: "Concluida",
-  ressalva: "Concluida com ressalva",
-  nao_executada: "Nao executada",
+  concluida: "Concluída",
+  ressalva: "Concluída com ressalva",
+  nao_executada: "Não executada",
 };
 
 const dateFormatter = new Intl.DateTimeFormat("pt-BR");
@@ -1918,7 +1918,7 @@ async function apiRequest(path, options = {}) {
   }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const message = data && data.message ? data.message : "Falha na autenticacao.";
+    const message = data && data.message ? data.message : "Falha na autenticação.";
     const error = new Error(message);
     error.status = response.status;
     error.data = data;
@@ -2037,7 +2037,7 @@ function unmountProfileAvatarActions() {
 
 function formatProfileValue(value) {
   const texto = String(value || "").trim();
-  return texto ? texto : "Nao informado";
+  return texto ? texto : "Não informado";
 }
 
 function ativarModoEdicaoPerfil() {
@@ -2048,7 +2048,7 @@ function ativarModoEdicaoPerfil() {
     !isFullAccessUser(currentUser) &&
     getCargoLevel(currentUser.cargo) < getCargoLevel("SUPERVISOR O&M")
   ) {
-    setPerfilSaveMessage("Sem permissao para editar este perfil.", true);
+    setPerfilSaveMessage("Sem permissão para editar este perfil.", true);
     return;
   }
   setProfileEditParam(true);
@@ -2286,7 +2286,7 @@ function getHealthLabel(status) {
     return "OK";
   }
   if (status === "warn") {
-    return "Atencao";
+    return "Atenção";
   }
   if (status === "error") {
     return "Falha";
@@ -2314,7 +2314,7 @@ function renderHealthSummary(snapshot) {
   if (!snapshot || !snapshot.modules) {
     const vazio = document.createElement("p");
     vazio.className = "empty-state";
-    vazio.textContent = "Diagnostico indisponivel.";
+    vazio.textContent = "Diagnóstico indisponível.";
     healthSummary.append(vazio);
     return;
   }
@@ -2340,7 +2340,7 @@ function renderHealthSummary(snapshot) {
     {
       titulo: "Backup",
       status: modules.backups ? modules.backups.status : "warn",
-      resumo: `Ultima execucao: ${formatHealthDate(modules.backups && modules.backups.lastRun)}`,
+      resumo: `Última execução: ${formatHealthDate(modules.backups && modules.backups.lastRun)}`,
     },
     {
       titulo: "Fila de tarefas",
@@ -2356,13 +2356,13 @@ function renderHealthSummary(snapshot) {
           : [];
         const count = issues.length;
         if (!count) {
-          return "Sem inconsistencias.";
+          return "Sem inconsistências.";
         }
         const detail = issues
           .slice(0, 2)
-          .map((issue) => issue.message || "Inconsistencia")
+          .map((issue) => issue.message || "Inconsistência")
           .join(" | ");
-        return `Inconsistencias: ${count}${detail ? ` | ${detail}` : ""}`;
+        return `Inconsistências: ${count}${detail ? ` | ${detail}` : ""}`;
       })(),
     },
   ];
@@ -2407,7 +2407,7 @@ function renderHealthTasks(snapshot) {
     title.textContent = task.label || task.id;
     const details = document.createElement("div");
     details.className = "health-task__details";
-    details.textContent = `Ultima execucao: ${formatHealthDate(task.lastRun)} | Intervalo: ${task.intervalMinutes} min`;
+    details.textContent = `Última execução: ${formatHealthDate(task.lastRun)} | Intervalo: ${task.intervalMinutes} min`;
     meta.append(title, details);
     if (task.lastError) {
       const error = document.createElement("div");
@@ -2446,7 +2446,7 @@ function renderHealthIntegrity(snapshot) {
   if (!issues.length) {
     const ok = document.createElement("p");
     ok.className = "empty-state";
-    ok.textContent = "Sem inconsistencias detectadas.";
+    ok.textContent = "Sem inconsistências detectadas.";
     healthIntegrity.append(ok);
     return;
   }
@@ -2454,7 +2454,7 @@ function renderHealthIntegrity(snapshot) {
     const item = document.createElement("div");
     const level = issue.level === "error" ? "error" : "warn";
     item.className = `health-issue health-issue--${level}`;
-    item.textContent = issue.message || "Inconsistencia detectada.";
+    item.textContent = issue.message || "Inconsistência detectada.";
     healthIntegrity.append(item);
   });
 }
@@ -2470,7 +2470,7 @@ async function carregarHealth(forcar = false) {
     return;
   }
   healthLoading = true;
-  mostrarMensagemHealth("Carregando diagnostico...");
+  mostrarMensagemHealth("Carregando diagnóstico...");
   try {
     const data = await apiAdminHealth();
     healthSnapshot = data;
@@ -2479,7 +2479,7 @@ async function carregarHealth(forcar = false) {
     renderHealthIntegrity(data);
     mostrarMensagemHealth(`Atualizado em ${formatHealthDate(data.generatedAt)}.`);
   } catch (error) {
-    mostrarMensagemHealth(error.message || "Falha ao carregar diagnostico.", true);
+    mostrarMensagemHealth(error.message || "Falha ao carregar diagnóstico.", true);
   } finally {
     healthLoading = false;
   }
@@ -2576,10 +2576,10 @@ function renderApiLogs() {
       <tr>
         <th>Data</th>
         <th>Endpoint</th>
-        <th>Usuario</th>
+        <th>Usuário</th>
         <th>Status</th>
-        <th>Duracao</th>
-        <th>Acoes</th>
+        <th>Duração</th>
+        <th>Ações</th>
       </tr>
     </thead>
   `;
@@ -2587,7 +2587,7 @@ function renderApiLogs() {
   items.forEach((entry) => {
     const row = document.createElement("tr");
     const data = parseTimestamp(entry.timestamp);
-    const userLabel = entry.userName || entry.userId || "Anonimo";
+    const userLabel = entry.userName || entry.userId || "Anônimo";
     const status = Number(entry.status) || 0;
     const statusClass = buildLogStatusClass(status);
     row.innerHTML = `
@@ -2855,7 +2855,7 @@ function renderPermissoesGerenciais() {
   if (!permissoesList.childElementCount) {
     const vazio = document.createElement("p");
     vazio.className = "empty-state";
-    vazio.textContent = "Nenhuma permissao encontrada com esse filtro.";
+    vazio.textContent = "Nenhuma permissão encontrada com esse filtro.";
     permissoesList.append(vazio);
   }
 
@@ -2864,7 +2864,7 @@ function renderPermissoesGerenciais() {
     permissoesSummary.innerHTML = "";
     const pills = [
       `Perfis: ${visibleProfiles}`,
-      `Permissoes: ${totalVisible}`,
+      `Permissões: ${totalVisible}`,
       `Ativas: ${totalEnabled}`,
     ];
     pills.forEach((text) => {
@@ -2910,7 +2910,7 @@ async function carregarPermissoes(forcar = false) {
     return;
   }
   permissoesState.loading = true;
-  mostrarMensagemPermissoes("Carregando permissoes...");
+  mostrarMensagemPermissoes("Carregando permissões...");
   try {
     const data = await apiAdminPermissoes();
     permissoesState.values = data.values || {};
@@ -2920,7 +2920,7 @@ async function carregarPermissoes(forcar = false) {
     renderPermissoesGerenciais();
     mostrarMensagemPermissoes("");
   } catch (error) {
-    mostrarMensagemPermissoes(error.message || "Falha ao carregar permissoes.", true);
+    mostrarMensagemPermissoes(error.message || "Falha ao carregar permissões.", true);
   } finally {
     permissoesState.loading = false;
   }
@@ -2928,23 +2928,23 @@ async function carregarPermissoes(forcar = false) {
 
 function getAutomationEventLabel(evento) {
   if (evento === "maintenance_created") {
-    return "Manutencao criada";
+    return "Manutenção criada";
   }
   return "Evento";
 }
 
 function getAutomationConditionLabel(condition) {
   if (condition && condition.type === "critical") {
-    return "Tag critica";
+    return "Tag crítica";
   }
-  return "Sem condicao";
+  return "Sem condição";
 }
 
 function getAutomationActionLabel(action) {
   if (action && action.type === "notify_email") {
-    return "Notificar email";
+    return "Notificar e-mail";
   }
-  return "Acao";
+  return "Ação";
 }
 
 function formatAutomationDate(value) {
@@ -2961,7 +2961,7 @@ function renderAutomacoes() {
   if (!items.length) {
     const vazio = document.createElement("p");
     vazio.className = "empty-state";
-    vazio.textContent = "Nenhuma automacao configurada.";
+    vazio.textContent = "Nenhuma automação configurada.";
     automationList.append(vazio);
     return;
   }
@@ -2974,19 +2974,19 @@ function renderAutomacoes() {
     main.className = "automation-main";
     const title = document.createElement("div");
     title.className = "automation-title";
-    title.textContent = automation.name || "Automacao";
+    title.textContent = automation.name || "Automação";
     const meta = document.createElement("div");
     meta.className = "automation-meta";
-    meta.textContent = `Evento: ${getAutomationEventLabel(automation.event)} | Condicao: ${getAutomationConditionLabel(
+    meta.textContent = `Evento: ${getAutomationEventLabel(automation.event)} | Condição: ${getAutomationConditionLabel(
       automation.condition
-    )} | Acao: ${getAutomationActionLabel(automation.action)}`;
+    )} | Ação: ${getAutomationActionLabel(automation.action)}`;
     const status = document.createElement("div");
     status.className = "automation-status";
     const lastLabel = formatAutomationDate(automation.lastRunAt);
     const statusLabel = automation.lastStatus
       ? automation.lastStatus.toUpperCase()
       : "PENDENTE";
-    status.textContent = `Ultima execucao: ${lastLabel} | ${statusLabel}`;
+    status.textContent = `Última execução: ${lastLabel} | ${statusLabel}`;
     main.append(title, meta, status);
 
     const actions = document.createElement("div");
@@ -3006,7 +3006,7 @@ function renderAutomacoes() {
     }
     const note = document.createElement("div");
     note.className = "automation-note";
-    note.textContent = "Destino: email do admin logado.";
+    note.textContent = "Destino: e-mail do admin logado.";
     actions.append(toggle, note);
 
     row.append(main, actions);
@@ -3024,14 +3024,14 @@ async function carregarAutomacoes(forcar = false) {
     return;
   }
   automationsState.loading = true;
-  mostrarMensagemAutomacoes("Carregando automacoes...");
+  mostrarMensagemAutomacoes("Carregando automações...");
   try {
     const data = await apiAdminAutomations();
     automationsState.items = Array.isArray(data.automations) ? data.automations : [];
     renderAutomacoes();
     mostrarMensagemAutomacoes("");
   } catch (error) {
-    mostrarMensagemAutomacoes(error.message || "Falha ao carregar automacoes.", true);
+    mostrarMensagemAutomacoes(error.message || "Falha ao carregar automações.", true);
   } finally {
     automationsState.loading = false;
   }
@@ -3047,7 +3047,7 @@ function mostrarMensagemArquivos(texto, erro = false) {
 
 function getFileTypeLabel(tipo) {
   if (tipo === "evidence") {
-    return "Evidencias";
+    return "Evidências";
   }
   if (tipo === "rdo") {
     return "Anexos de RDO";
@@ -3615,7 +3615,7 @@ function salvarConfiguracoes() {
   writeJson(REMINDER_KEY, reminderDays);
   gerarManutencoesRecorrentes();
   renderTudo();
-  mostrarMensagemGerencial("Configuracao atualizada.");
+mostrarMensagemGerencial("Configuração atualizada.");
 }
 
 function startOfDay(date) {
@@ -4054,12 +4054,12 @@ function garantirTemplatesPadrao() {
   };
 
   templates = [
-    criarPadrao("Inspecao diaria da subestacao", { frequencia: "daily" }),
-    criarPadrao("Inspecao mensal da subestacao", { frequencia: "monthly", monthlyDay: 10 }),
-    criarPadrao("Inspecao semanal do GMG BSO2", { frequencia: "weekly", weeklyDay: 3, weeklyInterval: 1 }),
-    criarPadrao("Inspecao semanal dos GMG PCT4", { frequencia: "weekly", weeklyDay: 4, weeklyInterval: 1 }),
-    criarPadrao("Inspecao mensal do GMG BSO2", { frequencia: "monthly", monthlyDay: 25 }),
-    criarPadrao("Inspecao mensal dos GMG PCT4", { frequencia: "monthly", monthlyDay: 25 }),
+    criarPadrao("Inspeção diária da subestação", { frequencia: "daily" }),
+    criarPadrao("Inspeção mensal da subestação", { frequencia: "monthly", monthlyDay: 10 }),
+    criarPadrao("Inspeção semanal do GMG BSO2", { frequencia: "weekly", weeklyDay: 3, weeklyInterval: 1 }),
+    criarPadrao("Inspeção semanal dos GMG PCT4", { frequencia: "weekly", weeklyDay: 4, weeklyInterval: 1 }),
+    criarPadrao("Inspeção mensal do GMG BSO2", { frequencia: "monthly", monthlyDay: 25 }),
+    criarPadrao("Inspeção mensal dos GMG PCT4", { frequencia: "monthly", monthlyDay: 25 }),
   ];
 
   salvarTemplates(templates);
@@ -5095,11 +5095,11 @@ function can(action) {
 
 function requirePermission(action) {
   if (!currentUser) {
-    mostrarMensagemManutencao("Faca login para executar esta acao.", true);
+    mostrarMensagemManutencao("Faça login para executar esta ação.", true);
     return false;
   }
   if (!can(action)) {
-    mostrarMensagemManutencao("Voce nao tem permissao para esta acao.", true);
+    mostrarMensagemManutencao("Você não tem permissão para esta ação.", true);
     return false;
   }
   return true;
@@ -5449,12 +5449,12 @@ async function abrirDocumento(doc) {
       abrirPreview(blobUrl, blobUrl);
       return;
     }
-    window.alert("Documento nao encontrado.");
+  window.alert("Documento não encontrado.");
     return;
   }
   const url = resolvePublicUrl(dataUrl || doc.url);
   if (!url) {
-    window.alert("Documento nao encontrado.");
+  window.alert("Documento não encontrado.");
     return;
   }
   abrirPreview(url);
@@ -5536,7 +5536,7 @@ function renderAlertaProgramacao() {
   const count = getOutrosMensalCount();
   if (count > OUTROS_ALERT_THRESHOLD) {
     alertaProgramacao.textContent =
-      `Alerta: motivo Outros usado ${count}x neste mes. Revisar governanca.`;
+      `Alerta: motivo Outros usado ${count}x neste mês. Revisar governança.`;
     alertaProgramacao.hidden = false;
     return;
   }
@@ -5645,7 +5645,7 @@ function renderDashboardHome() {
     Number(saudeOperacional.concluidasPeriodo) || 0,
     atrasoMedioPct,
   ];
-  const pieLabels = ["Pontualidade", "Backlog", "Concluidas", "Atraso medio"];
+  const pieLabels = ["Pontualidade", "Backlog", "Concluídas", "Atraso médio"];
   const pieDisplay = [
     `${saudeOperacional.pontualidadePct}%`,
     String(saudeOperacional.backlogTotal),
@@ -5698,7 +5698,7 @@ function renderDashboardHome() {
       <div class="home-header">
         <div class="home-header__title">
           <h2>Centro de controle operacional</h2>
-          <p class="hint">Visao tatico-operacional com indicadores criticos e foco no dia.</p>
+          <p class="hint">Visão tático-operacional com indicadores críticos e foco no dia.</p>
         </div>
         <div class="home-header__meta">
           <span class="hint">${updatedAt}</span>
@@ -5710,13 +5710,13 @@ function renderDashboardHome() {
         <div class="kpi-grid">
           ${renderKpiCard("VENCE HOJE", kpis.venceHoje)}
           ${renderKpiCard("ATRASADAS", kpis.atrasadas)}
-          ${renderKpiCard("CRITICAS", kpis.criticas)}
+          ${renderKpiCard("CRÍTICAS", kpis.criticas)}
           ${renderKpiCard("RISCO IMEDIATO", kpis.riscoImediato)}
         </div>
       </section>
 
       <section class="home-section">
-        <h3 class="home-section__title">Suporte e saude</h3>
+        <h3 class="home-section__title">Suporte e saúde</h3>
         <div class="dashboard-row">
           <article class="card panel-card">
             <div class="panel-head">
@@ -5740,11 +5740,11 @@ function renderDashboardHome() {
                 <strong>${saudeOperacional.backlogTotal}</strong>
               </div>
               <div class="health-item">
-                <span>Concluidas</span>
+                <span>Concluídas</span>
                 <strong>${saudeOperacional.concluidasPeriodo}</strong>
               </div>
               <div class="health-item">
-                <span>Atraso medio</span>
+                <span>Atraso médio</span>
                 <strong>${saudeOperacional.atrasoMedioDias}d</strong>
               </div>
             </div>
@@ -5753,16 +5753,16 @@ function renderDashboardHome() {
       </section>
 
       <section class="home-section">
-        <h3 class="home-section__title">Performance e previsao</h3>
+        <h3 class="home-section__title">Performance e previsão</h3>
         <div class="dashboard-row">
           <article class="card panel-card">
             <div class="panel-head">
-              <h3>EFICIENCIA OPERACIONAL</h3>
+              <h3>EFICIÊNCIA OPERACIONAL</h3>
               <span class="trend-tag">+8%</span>
             </div>
-            <div class="mini-chart neon-pie" data-tooltip="Distribuicao operacional em pizza: Pontualidade mostra o percentual de entregas no prazo; Backlog indica tarefas pendentes; Concluidas mostra o volume finalizado no periodo; Atraso medio reflete o desvio medio em dias. Passe o mouse para revisar estes indicadores.">
+            <div class="mini-chart neon-pie" data-tooltip="Distribuição operacional em pizza: Pontualidade mostra o percentual de entregas no prazo; Backlog indica tarefas pendentes; Concluídas mostra o volume finalizado no período; Atraso médio reflete o desvio médio em dias. Passe o mouse para revisar estes indicadores.">
               <div class="neon-tooltip">
-                Distribuicao operacional em pizza: Pontualidade mostra o percentual de entregas no prazo; Backlog indica tarefas pendentes; Concluidas mostra o volume finalizado no periodo; Atraso medio reflete o desvio medio em dias.
+                Distribuição operacional em pizza: Pontualidade mostra o percentual de entregas no prazo; Backlog indica tarefas pendentes; Concluídas mostra o volume finalizado no período; Atraso médio reflete o desvio médio em dias.
               </div>
               ${chart}
               <div class="pie-legend">
@@ -5777,21 +5777,21 @@ function renderDashboardHome() {
                   <span class="pie-legend__dot pie-legend__dot--blue"></span>
                   <div>
                     <strong>Backlog</strong>
-                    <span>Tarefas pendentes e nao executadas.</span>
+                    <span>Tarefas pendentes e não executadas.</span>
                   </div>
                 </div>
                 <div class="pie-legend__item">
                   <span class="pie-legend__dot pie-legend__dot--yellow"></span>
                   <div>
-                    <strong>Concluidas</strong>
-                    <span>Volume finalizado no periodo atual.</span>
+                    <strong>Concluídas</strong>
+                    <span>Volume finalizado no período atual.</span>
                   </div>
                 </div>
                 <div class="pie-legend__item">
                   <span class="pie-legend__dot pie-legend__dot--red"></span>
                   <div>
-                    <strong>Atraso medio</strong>
-                    <span>Percentual medio de atraso das atividades.</span>
+                    <strong>Atraso médio</strong>
+                    <span>Percentual médio de atraso das atividades.</span>
                   </div>
                 </div>
               </div>
@@ -5799,14 +5799,14 @@ function renderDashboardHome() {
           </article>
           <article class="card panel-card">
             <div class="panel-head">
-              <h3>PROXIMAS ATIVIDADES</h3>
+              <h3>PRÓXIMAS ATIVIDADES</h3>
             </div>
             <div class="table-wrap">
               <table class="data-table">
                 <thead>
                   <tr>
                     <th>Atividade</th>
-                    <th>Responsavel</th>
+                    <th>Responsável</th>
                     <th>Prazo</th>
                     <th>Status</th>
                   </tr>
@@ -5858,7 +5858,7 @@ function buildNeonPieChart(series, labels, displayValues = []) {
       return `<path class="pie-slice" d="${path}" fill="${colors[index % colors.length]}"><title>${escapeHtml(title)}</title></path>`;
     })
     .join("");
-  const title = labels && labels.length ? labels.join(", ") : "Distribuicao";
+  const title = labels && labels.length ? labels.join(", ") : "Distribuição";
   return `
     <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false" role="img">
       <title>${escapeHtml(title)}</title>
@@ -5882,16 +5882,16 @@ function startHomeTipsRotation() {
     return;
   }
   const tips = [
-    "Antes de iniciar a atividade, confirme subestacao, OS e referencia no OPSCOPE; isso evita retrabalho e garante que a equipe execute o procedimento correto.",
-    "Use o painel para registrar evidencias completas (fotos, observacoes tecnicas e resultados); um registro detalhado acelera liberacoes futuras e evita duvidas em campo.",
-    "Ao identificar falha recorrente, registre a causa provavel e a acao corretiva; isso ajuda outros tecnicos a repetir o diagnostico com mais rapidez.",
-    "Revise os documentos obrigatorios (APR, OS, PTE, PT) diretamente no sistema; manter anexos consistentes reduz bloqueios e atrasos na execucao.",
-    "Atualize o status assim que finalizar a intervencao; o OPSCOPE sincroniza a equipe e evita que duas frentes atuem no mesmo ponto.",
-    "Em atividades criticas, confirme participantes e horarios no registro; isso facilita auditoria tecnica e garante rastreabilidade total da operacao.",
-    "Use o historico de manutencao para comparar sintomas anteriores; padroes repetidos indicam ajustes na causa raiz e economizam tempo.",
+    "Antes de iniciar a atividade, confirme subestação, OS e referência no OPSCOPE; isso evita retrabalho e garante que a equipe execute o procedimento correto.",
+    "Use o painel para registrar evidências completas (fotos, observações técnicas e resultados); um registro detalhado acelera liberações futuras e evita dúvidas em campo.",
+    "Ao identificar falha recorrente, registre a causa provável e a ação corretiva; isso ajuda outros técnicos a repetir o diagnóstico com mais rapidez.",
+    "Revise os documentos obrigatórios (APR, OS, PTE, PT) diretamente no sistema; manter anexos consistentes reduz bloqueios e atrasos na execução.",
+    "Atualize o status assim que finalizar a intervenção; o OPSCOPE sincroniza a equipe e evita que duas frentes atuem no mesmo ponto.",
+    "Em atividades críticas, confirme participantes e horários no registro; isso facilita auditoria técnica e garante rastreabilidade total da operação.",
+    "Use o histórico de manutenção para comparar sintomas anteriores; padrões repetidos indicam ajustes na causa raiz e economizam tempo.",
     "Quando houver atraso, registre o motivo tecnico com clareza; isso protege a equipe e evita retrabalho no fechamento da OS.",
-    "Acompanhe as automacoes para tarefas recorrentes; elas ajudam a lembrar prazos e liberacoes sem depender de controles manuais.",
-    "Se encontrar divergencia entre campo e sistema, registre a observacao no OPSCOPE imediatamente; isso evita falhas de comunicacao entre turnos.",
+    "Acompanhe as automações para tarefas recorrentes; elas ajudam a lembrar prazos e liberações sem depender de controles manuais.",
+    "Se encontrar divergência entre campo e sistema, registre a observação no OPSCOPE imediatamente; isso evita falhas de comunicação entre turnos.",
   ];
   if (homeTipsTimer) {
     window.clearInterval(homeTipsTimer);
@@ -6116,14 +6116,14 @@ function criarCardManutencao(item, permissoes, options = {}) {
   } else if (item.status === "em_execucao") {
     const inicio = parseTimestamp(item.executionStartedAt);
     statusInfo.textContent = inicio
-      ? `Em execucao desde ${formatDateTime(inicio)}`
-      : "Em execucao";
+      ? `Em execução desde ${formatDateTime(inicio)}`
+      : "Em execução";
   } else if (item.status === "encerramento") {
     statusInfo.textContent = "Encerramento em preenchimento";
   } else if (item.status === "concluida" && item.doneAt) {
     const feitoEm = parseTimestamp(item.doneAt);
     if (feitoEm) {
-      statusInfo.textContent = `concluida em ${formatDate(startOfDay(feitoEm))}`;
+      statusInfo.textContent = `concluída em ${formatDate(startOfDay(feitoEm))}`;
     }
   }
 
@@ -6133,7 +6133,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
   if (ultimaAcao) {
     const label = ACTION_LABELS[ultimaAcao.action] || ultimaAcao.action;
     const dataAcao = parseTimestamp(ultimaAcao.timestamp);
-    autoria.textContent = `Ultima acao: ${label} em ${
+    autoria.textContent = `Última ação: ${label} em ${
       dataAcao ? formatDateTime(dataAcao) : "-"
     } por ${getUserLabel(ultimaAcao.userId)}`;
   } else {
@@ -6183,7 +6183,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
     motivo.className = "submeta";
     const motivoData = parseTimestamp(item.backlogMotivo.registradoEm);
     const dataTexto = motivoData ? ` em ${formatDateTime(motivoData)}` : "";
-    motivo.textContent = `Motivo nao executada: ${item.backlogMotivo.motivo}${dataTexto}`;
+    motivo.textContent = `Motivo não executada: ${item.backlogMotivo.motivo}${dataTexto}`;
     info.append(motivo);
   }
   if (item.status === "backlog" && item.backlogMotivo && item.backlogMotivo.observacao) {
@@ -6197,7 +6197,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
   if (ultimoReagendamento && ultimoReagendamento.detalhes && ultimoReagendamento.detalhes.motivo) {
     const motivo = document.createElement("p");
     motivo.className = "submeta";
-    motivo.textContent = `Motivo do ultimo reagendamento: ${ultimoReagendamento.detalhes.motivo}`;
+    motivo.textContent = `Motivo do último reagendamento: ${ultimoReagendamento.detalhes.motivo}`;
     info.append(motivo);
   }
   const rescheduleCount = getRescheduleCount(item);
@@ -6245,9 +6245,9 @@ function criarCardManutencao(item, permissoes, options = {}) {
         ? STATUS_LABELS.liberada
       : statusBase === "hoje"
         ? "Vence hoje"
-        : statusBase === "amanha"
-          ? "Vence amanha"
-          : STATUS_LABELS.agendada;
+      : statusBase === "amanha"
+        ? "Vence amanhã"
+        : STATUS_LABELS.agendada;
   badge.className = `status status--${statusBase}`;
   badge.textContent = label;
 
@@ -6280,13 +6280,13 @@ function criarCardManutencao(item, permissoes, options = {}) {
   }
 
   if (permite("note") && podeEditar) {
-    actions.append(criarBotaoAcao("Observacao", "note"));
+    actions.append(criarBotaoAcao("Observação", "note"));
   }
 
   if (item.status === "agendada" || item.status === "liberada") {
     if (permite("execute")) {
       const action = liberacaoOk ? "execute" : "release";
-      const actionLabel = liberacaoOk ? "Iniciar execucao" : "Liberar execucao";
+      const actionLabel = liberacaoOk ? "Iniciar execução" : "Liberar execução";
       const botao = criarBotaoAcao(actionLabel, action);
       if (action === "release" && lockInfo && !lockInfo.canOverride) {
         botao.disabled = true;
@@ -6300,30 +6300,30 @@ function criarCardManutencao(item, permissoes, options = {}) {
     }
   } else if (item.status === "backlog") {
     if (permite("backlog_reason")) {
-      actions.append(criarBotaoAcao("Motivo nao executada", "backlog_reason"));
+      actions.append(criarBotaoAcao("Motivo não executada", "backlog_reason"));
     }
     if (permite("reschedule") && !isDailySubstationInspection(item)) {
       actions.append(criarBotaoAcao("Reagendar", "reschedule"));
     }
   } else if (item.status === "em_execucao") {
     if (permite("execute")) {
-      actions.append(criarBotaoAcao("Registrar execucao", "register"));
+      actions.append(criarBotaoAcao("Registrar execução", "register"));
     }
     if (permite("execute") && !item.registroExecucao) {
-      actions.append(criarBotaoAcao("Cancelar inicio", "cancel_start"));
+      actions.append(criarBotaoAcao("Cancelar início", "cancel_start"));
     }
     if (permite("execute") && item.registroExecucao) {
-      actions.append(criarBotaoAcao("Concluir manutencao", "finish"));
+      actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
     }
   } else if (item.status === "encerramento") {
     if (permite("execute")) {
-      actions.append(criarBotaoAcao("Registrar execucao", "register"));
-      actions.append(criarBotaoAcao("Concluir manutencao", "finish"));
+      actions.append(criarBotaoAcao("Registrar execução", "register"));
+      actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
     }
   }
 
   if (permite("history")) {
-    actions.append(criarBotaoAcao("Historico", "history"));
+    actions.append(criarBotaoAcao("Histórico", "history"));
   }
 
   const podeExcluir = canDeleteMaintenance(currentUser);
@@ -6496,7 +6496,7 @@ function renderProgramacao() {
   });
 
   if (!filtrados.length) {
-    listaAgendadasVazia.textContent = "Nenhuma manutencao encontrada.";
+    listaAgendadasVazia.textContent = "Nenhuma manutenção encontrada.";
     listaAgendadasVazia.hidden = false;
     return;
   }
@@ -6568,7 +6568,7 @@ function renderProgramacao() {
     );
   });
 
-  listaAgendadasVazia.textContent = "Nenhuma manutencao agendada.";
+  listaAgendadasVazia.textContent = "Nenhuma manutenção agendada.";
   listaAgendadasVazia.hidden = true;
 }
 
@@ -6755,7 +6755,7 @@ function atualizarResumoRelatorios(lista) {
   const sla = concluidas.length ? Math.round((pontuais.length / concluidas.length) * 100) : 0;
 
   relatorioResumoTotal.textContent = String(lista.length);
-  relatorioResumoConcluidas.textContent = `${concluidas.length} concluidas`;
+  relatorioResumoConcluidas.textContent = `${concluidas.length} concluídas`;
   if (relatorioResumoCriticos) {
     relatorioResumoCriticos.textContent = String(criticos.length);
   }
@@ -6867,7 +6867,7 @@ function renderRelatorios() {
     btnVer.type = "button";
     btnVer.className = "btn btn--ghost btn--small";
     btnVer.dataset.action = "open-report";
-    btnVer.textContent = "Ver relatorio";
+    btnVer.textContent = "Ver relatório";
     actions.append(btnVer);
 
     card.append(info, actions);
@@ -7074,12 +7074,12 @@ function renderDesempenho() {
     perfExecProgressValue.style.width = `${velocidadePct}%`;
   }
   if (perfExecTempoMedio) {
-    perfExecTempoMedio.textContent = `Tempo medio: ${
+    perfExecTempoMedio.textContent = `Tempo médio: ${
       mediaPeriodo.media === null ? "-" : formatDuracaoMin(mediaPeriodo.media)
     }`;
   }
   if (perfExecSemana) {
-    perfExecSemana.textContent = `Ultima semana: ${
+    perfExecSemana.textContent = `Última semana: ${
       mediaSemana.media === null ? "-" : formatDuracaoMin(mediaSemana.media)
     }`;
   }
@@ -7113,7 +7113,7 @@ function renderDesempenho() {
     perfSlaForaPrazo.textContent = `Fora do prazo: ${slaStats.foraPrazo}`;
   }
   if (perfSlaBadge) {
-    const label = slaPct >= 90 ? "No prazo" : slaPct >= 75 ? "Atencao" : "Critico";
+    const label = slaPct >= 90 ? "No prazo" : slaPct >= 75 ? "Atenção" : "Crítico";
     const badgeClass = slaPct >= 90 ? "badge--ok" : slaPct >= 75 ? "badge--warn" : "badge--danger";
     setBadgeState(perfSlaBadge, badgeClass, label);
   }
@@ -7137,7 +7137,7 @@ function renderDesempenho() {
     perfReopenProgressValue.style.width = `${reopensPct}%`;
   }
   if (perfReopenUltimos) {
-    perfReopenUltimos.textContent = `Ultimos 7 dias: ${reopensSemana}`;
+    perfReopenUltimos.textContent = `Últimos 7 dias: ${reopensSemana}`;
   }
   if (perfReopenImpacto) {
     const impacto = reopensPct <= 10 ? "baixo" : reopensPct <= 20 ? "moderado" : "alto";
@@ -7145,7 +7145,7 @@ function renderDesempenho() {
   }
   if (perfReopenBadge) {
     const badgeClass = reopensPct <= 10 ? "badge--ok" : reopensPct <= 20 ? "badge--warn" : "badge--danger";
-    const label = reopensPct <= 10 ? "Controlado" : reopensPct <= 20 ? "Atencao" : "Critico";
+    const label = reopensPct <= 10 ? "Controlado" : reopensPct <= 20 ? "Atenção" : "Crítico";
     setBadgeState(perfReopenBadge, badgeClass, label);
   }
   if (perfReopenProgress) {
@@ -7282,17 +7282,17 @@ function renderPerformanceProjetos() {
     <div class="perf-card">
       <span>Projetos ativos</span>
       <strong>${projetosOrdenados.length}</strong>
-      <small>Periodo selecionado</small>
+      <small>Período selecionado</small>
     </div>
     <div class="perf-card">
-      <span>Concluidas</span>
+      <span>Concluídas</span>
       <strong>${total.concluida}</strong>
       <small>${total.noPrazo} no prazo</small>
     </div>
     <div class="perf-card">
       <span>SLA no prazo</span>
       <strong>${totalSla}%</strong>
-      <small>Indice mensal</small>
+      <small>Índice mensal</small>
     </div>
     <div class="perf-card">
       <span>Backlog</span>
@@ -7300,12 +7300,12 @@ function renderPerformanceProjetos() {
       <small>${totalBacklogRate}% do volume</small>
     </div>
     <div class="perf-card">
-      <span>Criticas</span>
+      <span>Críticas</span>
       <strong>${total.criticas}</strong>
-      <small>Riscos no periodo</small>
+      <small>Riscos no período</small>
     </div>
     <div class="perf-card">
-      <span>Docs de seguranca</span>
+      <span>Docs de segurança</span>
       <strong>${totalDocs}</strong>
       <small>APR, OS, PTE, PT</small>
     </div>
@@ -7381,7 +7381,7 @@ function renderPerformanceProjetos() {
           ${rankingBacklog
             .map(
               (item) =>
-                `<li><strong>${escapeHtml(item.key)}</strong><span>${item.backlog} pendencias</span></li>`
+                `<li><strong>${escapeHtml(item.key)}</strong><span>${item.backlog} pendências</span></li>`
             )
             .join("")}
         </ul>
@@ -7522,17 +7522,17 @@ function renderPerformancePessoas() {
     <div class="perf-card">
       <span>Colaboradores ativos</span>
       <strong>${pessoasOrdenadas.length}</strong>
-      <small>Periodo selecionado</small>
+      <small>Período selecionado</small>
     </div>
     <div class="perf-card">
-      <span>Concluidas</span>
+      <span>Concluídas</span>
       <strong>${total.concluida}</strong>
       <small>${total.noPrazo} no prazo</small>
     </div>
     <div class="perf-card">
       <span>SLA no prazo</span>
       <strong>${totalSla}%</strong>
-      <small>Indice mensal</small>
+      <small>Índice mensal</small>
     </div>
     <div class="perf-card">
       <span>Backlog</span>
@@ -7540,17 +7540,17 @@ function renderPerformancePessoas() {
       <small>${totalBacklogRate}% do volume</small>
     </div>
     <div class="perf-card">
-      <span>Criticas</span>
+      <span>Críticas</span>
       <strong>${total.criticas}</strong>
-      <small>Riscos no periodo</small>
+      <small>Riscos no período</small>
     </div>
     <div class="perf-card">
-      <span>Docs de seguranca</span>
+      <span>Docs de segurança</span>
       <strong>${totalDocs}</strong>
       <small>APR, OS, PTE, PT</small>
     </div>
     <div class="perf-card">
-      <span>Media concluida</span>
+      <span>Média concluída</span>
       <strong>${mediaConcluida}</strong>
       <small>Por colaborador</small>
     </div>
@@ -7606,7 +7606,7 @@ function renderPerformancePessoas() {
           ${rankingEntrega
             .map(
               (item) =>
-                `<li><strong>${escapeHtml(item.key)}</strong><span>${item.concluida} concluidas</span></li>`
+                `<li><strong>${escapeHtml(item.key)}</strong><span>${item.concluida} concluídas</span></li>`
             )
             .join("")}
         </ul>
@@ -7617,7 +7617,7 @@ function renderPerformancePessoas() {
           ${rankingBacklog
             .map(
               (item) =>
-                `<li><strong>${escapeHtml(item.key)}</strong><span>${item.backlog} pendencias</span></li>`
+                `<li><strong>${escapeHtml(item.key)}</strong><span>${item.backlog} pendências</span></li>`
             )
             .join("")}
         </ul>
@@ -7806,7 +7806,7 @@ function enviarFeedback() {
   const message = feedbackMessage ? feedbackMessage.value.trim() : "";
   if (!to || !message || !score) {
     if (feedbackSendMsg) {
-      feedbackSendMsg.textContent = "Preencha destinatario, avaliacao e mensagem.";
+      feedbackSendMsg.textContent = "Preencha destinatário, avaliação e mensagem.";
       feedbackSendMsg.classList.add("mensagem--erro");
     }
     return;
@@ -7890,31 +7890,31 @@ function buildRelatorioResumoHtml(titulo, periodoLabel, lista) {
           <span>${escapeHtml(titulo)}</span>
         </div>
         <div class="report__meta">
-          <div>Periodo: ${escapeHtml(periodoLabel)}</div>
+          <div>Período: ${escapeHtml(periodoLabel)}</div>
           <div>Gerado em: ${escapeHtml(formatDateTime(new Date()))}</div>
         </div>
       </header>
       <section class="report__grid">
-        <div><span>Manutencoes</span><strong>${lista.length}</strong></div>
-        <div><span>Concluidas</span><strong>${concluidas.length}</strong></div>
-        <div><span>Criticos</span><strong>${criticos.length}</strong></div>
-        <div><span>Evidencias</span><strong>${evidencias}</strong></div>
+        <div><span>Manutenções</span><strong>${lista.length}</strong></div>
+        <div><span>Concluídas</span><strong>${concluidas.length}</strong></div>
+        <div><span>Críticos</span><strong>${criticos.length}</strong></div>
+        <div><span>Evidências</span><strong>${evidencias}</strong></div>
         <div><span>SLA no prazo</span><strong>${sla}%</strong></div>
       </section>
       <section class="report__body">
-        <h4>Resumo do periodo</h4>
+        <h4>Resumo do período</h4>
         <table class="report__table">
           <thead>
             <tr>
-              <th>Manutencao</th>
+              <th>Manutenção</th>
               <th>Local</th>
               <th>Data</th>
               <th>Status</th>
-              <th>Responsavel</th>
+              <th>Responsável</th>
             </tr>
           </thead>
           <tbody>
-            ${linhas || `<tr><td colspan="5">Nenhum registro no periodo.</td></tr>`}
+            ${linhas || `<tr><td colspan="5">Nenhum registro no período.</td></tr>`}
           </tbody>
         </table>
       </section>
@@ -8098,7 +8098,7 @@ function gerarRelatorioMensalHtml(range) {
   const periodoLabel = `${formatDate(range.start)} - ${formatDate(range.end)}`;
   const filtrados = filtrarRelatorioLista(manutencoes, { start: range.start, end: range.end });
   const clienteProjeto = getActiveProjectClient();
-  const titulo = `Relatorio mensal (${relatorioCliente ? relatorioCliente.value || clienteProjeto : clienteProjeto})`;
+  const titulo = `Relatório mensal (${relatorioCliente ? relatorioCliente.value || clienteProjeto : clienteProjeto})`;
   return buildRelatorioResumoHtml(titulo, periodoLabel, filtrados);
 }
 
@@ -8106,8 +8106,8 @@ function exportarRelatoriosPdf() {
   const filtros = getRelatorioFiltros();
   const filtrados = filtrarRelatorioLista(manutencoes, filtros);
   const periodoLabel = `${formatDate(filtros.start)} - ${formatDate(filtros.end)}`;
-  const html = buildRelatorioResumoHtml("Central de relatorios", periodoLabel, filtrados);
-  return abrirJanelaRelatorio(html, "Relatorio - OPSCOPE", true);
+  const html = buildRelatorioResumoHtml("Central de relatórios", periodoLabel, filtrados);
+  return abrirJanelaRelatorio(html, "Relatório - OPSCOPE", true);
 }
 
 function gerarResumoMensal() {
@@ -8122,13 +8122,13 @@ function gerarResumoMensal() {
 function previewRelatorioMensal() {
   const range = getMonthlyRange();
   const html = gerarRelatorioMensalHtml(range);
-  return abrirJanelaRelatorio(html, "Relatorio mensal - OPSCOPE", false);
+  return abrirJanelaRelatorio(html, "Relatório mensal - OPSCOPE", false);
 }
 
 function exportarRelatorioMensal() {
   const range = getMonthlyRange();
   const html = gerarRelatorioMensalHtml(range);
-  return abrirJanelaRelatorio(html, "Relatorio mensal - OPSCOPE", true);
+  return abrirJanelaRelatorio(html, "Relatório mensal - OPSCOPE", true);
 }
 
 function gerarRdoMensal(imprimir = false, returnHtml = false) {
@@ -8205,10 +8205,10 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
     .map((item) => `${item.key} (${item.total})`)
     .join(", ");
   const resumoExec = acumulado.totalRdos
-    ? `No periodo foram consolidados ${acumulado.totalRdos} RDOs, com ${acumulado.atividades} atividades, ${acumulado.concluidas} concluidas e ${acumulado.overdue} overdue. ${
+    ? `No período foram consolidados ${acumulado.totalRdos} RDOs, com ${acumulado.atividades} atividades, ${acumulado.concluidas} concluídas e ${acumulado.overdue} overdue. ${
         topSubResumo ? `Subestacoes com maior volume: ${topSubResumo}.` : ""
       }`
-    : "Nenhum RDO encontrado no periodo selecionado.";
+    : "Nenhum RDO encontrado no período selecionado.";
 
   const segurancaResumo = rdos.reduce(
     (acc, item) => {
@@ -8341,7 +8341,7 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
     })
     .join("");
   const chartSvg = `
-    <svg class="rdo-chart" viewBox="0 0 ${chartWidth} ${chartHeight}" role="img" aria-label="Volume diario">
+    <svg class="rdo-chart" viewBox="0 0 ${chartWidth} ${chartHeight}" role="img" aria-label="Volume diário">
       <rect x="0" y="0" width="${chartWidth}" height="${chartHeight}" fill="#f8f6f1" rx="12" />
       <line x1="0" y1="${chartHeight - 20}" x2="${chartWidth}" y2="${chartHeight - 20}" stroke="#d9d4c8" />
       ${bars}
@@ -8365,7 +8365,7 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
   const percAbertas = Math.round((statusAbertas / totalDistribuicao) * 100);
   const percOverdue = Math.round((statusBacklog / totalDistribuicao) * 100);
   const donutSvg = `
-    <svg class="rdo-donut" viewBox="0 0 120 120" role="img" aria-label="Distribuicao de status">
+    <svg class="rdo-donut" viewBox="0 0 120 120" role="img" aria-label="Distribuição de status">
       <circle cx="60" cy="60" r="46" fill="none" stroke="#e5e1d6" stroke-width="16" />
       <circle cx="60" cy="60" r="46" fill="none" stroke="#4bd28f" stroke-width="16"
         stroke-dasharray="${percConclusao} ${100 - percConclusao}" stroke-dashoffset="25" />
@@ -8379,8 +8379,8 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
   `;
 
   const statusItems = [
-    { key: "concluida", label: "Concluidas", color: "#4bd28f" },
-    { key: "em_execucao", label: "Em execucao", color: "#5b8def" },
+    { key: "concluida", label: "Concluídas", color: "#4bd28f" },
+    { key: "em_execucao", label: "Em execução", color: "#5b8def" },
     { key: "liberada", label: "Liberadas", color: "#9aa4af" },
     { key: "agendada", label: "Agendadas", color: "#f6c453" },
     { key: "backlog", label: "Backlog", color: "#e2595c" },
@@ -8400,7 +8400,7 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
     })
     .join("");
   const statusChart = `
-    <svg class="rdo-chart" viewBox="0 0 260 140" role="img" aria-label="Manutencoes por status">
+    <svg class="rdo-chart" viewBox="0 0 260 140" role="img" aria-label="Manutenções por status">
       <rect x="0" y="0" width="260" height="140" fill="#f8f6f1" rx="12" />
       ${statusBars}
     </svg>
@@ -8415,14 +8415,14 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
     })
     .join(" ");
   const backlogChart = `
-    <svg class="rdo-chart" viewBox="0 0 560 140" role="img" aria-label="Evolucao diaria do backlog">
+    <svg class="rdo-chart" viewBox="0 0 560 140" role="img" aria-label="Evolução diária do backlog">
       <rect x="0" y="0" width="560" height="140" fill="#f8f6f1" rx="12" />
       <polyline fill="none" stroke="#e2595c" stroke-width="3" points="${linePoints}" />
     </svg>
   `;
 
   const tipoDistribuicao = manutencoesPeriodo.reduce((acc, item) => {
-    const tipo = (item.categoria || "Nao informado").toLowerCase();
+    const tipo = (item.categoria || "Não informado").toLowerCase();
     acc[tipo] = (acc[tipo] || 0) + 1;
     return acc;
   }, {});
@@ -8448,7 +8448,7 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
     })
     .join("");
   const pieChart = `
-    <svg class="rdo-donut" viewBox="0 0 120 120" role="img" aria-label="Distribuicao por tipo">
+    <svg class="rdo-donut" viewBox="0 0 120 120" role="img" aria-label="Distribuição por tipo">
       <circle cx="60" cy="60" r="46" fill="none" stroke="#e5e1d6" stroke-width="16" />
       ${pieSlices}
     </svg>
@@ -8579,7 +8579,7 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
           ${isEmpty ? "<p>Sem atividades registradas neste dia.</p>" : ""}
           <div class="rdo-month__grid">
             <div>
-              <span>Subestacao</span>
+              <span>Subestação</span>
               <strong>${escapeHtml(filtros.subestacao || "-")}</strong>
             </div>
             <div>
@@ -8591,7 +8591,7 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
               <strong>${escapeHtml(filtros.prioridade || "-")}</strong>
             </div>
             <div>
-              <span>Usuario</span>
+              <span>Usuário</span>
               <strong>${escapeHtml(filtros.usuario || "-")}</strong>
             </div>
             <div>
@@ -8621,7 +8621,7 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
               <strong>${escapeHtml(manual.incidente || "-")}</strong>
             </div>
             <div>
-              <span>Bloqueio eletrico</span>
+              <span>Bloqueio elétrico</span>
               <strong>${escapeHtml(manual.bloqueio || "-")}</strong>
             </div>
             <div>
@@ -8629,15 +8629,15 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
               <strong>${escapeHtml(manual.numeroSi || "-")} / ${escapeHtml(manual.numeroSgi || "-")}</strong>
             </div>
             <div>
-              <span>Concluidas</span>
+              <span>Concluídas</span>
               <strong>${escapeHtml(String(metricas.concluidas || 0))}</strong>
             </div>
             <div>
-              <span>Em execucao</span>
+              <span>Em execução</span>
               <strong>${escapeHtml(String(metricas.emExecucao || 0))}</strong>
             </div>
             <div>
-              <span>Criticas</span>
+              <span>Críticas</span>
               <strong>${escapeHtml(String(metricas.criticas || 0))}</strong>
             </div>
             <div>
@@ -8663,7 +8663,7 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
               <p>${escapeHtml(resumo)}</p>
             </div>
             <div>
-              <h4>Narrativa tecnica</h4>
+              <h4>Narrativa técnica</h4>
               <p>${escapeHtml(narrativa)}</p>
             </div>
           </div>
@@ -8680,14 +8680,14 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
               <img class="rdo-logo" src="./assets/engelmig-logo.png" alt="ENGELMIG" width="110" height="40" />
               <div>
                 <span class="rdo-eyebrow">OPSCOPE</span>
-                <h2 class="rdo-title">RELATORIO MENSAL DE OPERACAO</h2>
-                <p class="rdo-subtitle">Consolidado executivo do periodo</p>
+                <h2 class="rdo-title">RELATÓRIO MENSAL DE OPERAÇÃO</h2>
+                <p class="rdo-subtitle">Consolidado executivo do período</p>
               </div>
             </div>
           </div>
         <div class="rdo-meta">
           <span>RDO-M: ${escapeHtml(hashMensal)}</span>
-          <span>Periodo: ${escapeHtml(periodoLabel)}</span>
+          <span>Período: ${escapeHtml(periodoLabel)}</span>
           <span>Cliente: ${escapeHtml(cliente)}</span>
           <span>Emitido por: ${escapeHtml(emissor)}</span>
           <span>Emitido em: ${escapeHtml(formatDateTime(new Date()))}</span>
@@ -8717,13 +8717,13 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
         <div class="rdo-summary-grid rdo-summary-grid--cards">
           <div class="rdo-summary-item"><span>RDOs</span><strong>${acumulado.totalRdos}</strong></div>
           <div class="rdo-summary-item"><span>Atividades</span><strong>${manutencoesPeriodo.length}</strong></div>
-          <div class="rdo-summary-item"><span>Concluidas</span><strong>${statusConcluidas}</strong></div>
-          <div class="rdo-summary-item"><span>Em execucao</span><strong>${statusExecucao}</strong></div>
-          <div class="rdo-summary-item"><span>Criticas</span><strong>${criticasCount}</strong></div>
+          <div class="rdo-summary-item"><span>Concluídas</span><strong>${statusConcluidas}</strong></div>
+          <div class="rdo-summary-item"><span>Em execução</span><strong>${statusExecucao}</strong></div>
+          <div class="rdo-summary-item"><span>Críticas</span><strong>${criticasCount}</strong></div>
           <div class="rdo-summary-item"><span>Backlog</span><strong>${statusBacklog}</strong></div>
           <div class="rdo-summary-item"><span>Docs OK</span><strong>${docsPercent}%</strong></div>
           <div class="rdo-summary-item"><span>SLA no prazo</span><strong>${slaPercent}%</strong></div>
-          <div class="rdo-summary-item"><span>Evidencias</span><strong>${acumulado.evidencias}</strong></div>
+          <div class="rdo-summary-item"><span>Evidências</span><strong>${acumulado.evidencias}</strong></div>
           <div class="rdo-summary-item"><span>Tempo total</span><strong>${tempoTotalLabel}</strong></div>
         </div>
       </section>
@@ -8732,64 +8732,64 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
         <div class="rdo-kpi-grid">
           <div class="rdo-kpi-card rdo-kpi-card--ok"><span>SLA mensal</span><strong>${slaPercent}%</strong></div>
           <div class="rdo-kpi-card rdo-kpi-card--warn"><span>Taxa de backlog</span><strong>${backlogRate}%</strong></div>
-          <div class="rdo-kpi-card rdo-kpi-card--danger"><span>Taxa criticas</span><strong>${criticasRate}%</strong></div>
-          <div class="rdo-kpi-card rdo-kpi-card--info"><span>Tempo medio execucao</span><strong>${tempoMedioExec}</strong></div>
-          <div class="rdo-kpi-card rdo-kpi-card--neutral"><span>Tendencia</span><strong>${tendencia}</strong></div>
+          <div class="rdo-kpi-card rdo-kpi-card--danger"><span>Taxa de críticas</span><strong>${criticasRate}%</strong></div>
+          <div class="rdo-kpi-card rdo-kpi-card--info"><span>Tempo médio de execução</span><strong>${tempoMedioExec}</strong></div>
+          <div class="rdo-kpi-card rdo-kpi-card--neutral"><span>Tendência</span><strong>${tendencia}</strong></div>
         </div>
       </section>
       <section class="rdo-section rdo-block rdo-month__charts">
         <div>
-          <h4>Volume diario de atividades</h4>
+          <h4>Volume diário de atividades</h4>
           ${chartSvg}
-          <small>Conta de manutencoes registradas por dia no periodo.</small>
+          <small>Conta de manutenções registradas por dia no período.</small>
         </div>
         <div>
-          <h4>Manutencoes por status</h4>
+          <h4>Manutenções por status</h4>
           ${statusChart}
-          <small>Distribuicao de status (concluidas, backlog, agendadas).</small>
+          <small>Distribuição de status (concluídas, backlog, agendadas).</small>
         </div>
         <div>
-          <h4>Distribuicao de status</h4>
+          <h4>Distribuição de status</h4>
           <div class="rdo-month__donut">
             ${donutSvg}
             <div class="rdo-legend">
-              <span><i class="legend-dot legend-dot--ok"></i>Concluidas (${percConclusao}%)</span>
-              <span><i class="legend-dot legend-dot--info"></i>Em execucao (${percExecucao}%)</span>
+              <span><i class="legend-dot legend-dot--ok"></i>Concluídas (${percConclusao}%)</span>
+              <span><i class="legend-dot legend-dot--info"></i>Em execução (${percExecucao}%)</span>
               <span><i class="legend-dot legend-dot--warn"></i>Abertas (${percAbertas}%)</span>
               <span><i class="legend-dot legend-dot--danger"></i>Backlog (${percOverdue}%)</span>
             </div>
           </div>
-          <small>Percentual consolidado do mes por status operacional.</small>
+          <small>Percentual consolidado do mês por status operacional.</small>
         </div>
         <div>
-          <h4>Evolucao diaria do backlog</h4>
+          <h4>Evolução diária do backlog</h4>
           ${backlogChart}
-          <small>Backlog diario com base nas OS atrasadas.</small>
+          <small>Backlog diário com base nas OS atrasadas.</small>
         </div>
         <div>
-          <h4>Distribuicao por tipo</h4>
+          <h4>Distribuição por tipo</h4>
           <div class="rdo-month__donut">
             ${pieChart}
             <div class="rdo-legend">
               ${pieLegend}
             </div>
           </div>
-          <small>Tipos de manutencao predominantes no periodo.</small>
+          <small>Tipos de manutenção predominantes no período.</small>
         </div>
         <div>
           <h4>SLA mensal</h4>
           ${slaChart}
-          <small>Percentual de concluida no prazo vs fora do SLA.</small>
+          <small>Percentual de concluída no prazo vs fora do SLA.</small>
         </div>
       </section>
       <section class="rdo-section rdo-block">
-        <h3>Seguranca e logistica</h3>
+        <h3>Segurança e logística</h3>
         <div class="rdo-month__grid">
           <div><span>Incidentes</span><strong>${segurancaResumo.incidentes}</strong></div>
-          <div><span>Bloqueios eletricos</span><strong>${segurancaResumo.bloqueios}</strong></div>
+          <div><span>Bloqueios elétricos</span><strong>${segurancaResumo.bloqueios}</strong></div>
           <div><span>Clima dominante</span><strong>${escapeHtml(climaTop ? climaTop.key : "-")}</strong></div>
           <div><span>KM total</span><strong>${segurancaResumo.kmTotal.toFixed(1)}</strong></div>
-          <div><span>Qt. pessoas (media)</span><strong>${pessoasMedia}</strong></div>
+          <div><span>Qt. pessoas (média)</span><strong>${pessoasMedia}</strong></div>
           <div><span>Condutores</span><strong>${segurancaResumo.condutores.size}</strong></div>
           <div><span>APR abertas</span><strong>${docsMensais.apr}</strong></div>
           <div><span>OS abertas</span><strong>${docsMensais.os}</strong></div>
@@ -8802,13 +8802,13 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
         <div class="rdo-month__grid">
           <div><span>Projeto</span><strong>${escapeHtml(projetoLabel)}</strong></div>
           <div><span>Equipes ativas</span><strong>${equipesAtivas.size}</strong></div>
-          <div><span>Execucoes concluidas</span><strong>${concluidasPeriodo.length}</strong></div>
+          <div><span>Execuções concluídas</span><strong>${concluidasPeriodo.length}</strong></div>
           <div><span>Pontualidade</span><strong>${pontualidadeEquipe}%</strong></div>
           <div><span>Backlog</span><strong>${backlogRate}%</strong></div>
-          <div><span>Evolucao mensal</span><strong>${tendencia}</strong></div>
+          <div><span>Evolução mensal</span><strong>${tendencia}</strong></div>
         </div>
         <p>
-          Evolucao tecnica do time com foco em disciplina operacional, entrega no prazo e maturidade de processos.
+          Evolução técnica do time com foco em disciplina operacional, entrega no prazo e maturidade de processos.
         </p>
       </section>
       <section class="rdo-section rdo-block">
@@ -8818,21 +8818,21 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
             <thead>
               <tr>
                 <th>Data</th>
-                <th>Subestacao</th>
+                <th>Subestação</th>
               <th>Categoria</th>
               <th>Prioridade</th>
-              <th>Usuario</th>
+              <th>Usuário</th>
               <th>Atividades</th>
-              <th>Concluidas</th>
-              <th>Criticas</th>
+              <th>Concluídas</th>
+              <th>Críticas</th>
             </tr>
           </thead>
           <tbody>
-            ${linhas || `<tr><td colspan="8">Nenhum RDO no periodo.</td></tr>`}
+            ${linhas || `<tr><td colspan="8">Nenhum RDO no período.</td></tr>`}
           </tbody>
           <tfoot>
             <tr>
-              <td colspan="5">Total do periodo</td>
+              <td colspan="5">Total do período</td>
               <td>${resumoDiaTotals.total}</td>
               <td>${resumoDiaTotals.concluidas}</td>
               <td>${resumoDiaTotals.criticas}</td>
@@ -8847,11 +8847,11 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
           <table class="report__table">
           <thead>
             <tr>
-              <th>Manutencao</th>
+              <th>Manutenção</th>
               <th>Local</th>
               <th>Data</th>
               <th>Status</th>
-              <th>Responsavel</th>
+              <th>Responsável</th>
               <th>Prioridade</th>
             </tr>
           </thead>
@@ -8882,12 +8882,12 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
                       </tr>`;
                     })
                     .join("")
-                : `<tr><td colspan="6">Nenhuma manutencao no periodo.</td></tr>`
+                : `<tr><td colspan="6">Nenhuma manutenção no período.</td></tr>`
             }
           </tbody>
           <tfoot>
             <tr>
-              <td colspan="5">Total de manutencoes</td>
+              <td colspan="5">Total de manutenções</td>
               <td>${manutencoesPeriodo.length}</td>
             </tr>
           </tfoot>
@@ -8895,43 +8895,43 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
         </div>
       </section>
       <section class="rdo-section rdo-note">
-        <h3>Analise tecnica do periodo</h3>
+        <h3>Análise técnica do período</h3>
         <p>
           ${escapeHtml(
             acumulado.overdue
-              ? `Foram identificadas ${acumulado.overdue} atividades overdue, indicando gargalos no fluxo de execucao e necessidade de ajustes na programacao.`
-              : "Nao foram identificadas atividades overdue no periodo."
+              ? `Foram identificadas ${acumulado.overdue} atividades overdue, indicando gargalos no fluxo de execução e necessidade de ajustes na programação.`
+              : "Não foram identificadas atividades overdue no período."
           )}
         </p>
         <p>
           ${escapeHtml(
             acumulado.criticas
-              ? `Houve ${acumulado.criticas} manutencoes criticas; recomenda-se priorizar recursos e revisar planos de contingencia.`
-              : "Sem manutencoes criticas registradas."
+              ? `Houve ${acumulado.criticas} manutenções críticas; recomenda-se priorizar recursos e revisar planos de contingência.`
+              : "Sem manutenções críticas registradas."
           )}
         </p>
         <p>
           ${escapeHtml(
             docsPercent < 90
-              ? "O compliance documental ficou abaixo da meta; reforcar captura de evidencias e checklists operacionais."
+              ? "O compliance documental ficou abaixo da meta; reforçar captura de evidências e checklists operacionais."
               : "Compliance documental dentro do esperado."
           )}
         </p>
       </section>
       <section class="rdo-section rdo-note">
-        <h3>Conclusao gerencial</h3>
+        <h3>Conclusão gerencial</h3>
         <p>
           ${escapeHtml(
             acumulado.totalRdos
-              ? `O periodo apresentou ${slaPercent}% de SLA no prazo, com ${acumulado.concluidas} concluidas e ${backlogRate}% de backlog. Recomenda-se manter o foco nas frentes criticas e sustentar a disciplina operacional.`
-              : "Nao houve movimentacao operacional no periodo. Sem impactos registrados."
+              ? `O período apresentou ${slaPercent}% de SLA no prazo, com ${acumulado.concluidas} concluídas e ${backlogRate}% de backlog. Recomenda-se manter o foco nas frentes críticas e sustentar a disciplina operacional.`
+              : "Não houve movimentação operacional no período. Sem impactos registrados."
           )}
         </p>
       </section>
       <section class="rdo-section">
-        <h3>Detalhamento diario</h3>
+        <h3>Detalhamento diário</h3>
         <div class="rdo-items">
-          ${blocos || `<div class="rdo-item">Nenhum RDO no periodo.</div>`}
+          ${blocos || `<div class="rdo-item">Nenhum RDO no período.</div>`}
         </div>
       </section>
     </div>
@@ -8971,15 +8971,15 @@ function montarRdoUI() {
   card.innerHTML = `
     <div class="rdo-head">
       <div>
-        <h2>Relatorios Diarios (RDO)</h2>
-        <p class="hint">Consolide a operacao do dia com texto tecnico e evidencias.</p>
+        <h2>Relatórios Diários (RDO)</h2>
+        <p class="hint">Consolide a operação do dia com texto técnico e evidências.</p>
       </div>
       <button id="btnGerarRdo" class="btn btn--primary" type="button">Gerar RDO do dia</button>
     </div>
     <div class="rdo-actions">
       <label class="rdo-toggle">
         <input id="rdoShowDeleted" type="checkbox" />
-        <span>Exibir excluidos</span>
+        <span>Exibir excluídos</span>
       </label>
       <button id="btnRdoExcluir" class="btn btn--danger btn--small" type="button" disabled>
         Excluir selecionados
@@ -8998,8 +8998,8 @@ function montarRdoUI() {
     <div class="modal__content modal__content--wide">
       <div class="modal__header">
         <div>
-          <h3>Relatorio Diario de Operacao</h3>
-          <p class="hint">Geracao automatica baseada na execucao do dia.</p>
+          <h3>Relatório Diário de Operação</h3>
+          <p class="hint">Geração automática baseada na execução do dia.</p>
         </div>
         <button class="btn btn--ghost btn--small" type="button" data-rdo-close>Fechar</button>
       </div>
@@ -9010,7 +9010,7 @@ function montarRdoUI() {
             <input id="rdoData" type="date" />
           </div>
           <div class="field">
-            <label for="rdoSubestacao">Subestacao</label>
+            <label for="rdoSubestacao">Subestação</label>
             <select id="rdoSubestacao">
               <option value="">Todas</option>
             </select>
@@ -9028,13 +9028,13 @@ function montarRdoUI() {
             </select>
           </div>
           <div class="field">
-            <label for="rdoUsuario">Usuario</label>
+            <label for="rdoUsuario">Usuário</label>
             <select id="rdoUsuario">
               <option value="">Todos</option>
             </select>
           </div>
           <div class="field">
-            <label for="rdoLimite">Limite de evidencias no PDF</label>
+            <label for="rdoLimite">Limite de evidências no PDF</label>
             <select id="rdoLimite">
               <option value="8">8</option>
               <option value="16" selected>16</option>
@@ -9042,7 +9042,7 @@ function montarRdoUI() {
             </select>
           </div>
           <div class="field">
-            <label for="rdoCondutor">Condutor do veiculo</label>
+            <label for="rdoCondutor">Condutor do veículo</label>
             <input id="rdoCondutor" type="text" />
           </div>
           <div class="field">
@@ -9087,7 +9087,7 @@ function montarRdoUI() {
             </select>
           </div>
           <div class="field">
-            <label for="rdoBloqueio">Bloqueio eletrico</label>
+            <label for="rdoBloqueio">Bloqueio elétrico</label>
             <select id="rdoBloqueio">
               <option value="NAO">NAO</option>
               <option value="SIM">SIM</option>
@@ -9518,7 +9518,7 @@ function confirmarDeleteRdo() {
     return;
   }
   if (!currentUser || !canExcluirRdo(currentUser)) {
-    mostrarMensagemRdo("Sem permissao para excluir RDO.", true);
+    mostrarMensagemRdo("Sem permissão para excluir RDO.", true);
     return;
   }
   const motivo = rdoUI.deleteReason.value.trim();
@@ -9566,11 +9566,11 @@ function abrirRdoModal(snapshot) {
     return;
   }
   if (!currentUser || !canViewRdo(currentUser)) {
-    mostrarMensagemRdo("Sem permissao para acessar RDO.", true);
+    mostrarMensagemRdo("Sem permissão para acessar RDO.", true);
     return;
   }
   if (!snapshot && !canGerarRelatorio(currentUser)) {
-    mostrarMensagemRdo("Sem permissao para gerar RDO.", true);
+    mostrarMensagemRdo("Sem permissão para gerar RDO.", true);
     return;
   }
   atualizarFiltrosRdo(manutencoes);
@@ -10357,60 +10357,60 @@ function formatJanelaExecucaoRdo(inicioIso, fimIso) {
   const inicio = inicioDate ? formatDateTime(inicioDate) : "";
   const fim = fimDate ? formatDateTime(fimDate) : "";
   if (inicio && fim) {
-    return `A execucao ocorreu entre ${inicio} e ${fim}.`;
+    return `A execução ocorreu entre ${inicio} e ${fim}.`;
   }
   if (inicio) {
-    return `Inicio registrado em ${inicio}. Fim sem registro no periodo.`;
+    return `Início registrado em ${inicio}. Fim sem registro no período.`;
   }
   if (fim) {
-    return `Fim registrado em ${fim}. Inicio sem registro no periodo.`;
+    return `Fim registrado em ${fim}. Início sem registro no período.`;
   }
-  return "Sem registro de inicio e fim no periodo.";
+  return "Sem registro de início e fim no período.";
 }
 
 function gerarTextoItemRdo(item) {
   const tipo = (item.categoria || "").trim().toLowerCase();
-  const tipoLabel = tipo ? `manutencao ${tipo}` : "manutencao";
+  const tipoLabel = tipo ? `manutenção ${tipo}` : "manutenção";
   const chave = item.id || item.titulo || "";
   const variante = Number.parseInt(hashString(chave).slice(0, 2), 16) % 3;
   const titulo = item.titulo || "atividade";
-  const subestacao = item.subestacao || "subestacao nao informada";
-  let abertura = `Durante o periodo, foi executada ${tipoLabel} em ${subestacao}.`;
+  const subestacao = item.subestacao || "subestação não informada";
+  let abertura = `Durante o período, foi executada ${tipoLabel} em ${subestacao}.`;
   if (variante === 1) {
-    abertura = `No periodo, a equipe realizou ${tipoLabel} em ${subestacao}, vinculada a ${titulo}.`;
+    abertura = `No período, a equipe realizou ${tipoLabel} em ${subestacao}, vinculada a ${titulo}.`;
   }
   if (variante === 2) {
-    abertura = `Foi registrada ${tipoLabel} em ${subestacao} durante o periodo, referente a ${titulo}.`;
+    abertura = `Foi registrada ${tipoLabel} em ${subestacao} durante o período, referente a ${titulo}.`;
   }
   const descricao = item.descricao
-    ? `Descricao tecnica: ${item.descricao}.`
-    : "Sem registro de descricao tecnica no periodo.";
+    ? `Descrição técnica: ${item.descricao}.`
+    : "Sem registro de descrição técnica no período.";
   const diagnostico = item.descricao
-    ? `Diagnostico: ${item.descricao}.`
-    : "Sem registro de diagnostico no periodo.";
+    ? `Diagnóstico: ${item.descricao}.`
+    : "Sem registro de diagnóstico no período.";
   const acao = item.observacaoExecucao
-    ? `Acao executada: ${item.observacaoExecucao}.`
-    : "Sem registro de acao detalhada no periodo.";
+    ? `Ação executada: ${item.observacaoExecucao}.`
+    : "Sem registro de ação detalhada no período.";
   const janela = formatJanelaExecucaoRdo(item.inicio, item.fim);
   const responsavel = item.responsavel
-    ? `Responsavel: ${item.responsavel}.`
-    : "Sem registro de responsavel no periodo.";
+    ? `Responsável: ${item.responsavel}.`
+    : "Sem registro de responsável no período.";
   const participantes =
     item.participantes && item.participantes !== "-"
       ? `Participantes: ${item.participantes}.`
-      : "Sem registro de participantes no periodo.";
+      : "Sem registro de participantes no período.";
   const evidencias = item.evidenciasCount
-    ? `Foram registradas ${item.evidenciasCount} evidencias fotograficas.`
-    : "Sem evidencias fotograficas registradas no periodo.";
+    ? `Foram registradas ${item.evidenciasCount} evidências fotográficas.`
+    : "Sem evidências fotográficas registradas no período.";
   const docs = item.docsResumo
-    ? `Documentacao registrada no sistema: ${item.docsResumo}.`
-    : "Sem registro de documentacao no periodo.";
+    ? `Documentação registrada no sistema: ${item.docsResumo}.`
+    : "Sem registro de documentação no período.";
   const resultado = item.resultadoLabel ? `Resultado: ${item.resultadoLabel}.` : "";
   const status = item.statusLabel ? `Status final: ${item.statusLabel}.` : "Status final: -.";
-  const criticidade = item.critico ? "Classificacao: critica." : "";
+  const criticidade = item.critico ? "Classificação: crítica." : "";
   const duracao =
     Number.isFinite(item.duracaoMin) && item.duracaoMin > 0
-      ? `Tempo total de execucao: ${formatDuracaoMin(item.duracaoMin)}.`
+      ? `Tempo total de execução: ${formatDuracaoMin(item.duracaoMin)}.`
       : "";
 
   if (["corretiva", "preditiva"].includes(tipo)) {
@@ -10433,8 +10433,8 @@ function gerarTextoItemRdo(item) {
   }
 
   const observacao = item.observacaoExecucao
-    ? `Observacao de execucao: ${item.observacaoExecucao}.`
-    : "Sem registro de observacoes adicionais no periodo.";
+    ? `Observação de execução: ${item.observacaoExecucao}.`
+    : "Sem registro de observações adicionais no período.";
   return [
     abertura,
     descricao,
@@ -10455,11 +10455,11 @@ function gerarTextoItemRdo(item) {
 
 function gerarResumoDiaRdo(itensRdo, metricas) {
   if (!itensRdo.length) {
-    return "Sem registro de atividades no periodo.";
+    return "Sem registro de atividades no período.";
   }
   const parts = [];
   parts.push(
-    `Foram registradas ${metricas.total} atividades no periodo, com ${metricas.concluidas} concluidas e ${metricas.abertas} em andamento.`
+    `Foram registradas ${metricas.total} atividades no período, com ${metricas.concluidas} concluídas e ${metricas.abertas} em andamento.`
   );
   const subestacoes = itensRdo.reduce((acc, item) => {
     const chave = item.subestacao || "";
@@ -10475,7 +10475,7 @@ function gerarResumoDiaRdo(itensRdo, metricas) {
     .slice(0, 2);
   if (topSubs.length) {
     parts.push(
-      `Subestacoes com maior volume: ${topSubs
+      `Subestações com maior volume: ${topSubs
         .map((item) => `${item.key} (${item.total})`)
         .join(", ")}.`
     );
@@ -10485,30 +10485,30 @@ function gerarResumoDiaRdo(itensRdo, metricas) {
   ).length;
   if (corretivas || metricas.criticas) {
     parts.push(
-      `Destaques: ${corretivas} corretivas e ${metricas.criticas} criticas no periodo.`
+      `Destaques: ${corretivas} corretivas e ${metricas.criticas} críticas no período.`
     );
   }
   const docsPendentes = metricas.docsTotal - metricas.docsOk;
   if (metricas.overdue || docsPendentes > 0) {
     parts.push(
-      `Pendencias: ${metricas.overdue} overdue e ${docsPendentes} atividades com documentacao pendente.`
+      `Pendências: ${metricas.overdue} overdue e ${docsPendentes} atividades com documentação pendente.`
     );
   } else {
-    parts.push("Sem pendencias criticas no periodo.");
+    parts.push("Sem pendências críticas no período.");
   }
   return parts.join(" ");
 }
 
 function gerarNarrativaDiaRdo(itensRdo, metricas) {
   if (!itensRdo.length) {
-    return "Sem registro de execucoes no periodo.";
+    return "Sem registro de execuções no período.";
   }
   const parts = [];
   const tempoTotal =
     metricas.tempoTotalMin && metricas.tempoTotalMin > 0
       ? formatDuracaoMin(metricas.tempoTotalMin)
       : "sem registro";
-  parts.push(`Tempo total de execucao no periodo: ${tempoTotal}.`);
+  parts.push(`Tempo total de execução no período: ${tempoTotal}.`);
   const corretivas = itensRdo.filter(
     (item) => (item.categoria || "").toLowerCase() === "corretiva"
   ).length;
@@ -10517,7 +10517,7 @@ function gerarNarrativaDiaRdo(itensRdo, metricas) {
   ).length;
   if (corretivas || preditivas || metricas.criticas) {
     parts.push(
-      `Atividades criticas: ${metricas.criticas}. Corretivas: ${corretivas}. Preditivas: ${preditivas}.`
+      `Atividades críticas: ${metricas.criticas}. Corretivas: ${corretivas}. Preditivas: ${preditivas}.`
     );
   }
   if (metricas.docsTotal) {
@@ -10525,7 +10525,7 @@ function gerarNarrativaDiaRdo(itensRdo, metricas) {
       `Compliance documental: ${metricas.docsPercent}% (${metricas.docsOk}/${metricas.docsTotal}).`
     );
   } else {
-    parts.push("Sem base documental consolidada no periodo.");
+    parts.push("Sem base documental consolidada no período.");
   }
   const ocorrencias = itensRdo.filter(
     (item) => item.descricao || item.observacaoExecucao
@@ -10533,13 +10533,13 @@ function gerarNarrativaDiaRdo(itensRdo, metricas) {
   if (ocorrencias.length) {
     const destaques = ocorrencias.slice(0, 2).map((item) => item.titulo).join(", ");
     parts.push(
-      `Observacoes tecnicas registradas em ${ocorrencias.length} atividades${destaques ? `, destaque para: ${destaques}` : ""}.`
+      `Observações técnicas registradas em ${ocorrencias.length} atividades${destaques ? `, destaque para: ${destaques}` : ""}.`
     );
   }
   if (metricas.overdue) {
     parts.push(`Permanecem ${metricas.overdue} itens overdue com necessidade de tratativa.`);
   } else {
-    parts.push("Sem itens overdue registrados no periodo.");
+    parts.push("Sem itens overdue registrados no período.");
   }
   return parts.join(" ");
 }
@@ -10547,14 +10547,14 @@ function gerarNarrativaDiaRdo(itensRdo, metricas) {
 function gerarDescricaoConsolidadaRdo(itensRdo, metricas) {
   if (!itensRdo.length) {
     return {
-      resumo: "Sem registro de execucoes no periodo.",
+      resumo: "Sem registro de execuções no período.",
       pontos: [],
     };
   }
-  const resumo = `Foram registradas ${metricas.total} atividades no periodo, com ${metricas.concluidas} concluidas, ${metricas.emExecucao} em execucao e ${metricas.overdue} pendentes.`;
+  const resumo = `Foram registradas ${metricas.total} atividades no período, com ${metricas.concluidas} concluídas, ${metricas.emExecucao} em execução e ${metricas.overdue} pendentes.`;
   const pontos = [];
   if (metricas.criticas) {
-    pontos.push(`Atividades criticas: ${metricas.criticas}.`);
+    pontos.push(`Atividades críticas: ${metricas.criticas}.`);
   }
   const corretivas = itensRdo.filter(
     (item) => (item.categoria || "").toLowerCase() === "corretiva"
@@ -10567,7 +10567,7 @@ function gerarDescricaoConsolidadaRdo(itensRdo, metricas) {
   }
   const docsPendentes = itensRdo.filter((item) => item.docsCompliance === false).length;
   if (docsPendentes) {
-    pontos.push(`Documentacao pendente em ${docsPendentes} atividade(s).`);
+    pontos.push(`Documentação pendente em ${docsPendentes} atividade(s).`);
   }
   const observacoes = itensRdo
     .map((item) => {
@@ -10583,7 +10583,7 @@ function gerarDescricaoConsolidadaRdo(itensRdo, metricas) {
     pontos.push(truncarTexto(texto, 140));
   });
   if (!pontos.length) {
-    pontos.push("Sem apontamentos adicionais no periodo.");
+    pontos.push("Sem apontamentos adicionais no período.");
   }
   return { resumo, pontos };
 }
@@ -10635,7 +10635,7 @@ async function gerarSnapshotRdo(persistir = false) {
   const dataStr = rdoUI.data.value || formatDateISO(new Date());
   const dataBase = parseDate(dataStr);
   if (!dataBase) {
-    mostrarMensagemRdo("Data invalida.", true);
+    mostrarMensagemRdo("Data inválida.", true);
     return null;
   }
   const filtros = coletarFiltrosRdo();
@@ -10702,9 +10702,9 @@ function renderRdoPreview(snapshot) {
     rdoUI.preview.hidden = false;
     rdoUI.preview.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
-    mostrarMensagemRdo("Nao foi possivel montar o preview do RDO.", true);
+    mostrarMensagemRdo("Não foi possível montar o preview do RDO.", true);
     rdoUI.preview.hidden = false;
-    rdoUI.previewBody.innerHTML = `<p class="empty-state">Preview indisponivel.</p>`;
+    rdoUI.previewBody.innerHTML = `<p class="empty-state">Preview indisponível.</p>`;
   }
 }
 
@@ -10729,7 +10729,7 @@ function buildRdoHtml(snapshot, options = {}) {
     : "Sem base";
   const evidenciasLimitadas =
     snapshot.evidenciasTotal > snapshot.evidencias.length
-      ? `Evidencias limitadas a ${snapshot.limiteEvidencias} no PDF.`
+      ? `Evidências limitadas a ${snapshot.limiteEvidencias} no PDF.`
       : "";
   const logoHtml = `
     <img
@@ -10790,9 +10790,9 @@ function buildRdoHtml(snapshot, options = {}) {
   const rdoNumero = snapshot.id ? snapshot.id.slice(0, 6).toUpperCase() : "-";
   const resumoItens = [
     { label: "Atividades", value: snapshot.metricas.total },
-    { label: "Concluidas", value: snapshot.metricas.concluidas },
-    { label: "Em execucao", value: snapshot.metricas.emExecucao },
-    { label: "Criticas", value: snapshot.metricas.criticas },
+    { label: "Concluídas", value: snapshot.metricas.concluidas },
+    { label: "Em execução", value: snapshot.metricas.emExecucao },
+    { label: "Críticas", value: snapshot.metricas.criticas },
     { label: "Overdue", value: snapshot.metricas.overdue },
     { label: "Docs", value: docsPercent, meta: docsMeta },
     { label: "Tempo total", value: tempoTotal },
@@ -10815,7 +10815,7 @@ function buildRdoHtml(snapshot, options = {}) {
           <tr>
             <th>Colaborador</th>
             <th>Entrada</th>
-            <th>Saida</th>
+            <th>Saída</th>
             <th>Horas</th>
             <th>Expediente</th>
             <th>Extra calc</th>
@@ -10839,15 +10839,15 @@ function buildRdoHtml(snapshot, options = {}) {
         </tbody>
       </table>
     `
-    : `<p class="empty-state">Sem apontamentos de jornada no periodo.</p>`;
+    : `<p class="empty-state">Sem apontamentos de jornada no período.</p>`;
   const acionamentoLabel =
     manual.acionamento && manual.acionamento.ativo
       ? `${manual.acionamento.inicio || "-"} - ${manual.acionamento.fim || "-"}`
-      : "Nao informado";
+      : "Não informado";
   const horaExtraLabel =
     manual.horaExtra && manual.horaExtra.ativo
       ? `${manual.horaExtra.inicio || "-"} - ${manual.horaExtra.fim || "-"}`
-      : "Nao informado";
+      : "Não informado";
   const jornadaResumoHtml = `
     <div class="rdo-summary-grid rdo-summary-grid--cards rdo-summary-grid--tight">
       <div class="rdo-summary-item">
@@ -10910,14 +10910,14 @@ function buildRdoHtml(snapshot, options = {}) {
       const fim = fimDate ? formatDateTime(fimDate) : "-";
       const duracao = Number.isFinite(item.duracaoMin) ? formatDuracaoMin(item.duracaoMin) : "-";
       const minis = [
-        `Inicio: ${inicio}`,
+        `Início: ${inicio}`,
         `Fim: ${fim}`,
-        `Duracao: ${duracao}`,
-        item.responsavel ? `Responsavel: ${item.responsavel}` : "Responsavel: -",
+        `Duração: ${duracao}`,
+        item.responsavel ? `Responsável: ${item.responsavel}` : "Responsável: -",
         item.participantes && item.participantes !== "-"
           ? `Participantes: ${item.participantes}`
           : "Participantes: -",
-        `Evidencias: ${item.evidenciasCount}`,
+        `Evidências: ${item.evidenciasCount}`,
       ];
       return `
         <article class="rdo-item">
@@ -10932,7 +10932,7 @@ function buildRdoHtml(snapshot, options = {}) {
           <div class="rdo-docs">
             ${buildDocsChipsHtml(item.docsStatus)}
           </div>
-          <p class="rdo-docs-note">Documentacao registrada no sistema: ${escapeHtml(
+          <p class="rdo-docs-note">Documentação registrada no sistema: ${escapeHtml(
             item.docsResumo || "Sem registro"
           )}</p>
         </article>
@@ -10954,12 +10954,12 @@ function buildRdoHtml(snapshot, options = {}) {
           `;
         })
         .join("")
-    : `<p class="empty-state">Sem evidencias fotograficas no periodo.</p>`;
+    : `<p class="empty-state">Sem evidências fotográficas no período.</p>`;
 
   const naoImagemHtml = snapshot.evidenciasNaoImagem.length
     ? `
       <div class="rdo-naoimagem">
-        <strong>Evidencias nao-imagem</strong>
+        <strong>Evidências não-imagem</strong>
         <ul>
           ${snapshot.evidenciasNaoImagem
             .map(
@@ -10981,10 +10981,10 @@ function buildRdoHtml(snapshot, options = {}) {
             <span class="rdo-eyebrow">OPSCOPE</span>
             <h2 class="rdo-title">${
               isCliente
-                ? "RELATORIO DE OPERACAO DIARIA - HV (CLIENTE)"
-                : "RELATORIO DE OPERACAO DIARIA - HV"
+                ? "RELATÓRIO DE OPERAÇÃO DIÁRIA - HV (CLIENTE)"
+                : "RELATÓRIO DE OPERAÇÃO DIÁRIA - HV"
             }</h2>
-            <p class="rdo-subtitle">Relatorio Diario de Operacao</p>
+            <p class="rdo-subtitle">Relatório Diário de Operação</p>
           </div>
         </div>
         <div class="rdo-meta">
@@ -11028,14 +11028,14 @@ function buildRdoHtml(snapshot, options = {}) {
       </section>
 
       <section class="rdo-section rdo-block">
-        <h3>Seguranca</h3>
+        <h3>Segurança</h3>
         <div class="rdo-info-grid">
           <div>
             <span>Incidente/Acidente</span>
             <strong>${escapeHtml(manual.incidente || "-")}</strong>
           </div>
           <div>
-            <span>Bloqueio Eletrico</span>
+            <span>Bloqueio Elétrico</span>
             <strong>${escapeHtml(manual.bloqueio || "-")}</strong>
           </div>
           <div>
@@ -11071,11 +11071,11 @@ function buildRdoHtml(snapshot, options = {}) {
             <strong>${escapeHtml(manual.qtPessoas || "-")}</strong>
           </div>
           <div>
-            <span>N de SI</span>
+            <span>Nº de SI</span>
             <strong>${escapeHtml(manual.numeroSi || "-")}</strong>
           </div>
           <div>
-            <span>N de SGI</span>
+            <span>Nº de SGI</span>
             <strong>${escapeHtml(manual.numeroSgi || "-")}</strong>
           </div>
         </div>
@@ -11087,21 +11087,21 @@ function buildRdoHtml(snapshot, options = {}) {
           <thead>
             <tr>
               <th>Atividade</th>
-              <th>Subestacao</th>
+              <th>Subestação</th>
               <th>Status</th>
-              <th>Inicio</th>
+              <th>Início</th>
               <th>Fim</th>
-              <th>Responsavel</th>
+              <th>Responsável</th>
             </tr>
           </thead>
           <tbody>
-            ${rows || `<tr><td colspan="6">Sem itens no periodo.</td></tr>`}
+            ${rows || `<tr><td colspan="6">Sem itens no período.</td></tr>`}
           </tbody>
         </table>
       </section>
 
       <section class="rdo-section">
-        <h3>Descricao Consolidada do Dia</h3>
+        <h3>Descrição Consolidada do Dia</h3>
         <p>${escapeHtml(descricaoConsolidada.resumo || "")}</p>
         <ul class="rdo-lista">
           ${descricaoConsolidada.pontos
@@ -11124,12 +11124,12 @@ function buildRdoHtml(snapshot, options = {}) {
       <section class="rdo-section">
         <h3>Detalhamento por Atividade</h3>
         <div class="rdo-items">
-          ${detalhes || `<p class="empty-state">Sem itens no periodo.</p>`}
+          ${detalhes || `<p class="empty-state">Sem itens no período.</p>`}
         </div>
       </section>
 
       <section class="rdo-section">
-        <h3>Evidencias</h3>
+        <h3>Evidências</h3>
         ${evidenciasLimitadas ? `<p class="hint">${escapeHtml(evidenciasLimitadas)}</p>` : ""}
         <div class="rdo-evidencias-grid">
           ${evidenciasHtml}
@@ -11408,7 +11408,7 @@ function renderKPIs() {
 
   kpiTotal.textContent = total;
   kpiConclusao.textContent = `${taxaConclusao}%`;
-  kpiConcluidas.textContent = `${concluidas.length} concluidas`;
+  kpiConcluidas.textContent = `${concluidas.length} concluídas`;
   kpiBacklog.textContent = backlog.length;
   kpiPontual.textContent = `${taxaPontual}%`;
   kpiAtraso.textContent = mediaAtraso;
@@ -11434,7 +11434,7 @@ function inRange(date, start, end) {
 
 // KPI: tooltips
 function buildKpiTooltip(titulo, formula, periodo) {
-  return `O que e: ${titulo}\nComo calcula: ${formula}\nPeriodo: ${periodo}`;
+  return `O que é: ${titulo}\nComo calcula: ${formula}\nPeríodo: ${periodo}`;
 }
 
 function parseAnyDate(value) {
@@ -11817,7 +11817,7 @@ function renderKpiCards(itens, itensAnterior, filtros) {
   kpiCards.innerHTML = "";
   const atual = calcularKpisBase(itens);
   const anterior = calcularKpisBase(itensAnterior);
-  const periodoLabel = `ultimos ${filtros.periodo} dias`;
+  const periodoLabel = `últimos ${filtros.periodo} dias`;
   const cards = [
     {
       key: "backlog_total",
@@ -11832,7 +11832,7 @@ function renderKpiCards(itens, itensAnterior, filtros) {
       formato: "count",
       tooltip: buildKpiTooltip(
         "Backlog total",
-        "Manutencoes com status backlog.",
+        "Manutenções com status backlog.",
         periodoLabel
       ),
     },
@@ -11849,7 +11849,7 @@ function renderKpiCards(itens, itensAnterior, filtros) {
       formato: "count",
       tooltip: buildKpiTooltip(
         "Overdue",
-        "Manutencoes abertas com data programada menor que hoje.",
+        "Manutenções abertas com data programada menor que hoje.",
         periodoLabel
       ),
     },
@@ -11866,13 +11866,13 @@ function renderKpiCards(itens, itensAnterior, filtros) {
       formato: "percent",
       tooltip: buildKpiTooltip(
         "SLA compliance",
-        "Concluidas no prazo / concluidas no periodo.",
+        "Concluídas no prazo / concluídas no período.",
         periodoLabel
       ),
     },
     {
       key: "lead_time",
-      label: "Lead time medio",
+      label: "Lead time médio",
       valor: atual.leadTimeMedio,
       delta: formatKpiDelta(
         atual.leadTimeMedio,
@@ -11883,25 +11883,25 @@ function renderKpiCards(itens, itensAnterior, filtros) {
       formato: "days",
       tooltip: buildKpiTooltip(
         "Lead time",
-        "Conclusao - criacao (dias).",
+        "Conclusão - criação (dias).",
         periodoLabel
       ),
     },
     {
       key: "mttr",
-      label: "MTTR medio",
+      label: "MTTR médio",
       valor: atual.mttrMedio,
       delta: formatKpiDelta(atual.mttrMedio, anterior.mttrMedio, "duration", filtros.periodo),
       formato: "duration",
       tooltip: buildKpiTooltip(
-        "MTTR medio",
-        "Fim da execucao - inicio da execucao.",
+        "MTTR médio",
+        "Fim da execução - início da execução.",
         periodoLabel
       ),
     },
     {
       key: "criticos_abertos",
-      label: "Criticos em aberto",
+      label: "Críticos em aberto",
       valor: atual.criticosAbertos,
       delta: formatKpiDelta(
         atual.criticosAbertos,
@@ -11911,8 +11911,8 @@ function renderKpiCards(itens, itensAnterior, filtros) {
       ),
       formato: "count",
       tooltip: buildKpiTooltip(
-        "Criticos em aberto",
-        "Manutencoes criticas nao concluidas.",
+        "Críticos em aberto",
+        "Manutenções críticas não concluídas.",
         periodoLabel
       ),
     },
@@ -12086,7 +12086,7 @@ function renderKpiGraficos(itens, filtros) {
   });
 
   const maxTrend = Math.max(1, ...concluidasSeries, ...backlogSeries);
-  const trendPeriodo = `ultimas ${semanasCount} semanas`;
+  const trendPeriodo = `últimas ${semanasCount} semanas`;
   buildLineChart(
     kpiTrendChart,
     weekLabels,
@@ -12101,7 +12101,7 @@ function renderKpiGraficos(itens, filtros) {
         weekKeys,
         tooltip: buildKpiTooltip(
           "Concluidas",
-          "Manutencoes concluidas por semana.",
+          "Manutenções concluídas por semana.",
           trendPeriodo
         ),
       },
@@ -12115,7 +12115,7 @@ function renderKpiGraficos(itens, filtros) {
         weekKeys,
         tooltip: buildKpiTooltip(
           "Backlog",
-          "Manutencoes em backlog por semana.",
+          "Manutenções em backlog por semana.",
           trendPeriodo
         ),
       },
@@ -12202,7 +12202,7 @@ function renderKpiGraficos(itens, filtros) {
   });
   const slaTooltip = buildKpiTooltip(
     "SLA compliance",
-    "Concluidas no prazo / concluidas na semana.",
+    "Concluídas no prazo / concluídas na semana.",
     trendPeriodo
   );
   const slaLabels = slaSeries.map((valor) =>
@@ -12336,20 +12336,20 @@ function renderKpiRanking(itens, filtros) {
   const headRow = document.createElement("tr");
   const headers = [
     {
-      label: "Usuario",
+      label: "Usuário",
       tooltip: buildKpiTooltip(
-        "Usuario",
-        "Responsavel pela execucao.",
+        "Usuário",
+        "Responsável pela execução.",
         "Filtro atual"
       ),
     },
     {
-      label: "Concluidas",
+      label: "Concluídas",
       sortKey: "concluidas",
       tooltip: buildKpiTooltip(
-        "Concluidas",
-        "Total de manutencoes concluidas.",
-        `ultimos ${filtros.periodo} dias`
+        "Concluídas",
+        "Total de manutenções concluídas.",
+        `últimos ${filtros.periodo} dias`
       ),
     },
     {
@@ -12357,26 +12357,26 @@ function renderKpiRanking(itens, filtros) {
       sortKey: "overdue",
       tooltip: buildKpiTooltip(
         "Overdue aberto",
-        "Manutencoes em aberto com data atrasada.",
-        `ultimos ${filtros.periodo} dias`
+        "Manutenções em aberto com data atrasada.",
+        `últimos ${filtros.periodo} dias`
       ),
     },
     {
-      label: "Lead time medio",
+      label: "Lead time médio",
       sortKey: "lead",
       tooltip: buildKpiTooltip(
-        "Lead time medio",
-        "Conclusao - criacao (dias).",
-        `ultimos ${filtros.periodo} dias`
+        "Lead time médio",
+        "Conclusão - criação (dias).",
+        `últimos ${filtros.periodo} dias`
       ),
     },
     {
-      label: "MTTR medio",
+      label: "MTTR médio",
       sortKey: "mttr",
       tooltip: buildKpiTooltip(
-        "MTTR medio",
-        "Fim - inicio da execucao.",
-        `ultimos ${filtros.periodo} dias`
+        "MTTR médio",
+        "Fim - início da execução.",
+        `últimos ${filtros.periodo} dias`
       ),
     },
     {
@@ -12384,8 +12384,8 @@ function renderKpiRanking(itens, filtros) {
       sortKey: "docs",
       tooltip: buildKpiTooltip(
         "Compliance docs",
-        "APR/OS/PTE e PT quando critico.",
-        `ultimos ${filtros.periodo} dias`
+        "APR/OS/PTE e PT quando crítico.",
+        `últimos ${filtros.periodo} dias`
       ),
     },
   ];
@@ -12417,22 +12417,22 @@ function renderKpiRanking(itens, filtros) {
       tr.classList.add("is-selected");
     }
     tr.style.cursor = "pointer";
-    // formatacao valores ranking
+    // formatação valores ranking
     const cols = [
       { value: getUserLabel(linha.userId) },
       { value: linha.concluidas },
       { value: linha.overdue },
       {
         value: lead === null ? "\u2014" : `${lead.toFixed(1)}d`,
-        tooltip: lead === null ? "Sem base de calculo" : "",
+        tooltip: lead === null ? "Sem base de cálculo" : "",
       },
       {
         value: mttr === null ? "\u2014" : formatDuracaoKpi(mttr),
-        tooltip: mttr === null ? "Sem base de calculo" : "",
+        tooltip: mttr === null ? "Sem base de cálculo" : "",
       },
       {
         value: docsPercent === null ? "\u2014" : `${docsPercent}%`,
-        tooltip: docsPercent === null ? "Sem documentos no periodo" : "",
+        tooltip: docsPercent === null ? "Sem documentos no período" : "",
       },
     ];
     cols.forEach((col, index) => {
@@ -12461,7 +12461,7 @@ function renderKpiDrilldown() {
   }
   kpiDrilldownTabela.innerHTML = "";
   if (!kpiDrilldown || !kpiDrilldown.items.length) {
-    kpiDrilldownTitulo.textContent = "Clique em um KPI ou grafico para listar.";
+    kpiDrilldownTitulo.textContent = "Clique em um KPI ou gráfico para listar.";
     kpiDrilldownVazio.hidden = false;
     return;
   }
@@ -12475,20 +12475,20 @@ function renderKpiDrilldown() {
   const limite = kpiDrilldownLimite ? Number(kpiDrilldownLimite.value) || 25 : 25;
   const itensVisiveis = kpiDrilldown.items.slice(0, limite);
   // header drill-down
-  kpiDrilldownTitulo.textContent = `Metrica: ${kpiDrilldown.titulo} | Itens: ${itensVisiveis.length} | Periodo: ${periodoLabel} | Subestacao: ${subestacaoLabel} | Categoria: ${categoriaLabel} | Prioridade: ${prioridadeLabel} | Usuario: ${usuarioLabel}`;
+  kpiDrilldownTitulo.textContent = `Métrica: ${kpiDrilldown.titulo} | Itens: ${itensVisiveis.length} | Período: ${periodoLabel} | Subestação: ${subestacaoLabel} | Categoria: ${categoriaLabel} | Prioridade: ${prioridadeLabel} | Usuário: ${usuarioLabel}`;
 
   const table = document.createElement("table");
   table.className = "kpi-table kpi-table--compact";
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
   const colunas = [
-    { label: "Manutencao", className: "is-wide" },
-    { label: "Subestacao" },
+    { label: "Manutenção", className: "is-wide" },
+    { label: "Subestação" },
     { label: "Status", className: "is-center" },
     { label: "Programada", className: "is-date" },
-    { label: "Inicio", className: "is-date" },
+    { label: "Início", className: "is-date" },
     { label: "Fim", className: "is-date" },
-    { label: "Responsavel" },
+    { label: "Responsável" },
   ];
   colunas.forEach((coluna) => {
     const th = document.createElement("th");
@@ -12611,12 +12611,12 @@ function handleKpiDrilldownClick(event) {
     filtrados = itens.filter(
       (item) => item.status === "concluida" && getItemCriacaoDate(item) && getItemConclusaoDate(item)
     );
-    titulo = "Lead time medio";
+    titulo = "Lead time médio";
   } else if (tipo === "mttr") {
     filtrados = itens.filter(
       (item) => item.status === "concluida" && getItemInicioExecucaoDate(item) && getItemFimExecucaoDate(item)
     );
-    titulo = "MTTR medio";
+    titulo = "MTTR médio";
   } else if (tipo === "criticos_abertos") {
     filtrados = itens.filter((item) => item.status !== "concluida" && isItemCritico(item));
     titulo = "Criticos em aberto";
@@ -12684,7 +12684,7 @@ function handleKpiDrilldownClick(event) {
     const userId = alvo.dataset.userId;
     if (userId) {
       filtrados = itens.filter((item) => getExecutadoPorId(item) === userId);
-      titulo = `Usuario ${getUserLabel(userId)}`;
+      titulo = `Usuário ${getUserLabel(userId)}`;
     }
   }
 
@@ -12903,7 +12903,7 @@ function updateTemplateResumo() {
   }
   const nome = templateNome ? templateNome.value.trim() : "";
   const subestacao = templateSubestacao ? templateSubestacao.value : "";
-  const subestacaoLabel = subestacao || "Subestacao nao definida";
+  const subestacaoLabel = subestacao || "Subestação não definida";
   const tipo = templateFrequencia ? templateFrequencia.value : "none";
   const inicioStr = templateInicio ? templateInicio.value : "";
   const inicioDate = parseDate(inicioStr);
@@ -12915,21 +12915,21 @@ function updateTemplateResumo() {
 
   if (tipo === "none") {
     linhas.push(
-      `Este modelo NAO possui recorrencia automatica. Uso apenas como modelo manual. Inicio: ${inicioLabel}.`
+      `Este modelo NÃO possui recorrência automática. Uso apenas como modelo manual. Início: ${inicioLabel}.`
     );
   } else if (tipo === "daily") {
     const dias = getDailyDaysFromForm();
     const lista = dias.length ? dias.map(getWeekdayShort).filter(Boolean).join(", ") : "a definir";
     linhas.push(
-      `Este modelo ira gerar manutencoes DIARIAS nos dias: [${lista}], a partir de ${inicioLabel}, para: ${subestacaoLabel}.`
+      `Este modelo irá gerar manutenções DIÁRIAS nos dias: [${lista}], a partir de ${inicioLabel}, para: ${subestacaoLabel}.`
     );
   } else if (tipo === "weekly") {
     const diaSemana = templateWeeklyDay ? getWeekdayLabel(templateWeeklyDay.value) : "";
     const intervaloRaw = templateWeeklyInterval ? Number(templateWeeklyInterval.value) : 1;
     const intervalo = Math.max(1, Math.round(intervaloRaw || 1));
-    const diaLabel = diaSemana || "Dia nao definido";
+    const diaLabel = diaSemana || "Dia não definido";
     linhas.push(
-      `Este modelo ira gerar manutencoes SEMANAIS toda(o) ${diaLabel}, a cada ${intervalo} semana(s), a partir de ${inicioLabel}, para: ${subestacaoLabel}.`
+      `Este modelo irá gerar manutenções SEMANAIS toda(o) ${diaLabel}, a cada ${intervalo} semana(s), a partir de ${inicioLabel}, para: ${subestacaoLabel}.`
     );
   } else if (tipo === "monthly") {
     const modo = templateMonthlyMulti && templateMonthlyMulti.checked ? "multi" : "fixed";
@@ -12937,17 +12937,17 @@ function updateTemplateResumo() {
       const dias = parseMonthlyDaysInputValue(templateMonthlyDaysInput ? templateMonthlyDaysInput.value : "");
       const lista = dias.length ? dias.join(", ") : "a definir";
       linhas.push(
-        `Este modelo ira gerar manutencoes MENSAIS nos dias ${lista} de cada mes, a partir de ${inicioLabel}, para: ${subestacaoLabel}.`
+        `Este modelo irá gerar manutenções MENSAIS nos dias ${lista} de cada mês, a partir de ${inicioLabel}, para: ${subestacaoLabel}.`
       );
     } else {
       const dia = templateMonthlyDay ? templateMonthlyDay.value : "";
       const diaLabel = dia || "-";
       linhas.push(
-        `Este modelo ira gerar manutencoes MENSAIS no dia ${diaLabel} de cada mes, a partir de ${inicioLabel}, para: ${subestacaoLabel}.`
+        `Este modelo irá gerar manutenções MENSAIS no dia ${diaLabel} de cada mês, a partir de ${inicioLabel}, para: ${subestacaoLabel}.`
       );
     }
     linhas.push(
-      "Obs.: quando o mes nao possuir o dia configurado, a ocorrencia sera IGNORADA."
+      "Obs.: quando o mês não possuir o dia configurado, a ocorrência será IGNORADA."
     );
   }
 
@@ -12975,7 +12975,7 @@ function handleTemplateFormChange(event) {
     ) {
       setFieldError(
         templateMonthlyDaysErro,
-        "Informe dias validos entre 1 e 31 (ex.: 10, 25)."
+        "Informe dias válidos entre 1 e 31 (ex.: 10, 25)."
       );
     } else {
       setFieldError(templateMonthlyDaysErro, "");
@@ -13135,7 +13135,7 @@ function ajustarParaDiaSemana(base, weekday) {
 
 function formatIntervalo(template) {
   if (!template || !template.frequencia || template.frequencia === "none") {
-    return "Sem recorrencia";
+    return "Sem recorrência";
   }
 
   if (template.frequencia === "daily") {
@@ -13162,7 +13162,7 @@ function formatIntervalo(template) {
     return Number.isFinite(dia) ? `Mensal (dia ${dia})` : "Mensal";
   }
 
-  return "Sem recorrencia";
+  return "Sem recorrência";
 }
 
 function matchesRecorrencia(template, data) {
@@ -13528,7 +13528,7 @@ function salvarModelo(event) {
   const monthlyDays = monthlyValidation.valid ? monthlyValidation.dias : [];
 
   if (!parseDate(inicio)) {
-    setFieldError(templateInicioErro, "Data de inicio invalida.");
+    setFieldError(templateInicioErro, "Data de início inválida.");
     return;
   }
   if (frequencia === "daily" && !dailyDays.length) {
@@ -13536,26 +13536,26 @@ function salvarModelo(event) {
     return;
   }
   if (frequencia === "weekly" && (!Number.isFinite(weeklyDay) || !weeklyIntervalValid)) {
-    setFieldError(templateWeeklyIntervalErro, "Informe um intervalo semanal valido (>= 1).");
+    setFieldError(templateWeeklyIntervalErro, "Informe um intervalo semanal válido (>= 1).");
     return;
   }
   if (frequencia === "monthly") {
     if (monthlyMode === "fixed" && !monthlyDayValid) {
-      setFieldError(templateMonthlyDayErro, "Informe um dia do mes valido (1 a 31).");
+      setFieldError(templateMonthlyDayErro, "Informe um dia do mês válido (1 a 31).");
       return;
     }
     if (monthlyMode === "multi") {
       if (!monthlyValidation.valid) {
         setFieldError(
           templateMonthlyDaysErro,
-          "Informe dias validos entre 1 e 31 (ex.: 10, 25)."
+          "Informe dias válidos entre 1 e 31 (ex.: 10, 25)."
         );
         return;
       }
       if (!monthlyDays.length) {
         setFieldError(
           templateMonthlyDaysErro,
-          "Informe ao menos um dia do mes para a recorrencia."
+          "Informe ao menos um dia do mês para a recorrência."
         );
         return;
       }
@@ -13739,7 +13739,7 @@ function renderModelos() {
 
     const proximaLabel = template.ativo
       ? template.frequencia === "none"
-        ? "Sem recorrencia"
+        ? "Sem recorrência"
         : proximaDate
           ? formatDate(proximaDate)
           : "Sem proxima"
@@ -15245,7 +15245,7 @@ async function salvarPmpActivity(event) {
   }
   if (!currentUser || !canManagePmpActivities(currentUser)) {
     if (pmpFormMensagem) {
-      pmpFormMensagem.textContent = "Sem permissao para gerenciar PMP.";
+      pmpFormMensagem.textContent = "Sem permissão para gerenciar PMP.";
     }
     return;
   }
@@ -15598,7 +15598,7 @@ function renderPmpModule() {
       if (viewMode === "day") {
         tooltipLines.push(`Data: ${formatDate(period.start)}`);
       } else {
-        tooltipLines.push(`Periodo: ${formatDate(period.start)} - ${formatDate(period.end)}`);
+        tooltipLines.push(`Período: ${formatDate(period.start)} - ${formatDate(period.end)}`);
       }
       if (statusInfo.dueDate && viewMode !== "day") {
         tooltipLines.push(`Data prevista: ${formatDate(statusInfo.dueDate)}`);
@@ -15771,7 +15771,7 @@ async function openPmpImportModal() {
   const projectId = pmpFiltroProjeto.value;
   if (!projectId) {
     if (pmpFormMensagem) {
-      pmpFormMensagem.textContent = "Selecione um projeto para importar manutencoes.";
+      pmpFormMensagem.textContent = "Selecione um projeto para importar manutenções.";
     }
     return;
   }
@@ -15848,8 +15848,8 @@ async function confirmPmpImport() {
   }
   if (pmpFormMensagem) {
     pmpFormMensagem.textContent = fallbackFreq
-      ? "Importacao concluida. Revise a frequencia das atividades importadas."
-      : "Importacao concluida.";
+      ? "Importação concluída. Revise a frequência das atividades importadas."
+      : "Importação concluída.";
   }
   closePmpImportModal();
 }
@@ -15930,7 +15930,7 @@ function setPmpProcedimentoDoc(doc) {
 function openPmpProcedimento(doc) {
   const safeDoc = normalizePmpProcedimentoDoc(doc);
   if (!safeDoc || !safeDoc.url) {
-    window.alert("Procedimento nao encontrado.");
+    window.alert("Procedimento não encontrado.");
     return;
   }
   abrirPreview(safeDoc.url);
@@ -16016,14 +16016,14 @@ function openPmpCellModal(activityId, periodKey) {
     const periodoTexto =
       pmpLastSnapshot.viewMode === "day"
         ? `Data: ${formatDate(period.start)}`
-        : `Periodo: ${period.label} (${formatDate(period.start)} - ${formatDate(period.end)})`;
+        : `Período: ${period.label} (${formatDate(period.start)} - ${formatDate(period.end)})`;
     pmpCellMeta.textContent = `Projeto: ${projectLabel} | ${periodoTexto} | Status: ${
       PMP_STATUS_LABELS[statusInfo.status] || "-"
     }`;
   }
   const execEntries = [];
   if (statusInfo.exec) {
-    const tipo = statusInfo.exec.source === "auto" ? "Automatico" : "Manual";
+    const tipo = statusInfo.exec.source === "auto" ? "Automático" : "Manual";
     const data = statusInfo.executedAt ? formatDate(statusInfo.executedAt) : "-";
     const executor = statusInfo.exec.executorId ? getUserLabel(statusInfo.exec.executorId) : "-";
     const os = statusInfo.exec.osReferencia || statusInfo.exec.manutencaoId || "-";
@@ -16032,7 +16032,7 @@ function openPmpCellModal(activityId, periodKey) {
       execEntries.push(`Obs: ${statusInfo.exec.observacao}`);
     }
   }
-  renderPmpCellList(pmpCellExecList, execEntries, "Sem execucao registrada.");
+  renderPmpCellList(pmpCellExecList, execEntries, "Sem execução registrada.");
 
   const execRecord = manualEntry || statusInfo.exec;
   let evidencias = [];
@@ -16048,7 +16048,7 @@ function openPmpCellModal(activityId, periodKey) {
       return evidencia.nome || evidencia.name || evidencia.url || "Arquivo";
     });
   }
-  renderPmpCellList(pmpCellEvidencias, evidencias, "Sem evidencias registradas.");
+  renderPmpCellList(pmpCellEvidencias, evidencias, "Sem evidências registradas.");
 
   const checklistExec = execRecord && Array.isArray(execRecord.checklist) ? execRecord.checklist : [];
   const checklist = checklistExec.length
@@ -16165,7 +16165,7 @@ async function marcarPmpCancelada() {
   if (!currentUser || !canManagePmpActivities(currentUser)) {
     return;
   }
-  const confirmacao = window.confirm("Marcar atividade como cancelada neste periodo?");
+  const confirmacao = window.confirm("Marcar atividade como cancelada neste período?");
   if (!confirmacao) {
     return;
   }
@@ -16228,7 +16228,7 @@ async function salvarPmpExecucaoManual() {
     }
   } catch (error) {
     if (pmpFormMensagem) {
-      pmpFormMensagem.textContent = "Erro ao salvar execucao PMP.";
+      pmpFormMensagem.textContent = "Erro ao salvar execução PMP.";
     }
   }
   closePmpCellModal();
@@ -16241,7 +16241,7 @@ async function removerPmpExecucaoManual() {
   if (!currentUser || !canManagePmpActivities(currentUser)) {
     return;
   }
-  const confirmacao = window.confirm("Remover execucao manual deste periodo?");
+  const confirmacao = window.confirm("Remover execução manual deste período?");
   if (!confirmacao) {
     return;
   }
@@ -16251,7 +16251,7 @@ async function removerPmpExecucaoManual() {
     renderTudo();
   } catch (error) {
     if (pmpFormMensagem) {
-      pmpFormMensagem.textContent = "Erro ao remover execucao.";
+      pmpFormMensagem.textContent = "Erro ao remover execução.";
     }
   }
   closePmpCellModal();
@@ -16264,7 +16264,7 @@ async function marcarPmpNaoPrevista() {
   if (!currentUser || !canManagePmpActivities(currentUser)) {
     return;
   }
-  const confirmacao = window.confirm("Marcar este periodo como nao previsto?");
+  const confirmacao = window.confirm("Marcar este período como não previsto?");
   if (!confirmacao) {
     return;
   }
@@ -16285,7 +16285,7 @@ async function marcarPmpNaoPrevista() {
     }
   } catch (error) {
     if (pmpFormMensagem) {
-      pmpFormMensagem.textContent = "Erro ao marcar como nao prevista.";
+      pmpFormMensagem.textContent = "Erro ao marcar como não prevista.";
     }
   }
   closePmpCellModal();
@@ -16372,7 +16372,7 @@ function exportarPmpExcel() {
         : null;
       const isScheduled = scheduledKeys.has(periodKey) || Boolean(manualEntry);
       if (!isScheduled) {
-        values.push(snapshot.viewMode === "day" ? (PMP_STATUS_LABELS.empty || "Nao prevista") : "");
+        values.push(snapshot.viewMode === "day" ? (PMP_STATUS_LABELS.empty || "Não prevista") : "");
         return;
       }
       const statusInfo = getPmpStatusForPeriod(
@@ -16387,7 +16387,7 @@ function exportarPmpExcel() {
       );
       values.push(
         statusInfo.status === "empty"
-          ? PMP_STATUS_LABELS.empty || "Nao prevista"
+          ? PMP_STATUS_LABELS.empty || "Não prevista"
           : PMP_STATUS_LABELS[statusInfo.status] || "Planejada"
       );
     });
@@ -16453,7 +16453,7 @@ function exportarPmpPdf() {
           if (!isScheduled) {
             const emptyLabel =
               snapshot.viewMode === "day"
-                ? PMP_STATUS_LABELS.empty || "Nao prevista"
+                ? PMP_STATUS_LABELS.empty || "Não prevista"
                 : "-";
             return `<td class="pmp-cell empty">${escapeHtml(emptyLabel)}</td>`;
           }
@@ -16469,7 +16469,7 @@ function exportarPmpPdf() {
           );
           const status = statusInfo.status;
           if (status === "empty") {
-            const emptyLabel = PMP_STATUS_LABELS.empty || "Nao prevista";
+            const emptyLabel = PMP_STATUS_LABELS.empty || "Não prevista";
             return `<td class="pmp-cell empty">${escapeHtml(emptyLabel)}</td>`;
           }
           totalCells += 1;
@@ -16538,7 +16538,7 @@ function exportarPmpPdf() {
       <span class="legend-item missed">Atrasada</span>
       <span class="legend-item scheduled">Planejada</span>
       <span class="legend-item late">Fora da janela</span>
-      <span class="legend-item empty">Nao prevista</span>
+      <span class="legend-item empty">Não prevista</span>
       <span class="legend-item cancelled">Cancelada</span>
     </div>
   `;
@@ -16589,7 +16589,7 @@ function exportarPmpPdf() {
       </head>
       <body>
         <h1>PMP / Cronograma ${snapshot.year}</h1>
-        <p>Projeto: ${escapeHtml(projectLabel)} | Visualizacao: ${
+        <p>Projeto: ${escapeHtml(projectLabel)} | Visualização: ${
           snapshot.viewMode === "day"
             ? `Diario (${snapshot.monthLabel})`
             : snapshot.viewMode === "week"
@@ -16725,7 +16725,7 @@ function gerarManutencoesRecorrentes() {
           source: "recorrente",
           templateId: modelo.id,
           dataProgramada: dataStr,
-          resumo: "Manutencao criada automaticamente pela recorrencia.",
+          resumo: "Manutenção criada automaticamente pela recorrência.",
         },
         SYSTEM_USER_ID
       );
@@ -16761,7 +16761,7 @@ function renderSolicitacoes() {
     return;
   }
   if (requests.length === 0) {
-    solicitacoesVazio.textContent = "Nenhuma solicitacao pendente.";
+    solicitacoesVazio.textContent = "Nenhuma solicitação pendente.";
     solicitacoesVazio.hidden = false;
     return;
   }
@@ -16903,7 +16903,7 @@ function renderUsuarios() {
 
   if (filtrados.length === 0) {
     usuariosVazio.hidden = false;
-    usuariosVazio.textContent = "Nenhum usuario encontrado.";
+    usuariosVazio.textContent = "Nenhum usuário encontrado.";
     return;
   }
 
@@ -16916,7 +16916,7 @@ function renderUsuarios() {
     const header = document.createElement("div");
     header.className = "account-header";
     const titulo = document.createElement("strong");
-    titulo.textContent = user.name || user.matricula || "Usuario";
+    titulo.textContent = user.name || user.matricula || "Usuário";
     const status = document.createElement("span");
     status.className = `status-pill ${user.active === false ? "status-pill--inactive" : "status-pill--active"}`;
     status.textContent = user.active === false ? "Inativo" : "Ativo";
@@ -17425,18 +17425,18 @@ function renderPerfil() {
     perfilRole.textContent = formatProfileValue(getRoleLabel(currentUser));
   }
   if (perfilAtribuicoes) {
-    perfilAtribuicoes.textContent = currentUser.atribuicoes || "Nao informado.";
+    perfilAtribuicoes.textContent = currentUser.atribuicoes || "Não informado.";
   }
   if (perfilPermissoes) {
     perfilPermissoes.textContent = isAdminUser
       ? "Total"
       : permissoesAtivas.length
         ? permissoesAtivas.join(", ")
-        : "Sem permissoes.";
+        : "Sem permissões.";
   }
   if (perfilSecoes) {
     perfilSecoes.textContent = isAdminUser
-      ? "Todas (inclui governanca)"
+      ? "Todas (inclui governança)"
       : secoesAtivas.length
         ? secoesAtivas.join(", ")
         : "Nenhuma.";
@@ -17737,7 +17737,7 @@ function initAvatarUpload() {
       return;
     }
     if (!AVATAR_ALLOWED_TYPES.includes(file.type)) {
-      setAvatarError("Formato de imagem nao suportado.");
+      setAvatarError("Formato de imagem não suportado.");
       return;
     }
     if (file.size > AVATAR_MAX_BYTES) {
@@ -17843,7 +17843,7 @@ function importarDados() {
       renderTudo();
       mostrarMensagemGerencial("Dados importados com sucesso.");
     } catch (error) {
-      mostrarMensagemGerencial("Arquivo invalido ou corrompido.", true);
+      mostrarMensagemGerencial("Arquivo inválido ou corrompido.", true);
     }
   };
   leitor.readAsText(arquivo);
@@ -17896,7 +17896,7 @@ function recalcularBacklog() {
 
 function gerarRelatorio() {
   if (!currentUser || !canExportRelatorios(currentUser)) {
-    mostrarMensagemGerencial("Sem permissao para gerar relatorio.", true);
+    mostrarMensagemGerencial("Sem permissão para gerar relatório.", true);
     return;
   }
   const total = manutencoes.length;
@@ -17922,7 +17922,7 @@ function gerarRelatorio() {
   const reagendamentosTotal = reagendamentos.length;
   const motivosReagendamento = reagendamentos.reduce((acc, entry) => {
     const motivo =
-      entry && entry.detalhes && entry.detalhes.motivo ? entry.detalhes.motivo : "Nao informado";
+      entry && entry.detalhes && entry.detalhes.motivo ? entry.detalhes.motivo : "Não informado";
     acc[motivo] = (acc[motivo] || 0) + 1;
     return acc;
   }, {});
@@ -18046,7 +18046,7 @@ function gerarRelatorio() {
   const execucoesCanceladas = cancelamentosInicio.length;
   const cancelMotivos = cancelamentosInicio.reduce((acc, entry) => {
     const motivo =
-      entry && entry.detalhes && entry.detalhes.motivo ? entry.detalhes.motivo : "Nao informado";
+      entry && entry.detalhes && entry.detalhes.motivo ? entry.detalhes.motivo : "Não informado";
     acc[motivo] = (acc[motivo] || 0) + 1;
     return acc;
   }, {});
@@ -18074,33 +18074,33 @@ function gerarRelatorio() {
       `Total: ${total}\n` +
       `Agendadas: ${agendadas}\n` +
       `Backlog: ${backlog}\n` +
-      `Concluidas: ${concluidas.length}\n` +
-      `Conclusao: ${taxaConclusao}%\n` +
+      `Concluídas: ${concluidas.length}\n` +
+      `Conclusão: ${taxaConclusao}%\n` +
       `Percentual no prazo: ${taxaPontual}%\n` +
       `Reagendamentos: ${reagendamentosTotal}\n` +
       `Motivos de reagendamento: ${motivosTexto}\n` +
       `Reagendamentos por modelo (top 5):\n${reagPorModeloTexto}\n` +
       `Outros (total): ${outrosTotal}\n` +
-      `Observacoes de Outros (top 10):\n${outrosTexto}\n` +
+      `Observações de Outros (top 10):\n${outrosTexto}\n` +
       `Backlog (entradas): ${backlogEntradas}\n` +
-      `Backlog (manutencoes afetadas): ${backlogUnicos}\n` +
-      `Backlog medio (dias): ${backlogMedio}\n` +
+      `Backlog (manutenções afetadas): ${backlogUnicos}\n` +
+      `Backlog médio (dias): ${backlogMedio}\n` +
       `Top 5 atrasadas:\n${backlogTopTexto}\n` +
-      `Motivos nao executada (backlog): ${backlogMotivosTotal}\n` +
+      `Motivos não executada (backlog): ${backlogMotivosTotal}\n` +
       `Detalhes motivos backlog: ${backlogMotivosResumo}\n` +
-      `Tempo medio entre programada e execucao (dias): ${tempoMedioExecucao}\n` +
-      `Tempo medio de execucao (HH:MM): ${mediaDuracaoExecucao}\n` +
-      `Tempo medio de atraso (dias): ${mediaAtrasoExec}\n` +
-        `Execucoes: ${execPontuais} no prazo, ${execAdiantadas} adiantadas, ${execAtrasadas} atrasadas\n` +
-        `Execucoes com ressalva: ${execComRessalva}\n` +
-        `Execucoes nao executadas: ${execNaoExecutada}\n` +
-        `Execucoes iniciadas: ${execucoesIniciadas}\n` +
-        `Inicios cancelados: ${execucoesCanceladas}\n` +
+      `Tempo médio entre programada e execução (dias): ${tempoMedioExecucao}\n` +
+      `Tempo médio de execução (HH:MM): ${mediaDuracaoExecucao}\n` +
+      `Tempo médio de atraso (dias): ${mediaAtrasoExec}\n` +
+        `Execuções: ${execPontuais} no prazo, ${execAdiantadas} adiantadas, ${execAtrasadas} atrasadas\n` +
+        `Execuções com ressalva: ${execComRessalva}\n` +
+        `Execuções não executadas: ${execNaoExecutada}\n` +
+        `Execuções iniciadas: ${execucoesIniciadas}\n` +
+        `Inícios cancelados: ${execucoesCanceladas}\n` +
         `Motivos de cancelamento: ${cancelMotivosTexto}\n` +
         `Compliance documental: ${complianceDocs}/${concluidas.length} (${compliancePercent}%)\n` +
-        `Evidencias medias por manutencao: ${evidenciasMedia}`;
+        `Evidências médias por manutenção: ${evidenciasMedia}`;
   }
-  mostrarMensagemGerencial("Relatorio atualizado.");
+  mostrarMensagemGerencial("Relatório atualizado.");
 }
 
 function renderTudo() {
@@ -18157,7 +18157,7 @@ function atualizarSeNecessario() {
               to: change.to,
               dataProgramada: item.data || "",
               atrasoDias,
-              resumo: "Manutencao movida para backlog por nao conclusao ate a data programada.",
+              resumo: "Manutenção movida para backlog por não conclusão até a data programada.",
             },
             SYSTEM_USER_ID
           );
@@ -18231,21 +18231,21 @@ async function adicionarManutencao() {
   }
   if (!titulo || !local || !data || !categoria || !prioridade) {
     mostrarMensagemManutencao(
-      "Preencha tipo, subestacao, inicio da execucao, categoria e prioridade.",
+      "Preencha tipo, subestação, início da execução, categoria e prioridade.",
       true
     );
     return;
   }
   if (!equipamentoId) {
-    mostrarMensagemManutencao("Informe o equipamento da manutencao.", true);
+    mostrarMensagemManutencao("Informe o equipamento da manutenção.", true);
     return;
   }
   if (!observacao) {
-    mostrarMensagemManutencao("Descreva a demanda tecnica.", true);
+    mostrarMensagemManutencao("Descreva a demanda técnica.", true);
     return;
   }
   if (!osReferencia) {
-    mostrarMensagemManutencao("Informe a OS / referencia.", true);
+    mostrarMensagemManutencao("Informe a OS / referência.", true);
     return;
   }
   setFieldError(participantesManutencaoErro, "");
@@ -18285,7 +18285,7 @@ async function adicionarManutencao() {
       try {
         documentos[chave] = await salvarDocumentoDb(file);
       } catch (error) {
-        mostrarMensagemManutencao("Nao foi possivel salvar o documento.", true);
+        mostrarMensagemManutencao("Não foi possível salvar o documento.", true);
         return;
       }
     }
@@ -18295,14 +18295,14 @@ async function adicionarManutencao() {
     return;
   }
   if (critico && !documentos.pt) {
-    mostrarMensagemManutencao("PT obrigatoria para trabalho critico.", true);
+    mostrarMensagemManutencao("PT obrigatória para trabalho crítico.", true);
     return;
   }
 
   const agora = new Date();
   const agoraIso = toIsoUtc(agora);
   const usuarioLabel = getUserLabel(currentUser.id);
-  const ultimaAcao = `Execucao iniciada em ${formatDateTime(agora)} por ${usuarioLabel}`;
+  const ultimaAcao = `Execução iniciada em ${formatDateTime(agora)} por ${usuarioLabel}`;
   const liberacao = {
     osNumero: osReferencia,
     participantes,
@@ -18349,7 +18349,7 @@ async function adicionarManutencao() {
   logAction("create", nova, {
     source: "manual",
     dataProgramada: data,
-    resumo: "Manutencao criada e iniciada.",
+    resumo: "Manutenção criada e iniciada.",
   });
   const documentosLista = DOC_KEYS.filter((key) => documentos[key]).map(
     (key) => DOC_LABELS[key] || key
@@ -18361,7 +18361,7 @@ async function adicionarManutencao() {
     participantes,
     critico,
     documentos: documentosLista,
-    resumo: "Execucao iniciada.",
+    resumo: "Execução iniciada.",
   });
   renderTudo();
 
@@ -18421,7 +18421,7 @@ async function adicionarManutencao() {
   if (criada) {
     abrirRegistroExecucao(criada);
   }
-  mostrarMensagemManutencao("Execucao iniciada.");
+  mostrarMensagemManutencao("Execução iniciada.");
 }
 
 let manutencaoEmConclusao = null;
@@ -18432,13 +18432,13 @@ function editarManutencao(index) {
     return;
   }
   const item = manutencoes[index];
-  const novoTitulo = window.prompt("Novo titulo:", item.titulo);
+  const novoTitulo = window.prompt("Novo título:", item.titulo);
   if (novoTitulo === null) {
     return;
   }
   const tituloLimpo = novoTitulo.trim();
   if (!tituloLimpo) {
-    mostrarMensagemManutencao("Titulo invalido.", true);
+    mostrarMensagemManutencao("Título inválido.", true);
     return;
   }
   const novoLocal = window.prompt("Novo local:", item.local);
@@ -18447,10 +18447,10 @@ function editarManutencao(index) {
   }
   const localLimpo = novoLocal.trim();
   if (!localLimpo) {
-    mostrarMensagemManutencao("Local invalido.", true);
+    mostrarMensagemManutencao("Local inválido.", true);
     return;
   }
-  const novaObs = window.prompt("Observacoes:", item.observacao || "");
+  const novaObs = window.prompt("Observações:", item.observacao || "");
   if (novaObs === null) {
     return;
   }
@@ -18468,9 +18468,9 @@ function editarManutencao(index) {
   const resultado = normalizarManutencoes(manutencoes);
   manutencoes = resultado.normalizadas;
   salvarManutencoes(manutencoes);
-  logAction("edit", atualizado, { resumo: "Edicao manual" });
+  logAction("edit", atualizado, { resumo: "Edição manual" });
   renderTudo();
-  mostrarMensagemManutencao("Manutencao atualizada.");
+  mostrarMensagemManutencao("Manutenção atualizada.");
 }
 
 function registrarObservacao(index) {
@@ -18478,13 +18478,13 @@ function registrarObservacao(index) {
     return;
   }
   const item = manutencoes[index];
-  const novaObs = window.prompt("Observacao tecnica:", item.observacao || "");
+  const novaObs = window.prompt("Observação técnica:", item.observacao || "");
   if (novaObs === null) {
     return;
   }
   const obsLimpa = novaObs.trim();
   if (!obsLimpa) {
-    mostrarMensagemManutencao("Observacao vazia.", true);
+    mostrarMensagemManutencao("Observação vazia.", true);
     return;
   }
 
@@ -18499,9 +18499,9 @@ function registrarObservacao(index) {
   const resultado = normalizarManutencoes(manutencoes);
   manutencoes = resultado.normalizadas;
   salvarManutencoes(manutencoes);
-  logAction("note", atualizado, { resumo: "Observacao registrada" });
+  logAction("note", atualizado, { resumo: "Observação registrada" });
   renderTudo();
-  mostrarMensagemManutencao("Observacao registrada.");
+  mostrarMensagemManutencao("Observação registrada.");
 }
 
 function registrarMotivoBacklog(index) {
@@ -18555,7 +18555,7 @@ function salvarBacklogMotivo(event) {
   }
   const index = manutencoes.findIndex((item) => item.id === manutencaoEmBacklogMotivo);
   if (index < 0) {
-    mostrarMensagemBacklogMotivo("Manutencao nao encontrada.", true);
+    mostrarMensagemBacklogMotivo("Manutenção não encontrada.", true);
     return;
   }
   const item = manutencoes[index];
@@ -18570,7 +18570,7 @@ function salvarBacklogMotivo(event) {
   }
   const observacao = backlogMotivoObs ? backlogMotivoObs.value.trim() : "";
   if (motivo === "Outros" && !observacao) {
-    mostrarMensagemBacklogMotivo("Informe a observacao para o motivo Outros.", true);
+    mostrarMensagemBacklogMotivo("Informe a observação para o motivo Outros.", true);
     return;
   }
 
@@ -18620,7 +18620,7 @@ function renderDrawerPermissions(user, overridePermissions = null) {
   if (!adminPermissionCatalog.length) {
     const aviso = document.createElement("p");
     aviso.className = "hint";
-    aviso.textContent = "Catalogo de permissoes indisponivel.";
+    aviso.textContent = "Catálogo de permissões indisponível.";
     drawerPermissions.append(aviso);
     return;
   }
@@ -18637,7 +18637,7 @@ function renderDrawerPermissions(user, overridePermissions = null) {
     const bloco = document.createElement("div");
     bloco.className = "perm-group";
     const titulo = document.createElement("strong");
-    titulo.textContent = grupo.label || "Modulo";
+    titulo.textContent = grupo.label || "Módulo";
     const grid = document.createElement("div");
     grid.className = "perm-grid";
 
@@ -18670,7 +18670,7 @@ function mostrarMensagemDrawer(texto, erro = false) {
 
 function abrirUserDrawer(userId) {
   if (!canAdminUsersRead()) {
-    mostrarMensagemGerencial("Sem permissao para visualizar usuarios.", true);
+    mostrarMensagemGerencial("Sem permissão para visualizar usuários.", true);
     return;
   }
   const user = users.find((item) => item.id === userId);
@@ -18725,16 +18725,16 @@ function abrirUserDrawer(userId) {
   }
   if (drawerSubtitle) {
     const perfil = getRoleLabel(user);
-    drawerSubtitle.textContent = `Matricula: ${user.matricula || "-"} | Perfil: ${perfil}`;
+    drawerSubtitle.textContent = `Matrícula: ${user.matricula || "-"} | Perfil: ${perfil}`;
   }
   if (btnSalvarUserDrawer) {
     btnSalvarUserDrawer.disabled = !podeSalvar;
   }
   renderDrawerPermissions(user);
   if (!podeSalvar) {
-    mostrarMensagemDrawer("Sem permissao para alterar este perfil.", true);
+    mostrarMensagemDrawer("Sem permissão para alterar este perfil.", true);
   } else if (!podeEditarPerfil && podeDesativar) {
-    mostrarMensagemDrawer("Edicao bloqueada. Apenas ativacao/desativacao disponivel.", true);
+    mostrarMensagemDrawer("Edição bloqueada. Apenas ativação/desativação disponível.", true);
   } else {
     mostrarMensagemDrawer("");
   }
@@ -18754,13 +18754,13 @@ async function salvarUserDrawer(event) {
   const userId = drawerUserId ? drawerUserId.value : "";
   const user = users.find((item) => item.id === userId);
   if (!user) {
-    mostrarMensagemDrawer("Usuario nao encontrado.", true);
+    mostrarMensagemDrawer("Usuário não encontrado.", true);
     return;
   }
   const podeEditarPerfil = Boolean(currentUser && canEditProfile(currentUser, user));
   const podeDesativar = Boolean(currentUser && canDesativarUsuarios(currentUser));
   if (!podeEditarPerfil && !podeDesativar) {
-    mostrarMensagemDrawer("Sem permissao para salvar alteracoes.", true);
+    mostrarMensagemDrawer("Sem permissão para salvar alterações.", true);
     return;
   }
   const payload = {};
@@ -18784,7 +18784,7 @@ async function salvarUserDrawer(event) {
     payload.active = drawerActive ? drawerActive.checked : true;
   }
   if (!Object.keys(payload).length) {
-    mostrarMensagemDrawer("Nenhuma alteracao permitida.", true);
+    mostrarMensagemDrawer("Nenhuma alteração permitida.", true);
     return;
   }
   try {
@@ -18800,7 +18800,7 @@ async function salvarUserDrawer(event) {
     }
     mostrarMensagemDrawer("Perfil atualizado.");
   } catch (error) {
-    mostrarMensagemDrawer("Nao foi possivel salvar. Tente novamente.", true);
+    mostrarMensagemDrawer("Não foi possível salvar. Tente novamente.", true);
   }
 }
 function executarManutencao(index) {
@@ -18809,7 +18809,7 @@ function executarManutencao(index) {
   }
   const item = manutencoes[index];
   if (item.status === "backlog") {
-    mostrarMensagemManutencao("Manutencao em backlog. Registre o motivo.", true);
+    mostrarMensagemManutencao("Manutenção em backlog. Registre o motivo.", true);
     return;
   }
   if (!isLiberacaoOk(item)) {
@@ -18827,15 +18827,15 @@ function abrirInicioExecucao(item) {
     return;
   }
   if (item.status === "concluida") {
-    mostrarMensagemManutencao("Manutencao concluida. Apenas leitura.", true);
+    mostrarMensagemManutencao("Manutenção concluída. Apenas leitura.", true);
     return;
   }
   if (item.status === "backlog") {
-    mostrarMensagemManutencao("Manutencao em backlog. Registre o motivo.", true);
+    mostrarMensagemManutencao("Manutenção em backlog. Registre o motivo.", true);
     return;
   }
   if (item.status === "em_execucao") {
-    mostrarMensagemManutencao("Manutencao ja esta em execucao.", true);
+    mostrarMensagemManutencao("Manutenção já está em execução.", true);
     return;
   }
   if (item.status === "encerramento") {
@@ -18843,7 +18843,7 @@ function abrirInicioExecucao(item) {
     return;
   }
   if (!isLiberacaoOk(item)) {
-    mostrarMensagemManutencao("Liberacao incompleta. Preencha os requisitos.", true);
+    mostrarMensagemManutencao("Liberação incompleta. Preencha os requisitos.", true);
     return;
   }
   inicioExecucaoId.value = item.id;
@@ -18866,21 +18866,21 @@ function confirmarInicioExecucao() {
     return;
   }
   if (!inicioExecucaoId || !inicioExecucaoId.value) {
-    mostrarMensagemInicioExecucao("Selecione uma manutencao.", true);
+    mostrarMensagemInicioExecucao("Selecione uma manutenção.", true);
     return;
   }
   const index = manutencoes.findIndex((item) => item.id === inicioExecucaoId.value);
   if (index < 0) {
-    mostrarMensagemInicioExecucao("Manutencao nao encontrada.", true);
+    mostrarMensagemInicioExecucao("Manutenção não encontrada.", true);
     return;
   }
   const item = manutencoes[index];
   if (item.status === "concluida") {
-    mostrarMensagemInicioExecucao("Manutencao concluida. Apenas leitura.", true);
+    mostrarMensagemInicioExecucao("Manutenção concluída. Apenas leitura.", true);
     return;
   }
   if (item.status === "em_execucao") {
-    mostrarMensagemInicioExecucao("Manutencao ja esta em execucao.", true);
+    mostrarMensagemInicioExecucao("Manutenção já está em execução.", true);
     return;
   }
   if (item.status === "encerramento") {
@@ -18888,7 +18888,7 @@ function confirmarInicioExecucao() {
     return;
   }
   if (!isLiberacaoOk(item)) {
-    mostrarMensagemInicioExecucao("Liberacao incompleta. Preencha os requisitos.", true);
+    mostrarMensagemInicioExecucao("Liberação incompleta. Preencha os requisitos.", true);
     return;
   }
   const inicioIso = toIsoUtc(new Date());
@@ -18913,7 +18913,7 @@ function confirmarInicioExecucao() {
     participantes: liberacao.participantes || [],
     critico: liberacao.critico,
     documentos: documentosLista,
-    resumo: "Execucao iniciada.",
+    resumo: "Execução iniciada.",
   });
   renderTudo();
   fecharInicioExecucao();
@@ -18928,12 +18928,12 @@ function abrirRegistroExecucao(item) {
     return;
   }
   if (!item || (item.status !== "em_execucao" && item.status !== "encerramento")) {
-    mostrarMensagemManutencao("Inicie a execucao antes de registrar.", true);
+    mostrarMensagemManutencao("Inicie a execução antes de registrar.", true);
     return;
   }
   const inicio = parseTimestamp(item.executionStartedAt);
   if (!inicio) {
-    mostrarMensagemManutencao("Inicio da execucao nao encontrado.", true);
+    mostrarMensagemManutencao("Início da execução não encontrado.", true);
     return;
   }
   manutencaoEmRegistro = item.id;
@@ -19039,17 +19039,17 @@ function abrirCancelarExecucao() {
     return;
   }
   if (!manutencaoEmRegistro) {
-    mostrarMensagemRegistroExecucao("Selecione uma manutencao.", true);
+    mostrarMensagemRegistroExecucao("Selecione uma manutenção.", true);
     return;
   }
   const index = manutencoes.findIndex((item) => item.id === manutencaoEmRegistro);
   if (index < 0) {
-    mostrarMensagemRegistroExecucao("Manutencao nao encontrada.", true);
+    mostrarMensagemRegistroExecucao("Manutenção não encontrada.", true);
     return;
   }
   const item = manutencoes[index];
   if (item.status !== "em_execucao") {
-    mostrarMensagemRegistroExecucao("A manutencao precisa estar em execucao.", true);
+    mostrarMensagemRegistroExecucao("A manutenção precisa estar em execução.", true);
     return;
   }
   formRegistroExecucao.hidden = true;
@@ -19078,17 +19078,17 @@ function salvarCancelamentoExecucao(event) {
     return;
   }
   if (!manutencaoEmRegistro) {
-    mostrarMensagemCancelarExecucao("Selecione uma manutencao.", true);
+    mostrarMensagemCancelarExecucao("Selecione uma manutenção.", true);
     return;
   }
   const index = manutencoes.findIndex((item) => item.id === manutencaoEmRegistro);
   if (index < 0) {
-    mostrarMensagemCancelarExecucao("Manutencao nao encontrada.", true);
+    mostrarMensagemCancelarExecucao("Manutenção não encontrada.", true);
     return;
   }
   const item = manutencoes[index];
   if (item.status !== "em_execucao") {
-    mostrarMensagemCancelarExecucao("A manutencao precisa estar em execucao.", true);
+    mostrarMensagemCancelarExecucao("A manutenção precisa estar em execução.", true);
     return;
   }
   const motivo = cancelarExecucaoMotivo ? cancelarExecucaoMotivo.value.trim() : "";
@@ -19113,7 +19113,7 @@ function salvarCancelamentoExecucao(event) {
   salvarManutencoes(manutencoes);
   renderTudo();
   fecharRegistroExecucao();
-  mostrarMensagemManutencao("Execucao cancelada.");
+  mostrarMensagemManutencao("Execução cancelada.");
 }
 
 function salvarRegistroExecucao(event) {
@@ -19122,21 +19122,21 @@ function salvarRegistroExecucao(event) {
     return;
   }
   if (!manutencaoEmRegistro) {
-    mostrarMensagemRegistroExecucao("Selecione uma manutencao.", true);
+    mostrarMensagemRegistroExecucao("Selecione uma manutenção.", true);
     return;
   }
   const index = manutencoes.findIndex((item) => item.id === manutencaoEmRegistro);
   if (index < 0) {
-    mostrarMensagemRegistroExecucao("Manutencao nao encontrada.", true);
+    mostrarMensagemRegistroExecucao("Manutenção não encontrada.", true);
     return;
   }
   const item = manutencoes[index];
   if (item.status !== "em_execucao" && item.status !== "encerramento") {
-    mostrarMensagemRegistroExecucao("Inicie a execucao antes de registrar.", true);
+    mostrarMensagemRegistroExecucao("Inicie a execução antes de registrar.", true);
     return;
   }
   if (!item.executionStartedAt) {
-    mostrarMensagemRegistroExecucao("Inicio da execucao nao encontrado.", true);
+    mostrarMensagemRegistroExecucao("Início da execução não encontrado.", true);
     return;
   }
   const executadoPor = registroExecutadaPor ? registroExecutadaPor.value : "";
@@ -19146,12 +19146,12 @@ function salvarRegistroExecucao(event) {
   }
   const resultado = registroResultado ? registroResultado.value : "";
   if (!resultado) {
-    mostrarMensagemRegistroExecucao("Informe o resultado da execucao.", true);
+    mostrarMensagemRegistroExecucao("Informe o resultado da execução.", true);
     return;
   }
   const comentario = registroComentario ? registroComentario.value.trim() : "";
   if (!comentario) {
-    mostrarMensagemRegistroExecucao("Descricao tecnica obrigatoria.", true);
+    mostrarMensagemRegistroExecucao("Descrição técnica obrigatória.", true);
     return;
   }
   const observacaoExecucao = registroObsExecucao ? registroObsExecucao.value.trim() : "";
@@ -19184,11 +19184,11 @@ function salvarRegistroExecucao(event) {
     participantes: liberacao.participantes || [],
     critico: liberacao.critico,
     documentos: documentosLista,
-    resumo: "Registro de execucao salvo.",
+    resumo: "Registro de execução salvo.",
   });
   renderTudo();
   fecharRegistroExecucao();
-  mostrarMensagemManutencao("Registro de execucao salvo.");
+  mostrarMensagemManutencao("Registro de execução salvo.");
 }
 
 function preencherParticipantesSelect(select, selecionados = []) {
@@ -19317,8 +19317,8 @@ function atualizarLiberacaoChecklist() {
   const docPte = getLiberacaoDocAtual("pte");
   const docPt = getLiberacaoDocAtual("pt");
   const itens = [
-    { label: "Trabalho critico definido", ok: Boolean(criticoSelecionado) },
-    { label: "OS / referencia", ok: Boolean(osNumero) },
+    { label: "Trabalho crítico definido", ok: Boolean(criticoSelecionado) },
+    { label: "OS / referência", ok: Boolean(osNumero) },
     { label: "Participantes", ok: participantes.length > 0 },
     { label: "APR anexada", ok: Boolean(docApr) },
     { label: "OS anexada", ok: Boolean(docOs) },
@@ -19344,7 +19344,7 @@ function atualizarLiberacaoChecklist() {
     } else if (critico && participantes.length < 2) {
       setFieldError(
         liberacaoParticipantesErro,
-        "Para trabalho critico, informe ao menos 2 participantes."
+        "Para trabalho crítico, informe ao menos 2 participantes."
       );
     } else {
       setFieldError(liberacaoParticipantesErro, "");
@@ -19379,11 +19379,11 @@ function abrirLiberacao(item) {
     return;
   }
   if (item.status === "concluida") {
-    mostrarMensagemManutencao("Manutencao concluida. Apenas leitura.", true);
+    mostrarMensagemManutencao("Manutenção concluída. Apenas leitura.", true);
     return;
   }
   if (item.status === "em_execucao" || item.status === "encerramento") {
-    mostrarMensagemManutencao("Execucao em andamento. Nao e possivel liberar.", true);
+    mostrarMensagemManutencao("Execução em andamento. Não é possível liberar.", true);
     return;
   }
   manutencaoEmLiberacao = item.id;
@@ -19441,7 +19441,7 @@ function abrirOverrideLiberacao(dataProgramada) {
   }
   if (overrideInfo) {
     const dataLabel = dataProgramada ? formatDate(dataProgramada) : "-";
-    overrideInfo.textContent = `Liberacao antes da data prevista (${dataLabel}).`;
+    overrideInfo.textContent = `Liberação antes da data prevista (${dataLabel}).`;
   }
   if (overrideMotivo) {
     overrideMotivo.value = "";
@@ -19491,29 +19491,29 @@ function finalizarLiberacao(index, item, liberacaoBase, overrideJustificativa = 
     critico: liberacao.critico,
     documentos: documentosLista,
     justificativa: overrideJustificativa || undefined,
-    resumo: overrideJustificativa ? "Liberacao antecipada registrada." : "Liberacao registrada.",
+    resumo: overrideJustificativa ? "Liberação antecipada registrada." : "Liberação registrada.",
   });
   renderTudo();
   fecharLiberacao();
-  mostrarMensagemManutencao("Liberacao registrada.");
+  mostrarMensagemManutencao("Liberação registrada.");
 }
 
 async function confirmarOverrideLiberacao(event) {
   event.preventDefault();
   if (!pendingLiberacaoOverride) {
-    mostrarMensagemOverride("Nenhuma liberacao pendente.", true);
+    mostrarMensagemOverride("Nenhuma liberação pendente.", true);
     return;
   }
   const motivo = overrideMotivo ? overrideMotivo.value.trim() : "";
   if (!motivo) {
-    mostrarMensagemOverride("Justificativa obrigatoria.", true);
+    mostrarMensagemOverride("Justificativa obrigatória.", true);
     return;
   }
   const index = manutencoes.findIndex(
     (registro) => registro.id === pendingLiberacaoOverride.id
   );
   if (index < 0) {
-    mostrarMensagemOverride("Manutencao nao encontrada.", true);
+    mostrarMensagemOverride("Manutenção não encontrada.", true);
     pendingLiberacaoOverride = null;
     return;
   }
@@ -19525,7 +19525,7 @@ async function confirmarOverrideLiberacao(event) {
       justificativa: motivo,
     });
   } catch (error) {
-    mostrarMensagemOverride(error.message || "Nao foi possivel liberar.", true);
+    mostrarMensagemOverride(error.message || "Não foi possível liberar.", true);
     return;
   }
   const liberacaoBase = pendingLiberacaoOverride.liberacaoBase;
@@ -19540,18 +19540,18 @@ async function salvarLiberacao(event) {
     return;
   }
   if (!manutencaoEmLiberacao) {
-    mostrarMensagemLiberacao("Selecione uma manutencao.", true);
+    mostrarMensagemLiberacao("Selecione uma manutenção.", true);
     return;
   }
   const index = manutencoes.findIndex((item) => item.id === manutencaoEmLiberacao);
   if (index < 0) {
-    mostrarMensagemLiberacao("Manutencao nao encontrada.", true);
+    mostrarMensagemLiberacao("Manutenção não encontrada.", true);
     return;
   }
   const item = manutencoes[index];
   const osNumero = liberacaoOs ? liberacaoOs.value.trim() : "";
   if (!osNumero) {
-    mostrarMensagemLiberacao("Informe o No OS / referencia.", true);
+    mostrarMensagemLiberacao("Informe o Nº OS / referência.", true);
     return;
   }
   const participantesTexto = liberacaoParticipantes ? liberacaoParticipantes.value : "";
@@ -19569,17 +19569,17 @@ async function salvarLiberacao(event) {
   }
   const criticoValor = liberacaoCritico ? liberacaoCritico.value : "";
   if (!criticoValor) {
-    mostrarMensagemLiberacao("Informe se o trabalho e critico.", true);
+    mostrarMensagemLiberacao("Informe se o trabalho é crítico.", true);
     return;
   }
   const critico = criticoValor === "sim";
   if (critico && participantes.length < 2) {
     setFieldError(
       liberacaoParticipantesErro,
-      "Para trabalho critico, informe ao menos 2 participantes."
+      "Para trabalho crítico, informe ao menos 2 participantes."
     );
     mostrarMensagemLiberacao(
-      "Para trabalho critico, informe ao menos 2 participantes.",
+      "Para trabalho crítico, informe ao menos 2 participantes.",
       true
     );
     return;
@@ -19613,7 +19613,7 @@ async function salvarLiberacao(event) {
       try {
         documentos[chave] = await salvarDocumentoDb(input.files[0]);
       } catch (error) {
-        mostrarMensagemLiberacao("Nao foi possivel salvar o documento.", true);
+        mostrarMensagemLiberacao("Não foi possível salvar o documento.", true);
         return;
       }
       continue;
@@ -19628,7 +19628,7 @@ async function salvarLiberacao(event) {
     return;
   }
   if (critico && !documentos.pt) {
-    mostrarMensagemLiberacao("PT obrigatoria para trabalho critico.", true);
+    mostrarMensagemLiberacao("PT obrigatória para trabalho crítico.", true);
     return;
   }
   const dataProgramada = parseDate(item.data);
@@ -19655,7 +19655,7 @@ async function salvarLiberacao(event) {
   try {
     await apiMaintenanceRelease({ id: item.id, dataProgramada: item.data });
   } catch (error) {
-    mostrarMensagemLiberacao(error.message || "Nao foi possivel liberar.", true);
+    mostrarMensagemLiberacao(error.message || "Não foi possível liberar.", true);
     return;
   }
   finalizarLiberacao(index, item, liberacaoBase);
@@ -19691,7 +19691,7 @@ function liberarManutencao(index) {
   }
   const item = manutencoes[index];
   if (item.status === "backlog") {
-    mostrarMensagemManutencao("Manutencao em backlog. Nao e possivel liberar.", true);
+    mostrarMensagemManutencao("Manutenção em backlog. Não é possível liberar.", true);
     return;
   }
   const dataProgramada = parseDate(item.data);
@@ -19715,11 +19715,11 @@ function abrirCancelarInicio(item) {
     return;
   }
   if (item.status !== "em_execucao") {
-    mostrarMensagemManutencao("A manutencao precisa estar em execucao.", true);
+    mostrarMensagemManutencao("A manutenção precisa estar em execução.", true);
     return;
   }
   if (item.registroExecucao) {
-    mostrarMensagemManutencao("Registro ja iniciado. Nao e possivel cancelar.", true);
+    mostrarMensagemManutencao("Registro já iniciado. Não é possível cancelar.", true);
     return;
   }
   manutencaoEmCancelamento = item.id;
@@ -19750,12 +19750,12 @@ function salvarCancelarInicio(event) {
     return;
   }
   if (!manutencaoEmCancelamento) {
-    mostrarMensagemCancelarInicio("Selecione uma manutencao.", true);
+    mostrarMensagemCancelarInicio("Selecione uma manutenção.", true);
     return;
   }
   const index = manutencoes.findIndex((item) => item.id === manutencaoEmCancelamento);
   if (index < 0) {
-    mostrarMensagemCancelarInicio("Manutencao nao encontrada.", true);
+    mostrarMensagemCancelarInicio("Manutenção não encontrada.", true);
     return;
   }
   const item = manutencoes[index];
@@ -19766,7 +19766,7 @@ function salvarCancelarInicio(event) {
   }
   const observacao = cancelarInicioObs ? cancelarInicioObs.value.trim() : "";
   if (motivo === "Outros" && !observacao) {
-    mostrarMensagemCancelarInicio("Informe a observacao para o motivo Outros.", true);
+    mostrarMensagemCancelarInicio("Informe a observação para o motivo Outros.", true);
     return;
   }
   const inicioAnterior = item.executionStartedAt || "";
@@ -19794,11 +19794,11 @@ function salvarCancelarInicio(event) {
     critico: liberacao.critico,
     documentos: documentosLista,
     inicioExecucao: inicioAnterior,
-    resumo: "Inicio cancelado.",
+    resumo: "Início cancelado.",
   });
   renderTudo();
   fecharCancelarInicio();
-  mostrarMensagemManutencao("Inicio cancelado.");
+  mostrarMensagemManutencao("Início cancelado.");
 }
 
 function abrirReagendamento(item) {
@@ -19835,17 +19835,17 @@ function reagendarManutencao(index) {
   const item = manutencoes[index];
   if (isDailySubstationInspection(item)) {
     mostrarMensagemManutencao(
-      "Inspecao diaria de subestacao nao pode ser reagendada.",
+      "Inspeção diária de subestação não pode ser reagendada.",
       true
     );
     return;
   }
   if (item.status === "em_execucao" || item.status === "encerramento") {
-    mostrarMensagemManutencao("Nao e possivel reagendar durante a execucao.", true);
+    mostrarMensagemManutencao("Não é possível reagendar durante a execução.", true);
     return;
   }
   if (item.status === "concluida") {
-    mostrarMensagemManutencao("Manutencao concluida. Apenas leitura.", true);
+    mostrarMensagemManutencao("Manutenção concluída. Apenas leitura.", true);
     return;
   }
   abrirReagendamento(item);
@@ -19861,13 +19861,13 @@ function salvarReagendamento(event) {
   }
   const index = manutencoes.findIndex((item) => item.id === reagendarId.value);
   if (index < 0) {
-    mostrarMensagemReagendar("Manutencao nao encontrada.", true);
+    mostrarMensagemReagendar("Manutenção não encontrada.", true);
     return;
   }
   const item = manutencoes[index];
   if (isDailySubstationInspection(item)) {
     mostrarMensagemReagendar(
-      "Inspecao diaria de subestacao nao pode ser reagendada.",
+      "Inspeção diária de subestação não pode ser reagendada.",
       true
     );
     return;
@@ -19880,11 +19880,11 @@ function salvarReagendamento(event) {
   const dataLimpa = reagendarData.value.trim();
   const novaData = parseDate(dataLimpa);
   if (!novaData) {
-    mostrarMensagemReagendar("Data invalida. Use AAAA-MM-DD.", true);
+    mostrarMensagemReagendar("Data inválida. Use AAAA-MM-DD.", true);
     return;
   }
   if (item.status === "em_execucao" || item.status === "encerramento") {
-    mostrarMensagemReagendar("Nao e possivel reagendar durante a execucao.", true);
+    mostrarMensagemReagendar("Não é possível reagendar durante a execução.", true);
     return;
   }
   const dataAnterior = item.data || "";
@@ -19895,7 +19895,7 @@ function salvarReagendamento(event) {
   const hoje = startOfDay(new Date());
   if (novaData < hoje) {
     const confirmar = window.confirm(
-      "A nova data esta no passado e a manutencao ficara em backlog. Deseja continuar?"
+      "A nova data está no passado e a manutenção ficará em backlog. Deseja continuar?"
     );
     if (!confirmar) {
       return;
@@ -19903,7 +19903,7 @@ function salvarReagendamento(event) {
   }
   const observacao = reagendarObs ? reagendarObs.value.trim() : "";
   if (motivo === "Outros" && !observacao) {
-    mostrarMensagemReagendar("Informe a observacao para o motivo Outros.", true);
+    mostrarMensagemReagendar("Informe a observação para o motivo Outros.", true);
     return;
   }
 
@@ -19929,7 +19929,7 @@ function salvarReagendamento(event) {
   });
   renderTudo();
   fecharReagendamento();
-  mostrarMensagemManutencao("Manutencao reagendada.");
+  mostrarMensagemManutencao("Manutenção reagendada.");
 }
 
 function formatDateTimeInput(date) {
@@ -20047,7 +20047,7 @@ function renderHistorico(item) {
         linhas.push(`Participantes: ${participantesTexto}`);
       }
       if (detalhes.critico !== undefined) {
-        linhas.push(`Critico: ${detalhes.critico ? "Sim" : "Nao"}`);
+        linhas.push(`Crítico: ${detalhes.critico ? "Sim" : "Não"}`);
       }
       if (detalhes.documentos) {
         const docsTexto = Array.isArray(detalhes.documentos)
@@ -20061,19 +20061,19 @@ function renderHistorico(item) {
         linhas.push(`Resultado: ${RESULTADO_LABELS[detalhes.resultado] || detalhes.resultado}`);
       }
     if (detalhes.referencia) {
-      linhas.push(`Referencia: ${detalhes.referencia}`);
+      linhas.push(`Referência: ${detalhes.referencia}`);
     }
     if (detalhes.observacaoExecucao) {
-      linhas.push(`Obs. execucao: ${detalhes.observacaoExecucao}`);
+      linhas.push(`Obs. execução: ${detalhes.observacaoExecucao}`);
     }
     if (detalhes.evidenciasCount !== undefined) {
-      linhas.push(`Evidencias: ${detalhes.evidenciasCount}`);
+      linhas.push(`Evidências: ${detalhes.evidenciasCount}`);
     }
     if (detalhes.inicioExecucao) {
-      linhas.push(`Inicio execucao: ${formatHistoricoData(detalhes.inicioExecucao)}`);
+      linhas.push(`Início execução: ${formatHistoricoData(detalhes.inicioExecucao)}`);
     }
     if (detalhes.fimExecucao) {
-      linhas.push(`Fim execucao: ${formatHistoricoData(detalhes.fimExecucao)}`);
+      linhas.push(`Fim execução: ${formatHistoricoData(detalhes.fimExecucao)}`);
     }
     if (detalhes.atrasoDias !== undefined) {
       linhas.push(`Atraso (dias): ${detalhes.atrasoDias}`);
@@ -20195,7 +20195,7 @@ function exportarHistorico(item) {
         detalhes.observacao || "",
         detalhes.osNumero || "",
         participantesTexto,
-        detalhes.critico === undefined ? "" : detalhes.critico ? "Sim" : "Nao",
+        detalhes.critico === undefined ? "" : detalhes.critico ? "Sim" : "Não",
         documentosTexto,
         detalhes.inicioExecucao || "",
         detalhes.fimExecucao || "",
@@ -20234,7 +20234,7 @@ function exportarHistoricoPdf(item) {
   }
   const dataBase = item.data ? formatDate(parseDate(item.data)) : "data indefinida";
   const header = `
-    <h1>Historico da manutencao</h1>
+    <h1>Histórico da manutenção</h1>
     <p><strong>${item.titulo}</strong> | ${item.local} | ${dataBase}</p>
   `;
   const itens = historico
@@ -20266,7 +20266,7 @@ function exportarHistoricoPdf(item) {
           linhas.push(`Participantes: ${participantesTexto}`);
         }
         if (entry.detalhes && entry.detalhes.critico !== undefined) {
-          linhas.push(`Critico: ${entry.detalhes.critico ? "Sim" : "Nao"}`);
+          linhas.push(`Crítico: ${entry.detalhes.critico ? "Sim" : "Não"}`);
         }
         if (entry.detalhes && entry.detalhes.documentos) {
           const docsTexto = Array.isArray(entry.detalhes.documentos)
@@ -20284,19 +20284,19 @@ function exportarHistoricoPdf(item) {
         );
       }
       if (entry.detalhes && entry.detalhes.referencia) {
-        linhas.push(`Referencia: ${entry.detalhes.referencia}`);
+        linhas.push(`Referência: ${entry.detalhes.referencia}`);
       }
       if (entry.detalhes && entry.detalhes.observacaoExecucao) {
-        linhas.push(`Obs. execucao: ${entry.detalhes.observacaoExecucao}`);
+        linhas.push(`Obs. execução: ${entry.detalhes.observacaoExecucao}`);
       }
       if (entry.detalhes && entry.detalhes.evidenciasCount !== undefined) {
-        linhas.push(`Evidencias: ${entry.detalhes.evidenciasCount}`);
+        linhas.push(`Evidências: ${entry.detalhes.evidenciasCount}`);
       }
       if (entry.detalhes && entry.detalhes.inicioExecucao) {
-        linhas.push(`Inicio execucao: ${formatHistoricoData(entry.detalhes.inicioExecucao)}`);
+        linhas.push(`Início execução: ${formatHistoricoData(entry.detalhes.inicioExecucao)}`);
       }
       if (entry.detalhes && entry.detalhes.fimExecucao) {
-        linhas.push(`Fim execucao: ${formatHistoricoData(entry.detalhes.fimExecucao)}`);
+        linhas.push(`Fim execução: ${formatHistoricoData(entry.detalhes.fimExecucao)}`);
       }
       if (entry.detalhes && entry.detalhes.atrasoDias !== undefined) {
         linhas.push(`Atraso (dias): ${entry.detalhes.atrasoDias}`);
@@ -20326,7 +20326,7 @@ function exportarHistoricoPdf(item) {
     <html lang="pt-BR">
       <head>
         <meta charset="utf-8" />
-        <title>Historico ${item.titulo}</title>
+        <title>Histórico ${item.titulo}</title>
         <style>
           body { font-family: Arial, sans-serif; padding: 24px; color: #1c1c1c; }
           h1 { margin: 0 0 8px; font-size: 20px; }
@@ -20467,11 +20467,11 @@ function abrirConclusao(item) {
     return;
   }
   if (!item || (item.status !== "em_execucao" && item.status !== "encerramento")) {
-    mostrarMensagemManutencao("Inicie a execucao antes de concluir.", true);
+    mostrarMensagemManutencao("Inicie a execução antes de concluir.", true);
     return;
   }
   if (!item.executionStartedAt) {
-    mostrarMensagemManutencao("Inicio da execucao nao encontrado.", true);
+    mostrarMensagemManutencao("Início da execução não encontrado.", true);
     return;
   }
   const registro = item.registroExecucao;
@@ -20481,7 +20481,7 @@ function abrirConclusao(item) {
     !registro.resultado ||
     !registro.comentario
   ) {
-    mostrarMensagemManutencao("Registre a execucao antes de concluir.", true);
+    mostrarMensagemManutencao("Registre a execução antes de concluir.", true);
     return;
   }
   manutencaoEmConclusao = item.id;
@@ -20581,18 +20581,18 @@ async function salvarConclusao(event) {
     return;
   }
   if (!manutencaoEmConclusao) {
-    mostrarMensagemConclusao("Selecione uma manutencao.", true);
+    mostrarMensagemConclusao("Selecione uma manutenção.", true);
     return;
   }
   const index = manutencoes.findIndex((item) => item.id === manutencaoEmConclusao);
   if (index < 0) {
-    mostrarMensagemConclusao("Manutencao nao encontrada.", true);
+    mostrarMensagemConclusao("Manutenção não encontrada.", true);
     return;
   }
 
   const item = manutencoes[index];
   if (item.status !== "em_execucao" && item.status !== "encerramento") {
-    mostrarMensagemConclusao("Inicie a execucao antes de concluir.", true);
+    mostrarMensagemConclusao("Inicie a execução antes de concluir.", true);
     return;
   }
   const registro = item.registroExecucao;
@@ -20602,12 +20602,12 @@ async function salvarConclusao(event) {
     !registro.resultado ||
     !registro.comentario
   ) {
-    mostrarMensagemConclusao("Registre a execucao antes de concluir.", true);
+    mostrarMensagemConclusao("Registre a execução antes de concluir.", true);
     return;
   }
   const liberacao = getLiberacao(item);
   if (!isLiberacaoOk(item)) {
-    mostrarMensagemConclusao("Documentacao de liberacao pendente.", true);
+    mostrarMensagemConclusao("Documentação de liberação pendente.", true);
     return;
   }
   const executadoPor = registro.executadoPor;
@@ -20617,28 +20617,28 @@ async function salvarConclusao(event) {
   const referenciaInformada = conclusaoReferencia ? conclusaoReferencia.value.trim() : "";
   const referencia = referenciaInformada || (liberacao ? liberacao.osNumero || "" : "");
   if (!referencia) {
-    mostrarMensagemConclusao("Informe o No OS / referencia.", true);
+    mostrarMensagemConclusao("Informe o Nº OS / referência.", true);
     return;
   }
   const inicioDate = parseTimestamp(item.executionStartedAt);
   if (!inicioDate) {
-    mostrarMensagemConclusao("Inicio da execucao nao encontrado.", true);
+    mostrarMensagemConclusao("Início da execução não encontrado.", true);
     return;
   }
   const fimValor = conclusaoFim ? conclusaoFim.value : "";
   const fimDate = parseDateTimeInput(fimValor);
   if (!fimDate) {
-    mostrarMensagemConclusao("Informe o horario de fim da execucao.", true);
+    mostrarMensagemConclusao("Informe o horário de fim da execução.", true);
     return;
   }
   if (fimDate < inicioDate) {
-    mostrarMensagemConclusao("Fim deve ser maior ou igual ao inicio.", true);
+    mostrarMensagemConclusao("Fim deve ser maior ou igual ao início.", true);
     return;
   }
   const duracaoHoras = (fimDate.getTime() - inicioDate.getTime()) / 3600000;
   if (duracaoHoras > MAX_EXECUCAO_HORAS) {
     const confirmar = window.confirm(
-      `Execucao com ${Math.round(duracaoHoras)}h. Deseja continuar?`
+      `Execução com ${Math.round(duracaoHoras)}h. Deseja continuar?`
     );
     if (!confirmar) {
       return;
@@ -20647,20 +20647,20 @@ async function salvarConclusao(event) {
   const arquivos = getEvidenciaFiles();
   const arquivosValidos = arquivos.filter(Boolean);
   if (arquivosValidos.length < MIN_EVIDENCIAS) {
-    mostrarMensagemConclusao(`Adicione as ${MIN_EVIDENCIAS} fotos obrigatorias.`, true);
+    mostrarMensagemConclusao(`Adicione as ${MIN_EVIDENCIAS} fotos obrigatórias.`, true);
     return;
   }
   const arquivosInvalidos = arquivosValidos.filter(
     (file) => !file.type || !file.type.startsWith("image/")
   );
   if (arquivosInvalidos.length) {
-    mostrarMensagemConclusao("Apenas fotos sao permitidas.", true);
+    mostrarMensagemConclusao("Apenas fotos são permitidas.", true);
     return;
   }
-  mostrarMensagemConclusao("Processando evidencias...");
+  mostrarMensagemConclusao("Processando evidências...");
   const evidencias = await lerEvidencias(arquivosValidos);
   if (evidencias.length < MIN_EVIDENCIAS) {
-    mostrarMensagemConclusao("Nao foi possivel ler as evidencias.", true);
+    mostrarMensagemConclusao("Não foi possível ler as evidências.", true);
     return;
   }
 
@@ -20721,7 +20721,7 @@ async function salvarConclusao(event) {
   });
   renderTudo();
   fecharConclusao();
-  mostrarMensagemManutencao("Manutencao concluida.");
+  mostrarMensagemManutencao("Manutenção concluída.");
 }
 
 function abrirRelatorio(item) {
@@ -20788,14 +20788,14 @@ function abrirRelatorio(item) {
     if (evidencias.length === 0) {
       const vazio = document.createElement("p");
       vazio.className = "empty-state";
-      vazio.textContent = "Sem evidencias.";
+      vazio.textContent = "Sem evidências.";
       relatorioEvidencias.append(vazio);
     } else {
       evidencias.forEach((evidencia) => {
         if (evidencia.type && evidencia.type.startsWith("image/")) {
           const img = document.createElement("img");
           img.src = evidencia.dataUrl || evidencia.url || "";
-          img.alt = evidencia.nome || "Evidencia";
+          img.alt = evidencia.nome || "Evidência";
           relatorioEvidencias.append(img);
           return;
         }
@@ -20828,11 +20828,11 @@ function imprimirRelatorio() {
 
 function removerManutencao(index) {
   if (!canDeleteMaintenance(currentUser)) {
-    mostrarMensagemManutencao("Apenas PCM pode excluir manutencoes.", true);
+    mostrarMensagemManutencao("Apenas PCM pode excluir manutenções.", true);
     return;
   }
   const item = manutencoes[index];
-  const confirmar = window.confirm("Excluir esta manutencao?");
+  const confirmar = window.confirm("Excluir esta manutenção?");
   if (!confirmar) {
     return;
   }
@@ -20840,12 +20840,12 @@ function removerManutencao(index) {
     .then(() => {
       manutencoes = manutencoes.filter((entry) => entry && entry.id !== item.id);
       salvarManutencoes(manutencoes);
-      logAction("remove", item, { resumo: "Excluida" });
+      logAction("remove", item, { resumo: "Excluída" });
       renderTudo();
-      mostrarMensagemManutencao("Manutencao excluida.");
+      mostrarMensagemManutencao("Manutenção excluída.");
     })
     .catch((error) => {
-      const message = error && error.message ? error.message : "Falha ao excluir manutencao.";
+      const message = error && error.message ? error.message : "Falha ao excluir manutenção.";
       mostrarMensagemManutencao(message, true);
     });
 }
@@ -21316,7 +21316,7 @@ async function loadDashboardSummary(force) {
 
 function aprovarSolicitacao(item) {
   if (!currentUser || !canInviteUsuarios(currentUser)) {
-    mostrarMensagemGerencial("Sem permissao para aprovar solicitacoes.", true);
+    mostrarMensagemGerencial("Sem permissão para aprovar solicitações.", true);
     return;
   }
   const requestId = item.dataset.requestId;
@@ -21362,7 +21362,7 @@ function aprovarSolicitacao(item) {
 
 function recusarSolicitacao(item) {
   if (!currentUser || !canInviteUsuarios(currentUser)) {
-    mostrarMensagemGerencial("Sem permissao para recusar solicitacoes.", true);
+    mostrarMensagemGerencial("Sem permissão para recusar solicitações.", true);
     return;
   }
   const requestId = item.dataset.requestId;
@@ -21418,7 +21418,7 @@ function atualizarRoleUsuario(checkbox) {
   }
   if (currentUser && user.id === currentUser.id) {
     checkbox.checked = true;
-    mostrarMensagemGerencial("Nao e possivel alterar o proprio cargo.", true);
+    mostrarMensagemGerencial("Não é possível alterar o próprio cargo.", true);
     return;
   }
   if (!checkbox.checked && user.role === "admin" && contarAdmins() <= 1) {
@@ -21445,7 +21445,7 @@ function salvarDadosUsuario(item) {
     return;
   }
   if (!currentUser || !canEditProfile(currentUser, user)) {
-    mostrarMensagemGerencial("Sem permissao para editar este perfil.", true);
+    mostrarMensagemGerencial("Sem permissão para editar este perfil.", true);
     return;
   }
   const cargoInput = item.querySelector("[data-user-field='cargo']");
@@ -21465,7 +21465,7 @@ function salvarDadosUsuario(item) {
 
 function removerUsuario(item) {
   if (!currentUser || !canDesativarUsuarios(currentUser)) {
-    mostrarMensagemGerencial("Sem permissao para remover usuarios.", true);
+    mostrarMensagemGerencial("Sem permissão para remover usuários.", true);
     return;
   }
   const userId = item.dataset.userId;
@@ -21474,7 +21474,7 @@ function removerUsuario(item) {
     return;
   }
   if (currentUser && user.id === currentUser.id) {
-    mostrarMensagemGerencial("Nao e possivel remover a conta logada.", true);
+    mostrarMensagemGerencial("Não é possível remover a conta logada.", true);
     return;
   }
   if (user.role === "admin" && contarAdmins() <= 1) {
@@ -21641,15 +21641,15 @@ if (automationList) {
     }
     const enabled = toggle.checked;
     toggle.disabled = true;
-    mostrarMensagemAutomacoes("Salvando automacao...");
+    mostrarMensagemAutomacoes("Salvando automação...");
     try {
       const data = await apiUpdateAutomation(automationId, { enabled });
       automationsState.items = Array.isArray(data.automations) ? data.automations : [];
       renderAutomacoes();
-      mostrarMensagemAutomacoes("Automacao atualizada.");
+      mostrarMensagemAutomacoes("Automação atualizada.");
     } catch (error) {
       toggle.checked = !enabled;
-      mostrarMensagemAutomacoes(error.message || "Falha ao atualizar automacao.", true);
+      mostrarMensagemAutomacoes(error.message || "Falha ao atualizar automação.", true);
     } finally {
       toggle.disabled = false;
     }
@@ -21685,7 +21685,7 @@ if (btnFilesUpload) {
       return;
     }
     if (!currentUser || !canUploadFilesClient(currentUser)) {
-      mostrarMensagemArquivos("Sem permissao para enviar arquivos.", true);
+      mostrarMensagemArquivos("Sem permissão para enviar arquivos.", true);
       return;
     }
     const type = filesUploadType.value;
@@ -21699,7 +21699,7 @@ if (btnFilesUpload) {
       return;
     }
     if (!FILE_ALLOWED_TYPES.includes(file.type)) {
-      mostrarMensagemArquivos("Tipo de arquivo nao suportado.", true);
+      mostrarMensagemArquivos("Tipo de arquivo não suportado.", true);
       return;
     }
     if (file.size > FILE_MAX_BYTES) {
@@ -21731,7 +21731,7 @@ if (filesList) {
       return;
     }
     if (!currentUser || !canDeleteFilesClient(currentUser)) {
-      mostrarMensagemArquivos("Sem permissao para remover arquivos.", true);
+      mostrarMensagemArquivos("Sem permissão para remover arquivos.", true);
       return;
     }
     const fileId = removeBtn.dataset.fileId;
@@ -21759,12 +21759,12 @@ if (filesList) {
 if (btnPermissoesSalvar) {
   btnPermissoesSalvar.addEventListener("click", async () => {
     if (!currentUser || !isAdmin() || !canViewGerencial(currentUser)) {
-      mostrarMensagemPermissoes("Sem permissao para editar permissoes.", true);
+      mostrarMensagemPermissoes("Sem permissão para editar permissões.", true);
       return;
     }
     const payload = { values: coletarPermissoesGerenciais() };
     btnPermissoesSalvar.disabled = true;
-    mostrarMensagemPermissoes("Salvando permissoes...");
+    mostrarMensagemPermissoes("Salvando permissões...");
     try {
       const data = await apiSalvarPermissoes(payload);
       permissoesState.values = data.values || payload.values;
@@ -21782,9 +21782,9 @@ if (btnPermissoesSalvar) {
       renderPermissoesGerenciais();
       renderAuthUI();
       renderPerfil();
-      mostrarMensagemPermissoes("Permissoes atualizadas.");
+      mostrarMensagemPermissoes("Permissões atualizadas.");
     } catch (error) {
-      mostrarMensagemPermissoes(error.message || "Falha ao salvar permissoes.", true);
+      mostrarMensagemPermissoes(error.message || "Falha ao salvar permissões.", true);
     } finally {
       btnPermissoesSalvar.disabled = false;
     }
@@ -21978,7 +21978,7 @@ document.addEventListener("click", (event) => {
     return;
   }
   if (!canEditProfile(currentUser, currentUser)) {
-    setPerfilSaveMessage("Sem permissao para editar este perfil.", true);
+    setPerfilSaveMessage("Sem permissão para editar este perfil.", true);
     return;
   }
   const uenInput = document.getElementById("perfilUenInput");
@@ -21993,7 +21993,7 @@ document.addEventListener("click", (event) => {
     payload.projectId = projetoValue;
   }
   if (!Object.keys(payload).length) {
-    setPerfilSaveMessage("Nenhuma alteracao para salvar.");
+    setPerfilSaveMessage("Nenhuma alteração para salvar.");
     return;
   }
   salvar.disabled = true;
@@ -22011,7 +22011,7 @@ document.addEventListener("click", (event) => {
       setPerfilSaveMessage("Perfil atualizado.");
     })
     .catch((error) => {
-      const message = error && error.message ? error.message : "Nao foi possivel salvar.";
+      const message = error && error.message ? error.message : "Não foi possível salvar.";
       setPerfilSaveMessage(message, true);
     })
     .finally(() => {
@@ -22050,7 +22050,7 @@ if (btnGerarConvite) {
   btnGerarConvite.addEventListener("click", async () => {
     if (!currentUser || !canInviteUsuarios(currentUser)) {
       if (inviteResultado) {
-        inviteResultado.textContent = "Sem permissao para gerar convite.";
+        inviteResultado.textContent = "Sem permissão para gerar convite.";
       }
       return;
     }
@@ -22066,7 +22066,7 @@ if (btnGerarConvite) {
       }
     } catch (error) {
       if (inviteResultado) {
-        inviteResultado.textContent = "Nao foi possivel gerar o convite.";
+        inviteResultado.textContent = "Não foi possível gerar o convite.";
       }
     }
   });
@@ -22077,7 +22077,7 @@ loginForm.addEventListener("submit", async (event) => {
   const login = loginUsuario.value.trim();
   const senha = loginSenha.value.trim();
   if (!login || !senha) {
-    mostrarMensagemConta("Informe usuario e senha.", true);
+    mostrarMensagemConta("Informe usuário e senha.", true);
     return;
   }
   if (btnLoginSubmit) {
@@ -22092,7 +22092,7 @@ loginForm.addEventListener("submit", async (event) => {
     esconderAuthPanels();
     await carregarSessaoServidor();
   } catch (error) {
-    const message = error && error.message ? error.message : "Usuario ou senha invalidos.";
+    const message = error && error.message ? error.message : "Usuário ou senha inválidos.";
     mostrarMensagemConta(message, true);
   } finally {
     if (btnLoginSubmit) {
@@ -22123,7 +22123,7 @@ reqForm.addEventListener("submit", async (event) => {
       setFieldError(reqSenhaErro, "Senha fora da politica.");
     }
     if (senha !== senhaConfirm) {
-      setFieldError(reqSenhaConfirmErro, "As senhas nao conferem.");
+      setFieldError(reqSenhaConfirmErro, "As senhas não conferem.");
     }
     return;
   }
@@ -22132,7 +22132,7 @@ reqForm.addEventListener("submit", async (event) => {
     return;
   }
   if (senha !== senhaConfirm) {
-    setFieldError(reqSenhaConfirmErro, "As senhas nao conferem.");
+    setFieldError(reqSenhaConfirmErro, "As senhas não conferem.");
     return;
   }
   if (btnRegistroSubmit) {
@@ -22167,7 +22167,7 @@ reqForm.addEventListener("submit", async (event) => {
     if (errors.convite) {
       setFieldError(reqCodigoErro, errors.convite);
     }
-    const message = error && error.message ? error.message : "Nao foi possivel criar a conta.";
+    const message = error && error.message ? error.message : "Não foi possível criar a conta.";
     mostrarMensagemConta(message, true);
   } finally {
     if (btnRegistroSubmit) {
@@ -22479,7 +22479,7 @@ if (projectTable) {
       return;
     }
     if (action.dataset.action === "delete-project") {
-      const ok = confirm("Excluir projeto? Essa acao nao pode ser desfeita.");
+      const ok = confirm("Excluir projeto? Essa ação não pode ser desfeita.");
       if (!ok) {
         return;
       }
@@ -22638,7 +22638,7 @@ if (equipeTable) {
       return;
     }
     if (action.dataset.action === "remove-team") {
-      const ok = confirm("Remover usuario do projeto?");
+      const ok = confirm("Remover usuário do projeto?");
       if (!ok || !activeProjectId) {
         return;
       }
@@ -22646,7 +22646,7 @@ if (equipeTable) {
         await apiProjetosEquipeRemove(activeProjectId, userId);
         await carregarEquipeProjeto();
       } catch (error) {
-        alert(error && error.message ? error.message : "Falha ao remover usuario.");
+        alert(error && error.message ? error.message : "Falha ao remover usuário.");
       }
     }
   });
@@ -22656,11 +22656,11 @@ if (btnEnviarFeedback) {
 }
 if (feedbackTemplateButtons.length && feedbackMessage) {
   const templates = {
-    bom: "Excelente atuacao no atendimento e registro das atividades. Sua organizacao ajudou a equipe a manter o ritmo.",
+    bom: "Excelente atuação no atendimento e registro das atividades. Sua organização ajudou a equipe a manter o ritmo.",
     melhora:
-      "Observei pontos que podem melhorar: alinhar o status no OPSCOPE logo apos a execucao e detalhar melhor o impacto.",
+      "Observei pontos que podem melhorar: alinhar o status no OPSCOPE logo após a execução e detalhar melhor o impacto.",
     apoio:
-      "Obrigado pelo apoio em campo. Sua prontidao e comunicacao clara facilitaram o fechamento das tarefas.",
+      "Obrigado pelo apoio em campo. Sua prontidão e comunicação clara facilitaram o fechamento das tarefas.",
   };
   feedbackTemplateButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -22746,7 +22746,7 @@ if (btnRelatorioMensalPreview) {
   btnRelatorioMensalPreview.addEventListener("click", () => {
     const ok = abrirRdoMensalPreview();
     if (!ok) {
-      alert("Nao foi possivel abrir o preview do RDO mensal.");
+      alert("Não foi possível abrir o preview do RDO mensal.");
     }
   });
 }
@@ -22762,7 +22762,7 @@ if (btnRelatorioMensalRdo) {
   btnRelatorioMensalRdo.addEventListener("click", () => {
     const ok = abrirRdoMensalPreview();
     if (!ok) {
-      alert("Nao foi possivel abrir o preview do RDO mensal.");
+      alert("Não foi possível abrir o preview do RDO mensal.");
     }
   });
 }

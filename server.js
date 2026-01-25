@@ -136,7 +136,7 @@ const AVATAR_SIZE = 512;
 const ALLOWED_AVATAR_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const FILE_MAX_BYTES = 10 * 1024 * 1024;
 const FILE_TYPE_CONFIG = {
-  evidence: { label: "Evidencias", dir: "evidencias" },
+  evidence: { label: "Evidências", dir: "evidencias" },
   rdo: { label: "Anexos de RDO", dir: "rdos" },
   audit: { label: "Documentos de auditoria", dir: "auditoria" },
   procedure: { label: "Procedimentos PMP", dir: "procedimentos" },
@@ -153,7 +153,7 @@ const DEFAULT_PROJECT_LOCAIS = ["LZC-BOS2", "LZC-PCT4", "LZC-LT", "LZC-BSO2/LZC-
 const AUTOMATION_DEFAULTS = [
   {
     id: "maintenance_critical_email",
-    name: "Notificar manutencao critica",
+    name: "Notificar manutenção crítica",
     enabled: true,
     event: "maintenance_created",
     condition: { type: "critical" },
@@ -209,7 +209,7 @@ const RELEASE_OVERRIDE_ROLES = new Set([
 const PERMISSION_CATALOG = [
   {
     id: "manutencao",
-    label: "Manutencoes",
+    label: "Manutenções",
     permissions: [
       { key: "create", label: "Criar" },
       { key: "edit", label: "Editar" },
@@ -220,10 +220,10 @@ const PERMISSION_CATALOG = [
   },
   {
     id: "usuarios",
-    label: "Usuarios",
+    label: "Usuários",
     permissions: [
-      { key: "admin:users:read", label: "Ler usuarios" },
-      { key: "admin:users:write", label: "Editar usuarios" },
+      { key: "admin:users:read", label: "Ler usuários" },
+      { key: "admin:users:write", label: "Editar usuários" },
     ],
   },
 ];
@@ -231,9 +231,9 @@ const PERMISSION_CATALOG = [
 const GRANULAR_PERMISSION_CATALOG = [
   { key: "editarPerfil", label: "Editar perfil (UEN/Projeto)" },
   { key: "editarPerfilOutros", label: "Editar perfil de outros" },
-  { key: "verUsuarios", label: "Ver usuarios" },
-  { key: "convidarUsuarios", label: "Convidar usuarios" },
-  { key: "desativarUsuarios", label: "Desativar usuarios" },
+  { key: "verUsuarios", label: "Ver usuários" },
+  { key: "convidarUsuarios", label: "Convidar usuários" },
+  { key: "desativarUsuarios", label: "Desativar usuários" },
   { key: "verArquivos", label: "Ver arquivos" },
   { key: "uploadArquivos", label: "Enviar arquivos" },
   { key: "excluirArquivos", label: "Excluir arquivos" },
@@ -241,14 +241,14 @@ const GRANULAR_PERMISSION_CATALOG = [
   { key: "verRDOs", label: "Ver RDOs" },
   { key: "gerarRDOs", label: "Gerar RDOs" },
   { key: "excluirRDOs", label: "Excluir RDOs" },
-  { key: "verRelatorios", label: "Ver relatorios" },
-  { key: "exportarRelatorios", label: "Exportar relatorios" },
+  { key: "verRelatorios", label: "Ver relatórios" },
+  { key: "exportarRelatorios", label: "Exportar relatórios" },
   { key: "reexecutarTarefas", label: "Reexecutar tarefas" },
   { key: "verLogsAPI", label: "Ver logs de API" },
   { key: "limparLogsAPI", label: "Limpar logs de API" },
-  { key: "gerenciarAutomacoes", label: "Gerenciar automacoes" },
-  { key: "verAutomacoes", label: "Ver automacoes" },
-  { key: "verDiagnostico", label: "Ver diagnostico" },
+  { key: "gerenciarAutomacoes", label: "Gerenciar automações" },
+  { key: "verAutomacoes", label: "Ver automações" },
+  { key: "verDiagnostico", label: "Ver diagnóstico" },
   { key: "verPainelGerencial", label: "Ver painel gerencial" },
   { key: "gerenciarProjetos", label: "Gerenciar projetos" },
   { key: "gerenciarEquipamentos", label: "Gerenciar equipamentos" },
@@ -634,7 +634,7 @@ async function fetchStorePayload(key) {
   try {
     return JSON.parse(raw);
   } catch (error) {
-    console.warn("[db] Payload invalido para", key);
+    console.warn("[db] Payload inválido para", key);
     return null;
   }
 }
@@ -1231,7 +1231,7 @@ function runIntegrityChecks() {
   let duplicateUsers = 0;
   users.forEach((user) => {
     if (!user || !user.id) {
-      issues.push({ level: "error", message: "Usuario sem ID detectado." });
+      issues.push({ level: "error", message: "Usuário sem ID detectado." });
       return;
     }
     if (userIds.has(user.id)) {
@@ -1240,7 +1240,7 @@ function runIntegrityChecks() {
     userIds.add(user.id);
   });
   if (duplicateUsers) {
-    issues.push({ level: "error", message: `IDs duplicados em usuarios: ${duplicateUsers}.` });
+    issues.push({ level: "error", message: `IDs duplicados em usuários: ${duplicateUsers}.` });
   }
 
   const validStatuses = new Set([
@@ -1270,7 +1270,7 @@ function runIntegrityChecks() {
     issues.push({ level: "error", message: `Manutencoes sem ID: ${missingIds}.` });
   }
   if (invalidStatus) {
-    issues.push({ level: "warn", message: `Manutencoes com status desconhecido: ${invalidStatus}.` });
+    issues.push({ level: "warn", message: `Manutenções com status desconhecido: ${invalidStatus}.` });
   }
   maintenance.forEach((item) => {
     const createdBy = item && (item.createdBy || item.createdById || item.userId);
@@ -1281,7 +1281,7 @@ function runIntegrityChecks() {
   if (orphanUsers) {
     issues.push({
       level: "warn",
-      message: `Manutencoes com usuarios inexistentes: ${orphanUsers}.`,
+      message: `Manutenções com usuários inexistentes: ${orphanUsers}.`,
     });
   }
 
@@ -1294,7 +1294,7 @@ function runIntegrityChecks() {
   if (orphanAuditUsers) {
     issues.push({
       level: "warn",
-      message: `Auditoria com usuarios inexistentes: ${orphanAuditUsers}.`,
+      message: `Auditoria com usuários inexistentes: ${orphanAuditUsers}.`,
     });
   }
   return issues;
@@ -1303,7 +1303,7 @@ function runIntegrityChecks() {
 function buildHealthSnapshot(tasks) {
   const now = new Date();
   const files = [
-    checkJsonFile(USERS_FILE, "Usuarios"),
+    checkJsonFile(USERS_FILE, "Usuários"),
     checkJsonFile(MAINTENANCE_FILE, "Manutencoes"),
     checkJsonFile(AUDIT_FILE, "Auditoria"),
     checkJsonFile(INVITES_FILE, "Convites"),
@@ -1961,37 +1961,37 @@ function matchesAutomationCondition(automation, item) {
 async function executeAutomationAction(automation, item, actor) {
   const action = automation && automation.action ? automation.action : {};
   if (action.type !== "notify_email") {
-    return { status: "skipped", message: "Acao nao suportada." };
+    return { status: "skipped", message: "Ação não suportada." };
   }
   const customTo = String(action.to || "").trim();
   const to = isValidEmail(customTo) ? customTo : getUserEmail(actor);
   if (!isValidEmail(to)) {
-    console.warn("Automacao sem destinatario valido.");
-    return { status: "skipped", message: "Sem destinatario valido." };
+    console.warn("Automação sem destinatário válido.");
+    return { status: "skipped", message: "Sem destinatário válido." };
   }
   const title = getItemTitle(item);
   const due = getDueDate(item);
   const dueLabel = due ? due.toLocaleDateString("pt-BR") : "-";
-  const subject = "OPSCOPE - Manutencao critica criada";
-  const text = `Uma manutencao critica foi criada.\n\nAtividade: ${title}\nPrazo: ${dueLabel}\nResponsavel: ${getItemOwner(item)}\n\nAcesse o OPSCOPE para detalhes.`;
+  const subject = "OPSCOPE - Manutenção crítica criada";
+  const text = `Uma manutenção crítica foi criada.\n\nAtividade: ${title}\nPrazo: ${dueLabel}\nResponsável: ${getItemOwner(item)}\n\nAcesse o OPSCOPE para detalhes.`;
   const html = `
-    <p>Uma manutencao <strong>critica</strong> foi criada.</p>
+    <p>Uma manutenção <strong>crítica</strong> foi criada.</p>
     <p><strong>Atividade:</strong> ${title}</p>
     <p><strong>Prazo:</strong> ${dueLabel}</p>
-    <p><strong>Responsavel:</strong> ${getItemOwner(item)}</p>
+    <p><strong>Responsável:</strong> ${getItemOwner(item)}</p>
     <p>Acesse o OPSCOPE para detalhes.</p>
   `;
   const resendOk = await sendEmailViaResend({ to, subject, text, html });
   if (resendOk) {
-    return { status: "ok", message: "Email enviado via Resend." };
+    return { status: "ok", message: "E-mail enviado via Resend." };
   }
   const smtpOk = await sendEmailViaSmtp({ to, subject, text, html });
   if (smtpOk) {
-    return { status: "ok", message: "Email enviado via SMTP." };
+    return { status: "ok", message: "E-mail enviado via SMTP." };
   }
-  console.warn("Automacao sem envio de email. Fallback console log.");
+  console.warn("Automação sem envio de e-mail. Fallback console log.");
   console.log(`[automation] ${subject} -> ${to}`, { id: item.id, title });
-  return { status: "warn", message: "Envio de email indisponivel." };
+  return { status: "warn", message: "Envio de e-mail indisponível." };
 }
 
 async function runAutomationsForItems(event, items, actor, ip) {
@@ -2408,7 +2408,7 @@ function ensureMasterAccount() {
   users.push(master);
   writeJson(USERS_FILE, users);
   appendAudit("seed_master", master.id, { username: MASTER_USERNAME }, "local");
-  console.log("Admin master criado: usuario", MASTER_USERNAME);
+  console.log("Admin master criado: usuário", MASTER_USERNAME);
 }
 
 function seedAdmin() {
@@ -2433,7 +2433,7 @@ function seedAdmin() {
   users.push(admin);
   writeJson(USERS_FILE, users);
   appendAudit("seed_admin", admin.id, { resumo: "Admin inicial criado." }, "local");
-  console.log("Admin criado: usuario admin / senha", ADMIN_PASSWORD);
+  console.log("Admin criado: usuário admin / senha", ADMIN_PASSWORD);
 }
 
 function cleanupInvites() {
@@ -2569,7 +2569,7 @@ async function sendEmailViaSmtp({ to, subject, text, html }) {
     );
     return true;
   } catch (error) {
-    console.warn("Falha ao enviar email.", error && error.message ? error.message : error);
+    console.warn("Falha ao enviar e-mail.", error && error.message ? error.message : error);
     return false;
   }
 }
@@ -2578,13 +2578,13 @@ async function sendVerificationEmail(email, name, token) {
   const baseUrl = String(APP_BASE_URL || "").replace(/\/$/, "");
   const verifyUrl = `${baseUrl}/?verify=${encodeURIComponent(token)}`;
   const safeName = String(name || "").trim() || "colaborador";
-  const subject = "Confirmacao de email - OPSCOPE";
-  const text = `Ola, ${safeName}!\n\nConfirme seu email para ativar sua conta OPSCOPE:\n${verifyUrl}\n\nSe voce nao solicitou o acesso, ignore este email.`;
+  const subject = "Confirmação de e-mail - OPSCOPE";
+  const text = `Olá, ${safeName}!\n\nConfirme seu e-mail para ativar sua conta OPSCOPE:\n${verifyUrl}\n\nSe você não solicitou o acesso, ignore este e-mail.`;
   const html = `
-    <p>Ola, <strong>${safeName}</strong>!</p>
-    <p>Confirme seu email para ativar sua conta OPSCOPE:</p>
-    <p><a href="${verifyUrl}">Confirmar email</a></p>
-    <p>Se voce nao solicitou o acesso, ignore este email.</p>
+    <p>Olá, <strong>${safeName}</strong>!</p>
+    <p>Confirme seu e-mail para ativar sua conta OPSCOPE:</p>
+    <p><a href="${verifyUrl}">Confirmar e-mail</a></p>
+    <p>Se você não solicitou o acesso, ignore este e-mail.</p>
   `;
   const resendOk = await sendEmailViaResend({ to: email, subject, text, html });
   if (resendOk) {
@@ -2726,7 +2726,7 @@ function requireProjectAccess(req, res, next) {
   const projectId =
     String(req.params.id || req.body.projectId || req.query.projectId || "").trim();
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto obrigatorio." });
+    return res.status(400).json({ message: "Projeto obrigatório." });
   }
   if (!userHasProjectAccess(user, projectId)) {
     return res.status(403).json({ message: "Nao autorizado." });
@@ -3109,17 +3109,17 @@ app.use(express.static(__dirname));
 app.post("/api/auth/login", async (req, res) => {
   const ip = getClientIp(req);
   if (isIpBlocked(ip)) {
-    return res.status(429).json({ message: "Credenciais invalidas." });
+    return res.status(429).json({ message: "Credenciais inválidas." });
   }
   const login = String(req.body.login || "").trim().toLowerCase();
   const senha = String(req.body.senha || "").trim();
   if (!login || !senha) {
     recordIpFailure(ip);
-    return res.status(401).json({ message: "Credenciais invalidas." });
+    return res.status(401).json({ message: "Credenciais inválidas." });
   }
   if (isUserLocked(login)) {
     recordIpFailure(ip);
-    return res.status(429).json({ message: "Credenciais invalidas." });
+    return res.status(429).json({ message: "Credenciais inválidas." });
   }
   const user = users.find((u) => {
     const username = String(u.username || "").toLowerCase();
@@ -3130,7 +3130,7 @@ app.post("/api/auth/login", async (req, res) => {
     recordIpFailure(ip);
     recordUserFailure(login);
     appendAudit("login_fail", null, { login }, ip);
-    return res.status(401).json({ message: "Credenciais invalidas." });
+    return res.status(401).json({ message: "Credenciais inválidas." });
   }
   if (user.active === false) {
     appendAudit("login_inactive", user.id, { login }, ip);
@@ -3141,11 +3141,11 @@ app.post("/api/auth/login", async (req, res) => {
     recordIpFailure(ip);
     recordUserFailure(login);
     appendAudit("login_fail", user.id, { login }, ip);
-    return res.status(401).json({ message: "Credenciais invalidas." });
+    return res.status(401).json({ message: "Credenciais inválidas." });
   }
   if (user.emailVerified === false) {
     appendAudit("login_unverified", user.id, { login }, ip);
-    return res.status(403).json({ message: "Email nao verificado. Verifique seu email." });
+    return res.status(403).json({ message: "E-mail não verificado. Verifique seu e-mail." });
   }
   clearFailures(ip, login);
   req.session.userId = user.id;
@@ -3210,7 +3210,7 @@ app.post("/api/projetos/active", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   const projectId = String(req.body.projectId || "").trim();
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto invalido." });
+    return res.status(400).json({ message: "Projeto inválido." });
   }
   if (!userHasProjectAccess(user, projectId)) {
     return res.status(403).json({ message: "Nao autorizado." });
@@ -3247,7 +3247,7 @@ app.post("/api/projetos", requireAuth, requirePermission("gerenciarProjetos"), (
   const locais = normalizeLocaisList(payload.locais || []);
   const pmpHorasDisponiveis = Number(payload.pmpHorasDisponiveis);
   if (!codigo || !nome) {
-    return res.status(400).json({ message: "Codigo e nome sao obrigatorios." });
+    return res.status(400).json({ message: "Código e nome são obrigatórios." });
   }
   if (projects.some((project) => String(project.codigo || "").trim() === codigo)) {
     return res.status(409).json({ message: "Codigo de projeto ja existe." });
@@ -3284,7 +3284,7 @@ app.put("/api/projetos/:id", requireAuth, requirePermission("gerenciarProjetos")
   const projectId = String(req.params.id || "").trim();
   const index = projects.findIndex((project) => project && project.id === projectId);
   if (index === -1) {
-    return res.status(404).json({ message: "Projeto nao encontrado." });
+    return res.status(404).json({ message: "Projeto não encontrado." });
   }
   const payload = req.body && typeof req.body === "object" ? req.body : {};
   const current = projects[index];
@@ -3297,7 +3297,7 @@ app.put("/api/projetos/:id", requireAuth, requirePermission("gerenciarProjetos")
       ? Number(payload.pmpHorasDisponiveis)
       : Number(current.pmpHorasDisponiveis);
   if (!codigo || !nome) {
-    return res.status(400).json({ message: "Codigo e nome sao obrigatorios." });
+    return res.status(400).json({ message: "Código e nome são obrigatórios." });
   }
   if (
     codigo !== current.codigo &&
@@ -3327,11 +3327,11 @@ app.delete(
     const projectId = String(req.params.id || "").trim();
     const defaultProject = ensureDefaultProject();
     if (defaultProject && defaultProject.id === projectId) {
-      return res.status(400).json({ message: "Projeto inicial nao pode ser removido." });
+      return res.status(400).json({ message: "Projeto inicial não pode ser removido." });
     }
     const index = projects.findIndex((project) => project && project.id === projectId);
     if (index === -1) {
-      return res.status(404).json({ message: "Projeto nao encontrado." });
+      return res.status(404).json({ message: "Projeto não encontrado." });
     }
     projects.splice(index, 1);
     saveProjects(projects);
@@ -3375,7 +3375,7 @@ app.post(
         : [];
     const userIds = ids.map((value) => String(value || "").trim()).filter(Boolean);
     if (!userIds.length) {
-      return res.status(400).json({ message: "Usuarios obrigatorios." });
+      return res.status(400).json({ message: "Usuários obrigatórios." });
     }
     const created = [];
     for (const userId of userIds) {
@@ -3397,7 +3397,7 @@ app.post(
       created.push(entry);
     }
     if (!created.length) {
-      return res.status(409).json({ message: "Usuarios ja vinculados ou invalidos." });
+      return res.status(409).json({ message: "Usuários já vinculados ou inválidos." });
     }
     projectUsers = projectUsers.concat(created);
     saveProjectUsers(projectUsers);
@@ -3418,7 +3418,7 @@ app.delete(
       (entry) => !(entry.projectId === projectId && entry.userId === userId)
     );
     if (projectUsers.length === before) {
-      return res.status(404).json({ message: "Vinculo nao encontrado." });
+      return res.status(404).json({ message: "Vínculo não encontrado." });
     }
     saveProjectUsers(projectUsers);
     return res.json({ ok: true });
@@ -3442,7 +3442,7 @@ app.post(
     const tag = String(payload.tag || "").trim();
     const nome = String(payload.nome || "").trim();
     if (!tag || !nome) {
-      return res.status(400).json({ message: "Tag e nome sao obrigatorios." });
+      return res.status(400).json({ message: "Tag e nome são obrigatórios." });
     }
     const record = {
       id: crypto.randomUUID(),
@@ -3469,7 +3469,7 @@ app.put(
     const equipamentoId = String(req.params.id || "").trim();
     const index = equipamentos.findIndex((item) => item.id === equipamentoId);
     if (index === -1) {
-      return res.status(404).json({ message: "Equipamento nao encontrado." });
+      return res.status(404).json({ message: "Equipamento não encontrado." });
     }
     const equipamento = equipamentos[index];
     const user = req.currentUser || getSessionUser(req);
@@ -3505,7 +3505,7 @@ app.delete(
     const equipamentoId = String(req.params.id || "").trim();
     const index = equipamentos.findIndex((item) => item.id === equipamentoId);
     if (index === -1) {
-      return res.status(404).json({ message: "Equipamento nao encontrado." });
+      return res.status(404).json({ message: "Equipamento não encontrado." });
     }
     const equipamento = equipamentos[index];
     const user = req.currentUser || getSessionUser(req);
@@ -3544,20 +3544,20 @@ app.post("/api/pmp/activities", requireAuth, requirePermission("gerenciarPMP"), 
   const payload = req.body && typeof req.body === "object" ? req.body : {};
   const projectId = String(payload.projectId || "").trim();
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto obrigatorio." });
+    return res.status(400).json({ message: "Projeto obrigatório." });
   }
   if (!userHasProjectAccess(user, projectId)) {
     return res.status(403).json({ message: "Nao autorizado." });
   }
   const nome = String(payload.nome || "").trim();
   if (!nome) {
-    return res.status(400).json({ message: "Nome da atividade obrigatorio." });
+    return res.status(400).json({ message: "Nome da atividade obrigatório." });
   }
   const equipamentoId = String(payload.equipamentoId || "").trim();
   if (equipamentoId) {
     const equipamento = equipamentos.find((item) => item.id === equipamentoId);
     if (!equipamento || equipamento.projectId !== projectId) {
-      return res.status(400).json({ message: "Equipamento invalido para o projeto." });
+      return res.status(400).json({ message: "Equipamento inválido para o projeto." });
     }
   }
   const record = normalizePmpActivity({
@@ -3579,7 +3579,7 @@ app.put("/api/pmp/activities/:id", requireAuth, requirePermission("gerenciarPMP"
   const activityId = String(req.params.id || "").trim();
   const index = pmpActivities.findIndex((item) => item && item.id === activityId);
   if (index === -1) {
-    return res.status(404).json({ message: "Atividade nao encontrada." });
+    return res.status(404).json({ message: "Atividade não encontrada." });
   }
   const current = pmpActivities[index];
   if (!userHasProjectAccess(user, current.projectId)) {
@@ -3589,7 +3589,7 @@ app.put("/api/pmp/activities/:id", requireAuth, requirePermission("gerenciarPMP"
   const projectId =
     "projectId" in payload ? String(payload.projectId || "").trim() : current.projectId;
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto obrigatorio." });
+    return res.status(400).json({ message: "Projeto obrigatório." });
   }
   if (!userHasProjectAccess(user, projectId)) {
     return res.status(403).json({ message: "Nao autorizado." });
@@ -3599,7 +3599,7 @@ app.put("/api/pmp/activities/:id", requireAuth, requirePermission("gerenciarPMP"
   if (equipamentoId) {
     const equipamento = equipamentos.find((item) => item.id === equipamentoId);
     if (!equipamento || equipamento.projectId !== projectId) {
-      return res.status(400).json({ message: "Equipamento invalido para o projeto." });
+      return res.status(400).json({ message: "Equipamento inválido para o projeto." });
     }
   }
   const updated = normalizePmpActivity({
@@ -3627,7 +3627,7 @@ app.delete(
     const activityId = String(req.params.id || "").trim();
     const index = pmpActivities.findIndex((item) => item && item.id === activityId);
     if (index === -1) {
-      return res.status(404).json({ message: "Atividade nao encontrada." });
+      return res.status(404).json({ message: "Atividade não encontrada." });
     }
     const current = pmpActivities[index];
     if (!userHasProjectAccess(user, current.projectId)) {
@@ -3674,7 +3674,7 @@ app.post("/api/pmp/executions", requireAuth, (req, res) => {
   }
   const activity = pmpActivities.find((item) => item.id === activityId);
   if (!activity) {
-    return res.status(404).json({ message: "Atividade nao encontrada." });
+    return res.status(404).json({ message: "Atividade não encontrada." });
   }
   if (!userHasProjectAccess(user, activity.projectId)) {
     return res.status(403).json({ message: "Nao autorizado." });
@@ -3721,7 +3721,7 @@ app.delete(
     const execId = String(req.params.id || "").trim();
     const index = pmpExecutions.findIndex((item) => item && item.id === execId);
     if (index === -1) {
-      return res.status(404).json({ message: "Execucao nao encontrada." });
+      return res.status(404).json({ message: "Execução não encontrada." });
     }
     const exec = pmpExecutions[index];
     if (!userHasProjectAccess(user, exec.projectId)) {
@@ -3743,7 +3743,7 @@ app.post("/api/pmp/duplicate", requireAuth, requirePermission("gerenciarPMP"), (
   const sourceYear = Number(payload.sourceYear || 0);
   const targetYear = Number(payload.targetYear || 0);
   if (!projectId || !sourceYear || !targetYear) {
-    return res.status(400).json({ message: "Projeto e anos sao obrigatorios." });
+    return res.status(400).json({ message: "Projeto e anos são obrigatórios." });
   }
   if (!userHasProjectAccess(user, projectId)) {
     return res.status(403).json({ message: "Nao autorizado." });
@@ -3793,14 +3793,14 @@ app.patch("/api/profile", requireAuth, (req, res) => {
       ? users.find((item) => item.id === targetId)
       : actor;
   if (!targetUser) {
-    return res.status(404).json({ message: "Usuario nao encontrado." });
+    return res.status(404).json({ message: "Usuário não encontrado." });
   }
   if (!canEditProfile(actor, targetUser)) {
     return res.status(403).json({ message: "Nao autorizado." });
   }
   const index = users.findIndex((item) => item.id === targetUser.id);
   if (index === -1) {
-    return res.status(404).json({ message: "Usuario nao encontrado." });
+    return res.status(404).json({ message: "Usuário não encontrado." });
   }
   const updates = {};
   if ("uen" in req.body) {
@@ -3811,7 +3811,7 @@ app.patch("/api/profile", requireAuth, (req, res) => {
     if (projectId) {
       const project = getProjectById(projectId);
       if (!project) {
-        return res.status(400).json({ message: "Projeto invalido." });
+        return res.status(400).json({ message: "Projeto inválido." });
       }
       const label = getProjectLabel(project);
       updates.projectId = projectId;
@@ -3855,19 +3855,19 @@ app.post("/api/profile/avatar", requireAuth, async (req, res) => {
   }
   const dataUrl = String(req.body.dataUrl || "").trim();
   if (!dataUrl) {
-    return res.status(400).json({ message: "Imagem nao enviada." });
+    return res.status(400).json({ message: "Imagem não enviada." });
   }
   const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
   if (!match) {
-    return res.status(400).json({ message: "Formato de imagem invalido." });
+    return res.status(400).json({ message: "Formato de imagem inválido." });
   }
   const mime = String(match[1] || "").toLowerCase();
   if (!ALLOWED_AVATAR_TYPES.has(mime)) {
-    return res.status(415).json({ message: "Formato de imagem nao suportado." });
+    return res.status(415).json({ message: "Formato de imagem não suportado." });
   }
   const buffer = Buffer.from(match[2], "base64");
   if (!buffer.length) {
-    return res.status(400).json({ message: "Imagem invalida." });
+    return res.status(400).json({ message: "Imagem inválida." });
   }
   if (buffer.length > AVATAR_MAX_BYTES) {
     return res.status(413).json({ message: "Imagem acima de 10 MB." });
@@ -3892,7 +3892,7 @@ app.post("/api/profile/avatar", requireAuth, async (req, res) => {
   const avatarUpdatedAt = new Date().toISOString();
   const index = users.findIndex((item) => item.id === user.id);
   if (index === -1) {
-    return res.status(404).json({ message: "Usuario nao encontrado." });
+    return res.status(404).json({ message: "Usuário não encontrado." });
   }
   const updated = normalizeUserRecord({
     ...users[index],
@@ -3912,7 +3912,7 @@ app.delete("/api/profile/avatar", requireAuth, (req, res) => {
   }
   const index = users.findIndex((item) => item.id === user.id);
   if (index === -1) {
-    return res.status(404).json({ message: "Usuario nao encontrado." });
+    return res.status(404).json({ message: "Usuário não encontrado." });
   }
   const current = users[index];
   const existingUrl = String(current.avatarUrl || "");
@@ -4010,7 +4010,7 @@ app.post(
   const taskId = String(req.params.id || "").trim();
   const updated = runHealthTask(taskId, user);
   if (!updated) {
-    return res.status(404).json({ message: "Tarefa nao encontrada." });
+    return res.status(404).json({ message: "Tarefa não encontrada." });
   }
   appendAudit(
     "health_task_run",
@@ -4069,7 +4069,7 @@ app.get("/api/admin/automations", requireAuth, requirePermission("verAutomacoes"
   const user = req.currentUser || getSessionUser(req);
   const projectId = getActiveProjectId(req, user);
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+    return res.status(400).json({ message: "Projeto ativo obrigatório." });
   }
   const list = automations.filter((item) => item && item.projectId === projectId);
   return res.json({ automations: list });
@@ -4083,12 +4083,12 @@ app.patch(
   const user = req.currentUser || getSessionUser(req);
   const projectId = getActiveProjectId(req, user);
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+    return res.status(400).json({ message: "Projeto ativo obrigatório." });
   }
   const automationId = String(req.params.id || "").trim();
   const index = automations.findIndex((item) => item.id === automationId);
   if (index === -1) {
-    return res.status(404).json({ message: "Automacao nao encontrada." });
+    return res.status(404).json({ message: "Automação não encontrada." });
   }
   const current = automations[index];
   if (current.projectId && current.projectId !== projectId) {
@@ -4121,7 +4121,7 @@ app.get("/api/admin/files", requireAuth, requirePermission("verArquivos"), (req,
   const user = req.currentUser || getSessionUser(req);
   const projectId = getActiveProjectId(req, user);
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+    return res.status(400).json({ message: "Projeto ativo obrigatório." });
   }
   const type = String(req.query.type || "").trim().toLowerCase();
   const search = String(req.query.search || "").trim().toLowerCase();
@@ -4150,22 +4150,22 @@ app.post(
     const user = req.currentUser || getSessionUser(req);
     const projectId = getActiveProjectId(req, user);
     if (!projectId) {
-      return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+      return res.status(400).json({ message: "Projeto ativo obrigatório." });
     }
     const parsed = parseMultipartForm(req);
     if (!parsed || !parsed.file) {
-      return res.status(400).json({ message: "Arquivo nao enviado." });
+      return res.status(400).json({ message: "Arquivo não enviado." });
     }
     const typeConfig = getFileTypeConfig(parsed.fields.type);
     if (!typeConfig) {
-      return res.status(400).json({ message: "Tipo de arquivo invalido." });
+      return res.status(400).json({ message: "Tipo de arquivo inválido." });
     }
     const mime = String(parsed.file.mime || "").toLowerCase();
     if (!FILE_ALLOWED_MIME.has(mime)) {
-      return res.status(415).json({ message: "Tipo de arquivo nao suportado." });
+      return res.status(415).json({ message: "Tipo de arquivo não suportado." });
     }
     if (!parsed.file.buffer || parsed.file.buffer.length === 0) {
-      return res.status(400).json({ message: "Arquivo invalido." });
+      return res.status(400).json({ message: "Arquivo inválido." });
     }
     if (parsed.file.buffer.length > FILE_MAX_BYTES) {
       return res.status(413).json({ message: "Arquivo acima de 10 MB." });
@@ -4214,7 +4214,7 @@ app.delete("/api/admin/files/:id", requireAuth, requirePermission("excluirArquiv
   const fileId = String(req.params.id || "").trim();
   const index = Array.isArray(filesMeta) ? filesMeta.findIndex((item) => item.id === fileId) : -1;
   if (index === -1) {
-    return res.status(404).json({ message: "Arquivo nao encontrado." });
+    return res.status(404).json({ message: "Arquivo não encontrado." });
   }
   const file = filesMeta[index];
   if (!userHasProjectAccess(user, file.projectId)) {
@@ -4247,7 +4247,7 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   const projectId = getActiveProjectId(req, user);
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+    return res.status(400).json({ message: "Projeto ativo obrigatório." });
   }
   const incoming = Array.isArray(req.body.items) ? req.body.items : [];
   const sanitized = incoming
@@ -4287,7 +4287,7 @@ app.get("/api/maintenance", requireAuth, (req, res) => {
   const fromQuery = String(req.query.projectId || "").trim();
   const projectId = fromQuery || getActiveProjectId(req, user);
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+    return res.status(400).json({ message: "Projeto ativo obrigatório." });
   }
   if (!userHasProjectAccess(user, projectId)) {
     return res.status(403).json({ message: "Nao autorizado." });
@@ -4302,10 +4302,10 @@ app.delete("/api/maintenance/:id", requireAuth, (req, res) => {
   const fromQuery = String(req.query.projectId || "").trim();
   const projectId = fromQuery || getActiveProjectId(req, user);
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+    return res.status(400).json({ message: "Projeto ativo obrigatório." });
   }
   if (!maintenanceId) {
-    return res.status(400).json({ message: "Manutencao invalida." });
+    return res.status(400).json({ message: "Manutenção inválida." });
   }
   if (!userHasProjectAccess(user, projectId)) {
     return res.status(403).json({ message: "Nao autorizado." });
@@ -4318,7 +4318,7 @@ app.delete("/api/maintenance/:id", requireAuth, (req, res) => {
     (item) => item && String(item.id || "") === maintenanceId && item.projectId === projectId
   );
   if (index === -1) {
-    return res.status(404).json({ message: "Manutencao nao encontrada." });
+    return res.status(404).json({ message: "Manutenção não encontrada." });
   }
   dataset.splice(index, 1);
   writeJson(MAINTENANCE_FILE, dataset);
@@ -4337,7 +4337,7 @@ app.post("/api/maintenance/release", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   const projectId = getActiveProjectId(req, user);
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+    return res.status(400).json({ message: "Projeto ativo obrigatório." });
   }
   const maintenanceId = String(req.body.id || "").trim();
   const justificativa = String(req.body.justificativa || "").trim();
@@ -4374,12 +4374,12 @@ app.post("/api/maintenance/release", requireAuth, (req, res) => {
       );
       return res
         .status(403)
-        .json({ message: "Liberacao antes da data prevista nao autorizada." });
+        .json({ message: "Liberação antes da data prevista não autorizada." });
     }
     if (!justificativa) {
       return res
         .status(400)
-        .json({ message: "Justificativa obrigatoria para liberacao antecipada." });
+        .json({ message: "Justificativa obrigatória para liberação antecipada." });
     }
     appendAudit(
       "maintenance_release_override",
@@ -4411,7 +4411,7 @@ app.post("/api/maintenance/release", requireAuth, (req, res) => {
 app.patch("/api/admin/users/:id", requireAuth, requirePermission("verUsuarios"), (req, res) => {
   const userIndex = users.findIndex((item) => item.id === req.params.id);
   if (userIndex === -1) {
-    return res.status(404).json({ message: "Usuario nao encontrado." });
+    return res.status(404).json({ message: "Usuário não encontrado." });
   }
   const current = users[userIndex];
   const actor = req.currentUser || getSessionUser(req);
@@ -4453,7 +4453,7 @@ app.patch("/api/admin/users/:id", requireAuth, requirePermission("verUsuarios"),
     if (projectId) {
       const project = getProjectById(projectId);
       if (!project) {
-        return res.status(400).json({ message: "Projeto invalido." });
+        return res.status(400).json({ message: "Projeto inválido." });
       }
       const label = getProjectLabel(project);
       updates.projectId = projectId;
@@ -4545,16 +4545,16 @@ app.post("/api/auth/register", async (req, res) => {
   const passwordCheck = validatePassword(senha);
   const errors = {};
   if (!email || !isValidEmail(email)) {
-    errors.matricula = "Informe um e-mail corporativo valido.";
+    errors.matricula = "Informe um e-mail corporativo válido.";
   }
   if (!nome) {
     errors.nome = "Informe o nome completo.";
   }
   if (!senha || !passwordCheck.ok) {
-    errors.senha = "Senha fora da politica.";
+    errors.senha = "Senha fora da política.";
   }
   if (!senhaConfirm || senhaConfirm !== senha) {
-    errors.senhaConfirm = "As senhas nao conferem.";
+    errors.senhaConfirm = "As senhas não conferem.";
   }
   if (!convite) {
     errors.convite = "Informe o codigo de convite.";
@@ -4562,7 +4562,7 @@ app.post("/api/auth/register", async (req, res) => {
   const invite = invites.find((item) => item.code === convite);
   const inviteValido = invite && new Date(invite.expiresAt).getTime() > Date.now();
   if (!inviteValido) {
-    errors.convite = "Convite invalido ou expirado.";
+    errors.convite = "Convite inválido ou expirado.";
   }
   const jaExiste = users.some(
     (user) =>
@@ -4571,11 +4571,11 @@ app.post("/api/auth/register", async (req, res) => {
       String(user.email || "").toLowerCase() === email
   );
   if (jaExiste) {
-    errors.matricula = "Dados invalidos.";
+    errors.matricula = "Dados inválidos.";
   }
 
   if (Object.keys(errors).length) {
-    return res.status(400).json({ message: "Dados invalidos.", errors, rules: passwordCheck.rules });
+    return res.status(400).json({ message: "Dados inválidos.", errors, rules: passwordCheck.rules });
   }
 
   const role = normalizeRbacRole(invite.role || "tecnico_junior");
@@ -4619,11 +4619,11 @@ app.post("/api/auth/register", async (req, res) => {
   }
   if (!emailSent) {
     if (!IS_DEV) {
-      return res.status(503).json({ message: "Envio de email indisponivel." });
+      return res.status(503).json({ message: "Envio de e-mail indisponível." });
     }
     user.emailVerified = true;
     verificationRequired = false;
-    console.warn("SMTP nao configurado. Verificacao de email ignorada em dev.");
+    console.warn("SMTP não configurado. Verificação de e-mail ignorada em dev.");
   }
   if (emailSent) {
     verifications.push(verification);
@@ -4653,12 +4653,12 @@ app.get("/api/auth/verify", (req, res) => {
   cleanupVerifications();
   const token = String(req.query.token || "").trim();
   if (!token) {
-    return res.status(400).json({ message: "Token invalido." });
+    return res.status(400).json({ message: "Token inválido." });
   }
   const tokenHash = hashToken(token);
   const recordIndex = verifications.findIndex((item) => item.tokenHash === tokenHash);
   if (recordIndex === -1) {
-    return res.status(400).json({ message: "Token invalido ou expirado." });
+    return res.status(400).json({ message: "Token inválido ou expirado." });
   }
   const record = verifications[recordIndex];
   if (record.expiresAt && new Date(record.expiresAt).getTime() <= Date.now()) {
@@ -4670,7 +4670,7 @@ app.get("/api/auth/verify", (req, res) => {
   if (userIndex === -1) {
     verifications.splice(recordIndex, 1);
     writeJson(VERIFICATIONS_FILE, verifications);
-    return res.status(404).json({ message: "Usuario nao encontrado." });
+    return res.status(404).json({ message: "Usuário não encontrado." });
   }
   const updated = normalizeUserRecord({
     ...users[userIndex],
