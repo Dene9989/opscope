@@ -3357,6 +3357,114 @@ function initRichEditors() {
   syncObsEditor(true);
 }
 
+function initFontGroups() {
+  const textareas = Array.from(document.querySelectorAll("textarea"));
+  if (!textareas.length) {
+    return;
+  }
+  const fonts = ["Segoe UI", "Arial", "Georgia", "Courier New"];
+  const sizes = [12, 14, 16, 18, 20];
+  let counter = 0;
+
+  textareas.forEach((textarea) => {
+    if (!textarea) {
+      return;
+    }
+    if (textarea.hidden || textarea.classList.contains("visually-hidden")) {
+      return;
+    }
+    if (textarea.dataset && textarea.dataset.fontGroup === "false") {
+      return;
+    }
+    if (textarea.closest && textarea.closest(".rich-editor")) {
+      return;
+    }
+    const parent = textarea.parentElement;
+    if (!parent) {
+      return;
+    }
+    if (!textarea.id) {
+      counter += 1;
+      textarea.id = `textarea-font-${counter}`;
+    }
+    if (parent.querySelector(`.font-toolbar[data-font-toolbar-for="${textarea.id}"]`)) {
+      return;
+    }
+
+    const toolbar = document.createElement("div");
+    toolbar.className = "font-toolbar";
+    toolbar.dataset.fontToolbarFor = textarea.id;
+
+    const group = document.createElement("div");
+    group.className = "font-toolbar__group";
+
+    const fontSelect = document.createElement("select");
+    fontSelect.className = "font-select";
+    fontSelect.setAttribute("aria-label", "Fonte");
+    const fontDefault = document.createElement("option");
+    fontDefault.value = "";
+    fontDefault.textContent = "Fonte";
+    fontSelect.append(fontDefault);
+    fonts.forEach((font) => {
+      const option = document.createElement("option");
+      option.value = font;
+      option.textContent = font;
+      fontSelect.append(option);
+    });
+
+    const sizeSelect = document.createElement("select");
+    sizeSelect.className = "font-select";
+    sizeSelect.setAttribute("aria-label", "Tamanho da fonte");
+    const sizeDefault = document.createElement("option");
+    sizeDefault.value = "";
+    sizeDefault.textContent = "Tamanho";
+    sizeSelect.append(sizeDefault);
+    sizes.forEach((size) => {
+      const option = document.createElement("option");
+      option.value = String(size);
+      option.textContent = `${size} px`;
+      sizeSelect.append(option);
+    });
+
+    group.append(fontSelect, sizeSelect);
+    toolbar.append(group);
+    parent.insertBefore(toolbar, textarea);
+
+    const applyFont = () => {
+      if (fontSelect.value) {
+        textarea.style.fontFamily = fontSelect.value;
+      } else {
+        textarea.style.removeProperty("font-family");
+      }
+      if (sizeSelect.value) {
+        textarea.style.fontSize = `${sizeSelect.value}px`;
+      } else {
+        textarea.style.removeProperty("font-size");
+      }
+    };
+
+    fontSelect.addEventListener("change", applyFont);
+    sizeSelect.addEventListener("change", applyFont);
+
+    try {
+      const computed = window.getComputedStyle(textarea);
+      const computedFont = (computed.fontFamily || "")
+        .split(",")[0]
+        .replace(/['"]/g, "")
+        .trim();
+      if (fonts.includes(computedFont)) {
+        fontSelect.value = computedFont;
+      }
+      const computedSize = parseInt(computed.fontSize || "", 10);
+      if (sizes.includes(computedSize)) {
+        sizeSelect.value = String(computedSize);
+      }
+    } catch (error) {
+      // ignore
+    }
+  });
+}
+
 function clearTemplateErrors() {
   setFieldError(templateNomeErro, "");
   setFieldError(templateInicioErro, "");
@@ -23782,6 +23890,7 @@ limparTemplateForm();
 initSidebarToggle();
 initAvatarUpload();
 initRichEditors();
+initFontGroups();
 carregarSessaoServidor();
 preencherInicioExecucaoNova();
 

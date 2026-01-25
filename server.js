@@ -52,6 +52,7 @@ const STORAGE_DATA_DIR = path.join(STORAGE_DIR, "data");
 const DATABASE_URL = process.env.OPSCOPE_DATABASE_URL || process.env.DATABASE_URL || "";
 const DB_ENABLED = Boolean(DATABASE_URL);
 const DB_STORE_TABLE = "opscope_store";
+const DB_UPLOADS_TABLE = "opscope_uploads";
 let dbPool = null;
 let dbReady = false;
 let dbWriteQueue = Promise.resolve();
@@ -135,6 +136,9 @@ const AVATAR_TARGET_BYTES = 1024 * 1024;
 const AVATAR_SIZE = 512;
 const ALLOWED_AVATAR_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const FILE_MAX_BYTES = 10 * 1024 * 1024;
+const STORE_UPLOADS = String(process.env.OPSCOPE_STORE_UPLOADS || "true").toLowerCase() !== "false";
+const STORE_UPLOADS_MAX_BYTES = Number(process.env.OPSCOPE_STORE_UPLOADS_MAX_BYTES) || FILE_MAX_BYTES;
+const STORE_UPLOADS_BACKFILL_LIMIT = Number(process.env.OPSCOPE_STORE_UPLOADS_BACKFILL_LIMIT || 0);
 const FILE_TYPE_CONFIG = {
   evidence: { label: "Evidências", dir: "evidencias" },
   rdo: { label: "Anexos de RDO", dir: "rdos" },
@@ -487,6 +491,41 @@ function migrateLegacyAvatars() {
   });
 }
 
+function migrateLegacyUploads() {
+  if (LEGACY_UPLOADS_DIR === UPLOADS_DIR) {
+    return;
+  }
+  if (!fs.existsSync(LEGACY_UPLOADS_DIR)) {
+    return;
+  }
+  ensureUploadDirs();
+  const copyRecursive = (source, target) => {
+    if (!fs.existsSync(source)) {
+      return;
+    }
+    const stats = fs.statSync(source);
+    if (stats.isDirectory()) {
+      if (!fs.existsSync(target)) {
+        fs.mkdirSync(target, { recursive: true });
+      }
+      fs.readdirSync(source).forEach((entry) => {
+        copyRecursive(path.join(source, entry), path.join(target, entry));
+      });
+      return;
+    }
+    if (!fs.existsSync(target)) {
+      try {
+        fs.copyFileSync(source, target);
+      } catch (error) {
+        // noop
+      }
+    }
+  };
+  const legacyFiles = path.join(LEGACY_UPLOADS_DIR, "files");
+  const targetFiles = path.join(UPLOADS_DIR, "files");
+  copyRecursive(legacyFiles, targetFiles);
+}
+
 async function optimizeAvatar(buffer) {
   if (!sharp) {
     return null;
@@ -575,6 +614,24 @@ async function initDatabase() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`
   );
+  if (STORE_UPLOADS) {
+    await dbPool.query(
+      `CREATE TABLE IF NOT EXISTS ${DB_UPLOADS_TABLE} (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        mime TEXT NOT NULL,
+        size INTEGER NOT NULL,
+        project_id TEXT,
+        data BYTEA NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`
+    );
+    await dbPool.query(
+      `CREATE INDEX IF NOT EXISTS ${DB_UPLOADS_TABLE}_type_name_idx ON ${DB_UPLOADS_TABLE} (type, name)`
+    );
+  }
   try {
     const typeCheck = await dbPool.query(
       `SELECT data_type
@@ -690,6 +747,159 @@ async function syncStoreFiles() {
   }
   for (const filePath of STORE_FILES) {
     await syncStoreFile(filePath);
+  }
+}
+
+function shouldStoreUploads() {
+  return STORE_UPLOADS && dbReady && dbPool;
+}
+
+function normalizeDbBuffer(value) {
+  if (!value) {
+    return null;
+  }
+  if (Buffer.isBuffer(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    if (value.startsWith("\\x")) {
+      return Buffer.from(value.slice(2), "hex");
+    }
+    try {
+      return Buffer.from(value, "base64");
+    } catch (error) {
+      return null;
+    }
+  }
+  return null;
+}
+
+async function upsertUploadBlob(entry, buffer) {
+  if (!shouldStoreUploads() || !entry || !buffer) {
+    return;
+  }
+  if (!entry.id || buffer.length > STORE_UPLOADS_MAX_BYTES) {
+    return;
+  }
+  try {
+    await dbPool.query(
+      `INSERT INTO ${DB_UPLOADS_TABLE} (id, name, type, mime, size, project_id, data, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+       ON CONFLICT (id)
+       DO UPDATE SET
+         name = EXCLUDED.name,
+         type = EXCLUDED.type,
+         mime = EXCLUDED.mime,
+         size = EXCLUDED.size,
+         project_id = EXCLUDED.project_id,
+         data = EXCLUDED.data,
+         updated_at = NOW()`,
+      [
+        String(entry.id),
+        String(entry.name || ""),
+        String(entry.type || ""),
+        String(entry.mime || "application/octet-stream"),
+        Number(entry.size) || buffer.length,
+        String(entry.projectId || ""),
+        buffer,
+      ]
+    );
+  } catch (error) {
+    console.warn("[db] Falha ao salvar upload:", error.message || error);
+  }
+}
+
+async function fetchUploadBlobById(id) {
+  if (!shouldStoreUploads() || !id) {
+    return null;
+  }
+  try {
+    const result = await dbPool.query(
+      `SELECT id, name, mime, data FROM ${DB_UPLOADS_TABLE} WHERE id = $1`,
+      [String(id)]
+    );
+    if (!result || !result.rowCount) {
+      return null;
+    }
+    const row = result.rows[0];
+    const buffer = normalizeDbBuffer(row.data);
+    if (!buffer) {
+      return null;
+    }
+    return { buffer, mime: row.mime || "", name: row.name || "", id: row.id || "" };
+  } catch (error) {
+    console.warn("[db] Falha ao buscar upload:", error.message || error);
+    return null;
+  }
+}
+
+async function fetchUploadBlobByName(type, name) {
+  if (!shouldStoreUploads() || !type || !name) {
+    return null;
+  }
+  try {
+    const result = await dbPool.query(
+      `SELECT id, name, mime, data FROM ${DB_UPLOADS_TABLE}
+       WHERE name = $1 AND type = $2
+       ORDER BY updated_at DESC
+       LIMIT 1`,
+      [String(name), String(type)]
+    );
+    if (!result || !result.rowCount) {
+      return null;
+    }
+    const row = result.rows[0];
+    const buffer = normalizeDbBuffer(row.data);
+    if (!buffer) {
+      return null;
+    }
+    return { buffer, mime: row.mime || "", name: row.name || "", id: row.id || "" };
+  } catch (error) {
+    console.warn("[db] Falha ao buscar upload:", error.message || error);
+    return null;
+  }
+}
+
+async function deleteUploadBlob(id) {
+  if (!shouldStoreUploads() || !id) {
+    return;
+  }
+  try {
+    await dbPool.query(`DELETE FROM ${DB_UPLOADS_TABLE} WHERE id = $1`, [String(id)]);
+  } catch (error) {
+    console.warn("[db] Falha ao remover upload:", error.message || error);
+  }
+}
+
+async function backfillUploadsToDb() {
+  if (!shouldStoreUploads() || !Array.isArray(filesMeta) || !filesMeta.length) {
+    return;
+  }
+  const limit = Math.max(0, STORE_UPLOADS_BACKFILL_LIMIT || 0);
+  const entries = limit ? filesMeta.slice(0, limit) : filesMeta;
+  for (const entry of entries) {
+    if (!entry || !entry.id || !entry.name || !entry.type) {
+      continue;
+    }
+    const existing = await fetchUploadBlobById(entry.id);
+    if (existing) {
+      continue;
+    }
+    const typeConfig = getFileTypeConfig(entry.type);
+    if (!typeConfig) {
+      continue;
+    }
+    const filePath = path.join(FILES_DIR, typeConfig.dir, entry.name);
+    const legacyPath = path.join(LEGACY_UPLOADS_DIR, "files", typeConfig.dir, entry.name);
+    const sourcePath = fs.existsSync(filePath) ? filePath : legacyPath;
+    if (!sourcePath || !fs.existsSync(sourcePath)) {
+      continue;
+    }
+    const buffer = fs.readFileSync(sourcePath);
+    if (!buffer.length || buffer.length > STORE_UPLOADS_MAX_BYTES) {
+      continue;
+    }
+    await upsertUploadBlob(entry, buffer);
   }
 }
 
@@ -3005,6 +3215,7 @@ async function bootstrap() {
   logStoragePaths();
   migrateLegacyDataDir();
   ensureUploadDirs();
+  migrateLegacyUploads();
   migrateLegacyAvatars();
   await initDatabase();
   await syncStoreFiles();
@@ -3042,6 +3253,7 @@ async function bootstrap() {
   if (!Array.isArray(filesMeta)) {
     filesMeta = [];
   }
+  await backfillUploadsToDb();
   cleanupVerifications();
   users = users.map(normalizeUserRecord);
   writeJson(USERS_FILE, users);
@@ -3105,6 +3317,54 @@ app.use((req, res, next) => {
 
 app.use("/uploads", express.static(UPLOADS_DIR));
 app.use(express.static(__dirname));
+
+app.get("/uploads/files/:dir/:file", async (req, res) => {
+  const dir = String(req.params.dir || "").trim();
+  const fileName = path.basename(String(req.params.file || "").trim());
+  if (!dir || !fileName) {
+    return res.status(404).send("Arquivo nao encontrado.");
+  }
+  const typeConfig = Object.values(FILE_TYPE_CONFIG).find((config) => config.dir === dir);
+  if (!typeConfig) {
+    return res.status(404).send("Arquivo nao encontrado.");
+  }
+  const filePath = path.join(FILES_DIR, typeConfig.dir, fileName);
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+  const legacyPath = path.join(LEGACY_UPLOADS_DIR, "files", typeConfig.dir, fileName);
+  if (fs.existsSync(legacyPath)) {
+    try {
+      ensureUploadDirs();
+      fs.copyFileSync(legacyPath, filePath);
+    } catch (error) {
+      // noop
+    }
+    return res.sendFile(legacyPath);
+  }
+  const entry = Array.isArray(filesMeta)
+    ? filesMeta.find(
+        (item) => item && item.type === typeConfig.key && item.name === fileName
+      )
+    : null;
+  const blob = entry
+    ? await fetchUploadBlobById(entry.id)
+    : await fetchUploadBlobByName(typeConfig.key, fileName);
+  if (!blob || !blob.buffer) {
+    return res.status(404).send("Arquivo nao encontrado.");
+  }
+  const mime = blob.mime || (entry && entry.mime) || "application/octet-stream";
+  res.setHeader("Content-Type", mime);
+  res.setHeader("Content-Length", blob.buffer.length);
+  res.setHeader("Content-Disposition", `inline; filename="${fileName}"`);
+  res.end(blob.buffer);
+  try {
+    ensureUploadDirs();
+    fs.writeFileSync(filePath, blob.buffer);
+  } catch (error) {
+    // noop
+  }
+});
 
 app.post("/api/auth/login", async (req, res) => {
   const ip = getClientIp(req);
@@ -4146,7 +4406,7 @@ app.post(
   requireAuth,
   requirePermission("uploadArquivos"),
   express.raw({ type: "multipart/form-data", limit: FILE_MAX_BYTES + 1024 * 1024 }),
-  (req, res) => {
+  async (req, res) => {
     const user = req.currentUser || getSessionUser(req);
     const projectId = getActiveProjectId(req, user);
     if (!projectId) {
@@ -4198,6 +4458,7 @@ app.post(
     };
     filesMeta = Array.isArray(filesMeta) ? filesMeta.concat(entry) : [entry];
     writeJson(FILES_META_FILE, filesMeta);
+    await upsertUploadBlob(entry, parsed.file.buffer);
     appendAudit(
       "file_upload",
       actor ? actor.id : null,
@@ -4209,7 +4470,7 @@ app.post(
   }
 );
 
-app.delete("/api/admin/files/:id", requireAuth, requirePermission("excluirArquivos"), (req, res) => {
+app.delete("/api/admin/files/:id", requireAuth, requirePermission("excluirArquivos"), async (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   const fileId = String(req.params.id || "").trim();
   const index = Array.isArray(filesMeta) ? filesMeta.findIndex((item) => item.id === fileId) : -1;
@@ -4231,6 +4492,7 @@ app.delete("/api/admin/files/:id", requireAuth, requirePermission("excluirArquiv
       }
     }
   }
+  await deleteUploadBlob(file.id);
   filesMeta.splice(index, 1);
   writeJson(FILES_META_FILE, filesMeta);
   appendAudit(

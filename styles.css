@@ -4975,6 +4975,33 @@ select {
   color: var(--text);
 }
 
+.font-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px;
+  margin: 6px 0;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0c1f30;
+  color: var(--text);
+}
+
+.font-toolbar__group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.font-select {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #10273b;
+  color: inherit;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 0.8rem;
+}
+
 .rich-toolbar__group {
   display: inline-flex;
   align-items: center;
@@ -5021,6 +5048,37 @@ select {
   white-space: pre-wrap;
   font-family: inherit;
   outline: none;
+}
+
+.rich-editor__content p,
+.rich-editor__content div,
+.rich-editor__content h3 {
+  margin: 0 0 8px;
+}
+
+.rich-editor__content h3:last-child,
+.rich-editor__content p:last-child,
+.rich-editor__content div:last-child {
+  margin-bottom: 0;
+}
+
+.rich-editor__content ul,
+.rich-editor__content ol {
+  margin: 6px 0;
+  padding-left: 18px;
+  list-style-position: inside;
+}
+
+.rich-editor__content li {
+  margin: 2px 0;
+}
+
+.rich-editor__content blockquote {
+  margin: 6px 0;
+  padding: 6px 10px;
+  border-left: 3px solid rgba(200, 146, 61, 0.6);
+  background: rgba(255, 255, 255, 0.04);
+  color: #e6edf3;
 }
 
 .rich-editor__content:focus {
