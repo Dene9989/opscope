@@ -5577,6 +5577,29 @@ function getDocById(docId) {
     .catch(() => null);
 }
 
+async function uploadLiberacaoDoc(file, docType) {
+  if (!file) {
+    return null;
+  }
+  const formData = new FormData();
+  formData.append("type", docType || "");
+  formData.append("file", file);
+  const data = await apiUploadLiberacaoDoc(formData);
+  const info = data && data.file ? data.file : null;
+  if (!info || !info.url) {
+    throw new Error("Falha ao enviar o documento.");
+  }
+  const name = info.originalName || info.name || file.name || "Documento";
+  return {
+    id: info.id || "",
+    url: info.url,
+    name,
+    nome: name,
+    mime: info.mime || file.type || "",
+    docType: info.docType || docType || "",
+  };
+}
+
 function base64ToBlob(base64, mimeType) {
   const byteChars = atob(base64 || "");
   const sliceSize = 1024;
@@ -5656,26 +5679,27 @@ async function abrirDocumento(doc) {
     return;
   }
   const dataUrl = doc.dataUrl || "";
-  if (dataUrl.startsWith("data:application/pdf")) {
-    abrirPreview(dataUrl);
+  if (dataUrl && dataUrl.startsWith("data:")) {
+    openInNewTab(dataUrl);
     return;
   }
   if (doc.docId) {
     const registro = await getDocById(doc.docId);
     if (registro && registro.blob) {
       const blobUrl = URL.createObjectURL(registro.blob);
-      abrirPreview(blobUrl, blobUrl);
+      openInNewTab(blobUrl);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
       return;
     }
-  window.alert("Documento não encontrado.");
+    window.alert("Documento não encontrado.");
     return;
   }
-  const url = resolvePublicUrl(dataUrl || doc.url);
+  const url = resolvePublicUrl(doc.url || "");
   if (!url) {
-  window.alert("Documento não encontrado.");
+    window.alert("Documento não encontrado.");
     return;
   }
-  abrirPreview(url);
+  openInNewTab(url);
 }
 
 function renderDocList(container, documentos, critico = false) {
@@ -18625,36 +18649,17 @@ async function adicionarManutencao() {
   }
 
   const documentos = {};
-  let docsDb = null;
-  const salvarDocumentoDb = async (file) => {
-    if (!docsDb) {
-      docsDb = await openDocsDB();
-    }
-    const docId = crypto.randomUUID();
-    const registro = {
-      docId,
-      name: file.name,
-      type: file.type || "",
-      blob: file,
-      createdAt: toIsoUtc(new Date()),
-    };
-    await new Promise((resolve, reject) => {
-      const tx = docsDb.transaction("docs", "readwrite");
-      const store = tx.objectStore("docs");
-      const request = store.put(registro);
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-    });
-    return { docId, name: file.name, nome: file.name, type: file.type || "" };
-  };
   for (const chave of DOC_KEYS) {
     const input = novaDocInputs.find((itemInput) => itemInput.dataset.novaDocInput === chave);
     const file = input && input.files && input.files[0] ? input.files[0] : null;
     if (file) {
       try {
-        documentos[chave] = await salvarDocumentoDb(file);
+        documentos[chave] = await uploadLiberacaoDoc(file, chave);
       } catch (error) {
-        mostrarMensagemManutencao("Não foi possível salvar o documento.", true);
+        mostrarMensagemManutencao(
+          error && error.message ? error.message : "Não foi possível enviar o documento.",
+          true
+        );
         return;
       }
     }
@@ -19965,35 +19970,16 @@ async function salvarLiberacao(event) {
     return;
   }
   const documentos = { ...liberacaoDocsBase };
-  let docsDb = null;
-  const salvarDocumentoDb = async (file) => {
-    if (!docsDb) {
-      docsDb = await openDocsDB();
-    }
-    const docId = crypto.randomUUID();
-    const registro = {
-      docId,
-      name: file.name,
-      type: file.type || "",
-      blob: file,
-      createdAt: toIsoUtc(new Date()),
-    };
-    await new Promise((resolve, reject) => {
-      const tx = docsDb.transaction("docs", "readwrite");
-      const store = tx.objectStore("docs");
-      const request = store.put(registro);
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-    });
-    return { docId, name: file.name, nome: file.name, type: file.type || "" };
-  };
   for (const chave of DOC_KEYS) {
     const input = liberacaoDocInputs.find((itemInput) => itemInput.dataset.docInput === chave);
     if (input && input.files && input.files[0]) {
       try {
-        documentos[chave] = await salvarDocumentoDb(input.files[0]);
+        documentos[chave] = await uploadLiberacaoDoc(input.files[0], chave);
       } catch (error) {
-        mostrarMensagemLiberacao("Não foi possível salvar o documento.", true);
+        mostrarMensagemLiberacao(
+          error && error.message ? error.message : "Não foi possível enviar o documento.",
+          true
+        );
         return;
       }
       continue;
@@ -21358,6 +21344,23 @@ async function apiUploadFile(formData) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const message = data && data.message ? data.message : "Falha no upload.";
+    const error = new Error(message);
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+  return data;
+}
+
+async function apiUploadLiberacaoDoc(formData) {
+  const response = await fetch(`${API_BASE}/api/maintenance/liberacao-doc`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = data && data.message ? data.message : "Falha no envio do documento.";
     const error = new Error(message);
     error.status = response.status;
     error.data = data;

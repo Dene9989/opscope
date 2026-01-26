@@ -149,7 +149,9 @@ const FILE_TYPE_CONFIG = {
   rdo: { label: "Anexos de RDO", dir: "rdos" },
   audit: { label: "Documentos de auditoria", dir: "auditoria" },
   procedure: { label: "Procedimentos PMP", dir: "procedimentos" },
+  liberacao: { label: "Documentos de liberação", dir: "liberacao" },
 };
+const LIBERACAO_DOC_TYPES = new Set(["apr", "os", "pte", "pt"]);
 const FILE_ALLOWED_MIME = new Map([
   ["application/pdf", "pdf"],
   ["image/png", "png"],
@@ -3428,10 +3430,11 @@ app.get("/uploads/files/:dir/:file", async (req, res) => {
   if (!dir || !fileName) {
     return res.status(404).send("Arquivo nao encontrado.");
   }
-  const typeConfig = Object.values(FILE_TYPE_CONFIG).find((config) => config.dir === dir);
-  if (!typeConfig) {
+  const typeEntry = Object.entries(FILE_TYPE_CONFIG).find(([, config]) => config.dir === dir);
+  if (!typeEntry) {
     return res.status(404).send("Arquivo nao encontrado.");
   }
+  const [typeKey, typeConfig] = typeEntry;
   const filePath = path.join(FILES_DIR, typeConfig.dir, fileName);
   if (fs.existsSync(filePath)) {
     return res.sendFile(filePath);
@@ -3447,16 +3450,14 @@ app.get("/uploads/files/:dir/:file", async (req, res) => {
     return res.sendFile(legacyPath);
   }
   const entry = Array.isArray(filesMeta)
-    ? filesMeta.find(
-        (item) => item && item.type === typeConfig.key && item.name === fileName
-      )
+    ? filesMeta.find((item) => item && item.type === typeKey && item.name === fileName)
     : null;
   let blob = entry
     ? await fetchUploadBlobById(entry.id)
-    : await fetchUploadBlobByName(typeConfig.key, fileName);
+    : await fetchUploadBlobByName(typeKey, fileName);
   if ((!blob || !blob.buffer) && Array.isArray(filesMeta)) {
     const byOriginalName = filesMeta.find((item) => {
-      if (!item || item.type !== typeConfig.key) {
+      if (!item || item.type !== typeKey) {
         return false;
       }
       const original = String(item.originalName || "").trim();
@@ -3471,12 +3472,12 @@ app.get("/uploads/files/:dir/:file", async (req, res) => {
     if (normalizedName && normalizedName !== fileName) {
       const normalizedEntry = Array.isArray(filesMeta)
         ? filesMeta.find(
-            (item) => item && item.type === typeConfig.key && item.name === normalizedName
+            (item) => item && item.type === typeKey && item.name === normalizedName
           )
         : null;
       blob = normalizedEntry
         ? await fetchUploadBlobById(normalizedEntry.id)
-        : await fetchUploadBlobByName(typeConfig.key, normalizedName);
+        : await fetchUploadBlobByName(typeKey, normalizedName);
     }
   }
   if (!blob || !blob.buffer) {
@@ -4551,6 +4552,86 @@ app.get("/api/admin/files", requireAuth, requirePermission("verArquivos"), (req,
   list.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
   return res.json({ files: list });
 });
+
+app.post(
+  "/api/maintenance/liberacao-doc",
+  requireAuth,
+  requirePermission("complete"),
+  express.raw({ type: "multipart/form-data", limit: FILE_MAX_BYTES + 1024 * 1024 }),
+  async (req, res) => {
+    const user = req.currentUser || getSessionUser(req);
+    const projectId = getActiveProjectId(req, user);
+    if (!projectId) {
+      return res.status(400).json({ message: "Projeto ativo obrigatório." });
+    }
+    const parsed = parseMultipartForm(req);
+    if (!parsed || !parsed.file) {
+      return res.status(400).json({ message: "Arquivo não enviado." });
+    }
+    const docType = String(parsed.fields.type || "").trim().toLowerCase();
+    if (!LIBERACAO_DOC_TYPES.has(docType)) {
+      return res.status(400).json({ message: "Tipo de documento inválido." });
+    }
+    const mime = String(parsed.file.mime || "").toLowerCase();
+    if (!FILE_ALLOWED_MIME.has(mime)) {
+      return res.status(415).json({ message: "Tipo de arquivo não suportado." });
+    }
+    if (!parsed.file.buffer || parsed.file.buffer.length === 0) {
+      return res.status(400).json({ message: "Arquivo inválido." });
+    }
+    if (parsed.file.buffer.length > FILE_MAX_BYTES) {
+      return res.status(413).json({ message: "Arquivo acima de 10 MB." });
+    }
+    ensureUploadDirs();
+    const ext = FILE_ALLOWED_MIME.get(mime);
+    const baseName = sanitizeFileName(path.parse(parsed.file.originalName || "documento").name);
+    const unique = crypto.randomUUID().slice(0, 8);
+    const safeType = sanitizeFileName(docType || "doc");
+    const fileName = `${Date.now()}-${unique}-${safeType}-${baseName || "documento"}.${ext}`;
+    const typeConfig = FILE_TYPE_CONFIG.liberacao;
+    const typeKey = "liberacao";
+    const dirPath = path.join(FILES_DIR, typeConfig.dir);
+    const filePath = path.join(dirPath, fileName);
+    try {
+      fs.writeFileSync(filePath, parsed.file.buffer);
+    } catch (error) {
+      return res.status(500).json({ message: "Falha ao salvar arquivo." });
+    }
+    const actor = req.currentUser || getSessionUser(req);
+    const entry = {
+      id: crypto.randomUUID(),
+      name: fileName,
+      originalName: parsed.file.originalName || fileName,
+      type: typeKey,
+      size: parsed.file.buffer.length,
+      mime,
+      url: `/uploads/files/${typeConfig.dir}/${fileName}`,
+      createdAt: new Date().toISOString(),
+      createdBy: actor ? actor.id : "",
+      createdByName: actor ? actor.name : "",
+      projectId,
+    };
+    await upsertUploadBlob(entry, parsed.file.buffer);
+    appendAudit(
+      "file_upload",
+      actor ? actor.id : null,
+      { fileId: entry.id, name: entry.originalName, type: entry.type, projectId },
+      getClientIp(req),
+      projectId
+    );
+    return res.json({
+      ok: true,
+      file: {
+        id: entry.id,
+        url: entry.url,
+        name: entry.originalName,
+        originalName: entry.originalName,
+        mime: entry.mime,
+        docType,
+      },
+    });
+  }
+);
 
 app.post(
   "/api/admin/files",
