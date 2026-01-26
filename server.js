@@ -1,3 +1,8 @@
+try {
+  require("dotenv").config();
+} catch (error) {
+  // ignore if dotenv is not installed
+}
 const express = require("express");
 const session = require("express-session");
 const bcrypt = require("bcryptjs");
