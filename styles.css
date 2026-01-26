@@ -7855,6 +7855,12 @@ textarea:focus {
   margin-bottom: 12px;
 }
 
+.modal__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .modal__form {
   display: grid;
   gap: 12px;

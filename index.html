@@ -3767,9 +3767,14 @@
     <div class="modal__content">
       <div class="modal__header">
         <h3>Visualizar documento</h3>
-        <button id="btnFecharPreview" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
-          <span aria-hidden="true">x</span>
-        </button>
+        <div class="modal__header-actions">
+          <button id="btnAbrirPreview" class="btn btn--ghost btn--small" type="button">
+            Abrir em nova aba
+          </button>
+          <button id="btnFecharPreview" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+            <span aria-hidden="true">x</span>
+          </button>
+        </div>
       </div>
       <iframe
         id="previewFrame"
