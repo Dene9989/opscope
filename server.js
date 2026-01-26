@@ -904,6 +904,47 @@ async function fetchUploadBlobByName(type, name) {
   }
 }
 
+async function fetchUploadBlobByNameAnyType(name) {
+  if (!shouldStoreUploads() || !name) {
+    return null;
+  }
+  try {
+    const result = await dbPool.query(
+      `SELECT id, name, mime, data FROM ${DB_UPLOADS_TABLE}
+       WHERE name = $1
+       ORDER BY updated_at DESC
+       LIMIT 1`,
+      [String(name)]
+    );
+    if (!result || !result.rowCount) {
+      return null;
+    }
+    const row = result.rows[0];
+    const buffer = normalizeDbBuffer(row.data);
+    if (!buffer) {
+      return null;
+    }
+    return { buffer, mime: row.mime || "", name: row.name || "", id: row.id || "" };
+  } catch (error) {
+    console.warn("[db] Falha ao buscar upload:", error.message || error);
+    return null;
+  }
+}
+
+function normalizeLookupFileName(value) {
+  const raw = path.basename(String(value || "").trim());
+  if (!raw) {
+    return "";
+  }
+  const ext = path.extname(raw);
+  const base = ext ? raw.slice(0, -ext.length) : raw;
+  const sanitized = sanitizeFileName(base);
+  if (!sanitized) {
+    return "";
+  }
+  return `${sanitized}${ext}`;
+}
+
 async function deleteUploadBlob(id) {
   if (!shouldStoreUploads() || !id) {
     return;
@@ -3410,9 +3451,43 @@ app.get("/uploads/files/:dir/:file", async (req, res) => {
         (item) => item && item.type === typeConfig.key && item.name === fileName
       )
     : null;
-  const blob = entry
+  let blob = entry
     ? await fetchUploadBlobById(entry.id)
     : await fetchUploadBlobByName(typeConfig.key, fileName);
+  if ((!blob || !blob.buffer) && Array.isArray(filesMeta)) {
+    const byOriginalName = filesMeta.find((item) => {
+      if (!item || item.type !== typeConfig.key) {
+        return false;
+      }
+      const original = String(item.originalName || "").trim();
+      return original && path.basename(original) === fileName;
+    });
+    if (byOriginalName) {
+      blob = await fetchUploadBlobById(byOriginalName.id);
+    }
+  }
+  if (!blob || !blob.buffer) {
+    const normalizedName = normalizeLookupFileName(fileName);
+    if (normalizedName && normalizedName !== fileName) {
+      const normalizedEntry = Array.isArray(filesMeta)
+        ? filesMeta.find(
+            (item) => item && item.type === typeConfig.key && item.name === normalizedName
+          )
+        : null;
+      blob = normalizedEntry
+        ? await fetchUploadBlobById(normalizedEntry.id)
+        : await fetchUploadBlobByName(typeConfig.key, normalizedName);
+    }
+  }
+  if (!blob || !blob.buffer) {
+    blob = await fetchUploadBlobByNameAnyType(fileName);
+  }
+  if (!blob || !blob.buffer) {
+    const normalizedName = normalizeLookupFileName(fileName);
+    if (normalizedName && normalizedName !== fileName) {
+      blob = await fetchUploadBlobByNameAnyType(normalizedName);
+    }
+  }
   if (!blob || !blob.buffer) {
     return res.status(404).send("Arquivo nao encontrado.");
   }
