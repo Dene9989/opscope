@@ -161,6 +161,7 @@ const FILE_ALLOWED_MIME = new Map([
 const DEFAULT_PROJECT_CODE = "834";
 const DEFAULT_PROJECT_NAME = "PARACATU/SOLARIG (Boa Sorte II)";
 const DEFAULT_PROJECT_LOCAIS = ["LZC-BOS2", "LZC-PCT4", "LZC-LT", "LZC-BSO2/LZC-PCT4"];
+const DEFAULT_PROJECT_TEAM = "O&M BSO2";
 const AUTOMATION_DEFAULTS = [
   {
     id: "maintenance_critical_email",
@@ -1051,6 +1052,11 @@ function normalizeProject(record) {
     codigo: String(record && record.codigo ? record.codigo : "").trim(),
     nome: String(record && record.nome ? record.nome : "").trim(),
     cliente: String(record && record.cliente ? record.cliente : "").trim(),
+    nomeTime: String(
+      record && (record.nomeTime || record.timeName || record.time)
+        ? record.nomeTime || record.timeName || record.time
+        : ""
+    ).trim(),
     descricao: String(record && record.descricao ? record.descricao : "").trim(),
     locais: normalizeLocaisList(record && record.locais ? record.locais : []),
     pmpHorasDisponiveis: Number.isFinite(pmpHoras) ? Math.max(0, pmpHoras) : 40,
@@ -1795,6 +1801,7 @@ function ensureDefaultProject() {
       codigo: DEFAULT_PROJECT_CODE,
       nome: DEFAULT_PROJECT_NAME,
       cliente: "",
+      nomeTime: DEFAULT_PROJECT_TEAM,
       descricao: "",
       locais: DEFAULT_PROJECT_LOCAIS,
       pmpHorasDisponiveis: 40,
@@ -1805,11 +1812,12 @@ function ensureDefaultProject() {
   }
   if (
     defaultProject &&
-    (!Array.isArray(defaultProject.locais) || defaultProject.locais.length === 0)
+    (!Array.isArray(defaultProject.locais) || defaultProject.locais.length === 0 || !defaultProject.nomeTime)
   ) {
     defaultProject = {
       ...defaultProject,
       locais: DEFAULT_PROJECT_LOCAIS.slice(),
+      nomeTime: defaultProject.nomeTime || DEFAULT_PROJECT_TEAM,
       pmpHorasDisponiveis:
         Number.isFinite(Number(defaultProject.pmpHorasDisponiveis))
           ? defaultProject.pmpHorasDisponiveis
@@ -3655,6 +3663,7 @@ app.post("/api/projetos", requireAuth, requirePermission("gerenciarProjetos"), (
     codigo,
     nome,
     cliente: payload.cliente || "",
+    nomeTime: payload.nomeTime || "",
     descricao: payload.descricao || "",
     locais,
     pmpHorasDisponiveis: Number.isFinite(pmpHorasDisponiveis) ? pmpHorasDisponiveis : undefined,

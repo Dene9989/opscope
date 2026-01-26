@@ -199,6 +199,7 @@ const projectFormId = document.getElementById("projectFormId");
 const projectFormCodigo = document.getElementById("projectFormCodigo");
 const projectFormNome = document.getElementById("projectFormNome");
 const projectFormCliente = document.getElementById("projectFormCliente");
+const projectFormTime = document.getElementById("projectFormTime");
 const projectFormDescricao = document.getElementById("projectFormDescricao");
 const projectFormLocais = document.getElementById("projectFormLocais");
 const projectFormCancel = document.getElementById("projectFormCancel");
@@ -712,6 +713,7 @@ const SYSTEM_USER_ID = "system";
 const CUSTOM_TIPO_OPTION = "__custom";
 const DEFAULT_PROJECT_CODE = "834";
 const DEFAULT_PROJECT_LABEL = "834 - PARACATU/SOLARIG (Boa Sorte II)";
+const DEFAULT_TEAM_NAME = "O&M BSO2";
 const SUBESTACOES = [];
 const DEFAULT_TEMPLATE_NAMES = new Set([
   "Inspeção diária da subestação",
@@ -4524,6 +4526,14 @@ function getUserLabel(id) {
   if (id === SYSTEM_USER_ID) {
     return "Sistema";
   }
+  if (typeof id === "string" && id.startsWith("team:")) {
+    const name = id.slice(5).trim();
+    return name || "Time";
+  }
+  if (typeof id === "string" && id.startsWith("time:")) {
+    const name = id.slice(5).trim();
+    return name || "Time";
+  }
   const user = getUserById(id);
   if (!user) {
     return String(id);
@@ -5618,7 +5628,7 @@ function base64ToBlob(base64, mimeType) {
 }
 
 function isAbsoluteUrl(url) {
-  return /^https?:\/\//i.test(url || "");
+  return /^(https?:|blob:|data:)/i.test(url || "");
 }
 
 function resolvePublicUrl(url) {
@@ -5633,19 +5643,52 @@ function resolvePublicUrl(url) {
   return `${base}${path}`;
 }
 
+function dataUrlToBlobUrl(dataUrl) {
+  if (!dataUrl || !dataUrl.startsWith("data:")) {
+    return "";
+  }
+  const match = dataUrl.match(/^data:([^;,]+)?(;base64)?,(.*)$/);
+  if (!match) {
+    return "";
+  }
+  const mime = match[1] || "application/octet-stream";
+  const isBase64 = Boolean(match[2]);
+  const payload = match[3] || "";
+  try {
+    const blob = isBase64
+      ? base64ToBlob(payload, mime)
+      : new Blob([decodeURIComponent(payload)], { type: mime });
+    return URL.createObjectURL(blob);
+  } catch (error) {
+    return "";
+  }
+}
+
 function openInNewTab(url) {
   if (!url) {
     return;
   }
-  const janela = window.open(url, "_blank", "noopener");
+  let targetUrl = url;
+  let tempBlobUrl = "";
+  if (url.startsWith("data:")) {
+    const blobUrl = dataUrlToBlobUrl(url);
+    if (blobUrl) {
+      targetUrl = blobUrl;
+      tempBlobUrl = blobUrl;
+    }
+  }
+  const janela = window.open(targetUrl, "_blank", "noopener");
   if (!janela) {
     const link = document.createElement("a");
-    link.href = url;
+    link.href = targetUrl;
     link.target = "_blank";
     link.rel = "noopener";
     document.body.append(link);
     link.click();
     link.remove();
+  }
+  if (tempBlobUrl) {
+    setTimeout(() => URL.revokeObjectURL(tempBlobUrl), 300000);
   }
 }
 
@@ -17330,6 +17373,14 @@ function getActiveProject() {
   return availableProjects.find((project) => project.id === activeProjectId) || null;
 }
 
+function getProjectTeamName(projectId) {
+  const project = availableProjects.find((item) => item && item.id === projectId);
+  const nomeTime = project
+    ? String(project.nomeTime || project.timeName || project.time || "").trim()
+    : "";
+  return nomeTime || DEFAULT_TEAM_NAME;
+}
+
 function renderProjectSelector() {
   if (!projectSelect) {
     return;
@@ -17567,6 +17618,9 @@ function resetProjectForm() {
   if (projectFormSelect) {
     projectFormSelect.value = "";
   }
+  if (projectFormTime) {
+    projectFormTime.value = "";
+  }
   if (projectFormLocais) {
     projectFormLocais.value = "";
   }
@@ -17581,6 +17635,9 @@ function setProjectFormValues(project) {
   if (projectFormCodigo) projectFormCodigo.value = project.codigo || "";
   if (projectFormNome) projectFormNome.value = project.nome || "";
   if (projectFormCliente) projectFormCliente.value = project.cliente || "";
+  if (projectFormTime) {
+    projectFormTime.value = project.nomeTime || project.timeName || project.time || "";
+  }
   if (projectFormDescricao) projectFormDescricao.value = project.descricao || "";
   if (projectFormLocais) {
     const locais = Array.isArray(project.locais) ? project.locais : [];
@@ -18685,6 +18742,8 @@ async function adicionarManutencao() {
   const agora = new Date();
   const agoraIso = toIsoUtc(agora);
   const usuarioLabel = getUserLabel(currentUser.id);
+  const teamName = getProjectTeamName(activeProjectId);
+  const executadoPorTime = teamName ? `team:${teamName}` : currentUser.id;
   const ultimaAcao = `Execução iniciada em ${formatDateTime(agora)} por ${usuarioLabel}`;
   const liberacao = {
     osNumero: osReferencia,
@@ -18714,11 +18773,11 @@ async function adicionarManutencao() {
     abertaEm: agoraIso,
     inicioExecucao: agoraIso,
     abertaPor: currentUser.id,
-    executadaPor: currentUser.id,
+    executadaPor: executadoPorTime,
     ultimaAcao,
     executionStartedAt: agoraIso,
     executionStartedBy: currentUser.id,
-    registroExecucao: { executadoPor: currentUser.id },
+    registroExecucao: { executadoPor: executadoPorTime },
     liberacao,
     createdAt: agoraIso,
     createdBy: currentUser.id,
@@ -19309,7 +19368,7 @@ function confirmarInicioExecucao() {
   });
   renderTudo();
   fecharInicioExecucao();
-  abrirRegistroExecucao(atualizado);
+  mostrarMensagemManutencao("Execução iniciada.");
 }
 
 function abrirRegistroExecucao(item) {
@@ -19339,6 +19398,7 @@ function abrirRegistroExecucao(item) {
   }
   if (cancelarExecucaoMotivo) {
     cancelarExecucaoMotivo.value = "";
+    cancelarExecucaoMotivo.required = false;
   }
   if (btnCancelarExecucao) {
     btnCancelarExecucao.hidden = item.status !== "em_execucao";
@@ -19373,7 +19433,8 @@ function abrirRegistroExecucao(item) {
     registroParticipantes.value = getParticipantesLabel(liberacao.participantes);
   }
   if (registroDocs) {
-    renderDocList(registroDocs, liberacao.documentos, liberacao.critico);
+    const docs = liberacao.documentos || item.documentos || {};
+    renderDocList(registroDocs, docs, isItemCritico(item));
   }
   const registroSalvo = item.registroExecucao || {};
   if (registroExecutadaPor) {
@@ -19382,6 +19443,14 @@ function abrirRegistroExecucao(item) {
     placeholder.value = "";
     placeholder.textContent = "Selecione";
     registroExecutadaPor.append(placeholder);
+    const teamName = getProjectTeamName(item.projectId);
+    const teamValue = teamName ? `team:${teamName}` : "";
+    if (teamName) {
+      const teamOption = document.createElement("option");
+      teamOption.value = teamValue;
+      teamOption.textContent = teamName;
+      registroExecutadaPor.append(teamOption);
+    }
     users
       .filter((user) => user && user.id)
       .sort((a, b) => (a.name || "").localeCompare(b.name || "", "pt-BR"))
@@ -19391,12 +19460,20 @@ function abrirRegistroExecucao(item) {
         option.textContent = user.name || user.matricula;
         registroExecutadaPor.append(option);
       });
-    const defaultId = registroSalvo.executadoPor || (currentUser ? currentUser.id : "");
+    const defaultId =
+      registroSalvo.executadoPor || teamValue || (currentUser ? currentUser.id : "");
     if (defaultId) {
       registroExecutadaPor.value = defaultId;
     }
   }
   if (registroResultado) {
+    const resultadoField = registroResultado.closest(".field");
+    const mostrarResultado =
+      item.status !== "em_execucao" || Boolean(registroSalvo.resultado);
+    if (resultadoField) {
+      resultadoField.hidden = !mostrarResultado;
+    }
+    registroResultado.required = mostrarResultado;
     registroResultado.value = registroSalvo.resultado || "";
   }
   if (registroComentario) {
@@ -19422,6 +19499,7 @@ function fecharRegistroExecucao() {
   }
   if (cancelarExecucaoMotivo) {
     cancelarExecucaoMotivo.value = "";
+    cancelarExecucaoMotivo.required = false;
   }
   mostrarMensagemCancelarExecucao("");
 }
@@ -19448,6 +19526,7 @@ function abrirCancelarExecucao() {
   formCancelarExecucao.hidden = false;
   if (cancelarExecucaoMotivo) {
     cancelarExecucaoMotivo.value = "";
+    cancelarExecucaoMotivo.required = true;
   }
   mostrarMensagemCancelarExecucao("");
 }
@@ -19460,6 +19539,7 @@ function fecharCancelarExecucao() {
   formRegistroExecucao.hidden = false;
   if (cancelarExecucaoMotivo) {
     cancelarExecucaoMotivo.value = "";
+    cancelarExecucaoMotivo.required = false;
   }
   mostrarMensagemCancelarExecucao("");
 }
@@ -19536,11 +19616,15 @@ function salvarRegistroExecucao(event) {
     mostrarMensagemRegistroExecucao("Selecione quem executou.", true);
     return;
   }
-  const resultado = registroResultado ? registroResultado.value : "";
-  if (!resultado) {
+  const registroSalvo = item.registroExecucao || {};
+  const resultadoField = registroResultado ? registroResultado.closest(".field") : null;
+  const resultadoVisivel = !resultadoField || !resultadoField.hidden;
+  const resultadoInformado = registroResultado ? registroResultado.value : "";
+  if (resultadoVisivel && !resultadoInformado) {
     mostrarMensagemRegistroExecucao("Informe o resultado da execução.", true);
     return;
   }
+  const resultadoFinal = resultadoInformado || registroSalvo.resultado || "";
   const comentario = registroComentario ? registroComentario.value.trim() : "";
   if (!comentario) {
     mostrarMensagemRegistroExecucao("Descrição técnica obrigatória.", true);
@@ -19549,15 +19633,16 @@ function salvarRegistroExecucao(event) {
   const observacaoExecucao = registroObsExecucao ? registroObsExecucao.value.trim() : "";
   const registroExecucao = {
     executadoPor,
-    resultado,
+    resultado: resultadoFinal,
     comentario,
     observacaoExecucao,
     registradoEm: toIsoUtc(new Date()),
   };
+  const novoStatus = resultadoFinal ? "encerramento" : "em_execucao";
   const atualizado = {
     ...item,
     registroExecucao,
-    status: "encerramento",
+    status: novoStatus,
     updatedAt: toIsoUtc(new Date()),
     updatedBy: currentUser.id,
   };
@@ -19569,7 +19654,7 @@ function salvarRegistroExecucao(event) {
   );
   logAction("execute_register", atualizado, {
     executadoPor,
-    resultado,
+    resultado: resultadoFinal || undefined,
     observacaoExecucao,
     inicioExecucao: item.executionStartedAt || "",
     osNumero: liberacao.osNumero || "",
@@ -20849,13 +20934,8 @@ function abrirConclusao(item) {
     mostrarMensagemManutencao("Início da execução não encontrado.", true);
     return;
   }
-  const registro = item.registroExecucao;
-  if (
-    !registro ||
-    !registro.executadoPor ||
-    !registro.resultado ||
-    !registro.comentario
-  ) {
+  const registro = item.registroExecucao || {};
+  if (!registro.executadoPor || !registro.comentario) {
     mostrarMensagemManutencao("Registre a execução antes de concluir.", true);
     return;
   }
@@ -20892,7 +20972,7 @@ function abrirConclusao(item) {
     conclusaoComentario.value = registro.comentario || "";
   }
   if (conclusaoResultado) {
-    conclusaoResultado.value = RESULTADO_LABELS[registro.resultado] || registro.resultado;
+    conclusaoResultado.value = registro.resultado || "";
   }
   if (conclusaoObsExecucao) {
     conclusaoObsExecucao.value = registro.observacaoExecucao || "";
@@ -20935,7 +21015,8 @@ function abrirConclusao(item) {
     conclusaoParticipantes.value = getParticipantesLabel(liberacao.participantes);
   }
   if (conclusaoDocs) {
-    renderDocList(conclusaoDocs, liberacao.documentos, liberacao.critico);
+    const docs = liberacao.documentos || item.documentos || {};
+    renderDocList(conclusaoDocs, docs, isItemCritico(item));
   }
   atualizarDuracaoConclusao();
 
@@ -20970,14 +21051,15 @@ async function salvarConclusao(event) {
     mostrarMensagemConclusao("Inicie a execução antes de concluir.", true);
     return;
   }
-  const registro = item.registroExecucao;
-  if (
-    !registro ||
-    !registro.executadoPor ||
-    !registro.resultado ||
-    !registro.comentario
-  ) {
+  const registro = item.registroExecucao || {};
+  if (!registro.executadoPor || !registro.comentario) {
     mostrarMensagemConclusao("Registre a execução antes de concluir.", true);
+    return;
+  }
+  const resultadoSelecionado = conclusaoResultado ? conclusaoResultado.value : "";
+  const resultado = resultadoSelecionado || registro.resultado || "";
+  if (!resultado) {
+    mostrarMensagemConclusao("Informe o resultado da execução.", true);
     return;
   }
   const liberacao = getLiberacao(item);
@@ -20986,9 +21068,11 @@ async function salvarConclusao(event) {
     return;
   }
   const executadoPor = registro.executadoPor;
-  const resultado = registro.resultado;
   const comentario = registro.comentario;
   const observacaoExecucao = registro.observacaoExecucao || "";
+  const registroAtualizado = resultado
+    ? { ...registro, resultado }
+    : registro;
   const referenciaInformada = conclusaoReferencia ? conclusaoReferencia.value.trim() : "";
   const referencia = referenciaInformada || (liberacao ? liberacao.osNumero || "" : "");
   if (!referencia) {
@@ -21057,6 +21141,7 @@ async function salvarConclusao(event) {
 
   const atualizado = {
     ...item,
+    registroExecucao: registroAtualizado,
     executionStartedAt: inicioIso,
     executionFinishedAt: fimIso,
     status: "concluida",
@@ -22817,6 +22902,7 @@ if (projectTabs.length) {
         codigo: projectFormCodigo ? projectFormCodigo.value.trim() : "",
         nome: projectFormNome ? projectFormNome.value.trim() : "",
         cliente: projectFormCliente ? projectFormCliente.value.trim() : "",
+        nomeTime: projectFormTime ? projectFormTime.value.trim() : "",
         descricao: projectFormDescricao ? projectFormDescricao.value.trim() : "",
         locais: parseProjectLocaisInput(projectFormLocais ? projectFormLocais.value : ""),
       };

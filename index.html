@@ -2156,6 +2156,10 @@
                 <label for="projectFormCliente">Cliente</label>
                 <input id="projectFormCliente" type="text" placeholder="NOME DA CLIENTE" />
               </div>
+              <div class="field">
+                <label for="projectFormTime">Nome do time</label>
+                <input id="projectFormTime" type="text" placeholder="O&M BSO2" />
+              </div>
               <div class="field field--full">
                 <label for="projectFormDescricao">Descrição</label>
                 <textarea id="projectFormDescricao" rows="2" placeholder="Detalhes do local de trabalho"></textarea>
@@ -3911,7 +3915,7 @@
             <select id="registroResultado" required>
               <option value="">Selecione</option>
               <option value="concluida">Concluída</option>
-              <option value="ressalva">Concluida com ressalva</option>
+              <option value="ressalva">Concluída com ressalva</option>
               <option value="nao_executada">Não executada</option>
             </select>
           </div>
@@ -3938,7 +3942,7 @@
         <div class="form-grid">
           <div class="field" data-full>
             <label for="cancelarExecucaoMotivo">Motivo do cancelamento</label>
-            <textarea id="cancelarExecucaoMotivo" rows="3" required></textarea>
+            <textarea id="cancelarExecucaoMotivo" rows="3"></textarea>
           </div>
         </div>
         <div class="modal__actions">
@@ -4002,8 +4006,13 @@
             <input id="conclusaoDuracao" type="text" readonly />
           </div>
           <div class="field">
-            <label>Resultado</label>
-            <input id="conclusaoResultado" type="text" readonly />
+            <label for="conclusaoResultado">Resultado</label>
+            <select id="conclusaoResultado" required>
+              <option value="">Selecione</option>
+              <option value="concluida">Concluída</option>
+              <option value="ressalva">Concluída com ressalva</option>
+              <option value="nao_executada">Não executada</option>
+            </select>
           </div>
           <div class="field" data-full>
             <label for="conclusaoComentario">Descrição técnica</label>
