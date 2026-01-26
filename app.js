@@ -3379,6 +3379,9 @@ function initFontGroups() {
     if (textarea.closest && textarea.closest(".rich-editor")) {
       return;
     }
+    if (textarea.closest && textarea.closest(".auth-layout")) {
+      return;
+    }
     const parent = textarea.parentElement;
     if (!parent) {
       return;
