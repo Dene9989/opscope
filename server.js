@@ -817,6 +817,11 @@ async function upsertUploadBlob(entry, buffer) {
     return;
   }
   if (!entry.id || buffer.length > STORE_UPLOADS_MAX_BYTES) {
+    console.warn(
+      "[storage] Upload ignorado (tamanho/ID invalido):",
+      entry && entry.name ? entry.name : "(sem nome)",
+      buffer ? buffer.length : 0
+    );
     return;
   }
   try {
@@ -842,6 +847,7 @@ async function upsertUploadBlob(entry, buffer) {
         buffer,
       ]
     );
+    console.log("[storage] Upload salvo no DB:", entry.name, entry.id, buffer.length);
   } catch (error) {
     console.warn("[db] Falha ao salvar upload:", error.message || error);
   }
@@ -906,6 +912,20 @@ async function deleteUploadBlob(id) {
     await dbPool.query(`DELETE FROM ${DB_UPLOADS_TABLE} WHERE id = $1`, [String(id)]);
   } catch (error) {
     console.warn("[db] Falha ao remover upload:", error.message || error);
+  }
+}
+
+async function getUploadsCount() {
+  if (!shouldStoreUploads()) {
+    return null;
+  }
+  try {
+    const result = await dbPool.query(`SELECT COUNT(*) AS total FROM ${DB_UPLOADS_TABLE}`);
+    const total = result && result.rows && result.rows[0] ? Number(result.rows[0].total) : 0;
+    return Number.isFinite(total) ? total : 0;
+  } catch (error) {
+    console.warn("[db] Falha ao contar uploads:", error.message || error);
+    return null;
   }
 }
 
@@ -4306,6 +4326,15 @@ app.get("/api/admin/health", requireAuth, requirePermission("verDiagnostico"), (
 
 app.get("/api/admin/storage", requireAuth, requirePermission("verDiagnostico"), (req, res) => {
   return res.json(getStorageSnapshot());
+});
+
+app.get("/api/admin/storage/check", requireAuth, requirePermission("verDiagnostico"), async (req, res) => {
+  const dbUploadsCount = await getUploadsCount();
+  return res.json({
+    ...getStorageSnapshot(),
+    filesMetaCount: Array.isArray(filesMeta) ? filesMeta.length : 0,
+    dbUploadsCount,
+  });
 });
 
 app.post(
