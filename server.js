@@ -411,6 +411,8 @@ function logStoragePaths() {
   const envStorage = process.env.OPSCOPE_STORAGE_DIR || "";
   console.log("[storage] DATA_DIR=", DATA_DIR);
   console.log("[storage] STORAGE_DIR=", STORAGE_DIR);
+  console.log("[storage] DB_ENABLED=", DB_ENABLED);
+  console.log("[storage] STORE_UPLOADS=", STORE_UPLOADS);
   if (envData) {
     console.log("[storage] OPSCOPE_DATA_DIR=", envData);
   }
@@ -755,6 +757,33 @@ async function syncStoreFiles() {
   }
 }
 
+function getDatabaseInfo() {
+  if (!DATABASE_URL) {
+    return { configured: false, host: "", database: "" };
+  }
+  try {
+    const url = new URL(DATABASE_URL);
+    return { configured: true, host: url.hostname || "", database: url.pathname || "" };
+  } catch (error) {
+    return { configured: true, host: "", database: "" };
+  }
+}
+
+function getStorageSnapshot() {
+  const dbInfo = getDatabaseInfo();
+  return {
+    dbEnabled: DB_ENABLED,
+    dbReady,
+    dbHost: dbInfo.host,
+    dbDatabase: dbInfo.database,
+    storeUploads: STORE_UPLOADS,
+    uploadsMaxBytes: STORE_UPLOADS_MAX_BYTES,
+    uploadsBackfillLimit: STORE_UPLOADS_BACKFILL_LIMIT,
+    storageDir: STORAGE_DIR,
+    uploadsDir: UPLOADS_DIR,
+  };
+}
+
 function shouldStoreUploads() {
   return STORE_UPLOADS && dbReady && dbPool;
 }
@@ -781,6 +810,10 @@ function normalizeDbBuffer(value) {
 
 async function upsertUploadBlob(entry, buffer) {
   if (!shouldStoreUploads() || !entry || !buffer) {
+    if (!warnedUploadsDisabled && entry && buffer) {
+      warnedUploadsDisabled = true;
+      console.warn("[storage] Uploads nao serao persistidos no DB (DB indisponivel ou desativado).");
+    }
     return;
   }
   if (!entry.id || buffer.length > STORE_UPLOADS_MAX_BYTES) {
@@ -1551,6 +1584,10 @@ function buildHealthSnapshot(tasks) {
       database: {
         status: dbStatus,
         files,
+      },
+      storage: {
+        status: DB_ENABLED && dbReady ? "ok" : "warn",
+        info: getStorageSnapshot(),
       },
       backups: {
         status: backupStatus,
@@ -3214,6 +3251,7 @@ let healthTasks = [];
 let automations = [];
 let granularPermissions = null;
 let filesMeta = [];
+let warnedUploadsDisabled = false;
 
 async function bootstrap() {
   ensureDataDir();
@@ -4264,6 +4302,10 @@ app.put("/api/admin/permissoes", requireAuth, requireAdmin, (req, res) => {
 app.get("/api/admin/health", requireAuth, requirePermission("verDiagnostico"), (req, res) => {
   const snapshot = buildHealthSnapshot(healthTasks);
   return res.json(snapshot);
+});
+
+app.get("/api/admin/storage", requireAuth, requirePermission("verDiagnostico"), (req, res) => {
+  return res.json(getStorageSnapshot());
 });
 
 app.post(
