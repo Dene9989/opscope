@@ -5504,6 +5504,7 @@ function isLiberacaoOk(item) {
   if (!liberacao) {
     return false;
   }
+  const critico = isCriticoValor(liberacao.critico);
   const osNumero = (liberacao.osNumero || "").trim();
   if (!osNumero) {
     return false;
@@ -5514,14 +5515,14 @@ function isLiberacaoOk(item) {
   if (!participantes.length) {
     return false;
   }
-  if (liberacao.critico && participantes.length < 2) {
+  if (critico && participantes.length < 2) {
     return false;
   }
   const documentos = liberacao.documentos || {};
   if (!documentos.apr || !documentos.os || !documentos.pte) {
     return false;
   }
-  if (liberacao.critico && !documentos.pt) {
+  if (critico && !documentos.pt) {
     return false;
   }
   return true;
@@ -5683,9 +5684,10 @@ function renderDocList(container, documentos, critico = false) {
   }
   container.innerHTML = "";
   const docs = documentos || {};
+  const criticoAtual = isCriticoValor(critico);
   let exibiu = false;
   DOC_KEYS.forEach((key) => {
-    if (key === "pt" && !critico) {
+    if (key === "pt" && !criticoAtual) {
       return;
     }
     exibiu = true;
@@ -11887,7 +11889,7 @@ function isCriticoValor(valor) {
 
 function isItemCritico(item) {
   if (item && item.liberacao && item.liberacao.critico !== undefined) {
-    return Boolean(item.liberacao.critico);
+    return isCriticoValor(item.liberacao.critico);
   }
   const valor = pickItemValue(item, ["criticidade", "trabalhoCritico", "critico"]);
   return isCriticoValor(valor);
@@ -19774,12 +19776,11 @@ function abrirLiberacao(item) {
     liberacaoOs.value = liberacao.osNumero || "";
   }
   if (liberacaoCritico) {
-    if (liberacao.critico === true) {
-      liberacaoCritico.value = "sim";
-    } else if (liberacao.critico === false) {
-      liberacaoCritico.value = "nao";
-    } else {
+    const criticoValor = liberacao.critico;
+    if (criticoValor === undefined || criticoValor === null || criticoValor === "") {
       liberacaoCritico.value = "";
+    } else {
+      liberacaoCritico.value = isCriticoValor(criticoValor) ? "sim" : "nao";
     }
   }
   if (liberacaoParticipantes) {
