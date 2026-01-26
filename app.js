@@ -19641,6 +19641,7 @@ function atualizarNovaCriticoUI() {
   const critico = criticoManutencao && criticoManutencao.value === "sim";
   if (novaDocPt) {
     novaDocPt.hidden = !critico;
+    novaDocPt.style.display = critico ? "" : "none";
   }
   if (novaPtLabel) {
     novaPtLabel.textContent = critico ? "PT*" : "PT";
@@ -19734,12 +19735,14 @@ function atualizarLiberacaoCriticoUI() {
   const critico = liberacaoCritico && liberacaoCritico.value === "sim";
   if (liberacaoDocPt) {
     liberacaoDocPt.hidden = !critico;
+    liberacaoDocPt.style.display = critico ? "" : "none";
   }
   const ptInput = liberacaoDocInputs.find(
     (input) => input && input.dataset.docInput === "pt"
   );
   if (ptInput) {
     ptInput.required = critico;
+    ptInput.disabled = !critico;
     if (!critico) {
       ptInput.value = "";
       delete liberacaoDocsPreview.pt;
