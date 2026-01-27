@@ -23411,6 +23411,12 @@ if (btnSair) {
 }
 
 document.addEventListener("click", (event) => {
+  const cancelarEdicao = event.target.closest("#btnCancelarEdicaoManutencao");
+  if (cancelarEdicao) {
+    limparEdicaoManutencao();
+    mostrarMensagemManutencao("Edição cancelada.");
+    return;
+  }
   const editar = event.target.closest("#btnPerfilEditar");
   if (editar) {
     ativarModoEdicaoPerfil();
@@ -23755,9 +23761,6 @@ if (btnAdicionarManutencao) {
 }
 if (btnCancelarEdicaoManutencao) {
   btnCancelarEdicaoManutencao.addEventListener("click", () => {
-    if (!manutencaoEmEdicao) {
-      return;
-    }
     limparEdicaoManutencao();
     mostrarMensagemManutencao("Edição cancelada.");
   });
