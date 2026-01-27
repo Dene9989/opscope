@@ -5634,6 +5634,38 @@ function isLiberacaoOk(item) {
   return true;
 }
 
+function mergeMaintenanceFallback(remote, local) {
+  if (!remote || !local) {
+    return remote || local || null;
+  }
+  const merged = { ...remote };
+  Object.keys(local).forEach((key) => {
+    if (merged[key] === undefined) {
+      merged[key] = local[key];
+    }
+  });
+  const nestedKeys = ["liberacao", "registroExecucao", "conclusao", "documentos"];
+  nestedKeys.forEach((key) => {
+    const localValue = local[key];
+    const remoteValue = merged[key];
+    if (localValue && typeof localValue === "object") {
+      if (!remoteValue || typeof remoteValue !== "object") {
+        merged[key] = localValue;
+      } else {
+        merged[key] = { ...localValue, ...remoteValue };
+        if (key === "liberacao") {
+          const localDocs = localValue.documentos;
+          const remoteDocs = remoteValue.documentos;
+          if (localDocs && typeof localDocs === "object") {
+            merged[key].documentos = { ...localDocs, ...(remoteDocs || {}) };
+          }
+        }
+      }
+    }
+  });
+  return merged;
+}
+
 function getParticipantesLabel(participantes) {
   if (!Array.isArray(participantes) || !participantes.length) {
     return "-";
@@ -17971,7 +18003,16 @@ async function carregarManutencoesServidor(force = false) {
   try {
     const data = await apiMaintenanceList(activeProjectId);
     if (data && Array.isArray(data.items)) {
-      manutencoes = data.items;
+      const localCache = readJson(getProjectStorageKey(STORAGE_KEY), []);
+      const localMap = new Map(
+        Array.isArray(localCache)
+          ? localCache.filter((item) => item && item.id).map((item) => [item.id, item])
+          : []
+      );
+      const merged = data.items.map((item) =>
+        mergeMaintenanceFallback(item, localMap.get(item.id))
+      );
+      manutencoes = merged;
       const resultado = normalizarManutencoes(manutencoes);
       manutencoes = resultado.normalizadas;
       salvarManutencoes(manutencoes);
@@ -19279,20 +19320,66 @@ function preencherFormularioManutencao(item) {
     osReferenciaManutencao.value = osNumero;
   }
   if (categoriaManutencao) {
-    categoriaManutencao.value = getItemCategoria(item) || "";
+    const valorCategoria = getItemCategoria(item) || "";
+    if (valorCategoria) {
+      const match = Array.from(categoriaManutencao.options || []).find(
+        (opt) =>
+          String(opt.value).toLowerCase() === String(valorCategoria).toLowerCase()
+      );
+      categoriaManutencao.value = match ? match.value : "";
+    } else {
+      categoriaManutencao.value = "";
+    }
   }
   if (prioridadeManutencao) {
-    prioridadeManutencao.value = getItemPrioridade(item) || "";
+    const valorPrioridade = getItemPrioridade(item) || "";
+    if (valorPrioridade) {
+      const match = Array.from(prioridadeManutencao.options || []).find(
+        (opt) =>
+          String(opt.value).toLowerCase() === String(valorPrioridade).toLowerCase()
+      );
+      prioridadeManutencao.value = match ? match.value : "";
+    } else {
+      prioridadeManutencao.value = "";
+    }
   }
 
   const participantesBase =
     Array.isArray(item.participantes) && item.participantes.length
       ? item.participantes
-      : Array.isArray(liberacao.participantes)
-        ? liberacao.participantes
-        : [];
+      : Array.isArray(item.conclusao && item.conclusao.participantes)
+        ? item.conclusao.participantes
+        : Array.isArray(item.registroExecucao && item.registroExecucao.participantes)
+          ? item.registroExecucao.participantes
+          : Array.isArray(liberacao.participantes)
+            ? liberacao.participantes
+            : [];
+  const participantesNormalizados = participantesBase
+    .map((entry) => {
+      if (!entry) {
+        return "";
+      }
+      if (typeof entry === "string") {
+        return entry;
+      }
+      if (typeof entry === "object") {
+        return (
+          entry.id ||
+          entry.userId ||
+          entry.matricula ||
+          entry.nome ||
+          entry.name ||
+          entry.label ||
+          ""
+        );
+      }
+      return "";
+    })
+    .filter(Boolean);
   if (participantesManutencao) {
-    const label = participantesBase.length ? getParticipantesLabel(participantesBase) : "";
+    const label = participantesNormalizados.length
+      ? getParticipantesLabel(participantesNormalizados)
+      : "";
     participantesManutencao.value =
       label && label !== "-" ? label.replace(/,\s*/g, "; ") : "";
   }
@@ -19438,10 +19525,35 @@ async function salvarEdicaoManutencao() {
     const base =
       Array.isArray(item.participantes) && item.participantes.length
         ? item.participantes
-        : Array.isArray((getLiberacao(item) || {}).participantes)
-          ? (getLiberacao(item) || {}).participantes
-          : [];
-    participantes = base;
+        : Array.isArray(item.conclusao && item.conclusao.participantes)
+          ? item.conclusao.participantes
+          : Array.isArray(item.registroExecucao && item.registroExecucao.participantes)
+            ? item.registroExecucao.participantes
+            : Array.isArray((getLiberacao(item) || {}).participantes)
+              ? (getLiberacao(item) || {}).participantes
+              : [];
+    participantes = base
+      .map((entry) => {
+        if (!entry) {
+          return "";
+        }
+        if (typeof entry === "string") {
+          return entry;
+        }
+        if (typeof entry === "object") {
+          return (
+            entry.id ||
+            entry.userId ||
+            entry.matricula ||
+            entry.nome ||
+            entry.name ||
+            entry.label ||
+            ""
+          );
+        }
+        return "";
+      })
+      .filter(Boolean);
   }
   const criticoValor = criticoManutencao ? criticoManutencao.value : "";
   const critico =
