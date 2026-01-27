@@ -6792,6 +6792,8 @@ function renderProgramacao() {
   renderAlertaProgramacao();
 
   const hoje = startOfDay(new Date());
+  const filtroStatus = filtroProgramacaoStatus ? filtroProgramacaoStatus.value : "";
+  const incluirConcluidas = filtroStatus === "concluida";
   const existentes = manutencoes.filter(
     (item) =>
       item &&
@@ -6799,7 +6801,8 @@ function renderProgramacao() {
         item.status === "liberada" ||
         item.status === "backlog" ||
         item.status === "em_execucao" ||
-        item.status === "encerramento")
+        item.status === "encerramento" ||
+        (incluirConcluidas && item.status === "concluida"))
   );
 
   if (filtroProgramacaoSubestacao) {
@@ -6824,14 +6827,21 @@ function renderProgramacao() {
   }
 
   const filtroSubestacao = filtroProgramacaoSubestacao ? filtroProgramacaoSubestacao.value : "";
-  const filtroStatus = filtroProgramacaoStatus ? filtroProgramacaoStatus.value : "";
   const filtroPeriodo = filtroProgramacaoPeriodo ? filtroProgramacaoPeriodo.value : "";
 
   const filtrados = existentes.filter((item) => {
     if (filtroSubestacao && item.local !== filtroSubestacao) {
       return false;
     }
-    const info = getDateInfo(item, hoje);
+    const info = item.status === "concluida"
+      ? (() => {
+          const dataConclusao = getItemConclusaoDate(item) || parseDate(item.data);
+          if (!dataConclusao) {
+            return null;
+          }
+          return { data: startOfDay(dataConclusao), diff: diffInDays(hoje, startOfDay(dataConclusao)) };
+        })()
+      : getDateInfo(item, hoje);
     const diff = info ? info.diff : null;
 
     if (filtroStatus === "backlog") {
@@ -6853,6 +6863,10 @@ function renderProgramacao() {
       }
     } else if (filtroStatus === "encerramento") {
       if (item.status !== "encerramento") {
+        return false;
+      }
+    } else if (filtroStatus === "concluida") {
+      if (item.status !== "concluida") {
         return false;
       }
     } else if (filtroStatus === "hoje") {
@@ -6953,6 +6967,7 @@ function renderProgramacao() {
     listaAgendadas.append(
       criarCardManutencao(item, permissoes, {
         allowedActions: [
+          "edit",
           "release",
           "execute",
           "cancel_start",
