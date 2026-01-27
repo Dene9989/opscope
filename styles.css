@@ -2904,6 +2904,24 @@ body.is-visitor .container.auth-only {
   background: rgba(192, 84, 47, 0.12);
 }
 
+.edit-banner {
+  margin: 10px 0 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.edit-banner strong {
+  display: block;
+  color: #f2f6fb;
+  font-size: 0.95rem;
+}
+
 .history-summary {
   padding: 10px 12px;
   border-radius: 12px;

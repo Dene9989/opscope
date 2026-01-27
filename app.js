@@ -1,4 +1,7 @@
 const btnAdicionarManutencao = document.getElementById("btnAdicionarManutencao");
+const btnCancelarEdicaoManutencao = document.getElementById("btnCancelarEdicaoManutencao");
+const manutencaoEditBanner = document.getElementById("manutencaoEditBanner");
+const manutencaoEditInfo = document.getElementById("manutencaoEditInfo");
 const tipoManutencao = document.getElementById("tipoManutencao");
 const customTipoField = document.getElementById("customTipoField");
 const tituloManutencao = document.getElementById("tituloManutencao");
@@ -25,6 +28,7 @@ const novaDocInputs = Array.from(document.querySelectorAll("[data-nova-doc-input
 const novaDocButtons = Array.from(document.querySelectorAll("[data-nova-doc-btn]"));
 const novaDocViews = Array.from(document.querySelectorAll("[data-nova-doc-view]"));
 const novaDocNames = Array.from(document.querySelectorAll("[data-nova-doc-name]"));
+let novaDocExisting = {};
 const mensagemManutencao = document.getElementById("mensagemManutencao");
 const listaLembretes = document.getElementById("listaLembretes");
 const lembretesVazio = document.getElementById("lembretesVazio");
@@ -18271,8 +18275,9 @@ function renderAuthUI() {
 
   if (btnAdicionarManutencao) {
     const podeCriar = can("create") && secConfig.nova !== false;
-    btnAdicionarManutencao.disabled = !podeCriar;
-    btnAdicionarManutencao.classList.toggle("is-disabled", !podeCriar);
+    const podeSalvar = manutencaoEmEdicao ? can("edit") : podeCriar;
+    btnAdicionarManutencao.disabled = !podeSalvar;
+    btnAdicionarManutencao.classList.toggle("is-disabled", !podeSalvar);
   }
 
   if (btnGerarRelatorio) {
@@ -18835,6 +18840,13 @@ function atualizarSeNecessario() {
 }
 
 async function adicionarManutencao() {
+  if (manutencaoEmEdicao) {
+    if (!requirePermission("edit")) {
+      return;
+    }
+    await salvarEdicaoManutencao();
+    return;
+  }
   if (!requirePermission("create")) {
     return;
   }
@@ -19019,7 +19031,63 @@ async function adicionarManutencao() {
     resumo: "Execução iniciada.",
   });
   renderTudo();
+  limparFormularioManutencao();
 
+  const criada = manutencoes.find((item) => item.id === nova.id);
+  if (criada) {
+    abrirRegistroExecucao(criada);
+  }
+  mostrarMensagemManutencao("Execução iniciada.");
+}
+
+let manutencaoEmConclusao = null;
+let manutencaoEmRegistro = null;
+let manutencaoEmEdicao = null;
+
+function setEditModeManutencao(item) {
+  const ativo = Boolean(item);
+  manutencaoEmEdicao = ativo ? item.id : null;
+  if (manutencaoEditBanner) {
+    manutencaoEditBanner.hidden = !ativo;
+  }
+  if (manutencaoEditInfo) {
+    if (!ativo) {
+      manutencaoEditInfo.textContent = "-";
+    } else {
+      const projeto = getProjectById(item.projectId);
+      const projetoLabel = projeto
+        ? `${projeto.codigo || "-"} - ${projeto.nome || "-"}`
+        : "Projeto";
+      const dataParsed = item.data ? parseDate(item.data) : null;
+      const dataValor = dataParsed ? formatDate(dataParsed) : "-";
+      manutencaoEditInfo.textContent = `${projetoLabel} · ${item.titulo || "-"} · ${
+        item.local || "-"
+      } · ${dataValor}`;
+    }
+  }
+  if (btnAdicionarManutencao) {
+    btnAdicionarManutencao.textContent = ativo ? "Salvar edição" : "Iniciar execução";
+    const podeCriar = can("create") && secConfig.nova !== false;
+    const podeSalvar = ativo ? can("edit") : podeCriar;
+    btnAdicionarManutencao.disabled = !podeSalvar;
+    btnAdicionarManutencao.classList.toggle("is-disabled", !podeSalvar);
+  }
+  if (manutencaoProjeto) {
+    if (ativo) {
+      manutencaoProjeto.disabled = true;
+      if (item.projectId) {
+        manutencaoProjeto.value = item.projectId;
+      }
+    } else {
+      manutencaoProjeto.disabled = false;
+      if (activeProjectId) {
+        manutencaoProjeto.value = activeProjectId;
+      }
+    }
+  }
+}
+
+function limparFormularioManutencao() {
   if (tituloManutencao) {
     tituloManutencao.value = "";
   }
@@ -19069,6 +19137,7 @@ async function adicionarManutencao() {
       input.value = "";
     }
   });
+  novaDocExisting = {};
   atualizarNovaDocsUI();
   atualizarNovaCriticoUI();
   setFieldError(participantesManutencaoErro, "");
@@ -19077,16 +19146,323 @@ async function adicionarManutencao() {
   } else if (tipoManutencao) {
     tipoManutencao.focus();
   }
-
-  const criada = manutencoes.find((item) => item.id === nova.id);
-  if (criada) {
-    abrirRegistroExecucao(criada);
-  }
-  mostrarMensagemManutencao("Execução iniciada.");
 }
 
-let manutencaoEmConclusao = null;
-let manutencaoEmRegistro = null;
+function limparEdicaoManutencao() {
+  setEditModeManutencao(null);
+  limparFormularioManutencao();
+}
+
+function preencherFormularioManutencao(item) {
+  if (!item) {
+    return;
+  }
+  renderTipoOptions();
+  renderSubestacoes();
+  renderEquipamentoOptions();
+
+  if (manutencaoProjeto && item.projectId) {
+    manutencaoProjeto.value = item.projectId;
+  }
+
+  const template = item.templateId ? getTemplateById(item.templateId) : null;
+  if (tipoManutencao) {
+    tipoManutencao.value = template ? template.id : CUSTOM_TIPO_OPTION;
+    atualizarTipoSelecionado();
+  }
+  if (tituloManutencao) {
+    tituloManutencao.value = template ? "" : item.titulo || "";
+  }
+
+  if (subestacaoManutencao) {
+    const local = item.local || "";
+    if (local) {
+      const existe = Array.from(subestacaoManutencao.options || []).some(
+        (opt) => opt.value === local
+      );
+      if (!existe) {
+        const option = document.createElement("option");
+        option.value = local;
+        option.textContent = local;
+        subestacaoManutencao.append(option);
+      }
+    }
+    subestacaoManutencao.value = local;
+  }
+
+  if (equipamentoManutencao) {
+    const equipamentoId = item.equipamentoId || "";
+    if (equipamentoId) {
+      const existe = Array.from(equipamentoManutencao.options || []).some(
+        (opt) => opt.value === equipamentoId
+      );
+      if (!existe) {
+        const equipamento = projectEquipamentos.find((equip) => equip.id === equipamentoId);
+        const option = document.createElement("option");
+        option.value = equipamentoId;
+        option.textContent = equipamento
+          ? `${equipamento.tag || "-"} - ${equipamento.nome || "-"}`
+          : "Equipamento removido";
+        equipamentoManutencao.append(option);
+      }
+    }
+    equipamentoManutencao.value = equipamentoId;
+  }
+
+  const dataValor = item.data || formatDateISO(new Date());
+  if (futuraManutencao) {
+    const hoje = formatDateISO(new Date());
+    futuraManutencao.checked = Boolean(dataValor && dataValor !== hoje);
+  }
+  atualizarDataManutencaoState();
+  if (dataManutencao) {
+    dataManutencao.value = dataValor;
+  }
+
+  const liberacao = getLiberacao(item) || {};
+  const osNumero = item.osReferencia || liberacao.osNumero || "";
+  if (osReferenciaManutencao) {
+    osReferenciaManutencao.value = osNumero;
+  }
+  if (categoriaManutencao) {
+    categoriaManutencao.value = item.categoria || "";
+  }
+  if (prioridadeManutencao) {
+    prioridadeManutencao.value = item.prioridade || "";
+  }
+
+  const participantesBase =
+    Array.isArray(item.participantes) && item.participantes.length
+      ? item.participantes
+      : Array.isArray(liberacao.participantes)
+        ? liberacao.participantes
+        : [];
+  if (participantesManutencao) {
+    const label = participantesBase.length ? getParticipantesLabel(participantesBase) : "";
+    participantesManutencao.value =
+      label && label !== "-" ? label.replace(/,\s*/g, "; ") : "";
+  }
+  setFieldError(participantesManutencaoErro, "");
+
+  const critico =
+    isCriticoValor(item.criticidade) || isCriticoValor(liberacao.critico);
+  if (criticoManutencao) {
+    criticoManutencao.value = critico ? "sim" : "nao";
+  }
+  atualizarNovaCriticoUI();
+
+  if (obsManutencaoEditor) {
+    setObsEditorContent({
+      html: item.observacaoHtml || "",
+      text: item.observacao || "",
+    });
+  } else if (obsManutencao) {
+    obsManutencao.value = item.observacao || "";
+  }
+
+  novaDocInputs.forEach((input) => {
+    if (input) {
+      input.value = "";
+    }
+  });
+  novaDocExisting = {
+    ...(item.documentos || {}),
+    ...((liberacao && liberacao.documentos) || {}),
+  };
+  atualizarNovaDocsUI();
+}
+
+async function abrirEdicaoManutencao(item) {
+  if (!item) {
+    return;
+  }
+  if (item.status === "concluida" && !canEditConcludedMaintenance(currentUser)) {
+    mostrarMensagemManutencao("Apenas PCM pode editar manutenções concluídas.", true);
+    return;
+  }
+  if (item.projectId && item.projectId !== activeProjectId) {
+    await setActiveProjectId(item.projectId);
+  }
+  const atualizado = manutencoes.find((registro) => registro.id === item.id) || item;
+  ativarTab("nova");
+  setEditModeManutencao(atualizado);
+  limparFormularioManutencao();
+  preencherFormularioManutencao(atualizado);
+  if (manutencaoEditBanner && manutencaoEditBanner.scrollIntoView) {
+    manutencaoEditBanner.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+}
+
+async function salvarEdicaoManutencao() {
+  if (!manutencaoEmEdicao) {
+    return;
+  }
+  if (!requirePermission("edit")) {
+    return;
+  }
+  const index = manutencoes.findIndex((item) => item.id === manutencaoEmEdicao);
+  if (index < 0) {
+    mostrarMensagemManutencao("Manutenção não encontrada.", true);
+    return;
+  }
+  const item = manutencoes[index];
+  if (item.status === "concluida" && !canEditConcludedMaintenance(currentUser)) {
+    mostrarMensagemManutencao("Apenas PCM pode editar manutenções concluídas.", true);
+    return;
+  }
+
+  if (obsManutencaoEditor) {
+    syncObsEditor(true);
+  }
+
+  const tipoSelecionado = tipoManutencao ? tipoManutencao.value : "";
+  let titulo = "";
+  let templateId = null;
+
+  if (tipoSelecionado && tipoSelecionado !== CUSTOM_TIPO_OPTION) {
+    const template = getTemplateById(tipoSelecionado);
+    if (template) {
+      titulo = template.nome;
+      templateId = template.id;
+    } else {
+      titulo = tipoSelecionado.trim();
+    }
+  } else {
+    titulo = tituloManutencao ? tituloManutencao.value.trim() : "";
+  }
+
+  const local =
+    (subestacaoManutencao ? subestacaoManutencao.value.trim() : "") ||
+    getSubestacoesBase()[0] ||
+    "";
+  const equipamentoId = equipamentoManutencao ? equipamentoManutencao.value.trim() : "";
+  const data = dataManutencao
+    ? dataManutencao.value || formatDateISO(new Date())
+    : "";
+  if (dataManutencao && !dataManutencao.value) {
+    dataManutencao.value = data;
+  }
+  const observacaoHtmlRaw = obsManutencaoHtml ? obsManutencaoHtml.value.trim() : "";
+  const observacaoHtml = observacaoHtmlRaw ? sanitizeRichText(observacaoHtmlRaw) : "";
+  const observacao = observacaoHtml
+    ? stripHtml(observacaoHtml).trim()
+    : obsManutencao
+      ? obsManutencao.value.trim()
+      : "";
+  const categoria = categoriaManutencao ? categoriaManutencao.value.trim() : "";
+  const prioridade = prioridadeManutencao ? prioridadeManutencao.value.trim() : "";
+  const osReferencia = osReferenciaManutencao ? osReferenciaManutencao.value.trim() : "";
+  const participantesTexto = participantesManutencao ? participantesManutencao.value : "";
+  const participantes = participantesTexto
+    ? participantesTexto
+        .split(";")
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : [];
+  const criticoValor = criticoManutencao ? criticoManutencao.value : "nao";
+  const critico = criticoValor === "sim";
+
+  if (!titulo || !local || !data || !categoria || !prioridade) {
+    mostrarMensagemManutencao(
+      "Preencha tipo, subestação, início da execução, categoria e prioridade.",
+      true
+    );
+    return;
+  }
+  if (!equipamentoId) {
+    mostrarMensagemManutencao("Informe o equipamento da manutenção.", true);
+    return;
+  }
+  if (!observacao) {
+    mostrarMensagemManutencao("Descreva a demanda técnica.", true);
+    return;
+  }
+  if (!osReferencia) {
+    mostrarMensagemManutencao("Informe a OS / referência.", true);
+    return;
+  }
+  setFieldError(participantesManutencaoErro, "");
+  if (participantes.length < 2) {
+    setFieldError(participantesManutencaoErro, "Informe ao menos 2 participantes.");
+    mostrarMensagemManutencao("Informe ao menos 2 participantes.", true);
+    return;
+  }
+
+  const liberacaoAtual = getLiberacao(item) || {};
+  const documentosAtualizados = {
+    ...(item.documentos || {}),
+    ...((liberacaoAtual && liberacaoAtual.documentos) || {}),
+  };
+
+  for (const chave of DOC_KEYS) {
+    const input = novaDocInputs.find((itemInput) => itemInput.dataset.novaDocInput === chave);
+    const file = input && input.files && input.files[0] ? input.files[0] : null;
+    if (file) {
+      try {
+        documentosAtualizados[chave] = await uploadLiberacaoDoc(file, chave);
+      } catch (error) {
+        mostrarMensagemManutencao(
+          error && error.message ? error.message : "Não foi possível enviar o documento.",
+          true
+        );
+        return;
+      }
+    }
+  }
+
+  const exigirDocs = item.status !== "agendada" && item.status !== "backlog";
+  if (exigirDocs) {
+    if (!documentosAtualizados.apr || !documentosAtualizados.os || !documentosAtualizados.pte) {
+      mostrarMensagemManutencao("Anexe APR, OS e PTE para manter a execução.", true);
+      return;
+    }
+    if (critico && !documentosAtualizados.pt) {
+      mostrarMensagemManutencao("PT obrigatória para trabalho crítico.", true);
+      return;
+    }
+  }
+
+  const liberacaoAtualizada = {
+    ...liberacaoAtual,
+    osNumero: osReferencia,
+    participantes,
+    critico,
+    documentos: documentosAtualizados,
+  };
+
+  const manterLiberacao =
+    (liberacaoAtual && Object.keys(liberacaoAtual).length > 0) ||
+    (item.status !== "agendada" && item.status !== "backlog");
+
+  const atualizado = {
+    ...item,
+    titulo,
+    local,
+    data,
+    equipamentoId,
+    observacao,
+    observacaoHtml,
+    templateId,
+    categoria,
+    prioridade,
+    osReferencia,
+    participantes,
+    criticidade: critico ? "sim" : "nao",
+    documentos: documentosAtualizados,
+    liberacao: manterLiberacao ? liberacaoAtualizada : item.liberacao,
+    updatedAt: toIsoUtc(new Date()),
+    updatedBy: currentUser.id,
+  };
+
+  manutencoes[index] = atualizado;
+  const resultado = normalizarManutencoes(manutencoes);
+  manutencoes = resultado.normalizadas;
+  salvarManutencoes(manutencoes);
+  logAction("edit", atualizado, { resumo: "Edição via painel" });
+  renderTudo();
+  limparEdicaoManutencao();
+  mostrarMensagemManutencao("Manutenção atualizada.");
+}
 
 function normalizeUserLookup(value) {
   return normalizeSearchValue(value)
@@ -19197,59 +19573,19 @@ function parseDateTimeInputFlexible(valor) {
   return parseDateTimeInput(ajustado);
 }
 
-function editarManutencao(index) {
+async function editarManutencao(index) {
   if (!requirePermission("edit")) {
     return;
   }
   const item = manutencoes[index];
-  if (item && item.status === "concluida") {
-    if (!canEditConcludedMaintenance(currentUser)) {
-      mostrarMensagemManutencao("Apenas PCM pode editar manutenções concluídas.", true);
-      return;
-    }
-    editarManutencaoConcluida(index);
+  if (!item) {
     return;
   }
-  const novoTitulo = window.prompt("Novo título:", item.titulo);
-  if (novoTitulo === null) {
+  if (item.status === "concluida" && !canEditConcludedMaintenance(currentUser)) {
+    mostrarMensagemManutencao("Apenas PCM pode editar manutenções concluídas.", true);
     return;
   }
-  const tituloLimpo = novoTitulo.trim();
-  if (!tituloLimpo) {
-    mostrarMensagemManutencao("Título inválido.", true);
-    return;
-  }
-  const novoLocal = window.prompt("Novo local:", item.local);
-  if (novoLocal === null) {
-    return;
-  }
-  const localLimpo = novoLocal.trim();
-  if (!localLimpo) {
-    mostrarMensagemManutencao("Local inválido.", true);
-    return;
-  }
-  const novaObs = window.prompt("Observações:", item.observacao || "");
-  if (novaObs === null) {
-    return;
-  }
-
-  const atualizado = {
-    ...item,
-    titulo: tituloLimpo,
-    local: localLimpo,
-    observacao: novaObs.trim(),
-    observacaoHtml: "",
-    updatedAt: toIsoUtc(new Date()),
-    updatedBy: currentUser.id,
-  };
-
-  manutencoes[index] = atualizado;
-  const resultado = normalizarManutencoes(manutencoes);
-  manutencoes = resultado.normalizadas;
-  salvarManutencoes(manutencoes);
-  logAction("edit", atualizado, { resumo: "Edição manual" });
-  renderTudo();
-  mostrarMensagemManutencao("Manutenção atualizada.");
+  await abrirEdicaoManutencao(item);
 }
 
 function editarManutencaoConcluida(index) {
@@ -20317,11 +20653,18 @@ function atualizarNovaDocsUI() {
     const viewBtn = novaDocViews.find((item) => item.dataset.novaDocView === chave);
     const input = novaDocInputs.find((item) => item.dataset.novaDocInput === chave);
     const file = input && input.files && input.files[0] ? input.files[0] : null;
+    const existing = novaDocExisting && novaDocExisting[chave] ? novaDocExisting[chave] : null;
     if (nomeEl) {
-      nomeEl.textContent = file ? file.name : "Nenhum arquivo";
+      if (file) {
+        nomeEl.textContent = file.name;
+      } else if (existing) {
+        nomeEl.textContent = existing.nome || existing.name || "Arquivo";
+      } else {
+        nomeEl.textContent = "Nenhum arquivo";
+      }
     }
     if (viewBtn) {
-      viewBtn.disabled = !file;
+      viewBtn.disabled = !file && !existing;
     }
   });
 }
@@ -23410,6 +23753,15 @@ if (kpiRanking) {
 if (btnAdicionarManutencao) {
   btnAdicionarManutencao.addEventListener("click", adicionarManutencao);
 }
+if (btnCancelarEdicaoManutencao) {
+  btnCancelarEdicaoManutencao.addEventListener("click", () => {
+    if (!manutencaoEmEdicao) {
+      return;
+    }
+    limparEdicaoManutencao();
+    mostrarMensagemManutencao("Edição cancelada.");
+  });
+}
 if (listaAgendadas) {
   listaAgendadas.addEventListener("click", agirNaManutencao);
 }
@@ -24113,6 +24465,11 @@ if (novaDocViews.length) {
       if (file) {
         const blobUrl = URL.createObjectURL(file);
         abrirPreview(blobUrl, blobUrl);
+        return;
+      }
+      const existente = novaDocExisting && alvo ? novaDocExisting[alvo] : null;
+      if (existente) {
+        abrirDocumento(existente);
       }
     });
   });
