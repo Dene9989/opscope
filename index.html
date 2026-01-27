@@ -2730,12 +2730,6 @@
           </button>
         </div>
       </section>
-      <section class="card">
-        <h2>Relatórios de manutenção</h2>
-        <p class="hint">Cada manutenção concluída gera um relatório auditável.</p>
-        <div id="listaRelatorios" class="report-list"></div>
-        <p id="listaRelatoriosVazia" class="empty-state">Nenhuma manutenção concluída.</p>
-      </section>
     </section>
 
     <section class="panel" id="rastreabilidade" data-panel="rastreabilidade" data-admin-only>
@@ -4035,7 +4029,14 @@
             <input id="conclusaoReferencia" type="text" placeholder="Ex.: OS 123456" required />
           </div>
           <div class="field" data-full>
-            <label for="conclusaoEvidencia1">Evidências (mínimo 4 fotos)</label>
+            <label class="checkbox-field">
+              <input id="conclusaoFotosToggle" type="checkbox" checked />
+              <span>Fotos?</span>
+            </label>
+            <p class="hint">Marque para anexar evidências fotográficas (mínimo 4 de 10).</p>
+          </div>
+          <div class="field" data-full id="conclusaoEvidenciasField">
+            <label for="conclusaoEvidencia1">Evidências (até 10 fotos)</label>
             <div class="evidence-picker">
               <div class="photo-slot">
                 <button class="btn btn--icon btn--ghost btn--camera" type="button" data-evidencia-btn="1" aria-label="Adicionar foto 1">
@@ -4060,7 +4061,7 @@
                     />
                   </svg>
                 </button>
-                <span class="photo-label" data-photo-slot="1">Foto 1*</span>
+                <span class="photo-label" data-photo-slot="1">Foto 1</span>
                 <input id="conclusaoEvidencia1" type="file" accept="image/*" data-evidencia-input="1" hidden />
               </div>
               <div class="photo-slot">
@@ -4086,7 +4087,7 @@
                     />
                   </svg>
                 </button>
-                <span class="photo-label" data-photo-slot="2">Foto 2*</span>
+                <span class="photo-label" data-photo-slot="2">Foto 2</span>
                 <input id="conclusaoEvidencia2" type="file" accept="image/*" data-evidencia-input="2" hidden />
               </div>
               <div class="photo-slot">
@@ -4112,7 +4113,7 @@
                     />
                   </svg>
                 </button>
-                <span class="photo-label" data-photo-slot="3">Foto 3*</span>
+                <span class="photo-label" data-photo-slot="3">Foto 3</span>
                 <input id="conclusaoEvidencia3" type="file" accept="image/*" data-evidencia-input="3" hidden />
               </div>
               <div class="photo-slot">
@@ -4138,8 +4139,164 @@
                     />
                   </svg>
                 </button>
-                <span class="photo-label" data-photo-slot="4">Foto 4*</span>
+                <span class="photo-label" data-photo-slot="4">Foto 4</span>
                 <input id="conclusaoEvidencia4" type="file" accept="image/*" data-evidencia-input="4" hidden />
+              </div>
+              <div class="photo-slot">
+                <button class="btn btn--icon btn--ghost btn--camera" type="button" data-evidencia-btn="5" aria-label="Adicionar foto 5">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="3" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+                    <circle cx="8" cy="8" r="1.5" fill="none" stroke="currentColor" stroke-width="2" />
+                    <path
+                      d="M5.5 14.5l3-3 2.2 2.2 2.5-2.5 2.8 2.8"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <circle cx="18" cy="18" r="3.5" fill="none" stroke="currentColor" stroke-width="2" />
+                    <path
+                      d="M18 16.8v2.4m-1.2-1.2h2.4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </button>
+                <span class="photo-label" data-photo-slot="5">Foto 5</span>
+                <input id="conclusaoEvidencia5" type="file" accept="image/*" data-evidencia-input="5" hidden />
+              </div>
+              <div class="photo-slot">
+                <button class="btn btn--icon btn--ghost btn--camera" type="button" data-evidencia-btn="6" aria-label="Adicionar foto 6">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="3" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+                    <circle cx="8" cy="8" r="1.5" fill="none" stroke="currentColor" stroke-width="2" />
+                    <path
+                      d="M5.5 14.5l3-3 2.2 2.2 2.5-2.5 2.8 2.8"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <circle cx="18" cy="18" r="3.5" fill="none" stroke="currentColor" stroke-width="2" />
+                    <path
+                      d="M18 16.8v2.4m-1.2-1.2h2.4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </button>
+                <span class="photo-label" data-photo-slot="6">Foto 6</span>
+                <input id="conclusaoEvidencia6" type="file" accept="image/*" data-evidencia-input="6" hidden />
+              </div>
+              <div class="photo-slot">
+                <button class="btn btn--icon btn--ghost btn--camera" type="button" data-evidencia-btn="7" aria-label="Adicionar foto 7">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="3" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+                    <circle cx="8" cy="8" r="1.5" fill="none" stroke="currentColor" stroke-width="2" />
+                    <path
+                      d="M5.5 14.5l3-3 2.2 2.2 2.5-2.5 2.8 2.8"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <circle cx="18" cy="18" r="3.5" fill="none" stroke="currentColor" stroke-width="2" />
+                    <path
+                      d="M18 16.8v2.4m-1.2-1.2h2.4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </button>
+                <span class="photo-label" data-photo-slot="7">Foto 7</span>
+                <input id="conclusaoEvidencia7" type="file" accept="image/*" data-evidencia-input="7" hidden />
+              </div>
+              <div class="photo-slot">
+                <button class="btn btn--icon btn--ghost btn--camera" type="button" data-evidencia-btn="8" aria-label="Adicionar foto 8">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="3" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+                    <circle cx="8" cy="8" r="1.5" fill="none" stroke="currentColor" stroke-width="2" />
+                    <path
+                      d="M5.5 14.5l3-3 2.2 2.2 2.5-2.5 2.8 2.8"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <circle cx="18" cy="18" r="3.5" fill="none" stroke="currentColor" stroke-width="2" />
+                    <path
+                      d="M18 16.8v2.4m-1.2-1.2h2.4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </button>
+                <span class="photo-label" data-photo-slot="8">Foto 8</span>
+                <input id="conclusaoEvidencia8" type="file" accept="image/*" data-evidencia-input="8" hidden />
+              </div>
+              <div class="photo-slot">
+                <button class="btn btn--icon btn--ghost btn--camera" type="button" data-evidencia-btn="9" aria-label="Adicionar foto 9">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="3" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+                    <circle cx="8" cy="8" r="1.5" fill="none" stroke="currentColor" stroke-width="2" />
+                    <path
+                      d="M5.5 14.5l3-3 2.2 2.2 2.5-2.5 2.8 2.8"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <circle cx="18" cy="18" r="3.5" fill="none" stroke="currentColor" stroke-width="2" />
+                    <path
+                      d="M18 16.8v2.4m-1.2-1.2h2.4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </button>
+                <span class="photo-label" data-photo-slot="9">Foto 9</span>
+                <input id="conclusaoEvidencia9" type="file" accept="image/*" data-evidencia-input="9" hidden />
+              </div>
+              <div class="photo-slot">
+                <button class="btn btn--icon btn--ghost btn--camera" type="button" data-evidencia-btn="10" aria-label="Adicionar foto 10">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="3" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+                    <circle cx="8" cy="8" r="1.5" fill="none" stroke="currentColor" stroke-width="2" />
+                    <path
+                      d="M5.5 14.5l3-3 2.2 2.2 2.5-2.5 2.8 2.8"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <circle cx="18" cy="18" r="3.5" fill="none" stroke="currentColor" stroke-width="2" />
+                    <path
+                      d="M18 16.8v2.4m-1.2-1.2h2.4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </button>
+                <span class="photo-label" data-photo-slot="10">Foto 10</span>
+                <input id="conclusaoEvidencia10" type="file" accept="image/*" data-evidencia-input="10" hidden />
               </div>
             </div>
             <div id="conclusaoEvidenciasLista" class="file-list"></div>
@@ -4149,7 +4306,7 @@
           <button class="btn btn--primary" type="submit">Concluir manutenção</button>
           <button id="btnCancelarConclusao" class="btn btn--ghost" type="button">Cancelar</button>
         </div>
-        <p class="hint">Preencha OS, horário de fim e evidências para encerrar.</p>
+        <p class="hint">Preencha OS, horário de fim e, se marcar “Fotos?”, anexe no mínimo 4 evidências.</p>
         <p id="mensagemConclusao" class="mensagem" aria-live="polite"></p>
       </form>
     </div>

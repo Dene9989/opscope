@@ -647,6 +647,8 @@ const conclusaoObsExecucao = document.getElementById("conclusaoObsExecucao");
 const conclusaoParticipantes = document.getElementById("conclusaoParticipantes");
 const conclusaoDocs = document.getElementById("conclusaoDocs");
 const conclusaoReferencia = document.getElementById("conclusaoReferencia");
+const conclusaoFotosToggle = document.getElementById("conclusaoFotosToggle");
+const conclusaoEvidenciasField = document.getElementById("conclusaoEvidenciasField");
 const conclusaoEvidenciasLista = document.getElementById("conclusaoEvidenciasLista");
 const evidenciaInputs = Array.from(document.querySelectorAll("[data-evidencia-input]"));
 const evidenciaButtons = Array.from(document.querySelectorAll("[data-evidencia-btn]"));
@@ -698,6 +700,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_REAGENDAMENTOS = 3;
 const OUTROS_ALERT_THRESHOLD = 3;
 const MIN_EVIDENCIAS = 4;
+const ALMOCO_MIN = 60;
 const MAX_EXECUCAO_HORAS = 12;
 const DOC_KEYS = ["apr", "os", "pte", "pt"];
 const DOC_LABELS = {
@@ -1092,6 +1095,20 @@ function canDeleteMaintenance(user) {
     return false;
   }
   if (isMasterUser(user)) {
+    return true;
+  }
+  const rbacRole = String(user.rbacRole || "").trim().toLowerCase();
+  return rbacRole === "pcm";
+}
+
+function canEditConcludedMaintenance(user) {
+  if (!user) {
+    return false;
+  }
+  if (isMasterUser(user)) {
+    return true;
+  }
+  if (user.role === "admin") {
     return true;
   }
   const rbacRole = String(user.rbacRole || "").trim().toLowerCase();
@@ -4519,6 +4536,65 @@ function getUserById(id) {
   return users.find((user) => user.id === id);
 }
 
+function isAdminUser(user) {
+  if (!user) {
+    return false;
+  }
+  const role = String(user.role || user.rbacRole || "").toLowerCase();
+  const cargo = String(user.cargo || "").toLowerCase();
+  const username = String(user.username || "").toLowerCase();
+  const matricula = String(user.matricula || "").toLowerCase();
+  const nome = String(user.name || "").toLowerCase();
+  return (
+    role === "admin" ||
+    role === "administrador" ||
+    username === "admin" ||
+    matricula === "admin" ||
+    cargo.includes("admin") ||
+    cargo.includes("administrador") ||
+    nome.includes("administrador")
+  );
+}
+
+function isSystemUserId(id) {
+  return String(id || "") === SYSTEM_USER_ID;
+}
+
+function isTeamUserId(id) {
+  return typeof id === "string" && (id.startsWith("team:") || id.startsWith("time:"));
+}
+
+function isRealUser(user) {
+  if (!user || !user.id) {
+    return false;
+  }
+  if (isSystemUserId(user.id)) {
+    return false;
+  }
+  return !isAdminUser(user);
+}
+
+function isRealUserId(id) {
+  if (!id) {
+    return false;
+  }
+  if (isTeamUserId(id)) {
+    return true;
+  }
+  if (isSystemUserId(id)) {
+    return false;
+  }
+  const user = getUserById(id);
+  if (!user) {
+    return true;
+  }
+  return !isAdminUser(user);
+}
+
+function getOperationalUsers() {
+  return users.filter(isRealUser);
+}
+
 function getUserLabel(id) {
   if (!id) {
     return "Desconhecido";
@@ -5545,8 +5621,27 @@ function getParticipantesLabel(participantes) {
     return "-";
   }
   return participantes
-    .map((id) => (getUserById(id) ? getUserLabel(id) : id))
-    .filter(Boolean)
+    .map((id) => {
+      if (isTeamUserId(id)) {
+        return getUserLabel(id);
+      }
+      if (isRealUserId(id)) {
+        return getUserLabel(id);
+      }
+      const user = getUserById(id);
+      if (user && isRealUser(user)) {
+        return getUserLabel(user.id);
+      }
+      return typeof id === "string" ? id : "";
+    })
+    .map((label) => String(label || "").trim())
+    .filter((label) => {
+      if (!label) {
+        return false;
+      }
+      const normalizado = normalizeSearchValue(label).replace(/\(.*?\)/g, " ");
+      return !normalizado.includes("sistema") && !normalizado.includes("admin");
+    })
     .join(", ");
 }
 
@@ -6574,7 +6669,10 @@ function criarCardManutencao(item, permissoes, options = {}) {
 
   const liberacaoOk = isLiberacaoOk(item);
   const podeEditar =
-    item.status === "agendada" || item.status === "backlog" || item.status === "liberada";
+    item.status === "agendada" ||
+    item.status === "backlog" ||
+    item.status === "liberada" ||
+    (item.status === "concluida" && canEditConcludedMaintenance(currentUser));
   if (permite("edit") && podeEditar) {
     actions.append(criarBotaoAcao("Editar", "edit"));
   }
@@ -10124,22 +10222,32 @@ function renderRdoJornadas(manual = {}) {
   const dataBase = dataStr ? parseDate(dataStr) : null;
   const schedule = getRdoScheduleFromDate(dataBase || new Date());
   const jornadas = Array.isArray(manual.jornadas) ? manual.jornadas : [];
+  const jornadasValidas = jornadas.filter((item) => {
+    const nome = String(item && (item.nome || item.label || "")).toLowerCase();
+    if (!nome) {
+      return isRealUserId(item && item.userId ? item.userId : "");
+    }
+    if (nome.includes("administrador") || nome.includes("sistema")) {
+      return false;
+    }
+    return true;
+  });
   const jornadasMap = new Map(
-    jornadas.map((item) => [String(item.userId || item.nome || item.label || ""), item])
+    jornadasValidas.map((item) => [String(item.userId || item.nome || item.label || ""), item])
   );
-  const colaboradores = users
+  const colaboradores = getOperationalUsers()
     .filter((user) => user && (user.name || user.username))
     .filter(isUserFromActiveProject)
     .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 
-  if (!colaboradores.length && !jornadas.length) {
+  if (!colaboradores.length && !jornadasValidas.length) {
     const label = getActiveProjectShortLabel();
     rdoUI.jornadaList.innerHTML = `<p class="empty-state">Nenhum colaborador do ${escapeHtml(label)} cadastrado.</p>`;
     return;
   }
 
-  if (!colaboradores.length && jornadas.length) {
-    rdoUI.jornadaList.innerHTML = jornadas
+  if (!colaboradores.length && jornadasValidas.length) {
+    rdoUI.jornadaList.innerHTML = jornadasValidas
       .map((item) => {
         const label = item.nome || item.label || "Colaborador";
         return `
@@ -10324,8 +10432,8 @@ function atualizarFiltrosRdo(baseItems) {
     const atual = rdoUI.usuario.value;
     const usuariosBase = baseItems
       .map((item) => getExecutadoPorId(item))
-      .filter(Boolean)
-      .concat(users.map((user) => user.id));
+      .filter((id) => isRealUserId(id))
+      .concat(getOperationalUsers().map((user) => user.id));
     const usuarios = Array.from(new Set(usuariosBase)).sort((a, b) =>
       getUserLabel(a).localeCompare(getUserLabel(b), "pt-BR")
     );
@@ -10420,7 +10528,10 @@ function getResultadoLabelRdo(item) {
 
 function getResponsavelRdo(item) {
   const id = getExecutadoPorId(item) || item.doneBy || item.createdBy || "";
-  return id ? getUserLabel(id) : "";
+  if (!id || !isRealUserId(id)) {
+    return "";
+  }
+  return getUserLabel(id);
 }
 
 function getDocsStatusRdo(item) {
@@ -11194,13 +11305,16 @@ function buildRdoHtml(snapshot, options = {}) {
   const jornadasRows = jornadas.map((item) => {
     const entrada = item.entrada || "";
     const saida = item.saida || "";
-    const duracaoMin = calcDurationMinutes(entrada, saida);
+    const duracaoBrutaMin = calcDurationMinutes(entrada, saida);
     const entradaMin = parseTimeToMinutes(entrada);
     const saidaMin = parseTimeToMinutes(saida);
-    const expedienteMin =
+    const expedienteBrutoMin =
       entradaMin === null || saidaMin === null || saidaMin < entradaMin
         ? 0
         : calcOverlapMinutes(entradaMin, saidaMin, schedule.inicio, schedule.fim);
+    const almocoMin = duracaoBrutaMin > 0 ? ALMOCO_MIN : 0;
+    const duracaoMin = Math.max(0, duracaoBrutaMin - almocoMin);
+    const expedienteMin = Math.max(0, expedienteBrutoMin - almocoMin);
     const extraMin = Math.max(0, duracaoMin - expedienteMin);
     return {
       nome: item.nome || item.label || item.userLabel || "Colaborador",
@@ -11209,6 +11323,7 @@ function buildRdoHtml(snapshot, options = {}) {
       duracaoMin,
       expedienteMin,
       extraMin,
+      almocoMin,
     };
   });
   const totalJornadaMin = jornadasRows.reduce((acc, row) => acc + (row.duracaoMin || 0), 0);
@@ -11224,7 +11339,7 @@ function buildRdoHtml(snapshot, options = {}) {
       : 0;
   const descricaoConsolidada = gerarDescricaoConsolidadaRdo(snapshot.itens || [], snapshot.metricas);
   const rdoNumero = snapshot.id ? snapshot.id.slice(0, 6).toUpperCase() : "-";
-  const resumoItens = [
+  const resumoItensBase = [
     { label: "Atividades", value: snapshot.metricas.total },
     { label: "Concluídas", value: snapshot.metricas.concluidas },
     { label: "Em execução", value: snapshot.metricas.emExecucao },
@@ -11233,28 +11348,48 @@ function buildRdoHtml(snapshot, options = {}) {
     { label: "Docs", value: docsPercent, meta: docsMeta },
     { label: "Tempo total", value: tempoTotal },
   ];
-  const resumoOperacional = resumoItens
-    .map((item) => {
-      return `
-        <div class="rdo-summary-item">
-          <span>${escapeHtml(item.label)}</span>
-          <strong>${escapeHtml(item.value)}</strong>
-          ${item.meta ? `<small>${escapeHtml(item.meta)}</small>` : ""}
-        </div>
-      `;
-    })
-    .join("");
+  const resumoItens = resumoItensBase.filter((item) => {
+    const value = item.value;
+    if (value === null || value === undefined) {
+      return false;
+    }
+    if (typeof value === "number") {
+      return value > 0;
+    }
+    const text = String(value || "").trim();
+    if (!text || text === "-" || text === "0" || text === "0%") {
+      return false;
+    }
+    return true;
+  });
+  const resumoOperacionalHtml = resumoItens.length
+    ? `
+      <div class="rdo-summary-grid">
+        ${resumoItens
+          .map(
+            (item) => `
+          <div class="rdo-summary-item">
+            <span>${escapeHtml(item.label)}</span>
+            <strong>${escapeHtml(item.value)}</strong>
+            ${item.meta ? `<small>${escapeHtml(item.meta)}</small>` : ""}
+          </div>
+        `
+          )
+          .join("")}
+      </div>
+    `
+    : `<p class="empty-state">Sem indicadores relevantes no período.</p>`;
   const jornadaRowsHtml = jornadasRows.length
     ? `
-      <table class="rdo-table rdo-table--compact">
+      <table class="rdo-table rdo-table--compact rdo-table--center">
         <thead>
           <tr>
             <th>Colaborador</th>
             <th>Entrada</th>
             <th>Saída</th>
-            <th>Horas</th>
-            <th>Expediente</th>
-            <th>Extra calc</th>
+            <th>Horas líquidas</th>
+            <th>Expediente líquido</th>
+            <th>Extra calc.</th>
           </tr>
         </thead>
         <tbody>
@@ -11287,14 +11422,14 @@ function buildRdoHtml(snapshot, options = {}) {
   const jornadaResumoHtml = `
     <div class="rdo-summary-grid rdo-summary-grid--cards rdo-summary-grid--tight">
       <div class="rdo-summary-item">
-        <span>Jornada total</span>
+        <span>Jornada líquida</span>
         <strong>${totalJornadaMin ? formatDuracaoMin(totalJornadaMin) : "-"}</strong>
-        <small>${jornadasRows.length} colaboradores</small>
+        <small>${jornadasRows.length} colaboradores • -1h almoço</small>
       </div>
       <div class="rdo-summary-item">
-        <span>Expediente</span>
+        <span>Expediente líquido</span>
         <strong>${totalExpedienteMin ? formatDuracaoMin(totalExpedienteMin) : "-"}</strong>
-        <small>Base ${schedule.label}</small>
+        <small>Base ${schedule.label} • -1h almoço</small>
       </div>
       <div class="rdo-summary-item">
         <span>Extra calculada</span>
@@ -11345,32 +11480,85 @@ function buildRdoHtml(snapshot, options = {}) {
       const inicio = inicioDate ? formatDateTime(inicioDate) : "-";
       const fim = fimDate ? formatDateTime(fimDate) : "-";
       const duracao = Number.isFinite(item.duracaoMin) ? formatDuracaoMin(item.duracaoMin) : "-";
-      const minis = [
-        `Início: ${inicio}`,
-        `Fim: ${fim}`,
-        `Duração: ${duracao}`,
-        item.responsavel ? `Responsável: ${item.responsavel}` : "Responsável: -",
-        item.participantes && item.participantes !== "-"
-          ? `Participantes: ${item.participantes}`
-          : "Participantes: -",
-        `Evidências: ${item.evidenciasCount}`,
-      ];
+      const descricaoTecnica = item.descricao
+        ? item.descricao
+        : "Sem descrição técnica registrada.";
+      const acaoExecutada = item.observacaoExecucao
+        ? item.observacaoExecucao
+        : "Sem ação detalhada registrada.";
+      const janelaExecucao = formatJanelaExecucaoRdo(item.inicio, item.fim);
+      const participantes =
+        item.participantes && item.participantes !== "-" ? item.participantes : "-";
+      const resultadoLabel = item.resultadoLabel || "-";
+      const statusFinal = item.statusLabel || "-";
+      const criticidade = item.critico ? "Crítica" : "Não crítica";
+      const evidenciasLabel = item.evidenciasCount ? `${item.evidenciasCount} foto(s)` : "0";
       return `
         <article class="rdo-item">
           <div class="rdo-item__head">
             <strong>${escapeHtml(item.titulo)}</strong>
             <span class="rdo-item__status">${escapeHtml(item.statusLabel)}</span>
           </div>
-          <p>${escapeHtml(item.texto || "")}</p>
-          <div class="rdo-mini">
-            ${minis.map((val) => `<span>${escapeHtml(val)}</span>`).join("")}
+          <div class="rdo-item__body">
+            <div class="rdo-item__section">
+              <h4>Contexto</h4>
+              <p>
+                Subestação: ${escapeHtml(item.subestacao || "-")} • Categoria: ${escapeHtml(
+                  item.categoria || "-"
+                )} • Prioridade: ${escapeHtml(item.prioridade || "-")}
+              </p>
+            </div>
+            <div class="rdo-item__section">
+              <h4>Descrição técnica</h4>
+              <p>${escapeHtml(descricaoTecnica)}</p>
+            </div>
+            <div class="rdo-item__section">
+              <h4>Ação executada</h4>
+              <p>${escapeHtml(acaoExecutada)}</p>
+            </div>
+            <div class="rdo-item__section">
+              <h4>Janela de execução</h4>
+              <p>${escapeHtml(janelaExecucao)}</p>
+            </div>
+            <div class="rdo-item__grid">
+              <div>
+                <span>Responsável</span>
+                <strong>${escapeHtml(item.responsavel || "-")}</strong>
+              </div>
+              <div>
+                <span>Participantes</span>
+                <strong>${escapeHtml(participantes)}</strong>
+              </div>
+              <div>
+                <span>Duração</span>
+                <strong>${escapeHtml(duracao)}</strong>
+              </div>
+              <div>
+                <span>Resultado</span>
+                <strong>${escapeHtml(resultadoLabel)}</strong>
+              </div>
+              <div>
+                <span>Status final</span>
+                <strong>${escapeHtml(statusFinal)}</strong>
+              </div>
+              <div>
+                <span>Criticidade</span>
+                <strong>${escapeHtml(criticidade)}</strong>
+              </div>
+              <div>
+                <span>Evidências</span>
+                <strong>${escapeHtml(evidenciasLabel)}</strong>
+              </div>
+            </div>
           </div>
-          <div class="rdo-docs">
-            ${buildDocsChipsHtml(item.docsStatus)}
+          <div class="rdo-item__footer">
+            <div class="rdo-docs">
+              ${buildDocsChipsHtml(item.docsStatus)}
+            </div>
+            <p class="rdo-docs-note">Documentação registrada no sistema: ${escapeHtml(
+              item.docsResumo || "Sem registro"
+            )}</p>
           </div>
-          <p class="rdo-docs-note">Documentação registrada no sistema: ${escapeHtml(
-            item.docsResumo || "Sem registro"
-          )}</p>
         </article>
       `;
     })
@@ -11458,9 +11646,7 @@ function buildRdoHtml(snapshot, options = {}) {
       <section class="rdo-section rdo-summary">
         <h3>Resumo Executivo</h3>
         <p>${escapeHtml(snapshot.resumoDia || "")}</p>
-        <div class="rdo-summary-grid">
-          ${resumoOperacional}
-        </div>
+        ${resumoOperacionalHtml}
       </section>
 
       <section class="rdo-section rdo-block">
@@ -11598,7 +11784,7 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
     .rdo-section { display: grid; gap: 10px; break-inside: avoid; page-break-inside: avoid; }
     .rdo-summary { background: #f8f6f1; border: 1px solid #d6d1c6; padding: 12px 14px; border-radius: 12px; }
     .rdo-block { border: 1px solid #d6d1c6; border-radius: 12px; padding: 10px 12px; background: #fff; }
-    .rdo-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+    .rdo-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin-top: 8px; }
     .rdo-summary-grid--tight { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
     .rdo-summary-item { border: 1px solid #d6d1c6; border-radius: 10px; padding: 6px 8px; display: grid; gap: 2px; background: #fff; }
     .rdo-summary-grid--cards .rdo-summary-item { background: #fff; box-shadow: 0 6px 10px rgba(0,0,0,0.06); }
@@ -11610,9 +11796,17 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
     .rdo-table th { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; background: #f8f6f1; color: #425363; }
     .rdo-table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .rdo-table--compact th, .rdo-table--compact td { font-size: 0.7rem; }
+    .rdo-table--center th, .rdo-table--center td { text-align: center; }
     .rdo-items { display: grid; gap: 10px; }
     .rdo-item { border: 1px solid #d6d1c6; border-radius: 12px; padding: 10px 12px; display: grid; gap: 8px; break-inside: avoid; }
     .rdo-item__head { display: flex; justify-content: space-between; gap: 12px; font-size: 0.8rem; color: #425363; }
+    .rdo-item__body { display: grid; gap: 10px; }
+    .rdo-item__section h4 { margin: 0 0 6px; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em; color: #425363; }
+    .rdo-item__section p { margin: 0; line-height: 1.45; color: #1f2a33; }
+    .rdo-item__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; font-size: 0.75rem; color: #425363; }
+    .rdo-item__grid span { display: block; font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.1em; color: #5c6772; }
+    .rdo-item__grid strong { font-size: 0.8rem; color: #1f2a33; }
+    .rdo-item__footer { display: grid; gap: 6px; }
     .rdo-mini { display: flex; flex-wrap: wrap; gap: 6px; font-size: 0.72rem; color: #425363; }
     .rdo-docs { display: flex; flex-wrap: wrap; gap: 6px; }
     .rdo-docs-note { font-size: 0.72rem; color: #425363; }
@@ -17549,6 +17743,9 @@ function renderEquipeSelectOptions() {
   const termo = equipeSearch ? normalizeSearchValue(equipeSearch.value || "") : "";
   const vinculados = new Set(projectEquipe.map((entry) => entry.userId));
   users.forEach((user) => {
+    if (!isRealUser(user)) {
+      return;
+    }
     if (vinculados.has(user.id)) {
       return;
     }
@@ -18876,11 +19073,128 @@ async function adicionarManutencao() {
 let manutencaoEmConclusao = null;
 let manutencaoEmRegistro = null;
 
+function normalizeUserLookup(value) {
+  return normalizeSearchValue(value)
+    .replace(/\(.*?\)/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function findOperationalUserByInput(value) {
+  const normalizado = normalizeUserLookup(value);
+  if (!normalizado) {
+    return null;
+  }
+  const byId = getUserById(value);
+  if (byId && isRealUser(byId)) {
+    return byId;
+  }
+  return (
+    getOperationalUsers().find((user) => {
+      const nome = normalizeUserLookup(user.name || "");
+      const matricula = normalizeUserLookup(user.matricula || "");
+      const username = normalizeUserLookup(user.username || "");
+      return (
+        normalizado === nome || normalizado === matricula || normalizado === username
+      );
+    }) || null
+  );
+}
+
+function resolveExecutadoPorInput(valor, fallbackId = "") {
+  const entrada = String(valor || "").trim();
+  if (!entrada) {
+    return fallbackId;
+  }
+  if (isTeamUserId(entrada)) {
+    const nomeTime = entrada.split(":").slice(1).join(":");
+    const normalizado = normalizeUserLookup(nomeTime);
+    if (normalizado.includes("sistema") || normalizado.includes("admin")) {
+      return "";
+    }
+    return entrada;
+  }
+  const normalizado = normalizeUserLookup(entrada);
+  if (normalizado.includes("sistema") || normalizado.includes("admin")) {
+    return "";
+  }
+  const user = findOperationalUserByInput(entrada);
+  if (user) {
+    return user.id;
+  }
+  return entrada ? `team:${entrada}` : fallbackId;
+}
+
+function resolveParticipantesInput(valor) {
+  const tokens = String(valor || "")
+    .split(";")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (!tokens.length) {
+    return [];
+  }
+  const resolved = tokens
+    .map((token) => {
+      const normalizado = normalizeUserLookup(token);
+      if (!normalizado || normalizado.includes("sistema") || normalizado.includes("admin")) {
+        return "";
+      }
+      if (isTeamUserId(token)) {
+        const nomeTime = token.split(":").slice(1).join(":");
+        const timeNormalizado = normalizeUserLookup(nomeTime);
+        if (timeNormalizado.includes("sistema") || timeNormalizado.includes("admin")) {
+          return "";
+        }
+        return token;
+      }
+      const user = findOperationalUserByInput(token);
+      if (user) {
+        return user.id;
+      }
+      return token;
+    })
+    .filter(Boolean);
+  return Array.from(new Set(resolved));
+}
+
+function normalizeResultadoInput(valor) {
+  const normalizado = normalizeSearchValue(valor).replace(/\s+/g, " ").trim();
+  if (!normalizado) {
+    return "";
+  }
+  if (normalizado === "concluida") {
+    return "concluida";
+  }
+  if (normalizado.includes("ressalva")) {
+    return "ressalva";
+  }
+  if (normalizado.includes("nao executada") || normalizado.includes("nao_executada")) {
+    return "nao_executada";
+  }
+  return "";
+}
+
+function parseDateTimeInputFlexible(valor) {
+  if (!valor) {
+    return null;
+  }
+  const ajustado = String(valor).trim().replace(" ", "T");
+  return parseDateTimeInput(ajustado);
+}
+
 function editarManutencao(index) {
   if (!requirePermission("edit")) {
     return;
   }
   const item = manutencoes[index];
+  if (item && item.status === "concluida") {
+    if (!canEditConcludedMaintenance(currentUser)) {
+      mostrarMensagemManutencao("Apenas PCM pode editar manutenções concluídas.", true);
+      return;
+    }
+    editarManutencaoConcluida(index);
+    return;
+  }
   const novoTitulo = window.prompt("Novo título:", item.titulo);
   if (novoTitulo === null) {
     return;
@@ -18921,6 +19235,269 @@ function editarManutencao(index) {
   logAction("edit", atualizado, { resumo: "Edição manual" });
   renderTudo();
   mostrarMensagemManutencao("Manutenção atualizada.");
+}
+
+function editarManutencaoConcluida(index) {
+  const item = manutencoes[index];
+  if (!item) {
+    return;
+  }
+  const liberacao = getLiberacao(item) || {};
+  const registro = item.registroExecucao || {};
+  const conclusao = item.conclusao || {};
+
+  const novoTitulo = window.prompt("Título da manutenção:", item.titulo || "");
+  if (novoTitulo === null) {
+    return;
+  }
+  const tituloLimpo = novoTitulo.trim();
+  if (!tituloLimpo) {
+    mostrarMensagemManutencao("Título inválido.", true);
+    return;
+  }
+
+  const novoLocal = window.prompt("Local/Subestação:", item.local || "");
+  if (novoLocal === null) {
+    return;
+  }
+  const localLimpo = novoLocal.trim();
+  if (!localLimpo) {
+    mostrarMensagemManutencao("Local inválido.", true);
+    return;
+  }
+
+  const novaObs = window.prompt("Observações:", item.observacao || "");
+  if (novaObs === null) {
+    return;
+  }
+
+  const dataAtual = item.data ? formatDateISO(parseDate(item.data)) : "";
+  const novaDataInput = window.prompt(
+    "Data programada (AAAA-MM-DD). Deixe vazio para manter:",
+    dataAtual
+  );
+  if (novaDataInput === null) {
+    return;
+  }
+  let dataFinal = item.data || "";
+  if (novaDataInput.trim()) {
+    const parsed = parseDate(novaDataInput.trim());
+    if (!parsed) {
+      mostrarMensagemManutencao("Data inválida.", true);
+      return;
+    }
+    dataFinal = formatDateISO(parsed);
+  }
+
+  const categoriaInput = window.prompt("Categoria:", item.categoria || "");
+  if (categoriaInput === null) {
+    return;
+  }
+  const prioridadeInput = window.prompt("Prioridade:", item.prioridade || "");
+  if (prioridadeInput === null) {
+    return;
+  }
+  const categoriaFinal = categoriaInput.trim() || item.categoria || "";
+  const prioridadeFinal = prioridadeInput.trim() || item.prioridade || "";
+
+  const executadoPorAtual = getExecutadoPorId(item);
+  const executadoPorLabel = executadoPorAtual ? getUserLabel(executadoPorAtual) : "";
+  const executadoPorInput = window.prompt(
+    "Executada por (matrícula, nome ou time:Nome). Deixe vazio para manter:",
+    executadoPorLabel
+  );
+  if (executadoPorInput === null) {
+    return;
+  }
+  const executadoPorFinal = resolveExecutadoPorInput(executadoPorInput, executadoPorAtual);
+  if (!executadoPorFinal) {
+    mostrarMensagemManutencao("Executada por inválida.", true);
+    return;
+  }
+
+  const resultadoAtual = conclusao.resultado || registro.resultado || "";
+  const resultadoInput = window.prompt(
+    "Resultado (concluida, ressalva, nao_executada). Deixe vazio para manter:",
+    resultadoAtual
+  );
+  if (resultadoInput === null) {
+    return;
+  }
+  const resultadoNormalizado = normalizeResultadoInput(resultadoInput);
+  const resultadoFinal = resultadoNormalizado || resultadoAtual;
+  if (!resultadoFinal) {
+    mostrarMensagemManutencao("Resultado inválido.", true);
+    return;
+  }
+
+  const comentarioAtual = registro.comentario || conclusao.comentario || "";
+  const comentarioInput = window.prompt(
+    "Descrição técnica (registro de execução):",
+    comentarioAtual
+  );
+  if (comentarioInput === null) {
+    return;
+  }
+  const comentarioFinal = comentarioInput.trim();
+  if (!comentarioFinal) {
+    mostrarMensagemManutencao("Descrição técnica obrigatória.", true);
+    return;
+  }
+
+  const obsExecucaoAtual = registro.observacaoExecucao || conclusao.observacaoExecucao || "";
+  const obsExecucaoInput = window.prompt(
+    "Observação de execução (opcional):",
+    obsExecucaoAtual
+  );
+  if (obsExecucaoInput === null) {
+    return;
+  }
+  const obsExecucaoFinal = obsExecucaoInput.trim();
+
+  const referenciaAtual = conclusao.referencia || liberacao.osNumero || "";
+  const referenciaInput = window.prompt("Nº OS / referência:", referenciaAtual);
+  if (referenciaInput === null) {
+    return;
+  }
+  const referenciaFinal = referenciaInput.trim() || referenciaAtual;
+  if (!referenciaFinal) {
+    mostrarMensagemManutencao("Nº OS / referência obrigatório.", true);
+    return;
+  }
+
+  const participantesAtual = Array.isArray(liberacao.participantes)
+    ? liberacao.participantes
+        .map((id) => (getUserById(id) ? getUserLabel(id) : id))
+        .join("; ")
+    : "";
+  const participantesInput = window.prompt(
+    "Participantes (separe por ;). Deixe vazio para manter:",
+    participantesAtual
+  );
+  if (participantesInput === null) {
+    return;
+  }
+  let participantesFinal = Array.isArray(liberacao.participantes)
+    ? liberacao.participantes
+    : [];
+  if (participantesInput.trim()) {
+    participantesFinal = resolveParticipantesInput(participantesInput);
+    if (!participantesFinal.length) {
+      mostrarMensagemManutencao("Participantes inválidos.", true);
+      return;
+    }
+  }
+
+  const inicioAtual = getItemInicioExecucaoDate(item);
+  const fimAtual = getItemFimExecucaoDate(item) || getItemConclusaoDate(item);
+  const inicioInput = window.prompt(
+    "Início da execução (AAAA-MM-DDTHH:MM). Deixe vazio para manter:",
+    inicioAtual ? formatDateTimeInput(inicioAtual) : ""
+  );
+  if (inicioInput === null) {
+    return;
+  }
+  let inicioFinal = inicioAtual;
+  if (inicioInput.trim()) {
+    const parsed = parseDateTimeInputFlexible(inicioInput);
+    if (!parsed) {
+      mostrarMensagemManutencao("Início inválido.", true);
+      return;
+    }
+    inicioFinal = parsed;
+  }
+
+  const fimInput = window.prompt(
+    "Fim da execução (AAAA-MM-DDTHH:MM). Deixe vazio para manter:",
+    fimAtual ? formatDateTimeInput(fimAtual) : ""
+  );
+  if (fimInput === null) {
+    return;
+  }
+  let fimFinal = fimAtual;
+  if (fimInput.trim()) {
+    const parsed = parseDateTimeInputFlexible(fimInput);
+    if (!parsed) {
+      mostrarMensagemManutencao("Fim inválido.", true);
+      return;
+    }
+    fimFinal = parsed;
+  }
+  if (inicioFinal && fimFinal && fimFinal < inicioFinal) {
+    mostrarMensagemManutencao("Fim deve ser maior ou igual ao início.", true);
+    return;
+  }
+
+  const inicioIso =
+    (inicioFinal ? toIsoUtc(inicioFinal) : "") ||
+    item.executionStartedAt ||
+    conclusao.inicio ||
+    "";
+  const fimIso =
+    (fimFinal ? toIsoUtc(fimFinal) : "") ||
+    item.executionFinishedAt ||
+    item.doneAt ||
+    conclusao.fim ||
+    "";
+  const duracaoMin =
+    inicioFinal && fimFinal
+      ? Math.max(0, Math.round((fimFinal.getTime() - inicioFinal.getTime()) / 60000))
+      : Number.isFinite(conclusao.duracaoMin)
+        ? conclusao.duracaoMin
+        : null;
+
+  const registroAtualizado = {
+    ...registro,
+    executadoPor: executadoPorFinal,
+    comentario: comentarioFinal,
+    observacaoExecucao: obsExecucaoFinal,
+    resultado: resultadoFinal,
+  };
+
+  const conclusaoAtualizada = {
+    ...conclusao,
+    executadoPor: executadoPorFinal,
+    comentario: comentarioFinal,
+    observacaoExecucao: obsExecucaoFinal,
+    resultado: resultadoFinal,
+    referencia: referenciaFinal,
+    inicio: inicioIso || conclusao.inicio || item.executionStartedAt || "",
+    fim: fimIso || conclusao.fim || item.executionFinishedAt || item.doneAt || "",
+    duracaoMin: Number.isFinite(duracaoMin) ? duracaoMin : conclusao.duracaoMin,
+  };
+
+  const liberacaoAtualizada = {
+    ...liberacao,
+    osNumero: referenciaFinal,
+    participantes: participantesFinal,
+  };
+
+  const atualizado = {
+    ...item,
+    titulo: tituloLimpo,
+    local: localLimpo,
+    observacao: novaObs.trim(),
+    observacaoHtml: "",
+    data: dataFinal,
+    categoria: categoriaFinal,
+    prioridade: prioridadeFinal,
+    registroExecucao: registroAtualizado,
+    liberacao: liberacaoAtualizada,
+    conclusao: conclusaoAtualizada,
+    executionStartedAt: inicioIso || item.executionStartedAt || conclusao.inicio || "",
+    executionFinishedAt: fimIso || item.executionFinishedAt || item.doneAt || conclusao.fim || "",
+    doneAt: fimIso || item.doneAt || item.executionFinishedAt || conclusao.fim || "",
+    updatedAt: toIsoUtc(new Date()),
+    updatedBy: currentUser.id,
+  };
+
+  manutencoes[index] = atualizado;
+  const resultado = normalizarManutencoes(manutencoes);
+  manutencoes = resultado.normalizadas;
+  salvarManutencoes(manutencoes);
+  logAction("edit", atualizado, { resumo: "Edição após conclusão" });
+  renderTudo();
+  mostrarMensagemManutencao("Manutenção concluída atualizada.");
 }
 
 function registrarObservacao(index) {
@@ -19451,8 +20028,7 @@ function abrirRegistroExecucao(item) {
       teamOption.textContent = teamName;
       registroExecutadaPor.append(teamOption);
     }
-    users
-      .filter((user) => user && user.id)
+    getOperationalUsers()
       .sort((a, b) => (a.name || "").localeCompare(b.name || "", "pt-BR"))
       .forEach((user) => {
         const option = document.createElement("option");
@@ -19674,8 +20250,7 @@ function preencherParticipantesSelect(select, selecionados = []) {
   }
   const selecionadosSet = new Set(selecionados);
   select.innerHTML = "";
-  const lista = users
-    .filter((user) => user && user.id)
+  const lista = getOperationalUsers()
     .sort((a, b) => (a.name || "").localeCompare(b.name || "", "pt-BR"));
   if (!lista.length && currentUser) {
     const option = document.createElement("option");
@@ -20829,6 +21404,9 @@ function atualizarDuracaoConclusao() {
 }
 
 function getEvidenciaFiles() {
+  if (conclusaoFotosToggle && !conclusaoFotosToggle.checked) {
+    return [];
+  }
   if (!evidenciaInputs.length) {
     return [];
   }
@@ -20848,11 +21426,12 @@ function atualizarSlotsFoto(arquivos) {
   if (!fotoSlots.length) {
     return;
   }
+  const obrigatorio = !conclusaoFotosToggle || conclusaoFotosToggle.checked;
   fotoSlots.forEach((slot, index) => {
     const slotValue = Number.parseInt(slot.dataset.photoSlot, 10);
     const labelIndex = Number.isFinite(slotValue) && slotValue > 0 ? slotValue : index + 1;
     const fileIndex = Number.isFinite(slotValue) && slotValue > 0 ? slotValue - 1 : index;
-    const baseLabel = `Foto ${labelIndex}*`;
+    const baseLabel = `Foto ${labelIndex}${obrigatorio ? "*" : ""}`;
     const file = arquivos[fileIndex];
     if (file) {
       const nome = file.name ? ` - ${file.name}` : "";
@@ -20869,6 +21448,13 @@ function atualizarSlotsFoto(arquivos) {
 }
 
 function atualizarListaEvidencias() {
+  if (conclusaoFotosToggle && !conclusaoFotosToggle.checked) {
+    if (conclusaoEvidenciasLista) {
+      conclusaoEvidenciasLista.innerHTML = "";
+    }
+    atualizarSlotsFoto([]);
+    return;
+  }
   const arquivos = getEvidenciaFiles();
   atualizarSlotsFoto(arquivos);
   if (!conclusaoEvidenciasLista) {
@@ -20991,7 +21577,10 @@ function abrirConclusao(item) {
   if (conclusaoEvidenciasLista) {
     conclusaoEvidenciasLista.innerHTML = "";
   }
-  atualizarListaEvidencias();
+  if (conclusaoFotosToggle) {
+    conclusaoFotosToggle.checked = true;
+  }
+  toggleConclusaoFotosUI();
 
   const inicio = parseTimestamp(item.executionStartedAt);
   if (conclusaoInicio) {
@@ -21103,22 +21692,29 @@ async function salvarConclusao(event) {
       return;
     }
   }
-  const arquivos = getEvidenciaFiles();
+  const fotosObrigatorias = !conclusaoFotosToggle || conclusaoFotosToggle.checked;
+  const arquivos = fotosObrigatorias ? getEvidenciaFiles() : [];
   const arquivosValidos = arquivos.filter(Boolean);
-  if (arquivosValidos.length < MIN_EVIDENCIAS) {
+  if (fotosObrigatorias && arquivosValidos.length < MIN_EVIDENCIAS) {
     mostrarMensagemConclusao(`Adicione as ${MIN_EVIDENCIAS} fotos obrigatórias.`, true);
     return;
   }
-  const arquivosInvalidos = arquivosValidos.filter(
-    (file) => !file.type || !file.type.startsWith("image/")
-  );
-  if (arquivosInvalidos.length) {
-    mostrarMensagemConclusao("Apenas fotos são permitidas.", true);
-    return;
+  if (fotosObrigatorias) {
+    const arquivosInvalidos = arquivosValidos.filter(
+      (file) => !file.type || !file.type.startsWith("image/")
+    );
+    if (arquivosInvalidos.length) {
+      mostrarMensagemConclusao("Apenas fotos são permitidas.", true);
+      return;
+    }
   }
-  mostrarMensagemConclusao("Processando evidências...");
-  const evidencias = await lerEvidencias(arquivosValidos);
-  if (evidencias.length < MIN_EVIDENCIAS) {
+  if (fotosObrigatorias) {
+    mostrarMensagemConclusao("Processando evidências...");
+  }
+  const evidencias = fotosObrigatorias
+    ? await lerEvidencias(arquivosValidos)
+    : [];
+  if (fotosObrigatorias && evidencias.length < MIN_EVIDENCIAS) {
     mostrarMensagemConclusao("Não foi possível ler as evidências.", true);
     return;
   }
@@ -21182,6 +21778,28 @@ async function salvarConclusao(event) {
   renderTudo();
   fecharConclusao();
   mostrarMensagemManutencao("Manutenção concluída.");
+}
+
+function toggleConclusaoFotosUI() {
+  const ativo = !conclusaoFotosToggle || conclusaoFotosToggle.checked;
+  if (conclusaoEvidenciasField) {
+    conclusaoEvidenciasField.hidden = !ativo;
+  }
+  evidenciaInputs.forEach((input) => {
+    if (!input) {
+      return;
+    }
+    input.disabled = !ativo;
+    if (!ativo) {
+      input.value = "";
+    }
+  });
+  evidenciaButtons.forEach((button) => {
+    if (button) {
+      button.disabled = !ativo;
+    }
+  });
+  atualizarListaEvidencias();
 }
 
 function abrirRelatorio(item) {
@@ -23449,6 +24067,10 @@ if (evidenciaInputs.length) {
   evidenciaInputs.forEach((input) => {
     input.addEventListener("change", atualizarListaEvidencias);
   });
+}
+if (conclusaoFotosToggle) {
+  conclusaoFotosToggle.addEventListener("change", toggleConclusaoFotosUI);
+  toggleConclusaoFotosUI();
 }
 if (novaDocButtons.length) {
   novaDocButtons.forEach((button) => {

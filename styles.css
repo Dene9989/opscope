@@ -5657,7 +5657,7 @@ textarea:focus {
 
 .rdo-summary-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 8px;
   margin-top: 10px;
 }
@@ -5727,6 +5727,11 @@ textarea:focus {
   text-align: center;
 }
 
+.rdo-table--center th,
+.rdo-table--center td {
+  text-align: center;
+}
+
 .rdo-items {
   display: grid;
   gap: 12px;
@@ -5753,6 +5758,49 @@ textarea:focus {
 
 .rdo-item__status {
   font-weight: 600;
+}
+
+.rdo-item__body {
+  display: grid;
+  gap: 12px;
+}
+
+.rdo-item__section h4 {
+  margin: 0 0 6px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-soft);
+}
+
+.rdo-item__section p {
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+.rdo-item__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.rdo-item__grid span {
+  display: block;
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.rdo-item__grid strong {
+  font-size: 0.85rem;
+  color: var(--ink);
+}
+
+.rdo-item__footer {
+  display: grid;
+  gap: 6px;
 }
 
 .rdo-mini {
