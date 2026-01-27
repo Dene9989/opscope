@@ -4074,6 +4074,14 @@ function renderSubestacoes() {
       option.textContent = nome;
       select.append(option);
     });
+    if (atual && !subestacoes.includes(atual)) {
+      const option = document.createElement("option");
+      option.value = atual;
+      option.textContent = atual;
+      select.append(option);
+      select.value = atual;
+      return;
+    }
     if (atual && subestacoes.includes(atual)) {
       select.value = atual;
     } else if (!atual && subestacoes.length) {
@@ -4087,6 +4095,7 @@ function renderTipoOptions() {
     return;
   }
   const atual = tipoManutencao.value;
+  const tituloAtual = tituloManutencao ? tituloManutencao.value : "";
   tipoManutencao.innerHTML = "";
   const placeholder = document.createElement("option");
   placeholder.value = "";
@@ -4113,12 +4122,17 @@ function renderTipoOptions() {
     tipoManutencao.value = atual;
   } else if (atual === CUSTOM_TIPO_OPTION) {
     tipoManutencao.value = CUSTOM_TIPO_OPTION;
+  } else if (manutencaoEmEdicao && tituloAtual) {
+    tipoManutencao.value = CUSTOM_TIPO_OPTION;
   } else if (ordenados.length === 0) {
     tipoManutencao.value = CUSTOM_TIPO_OPTION;
   } else {
     tipoManutencao.value = "";
   }
   atualizarTipoSelecionado();
+  if (manutencaoEmEdicao && tituloManutencao && tituloAtual) {
+    tituloManutencao.value = tituloAtual;
+  }
 }
 
 function atualizarTipoSelecionado() {
@@ -17742,6 +17756,7 @@ function renderEquipamentoOptions() {
   if (!equipamentoManutencao) {
     return;
   }
+  const atual = equipamentoManutencao.value;
   equipamentoManutencao.innerHTML = `<option value="">Selecione um equipamento</option>`;
   projectEquipamentos.forEach((equip) => {
     const option = document.createElement("option");
@@ -17749,6 +17764,21 @@ function renderEquipamentoOptions() {
     option.textContent = `${equip.tag || "-"} - ${equip.nome || "-"}`;
     equipamentoManutencao.append(option);
   });
+  if (atual) {
+    const existe = Array.from(equipamentoManutencao.options || []).some(
+      (opt) => opt.value === atual
+    );
+    if (!existe) {
+      const equipamento = projectEquipamentos.find((equip) => equip.id === atual);
+      const option = document.createElement("option");
+      option.value = atual;
+      option.textContent = equipamento
+        ? `${equipamento.tag || "-"} - ${equipamento.nome || "-"}`
+        : "Equipamento removido";
+      equipamentoManutencao.append(option);
+    }
+    equipamentoManutencao.value = atual;
+  }
 }
 
 function renderEquipeSelectOptions() {
@@ -18840,7 +18870,13 @@ function atualizarSeNecessario() {
 }
 
 async function adicionarManutencao() {
-  if (manutencaoEmEdicao) {
+  const editId =
+    manutencaoEmEdicao ||
+    (manutencaoEditBanner && !manutencaoEditBanner.hidden
+      ? manutencaoEditBanner.dataset.editId
+      : "");
+  if (editId) {
+    manutencaoEmEdicao = editId;
     if (!requirePermission("edit")) {
       return;
     }
@@ -19049,6 +19085,11 @@ function setEditModeManutencao(item) {
   manutencaoEmEdicao = ativo ? item.id : null;
   if (manutencaoEditBanner) {
     manutencaoEditBanner.hidden = !ativo;
+    if (ativo) {
+      manutencaoEditBanner.dataset.editId = item.id;
+    } else {
+      delete manutencaoEditBanner.dataset.editId;
+    }
   }
   if (manutencaoEditInfo) {
     if (!ativo) {
@@ -19161,21 +19202,23 @@ function preencherFormularioManutencao(item) {
   renderSubestacoes();
   renderEquipamentoOptions();
 
-  if (manutencaoProjeto && item.projectId) {
-    manutencaoProjeto.value = item.projectId;
+  const projectId = pickItemValue(item, ["projectId", "projetoId"]);
+  if (manutencaoProjeto && projectId) {
+    manutencaoProjeto.value = projectId;
   }
 
-  const template = item.templateId ? getTemplateById(item.templateId) : null;
+  const templateKey = pickItemValue(item, ["templateId", "template"]);
+  const template = templateKey ? getTemplateById(templateKey) : null;
   if (tipoManutencao) {
     tipoManutencao.value = template ? template.id : CUSTOM_TIPO_OPTION;
     atualizarTipoSelecionado();
   }
   if (tituloManutencao) {
-    tituloManutencao.value = template ? "" : item.titulo || "";
+    tituloManutencao.value = template ? "" : item.titulo || item.nome || "";
   }
 
   if (subestacaoManutencao) {
-    const local = item.local || "";
+    const local = getItemSubestacao(item) || "";
     if (local) {
       const existe = Array.from(subestacaoManutencao.options || []).some(
         (opt) => opt.value === local
@@ -19191,7 +19234,11 @@ function preencherFormularioManutencao(item) {
   }
 
   if (equipamentoManutencao) {
-    const equipamentoId = item.equipamentoId || "";
+    const equipamentoRaw = pickItemValue(item, ["equipamentoId", "equipamento"]);
+    const equipamentoId =
+      typeof equipamentoRaw === "object" && equipamentoRaw
+        ? equipamentoRaw.id || ""
+        : String(equipamentoRaw || "").trim();
     if (equipamentoId) {
       const existe = Array.from(equipamentoManutencao.options || []).some(
         (opt) => opt.value === equipamentoId
@@ -19209,7 +19256,10 @@ function preencherFormularioManutencao(item) {
     equipamentoManutencao.value = equipamentoId;
   }
 
-  const dataValor = item.data || formatDateISO(new Date());
+  const dataValor =
+    item.data ||
+    (getItemConclusaoDate(item) ? formatDateISO(getItemConclusaoDate(item)) : "") ||
+    formatDateISO(new Date());
   if (futuraManutencao) {
     const hoje = formatDateISO(new Date());
     futuraManutencao.checked = Boolean(dataValor && dataValor !== hoje);
@@ -19220,15 +19270,19 @@ function preencherFormularioManutencao(item) {
   }
 
   const liberacao = getLiberacao(item) || {};
-  const osNumero = item.osReferencia || liberacao.osNumero || "";
+  const osNumero =
+    pickItemValue(item, ["osReferencia", "osNumero", "referencia"]) ||
+    liberacao.osNumero ||
+    (item.conclusao && item.conclusao.referencia) ||
+    "";
   if (osReferenciaManutencao) {
     osReferenciaManutencao.value = osNumero;
   }
   if (categoriaManutencao) {
-    categoriaManutencao.value = item.categoria || "";
+    categoriaManutencao.value = getItemCategoria(item) || "";
   }
   if (prioridadeManutencao) {
-    prioridadeManutencao.value = item.prioridade || "";
+    prioridadeManutencao.value = getItemPrioridade(item) || "";
   }
 
   const participantesBase =
@@ -19251,13 +19305,19 @@ function preencherFormularioManutencao(item) {
   }
   atualizarNovaCriticoUI();
 
+  const descricaoRegistro = getItemDescricaoRdo(item);
+  const usaRegistro =
+    Boolean(item.registroExecucao && item.registroExecucao.comentario) ||
+    Boolean(item.conclusao && item.conclusao.comentario);
   if (obsManutencaoEditor) {
     setObsEditorContent({
-      html: item.observacaoHtml || "",
-      text: item.observacao || "",
+      html: usaRegistro ? "" : item.observacaoHtml || "",
+      text: usaRegistro ? descricaoRegistro : item.observacao || descricaoRegistro || "",
     });
   } else if (obsManutencao) {
-    obsManutencao.value = item.observacao || "";
+    obsManutencao.value = usaRegistro
+      ? descricaoRegistro || ""
+      : item.observacao || descricaoRegistro || "";
   }
 
   novaDocInputs.forEach((input) => {
@@ -19331,11 +19391,18 @@ async function salvarEdicaoManutencao() {
     titulo = tituloManutencao ? tituloManutencao.value.trim() : "";
   }
 
+  const localInput = subestacaoManutencao ? subestacaoManutencao.value.trim() : "";
   const local =
-    (subestacaoManutencao ? subestacaoManutencao.value.trim() : "") ||
+    localInput ||
+    getItemSubestacao(item) ||
     getSubestacoesBase()[0] ||
     "";
-  const equipamentoId = equipamentoManutencao ? equipamentoManutencao.value.trim() : "";
+  const equipamentoInput = equipamentoManutencao ? equipamentoManutencao.value.trim() : "";
+  const equipamentoId =
+    equipamentoInput ||
+    (typeof item.equipamentoId === "string" && item.equipamentoId) ||
+    (typeof item.equipamento === "string" && item.equipamento) ||
+    "";
   const data = dataManutencao
     ? dataManutencao.value || formatDateISO(new Date())
     : "";
@@ -19349,18 +19416,36 @@ async function salvarEdicaoManutencao() {
     : obsManutencao
       ? obsManutencao.value.trim()
       : "";
-  const categoria = categoriaManutencao ? categoriaManutencao.value.trim() : "";
-  const prioridade = prioridadeManutencao ? prioridadeManutencao.value.trim() : "";
-  const osReferencia = osReferenciaManutencao ? osReferenciaManutencao.value.trim() : "";
+  const categoriaInput = categoriaManutencao ? categoriaManutencao.value.trim() : "";
+  const prioridadeInput = prioridadeManutencao ? prioridadeManutencao.value.trim() : "";
+  const osReferenciaInput = osReferenciaManutencao ? osReferenciaManutencao.value.trim() : "";
+  const categoria = categoriaInput || getItemCategoria(item) || "";
+  const prioridade = prioridadeInput || getItemPrioridade(item) || "";
+  const osReferencia =
+    osReferenciaInput ||
+    pickItemValue(item, ["osReferencia", "osNumero", "referencia"]) ||
+    (item.conclusao && item.conclusao.referencia) ||
+    (getLiberacao(item) && getLiberacao(item).osNumero) ||
+    "";
   const participantesTexto = participantesManutencao ? participantesManutencao.value : "";
-  const participantes = participantesTexto
+  let participantes = participantesTexto
     ? participantesTexto
         .split(";")
         .map((item) => item.trim())
         .filter(Boolean)
     : [];
-  const criticoValor = criticoManutencao ? criticoManutencao.value : "nao";
-  const critico = criticoValor === "sim";
+  if (!participantes.length) {
+    const base =
+      Array.isArray(item.participantes) && item.participantes.length
+        ? item.participantes
+        : Array.isArray((getLiberacao(item) || {}).participantes)
+          ? (getLiberacao(item) || {}).participantes
+          : [];
+    participantes = base;
+  }
+  const criticoValor = criticoManutencao ? criticoManutencao.value : "";
+  const critico =
+    criticoValor === "sim" ? true : criticoValor === "nao" ? false : isItemCritico(item);
 
   if (!titulo || !local || !data || !categoria || !prioridade) {
     mostrarMensagemManutencao(
@@ -19434,6 +19519,13 @@ async function salvarEdicaoManutencao() {
     (liberacaoAtual && Object.keys(liberacaoAtual).length > 0) ||
     (item.status !== "agendada" && item.status !== "backlog");
 
+  const registroAtualizado = item.registroExecucao
+    ? { ...item.registroExecucao, comentario: observacao }
+    : item.registroExecucao;
+  const conclusaoAtualizada = item.conclusao
+    ? { ...item.conclusao, comentario: observacao }
+    : item.conclusao;
+
   const atualizado = {
     ...item,
     titulo,
@@ -19450,6 +19542,8 @@ async function salvarEdicaoManutencao() {
     criticidade: critico ? "sim" : "nao",
     documentos: documentosAtualizados,
     liberacao: manterLiberacao ? liberacaoAtualizada : item.liberacao,
+    registroExecucao: registroAtualizado,
+    conclusao: conclusaoAtualizada,
     updatedAt: toIsoUtc(new Date()),
     updatedBy: currentUser.id,
   };
