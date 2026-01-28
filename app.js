@@ -12273,6 +12273,31 @@ function getItemPrioridade(item) {
   );
 }
 
+function getRdoItemSnapshot(manutencaoId) {
+  if (!manutencaoId || !Array.isArray(rdoSnapshots) || !rdoSnapshots.length) {
+    return null;
+  }
+  let found = null;
+  let foundDate = null;
+  rdoSnapshots.forEach((snapshot) => {
+    if (!snapshot || !Array.isArray(snapshot.itens)) {
+      return;
+    }
+    const match = snapshot.itens.find(
+      (item) => item && String(item.id || "") === String(manutencaoId)
+    );
+    if (!match) {
+      return;
+    }
+    const candidateDate = snapshot.createdAt || snapshot.rdoDate || "";
+    if (!found || (candidateDate && candidateDate > (foundDate || ""))) {
+      found = match;
+      foundDate = candidateDate;
+    }
+  });
+  return found;
+}
+
 function isCriticoValor(valor) {
   if (valor === true) {
     return true;
@@ -19359,6 +19384,7 @@ function preencherFormularioManutencao(item) {
     manutencaoProjeto.value = projectId;
   }
 
+  const rdoItem = getRdoItemSnapshot(item.id);
   const templateKey = pickItemValue(item, ["templateId", "template"]);
   let template = templateKey ? getTemplateById(templateKey) : null;
   if (!template && item.titulo) {
@@ -19373,11 +19399,13 @@ function preencherFormularioManutencao(item) {
     atualizarTipoSelecionado();
   }
   if (tituloManutencao) {
-    tituloManutencao.value = template ? "" : item.titulo || item.nome || "";
+    tituloManutencao.value = template
+      ? ""
+      : item.titulo || item.nome || (rdoItem ? rdoItem.titulo || "" : "");
   }
 
   if (subestacaoManutencao) {
-    const local = getItemSubestacao(item) || "";
+    const local = getItemSubestacao(item) || (rdoItem ? rdoItem.subestacao || "" : "");
     if (local) {
       const existe = Array.from(subestacaoManutencao.options || []).some(
         (opt) => opt.value === local
@@ -19477,7 +19505,7 @@ function preencherFormularioManutencao(item) {
     osReferenciaManutencao.value = osNumero;
   }
   if (categoriaManutencao) {
-    const valorCategoria = getItemCategoria(item) || "";
+    const valorCategoria = getItemCategoria(item) || (rdoItem ? rdoItem.categoria || "" : "");
     if (valorCategoria) {
       const categoriaNormalizada = normalizeSearchValue(valorCategoria);
       const match = Array.from(categoriaManutencao.options || []).find(
@@ -19497,7 +19525,7 @@ function preencherFormularioManutencao(item) {
     }
   }
   if (prioridadeManutencao) {
-    const valorPrioridade = getItemPrioridade(item) || "";
+    const valorPrioridade = getItemPrioridade(item) || (rdoItem ? rdoItem.prioridade || "" : "");
     if (valorPrioridade) {
       const prioridadeNormalizada = normalizeSearchValue(valorPrioridade);
       const match = Array.from(prioridadeManutencao.options || []).find(
@@ -19530,7 +19558,12 @@ function preencherFormularioManutencao(item) {
               ? auditDetalhes.participantes
               : typeof (auditDetalhes && auditDetalhes.participantes) === "string"
                 ? auditDetalhes.participantes.split(";").map((p) => p.trim()).filter(Boolean)
-                : [];
+                : rdoItem && rdoItem.participantes
+                  ? String(rdoItem.participantes)
+                      .split(",")
+                      .map((p) => p.trim())
+                      .filter(Boolean)
+                  : [];
   const participantesNormalizados = participantesBase
     .map((entry) => {
       if (!entry) {
@@ -19565,13 +19598,14 @@ function preencherFormularioManutencao(item) {
   const critico =
     isCriticoValor(item.criticidade) ||
     isCriticoValor(liberacao.critico) ||
-    isCriticoValor(auditDetalhes && auditDetalhes.critico);
+    isCriticoValor(auditDetalhes && auditDetalhes.critico) ||
+    (rdoItem ? Boolean(rdoItem.critico) : false);
   if (criticoManutencao) {
     criticoManutencao.value = critico ? "sim" : "nao";
   }
   atualizarNovaCriticoUI();
 
-  const descricaoRegistro = getItemDescricaoRdo(item);
+  const descricaoRegistro = getItemDescricaoRdo(item) || (rdoItem ? rdoItem.descricao || "" : "");
   const usaRegistro =
     Boolean(item.registroExecucao && item.registroExecucao.comentario) ||
     Boolean(item.conclusao && item.conclusao.comentario);
@@ -19592,6 +19626,10 @@ function preencherFormularioManutencao(item) {
     if (tituloManutencao && !tituloManutencao.value) {
       tituloManutencao.value = item.titulo || item.nome || "";
     }
+  }
+  if (tipoManutencao && tituloManutencao && tituloManutencao.value.trim()) {
+    tipoManutencao.value = CUSTOM_TIPO_OPTION;
+    atualizarTipoSelecionado();
   }
 
   novaDocInputs.forEach((input) => {
