@@ -5662,36 +5662,59 @@ function isLiberacaoOk(item) {
   return true;
 }
 
-function mergeMaintenanceFallback(remote, local) {
-  if (!remote || !local) {
-    return remote || local || null;
+function isMeaningfulValue(value) {
+  if (value === undefined || value === null) {
+    return false;
   }
-  const merged = { ...remote };
-  Object.keys(local).forEach((key) => {
-    if (merged[key] === undefined) {
-      merged[key] = local[key];
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+  if (typeof value === "object") {
+    return Object.keys(value).length > 0;
+  }
+  return true;
+}
+
+function mergePreferLocal(remote, local) {
+  if (!remote) {
+    return local || null;
+  }
+  if (!local) {
+    return remote || null;
+  }
+  if (Array.isArray(remote) || Array.isArray(local)) {
+    return isMeaningfulValue(remote) ? remote : local;
+  }
+  if (typeof remote !== "object" || typeof local !== "object") {
+    return isMeaningfulValue(remote) ? remote : local;
+  }
+  const merged = {};
+  const keys = new Set([...Object.keys(local), ...Object.keys(remote)]);
+  keys.forEach((key) => {
+    const r = remote[key];
+    const l = local[key];
+    if (r && l && typeof r === "object" && typeof l === "object" && !Array.isArray(r) && !Array.isArray(l)) {
+      merged[key] = mergePreferLocal(r, l);
+      return;
     }
-  });
-  const nestedKeys = ["liberacao", "registroExecucao", "conclusao", "documentos"];
-  nestedKeys.forEach((key) => {
-    const localValue = local[key];
-    const remoteValue = merged[key];
-    if (localValue && typeof localValue === "object") {
-      if (!remoteValue || typeof remoteValue !== "object") {
-        merged[key] = localValue;
-      } else {
-        merged[key] = { ...localValue, ...remoteValue };
-        if (key === "liberacao") {
-          const localDocs = localValue.documentos;
-          const remoteDocs = remoteValue.documentos;
-          if (localDocs && typeof localDocs === "object") {
-            merged[key].documentos = { ...localDocs, ...(remoteDocs || {}) };
-          }
-        }
-      }
+    if (isMeaningfulValue(r)) {
+      merged[key] = r;
+      return;
     }
+    if (isMeaningfulValue(l)) {
+      merged[key] = l;
+      return;
+    }
+    merged[key] = r !== undefined ? r : l;
   });
   return merged;
+}
+
+function mergeMaintenanceFallback(remote, local) {
+  return mergePreferLocal(remote, local);
 }
 
 function getParticipantesLabel(participantes) {
@@ -12229,11 +12252,25 @@ function getItemSubestacao(item) {
 }
 
 function getItemCategoria(item) {
-  return pickItemValue(item, ["categoria"]) || "";
+  return (
+    pickItemValue(item, ["categoria", "tipo", "tipoManutencao"]) ||
+    (item && item.conclusao ? pickItemValue(item.conclusao, ["categoria", "tipo"]) : "") ||
+    (item && item.registroExecucao
+      ? pickItemValue(item.registroExecucao, ["categoria", "tipo"])
+      : "") ||
+    ""
+  );
 }
 
 function getItemPrioridade(item) {
-  return pickItemValue(item, ["prioridade"]) || "";
+  return (
+    pickItemValue(item, ["prioridade", "prioridadeNivel"]) ||
+    (item && item.conclusao ? pickItemValue(item.conclusao, ["prioridade"]) : "") ||
+    (item && item.registroExecucao
+      ? pickItemValue(item.registroExecucao, ["prioridade"])
+      : "") ||
+    ""
+  );
 }
 
 function isCriticoValor(valor) {
@@ -19432,11 +19469,19 @@ function preencherFormularioManutencao(item) {
   if (categoriaManutencao) {
     const valorCategoria = getItemCategoria(item) || "";
     if (valorCategoria) {
+      const categoriaNormalizada = normalizeSearchValue(valorCategoria);
       const match = Array.from(categoriaManutencao.options || []).find(
-        (opt) =>
-          String(opt.value).toLowerCase() === String(valorCategoria).toLowerCase()
+        (opt) => normalizeSearchValue(opt.value) === categoriaNormalizada
       );
-      categoriaManutencao.value = match ? match.value : "";
+      if (match) {
+        categoriaManutencao.value = match.value;
+      } else {
+        const option = document.createElement("option");
+        option.value = valorCategoria;
+        option.textContent = valorCategoria;
+        categoriaManutencao.append(option);
+        categoriaManutencao.value = valorCategoria;
+      }
     } else {
       categoriaManutencao.value = "";
     }
@@ -19444,11 +19489,19 @@ function preencherFormularioManutencao(item) {
   if (prioridadeManutencao) {
     const valorPrioridade = getItemPrioridade(item) || "";
     if (valorPrioridade) {
+      const prioridadeNormalizada = normalizeSearchValue(valorPrioridade);
       const match = Array.from(prioridadeManutencao.options || []).find(
-        (opt) =>
-          String(opt.value).toLowerCase() === String(valorPrioridade).toLowerCase()
+        (opt) => normalizeSearchValue(opt.value) === prioridadeNormalizada
       );
-      prioridadeManutencao.value = match ? match.value : "";
+      if (match) {
+        prioridadeManutencao.value = match.value;
+      } else {
+        const option = document.createElement("option");
+        option.value = valorPrioridade;
+        option.textContent = valorPrioridade;
+        prioridadeManutencao.append(option);
+        prioridadeManutencao.value = valorPrioridade;
+      }
     } else {
       prioridadeManutencao.value = "";
     }
@@ -19578,7 +19631,8 @@ async function salvarEdicaoManutencao() {
     return;
   }
   const item = manutencoes[index];
-  if (item.status === "concluida" && !canEditConcludedMaintenance(currentUser)) {
+  const isConcluida = item.status === "concluida";
+  if (isConcluida && !canEditConcludedMaintenance(currentUser)) {
     mostrarMensagemManutencao("Apenas PCM pode editar manutenções concluídas.", true);
     return;
   }
@@ -19602,6 +19656,17 @@ async function salvarEdicaoManutencao() {
   } else {
     titulo = tituloManutencao ? tituloManutencao.value.trim() : "";
   }
+  let templateFinal = templateId;
+  if (!templateFinal) {
+    if (tipoSelecionado === CUSTOM_TIPO_OPTION) {
+      templateFinal = titulo ? null : item.templateId || null;
+    } else if (!tipoSelecionado) {
+      templateFinal = item.templateId || null;
+    } else {
+      templateFinal = item.templateId || null;
+    }
+  }
+  const tituloFinal = titulo || item.titulo || item.nome || "";
 
   const localInput = subestacaoManutencao ? subestacaoManutencao.value.trim() : "";
   const local =
@@ -19616,8 +19681,8 @@ async function salvarEdicaoManutencao() {
     (typeof item.equipamento === "string" && item.equipamento) ||
     "";
   const data = dataManutencao
-    ? dataManutencao.value || formatDateISO(new Date())
-    : "";
+    ? dataManutencao.value || item.data || formatDateISO(new Date())
+    : item.data || "";
   if (dataManutencao && !dataManutencao.value) {
     dataManutencao.value = data;
   }
@@ -19699,27 +19764,49 @@ async function salvarEdicaoManutencao() {
         ? false
         : isItemCritico(item) || isCriticoValor(auditDetalhes && auditDetalhes.critico);
 
-  if (!titulo || !local || !data || !categoria || !prioridade) {
+  const equipamentoObj =
+    item.equipamento && typeof item.equipamento === "object" ? item.equipamento : null;
+  const equipamentoFallback = equipamentoObj
+    ? equipamentoObj.id || equipamentoObj.nome || equipamentoObj.name || equipamentoObj.tag || ""
+    : "";
+  const equipamentoFinal = equipamentoId || equipamentoFallback || "";
+  const localFinal = local || getItemSubestacao(item) || "";
+  const dataFinal = data || item.data || formatDateISO(new Date());
+  if (dataManutencao && !dataManutencao.value) {
+    dataManutencao.value = dataFinal;
+  }
+  const observacaoFinal = observacao || item.observacao || getItemDescricaoRdo(item) || "";
+  const observacaoHtmlFinal = observacaoHtml || item.observacaoHtml || "";
+  const categoriaFinal = categoria || getItemCategoria(item) || "";
+  const prioridadeFinal = prioridade || getItemPrioridade(item) || "";
+  const osReferenciaFinal = osReferencia || "";
+  const participantesFinal = participantes;
+
+  if (!tituloFinal || !localFinal || !dataFinal) {
+    mostrarMensagemManutencao("Preencha tipo, subestação e início da execução.", true);
+    return;
+  }
+  if (!isConcluida && (!categoriaFinal || !prioridadeFinal)) {
     mostrarMensagemManutencao(
       "Preencha tipo, subestação, início da execução, categoria e prioridade.",
       true
     );
     return;
   }
-  if (!equipamentoId) {
+  if (!isConcluida && !equipamentoFinal) {
     mostrarMensagemManutencao("Informe o equipamento da manutenção.", true);
     return;
   }
-  if (!observacao) {
+  if (!isConcluida && !observacaoFinal) {
     mostrarMensagemManutencao("Descreva a demanda técnica.", true);
     return;
   }
-  if (!osReferencia) {
+  if (!isConcluida && !osReferenciaFinal) {
     mostrarMensagemManutencao("Informe a OS / referência.", true);
     return;
   }
   setFieldError(participantesManutencaoErro, "");
-  if (participantes.length < 2) {
+  if (!isConcluida && participantesFinal.length < 2) {
     setFieldError(participantesManutencaoErro, "Informe ao menos 2 participantes.");
     mostrarMensagemManutencao("Informe ao menos 2 participantes.", true);
     return;
@@ -19747,7 +19834,7 @@ async function salvarEdicaoManutencao() {
     }
   }
 
-  const exigirDocs = item.status !== "agendada" && item.status !== "backlog";
+  const exigirDocs = !isConcluida && item.status !== "agendada" && item.status !== "backlog";
   if (exigirDocs) {
     if (!documentosAtualizados.apr || !documentosAtualizados.os || !documentosAtualizados.pte) {
       mostrarMensagemManutencao("Anexe APR, OS e PTE para manter a execução.", true);
@@ -19761,8 +19848,8 @@ async function salvarEdicaoManutencao() {
 
   const liberacaoAtualizada = {
     ...liberacaoAtual,
-    osNumero: osReferencia,
-    participantes,
+    osNumero: osReferenciaFinal,
+    participantes: participantesFinal,
     critico,
     documentos: documentosAtualizados,
   };
@@ -19772,25 +19859,29 @@ async function salvarEdicaoManutencao() {
     (item.status !== "agendada" && item.status !== "backlog");
 
   const registroAtualizado = item.registroExecucao
-    ? { ...item.registroExecucao, comentario: observacao }
+    ? { ...item.registroExecucao, comentario: observacaoFinal }
     : item.registroExecucao;
   const conclusaoAtualizada = item.conclusao
-    ? { ...item.conclusao, comentario: observacao }
+    ? {
+        ...item.conclusao,
+        comentario: observacaoFinal,
+        referencia: osReferenciaFinal || item.conclusao.referencia,
+      }
     : item.conclusao;
 
   const atualizado = {
     ...item,
-    titulo,
-    local,
-    data,
-    equipamentoId,
-    observacao,
-    observacaoHtml,
-    templateId,
-    categoria,
-    prioridade,
-    osReferencia,
-    participantes,
+    titulo: tituloFinal,
+    local: localFinal,
+    data: dataFinal,
+    equipamentoId: equipamentoFinal,
+    observacao: observacaoFinal,
+    observacaoHtml: observacaoHtmlFinal,
+    templateId: templateFinal,
+    categoria: categoriaFinal,
+    prioridade: prioridadeFinal,
+    osReferencia: osReferenciaFinal,
+    participantes: participantesFinal,
     criticidade: critico ? "sim" : "nao",
     documentos: documentosAtualizados,
     liberacao: manterLiberacao ? liberacaoAtualizada : item.liberacao,
