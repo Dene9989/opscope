@@ -19360,7 +19360,14 @@ function preencherFormularioManutencao(item) {
   }
 
   const templateKey = pickItemValue(item, ["templateId", "template"]);
-  const template = templateKey ? getTemplateById(templateKey) : null;
+  let template = templateKey ? getTemplateById(templateKey) : null;
+  if (!template && item.titulo) {
+    const tituloNorm = normalizeSearchValue(item.titulo);
+    template =
+      templates.find(
+        (modelo) => normalizeSearchValue(modelo && modelo.nome ? modelo.nome : "") === tituloNorm
+      ) || null;
+  }
   if (tipoManutencao) {
     tipoManutencao.value = template ? template.id : CUSTOM_TIPO_OPTION;
     atualizarTipoSelecionado();
@@ -19386,7 +19393,9 @@ function preencherFormularioManutencao(item) {
   }
 
   if (equipamentoManutencao) {
-    const equipamentoRaw = pickItemValue(item, ["equipamentoId", "equipamento"]);
+    const equipamentoRaw =
+      pickItemValue(item, ["equipamentoId", "equipamento"]) ||
+      (item.conclusao ? pickItemValue(item.conclusao, ["equipamentoId", "equipamento"]) : "");
     const equipamentoNome =
       equipamentoRaw && typeof equipamentoRaw === "object"
         ? equipamentoRaw.nome || equipamentoRaw.name || equipamentoRaw.label || ""
@@ -19461,6 +19470,7 @@ function preencherFormularioManutencao(item) {
     pickItemValue(item, ["osReferencia", "osNumero", "referencia"]) ||
     liberacao.osNumero ||
     (item.conclusao && item.conclusao.referencia) ||
+    (item.conclusao && item.conclusao.osNumero) ||
     (auditDetalhes && (auditDetalhes.osNumero || auditDetalhes.referencia)) ||
     "";
   if (osReferenciaManutencao) {
@@ -19866,6 +19876,14 @@ async function salvarEdicaoManutencao() {
         ...item.conclusao,
         comentario: observacaoFinal,
         referencia: osReferenciaFinal || item.conclusao.referencia,
+        osNumero: osReferenciaFinal || item.conclusao.osNumero,
+        participantes: participantesFinal.length
+          ? participantesFinal
+          : item.conclusao.participantes,
+        critico: critico,
+        categoria: categoriaFinal || item.conclusao.categoria,
+        prioridade: prioridadeFinal || item.conclusao.prioridade,
+        equipamentoId: equipamentoFinal || item.conclusao.equipamentoId,
       }
     : item.conclusao;
 
@@ -22526,6 +22544,17 @@ async function salvarConclusao(event) {
     comentario,
     resultado,
     referencia,
+    osNumero: liberacao ? liberacao.osNumero || "" : "",
+    participantes: liberacao ? liberacao.participantes || [] : [],
+    critico: liberacao ? liberacao.critico : undefined,
+    categoria: item.categoria || "",
+    prioridade: item.prioridade || "",
+    equipamentoId:
+      item.equipamentoId ||
+      (typeof item.equipamento === "string" ? item.equipamento : "") ||
+      (item.equipamento && typeof item.equipamento === "object"
+        ? item.equipamento.id || item.equipamento.nome || item.equipamento.name || ""
+        : ""),
     observacaoExecucao,
     evidencias,
   };
