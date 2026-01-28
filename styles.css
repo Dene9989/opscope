@@ -7407,7 +7407,7 @@ textarea:focus {
 
 .obs {
   font-size: 0.9rem;
-  color: #4e5a66;
+  color: rgba(234, 240, 246, 0.82);
   margin-top: 6px;
   line-height: 1.5;
   white-space: pre-wrap;
