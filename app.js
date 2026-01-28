@@ -2,6 +2,7 @@ const btnAdicionarManutencao = document.getElementById("btnAdicionarManutencao")
 const btnCancelarEdicaoManutencao = document.getElementById("btnCancelarEdicaoManutencao");
 const manutencaoEditBanner = document.getElementById("manutencaoEditBanner");
 const manutencaoEditInfo = document.getElementById("manutencaoEditInfo");
+const novaManutencaoCard = document.getElementById("nova-manutencao");
 const tipoManutencao = document.getElementById("tipoManutencao");
 const customTipoField = document.getElementById("customTipoField");
 const tituloManutencao = document.getElementById("tituloManutencao");
@@ -18899,6 +18900,7 @@ function renderTudo() {
   renderSubestacoes();
   renderTipoOptions();
   renderAuthUI();
+  syncEditFormIfNeeded();
 }
 function atualizarSeNecessario() {
   const gerou = gerarManutencoesRecorrentes();
@@ -19147,16 +19149,26 @@ async function adicionarManutencao() {
 let manutencaoEmConclusao = null;
 let manutencaoEmRegistro = null;
 let manutencaoEmEdicao = null;
+let manutencaoEditSnapshot = null;
+let manutencaoEditDirty = false;
 
 function setEditModeManutencao(item) {
   const ativo = Boolean(item);
   manutencaoEmEdicao = ativo ? item.id : null;
+  manutencaoEditSnapshot = ativo
+    ? typeof structuredClone === "function"
+      ? structuredClone(item)
+      : JSON.parse(JSON.stringify(item))
+    : null;
+  manutencaoEditDirty = false;
   if (manutencaoEditBanner) {
     manutencaoEditBanner.hidden = !ativo;
     if (ativo) {
       manutencaoEditBanner.dataset.editId = item.id;
+      manutencaoEditBanner.dataset.editTitle = item.titulo || "";
     } else {
       delete manutencaoEditBanner.dataset.editId;
+      delete manutencaoEditBanner.dataset.editTitle;
     }
   }
   if (manutencaoEditInfo) {
@@ -19272,6 +19284,29 @@ function limparFormularioManutencao() {
 function limparEdicaoManutencao() {
   setEditModeManutencao(null);
   limparFormularioManutencao();
+}
+
+function syncEditFormIfNeeded() {
+  if (!manutencaoEmEdicao || manutencaoEditDirty) {
+    return;
+  }
+  const item =
+    manutencoes.find((registro) => registro.id === manutencaoEmEdicao) ||
+    manutencaoEditSnapshot;
+  if (item) {
+    preencherFormularioManutencao(item);
+    return;
+  }
+  if (manutencaoEditBanner && manutencaoEditBanner.dataset.editTitle) {
+    const titulo = manutencaoEditBanner.dataset.editTitle;
+    if (tipoManutencao) {
+      tipoManutencao.value = CUSTOM_TIPO_OPTION;
+      atualizarTipoSelecionado();
+    }
+    if (tituloManutencao && titulo) {
+      tituloManutencao.value = titulo;
+    }
+  }
 }
 
 function preencherFormularioManutencao(item) {
@@ -19524,6 +19559,7 @@ async function abrirEdicaoManutencao(item) {
   setEditModeManutencao(atualizado);
   limparFormularioManutencao();
   preencherFormularioManutencao(atualizado);
+  manutencaoEditDirty = false;
   if (manutencaoEditBanner && manutencaoEditBanner.scrollIntoView) {
     manutencaoEditBanner.scrollIntoView({ behavior: "smooth", block: "center" });
   }
@@ -24074,6 +24110,15 @@ if (btnCancelarEdicaoManutencao) {
     limparEdicaoManutencao();
     mostrarMensagemManutencao("Edição cancelada.");
   });
+}
+if (novaManutencaoCard) {
+  const marcarEdicao = () => {
+    if (manutencaoEmEdicao) {
+      manutencaoEditDirty = true;
+    }
+  };
+  novaManutencaoCard.addEventListener("input", marcarEdicao);
+  novaManutencaoCard.addEventListener("change", marcarEdicao);
 }
 if (listaAgendadas) {
   listaAgendadas.addEventListener("click", agirNaManutencao);
