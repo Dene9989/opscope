@@ -12298,6 +12298,39 @@ function getRdoItemSnapshot(manutencaoId) {
   return found;
 }
 
+function findSimilarMaintenance(item) {
+  if (!item || !Array.isArray(manutencoes)) {
+    return null;
+  }
+  const templateId = item.templateId || "";
+  const titulo = normalizeSearchValue(item.titulo || item.nome || "");
+  let best = null;
+  let bestScore = -1;
+  manutencoes.forEach((candidate) => {
+    if (!candidate || candidate.id === item.id) {
+      return;
+    }
+    const sameTemplate = templateId && candidate.templateId === templateId;
+    const sameTitle =
+      titulo &&
+      normalizeSearchValue(candidate.titulo || candidate.nome || "") === titulo;
+    if (!sameTemplate && !sameTitle) {
+      return;
+    }
+    const score =
+      (getItemCategoria(candidate) ? 1 : 0) +
+      (getItemPrioridade(candidate) ? 1 : 0) +
+      (pickItemValue(candidate, ["equipamentoId", "equipamento"]) ? 1 : 0) +
+      (getItemSubestacao(candidate) ? 1 : 0) +
+      (getItemDescricaoRdo(candidate) ? 1 : 0);
+    if (score > bestScore) {
+      best = candidate;
+      bestScore = score;
+    }
+  });
+  return best;
+}
+
 function isCriticoValor(valor) {
   if (valor === true) {
     return true;
@@ -19385,6 +19418,7 @@ function preencherFormularioManutencao(item) {
   }
 
   const rdoItem = getRdoItemSnapshot(item.id);
+  const similarItem = findSimilarMaintenance(item);
   const templateKey = pickItemValue(item, ["templateId", "template"]);
   let template = templateKey ? getTemplateById(templateKey) : null;
   if (!template && item.titulo) {
@@ -19401,11 +19435,17 @@ function preencherFormularioManutencao(item) {
   if (tituloManutencao) {
     tituloManutencao.value = template
       ? ""
-      : item.titulo || item.nome || (rdoItem ? rdoItem.titulo || "" : "");
+      : item.titulo ||
+        item.nome ||
+        (rdoItem ? rdoItem.titulo || "" : "") ||
+        (similarItem ? similarItem.titulo || similarItem.nome || "" : "");
   }
 
   if (subestacaoManutencao) {
-    const local = getItemSubestacao(item) || (rdoItem ? rdoItem.subestacao || "" : "");
+    const local =
+      getItemSubestacao(item) ||
+      (rdoItem ? rdoItem.subestacao || "" : "") ||
+      (similarItem ? getItemSubestacao(similarItem) : "");
     if (local) {
       const existe = Array.from(subestacaoManutencao.options || []).some(
         (opt) => opt.value === local
@@ -19423,7 +19463,8 @@ function preencherFormularioManutencao(item) {
   if (equipamentoManutencao) {
     const equipamentoRaw =
       pickItemValue(item, ["equipamentoId", "equipamento"]) ||
-      (item.conclusao ? pickItemValue(item.conclusao, ["equipamentoId", "equipamento"]) : "");
+      (item.conclusao ? pickItemValue(item.conclusao, ["equipamentoId", "equipamento"]) : "") ||
+      (similarItem ? pickItemValue(similarItem, ["equipamentoId", "equipamento"]) : "");
     const equipamentoNome =
       equipamentoRaw && typeof equipamentoRaw === "object"
         ? equipamentoRaw.nome || equipamentoRaw.name || equipamentoRaw.label || ""
@@ -19505,7 +19546,10 @@ function preencherFormularioManutencao(item) {
     osReferenciaManutencao.value = osNumero;
   }
   if (categoriaManutencao) {
-    const valorCategoria = getItemCategoria(item) || (rdoItem ? rdoItem.categoria || "" : "");
+    const valorCategoria =
+      getItemCategoria(item) ||
+      (rdoItem ? rdoItem.categoria || "" : "") ||
+      (similarItem ? getItemCategoria(similarItem) : "");
     if (valorCategoria) {
       const categoriaNormalizada = normalizeSearchValue(valorCategoria);
       const match = Array.from(categoriaManutencao.options || []).find(
@@ -19525,7 +19569,10 @@ function preencherFormularioManutencao(item) {
     }
   }
   if (prioridadeManutencao) {
-    const valorPrioridade = getItemPrioridade(item) || (rdoItem ? rdoItem.prioridade || "" : "");
+    const valorPrioridade =
+      getItemPrioridade(item) ||
+      (rdoItem ? rdoItem.prioridade || "" : "") ||
+      (similarItem ? getItemPrioridade(similarItem) : "");
     if (valorPrioridade) {
       const prioridadeNormalizada = normalizeSearchValue(valorPrioridade);
       const match = Array.from(prioridadeManutencao.options || []).find(
@@ -19605,7 +19652,10 @@ function preencherFormularioManutencao(item) {
   }
   atualizarNovaCriticoUI();
 
-  const descricaoRegistro = getItemDescricaoRdo(item) || (rdoItem ? rdoItem.descricao || "" : "");
+  const descricaoRegistro =
+    getItemDescricaoRdo(item) ||
+    (rdoItem ? rdoItem.descricao || "" : "") ||
+    (similarItem ? getItemDescricaoRdo(similarItem) : "");
   const usaRegistro =
     Boolean(item.registroExecucao && item.registroExecucao.comentario) ||
     Boolean(item.conclusao && item.conclusao.comentario);
