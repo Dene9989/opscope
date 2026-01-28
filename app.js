@@ -687,6 +687,7 @@ const adminElements = document.querySelectorAll("[data-admin-only]");
 
 const DEFAULT_REMINDER_DAYS = 7;
 const LOADING_DELAY_MS = 450;
+const BASE_DOCUMENT_TITLE = "OPSCOPE - Sistema de Gest\u00e3o Operacional e Manuten\u00e7\u00e3o";
 const HISTORY_PAGE_SIZE = 12;
 const REMINDER_KEY = "denemanu.reminderDays";
 const SIDEBAR_KEY = "opscope.sidebarCollapsed";
@@ -3526,6 +3527,7 @@ function mostrarAuthPanel(nome) {
   if (!authPanels || currentUser) {
     return;
   }
+  atualizarTituloAuth(nome);
   authPanels.hidden = false;
   if (authPanels.classList.contains("auth-panels--dual")) {
     authPanelLogin.hidden = false;
@@ -3547,6 +3549,39 @@ function esconderAuthPanels() {
   authPanelRegistro.hidden = true;
   btnTabLogin.classList.remove("is-active");
   btnTabRegistro.classList.remove("is-active");
+}
+
+function getTabLabel(tabName) {
+  if (!tabName) {
+    return "";
+  }
+  const button = document.querySelector(`[data-tab="${tabName}"]`);
+  if (!button) {
+    return "";
+  }
+  const tooltip = button.getAttribute("data-tooltip");
+  if (tooltip) {
+    return tooltip.trim();
+  }
+  const text = (button.textContent || "").trim();
+  return text;
+}
+
+function atualizarTituloPagina(tabName) {
+  const label = getTabLabel(tabName);
+  if (!label) {
+    document.title = BASE_DOCUMENT_TITLE;
+    return;
+  }
+  document.title = `${label} - OPSCOPE`;
+}
+
+function atualizarTituloAuth(panelName) {
+  if (panelName === "registro") {
+    document.title = "Cadastro - OPSCOPE";
+    return;
+  }
+  document.title = "Acesso seguro - OPSCOPE";
 }
 
 
@@ -22908,6 +22943,7 @@ function ativarTab(nome) {
   if (crumbs) {
     renderBreadcrumb();
   }
+  atualizarTituloPagina(nome);
 }
 
 async function apiLogin(login, senha) {
