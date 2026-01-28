@@ -4487,6 +4487,9 @@ async function setActiveProjectId(nextId, options = {}) {
 }
 
 async function carregarSessaoServidor() {
+  if (!currentUser) {
+    mostrarAuthPanel("login");
+  }
   try {
     const data = await apiRequest("/api/auth/me");
     currentUser = data.user || null;
