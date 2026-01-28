@@ -149,7 +149,7 @@ body.is-visitor .auth-brand__logo {
 }
 
 body.is-visitor .auth-brand__logo-img {
-  height: clamp(200px, 26vw, 260px);
+  height: clamp(240px, 32vw, 320px);
   width: auto;
   max-width: 100%;
   display: block;
