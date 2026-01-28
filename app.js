@@ -5574,6 +5574,33 @@ function getUltimaAcao(item) {
   return historico.length ? historico[0] : null;
 }
 
+function getHistoricoDetalhes(manutencaoId, campos = []) {
+  if (!manutencaoId) {
+    return null;
+  }
+  const historico = getHistoricoManutencao(manutencaoId);
+  if (!historico.length) {
+    return null;
+  }
+  const listaCampos = Array.isArray(campos) ? campos : [];
+  for (const entry of historico) {
+    if (!entry || !entry.detalhes) {
+      continue;
+    }
+    if (!listaCampos.length) {
+      return entry.detalhes;
+    }
+    const possui = listaCampos.some((campo) => {
+      const valor = entry.detalhes[campo];
+      return valor !== undefined && valor !== null && valor !== "";
+    });
+    if (possui) {
+      return entry.detalhes;
+    }
+  }
+  return null;
+}
+
 function getOrigemLabel(entry) {
   if (!entry) {
     return "UI";
@@ -19141,7 +19168,19 @@ function setEditModeManutencao(item) {
         ? `${projeto.codigo || "-"} - ${projeto.nome || "-"}`
         : "Projeto";
       const dataParsed = item.data ? parseDate(item.data) : null;
-      const dataValor = dataParsed ? formatDate(dataParsed) : "-";
+      let dataValor = dataParsed ? formatDate(dataParsed) : "";
+      if (!dataValor && item.data) {
+        dataValor = String(item.data);
+      }
+      if (!dataValor) {
+        const doneDate = item.doneAt ? parseTimestamp(item.doneAt) : null;
+        if (doneDate) {
+          dataValor = formatDate(startOfDay(doneDate));
+        }
+      }
+      if (!dataValor) {
+        dataValor = "-";
+      }
       manutencaoEditInfo.textContent = `${projetoLabel} · ${item.titulo || "-"} · ${
         item.local || "-"
       } · ${dataValor}`;
@@ -19276,10 +19315,39 @@ function preencherFormularioManutencao(item) {
 
   if (equipamentoManutencao) {
     const equipamentoRaw = pickItemValue(item, ["equipamentoId", "equipamento"]);
-    const equipamentoId =
+    const equipamentoNome =
+      equipamentoRaw && typeof equipamentoRaw === "object"
+        ? equipamentoRaw.nome || equipamentoRaw.name || equipamentoRaw.label || ""
+        : "";
+    let equipamentoId =
       typeof equipamentoRaw === "object" && equipamentoRaw
         ? equipamentoRaw.id || ""
         : String(equipamentoRaw || "").trim();
+    if (!equipamentoId && equipamentoNome) {
+      const matchByName = projectEquipamentos.find(
+        (equip) =>
+          normalizeSearchValue(equip.nome || "") === normalizeSearchValue(equipamentoNome) ||
+          normalizeSearchValue(equip.tag || "") === normalizeSearchValue(equipamentoNome)
+      );
+      if (matchByName) {
+        equipamentoId = matchByName.id;
+      }
+    }
+    if (equipamentoId) {
+      const matchById = projectEquipamentos.find((equip) => equip.id === equipamentoId);
+      if (matchById) {
+        equipamentoId = matchById.id;
+      } else if (equipamentoNome) {
+        const matchByName = projectEquipamentos.find(
+          (equip) =>
+            normalizeSearchValue(equip.nome || "") === normalizeSearchValue(equipamentoNome) ||
+            normalizeSearchValue(equip.tag || "") === normalizeSearchValue(equipamentoNome)
+        );
+        if (matchByName) {
+          equipamentoId = matchByName.id;
+        }
+      }
+    }
     if (equipamentoId) {
       const existe = Array.from(equipamentoManutencao.options || []).some(
         (opt) => opt.value === equipamentoId
@@ -19290,7 +19358,7 @@ function preencherFormularioManutencao(item) {
         option.value = equipamentoId;
         option.textContent = equipamento
           ? `${equipamento.tag || "-"} - ${equipamento.nome || "-"}`
-          : "Equipamento removido";
+          : equipamentoNome || equipamentoId;
         equipamentoManutencao.append(option);
       }
     }
@@ -19311,10 +19379,17 @@ function preencherFormularioManutencao(item) {
   }
 
   const liberacao = getLiberacao(item) || {};
+  const auditDetalhes = getHistoricoDetalhes(item.id, [
+    "osNumero",
+    "referencia",
+    "participantes",
+    "critico",
+  ]);
   const osNumero =
     pickItemValue(item, ["osReferencia", "osNumero", "referencia"]) ||
     liberacao.osNumero ||
     (item.conclusao && item.conclusao.referencia) ||
+    (auditDetalhes && (auditDetalhes.osNumero || auditDetalhes.referencia)) ||
     "";
   if (osReferenciaManutencao) {
     osReferenciaManutencao.value = osNumero;
@@ -19353,7 +19428,11 @@ function preencherFormularioManutencao(item) {
           ? item.registroExecucao.participantes
           : Array.isArray(liberacao.participantes)
             ? liberacao.participantes
-            : [];
+            : Array.isArray(auditDetalhes && auditDetalhes.participantes)
+              ? auditDetalhes.participantes
+              : typeof (auditDetalhes && auditDetalhes.participantes) === "string"
+                ? auditDetalhes.participantes.split(";").map((p) => p.trim()).filter(Boolean)
+                : [];
   const participantesNormalizados = participantesBase
     .map((entry) => {
       if (!entry) {
@@ -19386,7 +19465,9 @@ function preencherFormularioManutencao(item) {
   setFieldError(participantesManutencaoErro, "");
 
   const critico =
-    isCriticoValor(item.criticidade) || isCriticoValor(liberacao.critico);
+    isCriticoValor(item.criticidade) ||
+    isCriticoValor(liberacao.critico) ||
+    isCriticoValor(auditDetalhes && auditDetalhes.critico);
   if (criticoManutencao) {
     criticoManutencao.value = critico ? "sim" : "nao";
   }
@@ -19405,6 +19486,14 @@ function preencherFormularioManutencao(item) {
     obsManutencao.value = usaRegistro
       ? descricaoRegistro || ""
       : item.observacao || descricaoRegistro || "";
+  }
+
+  if (!template && tipoManutencao) {
+    tipoManutencao.value = CUSTOM_TIPO_OPTION;
+    atualizarTipoSelecionado();
+    if (tituloManutencao && !tituloManutencao.value) {
+      tituloManutencao.value = item.titulo || item.nome || "";
+    }
   }
 
   novaDocInputs.forEach((input) => {
@@ -19506,6 +19595,12 @@ async function salvarEdicaoManutencao() {
   const categoriaInput = categoriaManutencao ? categoriaManutencao.value.trim() : "";
   const prioridadeInput = prioridadeManutencao ? prioridadeManutencao.value.trim() : "";
   const osReferenciaInput = osReferenciaManutencao ? osReferenciaManutencao.value.trim() : "";
+  const auditDetalhes = getHistoricoDetalhes(item.id, [
+    "osNumero",
+    "referencia",
+    "participantes",
+    "critico",
+  ]);
   const categoria = categoriaInput || getItemCategoria(item) || "";
   const prioridade = prioridadeInput || getItemPrioridade(item) || "";
   const osReferencia =
@@ -19513,6 +19608,7 @@ async function salvarEdicaoManutencao() {
     pickItemValue(item, ["osReferencia", "osNumero", "referencia"]) ||
     (item.conclusao && item.conclusao.referencia) ||
     (getLiberacao(item) && getLiberacao(item).osNumero) ||
+    (auditDetalhes && (auditDetalhes.osNumero || auditDetalhes.referencia)) ||
     "";
   const participantesTexto = participantesManutencao ? participantesManutencao.value : "";
   let participantes = participantesTexto
@@ -19531,7 +19627,11 @@ async function salvarEdicaoManutencao() {
             ? item.registroExecucao.participantes
             : Array.isArray((getLiberacao(item) || {}).participantes)
               ? (getLiberacao(item) || {}).participantes
-              : [];
+              : Array.isArray(auditDetalhes && auditDetalhes.participantes)
+                ? auditDetalhes.participantes
+                : typeof (auditDetalhes && auditDetalhes.participantes) === "string"
+                  ? auditDetalhes.participantes.split(";").map((p) => p.trim()).filter(Boolean)
+                  : [];
     participantes = base
       .map((entry) => {
         if (!entry) {
@@ -19557,7 +19657,11 @@ async function salvarEdicaoManutencao() {
   }
   const criticoValor = criticoManutencao ? criticoManutencao.value : "";
   const critico =
-    criticoValor === "sim" ? true : criticoValor === "nao" ? false : isItemCritico(item);
+    criticoValor === "sim"
+      ? true
+      : criticoValor === "nao"
+        ? false
+        : isItemCritico(item) || isCriticoValor(auditDetalhes && auditDetalhes.critico);
 
   if (!titulo || !local || !data || !categoria || !prioridade) {
     mostrarMensagemManutencao(
