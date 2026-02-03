@@ -40,6 +40,18 @@ const MASTER_CARGO = "T\u00e9cnico S\u00eanior de Manuten\u00e7\u00e3o";
 const MASTER_PASSWORD = process.env.MASTER_PASSWORD || ADMIN_PASSWORD;
 const INVITE_TTL_HOURS = 24;
 const VERIFICATION_TTL_HOURS = Number(process.env.VERIFICATION_TTL_HOURS) || 24;
+const VERIFICATION_CODE_LENGTH = Math.max(
+  4,
+  Math.min(8, Number(process.env.VERIFICATION_CODE_LENGTH) || 6)
+);
+const VERIFICATION_MAX_ATTEMPTS = Math.max(
+  1,
+  Number(process.env.VERIFICATION_MAX_ATTEMPTS) || 5
+);
+const VERIFICATION_RESEND_COOLDOWN_MS = Math.max(
+  0,
+  Number(process.env.VERIFICATION_RESEND_COOLDOWN_MS) || 60 * 1000
+);
 
 const LEGACY_DATA_DIR = path.join(__dirname, "data");
 const LEGACY_STORAGE_DIR = path.join(__dirname, "storage");
@@ -2790,12 +2802,73 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+function normalizeVerificationEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
+
 function createVerificationToken() {
   return crypto.randomBytes(32).toString("hex");
 }
 
+function createVerificationCode() {
+  const min = 10 ** (VERIFICATION_CODE_LENGTH - 1);
+  const max = 10 ** VERIFICATION_CODE_LENGTH;
+  return String(Math.floor(Math.random() * (max - min)) + min);
+}
+
 function hashToken(token) {
   return crypto.createHash("sha256").update(String(token)).digest("hex");
+}
+
+function findVerificationIndexByEmail(email) {
+  const normalized = normalizeVerificationEmail(email);
+  if (!normalized) {
+    return -1;
+  }
+  for (let i = verifications.length - 1; i >= 0; i -= 1) {
+    const item = verifications[i];
+    if (normalizeVerificationEmail(item && item.email) === normalized) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+function findVerificationIndexByUserId(userId) {
+  const normalized = String(userId || "").trim();
+  if (!normalized) {
+    return -1;
+  }
+  for (let i = verifications.length - 1; i >= 0; i -= 1) {
+    const item = verifications[i];
+    if (String((item && item.userId) || "").trim() === normalized) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+function isVerificationExpired(record) {
+  if (!record || !record.expiresAt) {
+    return false;
+  }
+  return new Date(record.expiresAt).getTime() <= Date.now();
+}
+
+function activateUserByVerification(record) {
+  if (!record || !record.userId) {
+    return { error: 404, message: "Usuario nao encontrado." };
+  }
+  const userIndex = users.findIndex((item) => item.id === record.userId);
+  if (userIndex === -1) {
+    return { error: 404, message: "Usuario nao encontrado." };
+  }
+  const updated = normalizeUserRecord({
+    ...users[userIndex],
+    emailVerified: true,
+  });
+  users[userIndex] = updated;
+  return { user: updated };
 }
 
 function withTimeout(promise, timeoutMs) {
@@ -2897,17 +2970,23 @@ async function sendEmailViaSmtp({ to, subject, text, html }) {
   }
 }
 
-async function sendVerificationEmail(email, name, token) {
+async function sendVerificationEmail(email, name, token, code) {
   const baseUrl = String(APP_BASE_URL || "").replace(/\/$/, "");
   const verifyUrl = `${baseUrl}/?verify=${encodeURIComponent(token)}`;
   const safeName = String(name || "").trim() || "colaborador";
-  const subject = "Confirmação de e-mail - OPSCOPE";
-  const text = `Olá, ${safeName}!\n\nConfirme seu e-mail para ativar sua conta OPSCOPE:\n${verifyUrl}\n\nSe você não solicitou o acesso, ignore este e-mail.`;
+  const safeCode = String(code || "").trim();
+  const codeText = safeCode ? `Codigo de verificacao: ${safeCode}\n\n` : "";
+  const codeHtml = safeCode
+    ? `<p>Codigo de verificacao: <strong style="font-size: 20px; letter-spacing: 2px;">${safeCode}</strong></p>`
+    : "";
+  const subject = "Confirmacao de e-mail - OPSCOPE";
+  const text = `Ola, ${safeName}!\n\n${codeText}Confirme seu e-mail para ativar sua conta OPSCOPE:\n${verifyUrl}\n\nSe voce nao solicitou o acesso, ignore este e-mail.`;
   const html = `
-    <p>Olá, <strong>${safeName}</strong>!</p>
+    <p>Ola, <strong>${safeName}</strong>!</p>
+    ${codeHtml}
     <p>Confirme seu e-mail para ativar sua conta OPSCOPE:</p>
     <p><a href="${verifyUrl}">Confirmar e-mail</a></p>
-    <p>Se você não solicitou o acesso, ignore este e-mail.</p>
+    <p>Se voce nao solicitou o acesso, ignore este e-mail.</p>
   `;
   const resendOk = await sendEmailViaResend({ to: email, subject, text, html });
   if (resendOk) {
@@ -2918,9 +2997,14 @@ async function sendVerificationEmail(email, name, token) {
 
 function cleanupVerifications() {
   const now = Date.now();
-  verifications = verifications.filter(
-    (item) => !item.expiresAt || new Date(item.expiresAt).getTime() > now
-  );
+  verifications = verifications
+    .filter((item) => item && typeof item === "object")
+    .map((item) => ({
+      ...item,
+      email: normalizeVerificationEmail(item.email),
+      attempts: Number(item.attempts || 0),
+    }))
+    .filter((item) => !item.expiresAt || new Date(item.expiresAt).getTime() > now);
   writeJson(VERIFICATIONS_FILE, verifications);
 }
 
@@ -3552,7 +3636,11 @@ app.post("/api/auth/login", async (req, res) => {
   }
   if (user.emailVerified === false) {
     appendAudit("login_unverified", user.id, { login }, ip);
-    return res.status(403).json({ message: "E-mail não verificado. Verifique seu e-mail." });
+    return res.status(403).json({
+      message: "E-mail nao verificado. Digite o codigo enviado para o seu e-mail.",
+      requiresEmailVerification: true,
+      email: normalizeVerificationEmail(user.email || user.username || user.matricula),
+    });
   }
   clearFailures(ip, login);
   req.session.userId = user.id;
@@ -5104,19 +5192,25 @@ app.post("/api/auth/register", async (req, res) => {
   };
   cleanupVerifications();
   const token = createVerificationToken();
+  const code = createVerificationCode();
   const tokenHash = hashToken(token);
+  const codeHash = hashToken(code);
+  const createdAt = new Date().toISOString();
   const expiresAt = new Date(Date.now() + VERIFICATION_TTL_HOURS * 60 * 60 * 1000).toISOString();
   const verification = {
     tokenHash,
+    codeHash,
     userId: user.id,
-    email,
-    createdAt: new Date().toISOString(),
+    email: normalizeVerificationEmail(email),
+    createdAt,
+    lastSentAt: createdAt,
     expiresAt,
+    attempts: 0,
   };
   let emailSent = false;
   let verificationRequired = true;
   try {
-    emailSent = await sendVerificationEmail(email, nome, token);
+    emailSent = await sendVerificationEmail(email, nome, token, code);
   } catch (error) {
     emailSent = false;
   }
@@ -5149,7 +5243,120 @@ app.post("/api/auth/register", async (req, res) => {
     writeJson(VERIFICATIONS_FILE, verifications);
   }
   appendAudit("register", user.id, { matricula, role }, getClientIp(req));
-  return res.json({ ok: true, verificationRequired });
+  return res.json({
+    ok: true,
+    verificationRequired,
+    pendingEmail: normalizeVerificationEmail(email),
+  });
+});
+
+app.post("/api/auth/verify-code", (req, res) => {
+  cleanupVerifications();
+  const email = normalizeVerificationEmail(req.body.email);
+  const code = String(req.body.code || "").replace(/\D/g, "");
+  if (!email || !code) {
+    return res.status(400).json({ message: "Informe e-mail e codigo." });
+  }
+  const recordIndex = findVerificationIndexByEmail(email);
+  if (recordIndex === -1) {
+    return res.status(400).json({ message: "Codigo invalido ou expirado." });
+  }
+  const record = verifications[recordIndex];
+  if (isVerificationExpired(record)) {
+    verifications.splice(recordIndex, 1);
+    writeJson(VERIFICATIONS_FILE, verifications);
+    return res.status(410).json({ message: "Codigo expirado." });
+  }
+  if (!record.codeHash) {
+    return res.status(400).json({ message: "Codigo indisponivel. Use o link de verificacao." });
+  }
+  const attempts = Number(record.attempts || 0);
+  if (attempts >= VERIFICATION_MAX_ATTEMPTS) {
+    return res.status(429).json({ message: "Tentativas esgotadas. Reenvie um novo codigo." });
+  }
+  if (hashToken(code) !== record.codeHash) {
+    const nextAttempts = attempts + 1;
+    verifications[recordIndex] = { ...record, attempts: nextAttempts };
+    writeJson(VERIFICATIONS_FILE, verifications);
+    const remaining = Math.max(0, VERIFICATION_MAX_ATTEMPTS - nextAttempts);
+    const message = remaining
+      ? `Codigo invalido. Tentativas restantes: ${remaining}.`
+      : "Tentativas esgotadas. Reenvie um novo codigo.";
+    return res.status(400).json({ message, remainingAttempts: remaining });
+  }
+  const activation = activateUserByVerification(record);
+  if (activation.error) {
+    verifications.splice(recordIndex, 1);
+    writeJson(VERIFICATIONS_FILE, verifications);
+    return res.status(activation.error).json({ message: activation.message });
+  }
+  const updated = activation.user;
+  verifications.splice(recordIndex, 1);
+  writeJson(USERS_FILE, users);
+  writeJson(VERIFICATIONS_FILE, verifications);
+  appendAudit(
+    "email_verify",
+    updated.id,
+    { email: updated.email, method: "code" },
+    getClientIp(req)
+  );
+  return res.json({ ok: true, user: sanitizeUser(updated) });
+});
+
+app.post("/api/auth/verify/resend", async (req, res) => {
+  cleanupVerifications();
+  const email = normalizeVerificationEmail(req.body.email);
+  if (!email || !isValidEmail(email)) {
+    return res.status(400).json({ message: "Informe um e-mail valido." });
+  }
+  const user = users.find(
+    (item) => normalizeVerificationEmail(item.email || item.username || item.matricula) === email
+  );
+  if (!user || user.emailVerified !== false) {
+    return res.json({ ok: true, verificationRequired: false });
+  }
+  const existingIndex = findVerificationIndexByUserId(user.id);
+  const existingRecord = existingIndex >= 0 ? verifications[existingIndex] : null;
+  if (existingRecord && existingRecord.lastSentAt) {
+    const elapsed = Date.now() - new Date(existingRecord.lastSentAt).getTime();
+    if (elapsed < VERIFICATION_RESEND_COOLDOWN_MS) {
+      const retryAfter = Math.ceil((VERIFICATION_RESEND_COOLDOWN_MS - elapsed) / 1000);
+      return res.status(429).json({
+        message: `Aguarde ${retryAfter}s para reenviar o codigo.`,
+        retryAfter,
+      });
+    }
+  }
+  const token = createVerificationToken();
+  const code = createVerificationCode();
+  let emailSent = false;
+  try {
+    emailSent = await sendVerificationEmail(email, user.name, token, code);
+  } catch (error) {
+    emailSent = false;
+  }
+  if (!emailSent) {
+    return res.status(503).json({ message: "Envio de e-mail indisponivel." });
+  }
+  const now = new Date().toISOString();
+  const nextRecord = {
+    tokenHash: hashToken(token),
+    codeHash: hashToken(code),
+    userId: user.id,
+    email,
+    createdAt: now,
+    lastSentAt: now,
+    expiresAt: new Date(Date.now() + VERIFICATION_TTL_HOURS * 60 * 60 * 1000).toISOString(),
+    attempts: 0,
+  };
+  if (existingIndex >= 0) {
+    verifications[existingIndex] = nextRecord;
+  } else {
+    verifications.push(nextRecord);
+  }
+  writeJson(VERIFICATIONS_FILE, verifications);
+  appendAudit("email_verify_resend", user.id, { email }, getClientIp(req));
+  return res.json({ ok: true, verificationRequired: true, pendingEmail: email });
 });
 
 app.get("/api/auth/verify", (req, res) => {
@@ -5164,26 +5371,22 @@ app.get("/api/auth/verify", (req, res) => {
     return res.status(400).json({ message: "Token inválido ou expirado." });
   }
   const record = verifications[recordIndex];
-  if (record.expiresAt && new Date(record.expiresAt).getTime() <= Date.now()) {
+  if (isVerificationExpired(record)) {
     verifications.splice(recordIndex, 1);
     writeJson(VERIFICATIONS_FILE, verifications);
     return res.status(410).json({ message: "Token expirado." });
   }
-  const userIndex = users.findIndex((item) => item.id === record.userId);
-  if (userIndex === -1) {
+  const activation = activateUserByVerification(record);
+  if (activation.error) {
     verifications.splice(recordIndex, 1);
     writeJson(VERIFICATIONS_FILE, verifications);
-    return res.status(404).json({ message: "Usuário não encontrado." });
+    return res.status(activation.error).json({ message: activation.message });
   }
-  const updated = normalizeUserRecord({
-    ...users[userIndex],
-    emailVerified: true,
-  });
-  users[userIndex] = updated;
+  const updated = activation.user;
   verifications.splice(recordIndex, 1);
   writeJson(USERS_FILE, users);
   writeJson(VERIFICATIONS_FILE, verifications);
-  appendAudit("email_verify", updated.id, { email: updated.email }, getClientIp(req));
+  appendAudit("email_verify", updated.id, { email: updated.email, method: "link" }, getClientIp(req));
   return res.json({ ok: true, user: sanitizeUser(updated) });
 });
 

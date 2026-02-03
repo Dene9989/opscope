@@ -369,6 +369,14 @@ const reqNome = document.getElementById("reqNome");
 const reqSenha = document.getElementById("reqSenha");
 const reqSenhaConfirm = document.getElementById("reqSenhaConfirm");
 const reqCodigoConvite = document.getElementById("reqCodigoConvite");
+const verifyForm = document.getElementById("verifyForm");
+const verifyEmail = document.getElementById("verifyEmail");
+const verifyCode = document.getElementById("verifyCode");
+const verifyHintEmail = document.getElementById("verifyHintEmail");
+const verifyCodeError = document.getElementById("verifyCodeError");
+const btnVerifySubmit = document.getElementById("btnVerifySubmit");
+const btnVerifyResend = document.getElementById("btnVerifyResend");
+const btnVerifyBack = document.getElementById("btnVerifyBack");
 const btnRegistroSubmit = document.getElementById("btnRegistroSubmit");
 const btnToggleReqSenha = document.getElementById("btnToggleReqSenha");
 const btnToggleReqSenhaConfirm = document.getElementById("btnToggleReqSenhaConfirm");
@@ -1917,6 +1925,7 @@ const FILE_ALLOWED_TYPES = [
 let pendingAvatarDataUrl = "";
 let avatarUploadBound = false;
 let lastFocusMaintenanceId = "";
+let pendingVerificationEmail = "";
 
 async function apiRequest(path, options = {}) {
   const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
@@ -2211,6 +2220,8 @@ async function handleEmailVerification() {
   }
   try {
     await apiVerifyEmail(token);
+    pendingVerificationEmail = "";
+    mostrarFormularioRegistro();
     mostrarMensagemConta("Email confirmado. Faca login.", false);
   } catch (error) {
     const message = error && error.message ? error.message : "Falha ao confirmar email.";
@@ -2221,6 +2232,9 @@ async function handleEmailVerification() {
     url.searchParams.delete("verify");
     window.history.replaceState(null, "", url.toString());
     mostrarAuthPanel("login");
+    if (loginUsuario && pendingVerificationEmail) {
+      loginUsuario.value = pendingVerificationEmail;
+    }
   }
   return true;
 }
@@ -2295,6 +2309,42 @@ function mostrarMensagemConta(texto, erro = false) {
   }
   mensagemConta.textContent = texto;
   mensagemConta.classList.toggle("mensagem--erro", erro);
+}
+
+function normalizeVerificationEmail(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
+function mostrarFormularioRegistro() {
+  if (reqForm) {
+    reqForm.hidden = false;
+  }
+  if (verifyForm) {
+    verifyForm.hidden = true;
+  }
+  setFieldError(verifyCodeError, "");
+}
+
+function mostrarFormularioVerificacao(email) {
+  pendingVerificationEmail = normalizeVerificationEmail(email);
+  if (verifyEmail) {
+    verifyEmail.value = pendingVerificationEmail;
+  }
+  if (verifyHintEmail) {
+    verifyHintEmail.textContent = pendingVerificationEmail || "seu e-mail";
+  }
+  if (verifyCode) {
+    verifyCode.value = "";
+  }
+  setFieldError(verifyCodeError, "");
+  if (reqForm) {
+    reqForm.hidden = true;
+  }
+  if (verifyForm) {
+    verifyForm.hidden = false;
+  }
 }
 
 function mostrarMensagemGerencial(texto, erro = false) {
@@ -22969,6 +23019,20 @@ async function apiVerifyEmail(token) {
   return apiRequest(`/api/auth/verify?token=${safeToken}`, { method: "GET" });
 }
 
+async function apiVerifyEmailCode(email, code) {
+  return apiRequest("/api/auth/verify-code", {
+    method: "POST",
+    body: JSON.stringify({ email, code }),
+  });
+}
+
+async function apiResendVerificationCode(email) {
+  return apiRequest("/api/auth/verify/resend", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
 async function apiInvite(role) {
   return apiRequest("/api/auth/invite", {
     method: "POST",
@@ -23984,6 +24048,7 @@ if (btnTabRegistro) {
       return;
     }
     mostrarAuthPanel("registro");
+    mostrarFormularioRegistro();
     if (reqMatricula) {
       reqMatricula.focus();
     }
@@ -23999,6 +24064,8 @@ if (btnSair) {
     }
     currentUser = null;
     renderTudo();
+    pendingVerificationEmail = "";
+    mostrarFormularioRegistro();
     mostrarAuthPanel("login");
   });
 }
@@ -24146,6 +24213,10 @@ loginForm.addEventListener("submit", async (event) => {
   } catch (error) {
     const message = error && error.message ? error.message : "Usuário ou senha inválidos.";
     mostrarMensagemConta(message, true);
+    if (error && error.data && error.data.requiresEmailVerification) {
+      const pendingEmail = normalizeVerificationEmail(error.data.email || login);
+      mostrarFormularioVerificacao(pendingEmail);
+    }
   } finally {
     if (btnLoginSubmit) {
       btnLoginSubmit.disabled = false;
@@ -24194,8 +24265,11 @@ reqForm.addEventListener("submit", async (event) => {
   try {
     const data = await apiRegister({ matricula, email, nome, senha, senhaConfirm, convite });
     const needsVerification = !data || data.verificationRequired !== false;
+    const pendingEmail = normalizeVerificationEmail(
+      (data && data.pendingEmail) || email || matricula
+    );
     const successMessage = needsVerification
-      ? "Conta criada. Confirme o email para ativar."
+      ? "Conta criada. Digite o codigo enviado para o seu e-mail."
       : "Conta criada. Voce ja pode entrar.";
     mostrarMensagemConta(successMessage, false);
     reqMatricula.value = "";
@@ -24206,6 +24280,15 @@ reqForm.addEventListener("submit", async (event) => {
     }
     if (reqCodigoConvite) {
       reqCodigoConvite.value = "";
+    }
+    if (needsVerification) {
+      mostrarFormularioVerificacao(pendingEmail);
+      return;
+    }
+    mostrarFormularioRegistro();
+    pendingVerificationEmail = "";
+    if (loginUsuario) {
+      loginUsuario.value = pendingEmail;
     }
     mostrarAuthPanel("login");
   } catch (error) {
@@ -24229,6 +24312,102 @@ reqForm.addEventListener("submit", async (event) => {
   }
 });
 
+if (verifyForm) {
+  verifyForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    setFieldError(verifyCodeError, "");
+    const email = normalizeVerificationEmail(
+      (verifyEmail && verifyEmail.value) || pendingVerificationEmail
+    );
+    const code = String((verifyCode && verifyCode.value) || "").replace(/\D/g, "");
+    if (!email || !code) {
+      setFieldError(verifyCodeError, "Informe o e-mail e o codigo.");
+      return;
+    }
+    if (btnVerifySubmit) {
+      btnVerifySubmit.disabled = true;
+      btnVerifySubmit.textContent = "Confirmando...";
+    }
+    try {
+      await apiVerifyEmailCode(email, code);
+      pendingVerificationEmail = "";
+      mostrarFormularioRegistro();
+      if (verifyEmail) {
+        verifyEmail.value = "";
+      }
+      if (verifyCode) {
+        verifyCode.value = "";
+      }
+      if (loginUsuario) {
+        loginUsuario.value = email;
+      }
+      mostrarMensagemConta("Email confirmado. Faça login.", false);
+      mostrarAuthPanel("login");
+      if (loginSenha) {
+        loginSenha.focus();
+      }
+    } catch (error) {
+      const message = error && error.message ? error.message : "Nao foi possivel validar o codigo.";
+      setFieldError(verifyCodeError, message);
+      mostrarMensagemConta(message, true);
+    } finally {
+      if (btnVerifySubmit) {
+        btnVerifySubmit.disabled = false;
+        btnVerifySubmit.textContent = "Confirmar código";
+      }
+    }
+  });
+}
+
+if (btnVerifyResend) {
+  btnVerifyResend.addEventListener("click", async () => {
+    const email = normalizeVerificationEmail(
+      (verifyEmail && verifyEmail.value) || pendingVerificationEmail
+    );
+    if (!email) {
+      setFieldError(verifyCodeError, "Informe o e-mail para reenviar.");
+      return;
+    }
+    setFieldError(verifyCodeError, "");
+    btnVerifyResend.disabled = true;
+    btnVerifyResend.textContent = "Reenviando...";
+    try {
+      const data = await apiResendVerificationCode(email);
+      const nextEmail = normalizeVerificationEmail((data && data.pendingEmail) || email);
+      pendingVerificationEmail = nextEmail;
+      if (verifyEmail) {
+        verifyEmail.value = nextEmail;
+      }
+      if (verifyHintEmail) {
+        verifyHintEmail.textContent = nextEmail || "seu e-mail";
+      }
+      mostrarMensagemConta("Codigo reenviado. Verifique sua caixa de entrada.", false);
+      if (verifyCode) {
+        verifyCode.focus();
+      }
+    } catch (error) {
+      const message = error && error.message ? error.message : "Nao foi possivel reenviar o codigo.";
+      setFieldError(verifyCodeError, message);
+      mostrarMensagemConta(message, true);
+    } finally {
+      btnVerifyResend.disabled = false;
+      btnVerifyResend.textContent = "Reenviar código";
+    }
+  });
+}
+
+if (btnVerifyBack) {
+  btnVerifyBack.addEventListener("click", () => {
+    mostrarFormularioRegistro();
+    if (reqMatricula && pendingVerificationEmail && !reqMatricula.value.trim()) {
+      reqMatricula.value = pendingVerificationEmail;
+    }
+    if (reqMatricula) {
+      reqMatricula.focus();
+    }
+  });
+}
+
 if (tipoManutencao) {
   tipoManutencao.addEventListener("change", atualizarTipoSelecionado);
 }
@@ -24251,6 +24430,7 @@ if (reqSenha) {
 if (reqSenhaRules) {
   atualizarSenhaRules();
 }
+mostrarFormularioRegistro();
 
 if (btnPresetDiasUteis) {
   btnPresetDiasUteis.addEventListener("click", aplicarPresetDiasUteis);

@@ -2972,6 +2972,26 @@ body.is-visitor .container.auth-only {
   color: var(--ink-soft);
 }
 
+.app .history-summary {
+  background: var(--surface2);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--text);
+}
+
+.app .history-item {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.app .history-meta {
+  color: var(--muted);
+}
+
+.app .history-item strong {
+  color: var(--text);
+}
+
 .template-item {
   padding: 14px;
   border-radius: 14px;
@@ -3910,7 +3930,7 @@ body.is-visitor .container.auth-only {
 }
 
 .app .notify-panel .empty-state {
-  color: #5d6a76;
+  color: #1b2a38;
 }
 
 .notify-panel .btn--ghost {

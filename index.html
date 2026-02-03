@@ -153,7 +153,7 @@
           </div>
           <div class="auth-panel auth-panel--right auth-card">
             <p class="auth-kicker">Ainda n&atilde;o tem acesso? Solicite uma conta.</p>
-            <form id="reqForm" class="auth-form auth-form--register" data-auth-panel="registro" hidden>
+            <form id="reqForm" class="auth-form auth-form--register" data-auth-panel="registro">
               <h3>Registrar</h3>
               <div class="field">
                 <label for="reqNome">Nome completo</label>
@@ -401,6 +401,57 @@
               <p class="auth-helper">
                 Sua solicita&ccedil;&atilde;o ser&aacute; encaminhada ao PCM/O&amp;M respons&aacute;vel.
               </p>
+            </form>
+            <form id="verifyForm" class="auth-form auth-form--verify" hidden>
+              <h3>Confirmar e-mail</h3>
+              <p class="auth-helper">
+                Digite o c&oacute;digo enviado para <strong id="verifyHintEmail">seu e-mail</strong>.
+              </p>
+              <div class="field">
+                <label for="verifyEmail">E-mail corporativo</label>
+                <div class="input-wrap has-icon-left">
+                  <span class="input-icon left" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                      <path
+                        d="M4 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Zm0 2 8 5 8-5H4Z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                  </span>
+                  <input id="verifyEmail" type="email" placeholder="nome.sobrenome@engelmig.com.br" autocomplete="email" />
+                </div>
+              </div>
+              <div class="field">
+                <label for="verifyCode">C&oacute;digo de verifica&ccedil;&atilde;o</label>
+                <div class="input-wrap has-icon-left">
+                  <span class="input-icon left" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                      <path
+                        d="M12 3a4 4 0 0 1 4 4v3h2a2 2 0 0 1 2 2v2h-2v6a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-6H4v-2a2 2 0 0 1 2-2h2V7a4 4 0 0 1 4-4Zm0 2a2 2 0 0 0-2 2v3h4V7a2 2 0 0 0-2-2Z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                  </span>
+                  <input
+                    id="verifyCode"
+                    type="text"
+                    inputmode="numeric"
+                    pattern="[0-9]*"
+                    maxlength="8"
+                    placeholder="Codigo recebido no e-mail"
+                    autocomplete="one-time-code"
+                  />
+                </div>
+                <p id="verifyCodeError" class="field-error" hidden></p>
+              </div>
+              <div class="auth-actions">
+                <button id="btnVerifySubmit" class="btn btn--primary" type="submit">Confirmar c&oacute;digo</button>
+                <button id="btnVerifyResend" class="btn btn--ghost" type="button">Reenviar c&oacute;digo</button>
+              </div>
+              <p class="auth-helper">
+                N&atilde;o recebeu? Verifique caixa de spam e depois clique em reenviar.
+              </p>
+              <button id="btnVerifyBack" class="btn btn--ghost" type="button">Voltar para cadastro</button>
             </form>
           </div>
         </div>
@@ -2758,7 +2809,7 @@
     <div class="card-head">
       <div>
         <h2>Feedbacks entre colaboradores</h2>
-        <p class="hint">Feedbacks sao privados entre remetente e destinatario.</p>
+        <p class="hint">Feedbacks são privados entre remetente e destinatário.</p>
       </div>
       <div class="feedback-stats" id="feedbackStats">
         <div class="feedback-stat">
@@ -2920,7 +2971,7 @@
             <h3>Dados operacionais</h3>
             <div class="profile-grid">
               <div class="profile-item" data-full>
-                <span class="account-label">Atribuicoes</span>
+                <span class="account-label">Atribuições</span>
                 <p id="perfilAtribuicoes" class="profile-text">-</p>
               </div>
               <div class="profile-item" data-full>
@@ -3043,7 +3094,7 @@
             </span>
             <div class="indicator-card__body">
               <strong>Erros de API</strong>
-              <span id="indicatorLogsMeta">últimas requisicoes</span>
+              <span id="indicatorLogsMeta">últimas requisições</span>
             </div>
             <div class="indicator-card__actions">
               <span class="indicator-card__count" id="indicatorLogsCount">-</span>
@@ -3148,7 +3199,7 @@
           <section class="gerencial-panel is-active" role="tabpanel" data-tab-panel="geral">
             <div class="gerencial-overview">
               <div class="overview-card">
-                <h3>Resumo rapido</h3>
+                <h3>Resumo rápido</h3>
                 <ul class="overview-list">
                   <li><span>Alertas ativos</span><strong>3</strong></li>
                   <li><span>Erros de API</span><strong>2</strong></li>
@@ -3169,7 +3220,7 @@
                     Ajustar permissões
                   </button>
                 </div>
-                <p class="hint">Atalhos para funcoes críticas do dia.</p>
+                <p class="hint">Atalhos para funções críticas do dia.</p>
               </div>
             </div>
           </section>
@@ -3179,7 +3230,7 @@
               <div class="card-head">
                 <div>
                   <h2>Diagnóstico do sistema</h2>
-                  <p class="hint">Status técnico dos modulos e integridade dos dados.</p>
+                  <p class="hint">Status técnico dos módulos e integridade dos dados.</p>
                 </div>
                 <div class="card-actions">
                   <button id="btnHealthRunAll" class="btn btn--primary btn--small" type="button">
@@ -3190,7 +3241,7 @@
               </div>
               <div id="healthSummary" class="health-grid"></div>
               <div class="health-section">
-                <h3>Fila de tarefas automaticas</h3>
+                <h3>Fila de tarefas automáticas</h3>
                 <div id="healthTasks" class="health-tasks"></div>
               </div>
               <div class="health-section">
@@ -3206,7 +3257,7 @@
               <div class="card-head">
                 <div>
                   <h2>Logs de API</h2>
-                  <p class="hint">Historico técnico das requisicoes mais recentes.</p>
+                  <p class="hint">Histórico técnico das requisições mais recentes.</p>
                 </div>
                 <div class="card-actions">
                   <button id="btnLogsExport" class="btn btn--primary btn--small" type="button">Exportar</button>
@@ -3259,7 +3310,7 @@
               <div class="card-head">
                 <div>
                   <h2>Permissões granulares</h2>
-                  <p class="hint">Defina acessos por perfil para funcoes críticas.</p>
+                  <p class="hint">Defina acessos por perfil para funções críticas.</p>
                 </div>
                 <button id="btnPermissoesSalvar" class="btn btn--primary btn--small" type="button">
                   Salvar permissões
