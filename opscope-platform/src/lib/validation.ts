@@ -16,41 +16,121 @@ export const itemSchema = z.object({
   sizes: z.array(z.string()).optional().nullable()
 });
 
-export const movementSchema = z.object({
-  type: z.enum([
-    "ENTRADA",
-    "SAIDA",
-    "TRANSFERENCIA",
-    "AJUSTE",
-    "DEVOLUCAO",
-    "PERDA_BAIXA",
-    "RESERVA",
-    "LIBERACAO_RESERVA"
-  ]),
+const attachmentSchema = z.object({
+  name: z.string(),
+  url: z.string().url(),
+  type: z.string().optional().nullable()
+});
+
+export const entrySchema = z.object({
+  type: z.literal("ENTRADA"),
   itemId: z.string().uuid(),
-  quantity: z.number().positive(),
+  qty: z.number().int().positive(),
   projectId: z.string().uuid(),
   worksiteId: z.string().uuid().optional().nullable(),
-  sourceProjectId: z.string().uuid().optional().nullable(),
-  sourceWorksiteId: z.string().uuid().optional().nullable(),
-  destinationProjectId: z.string().uuid().optional().nullable(),
-  destinationWorksiteId: z.string().uuid().optional().nullable(),
-  collaboratorId: z.string().uuid().optional().nullable(),
-  activityId: z.string().uuid().optional().nullable(),
+  batchId: z.string().uuid().optional().nullable(),
+  batchCode: z.string().min(2).optional().nullable(),
+  itemValidUntil: z.string().optional().nullable(),
+  caValidUntil: z.string().optional().nullable(),
+  unitCost: z.number().nonnegative().optional().nullable(),
+  invoiceNumber: z.string().optional().nullable(),
   reason: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
-  invoiceNumber: z.string().optional().nullable(),
-  batchCode: z.string().optional().nullable(),
-  attachments: z
-    .array(
-      z.object({
-        name: z.string(),
-        url: z.string().url(),
-        type: z.string().optional().nullable()
-      })
-    )
+  attachments: z.array(attachmentSchema).optional().nullable()
+});
+
+export const deliverySchema = z.object({
+  type: z.literal("ENTREGA"),
+  itemId: z.string().uuid(),
+  qty: z.number().int().positive(),
+  projectId: z.string().uuid(),
+  worksiteId: z.string().uuid().optional().nullable(),
+  batchId: z.string().uuid().optional().nullable(),
+  collaboratorId: z.string().uuid(),
+  reservationId: z.string().uuid().optional().nullable(),
+  reason: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  term: z
+    .object({
+      accepted: z.boolean().optional(),
+      name: z.string().min(2).optional(),
+      cpf: z.string().min(11).optional()
+    })
     .optional()
-    .nullable()
+    .nullable(),
+  attachments: z.array(attachmentSchema).optional().nullable()
+});
+
+export const returnSchema = z.object({
+  type: z.literal("DEVOLUCAO"),
+  itemId: z.string().uuid(),
+  qty: z.number().int().positive(),
+  projectId: z.string().uuid(),
+  worksiteId: z.string().uuid().optional().nullable(),
+  relatedMovementId: z.string().uuid(),
+  reason: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  attachments: z.array(attachmentSchema).optional().nullable()
+});
+
+export const transferSchema = z.object({
+  type: z.literal("TRANSFERENCIA"),
+  itemId: z.string().uuid(),
+  qty: z.number().int().positive(),
+  projectOriginId: z.string().uuid(),
+  worksiteOriginId: z.string().uuid().optional().nullable(),
+  projectDestinationId: z.string().uuid(),
+  worksiteDestinationId: z.string().uuid().optional().nullable(),
+  batchId: z.string().uuid().optional().nullable(),
+  reason: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  attachments: z.array(attachmentSchema).optional().nullable()
+});
+
+export const adjustmentSchema = z.object({
+  type: z.literal("AJUSTE"),
+  itemId: z.string().uuid(),
+  qty: z.number().int().positive(),
+  direction: z.enum(["IN", "OUT"]),
+  projectId: z.string().uuid(),
+  worksiteId: z.string().uuid().optional().nullable(),
+  batchId: z.string().uuid().optional().nullable(),
+  reason: z.string().min(3),
+  notes: z.string().optional().nullable(),
+  attachments: z.array(attachmentSchema).optional().nullable()
+});
+
+export const writeOffSchema = z.object({
+  type: z.literal("BAIXA"),
+  itemId: z.string().uuid(),
+  qty: z.number().int().positive(),
+  projectId: z.string().uuid(),
+  worksiteId: z.string().uuid().optional().nullable(),
+  batchId: z.string().uuid().optional().nullable(),
+  reason: z.string().min(3),
+  notes: z.string().optional().nullable(),
+  attachments: z.array(attachmentSchema).optional().nullable()
+});
+
+export const movementSchema = z.discriminatedUnion("type", [
+  entrySchema,
+  deliverySchema,
+  returnSchema,
+  transferSchema,
+  adjustmentSchema,
+  writeOffSchema
+]);
+
+export const reservationSchema = z.object({
+  projectId: z.string().uuid(),
+  worksiteId: z.string().uuid().optional().nullable(),
+  itemId: z.string().uuid(),
+  batchId: z.string().uuid().optional().nullable(),
+  qty: z.number().int().positive(),
+  status: z.enum(["RESERVADO", "SEPARADO", "CANCELADO", "CONSUMIDO"]).optional(),
+  referenceType: z.enum(["ATIVIDADE_EXECUCAO", "OS", "MANUAL"]).optional().nullable(),
+  referenceId: z.string().optional().nullable(),
+  notes: z.string().optional().nullable()
 });
 
 export const kitSchema = z.object({

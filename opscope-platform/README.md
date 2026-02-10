@@ -30,6 +30,16 @@ npm run dev
 
 Acesse: `http://localhost:3000`
 
+## Rotas principais do Almoxarifado
+
+- /almoxarifado (dashboard)
+- /almoxarifado/itens
+- /almoxarifado/itens/[id]
+- /almoxarifado/estoque
+- /almoxarifado/movimentacoes
+- /almoxarifado/epis-colaborador
+- /almoxarifado/scan
+
 ## Usuarios seed
 
 - admin@opscope.local / Opscope@123 (ADMIN)
@@ -56,6 +66,7 @@ opscope-platform/
       (app)/sst
       api/
     components/
+      inventory/
     lib/
   tests/
 ```

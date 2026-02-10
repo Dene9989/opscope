@@ -1,48 +1,57 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { useAuth } from "@/components/auth/AuthContext";
 import { apiFetch } from "@/lib/client";
+import { MovementWizard } from "@/components/inventory/MovementWizard";
+import { RoleGate } from "@/components/auth/RoleGate";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  BarChart,
+  Bar
+} from "recharts";
 
-interface StockItem {
-  id: string;
-  quantity: number;
-  reserved: number;
-  minQuantity: number;
-  reorderPoint: number;
-  item: { name: string };
-}
-
-interface Movement {
-  id: string;
-  type: string;
-  quantity: number;
-  item: { name: string };
-  createdAt: string;
+interface DashboardResponse {
+  totals: {
+    items: number;
+    lowStock: number;
+    expiringEpi: number;
+    movementsToday: number;
+    activeReservations: number;
+  };
+  alerts: {
+    lowStock: Array<{ id: string; itemId: string; projectId: string; item: string; project: string; total: number }>;
+    expiring: Array<{ id: string; item: string; project: string; itemValidUntil?: string; caValidUntil?: string }>;
+  };
+  charts: {
+    consumptionByDay: Array<{ date: string; qty: number }>;
+    topOutItems: Array<{ name: string; qty: number }>;
+    losses: Array<{ name: string; qty: number }>;
+  };
 }
 
 export default function AlmoxarifadoDashboard() {
   const { token } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [itemsTotal, setItemsTotal] = useState(0);
-  const [stockItems, setStockItems] = useState<StockItem[]>([]);
-  const [movements, setMovements] = useState<Movement[]>([]);
+  const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [wizard, setWizard] = useState<{ open: boolean; itemId?: string; projectId?: string }>(
+    { open: false }
+  );
 
   useEffect(() => {
     let active = true;
     setLoading(true);
-    Promise.all([
-      apiFetch("/api/inventory/items?pageSize=1", token),
-      apiFetch("/api/inventory/stock?pageSize=20", token),
-      apiFetch("/api/inventory/movements?pageSize=5", token)
-    ])
-      .then(([itemsResponse, stockResponse, movementResponse]) => {
+    apiFetch("/api/inventory/dashboard", token)
+      .then((response) => {
         if (!active) return;
-        setItemsTotal(itemsResponse.data.total);
-        setStockItems(stockResponse.data.items);
-        setMovements(movementResponse.data.items);
+        setDashboard(response.data);
       })
       .catch((err) => {
         if (!active) return;
@@ -58,72 +67,132 @@ export default function AlmoxarifadoDashboard() {
     };
   }, [token]);
 
-  const lowStock = useMemo(
-    () => stockItems.filter((item) => item.quantity <= item.minQuantity || item.quantity <= item.reorderPoint),
-    [stockItems]
-  );
+  const totals = dashboard?.totals;
 
   return (
-    <div className="space-y-6">
-      <Header title="Almoxarifado" subtitle="Inventario por projeto" />
+    <RoleGate roles={["ADMIN", "GESTOR", "ALMOXARIFE", "SUPERVISOR"]}>
+      <div className="space-y-6">
+      <Header title="Almoxarifado" subtitle="Operacao e alertas do estoque" />
 
       {error ? <div className="card p-4 text-sm text-red-400">{error}</div> : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="card p-4">
           <p className="text-xs uppercase text-muted">Itens cadastrados</p>
-          <p className="mt-4 text-2xl font-semibold">{loading ? "..." : itemsTotal}</p>
+          <p className="mt-4 text-2xl font-semibold">{loading ? "..." : totals?.items ?? 0}</p>
         </div>
         <div className="card p-4">
           <p className="text-xs uppercase text-muted">Itens em baixa</p>
-          <p className="mt-4 text-2xl font-semibold">{loading ? "..." : lowStock.length}</p>
+          <p className="mt-4 text-2xl font-semibold">{loading ? "..." : totals?.lowStock ?? 0}</p>
         </div>
         <div className="card p-4">
-          <p className="text-xs uppercase text-muted">Movimentacoes recentes</p>
-          <p className="mt-4 text-2xl font-semibold">{loading ? "..." : movements.length}</p>
+          <p className="text-xs uppercase text-muted">EPIs vencendo (30d)</p>
+          <p className="mt-4 text-2xl font-semibold">{loading ? "..." : totals?.expiringEpi ?? 0}</p>
         </div>
         <div className="card p-4">
-          <p className="text-xs uppercase text-muted">Reservas ativas</p>
-          <p className="mt-4 text-2xl font-semibold">
-            {loading ? "..." : stockItems.filter((item) => item.reserved > 0).length}
-          </p>
+          <p className="text-xs uppercase text-muted">Movimentacoes hoje</p>
+          <p className="mt-4 text-2xl font-semibold">{loading ? "..." : totals?.movementsToday ?? 0}</p>
+          <p className="text-xs text-muted mt-2">Reservas ativas: {totals?.activeReservations ?? 0}</p>
         </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="card p-6">
-          <h3 className="text-lg font-semibold">Itens em baixa</h3>
-          <ul className="mt-4 space-y-2 text-sm text-muted">
-            {loading ? (
-              <li>Carregando...</li>
-            ) : lowStock.length ? (
-              lowStock.map((item) => (
-                <li key={item.id}>
-                  {item.item.name} - {item.quantity} un
-                </li>
-              ))
-            ) : (
-              <li>Nenhum item abaixo do minimo.</li>
+          <h3 className="text-lg font-semibold">Alertas acionaveis</h3>
+          <div className="mt-4 space-y-3 text-sm">
+            {(dashboard?.alerts.lowStock || []).map((alert) => (
+              <div key={alert.id} className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="font-semibold">{alert.item}</div>
+                  <div className="text-xs text-muted">{alert.project} - {alert.total} un</div>
+                </div>
+                <button
+                  className="rounded-lg border border-border px-3 py-2 text-xs"
+                  onClick={() => setWizard({ open: true, itemId: alert.itemId, projectId: alert.projectId })}
+                >
+                  Registrar entrada
+                </button>
+              </div>
+            ))}
+            {dashboard?.alerts.lowStock?.length ? null : (
+              <p className="text-muted">Nenhum item em baixa.</p>
             )}
-          </ul>
+          </div>
         </div>
         <div className="card p-6">
-          <h3 className="text-lg font-semibold">Ultimas movimentacoes</h3>
-          <ul className="mt-4 space-y-2 text-sm text-muted">
-            {loading ? (
-              <li>Carregando...</li>
-            ) : movements.length ? (
-              movements.map((movement) => (
-                <li key={movement.id}>
-                  {movement.type} - {movement.item.name} ({movement.quantity})
-                </li>
-              ))
-            ) : (
-              <li>Sem movimentacoes recentes.</li>
+          <h3 className="text-lg font-semibold">EPIs vencendo</h3>
+          <div className="mt-4 space-y-3 text-sm">
+            {(dashboard?.alerts.expiring || []).map((alert) => (
+              <div key={alert.id} className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="font-semibold">{alert.item}</div>
+                  <div className="text-xs text-muted">{alert.project}</div>
+                </div>
+                <span className="badge badge-warning">Vencendo</span>
+              </div>
+            ))}
+            {dashboard?.alerts.expiring?.length ? null : (
+              <p className="text-muted">Nenhum vencimento proximo.</p>
             )}
-          </ul>
+          </div>
         </div>
       </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="card p-6 lg:col-span-2">
+          <h3 className="text-lg font-semibold">Consumo por dia</h3>
+          <div className="mt-4 h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={dashboard?.charts.consumptionByDay || []}>
+                <XAxis dataKey="date" stroke="#8b98a9" />
+                <YAxis stroke="#8b98a9" />
+                <Tooltip />
+                <Line type="monotone" dataKey="qty" stroke="#1fb26b" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        <div className="card p-6">
+          <h3 className="text-lg font-semibold">Top itens por saida</h3>
+          <div className="mt-4 h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={dashboard?.charts.topOutItems || []}>
+                <XAxis dataKey="name" stroke="#8b98a9" hide />
+                <YAxis stroke="#8b98a9" />
+                <Tooltip />
+                <Bar dataKey="qty" fill="#1fb26b" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      <div className="card p-6">
+        <h3 className="text-lg font-semibold">Perdas recentes</h3>
+        <div className="mt-4 grid gap-2 text-sm text-muted">
+          {(dashboard?.charts.losses || []).length ? (
+            dashboard?.charts.losses.map((loss) => (
+              <div key={loss.name} className="flex items-center justify-between">
+                <span>{loss.name}</span>
+                <span className="text-warning">{loss.qty}</span>
+              </div>
+            ))
+          ) : (
+            <p>Sem perdas registradas.</p>
+          )}
+        </div>
+      </div>
+
+      <MovementWizard
+        open={wizard.open}
+        onClose={() => setWizard({ open: false })}
+        defaultType="ENTRADA"
+        defaultItemId={wizard.itemId}
+        defaultProjectId={wizard.projectId}
+        startOnForm
+      />
     </div>
+    </RoleGate>
   );
 }
+

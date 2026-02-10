@@ -41,7 +41,8 @@ const sections = [
       { label: "Itens", href: "/almoxarifado/itens" },
       { label: "Estoque por Projeto", href: "/almoxarifado/estoque" },
       { label: "Movimentacoes", href: "/almoxarifado/movimentacoes" },
-      { label: "EPIs por Colaborador", href: "/almoxarifado/epis-colaborador" }
+      { label: "EPIs por Colaborador", href: "/almoxarifado/epis-colaborador" },
+      { label: "Scan QR", href: "/almoxarifado/scan" }
     ]
   },
   {

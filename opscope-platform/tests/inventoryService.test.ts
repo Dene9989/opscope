@@ -1,6 +1,6 @@
 ﻿import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "../src/lib/prisma";
-import { createMovement } from "../src/lib/services/inventoryService";
+import { registerEntry, registerDelivery } from "../src/lib/services/stockService";
 
 const user = {
   sub: "00000000-0000-0000-0000-000000000001",
@@ -25,9 +25,12 @@ describe("inventoryService", () => {
   });
 
   beforeEach(async () => {
-    await prisma.stockMovementAttachment.deleteMany();
-    await prisma.stockMovement.deleteMany();
-    await prisma.stock.deleteMany();
+    await prisma.movementAttachment.deleteMany();
+    await prisma.responsibilityTerm.deleteMany();
+    await prisma.movement.deleteMany();
+    await prisma.reservation.deleteMany();
+    await prisma.stockBalance.deleteMany();
+    await prisma.inventoryBatch.deleteMany();
     await prisma.inventoryItem.deleteMany();
     await prisma.worksite.deleteMany();
     await prisma.project.deleteMany();
@@ -40,16 +43,16 @@ describe("inventoryService", () => {
       data: { name: "Item Teste", type: "FERRAMENTA", unit: "UN" }
     });
 
-    await prisma.stock.create({
-      data: {
+    await registerEntry(
+      {
+        type: "ENTRADA",
         itemId: item.id,
         projectId: project.id,
-        quantity: 1,
-        reserved: 0,
-        minQuantity: 0,
-        reorderPoint: 0
-      }
-    });
+        qty: 1,
+        batchCode: "LOTE-TESTE"
+      },
+      user
+    );
   });
 
   it("impede estoque negativo", async () => {
@@ -57,12 +60,13 @@ describe("inventoryService", () => {
     const item = await prisma.inventoryItem.findFirstOrThrow();
 
     await expect(
-      createMovement(
+      registerDelivery(
         {
-          type: "SAIDA",
+          type: "ENTREGA",
           itemId: item.id,
-          quantity: 2,
-          projectId: project.id
+          qty: 2,
+          projectId: project.id,
+          collaboratorId: user.sub
         },
         user
       )
@@ -73,20 +77,21 @@ describe("inventoryService", () => {
     const project = await prisma.project.findFirstOrThrow();
     const item = await prisma.inventoryItem.findFirstOrThrow();
 
-    await createMovement(
+    await registerEntry(
       {
         type: "ENTRADA",
         itemId: item.id,
-        quantity: 5,
-        projectId: project.id
+        qty: 5,
+        projectId: project.id,
+        batchCode: "LOTE-02"
       },
       user
     );
 
-    const stock = await prisma.stock.findFirstOrThrow({
+    const stock = await prisma.stockBalance.findFirstOrThrow({
       where: { itemId: item.id, projectId: project.id }
     });
 
-    expect(stock.quantity).toBe(6);
+    expect(stock.qtyAvailable).toBe(6);
   });
 });

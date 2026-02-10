@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 async function main() {
   const passwordHash = await bcrypt.hash("Opscope@123", 10);
 
-  const [admin, almox, sst] = await Promise.all([
+  await Promise.all([
     prisma.user.upsert({
       where: { email: "admin@opscope.local" },
       update: {},
@@ -68,13 +68,26 @@ async function main() {
     }
   });
 
-  await prisma.stock.create({
+  const batch = await prisma.inventoryBatch.create({
     data: {
       itemId: item.id,
       projectId: project.id,
       worksiteId: worksite.id,
-      quantity: 40,
-      reserved: 5,
+      batchCode: "LOTE-0001",
+      itemValidUntil: new Date(new Date().setFullYear(new Date().getFullYear() + 2)),
+      caValidUntil: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
+      unitCost: 35.5
+    }
+  });
+
+  await prisma.stockBalance.create({
+    data: {
+      itemId: item.id,
+      projectId: project.id,
+      worksiteId: worksite.id,
+      batchId: batch.id,
+      qtyAvailable: 40,
+      qtyReserved: 5,
       minQuantity: 10,
       reorderPoint: 15
     }
@@ -90,6 +103,8 @@ async function main() {
       projectId: project.id
     }
   });
+
+  const admin = await prisma.user.findFirstOrThrow({ where: { email: "admin@opscope.local" } });
 
   await prisma.trainingRecord.create({
     data: {

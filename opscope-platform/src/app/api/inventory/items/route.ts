@@ -13,14 +13,47 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type") || undefined;
     const status = searchParams.get("status") || undefined;
+    const projectId = searchParams.get("projectId") || undefined;
     const query = searchParams.get("q") || undefined;
     const format = searchParams.get("format") || undefined;
+    const validity = searchParams.get("validity") || undefined;
 
     const where: any = {
       deletedAt: null
     };
     if (type) where.type = type;
     if (status) where.status = status;
+    if (projectId) {
+      where.balances = { some: { projectId } };
+    }
+    const andFilters: any[] = [];
+
+    if (validity) {
+      const now = new Date();
+      const limit = new Date();
+      limit.setDate(now.getDate() + 30);
+      if (validity === "EXPIRING") {
+        andFilters.push({
+          OR: [
+            { itemValidUntil: { lte: limit } },
+            { caValidUntil: { lte: limit } }
+          ]
+        });
+      }
+      if (validity === "EXPIRED") {
+        andFilters.push({
+          OR: [
+            { itemValidUntil: { lt: now } },
+            { caValidUntil: { lt: now } }
+          ]
+        });
+      }
+    }
+
+    if (andFilters.length) {
+      where.AND = andFilters;
+    }
+
     if (query) {
       where.OR = [
         { name: { contains: query, mode: "insensitive" } },
@@ -30,21 +63,56 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    const [items, total] = await Promise.all([
+    const [items, total, balances] = await Promise.all([
       prisma.inventoryItem.findMany({
         where,
         skip,
         take: pageSize,
         orderBy: { createdAt: "desc" }
       }),
-      prisma.inventoryItem.count({ where })
+      prisma.inventoryItem.count({ where }),
+      prisma.stockBalance.groupBy({
+        by: ["itemId"],
+        _sum: { qtyAvailable: true, qtyReserved: true }
+      })
     ]);
 
+    const totals = new Map(
+      balances.map((balance) => [
+        balance.itemId,
+        {
+          available: balance._sum.qtyAvailable ?? 0,
+          reserved: balance._sum.qtyReserved ?? 0
+        }
+      ])
+    );
+
+    const enriched = items.map((item) => {
+      const totalInfo = totals.get(item.id) || { available: 0, reserved: 0 };
+      return {
+        ...item,
+        stockAvailable: totalInfo.available,
+        stockReserved: totalInfo.reserved,
+        stockTotal: totalInfo.available + totalInfo.reserved
+      };
+    });
+
     if (format === "csv") {
-      const header = "id,name,type,unit,status,internalCode,barcode";
-      const rows = items
+      const header = "id,name,type,unit,status,internalCode,barcode,stockAvailable,stockReserved,stockTotal";
+      const rows = enriched
         .map((item) =>
-          [item.id, item.name, item.type, item.unit, item.status, item.internalCode ?? "", item.barcode ?? ""].join(",")
+          [
+            item.id,
+            item.name,
+            item.type,
+            item.unit,
+            item.status,
+            item.internalCode ?? "",
+            item.barcode ?? "",
+            item.stockAvailable,
+            item.stockReserved,
+            item.stockTotal
+          ].join(",")
         )
         .join("\n");
       return new Response(`${header}\n${rows}`, {
@@ -55,7 +123,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    return jsonOk({ items, total, page, pageSize });
+    return jsonOk({ items: enriched, total, page, pageSize });
   } catch (error) {
     return handleApiError(error);
   }
@@ -92,3 +160,4 @@ export async function POST(req: NextRequest) {
     return handleApiError(error);
   }
 }
+

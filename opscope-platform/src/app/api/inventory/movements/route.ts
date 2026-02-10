@@ -3,7 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { getPagination, handleApiError, jsonOk } from "@/lib/api";
 import { requireAuth, requireRoles, getRequestMeta } from "@/lib/auth";
 import { movementSchema } from "@/lib/validation";
-import { createMovement } from "@/lib/services/inventoryService";
+import {
+  registerEntry,
+  registerDelivery,
+  registerReturn,
+  registerTransfer,
+  registerAdjustment,
+  registerWriteOff
+} from "@/lib/services/stockService";
 import { z } from "zod";
 
 export async function GET(req: NextRequest) {
@@ -12,32 +19,57 @@ export async function GET(req: NextRequest) {
     const { page, pageSize, skip } = getPagination(req);
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get("projectId") || undefined;
+    const originProjectId = searchParams.get("originProjectId") || undefined;
+    const destinationProjectId = searchParams.get("destinationProjectId") || undefined;
     const type = searchParams.get("type") || undefined;
     const itemId = searchParams.get("itemId") || undefined;
+    const collaboratorId = searchParams.get("collaboratorId") || undefined;
+    const batchId = searchParams.get("batchId") || undefined;
+    const from = searchParams.get("from") || undefined;
+    const to = searchParams.get("to") || undefined;
 
     const where: any = {};
-    if (projectId) where.projectId = projectId;
+
+    if (projectId) {
+      where.OR = [{ projectOriginId: projectId }, { projectDestinationId: projectId }];
+    }
+    if (originProjectId) where.projectOriginId = originProjectId;
+    if (destinationProjectId) where.projectDestinationId = destinationProjectId;
     if (type) where.type = type;
     if (itemId) where.itemId = itemId;
+    if (batchId) where.batchId = batchId;
+    if (collaboratorId) where.collaboratorId = collaboratorId;
+
+    if (from || to) {
+      where.createdAt = {
+        ...(from ? { gte: new Date(from) } : {}),
+        ...(to ? { lte: new Date(to) } : {})
+      };
+    }
 
     if (user.role === "COLABORADOR") {
       where.collaboratorId = user.sub;
     }
 
     const [items, total] = await Promise.all([
-      prisma.stockMovement.findMany({
+      prisma.movement.findMany({
         where,
         skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
         include: {
           item: true,
-          project: true,
-          worksite: true,
+          batch: true,
+          projectOrigin: true,
+          projectDestination: true,
+          worksiteOrigin: true,
+          worksiteDestination: true,
+          collaborator: true,
+          responsibilityTerm: true,
           attachments: true
         }
       }),
-      prisma.stockMovement.count({ where })
+      prisma.movement.count({ where })
     ]);
 
     return jsonOk({ items, total, page, pageSize });
@@ -50,9 +82,37 @@ export async function POST(req: NextRequest) {
   try {
     const user = requireAuth(req);
     requireRoles(user, ["ADMIN", "GESTOR", "ALMOXARIFE"]);
+
     const payload = movementSchema.parse(await req.json());
     const meta = getRequestMeta(req);
-    const movement = await createMovement(payload, user, meta);
+
+    let movement;
+
+    switch (payload.type) {
+      case "ENTRADA":
+        movement = await registerEntry(payload, user, meta);
+        break;
+      case "ENTREGA":
+        movement = await registerDelivery(payload, user, meta);
+        break;
+      case "DEVOLUCAO":
+        movement = await registerReturn(payload, user, meta);
+        break;
+      case "TRANSFERENCIA":
+        movement = await registerTransfer(payload, user, meta);
+        break;
+      case "AJUSTE":
+        requireRoles(user, ["ADMIN", "GESTOR"]);
+        movement = await registerAdjustment(payload, user, meta);
+        break;
+      case "BAIXA":
+        requireRoles(user, ["ADMIN", "GESTOR"]);
+        movement = await registerWriteOff(payload, user, meta);
+        break;
+      default:
+        throw new Error("Tipo invalido");
+    }
+
     return jsonOk(movement, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -61,3 +121,4 @@ export async function POST(req: NextRequest) {
     return handleApiError(error);
   }
 }
+

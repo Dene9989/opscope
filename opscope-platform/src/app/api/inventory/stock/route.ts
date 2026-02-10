@@ -5,7 +5,7 @@ import { requireAuth, requireRoles } from "@/lib/auth";
 import { z } from "zod";
 
 const updateSchema = z.object({
-  stockId: z.string().uuid(),
+  balanceId: z.string().uuid(),
   minQuantity: z.number().min(0).optional(),
   reorderPoint: z.number().min(0).optional()
 });
@@ -18,21 +18,27 @@ export async function GET(req: NextRequest) {
     const projectId = searchParams.get("projectId") || undefined;
     const worksiteId = searchParams.get("worksiteId") || undefined;
     const itemId = searchParams.get("itemId") || undefined;
+    const batchId = searchParams.get("batchId") || undefined;
+    const query = searchParams.get("q") || undefined;
 
     const where: any = {};
     if (projectId) where.projectId = projectId;
     if (worksiteId) where.worksiteId = worksiteId;
     if (itemId) where.itemId = itemId;
+    if (batchId) where.batchId = batchId;
+    if (query) {
+      where.item = { name: { contains: query, mode: "insensitive" } };
+    }
 
     const [items, total] = await Promise.all([
-      prisma.stock.findMany({
+      prisma.stockBalance.findMany({
         where,
         skip,
         take: pageSize,
         orderBy: { updatedAt: "desc" },
-        include: { item: true, project: true, worksite: true }
+        include: { item: true, project: true, worksite: true, batch: true }
       }),
-      prisma.stock.count({ where })
+      prisma.stockBalance.count({ where })
     ]);
 
     return jsonOk({ items, total, page, pageSize });
@@ -46,8 +52,8 @@ export async function PUT(req: NextRequest) {
     const user = requireAuth(req);
     requireRoles(user, ["ADMIN", "GESTOR", "ALMOXARIFE"]);
     const payload = updateSchema.parse(await req.json());
-    const updated = await prisma.stock.update({
-      where: { id: payload.stockId },
+    const updated = await prisma.stockBalance.update({
+      where: { id: payload.balanceId },
       data: {
         minQuantity: payload.minQuantity ?? undefined,
         reorderPoint: payload.reorderPoint ?? undefined
@@ -61,3 +67,4 @@ export async function PUT(req: NextRequest) {
     return handleApiError(error);
   }
 }
+

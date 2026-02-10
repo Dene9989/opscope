@@ -36,13 +36,31 @@ enum ItemStatus {
 
 enum MovementType {
   ENTRADA
-  SAIDA
+  ENTREGA
+  DEVOLUCAO
   TRANSFERENCIA
   AJUSTE
-  DEVOLUCAO
-  PERDA_BAIXA
-  RESERVA
-  LIBERACAO_RESERVA
+  BAIXA
+}
+
+enum ReservationStatus {
+  RESERVADO
+  SEPARADO
+  CANCELADO
+  CONSUMIDO
+}
+
+enum ReservationReferenceType {
+  ATIVIDADE_EXECUCAO
+  OS
+  MANUAL
+}
+
+enum AssetCondition {
+  OK
+  MANUTENCAO
+  PERDIDO
+  BAIXADO
 }
 
 enum TrainingStatus {
@@ -104,7 +122,11 @@ model User {
   active       Boolean          @default(true)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
-  movements    StockMovement[]  @relation("movement_creator")
+  movementsCreated Movement[]  @relation("movement_creator")
+  movementsApproved Movement[] @relation("movement_approver")
+  movementsAsCollaborator Movement[] @relation("movement_collaborator")
+  reservationsCreated Reservation[] @relation("reservation_creator")
+  responsibilityTerms ResponsibilityTerm[] @relation("term_collaborator")
   training     TrainingRecord[]
   inspections  InspectionExecution[] @relation("inspection_performer")
   auditLogs    AuditLog[]
@@ -118,8 +140,11 @@ model Project {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   worksites   Worksite[]
-  stock       Stock[]
-  movements   StockMovement[] @relation("movement_project")
+  stockBalances StockBalance[]
+  batches    InventoryBatch[]
+  movementsOrigin Movement[] @relation("movement_origin_project")
+  movementsDestination Movement[] @relation("movement_dest_project")
+  reservations Reservation[]
   trainings   Training[]
   inspections InspectionExecution[]
   incidents   Incident[]
@@ -134,8 +159,11 @@ model Worksite {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   project     Project     @relation(fields: [projectId], references: [id])
-  stock       Stock[]
-  movements   StockMovement[] @relation("movement_worksite")
+  stockBalances StockBalance[]
+  batches    InventoryBatch[]
+  movementsOrigin Movement[] @relation("movement_origin_worksite")
+  movementsDestination Movement[] @relation("movement_dest_worksite")
+  reservations Reservation[]
   inspections InspectionExecution[]
   incidents   Incident[]
   aprs        Apr[]
@@ -170,8 +198,11 @@ model InventoryItem {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   photos        ItemPhoto[]
-  stock         Stock[]
-  movements     StockMovement[]
+  batches       InventoryBatch[]
+  balances      StockBalance[]
+  movements     Movement[]
+  reservations  Reservation[]
+  assets        ItemAsset[]
   kitItems      KitItem[]
 
   @@index([name])
@@ -185,60 +216,154 @@ model ItemPhoto {
   item      InventoryItem @relation(fields: [itemId], references: [id])
 }
 
-model Stock {
+model InventoryBatch {
+  id            String   @id @default(uuid())
+  itemId        String
+  projectId     String
+  worksiteId    String?
+  batchCode     String
+  itemValidUntil DateTime?
+  caValidUntil  DateTime?
+  unitCost      Float?
+  createdAt     DateTime @default(now())
+  item          InventoryItem @relation(fields: [itemId], references: [id])
+  project       Project  @relation(fields: [projectId], references: [id])
+  worksite      Worksite? @relation(fields: [worksiteId], references: [id])
+  balances      StockBalance[]
+  movements     Movement[]
+  assets        ItemAsset[]
+
+  @@index([itemId])
+  @@index([projectId])
+  @@unique([itemId, projectId, worksiteId, batchCode])
+}
+
+model StockBalance {
   id           String   @id @default(uuid())
   itemId       String
   projectId    String
   worksiteId   String?
-  quantity     Int      @default(0)
-  reserved     Int      @default(0)
+  batchId      String?
+  qtyAvailable Int      @default(0)
+  qtyReserved  Int      @default(0)
   minQuantity  Int      @default(0)
   reorderPoint Int      @default(0)
   updatedAt    DateTime @updatedAt
   item         InventoryItem @relation(fields: [itemId], references: [id])
   project      Project  @relation(fields: [projectId], references: [id])
   worksite     Worksite? @relation(fields: [worksiteId], references: [id])
+  batch        InventoryBatch? @relation(fields: [batchId], references: [id])
 
-  @@unique([itemId, projectId, worksiteId])
+  @@unique([itemId, projectId, worksiteId, batchId])
   @@index([projectId])
+  @@index([itemId])
+  @@index([batchId])
 }
 
-model StockMovement {
-  id                  String       @id @default(uuid())
-  type                MovementType
-  itemId              String
-  quantity            Int
-  projectId           String
-  worksiteId          String?
-  sourceProjectId     String?
-  sourceWorksiteId    String?
-  destinationProjectId String?
-  destinationWorksiteId String?
-  collaboratorId      String?
-  activityId          String?
-  reason              String?
-  notes               String?
-  invoiceNumber       String?
-  batchCode           String?
-  createdById         String
-  createdAt           DateTime     @default(now())
-  item                InventoryItem @relation(fields: [itemId], references: [id])
-  project             Project      @relation("movement_project", fields: [projectId], references: [id])
-  worksite            Worksite?    @relation("movement_worksite", fields: [worksiteId], references: [id])
-  createdBy           User         @relation("movement_creator", fields: [createdById], references: [id])
-  attachments         StockMovementAttachment[]
+model Movement {
+  id                   String       @id @default(uuid())
+  type                 MovementType
+  itemId               String
+  batchId              String?
+  qty                  Int
+  projectOriginId      String?
+  worksiteOriginId     String?
+  projectDestinationId String?
+  worksiteDestinationId String?
+  collaboratorId       String?
+  reservationId        String?
+  relatedMovementId    String?
+  reason               String?
+  notes                String?
+  invoiceNumber        String?
+  createdById          String
+  approvedById         String?
+  createdAt            DateTime     @default(now())
+  item                 InventoryItem @relation(fields: [itemId], references: [id])
+  batch                InventoryBatch? @relation(fields: [batchId], references: [id])
+  projectOrigin        Project?      @relation("movement_origin_project", fields: [projectOriginId], references: [id])
+  projectDestination   Project?      @relation("movement_dest_project", fields: [projectDestinationId], references: [id])
+  worksiteOrigin       Worksite?     @relation("movement_origin_worksite", fields: [worksiteOriginId], references: [id])
+  worksiteDestination  Worksite?     @relation("movement_dest_worksite", fields: [worksiteDestinationId], references: [id])
+  collaborator         User?         @relation("movement_collaborator", fields: [collaboratorId], references: [id])
+  createdBy            User          @relation("movement_creator", fields: [createdById], references: [id])
+  approvedBy           User?         @relation("movement_approver", fields: [approvedById], references: [id])
+  relatedMovement      Movement?     @relation("movement_related", fields: [relatedMovementId], references: [id])
+  relatedTo            Movement[]    @relation("movement_related")
+  attachments          MovementAttachment[]
+  responsibilityTerm   ResponsibilityTerm?
+  reservation          Reservation?  @relation(fields: [reservationId], references: [id])
+
+  @@index([projectOriginId])
+  @@index([projectDestinationId])
+  @@index([itemId])
+  @@index([collaboratorId])
+}
+
+model MovementAttachment {
+  id         String    @id @default(uuid())
+  movementId String
+  name       String
+  url        String
+  type       String?
+  movement   Movement @relation(fields: [movementId], references: [id])
+}
+
+model Reservation {
+  id            String   @id @default(uuid())
+  projectId     String
+  worksiteId    String?
+  itemId        String
+  batchId       String?
+  qty           Int
+  status        ReservationStatus
+  referenceType ReservationReferenceType?
+  referenceId   String?
+  notes         String?
+  createdById   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  item          InventoryItem @relation(fields: [itemId], references: [id])
+  batch         InventoryBatch? @relation(fields: [batchId], references: [id])
+  project       Project  @relation(fields: [projectId], references: [id])
+  worksite      Worksite? @relation(fields: [worksiteId], references: [id])
+  createdBy     User     @relation("reservation_creator", fields: [createdById], references: [id])
+  movements     Movement[]
 
   @@index([projectId])
   @@index([itemId])
 }
 
-model StockMovementAttachment {
-  id         String        @id @default(uuid())
-  movementId String
-  name       String
-  url        String
-  type       String?
-  movement   StockMovement @relation(fields: [movementId], references: [id])
+model ResponsibilityTerm {
+  id             String   @id @default(uuid())
+  movementId     String   @unique
+  collaboratorId String
+  pdfData        Bytes
+  fileName       String?
+  acceptedAt     DateTime?
+  acceptedByName String?
+  acceptedByCpf  String?
+  signatureData  Json?
+  createdAt      DateTime @default(now())
+  movement       Movement @relation(fields: [movementId], references: [id])
+  collaborator   User     @relation("term_collaborator", fields: [collaboratorId], references: [id])
+}
+
+model ItemAsset {
+  id             String   @id @default(uuid())
+  itemId         String
+  batchId        String?
+  serialNumber   String?
+  patrimonyCode  String?
+  condition      AssetCondition @default(OK)
+  lastInspectionAt DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  item           InventoryItem @relation(fields: [itemId], references: [id])
+  batch          InventoryBatch? @relation(fields: [batchId], references: [id])
+
+  @@index([itemId])
+  @@index([batchId])
 }
 
 model Kit {
