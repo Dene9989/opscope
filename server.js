@@ -27,6 +27,22 @@ try {
 } catch (error) {
   Pool = null;
 }
+let QRCode;
+try {
+  QRCode = require("qrcode");
+} catch (error) {
+  QRCode = null;
+}
+let PDFDocument;
+let StandardFonts;
+let rgb;
+try {
+  ({ PDFDocument, StandardFonts, rgb } = require("pdf-lib"));
+} catch (error) {
+  PDFDocument = null;
+  StandardFonts = null;
+  rgb = null;
+}
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -85,6 +101,18 @@ const DATA_FILE_NAMES = [
   "projects.json",
   "equipamentos.json",
   "project_users.json",
+  "almox_items.json",
+  "almox_stock.json",
+  "almox_movements.json",
+  "almox_kits.json",
+  "sst_trainings.json",
+  "sst_training_records.json",
+  "sst_inspection_templates.json",
+  "sst_inspections.json",
+  "sst_nonconformities.json",
+  "sst_incidents.json",
+  "sst_aprs.json",
+  "sst_permits.json",
 ];
 
 const ENV_DATA_DIR = process.env.OPSCOPE_DATA_DIR
@@ -115,6 +143,18 @@ const PERMISSOES_FILE = path.join(DATA_DIR, "permissoes.json");
 const PROJECTS_FILE = path.join(DATA_DIR, "projects.json");
 const EQUIPAMENTOS_FILE = path.join(DATA_DIR, "equipamentos.json");
 const PROJECT_USERS_FILE = path.join(DATA_DIR, "project_users.json");
+const ALMOX_ITEMS_FILE = path.join(DATA_DIR, "almox_items.json");
+const ALMOX_STOCK_FILE = path.join(DATA_DIR, "almox_stock.json");
+const ALMOX_MOVEMENTS_FILE = path.join(DATA_DIR, "almox_movements.json");
+const ALMOX_KITS_FILE = path.join(DATA_DIR, "almox_kits.json");
+const SST_TRAININGS_FILE = path.join(DATA_DIR, "sst_trainings.json");
+const SST_TRAINING_RECORDS_FILE = path.join(DATA_DIR, "sst_training_records.json");
+const SST_INSPECTION_TEMPLATES_FILE = path.join(DATA_DIR, "sst_inspection_templates.json");
+const SST_INSPECTIONS_FILE = path.join(DATA_DIR, "sst_inspections.json");
+const SST_NONCONFORMITIES_FILE = path.join(DATA_DIR, "sst_nonconformities.json");
+const SST_INCIDENTS_FILE = path.join(DATA_DIR, "sst_incidents.json");
+const SST_APRS_FILE = path.join(DATA_DIR, "sst_aprs.json");
+const SST_PERMITS_FILE = path.join(DATA_DIR, "sst_permits.json");
 const PMP_ACTIVITIES_FILE = path.join(DATA_DIR, "pmp_activities.json");
 const PMP_EXECUTIONS_FILE = path.join(DATA_DIR, "pmp_executions.json");
 const STORE_FILES = [
@@ -131,6 +171,18 @@ const STORE_FILES = [
   PROJECTS_FILE,
   EQUIPAMENTOS_FILE,
   PROJECT_USERS_FILE,
+  ALMOX_ITEMS_FILE,
+  ALMOX_STOCK_FILE,
+  ALMOX_MOVEMENTS_FILE,
+  ALMOX_KITS_FILE,
+  SST_TRAININGS_FILE,
+  SST_TRAINING_RECORDS_FILE,
+  SST_INSPECTION_TEMPLATES_FILE,
+  SST_INSPECTIONS_FILE,
+  SST_NONCONFORMITIES_FILE,
+  SST_INCIDENTS_FILE,
+  SST_APRS_FILE,
+  SST_PERMITS_FILE,
   PMP_ACTIVITIES_FILE,
   PMP_EXECUTIONS_FILE,
 ];
@@ -185,6 +237,20 @@ const AUTOMATION_DEFAULTS = [
   },
 ];
 
+const ALMOX_ITEM_TYPES = new Set(["FERRAMENTA", "EPI", "EPC", "CONSUMIVEL"]);
+const ALMOX_ITEM_UNITS = new Set(["UN", "PAR", "CX"]);
+const ALMOX_MOVEMENT_TYPES = new Set([
+  "ENTRADA",
+  "SAIDA",
+  "TRANSFERENCIA",
+  "AJUSTE",
+  "DEVOLUCAO",
+  "PERDA_BAIXA",
+  "RESERVA",
+  "LIBERACAO_RESERVA",
+]);
+const SST_SEVERITY_LEVELS = new Set(["BAIXA", "MEDIA", "ALTA", "CRITICA"]);
+
 const PERMISSION_KEYS = [
   "create",
   "edit",
@@ -222,8 +288,16 @@ const ROLE_DEFAULT_PERMISSIONS = {
   executor: EXECUTOR_DEFAULT_PERMISSIONS,
   leitura: NO_PERMISSIONS,
 };
-const FULL_ACCESS_ROLES = new Set(["pcm", "diretor_om", "gerente_contrato"]);
+const FULL_ACCESS_ROLES = new Set([
+  "admin",
+  "gestor",
+  "pcm",
+  "diretor_om",
+  "gerente_contrato",
+]);
 const RELEASE_OVERRIDE_ROLES = new Set([
+  "admin",
+  "gestor",
   "pcm",
   "diretor_om",
   "gerente_contrato",
@@ -278,11 +352,21 @@ const GRANULAR_PERMISSION_CATALOG = [
   { key: "gerenciarEquipamentos", label: "Gerenciar equipamentos" },
   { key: "gerenciarEquipeProjeto", label: "Gerenciar equipe do projeto" },
   { key: "gerenciarPMP", label: "Gerenciar PMP/Cronograma" },
+  { key: "verAlmoxarifado", label: "Ver Almoxarifado" },
+  { key: "gerenciarAlmoxarifado", label: "Gerenciar Almoxarifado" },
+  { key: "verSST", label: "Ver SST" },
+  { key: "gerenciarSST", label: "Gerenciar SST" },
 ];
 const GRANULAR_PERMISSION_KEYS = new Set(
   GRANULAR_PERMISSION_CATALOG.map((permission) => permission.key)
 );
 const GRANULAR_PROFILE_CATALOG = [
+  { key: "admin", label: "Admin" },
+  { key: "gestor", label: "Gestor" },
+  { key: "almoxarife", label: "Almoxarife" },
+  { key: "tecnico_sst", label: "Tecnico SST" },
+  { key: "supervisor", label: "Supervisor" },
+  { key: "colaborador", label: "Colaborador" },
   { key: "pcm", label: "PCM" },
   { key: "diretor_om", label: "Diretor O&M" },
   { key: "gerente_contrato", label: "Gerente de Contrato" },
@@ -318,6 +402,10 @@ const GRANULAR_BASE_PERMISSIONS = {
   gerenciarEquipamentos: false,
   gerenciarEquipeProjeto: false,
   gerenciarPMP: false,
+  verAlmoxarifado: false,
+  gerenciarAlmoxarifado: false,
+  verSST: false,
+  gerenciarSST: false,
 };
 const GRANULAR_SUPERVISOR_PERMISSIONS = {
   ...GRANULAR_BASE_PERMISSIONS,
@@ -344,6 +432,10 @@ const GRANULAR_ADMIN_PERMISSIONS = {
   gerenciarEquipamentos: false,
   gerenciarEquipeProjeto: false,
   gerenciarPMP: false,
+  verAlmoxarifado: true,
+  gerenciarAlmoxarifado: true,
+  verSST: true,
+  gerenciarSST: true,
 };
 const GRANULAR_PCM_PERMISSIONS = {
   ...GRANULAR_ADMIN_PERMISSIONS,
@@ -352,7 +444,33 @@ const GRANULAR_PCM_PERMISSIONS = {
   gerenciarEquipeProjeto: true,
   gerenciarPMP: true,
 };
+const GRANULAR_ALMOX_PERMISSIONS = {
+  ...GRANULAR_BASE_PERMISSIONS,
+  verAlmoxarifado: true,
+  gerenciarAlmoxarifado: true,
+};
+const GRANULAR_SST_PERMISSIONS = {
+  ...GRANULAR_BASE_PERMISSIONS,
+  verSST: true,
+  gerenciarSST: true,
+};
+const GRANULAR_SUPERVISOR_EXT_PERMISSIONS = {
+  ...GRANULAR_SUPERVISOR_PERMISSIONS,
+  verAlmoxarifado: true,
+  verSST: true,
+};
+const GRANULAR_COLABORADOR_PERMISSIONS = {
+  ...GRANULAR_BASE_PERMISSIONS,
+  verAlmoxarifado: true,
+  verSST: true,
+};
 const GRANULAR_DEFAULT_PERMISSIONS = {
+  admin: GRANULAR_PCM_PERMISSIONS,
+  gestor: GRANULAR_ADMIN_PERMISSIONS,
+  almoxarife: GRANULAR_ALMOX_PERMISSIONS,
+  tecnico_sst: GRANULAR_SST_PERMISSIONS,
+  supervisor: GRANULAR_SUPERVISOR_EXT_PERMISSIONS,
+  colaborador: GRANULAR_COLABORADOR_PERMISSIONS,
   pcm: GRANULAR_PCM_PERMISSIONS,
   diretor_om: GRANULAR_ADMIN_PERMISSIONS,
   gerente_contrato: GRANULAR_ADMIN_PERMISSIONS,
@@ -376,6 +494,17 @@ const DEFAULT_SECTIONS = {
   tendencias: true,
   relatorios: true,
   perfil: true,
+  almoxarifado: true,
+  "almoxarifado-itens": true,
+  "almoxarifado-estoque": true,
+  "almoxarifado-movimentacoes": true,
+  "almoxarifado-epis": true,
+  sst: true,
+  "sst-treinamentos": true,
+  "sst-inspecoes": true,
+  "sst-ncs": true,
+  "sst-incidentes": true,
+  "sst-apr-pt": true,
 };
 
 const ADMIN_SECTIONS = ["solicitacoes", "rastreabilidade", "gerencial", "contas"];
@@ -1129,6 +1258,615 @@ function loadEquipamentos() {
 
 function saveEquipamentos(list) {
   writeJson(EQUIPAMENTOS_FILE, list);
+}
+
+function normalizeNumber(value, fallback = 0) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
+
+function normalizeTextList(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || "").trim()).filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(/[\n,;]+/g)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function normalizeAlmoxItem(record) {
+  const now = new Date().toISOString();
+  const typeRaw = String(record && (record.type || record.tipo) ? record.type || record.tipo : "")
+    .trim()
+    .toUpperCase();
+  const unitRaw = String(
+    record && (record.unit || record.unidade) ? record.unit || record.unidade : ""
+  )
+    .trim()
+    .toUpperCase();
+  const statusRaw = String(record && record.status ? record.status : "ATIVO")
+    .trim()
+    .toUpperCase();
+  const type = ALMOX_ITEM_TYPES.has(typeRaw) ? typeRaw : "FERRAMENTA";
+  const unit = ALMOX_ITEM_UNITS.has(unitRaw) ? unitRaw : "UN";
+  return {
+    id: record && record.id ? String(record.id) : crypto.randomUUID(),
+    type,
+    unit,
+    name: String(record && (record.name || record.nome) ? record.name || record.nome : "").trim(),
+    description: String(
+      record && (record.description || record.descricao) ? record.description || record.descricao : ""
+    ).trim(),
+    brand: String(record && (record.brand || record.marca) ? record.brand || record.marca : "").trim(),
+    model: String(record && (record.model || record.modelo) ? record.model || record.modelo : "").trim(),
+    internalCode: String(
+      record && (record.internalCode || record.codigoInterno || record.codigo)
+        ? record.internalCode || record.codigoInterno || record.codigo
+        : ""
+    ).trim(),
+    barcode: String(
+      record && (record.barcode || record.codigoBarras) ? record.barcode || record.codigoBarras : ""
+    ).trim(),
+    status: statusRaw || "ATIVO",
+    ca: String(record && (record.ca || record.CA) ? record.ca || record.CA : "").trim(),
+    caValidUntil: String(
+      record && (record.caValidUntil || record.validadeCA)
+        ? record.caValidUntil || record.validadeCA
+        : ""
+    ).trim(),
+    itemValidUntil: String(
+      record && (record.itemValidUntil || record.validadeItem || record.validade)
+        ? record.itemValidUntil || record.validadeItem || record.validade
+        : ""
+    ).trim(),
+    sizes: normalizeTextList(record && (record.sizes || record.tamanhos) ? record.sizes || record.tamanhos : []),
+    datasheet: record && record.datasheet ? record.datasheet : "",
+    requiredRoles: normalizeTextList(record && record.requiredRoles ? record.requiredRoles : []),
+    photos: Array.isArray(record && record.photos ? record.photos : []) ? record.photos : [],
+    createdAt: record && record.createdAt ? record.createdAt : now,
+    createdBy: record && record.createdBy ? record.createdBy : "",
+    updatedAt: record && record.updatedAt ? record.updatedAt : now,
+    updatedBy: record && record.updatedBy ? record.updatedBy : "",
+    deletedAt: record && record.deletedAt ? record.deletedAt : "",
+  };
+}
+
+function loadAlmoxItems() {
+  const data = readJson(ALMOX_ITEMS_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.filter((item) => item && typeof item === "object").map(normalizeAlmoxItem);
+}
+
+function saveAlmoxItems(list) {
+  writeJson(ALMOX_ITEMS_FILE, list);
+}
+
+function normalizeAlmoxStockEntry(record) {
+  const now = new Date().toISOString();
+  return {
+    id: record && record.id ? String(record.id) : crypto.randomUUID(),
+    projectId: String(record && record.projectId ? record.projectId : "").trim(),
+    itemId: String(record && record.itemId ? record.itemId : "").trim(),
+    worksite: String(record && (record.worksite || record.local) ? record.worksite || record.local : "")
+      .trim(),
+    available: Math.max(0, normalizeNumber(record && (record.available ?? record.disponivel))),
+    reserved: Math.max(0, normalizeNumber(record && (record.reserved ?? record.reservado))),
+    min: Math.max(0, normalizeNumber(record && (record.min ?? record.minimo))),
+    reorderPoint: Math.max(0, normalizeNumber(record && (record.reorderPoint ?? record.pontoReposicao))),
+    updatedAt: record && record.updatedAt ? record.updatedAt : now,
+  };
+}
+
+function loadAlmoxStock() {
+  const data = readJson(ALMOX_STOCK_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.filter((item) => item && typeof item === "object").map(normalizeAlmoxStockEntry);
+}
+
+function saveAlmoxStock(list) {
+  writeJson(ALMOX_STOCK_FILE, list);
+}
+
+function normalizeAlmoxMovement(record) {
+  const now = new Date().toISOString();
+  const typeRaw = String(record && (record.type || record.tipo) ? record.type || record.tipo : "")
+    .trim()
+    .toUpperCase();
+  const type = ALMOX_MOVEMENT_TYPES.has(typeRaw) ? typeRaw : "ENTRADA";
+  const quantity = Math.max(0, normalizeNumber(record && (record.quantity ?? record.quantidade)));
+  return {
+    id: record && record.id ? String(record.id) : crypto.randomUUID(),
+    type,
+    itemId: String(record && record.itemId ? record.itemId : "").trim(),
+    projectId: String(record && record.projectId ? record.projectId : "").trim(),
+    projectIdDestino: String(
+      record && (record.projectIdDestino || record.projectDestinationId)
+        ? record.projectIdDestino || record.projectDestinationId
+        : ""
+    ).trim(),
+    worksite: String(record && (record.worksite || record.local) ? record.worksite || record.local : "")
+      .trim(),
+    worksiteDestino: String(
+      record && (record.worksiteDestino || record.localDestino)
+        ? record.worksiteDestino || record.localDestino
+        : ""
+    ).trim(),
+    quantity,
+    adjustment:
+      record && record.adjustment !== undefined && record.adjustment !== null
+        ? normalizeNumber(record.adjustment, 0)
+        : null,
+    reason: String(record && (record.reason || record.motivo) ? record.reason || record.motivo : "")
+      .trim(),
+    collaboratorId: String(
+      record && (record.collaboratorId || record.colaboradorId)
+        ? record.collaboratorId || record.colaboradorId
+        : ""
+    ).trim(),
+    createdAt: record && record.createdAt ? record.createdAt : now,
+    createdBy: record && record.createdBy ? record.createdBy : "",
+    attachments: Array.isArray(record && record.attachments ? record.attachments : [])
+      ? record.attachments
+      : [],
+  };
+}
+
+function loadAlmoxMovements() {
+  const data = readJson(ALMOX_MOVEMENTS_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.filter((item) => item && typeof item === "object").map(normalizeAlmoxMovement);
+}
+
+function saveAlmoxMovements(list) {
+  writeJson(ALMOX_MOVEMENTS_FILE, list);
+}
+
+function normalizeAlmoxKit(record) {
+  const now = new Date().toISOString();
+  return {
+    id: record && record.id ? String(record.id) : crypto.randomUUID(),
+    name: String(record && (record.name || record.nome) ? record.name || record.nome : "").trim(),
+    description: String(
+      record && (record.description || record.descricao) ? record.description || record.descricao : ""
+    ).trim(),
+    roles: normalizeTextList(record && (record.roles || record.funcoes) ? record.roles || record.funcoes : []),
+    items: Array.isArray(record && record.items ? record.items : []) ? record.items : [],
+    createdAt: record && record.createdAt ? record.createdAt : now,
+    updatedAt: record && record.updatedAt ? record.updatedAt : now,
+  };
+}
+
+function loadAlmoxKits() {
+  const data = readJson(ALMOX_KITS_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.filter((item) => item && typeof item === "object").map(normalizeAlmoxKit);
+}
+
+function saveAlmoxKits(list) {
+  writeJson(ALMOX_KITS_FILE, list);
+}
+
+function normalizeSstTraining(record) {
+  const now = new Date().toISOString();
+  return {
+    id: record && record.id ? String(record.id) : crypto.randomUUID(),
+    name: String(record && (record.name || record.nome) ? record.name || record.nome : "").trim(),
+    nr: String(record && record.nr ? record.nr : "").trim(),
+    hours: Math.max(0, normalizeNumber(record && (record.hours ?? record.cargaHoraria))),
+    validityDays: Math.max(0, normalizeNumber(record && (record.validityDays ?? record.validade))),
+    requiredRoles: normalizeTextList(record && record.requiredRoles ? record.requiredRoles : []),
+    status: String(record && record.status ? record.status : "ATIVO").trim().toUpperCase() || "ATIVO",
+    createdAt: record && record.createdAt ? record.createdAt : now,
+    updatedAt: record && record.updatedAt ? record.updatedAt : now,
+  };
+}
+
+function loadSstTrainings() {
+  const data = readJson(SST_TRAININGS_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.filter((item) => item && typeof item === "object").map(normalizeSstTraining);
+}
+
+function saveSstTrainings(list) {
+  writeJson(SST_TRAININGS_FILE, list);
+}
+
+function normalizeSstTrainingRecord(record) {
+  const now = new Date().toISOString();
+  return {
+    id: record && record.id ? String(record.id) : crypto.randomUUID(),
+    trainingId: String(record && record.trainingId ? record.trainingId : "").trim(),
+    collaboratorId: String(record && record.collaboratorId ? record.collaboratorId : "").trim(),
+    date: String(record && record.date ? record.date : "").trim(),
+    validUntil: String(record && (record.validUntil || record.validade) ? record.validUntil || record.validade : "").trim(),
+    status: String(record && record.status ? record.status : "ATIVO").trim().toUpperCase() || "ATIVO",
+    attachment: record && record.attachment ? record.attachment : null,
+    createdAt: record && record.createdAt ? record.createdAt : now,
+  };
+}
+
+function loadSstTrainingRecords() {
+  const data = readJson(SST_TRAINING_RECORDS_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.filter((item) => item && typeof item === "object").map(normalizeSstTrainingRecord);
+}
+
+function saveSstTrainingRecords(list) {
+  writeJson(SST_TRAINING_RECORDS_FILE, list);
+}
+
+function normalizeSstInspectionTemplate(record) {
+  const now = new Date().toISOString();
+  return {
+    id: record && record.id ? String(record.id) : crypto.randomUUID(),
+    type: String(record && (record.type || record.tipo) ? record.type || record.tipo : "").trim(),
+    questions: normalizeTextList(record && (record.questions || record.perguntas) ? record.questions || record.perguntas : []),
+    periodicityDays: Math.max(0, normalizeNumber(record && (record.periodicityDays ?? record.periodicidade))),
+    projectId: String(record && record.projectId ? record.projectId : "").trim(),
+    local: String(record && (record.local || record.worksite) ? record.local || record.worksite : "").trim(),
+    createdAt: record && record.createdAt ? record.createdAt : now,
+    updatedAt: record && record.updatedAt ? record.updatedAt : now,
+  };
+}
+
+function loadSstInspectionTemplates() {
+  const data = readJson(SST_INSPECTION_TEMPLATES_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.filter((item) => item && typeof item === "object").map(normalizeSstInspectionTemplate);
+}
+
+function saveSstInspectionTemplates(list) {
+  writeJson(SST_INSPECTION_TEMPLATES_FILE, list);
+}
+
+function normalizeSstInspection(record) {
+  const now = new Date().toISOString();
+  return {
+    id: record && record.id ? String(record.id) : crypto.randomUUID(),
+    templateId: String(record && record.templateId ? record.templateId : "").trim(),
+    type: String(record && (record.type || record.tipo) ? record.type || record.tipo : "").trim(),
+    projectId: String(record && record.projectId ? record.projectId : "").trim(),
+    local: String(record && (record.local || record.worksite) ? record.local || record.worksite : "").trim(),
+    status: String(record && record.status ? record.status : "OK").trim().toUpperCase() || "OK",
+    notes: String(record && (record.notes || record.observacoes) ? record.notes || record.observacoes : "").trim(),
+    photos: Array.isArray(record && record.photos ? record.photos : []) ? record.photos : [],
+    createdAt: record && record.createdAt ? record.createdAt : now,
+    createdBy: record && record.createdBy ? record.createdBy : "",
+  };
+}
+
+function loadSstInspections() {
+  const data = readJson(SST_INSPECTIONS_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.filter((item) => item && typeof item === "object").map(normalizeSstInspection);
+}
+
+function saveSstInspections(list) {
+  writeJson(SST_INSPECTIONS_FILE, list);
+}
+
+function normalizeSstNonconformity(record) {
+  const now = new Date().toISOString();
+  const severityRaw = String(record && record.severity ? record.severity : "").trim().toUpperCase();
+  return {
+    id: record && record.id ? String(record.id) : crypto.randomUUID(),
+    origin: String(record && record.origin ? record.origin : "").trim(),
+    severity: SST_SEVERITY_LEVELS.has(severityRaw) ? severityRaw : "MEDIA",
+    description: String(record && (record.description || record.descricao) ? record.description || record.descricao : "").trim(),
+    projectId: String(record && record.projectId ? record.projectId : "").trim(),
+    dueDate: String(record && (record.dueDate || record.prazo) ? record.dueDate || record.prazo : "").trim(),
+    status: String(record && record.status ? record.status : "ABERTA").trim().toUpperCase() || "ABERTA",
+    responsibleId: String(record && (record.responsibleId || record.responsavelId) ? record.responsibleId || record.responsavelId : "").trim(),
+    createdAt: record && record.createdAt ? record.createdAt : now,
+    createdBy: record && record.createdBy ? record.createdBy : "",
+  };
+}
+
+function loadSstNonconformities() {
+  const data = readJson(SST_NONCONFORMITIES_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.filter((item) => item && typeof item === "object").map(normalizeSstNonconformity);
+}
+
+function saveSstNonconformities(list) {
+  writeJson(SST_NONCONFORMITIES_FILE, list);
+}
+
+function normalizeSstIncident(record) {
+  const now = new Date().toISOString();
+  const severityRaw = String(record && record.severity ? record.severity : "").trim().toUpperCase();
+  return {
+    id: record && record.id ? String(record.id) : crypto.randomUUID(),
+    projectId: String(record && record.projectId ? record.projectId : "").trim(),
+    date: String(record && record.date ? record.date : "").trim(),
+    severity: SST_SEVERITY_LEVELS.has(severityRaw) ? severityRaw : "MEDIA",
+    category: String(record && record.category ? record.category : "").trim(),
+    description: String(record && (record.description || record.descricao) ? record.description || record.descricao : "").trim(),
+    status: String(record && record.status ? record.status : "ABERTO").trim().toUpperCase() || "ABERTO",
+    createdAt: record && record.createdAt ? record.createdAt : now,
+    createdBy: record && record.createdBy ? record.createdBy : "",
+  };
+}
+
+function loadSstIncidents() {
+  const data = readJson(SST_INCIDENTS_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.filter((item) => item && typeof item === "object").map(normalizeSstIncident);
+}
+
+function saveSstIncidents(list) {
+  writeJson(SST_INCIDENTS_FILE, list);
+}
+
+function normalizeSstApr(record) {
+  const now = new Date().toISOString();
+  return {
+    id: record && record.id ? String(record.id) : crypto.randomUUID(),
+    projectId: String(record && record.projectId ? record.projectId : "").trim(),
+    activity: String(record && (record.activity || record.atividade) ? record.activity || record.atividade : "").trim(),
+    hazards: normalizeTextList(record && (record.hazards || record.perigos) ? record.hazards || record.perigos : []),
+    risks: normalizeTextList(record && (record.risks || record.riscos) ? record.risks || record.riscos : []),
+    controls: normalizeTextList(record && (record.controls || record.controles) ? record.controls || record.controles : []),
+    status: String(record && record.status ? record.status : "ATIVA").trim().toUpperCase() || "ATIVA",
+    createdAt: record && record.createdAt ? record.createdAt : now,
+    createdBy: record && record.createdBy ? record.createdBy : "",
+  };
+}
+
+function loadSstAprs() {
+  const data = readJson(SST_APRS_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.filter((item) => item && typeof item === "object").map(normalizeSstApr);
+}
+
+function saveSstAprs(list) {
+  writeJson(SST_APRS_FILE, list);
+}
+
+function normalizeSstPermit(record) {
+  const now = new Date().toISOString();
+  return {
+    id: record && record.id ? String(record.id) : crypto.randomUUID(),
+    aprId: String(record && (record.aprId || record.apr_id) ? record.aprId || record.apr_id : "").trim(),
+    type: String(record && (record.type || record.tipo) ? record.type || record.tipo : "").trim(),
+    validFrom: String(record && (record.validFrom || record.inicio) ? record.validFrom || record.inicio : "").trim(),
+    validTo: String(record && (record.validTo || record.fim) ? record.validTo || record.fim : "").trim(),
+    requirements: normalizeTextList(record && (record.requirements || record.requisitos) ? record.requirements || record.requisitos : []),
+    status: String(record && record.status ? record.status : "ATIVA").trim().toUpperCase() || "ATIVA",
+    createdAt: record && record.createdAt ? record.createdAt : now,
+    createdBy: record && record.createdBy ? record.createdBy : "",
+  };
+}
+
+function loadSstPermits() {
+  const data = readJson(SST_PERMITS_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.filter((item) => item && typeof item === "object").map(normalizeSstPermit);
+}
+
+function saveSstPermits(list) {
+  writeJson(SST_PERMITS_FILE, list);
+}
+
+function getAlmoxStockKey(projectId, itemId, worksite) {
+  return `${projectId || ""}::${itemId || ""}::${worksite || ""}`;
+}
+
+function findAlmoxStockEntry(projectId, itemId, worksite) {
+  const key = getAlmoxStockKey(projectId, itemId, worksite);
+  const index = almoxStock.findIndex(
+    (entry) => getAlmoxStockKey(entry.projectId, entry.itemId, entry.worksite) === key
+  );
+  return { index, entry: index >= 0 ? almoxStock[index] : null };
+}
+
+function ensureAlmoxStockEntry(projectId, itemId, worksite) {
+  const normalizedWorksite = String(worksite || "").trim();
+  const existing = findAlmoxStockEntry(projectId, itemId, normalizedWorksite);
+  if (existing.entry) {
+    return { entry: existing.entry, index: existing.index, created: false };
+  }
+  const entry = normalizeAlmoxStockEntry({
+    projectId,
+    itemId,
+    worksite: normalizedWorksite,
+    available: 0,
+    reserved: 0,
+    min: 0,
+    reorderPoint: 0,
+  });
+  almoxStock = almoxStock.concat(entry);
+  return { entry, index: almoxStock.length - 1, created: true };
+}
+
+function applyAlmoxMovement(movement) {
+  if (!movement) {
+    return { error: "Movimentacao invalida." };
+  }
+  const type = String(movement.type || "").trim().toUpperCase();
+  if (!ALMOX_MOVEMENT_TYPES.has(type)) {
+    return { error: "Tipo de movimentacao invalido." };
+  }
+  const qty = Number(movement.quantity);
+  if (!Number.isFinite(qty) || qty <= 0) {
+    return { error: "Quantidade invalida." };
+  }
+  const projectId = String(movement.projectId || "").trim();
+  const itemId = String(movement.itemId || "").trim();
+  if (!projectId || !itemId) {
+    return { error: "Projeto e item sao obrigatorios." };
+  }
+  const now = new Date().toISOString();
+  const origin = ensureAlmoxStockEntry(projectId, itemId, movement.worksite || "");
+  const rollbackEntry = (entryInfo) => {
+    if (entryInfo && entryInfo.created && entryInfo.entry) {
+      almoxStock = almoxStock.filter((entry) => entry.id !== entryInfo.entry.id);
+    }
+  };
+  const updateEntry = (entry, deltaAvailable, deltaReserved) => {
+    const nextAvailable = Number(entry.available || 0) + deltaAvailable;
+    const nextReserved = Number(entry.reserved || 0) + deltaReserved;
+    if (nextAvailable < 0) {
+      return { error: "Estoque insuficiente para a movimentacao." };
+    }
+    if (nextReserved < 0) {
+      return { error: "Reserva insuficiente para a movimentacao." };
+    }
+    entry.available = nextAvailable;
+    entry.reserved = nextReserved;
+    entry.updatedAt = now;
+    return { ok: true };
+  };
+
+  if (type === "ENTRADA" || type === "DEVOLUCAO") {
+    const result = updateEntry(origin.entry, qty, 0);
+    if (result.error) {
+      rollbackEntry(origin);
+      return { error: result.error };
+    }
+    return { origin: origin.entry };
+  }
+
+  if (type === "AJUSTE") {
+    let delta = qty;
+    if (Number.isFinite(movement.adjustment)) {
+      delta = Number(movement.adjustment);
+    }
+    if (!Number.isFinite(delta) || delta === 0) {
+      rollbackEntry(origin);
+      return { error: "Ajuste invalido." };
+    }
+    const result = updateEntry(origin.entry, delta, 0);
+    if (result.error) {
+      rollbackEntry(origin);
+      return { error: result.error };
+    }
+    return { origin: origin.entry };
+  }
+
+  if (type === "SAIDA" || type === "PERDA_BAIXA") {
+    const result = updateEntry(origin.entry, -qty, 0);
+    if (result.error) {
+      rollbackEntry(origin);
+      return { error: result.error };
+    }
+    return { origin: origin.entry };
+  }
+
+  if (type === "RESERVA") {
+    const result = updateEntry(origin.entry, -qty, qty);
+    if (result.error) {
+      rollbackEntry(origin);
+      return { error: result.error };
+    }
+    return { origin: origin.entry };
+  }
+
+  if (type === "LIBERACAO_RESERVA") {
+    const result = updateEntry(origin.entry, qty, -qty);
+    if (result.error) {
+      rollbackEntry(origin);
+      return { error: result.error };
+    }
+    return { origin: origin.entry };
+  }
+
+  if (type === "TRANSFERENCIA") {
+    const destProjectId = String(movement.projectIdDestino || "").trim();
+    if (!destProjectId) {
+      rollbackEntry(origin);
+      return { error: "Projeto destino obrigatorio para transferencia." };
+    }
+    const dest = ensureAlmoxStockEntry(
+      destProjectId,
+      itemId,
+      movement.worksiteDestino || ""
+    );
+    const result = updateEntry(origin.entry, -qty, 0);
+    if (result.error) {
+      rollbackEntry(origin);
+      rollbackEntry(dest);
+      return { error: result.error };
+    }
+    updateEntry(dest.entry, qty, 0);
+    return { origin: origin.entry, dest: dest.entry };
+  }
+
+  return { error: "Tipo de movimentacao nao suportado." };
+}
+
+function buildEpiByUser(projectIds) {
+  const allowed = new Set(projectIds || []);
+  const epiItems = new Set(
+    almoxItems
+      .filter((item) => item && item.type === "EPI" && item.status !== "INATIVO")
+      .map((item) => item.id)
+  );
+  const map = new Map();
+  almoxMovements.forEach((mov) => {
+    if (!mov || !epiItems.has(mov.itemId)) {
+      return;
+    }
+    if (allowed.size && !allowed.has(mov.projectId)) {
+      return;
+    }
+    if (!mov.collaboratorId) {
+      return;
+    }
+    let delta = 0;
+    if (mov.type === "SAIDA") {
+      delta = Number(mov.quantity || 0);
+    } else if (mov.type === "DEVOLUCAO") {
+      delta = -Number(mov.quantity || 0);
+    } else if (mov.type === "PERDA_BAIXA") {
+      delta = -Number(mov.quantity || 0);
+    }
+    if (!delta) {
+      return;
+    }
+    const key = `${mov.collaboratorId}::${mov.itemId}::${mov.projectId}`;
+    const current = map.get(key) || {
+      collaboratorId: mov.collaboratorId,
+      itemId: mov.itemId,
+      projectId: mov.projectId,
+      quantity: 0,
+      lastMovementAt: "",
+    };
+    current.quantity += delta;
+    if (!current.lastMovementAt || mov.createdAt > current.lastMovementAt) {
+      current.lastMovementAt = mov.createdAt;
+    }
+    map.set(key, current);
+  });
+  return Array.from(map.values()).filter((entry) => entry.quantity > 0);
 }
 
 function parseDurationToMinutes(value) {
@@ -2083,6 +2821,27 @@ function getProjectLabel(project) {
   return `${project.codigo || "-"} - ${project.nome || "-"}`;
 }
 
+function getUserLabel(userId) {
+  if (!userId) {
+    return "-";
+  }
+  if (typeof userId === "object") {
+    const nome = String(userId.name || userId.username || userId.matricula || "").trim();
+    return nome || "-";
+  }
+  const id = String(userId || "").trim();
+  if (!id) {
+    return "-";
+  }
+  const user = users.find((item) => item && item.id === id);
+  if (!user) {
+    return id;
+  }
+  const nome = String(user.name || user.username || user.matricula || id).trim();
+  const matricula = user.matricula ? ` (${user.matricula})` : "";
+  return `${nome}${matricula}`.trim();
+}
+
 function getUserProjectKey(user) {
   const raw =
     (user && (user.projeto || user.projectKey || user.localizacao || user.location)) || "HV";
@@ -2434,6 +3193,11 @@ function normalizeRbacRole(role) {
     supervisor: "supervisor_om",
     supervisor_om: "supervisor_om",
     supervisor_o_m: "supervisor_om",
+    gestor: "gestor",
+    admin: "admin",
+    almoxarife: "almoxarife",
+    tecnico_sst: "tecnico_sst",
+    tecnicosst: "tecnico_sst",
     tecnico_senior: "tecnico_senior",
     tecnicosenior: "tecnico_senior",
     tecnico_pleno: "tecnico_pleno",
@@ -2441,9 +3205,8 @@ function normalizeRbacRole(role) {
     tecnico_junior: "tecnico_junior",
     tecnicojunior: "tecnico_junior",
     executor: "tecnico_junior",
-    colaborador: "tecnico_junior",
+    colaborador: "colaborador",
     leitura: "leitura",
-    admin: "pcm",
   };
   return mapped[normalized] || normalized || "tecnico_junior";
 }
@@ -3397,6 +4160,18 @@ let projectUsers = [];
 let equipamentos = [];
 let pmpActivities = [];
 let pmpExecutions = [];
+let almoxItems = [];
+let almoxStock = [];
+let almoxMovements = [];
+let almoxKits = [];
+let sstTrainings = [];
+let sstTrainingRecords = [];
+let sstInspectionTemplates = [];
+let sstInspections = [];
+let sstNonconformities = [];
+let sstIncidents = [];
+let sstAprs = [];
+let sstPermits = [];
 let users = [];
 let invites = [];
 let auditLog = [];
@@ -3460,6 +4235,54 @@ async function bootstrap() {
   projects = loadProjects();
   projectUsers = loadProjectUsers();
   equipamentos = loadEquipamentos();
+  almoxItems = loadAlmoxItems();
+  if (!fs.existsSync(ALMOX_ITEMS_FILE)) {
+    saveAlmoxItems(almoxItems);
+  }
+  almoxStock = loadAlmoxStock();
+  if (!fs.existsSync(ALMOX_STOCK_FILE)) {
+    saveAlmoxStock(almoxStock);
+  }
+  almoxMovements = loadAlmoxMovements();
+  if (!fs.existsSync(ALMOX_MOVEMENTS_FILE)) {
+    saveAlmoxMovements(almoxMovements);
+  }
+  almoxKits = loadAlmoxKits();
+  if (!fs.existsSync(ALMOX_KITS_FILE)) {
+    saveAlmoxKits(almoxKits);
+  }
+  sstTrainings = loadSstTrainings();
+  if (!fs.existsSync(SST_TRAININGS_FILE)) {
+    saveSstTrainings(sstTrainings);
+  }
+  sstTrainingRecords = loadSstTrainingRecords();
+  if (!fs.existsSync(SST_TRAINING_RECORDS_FILE)) {
+    saveSstTrainingRecords(sstTrainingRecords);
+  }
+  sstInspectionTemplates = loadSstInspectionTemplates();
+  if (!fs.existsSync(SST_INSPECTION_TEMPLATES_FILE)) {
+    saveSstInspectionTemplates(sstInspectionTemplates);
+  }
+  sstInspections = loadSstInspections();
+  if (!fs.existsSync(SST_INSPECTIONS_FILE)) {
+    saveSstInspections(sstInspections);
+  }
+  sstNonconformities = loadSstNonconformities();
+  if (!fs.existsSync(SST_NONCONFORMITIES_FILE)) {
+    saveSstNonconformities(sstNonconformities);
+  }
+  sstIncidents = loadSstIncidents();
+  if (!fs.existsSync(SST_INCIDENTS_FILE)) {
+    saveSstIncidents(sstIncidents);
+  }
+  sstAprs = loadSstAprs();
+  if (!fs.existsSync(SST_APRS_FILE)) {
+    saveSstAprs(sstAprs);
+  }
+  sstPermits = loadSstPermits();
+  if (!fs.existsSync(SST_PERMITS_FILE)) {
+    saveSstPermits(sstPermits);
+  }
   pmpActivities = loadPmpActivities().map(normalizePmpActivity);
   if (!fs.existsSync(PMP_ACTIVITIES_FILE)) {
     savePmpActivities(pmpActivities);
@@ -4276,6 +5099,1039 @@ app.post("/api/pmp/duplicate", requireAuth, requirePermission("gerenciarPMP"), (
   pmpActivities = pmpActivities.concat(created);
   savePmpActivities(pmpActivities);
   return res.json({ ok: true, created });
+});
+
+app.get("/api/almox/items", requireAuth, requirePermission("verAlmoxarifado"), (req, res) => {
+  const includeInactive = String(req.query.includeInactive || "").toLowerCase() === "true";
+  const list = includeInactive
+    ? almoxItems.slice()
+    : almoxItems.filter((item) => item && item.status !== "INATIVO" && !item.deletedAt);
+  return res.json({ items: list });
+});
+
+app.post(
+  "/api/almox/items",
+  requireAuth,
+  requirePermission("gerenciarAlmoxarifado"),
+  (req, res) => {
+    const payload = req.body && typeof req.body === "object" ? req.body : {};
+    const nome = String(payload.name || payload.nome || "").trim();
+    if (!nome) {
+      return res.status(400).json({ message: "Nome do item obrigatorio." });
+    }
+    const user = req.currentUser || getSessionUser(req);
+    const record = normalizeAlmoxItem({
+      ...payload,
+      name: nome,
+      createdBy: user ? user.id : "",
+      updatedBy: user ? user.id : "",
+      status: payload.status || "ATIVO",
+    });
+    almoxItems = almoxItems.concat(record);
+    saveAlmoxItems(almoxItems);
+    appendAudit("almox_item_create", user ? user.id : null, { itemId: record.id }, getClientIp(req));
+    return res.json({ item: record });
+  }
+);
+
+app.put(
+  "/api/almox/items/:id",
+  requireAuth,
+  requirePermission("gerenciarAlmoxarifado"),
+  (req, res) => {
+    const itemId = String(req.params.id || "").trim();
+    const index = almoxItems.findIndex((item) => item && item.id === itemId);
+    if (index === -1) {
+      return res.status(404).json({ message: "Item nao encontrado." });
+    }
+    const payload = req.body && typeof req.body === "object" ? req.body : {};
+    const current = almoxItems[index];
+    const updated = normalizeAlmoxItem({
+      ...current,
+      ...payload,
+      id: current.id,
+      createdAt: current.createdAt,
+      createdBy: current.createdBy,
+      updatedAt: new Date().toISOString(),
+      updatedBy: (req.currentUser || getSessionUser(req))?.id || "",
+    });
+    almoxItems[index] = updated;
+    saveAlmoxItems(almoxItems);
+    appendAudit(
+      "almox_item_update",
+      (req.currentUser || getSessionUser(req))?.id || null,
+      { itemId },
+      getClientIp(req)
+    );
+    return res.json({ item: updated });
+  }
+);
+
+app.delete(
+  "/api/almox/items/:id",
+  requireAuth,
+  requirePermission("gerenciarAlmoxarifado"),
+  (req, res) => {
+    const itemId = String(req.params.id || "").trim();
+    const index = almoxItems.findIndex((item) => item && item.id === itemId);
+    if (index === -1) {
+      return res.status(404).json({ message: "Item nao encontrado." });
+    }
+    const current = almoxItems[index];
+    const updated = {
+      ...current,
+      status: "INATIVO",
+      deletedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      updatedBy: (req.currentUser || getSessionUser(req))?.id || "",
+    };
+    almoxItems[index] = updated;
+    saveAlmoxItems(almoxItems);
+    appendAudit(
+      "almox_item_delete",
+      (req.currentUser || getSessionUser(req))?.id || null,
+      { itemId },
+      getClientIp(req)
+    );
+    return res.json({ item: updated });
+  }
+);
+
+app.get(
+  "/api/almox/items/:id/qrcode",
+  requireAuth,
+  requirePermission("verAlmoxarifado"),
+  async (req, res) => {
+    if (!QRCode) {
+      return res.status(501).json({ message: "Dependencia qrcode nao instalada." });
+    }
+    const itemId = String(req.params.id || "").trim();
+    const item = almoxItems.find((entry) => entry && entry.id === itemId);
+    if (!item) {
+      return res.status(404).json({ message: "Item nao encontrado." });
+    }
+    const value = item.barcode || item.internalCode || item.id;
+    try {
+      const buffer = await QRCode.toBuffer(String(value), { type: "png", width: 256, margin: 1 });
+      res.setHeader("Content-Type", "image/png");
+      return res.end(buffer);
+    } catch (error) {
+      return res.status(500).json({ message: "Falha ao gerar QR Code." });
+    }
+  }
+);
+
+app.get("/api/almox/stock", requireAuth, requirePermission("verAlmoxarifado"), (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const projectId = String(req.query.projectId || "").trim();
+  const allowed = new Set(getUserProjectIds(user));
+  if (projectId && !allowed.has(projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  let list = almoxStock.filter((entry) => entry && allowed.has(entry.projectId));
+  if (projectId) {
+    list = list.filter((entry) => entry.projectId === projectId);
+  }
+  return res.json({ stock: list });
+});
+
+app.put(
+  "/api/almox/stock/:id",
+  requireAuth,
+  requirePermission("gerenciarAlmoxarifado"),
+  (req, res) => {
+    const stockId = String(req.params.id || "").trim();
+    const index = almoxStock.findIndex((entry) => entry && entry.id === stockId);
+    if (index === -1) {
+      return res.status(404).json({ message: "Registro de estoque nao encontrado." });
+    }
+    const user = req.currentUser || getSessionUser(req);
+    const entry = almoxStock[index];
+    if (!userHasProjectAccess(user, entry.projectId)) {
+      return res.status(403).json({ message: "Nao autorizado." });
+    }
+    const payload = req.body && typeof req.body === "object" ? req.body : {};
+    const updated = {
+      ...entry,
+      min:
+        "min" in payload || "minimo" in payload
+          ? Math.max(0, normalizeNumber(payload.min ?? payload.minimo))
+          : entry.min,
+      reorderPoint:
+        "reorderPoint" in payload || "pontoReposicao" in payload
+          ? Math.max(0, normalizeNumber(payload.reorderPoint ?? payload.pontoReposicao))
+          : entry.reorderPoint,
+      updatedAt: new Date().toISOString(),
+    };
+    almoxStock[index] = updated;
+    saveAlmoxStock(almoxStock);
+    appendAudit(
+      "almox_stock_update",
+      user ? user.id : null,
+      { stockId },
+      getClientIp(req),
+      entry.projectId
+    );
+    return res.json({ stock: updated });
+  }
+);
+
+app.get(
+  "/api/almox/movements",
+  requireAuth,
+  requirePermission("verAlmoxarifado"),
+  (req, res) => {
+    const user = req.currentUser || getSessionUser(req);
+    const projectId = String(req.query.projectId || "").trim();
+    const allowed = new Set(getUserProjectIds(user));
+    if (projectId && !allowed.has(projectId)) {
+      return res.status(403).json({ message: "Nao autorizado." });
+    }
+    let list = almoxMovements.filter((entry) => entry && allowed.has(entry.projectId));
+    if (projectId) {
+      list = list.filter((entry) => entry.projectId === projectId);
+    }
+    list = list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return res.json({ movements: list });
+  }
+);
+
+app.post(
+  "/api/almox/movements",
+  requireAuth,
+  requirePermission("gerenciarAlmoxarifado"),
+  (req, res) => {
+    const payload = req.body && typeof req.body === "object" ? req.body : {};
+    const projectId = String(payload.projectId || "").trim();
+    const itemId = String(payload.itemId || "").trim();
+    const type = String(payload.type || payload.tipo || "").trim().toUpperCase();
+    const quantity = Number(payload.quantity || payload.quantidade || 0);
+    if (!projectId || !itemId) {
+      return res.status(400).json({ message: "Projeto e item sao obrigatorios." });
+    }
+    const user = req.currentUser || getSessionUser(req);
+    if (!userHasProjectAccess(user, projectId)) {
+      return res.status(403).json({ message: "Nao autorizado." });
+    }
+    if (!ALMOX_MOVEMENT_TYPES.has(type)) {
+      return res.status(400).json({ message: "Tipo de movimentacao invalido." });
+    }
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      return res.status(400).json({ message: "Quantidade invalida." });
+    }
+    const item = almoxItems.find((entry) => entry && entry.id === itemId);
+    if (!item || item.status === "INATIVO") {
+      return res.status(400).json({ message: "Item invalido ou inativo." });
+    }
+    const projectIdDestino = String(payload.projectIdDestino || payload.projectDestinationId || "").trim();
+    if (type === "TRANSFERENCIA") {
+      if (!projectIdDestino) {
+        return res.status(400).json({ message: "Projeto destino obrigatorio." });
+      }
+      if (!userHasProjectAccess(user, projectIdDestino)) {
+        return res.status(403).json({ message: "Nao autorizado ao projeto destino." });
+      }
+    }
+    const movement = normalizeAlmoxMovement({
+      ...payload,
+      type,
+      projectId,
+      projectIdDestino,
+      quantity,
+      createdBy: user ? user.id : "",
+    });
+    const applied = applyAlmoxMovement(movement);
+    if (applied.error) {
+      return res.status(400).json({ message: applied.error });
+    }
+    almoxMovements = almoxMovements.concat(movement);
+    saveAlmoxMovements(almoxMovements);
+    saveAlmoxStock(almoxStock);
+    appendAudit(
+      "almox_movement_create",
+      user ? user.id : null,
+      { movementId: movement.id, type, itemId, projectId },
+      getClientIp(req),
+      projectId
+    );
+    return res.json({
+      movement,
+      stockEntries: [applied.origin, applied.dest].filter(Boolean),
+    });
+  }
+);
+
+app.get("/api/almox/epi-by-user", requireAuth, requirePermission("verAlmoxarifado"), (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const allowed = new Set(getUserProjectIds(user));
+  const list = buildEpiByUser(allowed);
+  return res.json({ records: list });
+});
+
+app.get(
+  "/api/almox/movements/:id/term",
+  requireAuth,
+  requirePermission("verAlmoxarifado"),
+  async (req, res) => {
+    if (!PDFDocument || !StandardFonts) {
+      return res.status(501).json({ message: "Dependencia pdf-lib nao instalada." });
+    }
+    const movementId = String(req.params.id || "").trim();
+    const movement = almoxMovements.find((entry) => entry && entry.id === movementId);
+    if (!movement) {
+      return res.status(404).json({ message: "Movimentacao nao encontrada." });
+    }
+    const item = almoxItems.find((entry) => entry && entry.id === movement.itemId);
+    const project = getProjectById(movement.projectId);
+    const collaborator = movement.collaboratorId ? users.find((u) => u.id === movement.collaboratorId) : null;
+    const createdAt = movement.createdAt ? new Date(movement.createdAt) : new Date();
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage([595, 842]);
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const draw = (text, x, y, size = 12, bold = false) => {
+      page.drawText(text, { x, y, size, font: bold ? fontBold : font, color: rgb(0.1, 0.1, 0.1) });
+    };
+    const formatLine = (label, value) => `${label}: ${value || "-"}`;
+    draw("TERMO DE RESPONSABILIDADE - ALMOXARIFADO", 60, 780, 14, true);
+    draw(formatLine("Data", createdAt.toLocaleString("pt-BR")), 60, 740);
+    draw(formatLine("Item", item ? item.name : movement.itemId), 60, 720);
+    draw(formatLine("Quantidade", String(movement.quantity || 0)), 60, 700);
+    draw(formatLine("Projeto", project ? getProjectLabel(project) : movement.projectId), 60, 680);
+    draw(
+      formatLine(
+        "Colaborador",
+        collaborator ? `${collaborator.name} (${collaborator.matricula || "-"})` : movement.collaboratorId
+      ),
+      60,
+      660
+    );
+    draw(formatLine("Responsavel", getUserLabel(movement.createdBy)), 60, 640);
+    draw("Declaro que recebi os itens acima e me responsabilizo pelo uso adequado.", 60, 600, 11);
+    draw("Assinatura: ____________________________________________", 60, 540, 11);
+    const bytes = await pdfDoc.save();
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="termo-responsabilidade-${movement.id}.pdf"`
+    );
+    return res.end(Buffer.from(bytes));
+  }
+);
+
+app.get("/api/almox/kits", requireAuth, requirePermission("verAlmoxarifado"), (req, res) => {
+  return res.json({ kits: almoxKits });
+});
+
+app.post(
+  "/api/almox/kits",
+  requireAuth,
+  requirePermission("gerenciarAlmoxarifado"),
+  (req, res) => {
+    const payload = req.body && typeof req.body === "object" ? req.body : {};
+    const nome = String(payload.name || payload.nome || "").trim();
+    if (!nome) {
+      return res.status(400).json({ message: "Nome do kit obrigatorio." });
+    }
+    const user = req.currentUser || getSessionUser(req);
+    const record = normalizeAlmoxKit({ ...payload, name: nome });
+    almoxKits = almoxKits.concat(record);
+    saveAlmoxKits(almoxKits);
+    appendAudit("almox_kit_create", user ? user.id : null, { kitId: record.id }, getClientIp(req));
+    return res.json({ kit: record });
+  }
+);
+
+app.get("/api/sst/trainings", requireAuth, requirePermission("verSST"), (req, res) => {
+  return res.json({ trainings: sstTrainings.filter((item) => item && item.status !== "INATIVO") });
+});
+
+app.post("/api/sst/trainings", requireAuth, requirePermission("gerenciarSST"), (req, res) => {
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const nome = String(payload.name || payload.nome || "").trim();
+  if (!nome) {
+    return res.status(400).json({ message: "Nome do treinamento obrigatorio." });
+  }
+  const user = req.currentUser || getSessionUser(req);
+  const record = normalizeSstTraining({
+    ...payload,
+    name: nome,
+    createdAt: new Date().toISOString(),
+  });
+  sstTrainings = sstTrainings.concat(record);
+  saveSstTrainings(sstTrainings);
+  appendAudit("sst_training_create", user ? user.id : null, { trainingId: record.id }, getClientIp(req));
+  return res.json({ training: record });
+});
+
+app.put("/api/sst/trainings/:id", requireAuth, requirePermission("gerenciarSST"), (req, res) => {
+  const trainingId = String(req.params.id || "").trim();
+  const index = sstTrainings.findIndex((item) => item && item.id === trainingId);
+  if (index === -1) {
+    return res.status(404).json({ message: "Treinamento nao encontrado." });
+  }
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const current = sstTrainings[index];
+  const updated = normalizeSstTraining({
+    ...current,
+    ...payload,
+    id: current.id,
+    createdAt: current.createdAt,
+    updatedAt: new Date().toISOString(),
+  });
+  sstTrainings[index] = updated;
+  saveSstTrainings(sstTrainings);
+  appendAudit(
+    "sst_training_update",
+    (req.currentUser || getSessionUser(req))?.id || null,
+    { trainingId },
+    getClientIp(req)
+  );
+  return res.json({ training: updated });
+});
+
+app.delete("/api/sst/trainings/:id", requireAuth, requirePermission("gerenciarSST"), (req, res) => {
+  const trainingId = String(req.params.id || "").trim();
+  const index = sstTrainings.findIndex((item) => item && item.id === trainingId);
+  if (index === -1) {
+    return res.status(404).json({ message: "Treinamento nao encontrado." });
+  }
+  sstTrainings[index] = { ...sstTrainings[index], status: "INATIVO", updatedAt: new Date().toISOString() };
+  saveSstTrainings(sstTrainings);
+  appendAudit(
+    "sst_training_delete",
+    (req.currentUser || getSessionUser(req))?.id || null,
+    { trainingId },
+    getClientIp(req)
+  );
+  return res.json({ ok: true });
+});
+
+app.get(
+  "/api/sst/training-records",
+  requireAuth,
+  requirePermission("verSST"),
+  (req, res) => {
+    return res.json({ records: sstTrainingRecords });
+  }
+);
+
+app.post(
+  "/api/sst/training-records",
+  requireAuth,
+  requirePermission("gerenciarSST"),
+  (req, res) => {
+    const payload = req.body && typeof req.body === "object" ? req.body : {};
+    const trainingId = String(payload.trainingId || "").trim();
+    const collaboratorId = String(payload.collaboratorId || "").trim();
+    if (!trainingId || !collaboratorId) {
+      return res.status(400).json({ message: "Treinamento e colaborador obrigatorios." });
+    }
+    const record = normalizeSstTrainingRecord(payload);
+    sstTrainingRecords = sstTrainingRecords.concat(record);
+    saveSstTrainingRecords(sstTrainingRecords);
+    appendAudit(
+      "sst_training_record_create",
+      (req.currentUser || getSessionUser(req))?.id || null,
+      { recordId: record.id },
+      getClientIp(req)
+    );
+    return res.json({ record });
+  }
+);
+
+app.put(
+  "/api/sst/training-records/:id",
+  requireAuth,
+  requirePermission("gerenciarSST"),
+  (req, res) => {
+    const recordId = String(req.params.id || "").trim();
+    const index = sstTrainingRecords.findIndex((item) => item && item.id === recordId);
+    if (index === -1) {
+      return res.status(404).json({ message: "Registro de treinamento nao encontrado." });
+    }
+    const payload = req.body && typeof req.body === "object" ? req.body : {};
+    const current = sstTrainingRecords[index];
+    const updated = normalizeSstTrainingRecord({
+      ...current,
+      ...payload,
+      id: current.id,
+      createdAt: current.createdAt,
+    });
+    sstTrainingRecords[index] = updated;
+    saveSstTrainingRecords(sstTrainingRecords);
+    appendAudit(
+      "sst_training_record_update",
+      (req.currentUser || getSessionUser(req))?.id || null,
+      { recordId },
+      getClientIp(req)
+    );
+    return res.json({ record: updated });
+  }
+);
+
+app.delete(
+  "/api/sst/training-records/:id",
+  requireAuth,
+  requirePermission("gerenciarSST"),
+  (req, res) => {
+    const recordId = String(req.params.id || "").trim();
+    const index = sstTrainingRecords.findIndex((item) => item && item.id === recordId);
+    if (index === -1) {
+      return res.status(404).json({ message: "Registro de treinamento nao encontrado." });
+    }
+    sstTrainingRecords.splice(index, 1);
+    saveSstTrainingRecords(sstTrainingRecords);
+    appendAudit(
+      "sst_training_record_delete",
+      (req.currentUser || getSessionUser(req))?.id || null,
+      { recordId },
+      getClientIp(req)
+    );
+    return res.json({ ok: true });
+  }
+);
+
+app.get(
+  "/api/sst/inspection-templates",
+  requireAuth,
+  requirePermission("verSST"),
+  (req, res) => {
+    return res.json({ templates: sstInspectionTemplates });
+  }
+);
+
+app.post(
+  "/api/sst/inspection-templates",
+  requireAuth,
+  requirePermission("gerenciarSST"),
+  (req, res) => {
+    const payload = req.body && typeof req.body === "object" ? req.body : {};
+    const tipo = String(payload.type || payload.tipo || "").trim();
+    if (!tipo) {
+      return res.status(400).json({ message: "Tipo de checklist obrigatorio." });
+    }
+    const record = normalizeSstInspectionTemplate({ ...payload, type: tipo });
+    sstInspectionTemplates = sstInspectionTemplates.concat(record);
+    saveSstInspectionTemplates(sstInspectionTemplates);
+    appendAudit(
+      "sst_inspection_template_create",
+      (req.currentUser || getSessionUser(req))?.id || null,
+      { templateId: record.id },
+      getClientIp(req)
+    );
+    return res.json({ template: record });
+  }
+);
+
+app.put(
+  "/api/sst/inspection-templates/:id",
+  requireAuth,
+  requirePermission("gerenciarSST"),
+  (req, res) => {
+    const templateId = String(req.params.id || "").trim();
+    const index = sstInspectionTemplates.findIndex((item) => item && item.id === templateId);
+    if (index === -1) {
+      return res.status(404).json({ message: "Checklist nao encontrado." });
+    }
+    const payload = req.body && typeof req.body === "object" ? req.body : {};
+    const current = sstInspectionTemplates[index];
+    const updated = normalizeSstInspectionTemplate({
+      ...current,
+      ...payload,
+      id: current.id,
+      createdAt: current.createdAt,
+    });
+    sstInspectionTemplates[index] = updated;
+    saveSstInspectionTemplates(sstInspectionTemplates);
+    appendAudit(
+      "sst_inspection_template_update",
+      (req.currentUser || getSessionUser(req))?.id || null,
+      { templateId },
+      getClientIp(req)
+    );
+    return res.json({ template: updated });
+  }
+);
+
+app.delete(
+  "/api/sst/inspection-templates/:id",
+  requireAuth,
+  requirePermission("gerenciarSST"),
+  (req, res) => {
+    const templateId = String(req.params.id || "").trim();
+    const index = sstInspectionTemplates.findIndex((item) => item && item.id === templateId);
+    if (index === -1) {
+      return res.status(404).json({ message: "Checklist nao encontrado." });
+    }
+    sstInspectionTemplates.splice(index, 1);
+    saveSstInspectionTemplates(sstInspectionTemplates);
+    appendAudit(
+      "sst_inspection_template_delete",
+      (req.currentUser || getSessionUser(req))?.id || null,
+      { templateId },
+      getClientIp(req)
+    );
+    return res.json({ ok: true });
+  }
+);
+
+app.get("/api/sst/inspections", requireAuth, requirePermission("verSST"), (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const projectId = String(req.query.projectId || "").trim();
+  const allowed = new Set(getUserProjectIds(user));
+  if (projectId && !allowed.has(projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  let list = sstInspections.filter((item) => !item.projectId || allowed.has(item.projectId));
+  if (projectId) {
+    list = list.filter((item) => item.projectId === projectId);
+  }
+  list = list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  return res.json({ inspections: list });
+});
+
+app.post("/api/sst/inspections", requireAuth, requirePermission("gerenciarSST"), (req, res) => {
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const projectId = String(payload.projectId || "").trim();
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto obrigatorio." });
+  }
+  const user = req.currentUser || getSessionUser(req);
+  if (!userHasProjectAccess(user, projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  const record = normalizeSstInspection({
+    ...payload,
+    projectId,
+    createdBy: user ? user.id : "",
+  });
+  sstInspections = sstInspections.concat(record);
+  saveSstInspections(sstInspections);
+  appendAudit(
+    "sst_inspection_create",
+    user ? user.id : null,
+    { inspectionId: record.id, projectId },
+    getClientIp(req),
+    projectId
+  );
+  return res.json({ inspection: record });
+});
+
+app.put("/api/sst/inspections/:id", requireAuth, requirePermission("gerenciarSST"), (req, res) => {
+  const inspectionId = String(req.params.id || "").trim();
+  const index = sstInspections.findIndex((item) => item && item.id === inspectionId);
+  if (index === -1) {
+    return res.status(404).json({ message: "Inspecao nao encontrada." });
+  }
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const current = sstInspections[index];
+  const user = req.currentUser || getSessionUser(req);
+  if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  const updated = normalizeSstInspection({
+    ...current,
+    ...payload,
+    id: current.id,
+    projectId: current.projectId,
+    createdAt: current.createdAt,
+    createdBy: current.createdBy,
+  });
+  sstInspections[index] = updated;
+  saveSstInspections(sstInspections);
+  appendAudit(
+    "sst_inspection_update",
+    user ? user.id : null,
+    { inspectionId },
+    getClientIp(req),
+    current.projectId
+  );
+  return res.json({ inspection: updated });
+});
+
+app.delete("/api/sst/inspections/:id", requireAuth, requirePermission("gerenciarSST"), (req, res) => {
+  const inspectionId = String(req.params.id || "").trim();
+  const index = sstInspections.findIndex((item) => item && item.id === inspectionId);
+  if (index === -1) {
+    return res.status(404).json({ message: "Inspecao nao encontrada." });
+  }
+  const user = req.currentUser || getSessionUser(req);
+  const current = sstInspections[index];
+  if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  sstInspections.splice(index, 1);
+  saveSstInspections(sstInspections);
+  appendAudit(
+    "sst_inspection_delete",
+    user ? user.id : null,
+    { inspectionId },
+    getClientIp(req),
+    current.projectId
+  );
+  return res.json({ ok: true });
+});
+
+app.get(
+  "/api/sst/nonconformities",
+  requireAuth,
+  requirePermission("verSST"),
+  (req, res) => {
+    const user = req.currentUser || getSessionUser(req);
+    const projectId = String(req.query.projectId || "").trim();
+    const allowed = new Set(getUserProjectIds(user));
+    if (projectId && !allowed.has(projectId)) {
+      return res.status(403).json({ message: "Nao autorizado." });
+    }
+    let list = sstNonconformities.filter((item) => !item.projectId || allowed.has(item.projectId));
+    if (projectId) {
+      list = list.filter((item) => item.projectId === projectId);
+    }
+    list = list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return res.json({ nonconformities: list });
+  }
+);
+
+app.post("/api/sst/nonconformities", requireAuth, requirePermission("gerenciarSST"), (req, res) => {
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const projectId = String(payload.projectId || "").trim();
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto obrigatorio." });
+  }
+  const user = req.currentUser || getSessionUser(req);
+  if (!userHasProjectAccess(user, projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  const record = normalizeSstNonconformity({
+    ...payload,
+    projectId,
+    createdBy: user ? user.id : "",
+  });
+  sstNonconformities = sstNonconformities.concat(record);
+  saveSstNonconformities(sstNonconformities);
+  appendAudit(
+    "sst_nc_create",
+    user ? user.id : null,
+    { ncId: record.id, projectId },
+    getClientIp(req),
+    projectId
+  );
+  return res.json({ nonconformity: record });
+});
+
+app.put("/api/sst/nonconformities/:id", requireAuth, requirePermission("gerenciarSST"), (req, res) => {
+  const ncId = String(req.params.id || "").trim();
+  const index = sstNonconformities.findIndex((item) => item && item.id === ncId);
+  if (index === -1) {
+    return res.status(404).json({ message: "Nao conformidade nao encontrada." });
+  }
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const current = sstNonconformities[index];
+  const user = req.currentUser || getSessionUser(req);
+  if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  const updated = normalizeSstNonconformity({
+    ...current,
+    ...payload,
+    id: current.id,
+    projectId: current.projectId,
+    createdAt: current.createdAt,
+    createdBy: current.createdBy,
+  });
+  sstNonconformities[index] = updated;
+  saveSstNonconformities(sstNonconformities);
+  appendAudit(
+    "sst_nc_update",
+    user ? user.id : null,
+    { ncId },
+    getClientIp(req),
+    current.projectId
+  );
+  return res.json({ nonconformity: updated });
+});
+
+app.delete("/api/sst/nonconformities/:id", requireAuth, requirePermission("gerenciarSST"), (req, res) => {
+  const ncId = String(req.params.id || "").trim();
+  const index = sstNonconformities.findIndex((item) => item && item.id === ncId);
+  if (index === -1) {
+    return res.status(404).json({ message: "Nao conformidade nao encontrada." });
+  }
+  const user = req.currentUser || getSessionUser(req);
+  const current = sstNonconformities[index];
+  if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  sstNonconformities.splice(index, 1);
+  saveSstNonconformities(sstNonconformities);
+  appendAudit(
+    "sst_nc_delete",
+    user ? user.id : null,
+    { ncId },
+    getClientIp(req),
+    current.projectId
+  );
+  return res.json({ ok: true });
+});
+
+app.get("/api/sst/incidents", requireAuth, requirePermission("verSST"), (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const projectId = String(req.query.projectId || "").trim();
+  const allowed = new Set(getUserProjectIds(user));
+  if (projectId && !allowed.has(projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  let list = sstIncidents.filter((item) => !item.projectId || allowed.has(item.projectId));
+  if (projectId) {
+    list = list.filter((item) => item.projectId === projectId);
+  }
+  list = list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  return res.json({ incidents: list });
+});
+
+app.post("/api/sst/incidents", requireAuth, requirePermission("gerenciarSST"), (req, res) => {
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const projectId = String(payload.projectId || "").trim();
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto obrigatorio." });
+  }
+  const user = req.currentUser || getSessionUser(req);
+  if (!userHasProjectAccess(user, projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  const record = normalizeSstIncident({
+    ...payload,
+    projectId,
+    createdBy: user ? user.id : "",
+  });
+  sstIncidents = sstIncidents.concat(record);
+  saveSstIncidents(sstIncidents);
+  appendAudit(
+    "sst_incident_create",
+    user ? user.id : null,
+    { incidentId: record.id, projectId },
+    getClientIp(req),
+    projectId
+  );
+  return res.json({ incident: record });
+});
+
+app.put("/api/sst/incidents/:id", requireAuth, requirePermission("gerenciarSST"), (req, res) => {
+  const incidentId = String(req.params.id || "").trim();
+  const index = sstIncidents.findIndex((item) => item && item.id === incidentId);
+  if (index === -1) {
+    return res.status(404).json({ message: "Incidente nao encontrado." });
+  }
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const current = sstIncidents[index];
+  const user = req.currentUser || getSessionUser(req);
+  if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  const updated = normalizeSstIncident({
+    ...current,
+    ...payload,
+    id: current.id,
+    projectId: current.projectId,
+    createdAt: current.createdAt,
+    createdBy: current.createdBy,
+  });
+  sstIncidents[index] = updated;
+  saveSstIncidents(sstIncidents);
+  appendAudit(
+    "sst_incident_update",
+    user ? user.id : null,
+    { incidentId },
+    getClientIp(req),
+    current.projectId
+  );
+  return res.json({ incident: updated });
+});
+
+app.delete("/api/sst/incidents/:id", requireAuth, requirePermission("gerenciarSST"), (req, res) => {
+  const incidentId = String(req.params.id || "").trim();
+  const index = sstIncidents.findIndex((item) => item && item.id === incidentId);
+  if (index === -1) {
+    return res.status(404).json({ message: "Incidente nao encontrado." });
+  }
+  const user = req.currentUser || getSessionUser(req);
+  const current = sstIncidents[index];
+  if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  sstIncidents.splice(index, 1);
+  saveSstIncidents(sstIncidents);
+  appendAudit(
+    "sst_incident_delete",
+    user ? user.id : null,
+    { incidentId },
+    getClientIp(req),
+    current.projectId
+  );
+  return res.json({ ok: true });
+});
+
+app.get("/api/sst/aprs", requireAuth, requirePermission("verSST"), (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const projectId = String(req.query.projectId || "").trim();
+  const allowed = new Set(getUserProjectIds(user));
+  if (projectId && !allowed.has(projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  let list = sstAprs.filter((item) => !item.projectId || allowed.has(item.projectId));
+  if (projectId) {
+    list = list.filter((item) => item.projectId === projectId);
+  }
+  list = list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  return res.json({ aprs: list });
+});
+
+app.post("/api/sst/aprs", requireAuth, requirePermission("gerenciarSST"), (req, res) => {
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const projectId = String(payload.projectId || "").trim();
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto obrigatorio." });
+  }
+  const user = req.currentUser || getSessionUser(req);
+  if (!userHasProjectAccess(user, projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  const record = normalizeSstApr({
+    ...payload,
+    projectId,
+    createdBy: user ? user.id : "",
+  });
+  sstAprs = sstAprs.concat(record);
+  saveSstAprs(sstAprs);
+  appendAudit(
+    "sst_apr_create",
+    user ? user.id : null,
+    { aprId: record.id, projectId },
+    getClientIp(req),
+    projectId
+  );
+  return res.json({ apr: record });
+});
+
+app.put("/api/sst/aprs/:id", requireAuth, requirePermission("gerenciarSST"), (req, res) => {
+  const aprId = String(req.params.id || "").trim();
+  const index = sstAprs.findIndex((item) => item && item.id === aprId);
+  if (index === -1) {
+    return res.status(404).json({ message: "APR nao encontrada." });
+  }
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const current = sstAprs[index];
+  const user = req.currentUser || getSessionUser(req);
+  if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  const updated = normalizeSstApr({
+    ...current,
+    ...payload,
+    id: current.id,
+    projectId: current.projectId,
+    createdAt: current.createdAt,
+    createdBy: current.createdBy,
+  });
+  sstAprs[index] = updated;
+  saveSstAprs(sstAprs);
+  appendAudit(
+    "sst_apr_update",
+    user ? user.id : null,
+    { aprId },
+    getClientIp(req),
+    current.projectId
+  );
+  return res.json({ apr: updated });
+});
+
+app.delete("/api/sst/aprs/:id", requireAuth, requirePermission("gerenciarSST"), (req, res) => {
+  const aprId = String(req.params.id || "").trim();
+  const index = sstAprs.findIndex((item) => item && item.id === aprId);
+  if (index === -1) {
+    return res.status(404).json({ message: "APR nao encontrada." });
+  }
+  const user = req.currentUser || getSessionUser(req);
+  const current = sstAprs[index];
+  if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  sstAprs.splice(index, 1);
+  saveSstAprs(sstAprs);
+  appendAudit(
+    "sst_apr_delete",
+    user ? user.id : null,
+    { aprId },
+    getClientIp(req),
+    current.projectId
+  );
+  return res.json({ ok: true });
+});
+
+app.get("/api/sst/permits", requireAuth, requirePermission("verSST"), (req, res) => {
+  return res.json({ permits: sstPermits });
+});
+
+app.post("/api/sst/permits", requireAuth, requirePermission("gerenciarSST"), (req, res) => {
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const aprId = String(payload.aprId || "").trim();
+  if (!aprId) {
+    return res.status(400).json({ message: "APR obrigatoria." });
+  }
+  const record = normalizeSstPermit(payload);
+  sstPermits = sstPermits.concat(record);
+  saveSstPermits(sstPermits);
+  appendAudit(
+    "sst_permit_create",
+    (req.currentUser || getSessionUser(req))?.id || null,
+    { permitId: record.id },
+    getClientIp(req)
+  );
+  return res.json({ permit: record });
+});
+
+app.put("/api/sst/permits/:id", requireAuth, requirePermission("gerenciarSST"), (req, res) => {
+  const permitId = String(req.params.id || "").trim();
+  const index = sstPermits.findIndex((item) => item && item.id === permitId);
+  if (index === -1) {
+    return res.status(404).json({ message: "PT nao encontrada." });
+  }
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const current = sstPermits[index];
+  const updated = normalizeSstPermit({
+    ...current,
+    ...payload,
+    id: current.id,
+    createdAt: current.createdAt,
+    createdBy: current.createdBy,
+  });
+  sstPermits[index] = updated;
+  saveSstPermits(sstPermits);
+  appendAudit(
+    "sst_permit_update",
+    (req.currentUser || getSessionUser(req))?.id || null,
+    { permitId },
+    getClientIp(req)
+  );
+  return res.json({ permit: updated });
+});
+
+app.delete("/api/sst/permits/:id", requireAuth, requirePermission("gerenciarSST"), (req, res) => {
+  const permitId = String(req.params.id || "").trim();
+  const index = sstPermits.findIndex((item) => item && item.id === permitId);
+  if (index === -1) {
+    return res.status(404).json({ message: "PT nao encontrada." });
+  }
+  sstPermits.splice(index, 1);
+  saveSstPermits(sstPermits);
+  appendAudit(
+    "sst_permit_delete",
+    (req.currentUser || getSessionUser(req))?.id || null,
+    { permitId },
+    getClientIp(req)
+  );
+  return res.json({ ok: true });
 });
 
 app.patch("/api/profile", requireAuth, (req, res) => {

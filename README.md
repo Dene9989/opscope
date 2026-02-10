@@ -12,6 +12,20 @@ Sistema web para gestao operacional e manutencao.
 4. Abra:
    - `http://localhost:3000`
 
+## Novos módulos: Almoxarifado e SST
+
+- Almoxarifado: itens, estoque por projeto, movimentações, EPIs por colaborador, QR Code e termo de responsabilidade (PDF).
+- SST: treinamentos, inspeções, não conformidades, incidentes e APR/PT.
+
+### Dependências extras
+
+- `qrcode` (geração de QR Code)
+- `pdf-lib` (geração do termo em PDF)
+
+### Perfis RBAC usados
+
+- admin, gestor, almoxarife, tecnico_sst, supervisor, colaborador
+
 ## Cadastro com codigo por e-mail
 
 - O cadastro cria a conta e envia um codigo de verificacao para o e-mail informado.

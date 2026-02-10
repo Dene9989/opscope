@@ -310,6 +310,103 @@ const pmpCellUnset = document.getElementById("pmpCellUnset");
 const pmpCellMarkCancel = document.getElementById("pmpCellMarkCancel");
 const pmpCellClose = document.getElementById("pmpCellClose");
 const pmpCellCloseBtn = document.querySelector("[data-pmp-cell-close]");
+const almoxDashCards = document.getElementById("almoxDashCards");
+const almoxAlertas = document.getElementById("almoxAlertas");
+const almoxAlertasVazio = document.getElementById("almoxAlertasVazio");
+const almoxMovRecent = document.getElementById("almoxMovRecent");
+const almoxMovRecentVazio = document.getElementById("almoxMovRecentVazio");
+const almoxItemForm = document.getElementById("almoxItemForm");
+const almoxItemType = document.getElementById("almoxItemType");
+const almoxItemUnit = document.getElementById("almoxItemUnit");
+const almoxItemName = document.getElementById("almoxItemName");
+const almoxItemCode = document.getElementById("almoxItemCode");
+const almoxItemBarcode = document.getElementById("almoxItemBarcode");
+const almoxItemCA = document.getElementById("almoxItemCA");
+const almoxItemCaValid = document.getElementById("almoxItemCaValid");
+const almoxItemValid = document.getElementById("almoxItemValid");
+const almoxItemDesc = document.getElementById("almoxItemDesc");
+const almoxItemSubmit = document.getElementById("almoxItemSubmit");
+const almoxItemMsg = document.getElementById("almoxItemMsg");
+const almoxItemTableBody = document.getElementById("almoxItemTableBody");
+const almoxItemEmpty = document.getElementById("almoxItemEmpty");
+const almoxStockTableBody = document.getElementById("almoxStockTableBody");
+const almoxStockEmpty = document.getElementById("almoxStockEmpty");
+const almoxMovForm = document.getElementById("almoxMovForm");
+const almoxMovType = document.getElementById("almoxMovType");
+const almoxMovItem = document.getElementById("almoxMovItem");
+const almoxMovQty = document.getElementById("almoxMovQty");
+const almoxMovProject = document.getElementById("almoxMovProject");
+const almoxMovProjectDest = document.getElementById("almoxMovProjectDest");
+const almoxMovWorksite = document.getElementById("almoxMovWorksite");
+const almoxMovWorksiteDest = document.getElementById("almoxMovWorksiteDest");
+const almoxMovColab = document.getElementById("almoxMovColab");
+const almoxMovReason = document.getElementById("almoxMovReason");
+const almoxMovSubmit = document.getElementById("almoxMovSubmit");
+const almoxMovMsg = document.getElementById("almoxMovMsg");
+const almoxMovTableBody = document.getElementById("almoxMovTableBody");
+const almoxMovEmpty = document.getElementById("almoxMovEmpty");
+const almoxEpiTableBody = document.getElementById("almoxEpiTableBody");
+const almoxEpiEmpty = document.getElementById("almoxEpiEmpty");
+const almoxTransferFields = Array.from(document.querySelectorAll("[data-transfer-only]"));
+const sstDashCards = document.getElementById("sstDashCards");
+const sstAlertas = document.getElementById("sstAlertas");
+const sstAlertasVazio = document.getElementById("sstAlertasVazio");
+const sstTrainingForm = document.getElementById("sstTrainingForm");
+const sstTrainingName = document.getElementById("sstTrainingName");
+const sstTrainingNr = document.getElementById("sstTrainingNr");
+const sstTrainingHours = document.getElementById("sstTrainingHours");
+const sstTrainingValidity = document.getElementById("sstTrainingValidity");
+const sstTrainingSubmit = document.getElementById("sstTrainingSubmit");
+const sstTrainingMsg = document.getElementById("sstTrainingMsg");
+const sstTrainingTableBody = document.getElementById("sstTrainingTableBody");
+const sstTrainingEmpty = document.getElementById("sstTrainingEmpty");
+const sstInspectionForm = document.getElementById("sstInspectionForm");
+const sstInspectionType = document.getElementById("sstInspectionType");
+const sstInspectionProject = document.getElementById("sstInspectionProject");
+const sstInspectionStatus = document.getElementById("sstInspectionStatus");
+const sstInspectionNotes = document.getElementById("sstInspectionNotes");
+const sstInspectionSubmit = document.getElementById("sstInspectionSubmit");
+const sstInspectionMsg = document.getElementById("sstInspectionMsg");
+const sstInspectionTableBody = document.getElementById("sstInspectionTableBody");
+const sstInspectionEmpty = document.getElementById("sstInspectionEmpty");
+const sstNcForm = document.getElementById("sstNcForm");
+const sstNcSeverity = document.getElementById("sstNcSeverity");
+const sstNcDue = document.getElementById("sstNcDue");
+const sstNcDesc = document.getElementById("sstNcDesc");
+const sstNcSubmit = document.getElementById("sstNcSubmit");
+const sstNcMsg = document.getElementById("sstNcMsg");
+const sstNcTableBody = document.getElementById("sstNcTableBody");
+const sstNcEmpty = document.getElementById("sstNcEmpty");
+const sstIncidentForm = document.getElementById("sstIncidentForm");
+const sstIncidentProject = document.getElementById("sstIncidentProject");
+const sstIncidentSeverity = document.getElementById("sstIncidentSeverity");
+const sstIncidentDate = document.getElementById("sstIncidentDate");
+const sstIncidentCategory = document.getElementById("sstIncidentCategory");
+const sstIncidentDesc = document.getElementById("sstIncidentDesc");
+const sstIncidentSubmit = document.getElementById("sstIncidentSubmit");
+const sstIncidentMsg = document.getElementById("sstIncidentMsg");
+const sstIncidentTableBody = document.getElementById("sstIncidentTableBody");
+const sstIncidentEmpty = document.getElementById("sstIncidentEmpty");
+const sstAprForm = document.getElementById("sstAprForm");
+const sstAprProject = document.getElementById("sstAprProject");
+const sstAprActivity = document.getElementById("sstAprActivity");
+const sstAprHazards = document.getElementById("sstAprHazards");
+const sstAprRisks = document.getElementById("sstAprRisks");
+const sstAprControls = document.getElementById("sstAprControls");
+const sstAprSubmit = document.getElementById("sstAprSubmit");
+const sstAprMsg = document.getElementById("sstAprMsg");
+const sstPermitForm = document.getElementById("sstPermitForm");
+const sstPermitApr = document.getElementById("sstPermitApr");
+const sstPermitType = document.getElementById("sstPermitType");
+const sstPermitFrom = document.getElementById("sstPermitFrom");
+const sstPermitTo = document.getElementById("sstPermitTo");
+const sstPermitReqs = document.getElementById("sstPermitReqs");
+const sstPermitSubmit = document.getElementById("sstPermitSubmit");
+const sstPermitMsg = document.getElementById("sstPermitMsg");
+const sstAprTableBody = document.getElementById("sstAprTableBody");
+const sstAprEmpty = document.getElementById("sstAprEmpty");
+const sstPermitTableBody = document.getElementById("sstPermitTableBody");
+const sstPermitEmpty = document.getElementById("sstPermitEmpty");
 const btnLembretes = document.getElementById("btnBell") || document.getElementById("btnLembretes");
 const lembretesCount = document.getElementById("bellDot") || document.getElementById("lembretesCount");
 const painelLembretes = document.getElementById("painelLembretes");
@@ -807,6 +904,17 @@ const SECTION_LABELS = {
   relatorios: "Relatórios",
   feedbacks: "Feedbacks",
   perfil: "Meu perfil",
+  almoxarifado: "Almoxarifado",
+  "almoxarifado-itens": "Itens",
+  "almoxarifado-estoque": "Estoque por projeto",
+  "almoxarifado-movimentacoes": "Movimentações",
+  "almoxarifado-epis": "EPIs por colaborador",
+  sst: "Segurança do Trabalho (SST)",
+  "sst-treinamentos": "Treinamentos",
+  "sst-inspecoes": "Inspeções",
+  "sst-ncs": "Não conformidades",
+  "sst-incidentes": "Incidentes",
+  "sst-apr-pt": "APR / PT",
 };
 const ADMIN_SECTIONS = ["solicitacoes", "rastreabilidade", "gerencial", "contas"];
 const DEFAULT_SECTIONS = Object.keys(SECTION_LABELS).reduce((acc, key) => {
@@ -858,6 +966,10 @@ const GRANULAR_PERMISSION_LABELS = {
   gerenciarEquipamentos: "Gerenciar equipamentos",
   gerenciarEquipeProjeto: "Gerenciar equipe do projeto",
   gerenciarPMP: "Gerenciar PMP/Cronograma",
+  verAlmoxarifado: "Ver Almoxarifado",
+  gerenciarAlmoxarifado: "Gerenciar Almoxarifado",
+  verSST: "Ver SST",
+  gerenciarSST: "Gerenciar SST",
 };
 const PERMISSION_GROUPS = [
   {
@@ -874,6 +986,16 @@ const PERMISSION_GROUPS = [
     key: "pmp",
     label: "PMP / Cronograma",
     items: ["gerenciarPMP"],
+  },
+  {
+    key: "almoxarifado",
+    label: "Almoxarifado",
+    items: ["verAlmoxarifado", "gerenciarAlmoxarifado"],
+  },
+  {
+    key: "sst",
+    label: "Segurança do Trabalho (SST)",
+    items: ["verSST", "gerenciarSST"],
   },
   {
     key: "arquivos",
@@ -912,6 +1034,12 @@ const PERMISSION_GROUPS = [
   },
 ];
 const GRANULAR_PROFILE_ORDER = [
+  "admin",
+  "gestor",
+  "almoxarife",
+  "tecnico_sst",
+  "supervisor",
+  "colaborador",
   "pcm",
   "diretor_om",
   "gerente_contrato",
@@ -926,6 +1054,12 @@ const ADMIN_USERS_READ = "admin:users:read";
 const ADMIN_USERS_WRITE = "admin:users:write";
 
 const RBAC_ROLE_LABELS = {
+  admin: "ADMIN",
+  gestor: "GESTOR",
+  almoxarife: "ALMOXARIFE",
+  tecnico_sst: "TÉCNICO SST",
+  supervisor: "SUPERVISOR",
+  colaborador: "COLABORADOR",
   pcm: "PCM",
   diretor_om: "DIRETOR O&M",
   gerente_contrato: "GERENTE DE CONTRATO",
@@ -943,8 +1077,15 @@ const LEGACY_ROLE_LABELS = {
   leitura: "LEITURA",
 };
 
-const FULL_ACCESS_RBAC = new Set(["pcm", "diretor_om", "gerente_contrato"]);
-const RELEASE_OVERRIDE_RBAC = new Set(["pcm", "diretor_om", "gerente_contrato", "supervisor_om"]);
+const FULL_ACCESS_RBAC = new Set(["admin", "gestor", "pcm", "diretor_om", "gerente_contrato"]);
+const RELEASE_OVERRIDE_RBAC = new Set([
+  "admin",
+  "gestor",
+  "pcm",
+  "diretor_om",
+  "gerente_contrato",
+  "supervisor_om",
+]);
 const MASTER_MATRICULA = "35269";
 const MASTER_USERNAME = "denisson.alves";
 const DEFAULT_PROJECT_LOCAIS = ["LZC-BOS2", "LZC-PCT4", "LZC-LT", "LZC-BSO2/LZC-PCT4"];
@@ -961,6 +1102,17 @@ const TAB_PERMISSION_MAP = {
   contas: "verUsuarios",
   gerencial: "verPainelGerencial",
   rastreabilidade: "verLogsAPI",
+  almoxarifado: "verAlmoxarifado",
+  "almoxarifado-itens": "verAlmoxarifado",
+  "almoxarifado-estoque": "verAlmoxarifado",
+  "almoxarifado-movimentacoes": "verAlmoxarifado",
+  "almoxarifado-epis": "verAlmoxarifado",
+  sst: "verSST",
+  "sst-treinamentos": "verSST",
+  "sst-inspecoes": "verSST",
+  "sst-ncs": "verSST",
+  "sst-incidentes": "verSST",
+  "sst-apr-pt": "verSST",
 };
 const LOCK_ICON_SVG =
   '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 10V7a5 5 0 0 1 10 0v3h1a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h1Zm2 0h6V7a3 3 0 0 0-6 0v3Z" fill="currentColor"/></svg>';
@@ -1239,6 +1391,46 @@ function canManageEquipamentos(user) {
 
 function canManageEquipeProjeto(user) {
   return hasGranularPermission(user, "gerenciarEquipeProjeto");
+}
+
+function canViewAlmoxarifado(user) {
+  if (!user) {
+    return false;
+  }
+  if (isFullAccessUser(user)) {
+    return true;
+  }
+  return hasGranularPermission(user, "verAlmoxarifado");
+}
+
+function canManageAlmoxarifado(user) {
+  if (!user) {
+    return false;
+  }
+  if (isFullAccessUser(user)) {
+    return true;
+  }
+  return hasGranularPermission(user, "gerenciarAlmoxarifado");
+}
+
+function canViewSst(user) {
+  if (!user) {
+    return false;
+  }
+  if (isFullAccessUser(user)) {
+    return true;
+  }
+  return hasGranularPermission(user, "verSST");
+}
+
+function canManageSst(user) {
+  if (!user) {
+    return false;
+  }
+  if (isFullAccessUser(user)) {
+    return true;
+  }
+  return hasGranularPermission(user, "gerenciarSST");
 }
 
 function canAccessGerencialTab(tabId, user) {
@@ -1760,6 +1952,21 @@ let projectEquipamentos = [];
 let projectEquipe = [];
 let pmpActivities = [];
 let pmpExecutions = [];
+let almoxItems = [];
+let almoxStock = [];
+let almoxMovements = [];
+let almoxKits = [];
+let almoxEpiByUser = [];
+let almoxLoaded = false;
+let sstTrainings = [];
+let sstTrainingRecords = [];
+let sstInspectionTemplates = [];
+let sstInspections = [];
+let sstNonconformities = [];
+let sstIncidents = [];
+let sstAprs = [];
+let sstPermits = [];
+let sstLoaded = false;
 const pmpEquipamentosCache = new Map();
 const pmpMaintenanceCache = new Map();
 let pmpChecklistItems = [];
@@ -3711,6 +3918,12 @@ function abrirPainelComCarregamento(tab, scrollTarget = null) {
     if (tab === "gerencial") {
       carregarPainelGerencial(false);
     }
+    if (tab.startsWith("almoxarifado")) {
+      carregarAlmoxarifado(false);
+    }
+    if (tab.startsWith("sst")) {
+      carregarSst(false);
+    }
     if (scrollTarget) {
       const alvo = document.getElementById(scrollTarget);
       if (alvo) {
@@ -4596,6 +4809,15 @@ async function carregarSessaoServidor() {
   renderAuthUI();
   await refreshProjects();
   await carregarPmpDados();
+  if (currentUser) {
+    const activeTab = getActiveTabKey();
+    if (activeTab && activeTab.startsWith("almoxarifado")) {
+      await carregarAlmoxarifado(true);
+    }
+    if (activeTab && activeTab.startsWith("sst")) {
+      await carregarSst(true);
+    }
+  }
   if (!currentUser) {
     renderProjectSelector();
     renderProjectPanel();
@@ -4747,6 +4969,17 @@ const TAB_LABELS = {
   tendencias: "KPIs e Tend\u00eancias",
   relatorios: "Relat\u00f3rios Gerenciais",
   feedbacks: "Feedbacks",
+  almoxarifado: "Almoxarifado",
+  "almoxarifado-itens": "Itens",
+  "almoxarifado-estoque": "Estoque por Projeto",
+  "almoxarifado-movimentacoes": "Movimenta\u00e7\u00f5es",
+  "almoxarifado-epis": "EPIs por Colaborador",
+  sst: "Seguran\u00e7a do Trabalho (SST)",
+  "sst-treinamentos": "Treinamentos",
+  "sst-inspecoes": "Inspe\u00e7\u00f5es",
+  "sst-ncs": "N\u00e3o conformidades",
+  "sst-incidentes": "Incidentes",
+  "sst-apr-pt": "APR / PT",
   rastreabilidade: "Hist\u00f3rico de Execu\u00e7\u00e3o",
   gerencial: "Configura\u00e7\u00f5es Gerais",
   contas: "Equipe / Usu\u00e1rios",
@@ -18188,6 +18421,1053 @@ async function refreshProjects() {
   renderProjectPanel();
 }
 
+function setInlineMessage(element, message, isError = false) {
+  if (!element) {
+    return;
+  }
+  element.textContent = message || "";
+  element.hidden = !message;
+  element.classList.toggle("mensagem--erro", isError);
+}
+
+function isDateExpiring(dateStr, days = 30) {
+  const parsed = parseDate(dateStr);
+  if (!parsed) {
+    return false;
+  }
+  const diff = diffInDays(startOfDay(new Date()), startOfDay(parsed));
+  return diff >= 0 && diff <= days;
+}
+
+function getAlmoxItemLabel(itemId) {
+  const item = almoxItems.find((entry) => entry && entry.id === itemId);
+  if (!item) {
+    return itemId || "-";
+  }
+  return item.name || item.internalCode || item.barcode || item.id;
+}
+
+function renderAlmoxItemOptions() {
+  if (!almoxMovItem) {
+    return;
+  }
+  const selected = almoxMovItem.value;
+  almoxMovItem.innerHTML = '<option value="">Selecione</option>';
+  almoxItems
+    .filter((item) => item && item.status !== "INATIVO")
+    .forEach((item) => {
+      const opt = document.createElement("option");
+      opt.value = item.id;
+      opt.textContent = `${item.name || "-"} (${item.type || "-"})`;
+      almoxMovItem.append(opt);
+    });
+  if (selected) {
+    almoxMovItem.value = selected;
+  }
+}
+
+function renderAlmoxColabOptions() {
+  if (!almoxMovColab) {
+    return;
+  }
+  const selected = almoxMovColab.value;
+  almoxMovColab.innerHTML = '<option value="">Selecione</option>';
+  users.forEach((user) => {
+    if (!isRealUser(user)) {
+      return;
+    }
+    const opt = document.createElement("option");
+    opt.value = user.id;
+    opt.textContent = `${user.name || user.matricula || user.username || "-"} (${getRoleLabel(
+      user
+    )})`;
+    almoxMovColab.append(opt);
+  });
+  if (selected) {
+    almoxMovColab.value = selected;
+  }
+}
+
+function renderAlmoxProjectOptions() {
+  renderProjectSelectOptions(almoxMovProject, activeProjectId);
+  renderProjectSelectOptions(almoxMovProjectDest, "");
+}
+
+function updateAlmoxTransferFields() {
+  if (!almoxMovType) {
+    return;
+  }
+  const isTransfer = almoxMovType.value === "TRANSFERENCIA";
+  almoxTransferFields.forEach((field) => {
+    field.hidden = !isTransfer;
+  });
+}
+
+function renderAlmoxSelectors() {
+  renderAlmoxProjectOptions();
+  renderAlmoxItemOptions();
+  renderAlmoxColabOptions();
+  updateAlmoxTransferFields();
+  setFormDisabled(almoxItemForm, !(currentUser && canManageAlmoxarifado(currentUser)));
+  setFormDisabled(almoxMovForm, !(currentUser && canManageAlmoxarifado(currentUser)));
+}
+
+function upsertAlmoxStockEntry(entry) {
+  if (!entry) {
+    return;
+  }
+  const index = almoxStock.findIndex((item) => item && item.id === entry.id);
+  if (index >= 0) {
+    almoxStock[index] = entry;
+  } else {
+    almoxStock = almoxStock.concat(entry);
+  }
+}
+
+function renderAlmoxarifado() {
+  if (!almoxDashCards || !almoxLoaded) {
+    return;
+  }
+  const filteredStock = activeProjectId
+    ? almoxStock.filter((entry) => entry.projectId === activeProjectId)
+    : almoxStock;
+  const lowStock = filteredStock.filter(
+    (entry) => Number(entry.min || 0) > 0 && Number(entry.available || 0) <= Number(entry.min || 0)
+  );
+  const expiring = almoxItems.filter(
+    (item) =>
+      item &&
+      item.type === "EPI" &&
+      (isDateExpiring(item.itemValidUntil, 30) || isDateExpiring(item.caValidUntil, 30))
+  );
+  const today = startOfDay(new Date());
+  const scopedMovements = activeProjectId
+    ? almoxMovements.filter((mov) => mov.projectId === activeProjectId)
+    : almoxMovements;
+  const movsToday = scopedMovements.filter((mov) => {
+    const created = parseTimestamp(mov.createdAt);
+    return created && startOfDay(created).getTime() === today.getTime();
+  });
+  const cards = [
+    { label: "Itens cadastrados", value: almoxItems.length },
+    { label: "Itens em baixa", value: lowStock.length },
+    { label: "EPIs vencendo (30d)", value: expiring.length },
+    { label: "Movimentações hoje", value: movsToday.length },
+  ];
+  almoxDashCards.innerHTML = cards
+    .map(
+      (card) =>
+        `<div><small>${escapeHtml(card.label)}</small><strong>${escapeHtml(
+          String(card.value)
+        )}</strong></div>`
+    )
+    .join("");
+
+  if (almoxAlertas) {
+    almoxAlertas.innerHTML = "";
+    const alerts = [];
+    lowStock.slice(0, 6).forEach((entry) => {
+      const project = availableProjects.find((item) => item.id === entry.projectId);
+      const label = `${getAlmoxItemLabel(entry.itemId)} em baixa (${entry.available || 0}/${
+        entry.min || 0
+      }) - ${project ? getProjectLabel(project) : entry.projectId}`;
+      alerts.push(label);
+    });
+    expiring.slice(0, 6).forEach((item) => {
+      const valid = item.itemValidUntil || item.caValidUntil || "";
+      const label = `${item.name || item.id} vencendo em ${valid || "data indefinida"}`;
+      alerts.push(label);
+    });
+    if (!alerts.length) {
+      if (almoxAlertasVazio) {
+        almoxAlertasVazio.hidden = false;
+      }
+    } else {
+      if (almoxAlertasVazio) {
+        almoxAlertasVazio.hidden = true;
+      }
+      alerts.forEach((msg) => {
+        const card = document.createElement("div");
+        card.className = "lembrete-item";
+        const title = document.createElement("strong");
+        title.textContent = msg;
+        card.append(title);
+        almoxAlertas.append(card);
+      });
+    }
+  }
+
+  if (almoxMovRecent) {
+    const list = activeProjectId
+      ? almoxMovements.filter((mov) => mov.projectId === activeProjectId)
+      : almoxMovements.slice();
+    const rows = list
+      .slice()
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 6)
+      .map((mov) => {
+        const project = availableProjects.find((item) => item.id === mov.projectId);
+        const data = mov.createdAt ? formatDateTime(parseTimestamp(mov.createdAt)) : "-";
+        return `
+          <tr>
+            <td>${escapeHtml(mov.type || "-")}</td>
+            <td>${escapeHtml(getAlmoxItemLabel(mov.itemId))}</td>
+            <td>${escapeHtml(String(mov.quantity || 0))}</td>
+            <td>${escapeHtml(project ? getProjectLabel(project) : mov.projectId || "-")}</td>
+            <td>${escapeHtml(data)}</td>
+          </tr>
+        `;
+      })
+      .join("");
+    almoxMovRecent.innerHTML = rows;
+    if (almoxMovRecentVazio) {
+      almoxMovRecentVazio.hidden = Boolean(rows);
+    }
+  }
+}
+
+function renderAlmoxItens() {
+  if (!almoxItemTableBody || !almoxLoaded) {
+    return;
+  }
+  const list = almoxItems.filter((item) => item && item.status !== "INATIVO");
+  almoxItemTableBody.innerHTML = list
+    .map((item) => {
+      const qrLink = item.id
+        ? `<a class="btn btn--ghost btn--small" target="_blank" href="/api/almox/items/${encodeURIComponent(
+            item.id
+          )}/qrcode">QR</a>`
+        : "-";
+      return `
+        <tr>
+          <td>${escapeHtml(item.name || "-")}</td>
+          <td>${escapeHtml(item.type || "-")}</td>
+          <td>${escapeHtml(item.unit || "-")}</td>
+          <td>${escapeHtml(item.status || "ATIVO")}</td>
+          <td>${escapeHtml(item.ca || "-")}</td>
+          <td>${qrLink}</td>
+        </tr>
+      `;
+    })
+    .join("");
+  if (almoxItemEmpty) {
+    almoxItemEmpty.hidden = list.length > 0;
+  }
+  renderAlmoxItemOptions();
+}
+
+function renderAlmoxEstoque() {
+  if (!almoxStockTableBody || !almoxLoaded) {
+    return;
+  }
+  const list = activeProjectId
+    ? almoxStock.filter((entry) => entry.projectId === activeProjectId)
+    : almoxStock;
+  almoxStockTableBody.innerHTML = list
+    .map((entry) => {
+      const project = availableProjects.find((item) => item.id === entry.projectId);
+      return `
+        <tr>
+          <td>${escapeHtml(project ? getProjectLabel(project) : entry.projectId || "-")}</td>
+          <td>${escapeHtml(getAlmoxItemLabel(entry.itemId))}</td>
+          <td>${escapeHtml(String(entry.available || 0))}</td>
+          <td>${escapeHtml(String(entry.reserved || 0))}</td>
+          <td>${escapeHtml(String(entry.min || 0))}</td>
+        </tr>
+      `;
+    })
+    .join("");
+  if (almoxStockEmpty) {
+    almoxStockEmpty.hidden = list.length > 0;
+  }
+}
+
+function renderAlmoxMovimentacoes() {
+  if (!almoxMovTableBody || !almoxLoaded) {
+    return;
+  }
+  renderAlmoxSelectors();
+  const list = activeProjectId
+    ? almoxMovements.filter((mov) => mov.projectId === activeProjectId)
+    : almoxMovements;
+  almoxMovTableBody.innerHTML = list
+    .slice()
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .map((mov) => {
+      const project = availableProjects.find((item) => item.id === mov.projectId);
+      const data = mov.createdAt ? formatDateTime(parseTimestamp(mov.createdAt)) : "-";
+      const termLink =
+        mov.type === "SAIDA"
+          ? `<a class="btn btn--ghost btn--small" target="_blank" href="/api/almox/movements/${encodeURIComponent(
+              mov.id
+            )}/term">PDF</a>`
+          : "-";
+      return `
+        <tr>
+          <td>${escapeHtml(mov.type || "-")}</td>
+          <td>${escapeHtml(getAlmoxItemLabel(mov.itemId))}</td>
+          <td>${escapeHtml(String(mov.quantity || 0))}</td>
+          <td>${escapeHtml(project ? getProjectLabel(project) : mov.projectId || "-")}</td>
+          <td>${escapeHtml(getUserLabel(mov.createdBy))}</td>
+          <td>${escapeHtml(data)}</td>
+          <td>${termLink}</td>
+        </tr>
+      `;
+    })
+    .join("");
+  if (almoxMovEmpty) {
+    almoxMovEmpty.hidden = list.length > 0;
+  }
+}
+
+function renderAlmoxEpis() {
+  if (!almoxEpiTableBody || !almoxLoaded) {
+    return;
+  }
+  const list = activeProjectId
+    ? almoxEpiByUser.filter((entry) => entry.projectId === activeProjectId)
+    : almoxEpiByUser;
+  almoxEpiTableBody.innerHTML = list
+    .map((entry) => {
+      const project = availableProjects.find((item) => item.id === entry.projectId);
+      const data = entry.lastMovementAt
+        ? formatDateTime(parseTimestamp(entry.lastMovementAt))
+        : "-";
+      return `
+        <tr>
+          <td>${escapeHtml(getUserLabel(entry.collaboratorId))}</td>
+          <td>${escapeHtml(getAlmoxItemLabel(entry.itemId))}</td>
+          <td>${escapeHtml(String(entry.quantity || 0))}</td>
+          <td>${escapeHtml(project ? getProjectLabel(project) : entry.projectId || "-")}</td>
+          <td>${escapeHtml(data)}</td>
+        </tr>
+      `;
+    })
+    .join("");
+  if (almoxEpiEmpty) {
+    almoxEpiEmpty.hidden = list.length > 0;
+  }
+}
+
+async function carregarAlmoxarifado(force = false) {
+  if (!currentUser || !canViewAlmoxarifado(currentUser)) {
+    almoxItems = [];
+    almoxStock = [];
+    almoxMovements = [];
+    almoxEpiByUser = [];
+    almoxLoaded = false;
+    renderAlmoxarifado();
+    renderAlmoxItens();
+    renderAlmoxEstoque();
+    renderAlmoxMovimentacoes();
+    renderAlmoxEpis();
+    return;
+  }
+  if (almoxLoaded && !force) {
+    renderAlmoxarifado();
+    return;
+  }
+  try {
+    const data = await apiAlmoxItemsList();
+    almoxItems = Array.isArray(data.items) ? data.items : [];
+  } catch (error) {
+    almoxItems = [];
+  }
+  try {
+    const data = await apiAlmoxStockList();
+    almoxStock = Array.isArray(data.stock) ? data.stock : [];
+  } catch (error) {
+    almoxStock = [];
+  }
+  try {
+    const data = await apiAlmoxMovementsList();
+    almoxMovements = Array.isArray(data.movements) ? data.movements : [];
+  } catch (error) {
+    almoxMovements = [];
+  }
+  try {
+    const data = await apiAlmoxEpiByUser();
+    almoxEpiByUser = Array.isArray(data.records) ? data.records : [];
+  } catch (error) {
+    almoxEpiByUser = [];
+  }
+  almoxLoaded = true;
+  renderAlmoxarifado();
+  renderAlmoxItens();
+  renderAlmoxEstoque();
+  renderAlmoxMovimentacoes();
+  renderAlmoxEpis();
+}
+
+function renderSstProjectOptions() {
+  renderProjectSelectOptions(sstInspectionProject, activeProjectId);
+  renderProjectSelectOptions(sstIncidentProject, activeProjectId);
+  renderProjectSelectOptions(sstAprProject, activeProjectId);
+}
+
+function renderSstAprOptions() {
+  if (!sstPermitApr) {
+    return;
+  }
+  const selected = sstPermitApr.value;
+  sstPermitApr.innerHTML = '<option value="">Selecione</option>';
+  sstAprs.forEach((apr) => {
+    const project = availableProjects.find((item) => item.id === apr.projectId);
+    const projectLabel = project ? getProjectLabel(project) : apr.projectId || "";
+    const opt = document.createElement("option");
+    opt.value = apr.id;
+    opt.textContent = `${apr.activity || "APR"} - ${projectLabel}`;
+    sstPermitApr.append(opt);
+  });
+  if (selected) {
+    sstPermitApr.value = selected;
+  }
+}
+
+function renderSstSelectors() {
+  renderSstProjectOptions();
+  renderSstAprOptions();
+  setFormDisabled(sstTrainingForm, !(currentUser && canManageSst(currentUser)));
+  setFormDisabled(sstInspectionForm, !(currentUser && canManageSst(currentUser)));
+  setFormDisabled(sstNcForm, !(currentUser && canManageSst(currentUser)));
+  setFormDisabled(sstIncidentForm, !(currentUser && canManageSst(currentUser)));
+  setFormDisabled(sstAprForm, !(currentUser && canManageSst(currentUser)));
+  setFormDisabled(sstPermitForm, !(currentUser && canManageSst(currentUser)));
+}
+
+function renderSstDashboard() {
+  if (!sstDashCards || !sstLoaded) {
+    return;
+  }
+  const scopedNcs = activeProjectId
+    ? sstNonconformities.filter((nc) => nc.projectId === activeProjectId)
+    : sstNonconformities;
+  const scopedInspections = activeProjectId
+    ? sstInspections.filter((insp) => insp.projectId === activeProjectId)
+    : sstInspections;
+  const scopedIncidents = activeProjectId
+    ? sstIncidents.filter((inc) => inc.projectId === activeProjectId)
+    : sstIncidents;
+  const openNcs = scopedNcs.filter(
+    (nc) => String(nc.status || "").toUpperCase() !== "RESOLVIDA"
+  );
+  const naoConformes = scopedInspections.filter(
+    (insp) => String(insp.status || "").toUpperCase().includes("NAO")
+  );
+  const incidentes = scopedIncidents.filter((inc) => {
+    const data = parseDate(inc.date);
+    if (!data) {
+      return false;
+    }
+    const diff = diffInDays(startOfDay(data), startOfDay(new Date()));
+    return diff >= 0 && diff <= 30;
+  });
+  const trainingsExpiring = sstTrainingRecords.filter(
+    (record) => record.validUntil && isDateExpiring(record.validUntil, 30)
+  );
+  const cards = [
+    { label: "Treinamentos vencendo (30d)", value: trainingsExpiring.length },
+    { label: "Inspeções não conformes", value: naoConformes.length },
+    { label: "NCs em aberto", value: openNcs.length },
+    { label: "Incidentes (30d)", value: incidentes.length },
+  ];
+  sstDashCards.innerHTML = cards
+    .map(
+      (card) =>
+        `<div><small>${escapeHtml(card.label)}</small><strong>${escapeHtml(
+          String(card.value)
+        )}</strong></div>`
+    )
+    .join("");
+
+  if (sstAlertas) {
+    sstAlertas.innerHTML = "";
+    const alerts = [];
+    trainingsExpiring.slice(0, 4).forEach((record) => {
+      const training = sstTrainings.find((t) => t.id === record.trainingId);
+      alerts.push(
+        `Treinamento ${training ? training.name : record.trainingId} vencendo em ${record.validUntil}`
+      );
+    });
+    openNcs.slice(0, 4).forEach((nc) => {
+      alerts.push(`NC ${nc.description || nc.id} - prazo ${nc.dueDate || "-"}`);
+    });
+    if (!alerts.length) {
+      if (sstAlertasVazio) {
+        sstAlertasVazio.hidden = false;
+      }
+    } else {
+      if (sstAlertasVazio) {
+        sstAlertasVazio.hidden = true;
+      }
+      alerts.forEach((msg) => {
+        const card = document.createElement("div");
+        card.className = "lembrete-item";
+        const title = document.createElement("strong");
+        title.textContent = msg;
+        card.append(title);
+        sstAlertas.append(card);
+      });
+    }
+  }
+}
+
+function renderSstTreinamentos() {
+  if (!sstTrainingTableBody || !sstLoaded) {
+    return;
+  }
+  renderSstSelectors();
+  const list = sstTrainings.filter((item) => item && item.status !== "INATIVO");
+  sstTrainingTableBody.innerHTML = list
+    .map(
+      (training) => `
+        <tr>
+          <td>${escapeHtml(training.name || "-")}</td>
+          <td>${escapeHtml(training.nr || "-")}</td>
+          <td>${escapeHtml(String(training.hours || 0))}</td>
+          <td>${escapeHtml(String(training.validityDays || 0))}</td>
+        </tr>
+      `
+    )
+    .join("");
+  if (sstTrainingEmpty) {
+    sstTrainingEmpty.hidden = list.length > 0;
+  }
+}
+
+function renderSstInspecoes() {
+  if (!sstInspectionTableBody || !sstLoaded) {
+    return;
+  }
+  renderSstSelectors();
+  const list = activeProjectId
+    ? sstInspections.filter((item) => item.projectId === activeProjectId)
+    : sstInspections;
+  sstInspectionTableBody.innerHTML = list
+    .map((insp) => {
+      const project = availableProjects.find((item) => item.id === insp.projectId);
+      const data = insp.createdAt ? formatDateTime(parseTimestamp(insp.createdAt)) : "-";
+      return `
+        <tr>
+          <td>${escapeHtml(insp.type || "-")}</td>
+          <td>${escapeHtml(project ? getProjectLabel(project) : insp.projectId || "-")}</td>
+          <td>${escapeHtml(insp.status || "-")}</td>
+          <td>${escapeHtml(data)}</td>
+        </tr>
+      `;
+    })
+    .join("");
+  if (sstInspectionEmpty) {
+    sstInspectionEmpty.hidden = list.length > 0;
+  }
+}
+
+function renderSstNcs() {
+  if (!sstNcTableBody || !sstLoaded) {
+    return;
+  }
+  renderSstSelectors();
+  const list = activeProjectId
+    ? sstNonconformities.filter((item) => item.projectId === activeProjectId)
+    : sstNonconformities;
+  sstNcTableBody.innerHTML = list
+    .map((nc) => {
+      return `
+        <tr>
+          <td>${escapeHtml(nc.severity || "-")}</td>
+          <td>${escapeHtml(nc.description || "-")}</td>
+          <td>${escapeHtml(nc.dueDate || "-")}</td>
+          <td>${escapeHtml(nc.status || "-")}</td>
+        </tr>
+      `;
+    })
+    .join("");
+  if (sstNcEmpty) {
+    sstNcEmpty.hidden = list.length > 0;
+  }
+}
+
+function renderSstIncidentes() {
+  if (!sstIncidentTableBody || !sstLoaded) {
+    return;
+  }
+  renderSstSelectors();
+  const list = activeProjectId
+    ? sstIncidents.filter((item) => item.projectId === activeProjectId)
+    : sstIncidents;
+  sstIncidentTableBody.innerHTML = list
+    .map((inc) => {
+      const project = availableProjects.find((item) => item.id === inc.projectId);
+      return `
+        <tr>
+          <td>${escapeHtml(project ? getProjectLabel(project) : inc.projectId || "-")}</td>
+          <td>${escapeHtml(inc.category || "-")}</td>
+          <td>${escapeHtml(inc.severity || "-")}</td>
+          <td>${escapeHtml(inc.date || "-")}</td>
+        </tr>
+      `;
+    })
+    .join("");
+  if (sstIncidentEmpty) {
+    sstIncidentEmpty.hidden = list.length > 0;
+  }
+}
+
+function renderSstAprPt() {
+  if (!sstAprTableBody || !sstLoaded) {
+    return;
+  }
+  renderSstSelectors();
+  const aprList = activeProjectId
+    ? sstAprs.filter((item) => item.projectId === activeProjectId)
+    : sstAprs;
+  sstAprTableBody.innerHTML = aprList
+    .map((apr) => {
+      const project = availableProjects.find((item) => item.id === apr.projectId);
+      const data = apr.createdAt ? formatDateTime(parseTimestamp(apr.createdAt)) : "-";
+      return `
+        <tr>
+          <td>${escapeHtml(project ? getProjectLabel(project) : apr.projectId || "-")}</td>
+          <td>${escapeHtml(apr.activity || "-")}</td>
+          <td>${escapeHtml((apr.hazards || []).join(", "))}</td>
+          <td>${escapeHtml(data)}</td>
+        </tr>
+      `;
+    })
+    .join("");
+  if (sstAprEmpty) {
+    sstAprEmpty.hidden = aprList.length > 0;
+  }
+
+  const permitsList = activeProjectId
+    ? sstPermits.filter((permit) => {
+        const apr = sstAprs.find((item) => item.id === permit.aprId);
+        return apr && apr.projectId === activeProjectId;
+      })
+    : sstPermits;
+  if (sstPermitTableBody) {
+    sstPermitTableBody.innerHTML = permitsList
+      .map((permit) => {
+        const apr = sstAprs.find((item) => item.id === permit.aprId);
+        return `
+          <tr>
+            <td>${escapeHtml(permit.type || "-")}</td>
+            <td>${escapeHtml(apr ? apr.activity || apr.id : permit.aprId || "-")}</td>
+            <td>${escapeHtml(permit.validTo || "-")}</td>
+            <td>${escapeHtml(permit.status || "-")}</td>
+          </tr>
+        `;
+      })
+      .join("");
+  }
+  if (sstPermitEmpty) {
+    sstPermitEmpty.hidden = permitsList.length > 0;
+  }
+}
+
+async function carregarSst(force = false) {
+  if (!currentUser || !canViewSst(currentUser)) {
+    sstTrainings = [];
+    sstTrainingRecords = [];
+    sstInspectionTemplates = [];
+    sstInspections = [];
+    sstNonconformities = [];
+    sstIncidents = [];
+    sstAprs = [];
+    sstPermits = [];
+    sstLoaded = false;
+    renderSstDashboard();
+    renderSstTreinamentos();
+    renderSstInspecoes();
+    renderSstNcs();
+    renderSstIncidentes();
+    renderSstAprPt();
+    return;
+  }
+  if (sstLoaded && !force) {
+    renderSstDashboard();
+    return;
+  }
+  try {
+    const data = await apiSstTrainingsList();
+    sstTrainings = Array.isArray(data.trainings) ? data.trainings : [];
+  } catch (error) {
+    sstTrainings = [];
+  }
+  try {
+    const data = await apiSstTrainingRecordsList();
+    sstTrainingRecords = Array.isArray(data.records) ? data.records : [];
+  } catch (error) {
+    sstTrainingRecords = [];
+  }
+  try {
+    const data = await apiSstInspectionsList();
+    sstInspections = Array.isArray(data.inspections) ? data.inspections : [];
+  } catch (error) {
+    sstInspections = [];
+  }
+  try {
+    const data = await apiSstNonconformitiesList();
+    sstNonconformities = Array.isArray(data.nonconformities) ? data.nonconformities : [];
+  } catch (error) {
+    sstNonconformities = [];
+  }
+  try {
+    const data = await apiSstIncidentsList();
+    sstIncidents = Array.isArray(data.incidents) ? data.incidents : [];
+  } catch (error) {
+    sstIncidents = [];
+  }
+  try {
+    const data = await apiSstAprsList();
+    sstAprs = Array.isArray(data.aprs) ? data.aprs : [];
+  } catch (error) {
+    sstAprs = [];
+  }
+  try {
+    const data = await apiSstPermitsList();
+    sstPermits = Array.isArray(data.permits) ? data.permits : [];
+  } catch (error) {
+    sstPermits = [];
+  }
+  sstLoaded = true;
+  renderSstDashboard();
+  renderSstTreinamentos();
+  renderSstInspecoes();
+  renderSstNcs();
+  renderSstIncidentes();
+  renderSstAprPt();
+}
+
+async function handleAlmoxItemSubmit(event) {
+  event.preventDefault();
+  if (!currentUser || !canManageAlmoxarifado(currentUser)) {
+    setInlineMessage(almoxItemMsg, "Sem permissão para salvar item.", true);
+    return;
+  }
+  const payload = {
+    type: almoxItemType ? almoxItemType.value : "",
+    unit: almoxItemUnit ? almoxItemUnit.value : "",
+    name: almoxItemName ? almoxItemName.value.trim() : "",
+    internalCode: almoxItemCode ? almoxItemCode.value.trim() : "",
+    barcode: almoxItemBarcode ? almoxItemBarcode.value.trim() : "",
+    ca: almoxItemCA ? almoxItemCA.value.trim() : "",
+    caValidUntil: almoxItemCaValid ? almoxItemCaValid.value : "",
+    itemValidUntil: almoxItemValid ? almoxItemValid.value : "",
+    description: almoxItemDesc ? almoxItemDesc.value.trim() : "",
+  };
+  if (!payload.name) {
+    setInlineMessage(almoxItemMsg, "Informe o nome do item.", true);
+    return;
+  }
+  try {
+    const data = await apiAlmoxItemCreate(payload);
+    if (data && data.item) {
+      almoxItems = almoxItems.concat(data.item);
+      almoxLoaded = true;
+      if (almoxItemForm) {
+        almoxItemForm.reset();
+      }
+      setInlineMessage(almoxItemMsg, "Item salvo com sucesso.");
+      renderAlmoxItens();
+      renderAlmoxarifado();
+    }
+  } catch (error) {
+    setInlineMessage(almoxItemMsg, error.message || "Erro ao salvar item.", true);
+  }
+}
+
+async function handleAlmoxMovSubmit(event) {
+  event.preventDefault();
+  if (!currentUser || !canManageAlmoxarifado(currentUser)) {
+    setInlineMessage(almoxMovMsg, "Sem permissão para movimentar estoque.", true);
+    return;
+  }
+  const payload = {
+    type: almoxMovType ? almoxMovType.value : "",
+    itemId: almoxMovItem ? almoxMovItem.value : "",
+    quantity: almoxMovQty ? Number(almoxMovQty.value || 0) : 0,
+    projectId: almoxMovProject ? almoxMovProject.value : "",
+    projectIdDestino: almoxMovProjectDest ? almoxMovProjectDest.value : "",
+    worksite: almoxMovWorksite ? almoxMovWorksite.value.trim() : "",
+    worksiteDestino: almoxMovWorksiteDest ? almoxMovWorksiteDest.value.trim() : "",
+    collaboratorId: almoxMovColab ? almoxMovColab.value : "",
+    reason: almoxMovReason ? almoxMovReason.value.trim() : "",
+  };
+  if (!payload.projectId) {
+    setInlineMessage(almoxMovMsg, "Selecione o projeto.", true);
+    return;
+  }
+  if (!payload.itemId) {
+    setInlineMessage(almoxMovMsg, "Selecione o item.", true);
+    return;
+  }
+  if (!payload.quantity || payload.quantity <= 0) {
+    setInlineMessage(almoxMovMsg, "Quantidade inválida.", true);
+    return;
+  }
+  if (payload.type === "TRANSFERENCIA" && !payload.projectIdDestino) {
+    setInlineMessage(almoxMovMsg, "Informe o projeto destino da transferência.", true);
+    return;
+  }
+  try {
+    const data = await apiAlmoxMovementCreate(payload);
+    if (data && data.movement) {
+      almoxMovements = [data.movement].concat(
+        almoxMovements.filter((item) => item.id !== data.movement.id)
+      );
+      if (Array.isArray(data.stockEntries)) {
+        data.stockEntries.forEach((entry) => upsertAlmoxStockEntry(entry));
+      }
+      try {
+        const epiData = await apiAlmoxEpiByUser();
+        almoxEpiByUser = Array.isArray(epiData.records) ? epiData.records : almoxEpiByUser;
+      } catch (error) {
+        // manter cache atual
+      }
+      setInlineMessage(almoxMovMsg, "Movimentação registrada.");
+      if (almoxMovForm) {
+        almoxMovForm.reset();
+      }
+      if (almoxMovQty) {
+        almoxMovQty.value = "1";
+      }
+      renderAlmoxarifado();
+      renderAlmoxEstoque();
+      renderAlmoxMovimentacoes();
+      renderAlmoxEpis();
+    }
+  } catch (error) {
+    setInlineMessage(almoxMovMsg, error.message || "Erro ao registrar movimentação.", true);
+  }
+}
+
+async function handleSstTrainingSubmit(event) {
+  event.preventDefault();
+  if (!currentUser || !canManageSst(currentUser)) {
+    setInlineMessage(sstTrainingMsg, "Sem permissão para salvar treinamento.", true);
+    return;
+  }
+  const payload = {
+    name: sstTrainingName ? sstTrainingName.value.trim() : "",
+    nr: sstTrainingNr ? sstTrainingNr.value.trim() : "",
+    hours: sstTrainingHours ? Number(sstTrainingHours.value || 0) : 0,
+    validityDays: sstTrainingValidity ? Number(sstTrainingValidity.value || 0) : 0,
+  };
+  if (!payload.name) {
+    setInlineMessage(sstTrainingMsg, "Informe o nome do treinamento.", true);
+    return;
+  }
+  try {
+    const data = await apiSstTrainingCreate(payload);
+    if (data && data.training) {
+      sstTrainings = sstTrainings.concat(data.training);
+      sstLoaded = true;
+      if (sstTrainingForm) {
+        sstTrainingForm.reset();
+      }
+      setInlineMessage(sstTrainingMsg, "Treinamento salvo.");
+      renderSstTreinamentos();
+      renderSstDashboard();
+    }
+  } catch (error) {
+    setInlineMessage(sstTrainingMsg, error.message || "Erro ao salvar treinamento.", true);
+  }
+}
+
+async function handleSstInspectionSubmit(event) {
+  event.preventDefault();
+  if (!currentUser || !canManageSst(currentUser)) {
+    setInlineMessage(sstInspectionMsg, "Sem permissão para registrar inspeção.", true);
+    return;
+  }
+  const payload = {
+    type: sstInspectionType ? sstInspectionType.value.trim() : "",
+    projectId: sstInspectionProject ? sstInspectionProject.value : "",
+    status: sstInspectionStatus ? sstInspectionStatus.value : "",
+    notes: sstInspectionNotes ? sstInspectionNotes.value.trim() : "",
+  };
+  if (!payload.type) {
+    setInlineMessage(sstInspectionMsg, "Informe o tipo de inspeção.", true);
+    return;
+  }
+  if (!payload.projectId) {
+    setInlineMessage(sstInspectionMsg, "Selecione o projeto.", true);
+    return;
+  }
+  try {
+    const data = await apiSstInspectionCreate(payload);
+    if (data && data.inspection) {
+      sstInspections = [data.inspection].concat(sstInspections);
+      sstLoaded = true;
+      if (sstInspectionForm) {
+        sstInspectionForm.reset();
+      }
+      setInlineMessage(sstInspectionMsg, "Inspeção registrada.");
+      renderSstInspecoes();
+      renderSstDashboard();
+    }
+  } catch (error) {
+    setInlineMessage(sstInspectionMsg, error.message || "Erro ao registrar inspeção.", true);
+  }
+}
+
+async function handleSstNcSubmit(event) {
+  event.preventDefault();
+  if (!currentUser || !canManageSst(currentUser)) {
+    setInlineMessage(sstNcMsg, "Sem permissão para registrar NC.", true);
+    return;
+  }
+  const payload = {
+    projectId: activeProjectId || "",
+    severity: sstNcSeverity ? sstNcSeverity.value : "",
+    dueDate: sstNcDue ? sstNcDue.value : "",
+    description: sstNcDesc ? sstNcDesc.value.trim() : "",
+  };
+  if (!payload.projectId) {
+    setInlineMessage(sstNcMsg, "Selecione um projeto ativo.", true);
+    return;
+  }
+  if (!payload.description) {
+    setInlineMessage(sstNcMsg, "Descreva a não conformidade.", true);
+    return;
+  }
+  try {
+    const data = await apiSstNonconformityCreate(payload);
+    if (data && data.nonconformity) {
+      sstNonconformities = [data.nonconformity].concat(sstNonconformities);
+      sstLoaded = true;
+      if (sstNcForm) {
+        sstNcForm.reset();
+      }
+      setInlineMessage(sstNcMsg, "NC registrada.");
+      renderSstNcs();
+      renderSstDashboard();
+    }
+  } catch (error) {
+    setInlineMessage(sstNcMsg, error.message || "Erro ao registrar NC.", true);
+  }
+}
+
+async function handleSstIncidentSubmit(event) {
+  event.preventDefault();
+  if (!currentUser || !canManageSst(currentUser)) {
+    setInlineMessage(sstIncidentMsg, "Sem permissão para registrar incidente.", true);
+    return;
+  }
+  const payload = {
+    projectId: sstIncidentProject ? sstIncidentProject.value : "",
+    severity: sstIncidentSeverity ? sstIncidentSeverity.value : "",
+    date: sstIncidentDate ? sstIncidentDate.value : "",
+    category: sstIncidentCategory ? sstIncidentCategory.value.trim() : "",
+    description: sstIncidentDesc ? sstIncidentDesc.value.trim() : "",
+  };
+  if (!payload.projectId) {
+    setInlineMessage(sstIncidentMsg, "Selecione o projeto.", true);
+    return;
+  }
+  if (!payload.date) {
+    setInlineMessage(sstIncidentMsg, "Informe a data.", true);
+    return;
+  }
+  if (!payload.description) {
+    setInlineMessage(sstIncidentMsg, "Descreva o incidente.", true);
+    return;
+  }
+  try {
+    const data = await apiSstIncidentCreate(payload);
+    if (data && data.incident) {
+      sstIncidents = [data.incident].concat(sstIncidents);
+      sstLoaded = true;
+      if (sstIncidentForm) {
+        sstIncidentForm.reset();
+      }
+      setInlineMessage(sstIncidentMsg, "Incidente registrado.");
+      renderSstIncidentes();
+      renderSstDashboard();
+    }
+  } catch (error) {
+    setInlineMessage(sstIncidentMsg, error.message || "Erro ao registrar incidente.", true);
+  }
+}
+
+async function handleSstAprSubmit(event) {
+  event.preventDefault();
+  if (!currentUser || !canManageSst(currentUser)) {
+    setInlineMessage(sstAprMsg, "Sem permissão para salvar APR.", true);
+    return;
+  }
+  const payload = {
+    projectId: sstAprProject ? sstAprProject.value : "",
+    activity: sstAprActivity ? sstAprActivity.value.trim() : "",
+    hazards: sstAprHazards ? sstAprHazards.value.trim() : "",
+    risks: sstAprRisks ? sstAprRisks.value.trim() : "",
+    controls: sstAprControls ? sstAprControls.value.trim() : "",
+  };
+  if (!payload.projectId) {
+    setInlineMessage(sstAprMsg, "Selecione o projeto.", true);
+    return;
+  }
+  if (!payload.activity) {
+    setInlineMessage(sstAprMsg, "Informe a atividade.", true);
+    return;
+  }
+  try {
+    const data = await apiSstAprCreate(payload);
+    if (data && data.apr) {
+      sstAprs = [data.apr].concat(sstAprs);
+      sstLoaded = true;
+      if (sstAprForm) {
+        sstAprForm.reset();
+      }
+      setInlineMessage(sstAprMsg, "APR salva.");
+      renderSstAprPt();
+      renderSstDashboard();
+    }
+  } catch (error) {
+    setInlineMessage(sstAprMsg, error.message || "Erro ao salvar APR.", true);
+  }
+}
+
+async function handleSstPermitSubmit(event) {
+  event.preventDefault();
+  if (!currentUser || !canManageSst(currentUser)) {
+    setInlineMessage(sstPermitMsg, "Sem permissão para salvar PT.", true);
+    return;
+  }
+  const payload = {
+    aprId: sstPermitApr ? sstPermitApr.value : "",
+    type: sstPermitType ? sstPermitType.value : "",
+    validFrom: sstPermitFrom ? sstPermitFrom.value : "",
+    validTo: sstPermitTo ? sstPermitTo.value : "",
+    requirements: sstPermitReqs ? sstPermitReqs.value.trim() : "",
+  };
+  if (!payload.aprId) {
+    setInlineMessage(sstPermitMsg, "Selecione a APR vinculada.", true);
+    return;
+  }
+  if (!payload.type) {
+    setInlineMessage(sstPermitMsg, "Selecione o tipo de PT.", true);
+    return;
+  }
+  try {
+    const data = await apiSstPermitCreate(payload);
+    if (data && data.permit) {
+      sstPermits = [data.permit].concat(sstPermits);
+      sstLoaded = true;
+      if (sstPermitForm) {
+        sstPermitForm.reset();
+      }
+      setInlineMessage(sstPermitMsg, "PT salva.");
+      renderSstAprPt();
+      renderSstDashboard();
+    }
+  } catch (error) {
+    setInlineMessage(sstPermitMsg, error.message || "Erro ao salvar PT.", true);
+  }
+}
+
+
 async function carregarEquipamentosProjeto() {
   if (!currentUser || !activeProjectId) {
     projectEquipamentos = [];
@@ -19080,6 +20360,17 @@ function renderTudo() {
   renderUsuarios();
   renderProjectPanel();
   renderPerfil();
+  renderAlmoxarifado();
+  renderAlmoxItens();
+  renderAlmoxEstoque();
+  renderAlmoxMovimentacoes();
+  renderAlmoxEpis();
+  renderSstDashboard();
+  renderSstTreinamentos();
+  renderSstInspecoes();
+  renderSstNcs();
+  renderSstIncidentes();
+  renderSstAprPt();
   renderSubestacoes();
   renderTipoOptions();
   renderAuthUI();
@@ -23336,6 +24627,130 @@ async function apiPmpDuplicate(payload) {
   });
 }
 
+async function apiAlmoxItemsList(params = {}) {
+  const query = new URLSearchParams(params);
+  const suffix = query.toString();
+  return apiRequest(`/api/almox/items${suffix ? `?${suffix}` : ""}`);
+}
+
+async function apiAlmoxItemCreate(payload) {
+  return apiRequest("/api/almox/items", {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiAlmoxMovementsList(params = {}) {
+  const query = new URLSearchParams(params);
+  const suffix = query.toString();
+  return apiRequest(`/api/almox/movements${suffix ? `?${suffix}` : ""}`);
+}
+
+async function apiAlmoxMovementCreate(payload) {
+  return apiRequest("/api/almox/movements", {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiAlmoxStockList(params = {}) {
+  const query = new URLSearchParams(params);
+  const suffix = query.toString();
+  return apiRequest(`/api/almox/stock${suffix ? `?${suffix}` : ""}`);
+}
+
+async function apiAlmoxStockUpdate(stockId, payload) {
+  const safeId = encodeURIComponent(String(stockId || ""));
+  return apiRequest(`/api/almox/stock/${safeId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiAlmoxEpiByUser(params = {}) {
+  const query = new URLSearchParams(params);
+  const suffix = query.toString();
+  return apiRequest(`/api/almox/epi-by-user${suffix ? `?${suffix}` : ""}`);
+}
+
+async function apiSstTrainingsList() {
+  return apiRequest("/api/sst/trainings");
+}
+
+async function apiSstTrainingRecordsList() {
+  return apiRequest("/api/sst/training-records");
+}
+
+async function apiSstTrainingCreate(payload) {
+  return apiRequest("/api/sst/trainings", {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiSstInspectionsList(params = {}) {
+  const query = new URLSearchParams(params);
+  const suffix = query.toString();
+  return apiRequest(`/api/sst/inspections${suffix ? `?${suffix}` : ""}`);
+}
+
+async function apiSstInspectionCreate(payload) {
+  return apiRequest("/api/sst/inspections", {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiSstNonconformitiesList(params = {}) {
+  const query = new URLSearchParams(params);
+  const suffix = query.toString();
+  return apiRequest(`/api/sst/nonconformities${suffix ? `?${suffix}` : ""}`);
+}
+
+async function apiSstNonconformityCreate(payload) {
+  return apiRequest("/api/sst/nonconformities", {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiSstIncidentsList(params = {}) {
+  const query = new URLSearchParams(params);
+  const suffix = query.toString();
+  return apiRequest(`/api/sst/incidents${suffix ? `?${suffix}` : ""}`);
+}
+
+async function apiSstIncidentCreate(payload) {
+  return apiRequest("/api/sst/incidents", {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiSstAprsList(params = {}) {
+  const query = new URLSearchParams(params);
+  const suffix = query.toString();
+  return apiRequest(`/api/sst/aprs${suffix ? `?${suffix}` : ""}`);
+}
+
+async function apiSstAprCreate(payload) {
+  return apiRequest("/api/sst/aprs", {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiSstPermitsList() {
+  return apiRequest("/api/sst/permits");
+}
+
+async function apiSstPermitCreate(payload) {
+  return apiRequest("/api/sst/permits", {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
 async function syncMaintenanceNow(items, force) {
   if (!currentUser) {
     return;
@@ -25761,6 +27176,34 @@ if (pmpExportPdf) {
 }
 if (pmpExportExcel) {
   pmpExportExcel.addEventListener("click", exportarPmpExcel);
+}
+if (almoxMovType) {
+  almoxMovType.addEventListener("change", updateAlmoxTransferFields);
+  updateAlmoxTransferFields();
+}
+if (almoxItemForm) {
+  almoxItemForm.addEventListener("submit", handleAlmoxItemSubmit);
+}
+if (almoxMovForm) {
+  almoxMovForm.addEventListener("submit", handleAlmoxMovSubmit);
+}
+if (sstTrainingForm) {
+  sstTrainingForm.addEventListener("submit", handleSstTrainingSubmit);
+}
+if (sstInspectionForm) {
+  sstInspectionForm.addEventListener("submit", handleSstInspectionSubmit);
+}
+if (sstNcForm) {
+  sstNcForm.addEventListener("submit", handleSstNcSubmit);
+}
+if (sstIncidentForm) {
+  sstIncidentForm.addEventListener("submit", handleSstIncidentSubmit);
+}
+if (sstAprForm) {
+  sstAprForm.addEventListener("submit", handleSstAprSubmit);
+}
+if (sstPermitForm) {
+  sstPermitForm.addEventListener("submit", handleSstPermitSubmit);
 }
 
 users = [];
