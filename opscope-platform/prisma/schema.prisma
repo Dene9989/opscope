@@ -1,0 +1,424 @@
+﻿datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  GESTOR
+  ALMOXARIFE
+  TECNICO_SST
+  SUPERVISOR
+  COLABORADOR
+}
+
+enum ItemType {
+  FERRAMENTA
+  EPI
+  EPC
+  CONSUMIVEL
+}
+
+enum Unit {
+  UN
+  PAR
+  CX
+}
+
+enum ItemStatus {
+  ATIVO
+  INATIVO
+}
+
+enum MovementType {
+  ENTRADA
+  SAIDA
+  TRANSFERENCIA
+  AJUSTE
+  DEVOLUCAO
+  PERDA_BAIXA
+  RESERVA
+  LIBERACAO_RESERVA
+}
+
+enum TrainingStatus {
+  VALIDO
+  VENCIDO
+  PENDENTE
+}
+
+enum InspectionStatus {
+  OK
+  NAO_CONFORME
+}
+
+enum NonConformityStatus {
+  ABERTA
+  EM_ANDAMENTO
+  RESOLVIDA
+  CANCELADA
+}
+
+enum IncidentSeverity {
+  BAIXA
+  MEDIA
+  ALTA
+  CRITICA
+}
+
+enum OriginType {
+  INSPECAO
+  OBSERVACAO
+  INCIDENTE
+}
+
+enum AprStatus {
+  RASCUNHO
+  EM_ANALISE
+  APROVADA
+}
+
+enum PermitType {
+  ALTURA
+  QUENTE
+  ESPACO_CONFINADO
+  ELETRICA
+}
+
+enum PermitStatus {
+  ABERTA
+  APROVADA
+  ENCERRADA
+}
+
+model User {
+  id           String           @id @default(uuid())
+  name         String
+  email        String           @unique
+  passwordHash String
+  role         Role
+  active       Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  movements    StockMovement[]  @relation("movement_creator")
+  training     TrainingRecord[]
+  inspections  InspectionExecution[] @relation("inspection_performer")
+  auditLogs    AuditLog[]
+}
+
+model Project {
+  id          String      @id @default(uuid())
+  name        String
+  code        String?
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  worksites   Worksite[]
+  stock       Stock[]
+  movements   StockMovement[] @relation("movement_project")
+  trainings   Training[]
+  inspections InspectionExecution[]
+  incidents   Incident[]
+  aprs        Apr[]
+}
+
+model Worksite {
+  id          String      @id @default(uuid())
+  projectId   String
+  name        String
+  address     String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  project     Project     @relation(fields: [projectId], references: [id])
+  stock       Stock[]
+  movements   StockMovement[] @relation("movement_worksite")
+  inspections InspectionExecution[]
+  incidents   Incident[]
+  aprs        Apr[]
+
+  @@index([projectId])
+}
+
+model Activity {
+  id        String   @id @default(uuid())
+  projectId String
+  name      String
+  scheduledAt DateTime?
+  project   Project @relation(fields: [projectId], references: [id])
+}
+
+model InventoryItem {
+  id            String    @id @default(uuid())
+  type          ItemType
+  name          String
+  description   String?
+  brand         String?
+  model         String?
+  unit          Unit
+  internalCode  String?
+  barcode       String?
+  status        ItemStatus @default(ATIVO)
+  caNumber      String?
+  caValidUntil  DateTime?
+  itemValidUntil DateTime?
+  sizes         Json?
+  deletedAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  photos        ItemPhoto[]
+  stock         Stock[]
+  movements     StockMovement[]
+  kitItems      KitItem[]
+
+  @@index([name])
+  @@index([type])
+}
+
+model ItemPhoto {
+  id        String         @id @default(uuid())
+  itemId    String
+  url       String
+  item      InventoryItem @relation(fields: [itemId], references: [id])
+}
+
+model Stock {
+  id           String   @id @default(uuid())
+  itemId       String
+  projectId    String
+  worksiteId   String?
+  quantity     Int      @default(0)
+  reserved     Int      @default(0)
+  minQuantity  Int      @default(0)
+  reorderPoint Int      @default(0)
+  updatedAt    DateTime @updatedAt
+  item         InventoryItem @relation(fields: [itemId], references: [id])
+  project      Project  @relation(fields: [projectId], references: [id])
+  worksite     Worksite? @relation(fields: [worksiteId], references: [id])
+
+  @@unique([itemId, projectId, worksiteId])
+  @@index([projectId])
+}
+
+model StockMovement {
+  id                  String       @id @default(uuid())
+  type                MovementType
+  itemId              String
+  quantity            Int
+  projectId           String
+  worksiteId          String?
+  sourceProjectId     String?
+  sourceWorksiteId    String?
+  destinationProjectId String?
+  destinationWorksiteId String?
+  collaboratorId      String?
+  activityId          String?
+  reason              String?
+  notes               String?
+  invoiceNumber       String?
+  batchCode           String?
+  createdById         String
+  createdAt           DateTime     @default(now())
+  item                InventoryItem @relation(fields: [itemId], references: [id])
+  project             Project      @relation("movement_project", fields: [projectId], references: [id])
+  worksite            Worksite?    @relation("movement_worksite", fields: [worksiteId], references: [id])
+  createdBy           User         @relation("movement_creator", fields: [createdById], references: [id])
+  attachments         StockMovementAttachment[]
+
+  @@index([projectId])
+  @@index([itemId])
+}
+
+model StockMovementAttachment {
+  id         String        @id @default(uuid())
+  movementId String
+  name       String
+  url        String
+  type       String?
+  movement   StockMovement @relation(fields: [movementId], references: [id])
+}
+
+model Kit {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  roleName    String?
+  createdAt   DateTime @default(now())
+  items       KitItem[]
+}
+
+model KitItem {
+  id       String         @id @default(uuid())
+  kitId    String
+  itemId   String
+  quantity Int
+  required Boolean @default(true)
+  kit      Kit    @relation(fields: [kitId], references: [id])
+  item     InventoryItem @relation(fields: [itemId], references: [id])
+
+  @@unique([kitId, itemId])
+}
+
+model Training {
+  id             String   @id @default(uuid())
+  name           String
+  nr             String?
+  hours          Int
+  validityDays   Int
+  mandatoryRoles Json?
+  projectId      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  records        TrainingRecord[]
+  project        Project? @relation(fields: [projectId], references: [id])
+}
+
+model TrainingRecord {
+  id            String         @id @default(uuid())
+  trainingId    String
+  userId        String
+  date          DateTime
+  validUntil    DateTime
+  status        TrainingStatus
+  certificateUrl String?
+  createdAt     DateTime @default(now())
+  training      Training @relation(fields: [trainingId], references: [id])
+  user          User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model InspectionTemplate {
+  id              String   @id @default(uuid())
+  type            String
+  title           String
+  periodicityDays Int
+  projectId       String?
+  worksiteId      String?
+  questions       Json
+  active          Boolean @default(true)
+  createdAt       DateTime @default(now())
+  executions      InspectionExecution[]
+}
+
+model InspectionExecution {
+  id            String   @id @default(uuid())
+  templateId    String
+  projectId     String
+  worksiteId    String?
+  performedById String
+  performedAt   DateTime
+  answers       Json
+  photos        Json?
+  geo           Json?
+  status        InspectionStatus
+  createdAt     DateTime @default(now())
+  template      InspectionTemplate @relation(fields: [templateId], references: [id])
+  project       Project @relation(fields: [projectId], references: [id])
+  worksite      Worksite? @relation(fields: [worksiteId], references: [id])
+  performedBy   User @relation("inspection_performer", fields: [performedById], references: [id])
+  nonConformity NonConformity?
+}
+
+model NonConformity {
+  id            String   @id @default(uuid())
+  originType    OriginType
+  inspectionId  String?
+  incidentId    String?
+  severity      IncidentSeverity
+  description   String
+  evidenceUrls  Json?
+  responsibleId String
+  dueDate       DateTime
+  status        NonConformityStatus
+  createdAt     DateTime @default(now())
+  createdById   String
+  actionPlan    ActionPlan?
+  inspection    InspectionExecution? @relation(fields: [inspectionId], references: [id])
+  incident      Incident? @relation(fields: [incidentId], references: [id])
+}
+
+model ActionPlan {
+  id               String   @id @default(uuid())
+  nonConformityId  String   @unique
+  actions          Json
+  status           String
+  createdAt        DateTime @default(now())
+  nonConformity    NonConformity @relation(fields: [nonConformityId], references: [id])
+}
+
+model Incident {
+  id          String   @id @default(uuid())
+  projectId   String
+  worksiteId  String?
+  date        DateTime
+  severity    IncidentSeverity
+  description String
+  category    String
+  photos      Json?
+  fiveWhys    Json?
+  createdAt   DateTime @default(now())
+  project     Project @relation(fields: [projectId], references: [id])
+  worksite    Worksite? @relation(fields: [worksiteId], references: [id])
+  involved    IncidentInvolved[]
+  nonConformities NonConformity[]
+}
+
+model IncidentInvolved {
+  id         String @id @default(uuid())
+  incidentId String
+  userId     String
+  incident   Incident @relation(fields: [incidentId], references: [id])
+  user       User @relation(fields: [userId], references: [id])
+
+  @@unique([incidentId, userId])
+}
+
+model Apr {
+  id          String   @id @default(uuid())
+  projectId   String
+  worksiteId  String?
+  activity    String
+  hazards     Json
+  risks       Json
+  controls    Json
+  approvedById String?
+  status      AprStatus
+  createdAt   DateTime @default(now())
+  project     Project @relation(fields: [projectId], references: [id])
+  worksite    Worksite? @relation(fields: [worksiteId], references: [id])
+  permits     Permit[]
+}
+
+model Permit {
+  id          String   @id @default(uuid())
+  aprId       String
+  type        PermitType
+  requirements Json
+  approvedById String?
+  validFrom   DateTime
+  validTo     DateTime
+  status      PermitStatus
+  createdAt   DateTime @default(now())
+  apr         Apr @relation(fields: [aprId], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  before    Json?
+  after     Json?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([entity])
+}
