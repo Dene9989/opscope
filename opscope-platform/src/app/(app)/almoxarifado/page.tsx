@@ -1,11 +1,12 @@
 ﻿"use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { useAuth } from "@/components/auth/AuthContext";
 import { apiFetch } from "@/lib/client";
-import { MovementWizard } from "@/components/inventory/MovementWizard";
 import { RoleGate } from "@/components/auth/RoleGate";
+import { openMovement } from "@/lib/movement";
 import {
   ResponsiveContainer,
   LineChart,
@@ -41,9 +42,7 @@ export default function AlmoxarifadoDashboard() {
   const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [wizard, setWizard] = useState<{ open: boolean; itemId?: string; projectId?: string }>(
-    { open: false }
-  );
+  const router = useRouter();
 
   useEffect(() => {
     let active = true;
@@ -108,7 +107,13 @@ export default function AlmoxarifadoDashboard() {
                 </div>
                 <button
                   className="rounded-lg border border-border px-3 py-2 text-xs"
-                  onClick={() => setWizard({ open: true, itemId: alert.itemId, projectId: alert.projectId })}
+                  onClick={() =>
+                    openMovement(router, {
+                      type: "ENTRADA",
+                      itemId: alert.itemId,
+                      projectId: alert.projectId
+                    })
+                  }
                 >
                   Registrar entrada
                 </button>
@@ -183,14 +188,6 @@ export default function AlmoxarifadoDashboard() {
         </div>
       </div>
 
-      <MovementWizard
-        open={wizard.open}
-        onClose={() => setWizard({ open: false })}
-        defaultType="ENTRADA"
-        defaultItemId={wizard.itemId}
-        defaultProjectId={wizard.projectId}
-        startOnForm
-      />
     </div>
     </RoleGate>
   );

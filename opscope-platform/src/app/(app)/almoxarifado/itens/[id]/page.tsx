@@ -1,13 +1,13 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { DataTable } from "@/components/ui/DataTable";
-import { MovementWizard } from "@/components/inventory/MovementWizard";
 import { apiFetch } from "@/lib/client";
 import { useAuth } from "@/components/auth/AuthContext";
 import { RoleGate } from "@/components/auth/RoleGate";
+import { openMovement } from "@/lib/movement";
 
 interface Item {
   id: string;
@@ -47,8 +47,6 @@ interface MovementRow {
   responsibilityTerm?: { id: string } | null;
 }
 
-type MovementType = "ENTRADA" | "ENTREGA" | "DEVOLUCAO" | "TRANSFERENCIA" | "AJUSTE" | "BAIXA";
-
 export default function ItemDetailPage() {
   const params = useParams();
   const itemId = String(params.id);
@@ -58,7 +56,7 @@ export default function ItemDetailPage() {
   const [movements, setMovements] = useState<MovementRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("detalhes");
-  const [wizard, setWizard] = useState<{ open: boolean; type: MovementType }>({ open: false, type: "ENTRADA" });
+  const router = useRouter();
 
   const loadDetails = () => {
     if (!itemId) return;
@@ -105,25 +103,25 @@ export default function ItemDetailPage() {
         <div className="ml-auto flex flex-wrap gap-2">
           <button
             className="rounded-lg border border-border px-3 py-2 text-sm"
-            onClick={() => setWizard({ open: true, type: "ENTRADA" })}
+            onClick={() => openMovement(router, { type: "ENTRADA", itemId })}
           >
             Entrada
           </button>
           <button
             className="rounded-lg border border-border px-3 py-2 text-sm"
-            onClick={() => setWizard({ open: true, type: "ENTREGA" })}
+            onClick={() => openMovement(router, { type: "ENTREGA", itemId })}
           >
             Entregar
           </button>
           <button
             className="rounded-lg border border-border px-3 py-2 text-sm"
-            onClick={() => setWizard({ open: true, type: "TRANSFERENCIA" })}
+            onClick={() => openMovement(router, { type: "TRANSFERENCIA", itemId })}
           >
             Transferir
           </button>
           <button
             className="rounded-lg border border-border px-3 py-2 text-sm"
-            onClick={() => setWizard({ open: true, type: "DEVOLUCAO" })}
+            onClick={() => openMovement(router, { type: "DEVOLUCAO", itemId })}
           >
             Devolver
           </button>
@@ -217,14 +215,6 @@ export default function ItemDetailPage() {
         </div>
       ) : null}
 
-      <MovementWizard
-        open={wizard.open}
-        onClose={() => setWizard({ open: false, type: "ENTRADA" })}
-        onSuccess={loadDetails}
-        defaultType={wizard.type}
-        defaultItemId={itemId}
-        startOnForm
-      />
     </div>
     </RoleGate>
   );

@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
     const user = requireAuth(req);
     const { page, pageSize, skip } = getPagination(req);
     const { searchParams } = new URL(req.url);
+    const movementId = searchParams.get("id") || undefined;
     const projectId = searchParams.get("projectId") || undefined;
     const originProjectId = searchParams.get("originProjectId") || undefined;
     const destinationProjectId = searchParams.get("destinationProjectId") || undefined;
@@ -30,6 +31,7 @@ export async function GET(req: NextRequest) {
 
     const where: any = {};
 
+    if (movementId) where.id = movementId;
     if (projectId) {
       where.OR = [{ projectOriginId: projectId }, { projectDestinationId: projectId }];
     }

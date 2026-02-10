@@ -1,13 +1,14 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { DataTable } from "@/components/ui/DataTable";
 import { useAuth } from "@/components/auth/AuthContext";
 import { apiFetch } from "@/lib/client";
-import { MovementWizard } from "@/components/inventory/MovementWizard";
 import { ReservationModal } from "@/components/inventory/ReservationModal";
 import { RoleGate } from "@/components/auth/RoleGate";
+import { openMovement } from "@/lib/movement";
 
 interface StockRow {
   id: string;
@@ -53,7 +54,7 @@ export default function EstoquePage() {
   const [worksites, setWorksites] = useState<WorksiteOption[]>([]);
   const [filters, setFilters] = useState({ projectId: "", worksiteId: "", q: "" });
   const [reservation, setReservation] = useState<{ open: boolean; row?: StockRow }>({ open: false });
-  const [wizard, setWizard] = useState<{ open: boolean; row?: StockRow }>({ open: false });
+  const router = useRouter();
 
   const load = () => {
     setLoading(true);
@@ -178,7 +179,13 @@ export default function EstoquePage() {
             </button>
             <button
               className="rounded-lg border border-border px-2 py-1 text-xs"
-              onClick={() => setWizard({ open: true, row })}
+              onClick={() =>
+                openMovement(router, {
+                  type: "ENTRADA",
+                  itemId: row.item.id,
+                  projectId: row.project.id
+                })
+              }
             >
               Entrada
             </button>
@@ -241,16 +248,6 @@ export default function EstoquePage() {
         defaultWorksiteId={reservation.row?.worksite?.id}
       />
 
-      <MovementWizard
-        open={wizard.open}
-        onClose={() => setWizard({ open: false })}
-        onSuccess={load}
-        defaultType="ENTRADA"
-        defaultItemId={wizard.row?.item.id}
-        defaultProjectId={wizard.row?.project.id}
-        defaultWorksiteId={wizard.row?.worksite?.id}
-        startOnForm
-      />
     </div>
     </RoleGate>
   );

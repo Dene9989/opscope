@@ -1,11 +1,12 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { DataTable } from "@/components/ui/DataTable";
 import { useAuth } from "@/components/auth/AuthContext";
 import { apiFetch } from "@/lib/client";
-import { MovementWizard } from "@/components/inventory/MovementWizard";
+import { openMovement } from "@/lib/movement";
 
 interface EpiRow {
   id: string;
@@ -35,9 +36,7 @@ export default function EpiColaboradorPage() {
   const [projects, setProjects] = useState<Option[]>([]);
   const [collaborators, setCollaborators] = useState<Option[]>([]);
   const [filters, setFilters] = useState({ projectId: "", collaboratorId: "", status: "" });
-  const [wizard, setWizard] = useState<{ open: boolean; itemId?: string; projectId?: string }>(
-    { open: false }
-  );
+  const router = useRouter();
 
   const load = () => {
     setLoading(true);
@@ -147,7 +146,15 @@ export default function EpiColaboradorPage() {
           row.pendingQty > 0 ? (
             <button
               className="rounded-lg border border-border px-2 py-1 text-xs"
-              onClick={() => setWizard({ open: true, itemId: row.item.id, projectId: row.project?.id })}
+              onClick={() =>
+                openMovement(router, {
+                  type: "DEVOLUCAO",
+                  itemId: row.item.id,
+                  projectId: row.project?.id,
+                  collaboratorId: row.collaborator?.id || undefined,
+                  deliveryMovementId: row.id
+                })
+              }
             >
               Devolver
             </button>
@@ -163,15 +170,6 @@ export default function EpiColaboradorPage() {
 
       <div className="text-xs text-muted">Total de registros: {total}</div>
 
-      <MovementWizard
-        open={wizard.open}
-        onClose={() => setWizard({ open: false })}
-        onSuccess={load}
-        defaultType="DEVOLUCAO"
-        defaultItemId={wizard.itemId}
-        defaultProjectId={wizard.projectId}
-        startOnForm
-      />
     </div>
   );
 }

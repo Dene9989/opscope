@@ -1,11 +1,12 @@
 ﻿"use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { apiFetch } from "@/lib/client";
 import { useAuth } from "@/components/auth/AuthContext";
-import { MovementWizard } from "@/components/inventory/MovementWizard";
 import { RoleGate } from "@/components/auth/RoleGate";
+import { openMovement } from "@/lib/movement";
 
 interface Item {
   id: string;
@@ -15,14 +16,12 @@ interface Item {
   status: string;
 }
 
-type MovementType = "ENTRADA" | "ENTREGA" | "DEVOLUCAO" | "TRANSFERENCIA" | "AJUSTE" | "BAIXA";
-
 export default function ScanPage() {
   const { token } = useAuth();
   const [code, setCode] = useState("");
   const [item, setItem] = useState<Item | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [wizard, setWizard] = useState<{ open: boolean; type: MovementType }>({ open: false, type: "ENTRADA" });
+  const router = useRouter();
 
   const handleScan = async () => {
     setError(null);
@@ -66,26 +65,27 @@ export default function ScanPage() {
             <div className="text-lg font-semibold">{item.name}</div>
             <div className="text-sm text-muted">{item.type} · {item.unit} · {item.status}</div>
             <div className="flex flex-wrap gap-2">
-              <button className="rounded-lg border border-border px-3 py-2 text-sm" onClick={() => setWizard({ open: true, type: "ENTRADA" })}>
+              <button
+                className="rounded-lg border border-border px-3 py-2 text-sm"
+                onClick={() => openMovement(router, { type: "ENTRADA", itemId: item.id })}
+              >
                 Entrada
               </button>
-              <button className="rounded-lg border border-border px-3 py-2 text-sm" onClick={() => setWizard({ open: true, type: "ENTREGA" })}>
+              <button
+                className="rounded-lg border border-border px-3 py-2 text-sm"
+                onClick={() => openMovement(router, { type: "ENTREGA", itemId: item.id })}
+              >
                 Entrega
               </button>
-              <button className="rounded-lg border border-border px-3 py-2 text-sm" onClick={() => setWizard({ open: true, type: "TRANSFERENCIA" })}>
+              <button
+                className="rounded-lg border border-border px-3 py-2 text-sm"
+                onClick={() => openMovement(router, { type: "TRANSFERENCIA", itemId: item.id })}
+              >
                 Transferencia
               </button>
             </div>
           </div>
         ) : null}
-
-        <MovementWizard
-          open={wizard.open}
-          onClose={() => setWizard({ open: false, type: "ENTRADA" })}
-          defaultType={wizard.type}
-          defaultItemId={item?.id}
-          startOnForm
-        />
       </div>
     </RoleGate>
   );

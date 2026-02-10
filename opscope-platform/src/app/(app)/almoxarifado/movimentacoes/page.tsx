@@ -1,12 +1,14 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { DataTable } from "@/components/ui/DataTable";
 import { useAuth } from "@/components/auth/AuthContext";
 import { apiFetch } from "@/lib/client";
 import { MovementWizard } from "@/components/inventory/MovementWizard";
 import { RoleGate } from "@/components/auth/RoleGate";
+import { openMovement } from "@/lib/movement";
 
 interface MovementRow {
   id: string;
@@ -31,8 +33,8 @@ export default function MovimentacoesPage() {
   const [items, setItems] = useState<Option[]>([]);
   const [projects, setProjects] = useState<Option[]>([]);
   const [loading, setLoading] = useState(true);
-  const [wizardOpen, setWizardOpen] = useState(false);
   const [filters, setFilters] = useState({ type: "", projectId: "", itemId: "" });
+  const router = useRouter();
 
   const load = () => {
     setLoading(true);
@@ -106,7 +108,7 @@ export default function MovimentacoesPage() {
         </div>
         <button
           className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-black"
-          onClick={() => setWizardOpen(true)}
+          onClick={() => openMovement(router)}
         >
           Nova movimentacao
         </button>
@@ -139,11 +141,7 @@ export default function MovimentacoesPage() {
 
       <div className="text-xs text-muted">Total de registros: {total}</div>
 
-      <MovementWizard
-        open={wizardOpen}
-        onClose={() => setWizardOpen(false)}
-        onSuccess={load}
-      />
+      <MovementWizard onSuccess={load} />
     </div>
     </RoleGate>
   );
