@@ -14,7 +14,7 @@ const config: Config = {
         primaryDark: "#158750",
         warning: "#d97706",
         danger: "#dc2626",
-        muted: "#b7c2d6"
+        muted: "#dbe3f2"
       },
       boxShadow: {
         card: "0 10px 30px rgba(0,0,0,0.35)"
