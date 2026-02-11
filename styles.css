@@ -9373,3 +9373,119 @@ textarea:focus {
   color: #ffb5bc;
   border: 1px solid rgba(232, 93, 102, 0.35);
 }
+
+/* SST NC (auditoria) */
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.file-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.file-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px dashed var(--border-color, #1f2f44);
+  background: rgba(9, 24, 39, 0.55);
+  color: #c7d3e3;
+  font-size: 0.85rem;
+}
+
+.file-list__meta {
+  color: #9fb0c0;
+  font-size: 0.75rem;
+}
+
+.nc-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.nc-action-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.nc-actions-list {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.nc-action {
+  border: 1px solid var(--border-color, #1f2f44);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(6, 18, 31, 0.6);
+  display: grid;
+  gap: 6px;
+}
+
+.nc-action__meta {
+  color: #9fb0c0;
+  font-size: 0.82rem;
+}
+
+.nc-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin: 12px 0 18px;
+}
+
+.nc-evidence-item {
+  border: 1px solid var(--border-color, #1f2f44);
+  border-radius: 14px;
+  padding: 10px;
+  background: rgba(6, 18, 31, 0.6);
+  display: grid;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: #c7d3e3;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nc-evidence-item img {
+  width: 100%;
+  border-radius: 10px;
+  max-height: 120px;
+  object-fit: cover;
+}
+
+.nc-history {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.nc-history-item {
+  border: 1px solid var(--border-color, #1f2f44);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(6, 18, 31, 0.6);
+}
+
+.nc-history-item small {
+  color: #9fb0c0;
+  display: block;
+  margin-top: 4px;
+}
+
+.text-danger {
+  color: var(--color-danger);
+}

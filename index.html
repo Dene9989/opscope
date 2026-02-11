@@ -3582,10 +3582,14 @@
         <div class="section-title">
           <div>
             <h3>Não conformidades</h3>
-            <p>Controle de desvios e planos de ação.</p>
+            <p>Registro estruturado, responsável e evidências auditáveis.</p>
           </div>
         </div>
         <form id="sstNcForm" class="form-grid">
+          <div class="field">
+            <label for="sstNcProject">Projeto</label>
+            <select id="sstNcProject"></select>
+          </div>
           <div class="field">
             <label for="sstNcSeverity">Severidade</label>
             <select id="sstNcSeverity">
@@ -3596,12 +3600,43 @@
             </select>
           </div>
           <div class="field">
+            <label for="sstNcStatus">Status inicial</label>
+            <select id="sstNcStatus">
+              <option value="OPEN" selected>Aberta</option>
+              <option value="IN_PROGRESS">Em andamento</option>
+              <option value="VERIFY">Verificar</option>
+              <option value="DONE">Resolvida</option>
+            </select>
+          </div>
+          <div class="field">
             <label for="sstNcDue">Prazo</label>
             <input id="sstNcDue" type="date" />
           </div>
+          <div class="field">
+            <label for="sstNcCategory">Categoria</label>
+            <input id="sstNcCategory" type="text" placeholder="Ex: NR-35 / EPC / Procedimento" />
+          </div>
+          <div class="field">
+            <label for="sstNcResponsible">Responsável</label>
+            <select id="sstNcResponsible"></select>
+          </div>
+          <div class="field" data-full>
+            <label for="sstNcTitle">Título</label>
+            <input id="sstNcTitle" type="text" placeholder="Resumo curto da não conformidade" />
+          </div>
           <div class="field" data-full>
             <label for="sstNcDesc">Descrição</label>
-            <textarea id="sstNcDesc" rows="2" placeholder="Descreva a não conformidade"></textarea>
+            <textarea id="sstNcDesc" rows="3" placeholder="Descreva a não conformidade, impacto e contexto"></textarea>
+          </div>
+          <div class="field" data-full>
+            <label for="sstNcSourceInspection">Vincular inspeção (opcional)</label>
+            <select id="sstNcSourceInspection"></select>
+            <p class="hint">Se vincular, o projeto será ajustado automaticamente.</p>
+          </div>
+          <div class="field" data-full>
+            <label for="sstNcAttachments">Evidências (foto/PDF)</label>
+            <input id="sstNcAttachments" type="file" multiple accept="image/*,application/pdf" />
+            <div id="sstNcAttachmentsList" class="file-list"></div>
           </div>
           <div class="field" data-full>
             <button id="sstNcSubmit" class="btn btn--primary" type="submit">Registrar NC</button>
@@ -3613,16 +3648,63 @@
         <div class="section-title">
           <div>
             <h3>Lista de não conformidades</h3>
-            <p>Acompanhe status e prazos.</p>
+            <p>Acompanhe status, responsáveis e plano de ação.</p>
+          </div>
+        </div>
+        <div class="filters-grid sst-nc-filters">
+          <div class="field">
+            <label for="sstNcFilterProject">Projeto</label>
+            <select id="sstNcFilterProject"></select>
+          </div>
+          <div class="field">
+            <label for="sstNcFilterStatus">Status</label>
+            <select id="sstNcFilterStatus">
+              <option value="">Todos</option>
+              <option value="OPEN">Aberta</option>
+              <option value="IN_PROGRESS">Em andamento</option>
+              <option value="VERIFY">Verificar</option>
+              <option value="DONE">Resolvida</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="sstNcFilterSeverity">Severidade</label>
+            <select id="sstNcFilterSeverity">
+              <option value="">Todas</option>
+              <option value="BAIXA">Baixa</option>
+              <option value="MEDIA">Média</option>
+              <option value="ALTA">Alta</option>
+              <option value="CRITICA">Crítica</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="sstNcFilterResponsible">Responsável</label>
+            <select id="sstNcFilterResponsible"></select>
+          </div>
+          <div class="field">
+            <label for="sstNcFilterFrom">De</label>
+            <input id="sstNcFilterFrom" type="date" />
+          </div>
+          <div class="field">
+            <label for="sstNcFilterTo">Até</label>
+            <input id="sstNcFilterTo" type="date" />
+          </div>
+          <div class="field" data-full>
+            <label for="sstNcFilterSearch">Buscar</label>
+            <input id="sstNcFilterSearch" type="text" placeholder="Título, descrição ou categoria" />
           </div>
         </div>
         <table class="data-table">
           <thead>
             <tr>
+              <th>ID</th>
+              <th>Título</th>
+              <th>Projeto</th>
               <th>Severidade</th>
               <th>Status</th>
               <th>Prazo</th>
-              <th>Descrição</th>
+              <th>Responsável</th>
+              <th>Atualizado</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody id="sstNcTableBody"></tbody>
@@ -4895,6 +4977,135 @@
         <button id="btnCancelarSstDetails" class="btn btn--ghost" type="button">Fechar</button>
       </div>
       <p id="sstInspectionDetailsMsg" class="mensagem" aria-live="polite"></p>
+    </div>
+  </div>
+
+  <div id="modalSstNcDetails" class="modal" hidden>
+    <div class="modal__content modal__content--wide">
+      <div class="modal__header">
+        <div>
+          <h3 id="sstNcDetailsTitle">Detalhes da NC</h3>
+          <p id="sstNcDetailsMeta" class="hint">-</p>
+        </div>
+        <button id="btnFecharSstNcDetails" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <div class="modal__form">
+        <input id="sstNcDetailsId" type="hidden" />
+        <div class="nc-details-grid">
+          <div class="field" data-full>
+            <label for="sstNcDetailsTitleInput">Título</label>
+            <input id="sstNcDetailsTitleInput" type="text" />
+          </div>
+          <div class="field">
+            <label for="sstNcDetailsStatus">Status</label>
+            <select id="sstNcDetailsStatus">
+              <option value="OPEN">Aberta</option>
+              <option value="IN_PROGRESS">Em andamento</option>
+              <option value="VERIFY">Verificar</option>
+              <option value="DONE">Resolvida</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="sstNcDetailsSeverity">Severidade</label>
+            <select id="sstNcDetailsSeverity">
+              <option value="BAIXA">Baixa</option>
+              <option value="MEDIA">Média</option>
+              <option value="ALTA">Alta</option>
+              <option value="CRITICA">Crítica</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="sstNcDetailsDue">Prazo</label>
+            <input id="sstNcDetailsDue" type="date" />
+          </div>
+          <div class="field">
+            <label for="sstNcDetailsResponsible">Responsável</label>
+            <select id="sstNcDetailsResponsible"></select>
+          </div>
+          <div class="field">
+            <label for="sstNcDetailsCategory">Categoria</label>
+            <input id="sstNcDetailsCategory" type="text" />
+          </div>
+          <div class="field" data-full>
+            <label for="sstNcDetailsDescription">Descrição</label>
+            <textarea id="sstNcDetailsDescription" rows="3"></textarea>
+          </div>
+          <div class="field" data-full>
+            <label for="sstNcDetailsRootCause">Causa raiz</label>
+            <textarea id="sstNcDetailsRootCause" rows="2" placeholder="Análise de causa / 5 porquês"></textarea>
+          </div>
+          <div class="field" data-full>
+            <label for="sstNcDetailsCorrection">Ação corretiva</label>
+            <textarea id="sstNcDetailsCorrection" rows="2" placeholder="Correção aplicada ou proposta"></textarea>
+          </div>
+          <div class="field">
+            <label for="sstNcDetailsSource">Origem</label>
+            <input id="sstNcDetailsSource" type="text" readonly />
+          </div>
+          <div class="field">
+            <label for="sstNcDetailsCreated">Criada em</label>
+            <input id="sstNcDetailsCreated" type="text" readonly />
+          </div>
+          <div class="field">
+            <label for="sstNcDetailsUpdated">Atualizada em</label>
+            <input id="sstNcDetailsUpdated" type="text" readonly />
+          </div>
+        </div>
+
+        <div class="section-title section-title--compact">
+          <div>
+            <h4>Plano de ação</h4>
+            <p>Adicione ações corretivas com responsável e prazo.</p>
+          </div>
+        </div>
+        <div class="nc-action-form">
+          <div class="field" data-full>
+            <label for="sstNcActionTitle">Nova ação corretiva</label>
+            <input id="sstNcActionTitle" type="text" placeholder="Ex: Substituir guarda-corpo até sexta" />
+          </div>
+          <div class="field">
+            <label for="sstNcActionResponsible">Responsável</label>
+            <select id="sstNcActionResponsible"></select>
+          </div>
+          <div class="field">
+            <label for="sstNcActionDue">Prazo</label>
+            <input id="sstNcActionDue" type="date" />
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button id="sstNcActionAdd" class="btn btn--ghost btn--small" type="button">Adicionar ação</button>
+          </div>
+        </div>
+        <div id="sstNcActionsList" class="nc-actions-list"></div>
+
+        <div class="section-title section-title--compact">
+          <div>
+            <h4>Evidências</h4>
+            <p>Arquivos anexados para auditoria.</p>
+          </div>
+        </div>
+        <div class="nc-evidence-upload">
+          <input id="sstNcDetailsAttachments" type="file" multiple accept="image/*,application/pdf" />
+          <div id="sstNcDetailsFiles" class="file-list"></div>
+        </div>
+        <div id="sstNcDetailsEvidenceList" class="nc-evidence-grid"></div>
+
+        <div class="section-title section-title--compact">
+          <div>
+            <h4>Histórico</h4>
+            <p>Registro cronológico de alterações e notificações.</p>
+          </div>
+        </div>
+        <div id="sstNcHistory" class="nc-history"></div>
+      </div>
+      <div class="modal__actions">
+        <button id="sstNcNotifyBtn" class="btn btn--ghost btn--small" type="button">Notificar responsável</button>
+        <button id="sstNcDetailsSave" class="btn btn--primary" type="button">Salvar alterações</button>
+        <button id="sstNcDetailsClose" class="btn btn--ghost" type="button">Fechar</button>
+      </div>
+      <p id="sstNcDetailsMsg" class="mensagem" aria-live="polite"></p>
     </div>
   </div>
 

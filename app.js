@@ -379,13 +379,58 @@ const sstInspectionFilterSearch = document.getElementById("sstInspectionFilterSe
 const sstInspectionTableBody = document.getElementById("sstInspectionTableBody");
 const sstInspectionEmpty = document.getElementById("sstInspectionEmpty");
 const sstNcForm = document.getElementById("sstNcForm");
+const sstNcProject = document.getElementById("sstNcProject");
 const sstNcSeverity = document.getElementById("sstNcSeverity");
+const sstNcStatus = document.getElementById("sstNcStatus");
 const sstNcDue = document.getElementById("sstNcDue");
+const sstNcCategory = document.getElementById("sstNcCategory");
+const sstNcResponsible = document.getElementById("sstNcResponsible");
+const sstNcTitle = document.getElementById("sstNcTitle");
 const sstNcDesc = document.getElementById("sstNcDesc");
+const sstNcSourceInspection = document.getElementById("sstNcSourceInspection");
+const sstNcAttachments = document.getElementById("sstNcAttachments");
+const sstNcAttachmentsList = document.getElementById("sstNcAttachmentsList");
 const sstNcSubmit = document.getElementById("sstNcSubmit");
 const sstNcMsg = document.getElementById("sstNcMsg");
+const sstNcFilterProject = document.getElementById("sstNcFilterProject");
+const sstNcFilterStatus = document.getElementById("sstNcFilterStatus");
+const sstNcFilterSeverity = document.getElementById("sstNcFilterSeverity");
+const sstNcFilterResponsible = document.getElementById("sstNcFilterResponsible");
+const sstNcFilterFrom = document.getElementById("sstNcFilterFrom");
+const sstNcFilterTo = document.getElementById("sstNcFilterTo");
+const sstNcFilterSearch = document.getElementById("sstNcFilterSearch");
 const sstNcTableBody = document.getElementById("sstNcTableBody");
 const sstNcEmpty = document.getElementById("sstNcEmpty");
+const modalSstNcDetails = document.getElementById("modalSstNcDetails");
+const sstNcDetailsId = document.getElementById("sstNcDetailsId");
+const sstNcDetailsHeader = document.getElementById("sstNcDetailsTitle");
+const sstNcDetailsMeta = document.getElementById("sstNcDetailsMeta");
+const sstNcDetailsTitleInput = document.getElementById("sstNcDetailsTitleInput");
+const sstNcDetailsStatus = document.getElementById("sstNcDetailsStatus");
+const sstNcDetailsSeverity = document.getElementById("sstNcDetailsSeverity");
+const sstNcDetailsDue = document.getElementById("sstNcDetailsDue");
+const sstNcDetailsResponsible = document.getElementById("sstNcDetailsResponsible");
+const sstNcDetailsCategory = document.getElementById("sstNcDetailsCategory");
+const sstNcDetailsDescription = document.getElementById("sstNcDetailsDescription");
+const sstNcDetailsRootCause = document.getElementById("sstNcDetailsRootCause");
+const sstNcDetailsCorrection = document.getElementById("sstNcDetailsCorrection");
+const sstNcDetailsSource = document.getElementById("sstNcDetailsSource");
+const sstNcDetailsCreated = document.getElementById("sstNcDetailsCreated");
+const sstNcDetailsUpdated = document.getElementById("sstNcDetailsUpdated");
+const sstNcDetailsAttachments = document.getElementById("sstNcDetailsAttachments");
+const sstNcDetailsFiles = document.getElementById("sstNcDetailsFiles");
+const sstNcDetailsEvidenceList = document.getElementById("sstNcDetailsEvidenceList");
+const sstNcActionTitle = document.getElementById("sstNcActionTitle");
+const sstNcActionResponsible = document.getElementById("sstNcActionResponsible");
+const sstNcActionDue = document.getElementById("sstNcActionDue");
+const sstNcActionAdd = document.getElementById("sstNcActionAdd");
+const sstNcActionsList = document.getElementById("sstNcActionsList");
+const sstNcHistory = document.getElementById("sstNcHistory");
+const sstNcDetailsSave = document.getElementById("sstNcDetailsSave");
+const sstNcDetailsClose = document.getElementById("sstNcDetailsClose");
+const sstNcDetailsMsg = document.getElementById("sstNcDetailsMsg");
+const sstNcNotifyBtn = document.getElementById("sstNcNotifyBtn");
+const btnFecharSstNcDetails = document.getElementById("btnFecharSstNcDetails");
 const sstIncidentForm = document.getElementById("sstIncidentForm");
 const sstIncidentProject = document.getElementById("sstIncidentProject");
 const sstIncidentSeverity = document.getElementById("sstIncidentSeverity");
@@ -2088,6 +2133,10 @@ let sstDocReviewingId = null;
 let sstWizardState = null;
 let sstInspectionDetailsId = null;
 let sstInspectionDetailsData = null;
+let pendingSstNcAttachments = [];
+let pendingSstNcDetailsAttachments = [];
+let sstNcDetailsData = null;
+let sstNcDetailsEvidences = [];
 const pmpEquipamentosCache = new Map();
 const pmpMaintenanceCache = new Map();
 let pmpChecklistItems = [];
@@ -2565,6 +2614,11 @@ function createLocalSstInspectionsProvider() {
           status: "OPEN",
           dueDate: getSstDueDateForSeverity(severity),
           createdBy: currentUser ? currentUser.id : "",
+          updatedBy: currentUser ? currentUser.id : "",
+          createdAt: toIsoUtc(new Date()),
+          updatedAt: toIsoUtc(new Date()),
+          category: template ? template.type : "",
+          history: appendSstNcHistory({ history: [] }, "CREATE", "NC gerada por inspecao"),
         });
         if (novo) {
           created.push(novo);
@@ -2575,6 +2629,44 @@ function createLocalSstInspectionsProvider() {
         saveNcs(existing);
       }
       return created;
+    },
+    createNc: async (payload) => {
+      const list = readNcs();
+      const now = toIsoUtc(new Date());
+      const normalized = normalizeSstNonconformity({
+        ...payload,
+        id: payload && payload.id ? payload.id : criarId(),
+        createdAt: payload && payload.createdAt ? payload.createdAt : now,
+        updatedAt: now,
+      });
+      if (!normalized) {
+        throw new Error("NC invalida.");
+      }
+      list.unshift(normalized);
+      saveNcs(list);
+      return normalized;
+    },
+    updateNc: async (id, patch) => {
+      if (!id) {
+        throw new Error("NC invalida.");
+      }
+      const list = readNcs();
+      const index = list.findIndex((item) => String(item.id) === String(id));
+      if (index < 0) {
+        throw new Error("NC nao encontrada.");
+      }
+      const now = toIsoUtc(new Date());
+      const normalized = normalizeSstNonconformity({
+        ...list[index],
+        ...patch,
+        updatedAt: patch && patch.updatedAt ? patch.updatedAt : now,
+      });
+      if (!normalized) {
+        throw new Error("NC invalida.");
+      }
+      list[index] = normalized;
+      saveNcs(list);
+      return normalized;
     },
     listNcs: async (filters = {}) => {
       let list = readNcs();
@@ -2959,6 +3051,14 @@ function createApiProvider(fallback) {
 
   provider.sstInspections.listNcs = async (filters = {}) => {
     return fallbackProvider.sstInspections.listNcs(filters);
+  };
+
+  provider.sstInspections.createNc = async (payload) => {
+    return fallbackProvider.sstInspections.createNc(payload);
+  };
+
+  provider.sstInspections.updateNc = async (id, patch) => {
+    return fallbackProvider.sstInspections.updateNc(id, patch);
   };
 
   provider.sstInspections.listRuns = async (filters = {}) => {
@@ -19681,6 +19781,8 @@ async function carregarAlmoxarifado(force = false) {
 function renderSstProjectOptions() {
   renderProjectSelectOptions(sstInspectionProject, activeProjectId);
   renderProjectSelectOptions(sstIncidentProject, activeProjectId);
+  const ncProjectSelected = sstNcProject ? sstNcProject.value : "";
+  renderProjectSelectOptions(sstNcProject, ncProjectSelected || activeProjectId);
   const docProjectSelected = sstDocProject ? sstDocProject.value : "";
   renderProjectSelectOptions(sstDocProject, docProjectSelected || activeProjectId);
   const filterSelected = sstDocProjectFilter ? sstDocProjectFilter.value : "";
@@ -19689,6 +19791,8 @@ function renderSstProjectOptions() {
     ? sstInspectionFilterProject.value
     : "";
   renderProjectFilterOptions(sstInspectionFilterProject, inspectionFilterSelected);
+  const ncFilterSelected = sstNcFilterProject ? sstNcFilterProject.value : "";
+  renderProjectFilterOptions(sstNcFilterProject, ncFilterSelected);
   const templateProjectSelected = sstTemplateProject ? sstTemplateProject.value : "";
   renderProjectSelectOptions(sstTemplateProject, templateProjectSelected);
 }
@@ -19787,6 +19891,68 @@ function renderSstDocResponsibleOptions() {
   }
 }
 
+function renderSstNcResponsibleOptions() {
+  const usersList = getOperationalUsers();
+  const fill = (select, selectedValue, emptyLabel) => {
+    if (!select) {
+      return;
+    }
+    const selected = selectedValue || select.value || "";
+    select.innerHTML = `<option value="">${emptyLabel}</option>`;
+    usersList.forEach((user) => {
+      const opt = document.createElement("option");
+      opt.value = user.id;
+      opt.textContent = getUserLabel(user.id);
+      select.append(opt);
+    });
+    if (selected) {
+      select.value = selected;
+    }
+  };
+  const ncResponsibleSelected = sstNcResponsible
+    ? sstNcResponsible.value || (currentUser ? currentUser.id : "")
+    : currentUser
+      ? currentUser.id
+      : "";
+  fill(sstNcResponsible, ncResponsibleSelected, "Selecione");
+  fill(sstNcFilterResponsible, "", "Todos");
+  fill(sstNcDetailsResponsible, sstNcDetailsData ? sstNcDetailsData.responsibleId : "", "Selecione");
+  const actionSelected = sstNcActionResponsible
+    ? sstNcActionResponsible.value || (currentUser ? currentUser.id : "")
+    : currentUser
+      ? currentUser.id
+      : "";
+  fill(sstNcActionResponsible, actionSelected, "Selecione");
+}
+
+function renderSstNcSourceOptions() {
+  if (!sstNcSourceInspection) {
+    return;
+  }
+  const selected = sstNcSourceInspection.value;
+  sstNcSourceInspection.innerHTML =
+    '<option value="">Sem inspeção vinculada</option>';
+  const list = Array.isArray(sstInspections) ? sstInspections.slice() : [];
+  list
+    .sort((a, b) => {
+      const dateA = parseTimestamp(a.startedAt) || 0;
+      const dateB = parseTimestamp(b.startedAt) || 0;
+      return dateB - dateA;
+    })
+    .forEach((run) => {
+      const project = availableProjects.find((item) => item.id === run.projectId);
+      const labelProject = project ? getProjectLabel(project) : run.projectId || "-";
+      const when = run.startedAt ? formatDateTime(parseTimestamp(run.startedAt)) : "-";
+      const opt = document.createElement("option");
+      opt.value = run.id;
+      opt.textContent = `${run.templateName || "Checklist"} · ${labelProject} · ${when}`;
+      sstNcSourceInspection.append(opt);
+    });
+  if (selected) {
+    sstNcSourceInspection.value = selected;
+  }
+}
+
 function renderSstSelectors() {
   renderSstProjectOptions();
   renderSstInspectionLocalOptions();
@@ -19807,6 +19973,8 @@ function renderSstSelectors() {
     sstTemplateSeedBtn.disabled = !podeGerenciar;
   }
   renderSstDocResponsibleOptions();
+  renderSstNcResponsibleOptions();
+  renderSstNcSourceOptions();
   const podeEnviarDocs = Boolean(currentUser && canViewSst(currentUser));
   setFormDisabled(formSstDoc, !podeEnviarDocs);
   if (sstDocNewBtn) {
@@ -19828,7 +19996,7 @@ function renderSstDashboard() {
     ? sstIncidents.filter((inc) => inc.projectId === activeProjectId)
     : sstIncidents;
   const openNcs = scopedNcs.filter(
-    (nc) => String(nc.status || "").toUpperCase() !== "RESOLVIDA"
+    (nc) => normalizeSstNcStatus(nc.status) !== "DONE"
   );
   const naoConformes = scopedInspections.filter(
     (insp) => normalizeSstInspectionStatus(insp.status) === "NON_CONFORMING"
@@ -19869,7 +20037,8 @@ function renderSstDashboard() {
       );
     });
     openNcs.slice(0, 4).forEach((nc) => {
-      alerts.push(`NC ${nc.description || nc.id} - prazo ${nc.dueDate || "-"}`);
+      const label = nc.title || nc.description || nc.id;
+      alerts.push(`NC ${label} - prazo ${nc.dueDate || "-"}`);
     });
     if (!alerts.length) {
       if (sstAlertasVazio) {
@@ -20041,25 +20210,117 @@ function renderSstInspectionHistory() {
   }
 }
 
+function getSstNcFilters() {
+  return {
+    projectId: sstNcFilterProject ? sstNcFilterProject.value : "",
+    status: sstNcFilterStatus ? sstNcFilterStatus.value : "",
+    severity: sstNcFilterSeverity ? sstNcFilterSeverity.value : "",
+    responsibleId: sstNcFilterResponsible ? sstNcFilterResponsible.value : "",
+    from: sstNcFilterFrom ? sstNcFilterFrom.value : "",
+    to: sstNcFilterTo ? sstNcFilterTo.value : "",
+    q: sstNcFilterSearch ? sstNcFilterSearch.value : "",
+  };
+}
+
+function renderSstNcFileList(container, files) {
+  if (!container) {
+    return;
+  }
+  const list = Array.isArray(files) ? files : [];
+  container.innerHTML = "";
+  if (!list.length) {
+    return;
+  }
+  list.forEach((file) => {
+    const item = document.createElement("div");
+    item.className = "file-list__item";
+    const name = document.createElement("span");
+    name.textContent = file.name || "Arquivo";
+    const meta = document.createElement("small");
+    meta.className = "file-list__meta";
+    meta.textContent = formatFileSize(file.size || 0);
+    item.append(name, meta);
+    container.append(item);
+  });
+}
+
 function renderSstNcs() {
   if (!sstNcTableBody || !sstLoaded) {
     return;
   }
   renderSstSelectors();
-  const list = activeProjectId
-    ? sstNonconformities.filter((item) => item.projectId === activeProjectId)
-    : sstNonconformities;
+  const filters = getSstNcFilters();
+  let list = Array.isArray(sstNonconformities) ? sstNonconformities.slice() : [];
+  if (filters.projectId) {
+    list = list.filter((nc) => String(nc.projectId) === String(filters.projectId));
+  } else if (activeProjectId) {
+    list = list.filter((nc) => String(nc.projectId) === String(activeProjectId));
+  }
+  if (filters.status) {
+    const status = normalizeSstNcStatus(filters.status);
+    list = list.filter((nc) => normalizeSstNcStatus(nc.status) === status);
+  }
+  if (filters.severity) {
+    const sev = normalizeSstSeverity(filters.severity);
+    list = list.filter((nc) => normalizeSstSeverity(nc.severity) === sev);
+  }
+  if (filters.responsibleId) {
+    list = list.filter((nc) => String(nc.responsibleId) === String(filters.responsibleId));
+  }
+  if (filters.from) {
+    const fromDate = parseDate(filters.from);
+    list = list.filter((nc) => {
+      const when = parseDate(nc.dueDate) || parseTimestamp(nc.createdAt);
+      return when && fromDate ? when >= fromDate : true;
+    });
+  }
+  if (filters.to) {
+    const toDate = parseDate(filters.to);
+    list = list.filter((nc) => {
+      const when = parseDate(nc.dueDate) || parseTimestamp(nc.createdAt);
+      return when && toDate ? when <= endOfDay(toDate) : true;
+    });
+  }
+  if (filters.q) {
+    const term = normalizeSearchValue(filters.q);
+    list = list.filter((nc) => {
+      return (
+        normalizeSearchValue(nc.title || "").includes(term) ||
+        normalizeSearchValue(nc.description || "").includes(term) ||
+        normalizeSearchValue(nc.category || "").includes(term)
+      );
+    });
+  }
+  list.sort((a, b) => {
+    const dateA = parseTimestamp(a.updatedAt || a.createdAt) || 0;
+    const dateB = parseTimestamp(b.updatedAt || b.createdAt) || 0;
+    return dateB - dateA;
+  });
   sstNcTableBody.innerHTML = list
     .map((nc) => {
-      const status = String(nc.status || "OPEN").toUpperCase();
-      const statusLabel =
-        status === "DONE" || status === "RESOLVIDA" ? "Resolvida" : status === "IN_PROGRESS" ? "Em andamento" : status === "VERIFY" ? "Verificar" : "Aberta";
+      const project = availableProjects.find((item) => item.id === nc.projectId);
+      const title = nc.title || nc.description || "-";
+      const responsavel = getUserLabel(nc.responsibleId);
+      const updatedAt = nc.updatedAt ? formatDateTime(parseTimestamp(nc.updatedAt)) : "-";
+      const dueDate = nc.dueDate || "-";
+      const due = parseDate(nc.dueDate);
+      const overdue =
+        due && diffInDays(startOfDay(due), startOfDay(new Date())) < 0 ? "text-danger" : "";
       return `
         <tr>
+          <td>${escapeHtml(getSstNcCode(nc))}</td>
+          <td>${escapeHtml(title)}</td>
+          <td>${escapeHtml(project ? getProjectLabel(project) : nc.projectId || "-")}</td>
           <td>${getSstSeverityBadge(nc.severity || "")}</td>
-          <td>${escapeHtml(statusLabel)}</td>
-          <td>${escapeHtml(nc.dueDate || "-")}</td>
-          <td>${escapeHtml(nc.description || "-")}</td>
+          <td>${getSstNcStatusBadge(nc.status)}</td>
+          <td class="${overdue}">${escapeHtml(dueDate)}</td>
+          <td>${escapeHtml(responsavel || "-")}</td>
+          <td>${escapeHtml(updatedAt)}</td>
+          <td>
+            <button class="btn btn--ghost btn--small" data-action="details" data-id="${nc.id}">
+              Detalhes
+            </button>
+          </td>
         </tr>
       `;
     })
@@ -20342,6 +20603,55 @@ function normalizeSstEvidence(evidence) {
   };
 }
 
+function normalizeSstNcStatus(status) {
+  const normalized = String(status || "OPEN").toUpperCase();
+  if (normalized === "RESOLVIDA") {
+    return "DONE";
+  }
+  if (["OPEN", "IN_PROGRESS", "VERIFY", "DONE"].includes(normalized)) {
+    return normalized;
+  }
+  return "OPEN";
+}
+
+function normalizeSstNcAction(action) {
+  if (!action || typeof action !== "object") {
+    return null;
+  }
+  const title = String(action.title || action.item || "").trim();
+  if (!title) {
+    return null;
+  }
+  return {
+    id: action.id || criarId(),
+    title,
+    status: String(action.status || "OPEN").toUpperCase() === "DONE" ? "DONE" : "OPEN",
+    responsibleId: action.responsibleId || "",
+    dueDate: action.dueDate || "",
+    notes: action.notes || "",
+    createdAt: action.createdAt || toIsoUtc(new Date()),
+    completedAt: action.completedAt || "",
+  };
+}
+
+function normalizeSstNcHistory(entry) {
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+  const message = String(entry.message || entry.descricao || "").trim();
+  if (!message) {
+    return null;
+  }
+  return {
+    id: entry.id || criarId(),
+    action: String(entry.action || "UPDATE").toUpperCase(),
+    message,
+    createdAt: entry.createdAt || toIsoUtc(new Date()),
+    createdBy: entry.createdBy || "",
+    metadata: entry.metadata || null,
+  };
+}
+
 function normalizeSstNonconformity(nc) {
   if (!nc || typeof nc !== "object") {
     return null;
@@ -20351,6 +20661,10 @@ function normalizeSstNonconformity(nc) {
     return null;
   }
   const severity = normalizeSstSeverity(nc.severity);
+  const rawActions = Array.isArray(nc.actions) ? nc.actions : [];
+  const actions = rawActions.map(normalizeSstNcAction).filter(Boolean);
+  const rawHistory = Array.isArray(nc.history) ? nc.history : [];
+  const history = rawHistory.map(normalizeSstNcHistory).filter(Boolean);
   return {
     id: nc.id || criarId(),
     projectId,
@@ -20360,10 +20674,19 @@ function normalizeSstNonconformity(nc) {
     severity,
     title: nc.title || "",
     description: nc.description || "",
-    status: String(nc.status || "OPEN").toUpperCase(),
+    status: normalizeSstNcStatus(nc.status),
     dueDate: nc.dueDate || "",
+    category: nc.category || "",
+    responsibleId: nc.responsibleId || "",
+    rootCause: nc.rootCause || "",
+    correction: nc.correction || "",
     createdBy: nc.createdBy || "",
     createdAt: nc.createdAt || toIsoUtc(new Date()),
+    updatedAt: nc.updatedAt || nc.createdAt || toIsoUtc(new Date()),
+    updatedBy: nc.updatedBy || "",
+    closedAt: nc.closedAt || "",
+    actions,
+    history,
   };
 }
 
@@ -20403,6 +20726,23 @@ function getSstSeverityBadge(severity) {
   return `<span class="badge badge--crit">${label}</span>`;
 }
 
+function getSstSeveritySelectValue(severity) {
+  const normalized = normalizeSstSeverity(severity);
+  if (normalized === "LOW") {
+    return "BAIXA";
+  }
+  if (normalized === "MED") {
+    return "MEDIA";
+  }
+  if (normalized === "HIGH") {
+    return "ALTA";
+  }
+  if (normalized === "CRITICAL") {
+    return "CRITICA";
+  }
+  return "";
+}
+
 function getSstStatusBadge(status) {
   const normalized = normalizeSstInspectionStatus(status);
   const label = SST_STATUS_LABELS[normalized] || normalized;
@@ -20413,6 +20753,49 @@ function getSstStatusBadge(status) {
     return `<span class="badge badge--warn">${label}</span>`;
   }
   return `<span class="badge badge--crit">${label}</span>`;
+}
+
+function getSstNcStatusLabel(status) {
+  const normalized = normalizeSstNcStatus(status);
+  if (normalized === "DONE") {
+    return "Resolvida";
+  }
+  if (normalized === "IN_PROGRESS") {
+    return "Em andamento";
+  }
+  if (normalized === "VERIFY") {
+    return "Verificar";
+  }
+  return "Aberta";
+}
+
+function getSstNcStatusBadge(status) {
+  const normalized = normalizeSstNcStatus(status);
+  const label = getSstNcStatusLabel(normalized);
+  if (normalized === "DONE") {
+    return `<span class="badge badge--ok">${label}</span>`;
+  }
+  if (normalized === "VERIFY") {
+    return `<span class="badge badge--warn">${label}</span>`;
+  }
+  if (normalized === "IN_PROGRESS") {
+    return `<span class="badge badge--warn">${label}</span>`;
+  }
+  return `<span class="badge badge--warn">${label}</span>`;
+}
+
+function getSstNcCode(nc) {
+  if (!nc) {
+    return "NC";
+  }
+  const base = String(nc.code || nc.id || "").toUpperCase();
+  if (!base) {
+    return "NC";
+  }
+  if (base.startsWith("NC-")) {
+    return base;
+  }
+  return `NC-${base.slice(-6)}`;
 }
 
 function buildSstFailStats(answers) {
@@ -22417,38 +22800,643 @@ async function handleSstInspectionGenerateNc() {
   }
 }
 
+function appendSstNcHistory(nc, action, message, metadata) {
+  const history = Array.isArray(nc && nc.history) ? nc.history.slice() : [];
+  const entry = normalizeSstNcHistory({
+    action,
+    message,
+    createdBy: currentUser ? currentUser.id : "",
+    metadata,
+    createdAt: toIsoUtc(new Date()),
+  });
+  if (entry) {
+    history.unshift(entry);
+  }
+  return history;
+}
+
+function upsertSstNcInMemory(nc) {
+  if (!nc) {
+    return;
+  }
+  const list = Array.isArray(sstNonconformities) ? sstNonconformities.slice() : [];
+  const index = list.findIndex((item) => String(item.id) === String(nc.id));
+  if (index >= 0) {
+    list[index] = nc;
+  } else {
+    list.unshift(nc);
+  }
+  sstNonconformities = list;
+}
+
+function getSstNcSourceLabel(nc) {
+  if (!nc) {
+    return "-";
+  }
+  if (String(nc.sourceType || "").toUpperCase() === "INSPECTION" && nc.sourceId) {
+    const run = sstInspections.find((item) => String(item.id) === String(nc.sourceId));
+    if (run) {
+      const when = run.startedAt ? formatDateTime(parseTimestamp(run.startedAt)) : "-";
+      return `${run.templateName || "Inspecao"} - ${when}`;
+    }
+    return `Inspecao ${nc.sourceId}`;
+  }
+  return "Manual";
+}
+
+async function openSstNcDetails(ncId) {
+  if (!modalSstNcDetails) {
+    return;
+  }
+  const nc = sstNonconformities.find((item) => String(item.id) === String(ncId));
+  if (!nc) {
+    return;
+  }
+  sstNcDetailsData = nc;
+  pendingSstNcDetailsAttachments = [];
+  if (sstNcDetailsFiles) {
+    sstNcDetailsFiles.innerHTML = "";
+  }
+  try {
+    sstNcDetailsEvidences = await dataProvider.sstInspections.listEvidences({
+      ownerType: "NON_CONFORMITY",
+      ownerId: nc.id,
+    });
+  } catch (error) {
+    sstNcDetailsEvidences = [];
+  }
+  if (sstNcDetailsMsg) {
+    setInlineMessage(sstNcDetailsMsg, "");
+  }
+  renderSstNcDetails(nc);
+  modalSstNcDetails.hidden = false;
+}
+
+function closeSstNcDetails() {
+  if (!modalSstNcDetails) {
+    return;
+  }
+  modalSstNcDetails.hidden = true;
+  sstNcDetailsData = null;
+  sstNcDetailsEvidences = [];
+  pendingSstNcDetailsAttachments = [];
+  if (sstNcDetailsFiles) {
+    sstNcDetailsFiles.innerHTML = "";
+  }
+  if (sstNcDetailsMsg) {
+    setInlineMessage(sstNcDetailsMsg, "");
+  }
+}
+
+function renderSstNcActionsList(actions) {
+  if (!sstNcActionsList) {
+    return;
+  }
+  const list = Array.isArray(actions) ? actions : [];
+  if (!list.length) {
+    sstNcActionsList.innerHTML = `<p class="empty-state">Nenhuma acao registrada.</p>`;
+    return;
+  }
+  sstNcActionsList.innerHTML = list
+    .map((action) => {
+      const status = String(action.status || "OPEN").toUpperCase();
+      const badge =
+        status === "DONE"
+          ? '<span class="badge badge--ok">Concluida</span>'
+          : '<span class="badge badge--warn">Pendente</span>';
+      const resp = getUserLabel(action.responsibleId);
+      return `
+        <div class="nc-action" data-action-id="${action.id}">
+          <div>
+            <strong>${escapeHtml(action.title)}</strong>
+            <div class="nc-action__meta">
+              ${badge} - Responsavel: ${escapeHtml(resp || "-")} - Prazo: ${escapeHtml(
+        action.dueDate || "-"
+      )}
+            </div>
+          </div>
+          <div class="table-actions">
+            <button class="btn btn--ghost btn--small" data-action="toggle">
+              ${status === "DONE" ? "Reabrir" : "Concluir"}
+            </button>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function renderSstNcHistory(history) {
+  if (!sstNcHistory) {
+    return;
+  }
+  const list = Array.isArray(history) ? history : [];
+  if (!list.length) {
+    sstNcHistory.innerHTML = `<p class="empty-state">Sem historico.</p>`;
+    return;
+  }
+  sstNcHistory.innerHTML = list
+    .map((entry) => {
+      const when = entry.createdAt ? formatDateTime(parseTimestamp(entry.createdAt)) : "-";
+      const by = getUserLabel(entry.createdBy);
+      return `
+        <div class="nc-history-item">
+          <strong>${escapeHtml(entry.message)}</strong>
+          <small>${escapeHtml(when)} - ${escapeHtml(by || "Sistema")}</small>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function renderSstNcEvidenceList(list) {
+  if (!sstNcDetailsEvidenceList) {
+    return;
+  }
+  const evidences = Array.isArray(list) ? list : [];
+  if (!evidences.length) {
+    sstNcDetailsEvidenceList.innerHTML =
+      '<p class="empty-state">Sem evidencias anexadas.</p>';
+    return;
+  }
+  sstNcDetailsEvidenceList.innerHTML = evidences
+    .map((evidence) => {
+      const isImage = evidence.fileType && evidence.fileType.startsWith("image/");
+      const name = evidence.fileName || "Arquivo";
+      const preview = isImage && evidence.dataUrl
+        ? `<img src="${escapeHtml(evidence.dataUrl)}" alt="${escapeHtml(name)}" />`
+        : `<div class="file-list__meta">${escapeHtml(
+            (evidence.fileType || "ARQ").split("/").pop().toUpperCase()
+          )}</div>`;
+      return `
+        <button class="nc-evidence-item" type="button" data-evidence-id="${evidence.id}">
+          ${preview}
+          <strong>${escapeHtml(name)}</strong>
+          <span class="file-list__meta">${escapeHtml(formatFileSize(evidence.size || 0))}</span>
+        </button>
+      `;
+    })
+    .join("");
+}
+
+function renderSstNcDetails(nc) {
+  if (!nc) {
+    return;
+  }
+  if (sstNcDetailsId) {
+    sstNcDetailsId.value = nc.id;
+  }
+  if (sstNcDetailsHeader) {
+    sstNcDetailsHeader.textContent = getSstNcCode(nc);
+  }
+  if (sstNcDetailsMeta) {
+    const project = availableProjects.find((item) => item.id === nc.projectId);
+    const label = project ? getProjectLabel(project) : nc.projectId || "-";
+    sstNcDetailsMeta.textContent = `${label} - ${getSstNcStatusLabel(nc.status)}`;
+  }
+  if (sstNcDetailsTitleInput) {
+    sstNcDetailsTitleInput.value = nc.title || "";
+  }
+  if (sstNcDetailsStatus) {
+    sstNcDetailsStatus.value = normalizeSstNcStatus(nc.status);
+  }
+  if (sstNcDetailsSeverity) {
+    sstNcDetailsSeverity.value = getSstSeveritySelectValue(nc.severity) || "MEDIA";
+  }
+  if (sstNcDetailsDue) {
+    sstNcDetailsDue.value = nc.dueDate || "";
+  }
+  if (sstNcDetailsCategory) {
+    sstNcDetailsCategory.value = nc.category || "";
+  }
+  renderSstNcResponsibleOptions();
+  if (sstNcDetailsResponsible) {
+    sstNcDetailsResponsible.value = nc.responsibleId || "";
+  }
+  if (sstNcDetailsDescription) {
+    sstNcDetailsDescription.value = nc.description || "";
+  }
+  if (sstNcDetailsRootCause) {
+    sstNcDetailsRootCause.value = nc.rootCause || "";
+  }
+  if (sstNcDetailsCorrection) {
+    sstNcDetailsCorrection.value = nc.correction || "";
+  }
+  if (sstNcDetailsSource) {
+    sstNcDetailsSource.value = getSstNcSourceLabel(nc);
+  }
+  if (sstNcDetailsCreated) {
+    sstNcDetailsCreated.value = nc.createdAt
+      ? formatDateTime(parseTimestamp(nc.createdAt))
+      : "-";
+  }
+  if (sstNcDetailsUpdated) {
+    sstNcDetailsUpdated.value = nc.updatedAt
+      ? formatDateTime(parseTimestamp(nc.updatedAt))
+      : "-";
+  }
+  renderSstNcActionsList(nc.actions);
+  renderSstNcEvidenceList(sstNcDetailsEvidences);
+  renderSstNcHistory(nc.history);
+  const podeGerenciar = Boolean(currentUser && canManageSst(currentUser));
+  if (sstNcDetailsSave) {
+    sstNcDetailsSave.disabled = !podeGerenciar;
+  }
+  if (sstNcNotifyBtn) {
+    sstNcNotifyBtn.disabled = !podeGerenciar;
+  }
+  if (sstNcActionAdd) {
+    sstNcActionAdd.disabled = !podeGerenciar;
+  }
+  if (sstNcDetailsAttachments) {
+    sstNcDetailsAttachments.disabled = !podeGerenciar;
+  }
+}
+
+async function handleSstNcEvidenceOpen(event) {
+  const target = event.target.closest("[data-evidence-id]");
+  if (!target) {
+    return;
+  }
+  const evidenceId = target.dataset.evidenceId;
+  if (!evidenceId) {
+    return;
+  }
+  const evidence = (sstNcDetailsEvidences || []).find(
+    (item) => String(item.id) === String(evidenceId)
+  );
+  if (!evidence) {
+    return;
+  }
+  if (evidence.dataUrl) {
+    openInNewTab(evidence.dataUrl);
+    return;
+  }
+  const stored = await getSstEvidenceById(evidence.id);
+  if (stored && stored.blob) {
+    const url = URL.createObjectURL(stored.blob);
+    openInNewTab(url);
+    setTimeout(() => URL.revokeObjectURL(url), 300000);
+  }
+}
+
+async function persistSstNcUpdate(nc, patch, historyAction, historyMessage, metadata) {
+  if (!nc) {
+    return null;
+  }
+  const now = toIsoUtc(new Date());
+  const history =
+    historyAction && historyMessage
+      ? appendSstNcHistory(nc, historyAction, historyMessage, metadata)
+      : Array.isArray(nc.history)
+        ? nc.history
+        : [];
+  const updated = await dataProvider.sstInspections.updateNc(nc.id, {
+    ...patch,
+    history,
+    updatedAt: now,
+    updatedBy: currentUser ? currentUser.id : "",
+  });
+  if (updated) {
+    sstNcDetailsData = updated;
+    upsertSstNcInMemory(updated);
+    renderSstNcs();
+    renderSstDashboard();
+  }
+  return updated;
+}
+
+async function handleSstNcDetailsSave() {
+  if (!sstNcDetailsData) {
+    return;
+  }
+  if (!currentUser || !canManageSst(currentUser)) {
+    setInlineMessage(sstNcDetailsMsg, "Sem permissao para atualizar NC.", true);
+    return;
+  }
+  const patch = {
+    title: sstNcDetailsTitleInput ? sstNcDetailsTitleInput.value.trim() : "",
+    status: sstNcDetailsStatus ? sstNcDetailsStatus.value : "OPEN",
+    severity: sstNcDetailsSeverity ? sstNcDetailsSeverity.value : "MEDIA",
+    dueDate: sstNcDetailsDue ? sstNcDetailsDue.value : "",
+    responsibleId: sstNcDetailsResponsible ? sstNcDetailsResponsible.value : "",
+    category: sstNcDetailsCategory ? sstNcDetailsCategory.value.trim() : "",
+    description: sstNcDetailsDescription ? sstNcDetailsDescription.value.trim() : "",
+    rootCause: sstNcDetailsRootCause ? sstNcDetailsRootCause.value.trim() : "",
+    correction: sstNcDetailsCorrection ? sstNcDetailsCorrection.value.trim() : "",
+  };
+  if (!patch.title && !patch.description) {
+    setInlineMessage(sstNcDetailsMsg, "Informe o titulo ou descricao.", true);
+    return;
+  }
+  if (!patch.responsibleId) {
+    setInlineMessage(sstNcDetailsMsg, "Defina o responsavel pela NC.", true);
+    return;
+  }
+  const changes = [];
+  if (patch.title !== (sstNcDetailsData.title || "")) {
+    changes.push("Titulo atualizado");
+  }
+  if (patch.status && normalizeSstNcStatus(patch.status) !== normalizeSstNcStatus(sstNcDetailsData.status)) {
+    changes.push(`Status: ${getSstNcStatusLabel(patch.status)}`);
+  }
+  if (patch.severity && normalizeSstSeverity(patch.severity) !== normalizeSstSeverity(sstNcDetailsData.severity)) {
+    changes.push(`Severidade: ${SST_SEVERITY_LABELS[normalizeSstSeverity(patch.severity)]}`);
+  }
+  if (patch.dueDate !== (sstNcDetailsData.dueDate || "")) {
+    changes.push("Prazo ajustado");
+  }
+  if (patch.responsibleId !== (sstNcDetailsData.responsibleId || "")) {
+    changes.push(`Responsavel: ${getUserLabel(patch.responsibleId)}`);
+  }
+  if (patch.category !== (sstNcDetailsData.category || "")) {
+    changes.push("Categoria ajustada");
+  }
+  if (patch.description !== (sstNcDetailsData.description || "")) {
+    changes.push("Descricao atualizada");
+  }
+  if (patch.rootCause !== (sstNcDetailsData.rootCause || "")) {
+    changes.push("Causa raiz atualizada");
+  }
+  if (patch.correction !== (sstNcDetailsData.correction || "")) {
+    changes.push("Acao corretiva atualizada");
+  }
+  const normalizedStatus = normalizeSstNcStatus(patch.status);
+  const closedAt =
+    normalizedStatus === "DONE" && normalizeSstNcStatus(sstNcDetailsData.status) !== "DONE"
+      ? toIsoUtc(new Date())
+      : normalizedStatus !== "DONE"
+        ? ""
+        : sstNcDetailsData.closedAt || "";
+  const updated = await persistSstNcUpdate(
+    sstNcDetailsData,
+    {
+      ...patch,
+      status: normalizedStatus,
+      severity: normalizeSstSeverity(patch.severity),
+      closedAt,
+    },
+    "UPDATE",
+    changes.length ? `Atualizacoes: ${changes.join(" | ")}` : "Atualizacao registrada"
+  );
+  if (!updated) {
+    setInlineMessage(sstNcDetailsMsg, "Falha ao salvar.", true);
+    return;
+  }
+  if (pendingSstNcDetailsAttachments.length) {
+    const files = pendingSstNcDetailsAttachments.slice();
+    for (const file of files) {
+      try {
+        await dataProvider.sstInspections.attachEvidence({
+          ownerType: "NON_CONFORMITY",
+          ownerId: updated.id,
+          file,
+        });
+      } catch (error) {
+        // segue tentando
+      }
+    }
+    pendingSstNcDetailsAttachments = [];
+    renderSstNcFileList(sstNcDetailsFiles, []);
+    sstNcDetailsEvidences = await dataProvider.sstInspections.listEvidences({
+      ownerType: "NON_CONFORMITY",
+      ownerId: updated.id,
+    });
+    await persistSstNcUpdate(
+      updated,
+      {},
+      "EVIDENCE",
+      `${files.length} evidencia(s) anexada(s)`
+    );
+  }
+  if (sstNcDetailsMsg) {
+    setInlineMessage(sstNcDetailsMsg, "NC atualizada.");
+  }
+  renderSstNcDetails(updated || sstNcDetailsData);
+}
+
+async function handleSstNcActionAdd() {
+  if (!sstNcDetailsData) {
+    return;
+  }
+  if (!currentUser || !canManageSst(currentUser)) {
+    setInlineMessage(sstNcDetailsMsg, "Sem permissao para adicionar acao.", true);
+    return;
+  }
+  const title = sstNcActionTitle ? sstNcActionTitle.value.trim() : "";
+  if (!title) {
+    setInlineMessage(sstNcDetailsMsg, "Informe a acao corretiva.", true);
+    return;
+  }
+  const action = normalizeSstNcAction({
+    title,
+    responsibleId: sstNcActionResponsible ? sstNcActionResponsible.value : "",
+    dueDate: sstNcActionDue ? sstNcActionDue.value : "",
+  });
+  if (!action) {
+    setInlineMessage(sstNcDetailsMsg, "Acao invalida.", true);
+    return;
+  }
+  const actions = Array.isArray(sstNcDetailsData.actions)
+    ? sstNcDetailsData.actions.concat(action)
+    : [action];
+  const updated = await persistSstNcUpdate(
+    sstNcDetailsData,
+    { actions },
+    "ACTION_ADD",
+    `Acao adicionada: ${action.title}`
+  );
+  if (updated) {
+    if (sstNcActionTitle) {
+      sstNcActionTitle.value = "";
+    }
+    if (sstNcActionDue) {
+      sstNcActionDue.value = "";
+    }
+    renderSstNcDetails(updated);
+  }
+}
+
+async function handleSstNcActionsClick(event) {
+  const button = event.target.closest("button[data-action]");
+  if (!button || !sstNcDetailsData) {
+    return;
+  }
+  if (!currentUser || !canManageSst(currentUser)) {
+    setInlineMessage(sstNcDetailsMsg, "Sem permissao para atualizar acao.", true);
+    return;
+  }
+  const card = button.closest("[data-action-id]");
+  if (!card) {
+    return;
+  }
+  const actionId = card.dataset.actionId;
+  const actions = Array.isArray(sstNcDetailsData.actions)
+    ? sstNcDetailsData.actions.slice()
+    : [];
+  const index = actions.findIndex((item) => String(item.id) === String(actionId));
+  if (index < 0) {
+    return;
+  }
+  const current = actions[index];
+  const nextStatus = String(current.status || "OPEN").toUpperCase() === "DONE" ? "OPEN" : "DONE";
+  const updatedAction = {
+    ...current,
+    status: nextStatus,
+    completedAt: nextStatus === "DONE" ? toIsoUtc(new Date()) : "",
+  };
+  actions[index] = updatedAction;
+  const updated = await persistSstNcUpdate(
+    sstNcDetailsData,
+    { actions },
+    "ACTION_UPDATE",
+    `Acao ${nextStatus === "DONE" ? "concluida" : "reaberta"}: ${current.title}`
+  );
+  if (updated) {
+    renderSstNcDetails(updated);
+  }
+}
+
+async function handleSstNcNotify() {
+  if (!sstNcDetailsData) {
+    return;
+  }
+  if (!currentUser || !canManageSst(currentUser)) {
+    setInlineMessage(sstNcDetailsMsg, "Sem permissao para notificar.", true);
+    return;
+  }
+  const responsavel = getUserLabel(sstNcDetailsData.responsibleId);
+  await persistSstNcUpdate(
+    sstNcDetailsData,
+    {},
+    "NOTIFY",
+    `Responsavel notificado: ${responsavel || "nao definido"}`
+  );
+  setInlineMessage(sstNcDetailsMsg, "Notificacao registrada.");
+}
+
+function handleSstNcAttachmentsChange() {
+  if (!sstNcAttachments) {
+    return;
+  }
+  pendingSstNcAttachments = Array.from(sstNcAttachments.files || []);
+  renderSstNcFileList(sstNcAttachmentsList, pendingSstNcAttachments);
+}
+
+function handleSstNcDetailsAttachmentsChange() {
+  if (!sstNcDetailsAttachments) {
+    return;
+  }
+  pendingSstNcDetailsAttachments = Array.from(sstNcDetailsAttachments.files || []);
+  renderSstNcFileList(sstNcDetailsFiles, pendingSstNcDetailsAttachments);
+}
+
+function handleSstNcSourceChange() {
+  if (!sstNcSourceInspection || !sstNcProject) {
+    return;
+  }
+  const id = sstNcSourceInspection.value;
+  if (!id) {
+    return;
+  }
+  const run = sstInspections.find((item) => String(item.id) === String(id));
+  if (run && run.projectId) {
+    sstNcProject.value = run.projectId;
+  }
+}
+
+function handleSstNcTableClick(event) {
+  const button = event.target.closest("button[data-action='details']");
+  if (!button) {
+    return;
+  }
+  const ncId = button.dataset.id;
+  if (!ncId) {
+    return;
+  }
+  openSstNcDetails(ncId);
+}
+
+
+
 async function handleSstNcSubmit(event) {
   event.preventDefault();
   if (!currentUser || !canManageSst(currentUser)) {
-    setInlineMessage(sstNcMsg, "Sem permissÃ£o para registrar NC.", true);
+    setInlineMessage(sstNcMsg, "Sem permissao para registrar NC.", true);
     return;
   }
   const payload = {
-    projectId: activeProjectId || "",
+    projectId: sstNcProject ? sstNcProject.value : activeProjectId || "",
     severity: sstNcSeverity ? sstNcSeverity.value : "",
+    status: sstNcStatus ? sstNcStatus.value : "OPEN",
     dueDate: sstNcDue ? sstNcDue.value : "",
+    category: sstNcCategory ? sstNcCategory.value.trim() : "",
+    responsibleId: sstNcResponsible ? sstNcResponsible.value : "",
+    title: sstNcTitle ? sstNcTitle.value.trim() : "",
     description: sstNcDesc ? sstNcDesc.value.trim() : "",
+    sourceType: sstNcSourceInspection && sstNcSourceInspection.value ? "INSPECTION" : "MANUAL",
+    sourceId: sstNcSourceInspection ? sstNcSourceInspection.value : "",
+    createdBy: currentUser.id,
+    createdAt: toIsoUtc(new Date()),
+    updatedAt: toIsoUtc(new Date()),
   };
   if (!payload.projectId) {
     setInlineMessage(sstNcMsg, "Selecione um projeto ativo.", true);
     return;
   }
-  if (!payload.description) {
-    setInlineMessage(sstNcMsg, "Descreva a nÃ£o conformidade.", true);
+  if (!payload.title && !payload.description) {
+    setInlineMessage(sstNcMsg, "Informe um titulo ou descricao.", true);
+    return;
+  }
+  if (!payload.responsibleId) {
+    setInlineMessage(sstNcMsg, "Defina o responsavel pela NC.", true);
     return;
   }
   try {
-    const data = await apiSstNonconformityCreate(payload);
-    if (data && data.nonconformity) {
-      sstNonconformities = [data.nonconformity].concat(sstNonconformities);
-      sstLoaded = true;
-      if (sstNcForm) {
-        sstNcForm.reset();
+    const created = await dataProvider.sstInspections.createNc({
+      ...payload,
+      history: appendSstNcHistory(payload, "CREATE", "NC registrada no sistema"),
+    });
+    let updated = created;
+    if (pendingSstNcAttachments.length) {
+      const files = pendingSstNcAttachments.slice();
+      for (const file of files) {
+        try {
+          await dataProvider.sstInspections.attachEvidence({
+            ownerType: "NON_CONFORMITY",
+            ownerId: created.id,
+            file,
+          });
+        } catch (error) {
+          // segue
+        }
       }
-      setInlineMessage(sstNcMsg, "NC registrada.");
-      renderSstNcs();
-      renderSstDashboard();
+      updated = await dataProvider.sstInspections.updateNc(created.id, {
+        history: appendSstNcHistory(
+          created,
+          "EVIDENCE",
+          `${files.length} evidencia(s) anexada(s)`
+        ),
+      });
+      pendingSstNcAttachments = [];
+      renderSstNcFileList(sstNcAttachmentsList, []);
+      if (sstNcAttachments) {
+        sstNcAttachments.value = "";
+      }
     }
+    if (updated) {
+      upsertSstNcInMemory(updated);
+    }
+    sstLoaded = true;
+    if (sstNcForm) {
+      sstNcForm.reset();
+    }
+    pendingSstNcAttachments = [];
+    renderSstNcFileList(sstNcAttachmentsList, []);
+    renderSstSelectors();
+    setInlineMessage(sstNcMsg, "NC registrada.");
+    renderSstNcs();
+    renderSstDashboard();
   } catch (error) {
     setInlineMessage(sstNcMsg, error.message || "Erro ao registrar NC.", true);
   }
@@ -30653,6 +31641,60 @@ if (sstInspectionDetailsBody) {
 }
 if (sstNcForm) {
   sstNcForm.addEventListener("submit", handleSstNcSubmit);
+}
+if (sstNcAttachments) {
+  sstNcAttachments.addEventListener("change", handleSstNcAttachmentsChange);
+}
+if (sstNcSourceInspection) {
+  sstNcSourceInspection.addEventListener("change", handleSstNcSourceChange);
+}
+if (sstNcTableBody) {
+  sstNcTableBody.addEventListener("click", handleSstNcTableClick);
+}
+if (sstNcFilterProject) {
+  sstNcFilterProject.addEventListener("change", renderSstNcs);
+}
+if (sstNcFilterStatus) {
+  sstNcFilterStatus.addEventListener("change", renderSstNcs);
+}
+if (sstNcFilterSeverity) {
+  sstNcFilterSeverity.addEventListener("change", renderSstNcs);
+}
+if (sstNcFilterResponsible) {
+  sstNcFilterResponsible.addEventListener("change", renderSstNcs);
+}
+if (sstNcFilterFrom) {
+  sstNcFilterFrom.addEventListener("change", renderSstNcs);
+}
+if (sstNcFilterTo) {
+  sstNcFilterTo.addEventListener("change", renderSstNcs);
+}
+if (sstNcFilterSearch) {
+  sstNcFilterSearch.addEventListener("input", renderSstNcs);
+}
+if (sstNcDetailsSave) {
+  sstNcDetailsSave.addEventListener("click", handleSstNcDetailsSave);
+}
+if (sstNcDetailsClose) {
+  sstNcDetailsClose.addEventListener("click", closeSstNcDetails);
+}
+if (btnFecharSstNcDetails) {
+  btnFecharSstNcDetails.addEventListener("click", closeSstNcDetails);
+}
+if (sstNcActionAdd) {
+  sstNcActionAdd.addEventListener("click", handleSstNcActionAdd);
+}
+if (sstNcActionsList) {
+  sstNcActionsList.addEventListener("click", handleSstNcActionsClick);
+}
+if (sstNcDetailsAttachments) {
+  sstNcDetailsAttachments.addEventListener("change", handleSstNcDetailsAttachmentsChange);
+}
+if (sstNcDetailsEvidenceList) {
+  sstNcDetailsEvidenceList.addEventListener("click", handleSstNcEvidenceOpen);
+}
+if (sstNcNotifyBtn) {
+  sstNcNotifyBtn.addEventListener("click", handleSstNcNotify);
 }
 if (sstIncidentForm) {
   sstIncidentForm.addEventListener("submit", handleSstIncidentSubmit);
