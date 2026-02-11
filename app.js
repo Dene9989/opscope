@@ -1,4 +1,4 @@
-const btnAdicionarManutencao = document.getElementById("btnAdicionarManutencao");
+﻿const btnAdicionarManutencao = document.getElementById("btnAdicionarManutencao");
 const btnCancelarEdicaoManutencao = document.getElementById("btnCancelarEdicaoManutencao");
 const manutencaoEditBanner = document.getElementById("manutencaoEditBanner");
 const manutencaoEditInfo = document.getElementById("manutencaoEditInfo");
@@ -361,12 +361,21 @@ const sstTrainingMsg = document.getElementById("sstTrainingMsg");
 const sstTrainingTableBody = document.getElementById("sstTrainingTableBody");
 const sstTrainingEmpty = document.getElementById("sstTrainingEmpty");
 const sstInspectionForm = document.getElementById("sstInspectionForm");
-const sstInspectionType = document.getElementById("sstInspectionType");
 const sstInspectionProject = document.getElementById("sstInspectionProject");
-const sstInspectionStatus = document.getElementById("sstInspectionStatus");
-const sstInspectionNotes = document.getElementById("sstInspectionNotes");
-const sstInspectionSubmit = document.getElementById("sstInspectionSubmit");
+const sstInspectionLocal = document.getElementById("sstInspectionLocal");
+const sstInspectionTemplate = document.getElementById("sstInspectionTemplate");
+const sstInspectionStartBtn = document.getElementById("sstInspectionStartBtn");
 const sstInspectionMsg = document.getElementById("sstInspectionMsg");
+const sstTemplateSeedBtn = document.getElementById("sstTemplateSeedBtn");
+const sstTemplateNewBtn = document.getElementById("sstTemplateNewBtn");
+const sstTemplateTableBody = document.getElementById("sstTemplateTableBody");
+const sstTemplateEmpty = document.getElementById("sstTemplateEmpty");
+const sstInspectionFilterProject = document.getElementById("sstInspectionFilterProject");
+const sstInspectionFilterTemplate = document.getElementById("sstInspectionFilterTemplate");
+const sstInspectionFilterStatus = document.getElementById("sstInspectionFilterStatus");
+const sstInspectionFilterFrom = document.getElementById("sstInspectionFilterFrom");
+const sstInspectionFilterTo = document.getElementById("sstInspectionFilterTo");
+const sstInspectionFilterSearch = document.getElementById("sstInspectionFilterSearch");
 const sstInspectionTableBody = document.getElementById("sstInspectionTableBody");
 const sstInspectionEmpty = document.getElementById("sstInspectionEmpty");
 const sstNcForm = document.getElementById("sstNcForm");
@@ -444,6 +453,38 @@ const sstDocApproveBtn = document.getElementById("sstDocApproveBtn");
 const sstDocRejectBtn = document.getElementById("sstDocRejectBtn");
 const btnFecharSstDocReview = document.getElementById("btnFecharSstDocReview");
 const btnCancelarSstDocReview = document.getElementById("btnCancelarSstDocReview");
+const modalSstTemplate = document.getElementById("modalSstTemplate");
+const sstTemplateModalTitle = document.getElementById("sstTemplateModalTitle");
+const formSstTemplate = document.getElementById("formSstTemplate");
+const sstTemplateId = document.getElementById("sstTemplateId");
+const sstTemplateName = document.getElementById("sstTemplateName");
+const sstTemplateType = document.getElementById("sstTemplateType");
+const sstTemplatePeriodicity = document.getElementById("sstTemplatePeriodicity");
+const sstTemplateProject = document.getElementById("sstTemplateProject");
+const sstTemplateActive = document.getElementById("sstTemplateActive");
+const sstTemplateQuestions = document.getElementById("sstTemplateQuestions");
+const sstTemplateAddQuestion = document.getElementById("sstTemplateAddQuestion");
+const sstTemplateMsg = document.getElementById("sstTemplateMsg");
+const btnFecharSstTemplate = document.getElementById("btnFecharSstTemplate");
+const btnCancelarSstTemplate = document.getElementById("btnCancelarSstTemplate");
+const modalSstInspectionWizard = document.getElementById("modalSstInspectionWizard");
+const sstWizardTitle = document.getElementById("sstWizardTitle");
+const sstWizardMeta = document.getElementById("sstWizardMeta");
+const sstWizardProgress = document.getElementById("sstWizardProgress");
+const sstWizardBody = document.getElementById("sstWizardBody");
+const sstWizardSummary = document.getElementById("sstWizardSummary");
+const sstWizardPrev = document.getElementById("sstWizardPrev");
+const sstWizardNext = document.getElementById("sstWizardNext");
+const sstWizardMsg = document.getElementById("sstWizardMsg");
+const btnFecharSstWizard = document.getElementById("btnFecharSstWizard");
+const modalSstInspectionDetails = document.getElementById("modalSstInspectionDetails");
+const sstInspectionDetailsTitle = document.getElementById("sstInspectionDetailsTitle");
+const sstInspectionDetailsMeta = document.getElementById("sstInspectionDetailsMeta");
+const sstInspectionDetailsBody = document.getElementById("sstInspectionDetailsBody");
+const sstInspectionGenerateNc = document.getElementById("sstInspectionGenerateNc");
+const sstInspectionDetailsMsg = document.getElementById("sstInspectionDetailsMsg");
+const btnFecharSstDetails = document.getElementById("btnFecharSstDetails");
+const btnCancelarSstDetails = document.getElementById("btnCancelarSstDetails");
 const btnLembretes = document.getElementById("btnBell") || document.getElementById("btnLembretes");
 const lembretesCount = document.getElementById("bellDot") || document.getElementById("lembretesCount");
 const painelLembretes = document.getElementById("painelLembretes");
@@ -843,6 +884,11 @@ const AUDIT_KEY = "denemanu.audit";
 const RDO_KEY = "denemanu.rdo";
 const FEEDBACK_KEY = "opscope.feedbacks";
 const SST_DOCS_KEY = "opscope.sst.docs";
+const SST_TEMPLATES_KEY = "opscope.sst.templates";
+const SST_INSPECTIONS_KEY = "opscope.sst.inspections";
+const SST_NCS_KEY = "opscope.sst.ncs.local";
+const SST_EVIDENCES_KEY = "opscope.sst.evidences";
+const OPSCOPE_DB_VERSION = 2;
 const SESSION_KEY = "denemanu.session";
 const ACTIVE_PROJECT_KEY = "opscope.activeProjectId";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -868,13 +914,46 @@ const DEFAULT_PROJECT_LABEL = "834 - PARACATU/SOLARIG (Boa Sorte II)";
 const DEFAULT_TEAM_NAME = "O&M BSO2";
 const SUBESTACOES = [];
 const DEFAULT_TEMPLATE_NAMES = new Set([
-  "Inspeção diária da subestação",
-  "Inspeção mensal da subestação",
-  "Inspeção semanal do GMG BSO2",
-  "Inspeção semanal dos GMG PCT4",
-  "Inspeção mensal do GMG BSO2",
-  "Inspeção mensal dos GMG PCT4",
+  "InspeÃ§Ã£o diÃ¡ria da subestaÃ§Ã£o",
+  "InspeÃ§Ã£o mensal da subestaÃ§Ã£o",
+  "InspeÃ§Ã£o semanal do GMG BSO2",
+  "InspeÃ§Ã£o semanal dos GMG PCT4",
+  "InspeÃ§Ã£o mensal do GMG BSO2",
+  "InspeÃ§Ã£o mensal dos GMG PCT4",
 ]);
+const SST_SEVERITY_LABELS = {
+  LOW: "Baixa",
+  MED: "Media",
+  HIGH: "Alta",
+  CRITICAL: "Critica",
+};
+const SST_STATUS_LABELS = {
+  OK: "OK",
+  ATTENTION: "Atencao",
+  NON_CONFORMING: "Nao conforme",
+};
+const SST_CHECKLIST_TYPE_LABELS = {
+  WORK_AT_HEIGHT: "NR-35 - Trabalho em Altura",
+  SCAFFOLDING: "Andaimes",
+  LADDERS: "Escadas portateis",
+  PPE_COMPLIANCE: "EPI - Uso e Conformidade",
+  EPC_ISOLATION: "EPC - Isolamento de area",
+  FIRE_EXTINGUISHERS: "Extintores",
+  FIRE_PREVENTION: "Prevencao de incendio",
+  NR10_ELECTRICAL: "NR-10 - Eletricidade",
+  POWER_TOOLS: "Ferramentas eletricas",
+  MACHINERY_GUARDS: "Maquinas - Protecoes",
+  LIFTING_OPERATIONS: "Icamento",
+  HOISTS_CHAINS: "Talhas/Guinchos/Correntes",
+  VEHICLES_DAILY: "Veiculos - Checklist diario",
+  FORKLIFT: "Empilhadeira",
+  CONFINED_SPACE: "Espaco confinado",
+  HOT_WORK: "Trabalho a quente",
+  CHEMICALS: "Quimicos",
+  ERGONOMICS: "Ergonomia",
+  HOUSEKEEPING: "Ordem e limpeza (5S)",
+  FIRST_AID: "Primeiros socorros",
+};
 const WEEKDAYS = ["Domingo", "Segunda", "Terca", "Quarta", "Quinta", "Sexta", "Sabado"];
 const WEEKDAYS_SHORT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
 const DEFAULT_DAILY_DAYS = [1, 2, 3, 4, 5];
@@ -894,7 +973,7 @@ const PMP_MONTH_LABELS = [
   "Dez",
 ];
 const PMP_FREQUENCIES = [
-  { value: "diaria", label: "Diária", unit: "day", interval: 1 },
+  { value: "diaria", label: "DiÃ¡ria", unit: "day", interval: 1 },
   { value: "semanal", label: "Semanal", unit: "week", interval: 1 },
   { value: "mensal", label: "Mensal", unit: "month", interval: 1 },
   { value: "bimestral", label: "Bimestral", unit: "month", interval: 2 },
@@ -910,7 +989,7 @@ const PMP_STATUS_LABELS = {
   missed: "Atrasada",
   scheduled: "Planejada",
   cancelled: "Cancelada",
-  empty: "Não prevista",
+  empty: "NÃ£o prevista",
 };
 const PMP_STATUS_FILTER_MAP = {
   conforme: "on_time",
@@ -923,36 +1002,36 @@ const PMP_TIPOS = [
   { value: "preventiva", label: "Preventiva", short: "PREV" },
   { value: "corretiva", label: "Corretiva", short: "COR" },
   { value: "preditiva", label: "Preditiva", short: "PRED" },
-  { value: "inspecao", label: "Inspeção", short: "INSP" },
+  { value: "inspecao", label: "InspeÃ§Ã£o", short: "INSP" },
   { value: "outra", label: "Outra", short: "OUT" },
 ];
 const SECTION_LABELS = {
-  inicio: "Início",
-  programacao: "Programação",
-  nova: "Nova manutenção",
-  modelos: "Modelos e recorrências",
+  inicio: "InÃ­cio",
+  programacao: "ProgramaÃ§Ã£o",
+  nova: "Nova manutenÃ§Ã£o",
+  modelos: "Modelos e recorrÃªncias",
   pmp: "PMP / Cronograma",
-  execucao: "Execução do dia",
+  execucao: "ExecuÃ§Ã£o do dia",
   backlog: "Backlog",
   projetos: "Locais de trabalho",
   desempenho: "Desempenho",
   "performance-projects": "Desempenho por projeto",
   "performance-people": "Desempenho por colaborador",
-  tendencias: "KPIs e tendências",
-  relatorios: "Relatórios",
+  tendencias: "KPIs e tendÃªncias",
+  relatorios: "RelatÃ³rios",
   feedbacks: "Feedbacks",
   perfil: "Meu perfil",
   almoxarifado: "Almoxarifado",
   "almoxarifado-itens": "Itens",
   "almoxarifado-estoque": "Estoque por projeto",
-  "almoxarifado-movimentacoes": "Movimentações",
+  "almoxarifado-movimentacoes": "MovimentaÃ§Ãµes",
   "almoxarifado-epis": "EPIs por colaborador",
-  sst: "Segurança do Trabalho (SST)",
+  sst: "SeguranÃ§a do Trabalho (SST)",
   "sst-treinamentos": "Treinamentos",
-  "sst-inspecoes": "Inspeções",
-  "sst-ncs": "Não conformidades",
+  "sst-inspecoes": "InspeÃ§Ãµes",
+  "sst-ncs": "NÃ£o conformidades",
   "sst-incidentes": "Incidentes",
-  "sst-apr-pt": "Documentações",
+  "sst-apr-pt": "DocumentaÃ§Ãµes",
 };
 const ADMIN_SECTIONS = ["solicitacoes", "rastreabilidade", "gerencial", "contas"];
 const DEFAULT_SECTIONS = Object.keys(SECTION_LABELS).reduce((acc, key) => {
@@ -965,9 +1044,9 @@ const STATUS_LABELS = {
   agendada: "Agendada",
   liberada: "Liberada",
   backlog: "Backlog",
-  em_execucao: "Em execução",
+  em_execucao: "Em execuÃ§Ã£o",
   encerramento: "Encerramento",
-  concluida: "Concluída",
+  concluida: "ConcluÃ­da",
 };
 
 const PERMISSIONS = {
@@ -981,9 +1060,9 @@ const PERMISSIONS = {
 const GRANULAR_PERMISSION_LABELS = {
   editarPerfil: "Editar perfil (UEN/Projeto)",
   editarPerfilOutros: "Editar perfil de outros",
-  verUsuarios: "Ver usuários",
-  convidarUsuarios: "Convidar usuários",
-  desativarUsuarios: "Desativar usuários",
+  verUsuarios: "Ver usuÃ¡rios",
+  convidarUsuarios: "Convidar usuÃ¡rios",
+  desativarUsuarios: "Desativar usuÃ¡rios",
   verArquivos: "Ver arquivos",
   uploadArquivos: "Enviar arquivos",
   excluirArquivos: "Excluir arquivos",
@@ -991,14 +1070,14 @@ const GRANULAR_PERMISSION_LABELS = {
   verRDOs: "Ver RDOs",
   gerarRDOs: "Gerar RDOs",
   excluirRDOs: "Excluir RDOs",
-  verRelatorios: "Ver relatórios",
-  exportarRelatorios: "Exportar relatórios",
+  verRelatorios: "Ver relatÃ³rios",
+  exportarRelatorios: "Exportar relatÃ³rios",
   reexecutarTarefas: "Reexecutar tarefas",
   verLogsAPI: "Ver logs de API",
   limparLogsAPI: "Limpar logs de API",
-  gerenciarAutomacoes: "Gerenciar automações",
-  verAutomacoes: "Ver automações",
-  verDiagnostico: "Ver diagnóstico",
+  gerenciarAutomacoes: "Gerenciar automaÃ§Ãµes",
+  verAutomacoes: "Ver automaÃ§Ãµes",
+  verDiagnostico: "Ver diagnÃ³stico",
   verPainelGerencial: "Ver painel gerencial",
   gerenciarProjetos: "Gerenciar projetos",
   gerenciarEquipamentos: "Gerenciar equipamentos",
@@ -1012,7 +1091,7 @@ const GRANULAR_PERMISSION_LABELS = {
 const PERMISSION_GROUPS = [
   {
     key: "perfil",
-    label: "Perfis e usuários",
+    label: "Perfis e usuÃ¡rios",
     items: ["editarPerfil", "editarPerfilOutros", "verUsuarios", "convidarUsuarios", "desativarUsuarios"],
   },
   {
@@ -1032,7 +1111,7 @@ const PERMISSION_GROUPS = [
   },
   {
     key: "sst",
-    label: "Segurança do Trabalho (SST)",
+    label: "SeguranÃ§a do Trabalho (SST)",
     items: ["verSST", "gerenciarSST"],
   },
   {
@@ -1047,12 +1126,12 @@ const PERMISSION_GROUPS = [
   },
   {
     key: "relatorios",
-    label: "Relatórios",
+    label: "RelatÃ³rios",
     items: ["verRelatorios", "exportarRelatorios"],
   },
   {
     key: "diagnostico",
-    label: "Diagnóstico",
+    label: "DiagnÃ³stico",
     items: ["verDiagnostico", "reexecutarTarefas"],
   },
   {
@@ -1062,7 +1141,7 @@ const PERMISSION_GROUPS = [
   },
   {
     key: "automacoes",
-    label: "Automações",
+    label: "AutomaÃ§Ãµes",
     items: ["verAutomacoes", "gerenciarAutomacoes"],
   },
   {
@@ -1095,7 +1174,7 @@ const RBAC_ROLE_LABELS = {
   admin: "ADMIN",
   gestor: "GESTOR",
   almoxarife: "ALMOXARIFE",
-  tecnico_sst: "TÉCNICO SST",
+  tecnico_sst: "TÃ‰CNICO SST",
   supervisor: "SUPERVISOR",
   colaborador: "COLABORADOR",
   pcm: "PCM",
@@ -1499,7 +1578,7 @@ const gerencialLoadedTabs = new Set();
 
 function getIndicatorStatusLabel(status, count) {
   if (status === "error") {
-    return `${count} críticos`;
+    return `${count} crÃ­ticos`;
   }
   if (status === "warn") {
     return `${count} alertas`;
@@ -1533,7 +1612,7 @@ function summarizeHealthIndicators(snapshot) {
     return {
       status: "warn",
       alerts: 0,
-      meta: "Diagnóstico indisponível",
+      meta: "DiagnÃ³stico indisponÃ­vel",
     };
   }
   const modules = snapshot.modules;
@@ -1551,7 +1630,7 @@ function summarizeHealthIndicators(snapshot) {
   const alerts = moduleAlerts + taskAlerts + issueAlerts;
   const hasError = moduleStatuses.includes("error") || issues.some((item) => item.level === "error");
   const status = hasError ? "error" : alerts > 0 ? "warn" : "ok";
-  const meta = snapshot.generatedAt ? `Atualizado em ${formatHealthDate(snapshot.generatedAt)}` : "Diagnóstico ativo";
+  const meta = snapshot.generatedAt ? `Atualizado em ${formatHealthDate(snapshot.generatedAt)}` : "DiagnÃ³stico ativo";
   return { status, alerts, meta };
 }
 
@@ -1580,7 +1659,7 @@ function updateGerencialIndicators() {
     indicatorLogsBadge.textContent = getIndicatorStatusLabel(logStatus, logErrors);
   }
   if (indicatorLogsMeta) {
-    indicatorLogsMeta.textContent = apiLogsState.items.length ? "Últimas requisições" : "Sem logs carregados";
+    indicatorLogsMeta.textContent = apiLogsState.items.length ? "Ãšltimas requisiÃ§Ãµes" : "Sem logs carregados";
   }
   applyIndicatorStatus(indicatorLogsCard, indicatorLogsBadge, logStatus);
 
@@ -1609,7 +1688,7 @@ function updateGerencialIndicators() {
   if (indicatorAutomationsMeta) {
     indicatorAutomationsMeta.textContent = automationCount
       ? `${automationCount} regras`
-      : "Nenhuma automação carregada";
+      : "Nenhuma automaÃ§Ã£o carregada";
   }
   applyIndicatorStatus(indicatorAutomationsCard, indicatorAutomationsBadge, automationStatus);
 }
@@ -1645,7 +1724,7 @@ async function refreshGerencialAll() {
   ]);
   const failed = results.some((item) => item.status === "rejected");
   if (failed) {
-    setGerencialUpdateMessage("Atualização parcial. Verifique os módulos.", true);
+    setGerencialUpdateMessage("AtualizaÃ§Ã£o parcial. Verifique os mÃ³dulos.", true);
     return;
   }
   setGerencialUpdateMessage("Atualizado com sucesso.");
@@ -1783,13 +1862,13 @@ function getGerencialPaletteItems() {
       selector: "#btnGerencialRefreshAll",
     },
     {
-      label: "Reexecutar tudo (diagnóstico)",
+      label: "Reexecutar tudo (diagnÃ³stico)",
       tab: "diagnostico",
       selector: "#btnHealthRunAll",
       permission: "reexecutarTarefas",
     },
     {
-      label: "Atualizar diagnóstico",
+      label: "Atualizar diagnÃ³stico",
       tab: "diagnostico",
       selector: "#btnRefreshHealth",
       permission: "verDiagnostico",
@@ -1807,7 +1886,7 @@ function getGerencialPaletteItems() {
       permission: "verLogsAPI",
     },
     {
-      label: "Salvar permissões",
+      label: "Salvar permissÃµes",
       tab: "permissoes",
       selector: "#btnPermissoesSalvar",
     },
@@ -1831,7 +1910,7 @@ function getGerencialPaletteItems() {
     if (item.permission && !hasGranularPermission(currentUser, item.permission)) {
       return;
     }
-    items.push({ ...item, type: "action", hint: "Executar ação" });
+    items.push({ ...item, type: "action", hint: "Executar aÃ§Ã£o" });
   });
   return items;
 }
@@ -1945,15 +2024,15 @@ const ACTION_LABELS = {
   edit: "Editar",
   remove: "Remover",
   reschedule: "Reagendar",
-  release: "Liberação registrada",
-  execute: "Execução iniciada",
-  cancel_start: "Início cancelado",
-  execute_register: "Registro de execução",
+  release: "LiberaÃ§Ã£o registrada",
+  execute: "ExecuÃ§Ã£o iniciada",
+  cancel_start: "InÃ­cio cancelado",
+  execute_register: "Registro de execuÃ§Ã£o",
   complete: "Concluir",
-  note: "Observação",
-  backlog_auto: "Backlog automático",
-  backlog_reason: "Motivo não executada",
-  rdo_delete: "RDO excluído",
+  note: "ObservaÃ§Ã£o",
+  backlog_auto: "Backlog automÃ¡tico",
+  backlog_reason: "Motivo nÃ£o executada",
+  rdo_delete: "RDO excluÃ­do",
 };
 
 const MAINTENANCE_STATE_LABELS = {
@@ -1963,9 +2042,9 @@ const MAINTENANCE_STATE_LABELS = {
 };
 
 const RESULTADO_LABELS = {
-  concluida: "Concluída",
-  ressalva: "Concluída com ressalva",
-  nao_executada: "Não executada",
+  concluida: "ConcluÃ­da",
+  ressalva: "ConcluÃ­da com ressalva",
+  nao_executada: "NÃ£o executada",
 };
 
 const dateFormatter = new Intl.DateTimeFormat("pt-BR");
@@ -2006,6 +2085,9 @@ let sstDocs = [];
 let sstLoaded = false;
 let pendingSstDocAprPreview = null;
 let sstDocReviewingId = null;
+let sstWizardState = null;
+let sstInspectionDetailsId = null;
+let sstInspectionDetailsData = null;
 const pmpEquipamentosCache = new Map();
 const pmpMaintenanceCache = new Map();
 let pmpChecklistItems = [];
@@ -2143,6 +2225,482 @@ function writeJson(key, value) {
   }
 }
 
+function createLocalSstInspectionsProvider() {
+  const readTemplates = () => {
+    const list = readJson(SST_TEMPLATES_KEY, []);
+    if (!Array.isArray(list)) {
+      return [];
+    }
+    return list.map(normalizeSstChecklistTemplate).filter(Boolean);
+  };
+  const saveTemplates = (list) => {
+    writeJson(SST_TEMPLATES_KEY, list);
+    return list;
+  };
+  const readRuns = () => {
+    const list = readJson(SST_INSPECTIONS_KEY, []);
+    if (!Array.isArray(list)) {
+      return [];
+    }
+    return list.map(normalizeSstInspectionRun).filter(Boolean);
+  };
+  const saveRuns = (list) => {
+    writeJson(SST_INSPECTIONS_KEY, list);
+    return list;
+  };
+  const readEvidences = () => {
+    const list = readJson(SST_EVIDENCES_KEY, []);
+    if (!Array.isArray(list)) {
+      return [];
+    }
+    return list.map(normalizeSstEvidence).filter(Boolean);
+  };
+  const saveEvidences = (list) => {
+    writeJson(SST_EVIDENCES_KEY, list);
+    return list;
+  };
+  const readNcs = () => {
+    const list = readJson(SST_NCS_KEY, []);
+    if (!Array.isArray(list)) {
+      return [];
+    }
+    return list.map(normalizeSstNonconformity).filter(Boolean);
+  };
+  const saveNcs = (list) => {
+    writeJson(SST_NCS_KEY, list);
+    return list;
+  };
+
+  return {
+    listTemplates: async (filters = {}) => {
+      let list = readTemplates();
+      if (filters.projectId) {
+        list = list.filter(
+          (item) => !item.projectId || String(item.projectId) === String(filters.projectId)
+        );
+      }
+      if (filters.type) {
+        const type = normalizeSstChecklistType(filters.type);
+        list = list.filter((item) => normalizeSstChecklistType(item.type) === type);
+      }
+      if (filters.active !== undefined) {
+        list = list.filter((item) => Boolean(item.isActive) === Boolean(filters.active));
+      }
+      if (filters.q) {
+        const term = normalizeSearchValue(filters.q);
+        list = list.filter((item) =>
+          normalizeSearchValue(item.name).includes(term)
+        );
+      }
+      return list;
+    },
+    getTemplate: async (id) => {
+      if (!id) {
+        return null;
+      }
+      const list = readTemplates();
+      return list.find((item) => String(item.id) === String(id)) || null;
+    },
+    upsertTemplate: async (input) => {
+      const templates = readTemplates();
+      const now = toIsoUtc(new Date());
+      const existingIndex = templates.findIndex((item) => String(item.id) === String(input.id));
+      const base = existingIndex >= 0 ? templates[existingIndex] : {};
+      const normalized = normalizeSstChecklistTemplate({
+        ...base,
+        ...input,
+        id: base.id || input.id,
+        createdAt: base.createdAt || now,
+        updatedAt: now,
+      });
+      if (!normalized) {
+        throw new Error("Template invalido.");
+      }
+      if (existingIndex >= 0) {
+        templates[existingIndex] = normalized;
+      } else {
+        templates.unshift(normalized);
+      }
+      saveTemplates(templates);
+      return normalized;
+    },
+    deleteTemplate: async (id) => {
+      if (!id) {
+        return;
+      }
+      const templates = readTemplates();
+      const index = templates.findIndex((item) => String(item.id) === String(id));
+      if (index < 0) {
+        return;
+      }
+      templates[index] = {
+        ...templates[index],
+        isActive: false,
+        updatedAt: toIsoUtc(new Date()),
+      };
+      saveTemplates(templates);
+    },
+    seedTemplatesIfEmpty: async () => {
+      const templates = readTemplates();
+      if (templates.length) {
+        return { seeded: false, count: templates.length };
+      }
+      const now = toIsoUtc(new Date());
+      const seeds = getSstInspectionSeedTemplates()
+        .map((item) =>
+          normalizeSstChecklistTemplate({
+            ...item,
+            createdAt: now,
+            updatedAt: now,
+            isActive: true,
+            createdBy: SYSTEM_USER_ID,
+          })
+        )
+        .filter(Boolean);
+      saveTemplates(seeds);
+      return { seeded: true, count: seeds.length };
+    },
+    startRun: async (input) => {
+      if (!input || !input.templateId || !input.projectId || !input.inspectorId) {
+        throw new Error("Dados insuficientes para iniciar a inspeÃ§Ã£o.");
+      }
+      const run = normalizeSstInspectionRun({
+        id: criarId(),
+        templateId: input.templateId,
+        projectId: input.projectId,
+        worksiteId: input.worksiteId || "",
+        inspectorId: input.inspectorId,
+        startedAt: input.startedAt || toIsoUtc(new Date()),
+        status: "OK",
+        score: 100,
+        answers: [],
+      });
+      if (!run) {
+        throw new Error("Falha ao iniciar inspeÃ§Ã£o.");
+      }
+      const runs = readRuns();
+      runs.unshift(run);
+      saveRuns(runs);
+      return run;
+    },
+    saveAnswer: async (input) => {
+      if (!input || !input.runId || !input.questionId) {
+        throw new Error("Resposta invalida.");
+      }
+      const runs = readRuns();
+      const runIndex = runs.findIndex((item) => String(item.id) === String(input.runId));
+      if (runIndex < 0) {
+        throw new Error("InspeÃ§Ã£o nÃ£o encontrada.");
+      }
+      const run = runs[runIndex];
+      const templates = readTemplates();
+      const template = templates.find((item) => item.id === run.templateId) || null;
+      const question = template
+        ? template.questions.find((q) => String(q.id) === String(input.questionId))
+        : null;
+      const normalized = normalizeSstInspectionAnswer(
+        {
+          id: input.id,
+          runId: run.id,
+          questionId: input.questionId,
+          answer: input.answer,
+          notes: input.notes || "",
+          severitySnapshot: question ? question.severity : input.severitySnapshot,
+        },
+        run.id,
+        question
+      );
+      if (!normalized) {
+        throw new Error("Resposta invalida.");
+      }
+      const existingIndex = run.answers.findIndex(
+        (item) => String(item.questionId) === String(normalized.questionId)
+      );
+      if (existingIndex >= 0) {
+        const existing = run.answers[existingIndex];
+        normalized.id = existing.id;
+        normalized.evidenceIds = existing.evidenceIds || [];
+        run.answers[existingIndex] = normalized;
+      } else {
+        run.answers.push(normalized);
+      }
+      runs[runIndex] = run;
+      saveRuns(runs);
+      return normalized;
+    },
+    attachEvidence: async (input) => {
+      if (!input || !input.ownerType || !input.ownerId || !input.file) {
+        throw new Error("Evidencia invalida.");
+      }
+      const stored = await salvarSstEvidenceArquivo(input.file);
+      if (!stored) {
+        throw new Error("Falha ao salvar evidencia.");
+      }
+      const evidence = normalizeSstEvidence({
+        id: stored.evidenceId,
+        ownerType: input.ownerType,
+        ownerId: input.ownerId,
+        fileName: stored.name,
+        fileType: stored.fileType,
+        size: stored.size,
+        createdAt: stored.createdAt,
+        caption: input.caption || "",
+        metadata: input.metadata || null,
+        createdBy: currentUser ? currentUser.id : "",
+        dataUrl: stored.dataUrl || "",
+      });
+      if (!evidence) {
+        throw new Error("Falha ao registrar evidencia.");
+      }
+      const evidences = readEvidences();
+      evidences.unshift(evidence);
+      saveEvidences(evidences);
+      if (evidence.ownerType === "INSPECTION_ANSWER") {
+        const runs = readRuns();
+        const runIndex = runs.findIndex((run) =>
+          run.answers.some((answer) => String(answer.id) === String(evidence.ownerId))
+        );
+        if (runIndex >= 0) {
+          const run = runs[runIndex];
+          const answerIndex = run.answers.findIndex(
+            (answer) => String(answer.id) === String(evidence.ownerId)
+          );
+          if (answerIndex >= 0) {
+            const answer = run.answers[answerIndex];
+            const list = Array.isArray(answer.evidenceIds) ? answer.evidenceIds.slice() : [];
+            if (!list.includes(evidence.id)) {
+              list.push(evidence.id);
+              run.answers[answerIndex] = { ...answer, evidenceIds: list };
+              runs[runIndex] = run;
+              saveRuns(runs);
+            }
+          }
+        }
+      }
+      return evidence;
+    },
+    listEvidences: async (input) => {
+      const evidences = readEvidences();
+      if (!input || (!input.ownerType && !input.ownerId)) {
+        return evidences;
+      }
+      return evidences.filter((evidence) => {
+        if (input.ownerType && evidence.ownerType !== input.ownerType) {
+          return false;
+        }
+        if (input.ownerId && String(evidence.ownerId) !== String(input.ownerId)) {
+          return false;
+        }
+        return true;
+      });
+    },
+    finishRun: async (input) => {
+      if (!input || !input.runId) {
+        throw new Error("InspeÃ§Ã£o invalida.");
+      }
+      const runs = readRuns();
+      const index = runs.findIndex((run) => String(run.id) === String(input.runId));
+      if (index < 0) {
+        throw new Error("InspeÃ§Ã£o nÃ£o encontrada.");
+      }
+      const run = runs[index];
+      const score = calculateSstScore(run.answers);
+      const status = calculateSstStatus(run.answers);
+      const updated = {
+        ...run,
+        score,
+        status,
+        notes: input.notes !== undefined ? input.notes : run.notes,
+        finishedAt: toIsoUtc(new Date()),
+      };
+      runs[index] = updated;
+      saveRuns(runs);
+      return updated;
+    },
+    generateNcsFromRun: async (input) => {
+      if (!input || !input.runId) {
+        throw new Error("InspeÃ§Ã£o invÃ¡lida.");
+      }
+      const include = Array.isArray(input.includeSeverities) && input.includeSeverities.length
+        ? input.includeSeverities
+        : ["HIGH", "CRITICAL"];
+      const includeSet = new Set(include.map(normalizeSstSeverity));
+      const runs = readRuns();
+      const run = runs.find((item) => String(item.id) === String(input.runId));
+      if (!run) {
+        throw new Error("InspeÃ§Ã£o nÃ£o encontrada.");
+      }
+      const templates = readTemplates();
+      const template = templates.find((item) => item.id === run.templateId);
+      const existing = readNcs();
+      const created = [];
+      run.answers.forEach((answer) => {
+        if (!answer || answer.answer !== "FAIL") {
+          return;
+        }
+        const severity = normalizeSstSeverity(answer.severitySnapshot);
+        if (!includeSet.has(severity)) {
+          return;
+        }
+        const question = template
+          ? template.questions.find((q) => String(q.id) === String(answer.questionId))
+          : null;
+        const title = `${template ? template.name : "Checklist"} - ${
+          question ? question.text : "Item"
+        }`.slice(0, 140);
+        const already = existing.find(
+          (nc) => nc.sourceId === run.id && nc.title === title
+        );
+        if (already) {
+          return;
+        }
+        const novo = normalizeSstNonconformity({
+          projectId: run.projectId,
+          worksiteId: run.worksiteId || "",
+          sourceType: "INSPECTION",
+          sourceId: run.id,
+          severity,
+          title,
+          description: `${answer.notes || ""} (gerado por inspeÃ§Ã£o)`.trim(),
+          status: "OPEN",
+          dueDate: getSstDueDateForSeverity(severity),
+          createdBy: currentUser ? currentUser.id : "",
+        });
+        if (novo) {
+          created.push(novo);
+          existing.unshift(novo);
+        }
+      });
+      if (created.length) {
+        saveNcs(existing);
+      }
+      return created;
+    },
+    listNcs: async (filters = {}) => {
+      let list = readNcs();
+      if (filters.projectId) {
+        list = list.filter((nc) => String(nc.projectId) === String(filters.projectId));
+      }
+      if (filters.status) {
+        list = list.filter(
+          (nc) => String(nc.status).toUpperCase() === String(filters.status).toUpperCase()
+        );
+      }
+      if (filters.severity) {
+        const sev = normalizeSstSeverity(filters.severity);
+        list = list.filter((nc) => normalizeSstSeverity(nc.severity) === sev);
+      }
+      if (filters.q) {
+        const term = normalizeSearchValue(filters.q);
+        list = list.filter(
+          (nc) =>
+            normalizeSearchValue(nc.title).includes(term) ||
+            normalizeSearchValue(nc.description).includes(term)
+        );
+      }
+      return list;
+    },
+    listRuns: async (filters = {}) => {
+      let list = readRuns();
+      const templates = readTemplates();
+      const templateMap = new Map(templates.map((t) => [String(t.id), t]));
+      let summary = list.map((run) => {
+        const template = templateMap.get(String(run.templateId));
+        const stats = buildSstFailStats(run.answers);
+        return {
+          id: run.id,
+          startedAt: run.startedAt,
+          finishedAt: run.finishedAt,
+          projectId: run.projectId,
+          worksiteId: run.worksiteId || "",
+          templateId: run.templateId,
+          templateName: template ? template.name : run.templateId,
+          inspectorId: run.inspectorId,
+          score: run.score,
+          status: normalizeSstInspectionStatus(run.status),
+          failCount: stats.total,
+          criticalFailCount: stats.CRITICAL,
+          notes: run.notes || "",
+        };
+      });
+      if (filters.projectId) {
+        summary = summary.filter(
+          (run) => String(run.projectId) === String(filters.projectId)
+        );
+      }
+      if (filters.templateId) {
+        summary = summary.filter(
+          (run) => String(run.templateId) === String(filters.templateId)
+        );
+      }
+      if (filters.status) {
+        const status = normalizeSstInspectionStatus(filters.status);
+        summary = summary.filter((run) => normalizeSstInspectionStatus(run.status) === status);
+      }
+      if (filters.from) {
+        const fromDate = parseDate(filters.from);
+        summary = summary.filter((run) => {
+          const when = parseTimestamp(run.startedAt);
+          return when && fromDate ? when >= fromDate : true;
+        });
+      }
+      if (filters.to) {
+        const toDate = parseDate(filters.to);
+        summary = summary.filter((run) => {
+          const when = parseTimestamp(run.startedAt);
+          return when && toDate ? when <= endOfDay(toDate) : true;
+        });
+      }
+      if (filters.q) {
+        const term = normalizeSearchValue(filters.q);
+        summary = summary.filter(
+          (run) =>
+            normalizeSearchValue(run.templateName).includes(term) ||
+            normalizeSearchValue(run.notes).includes(term)
+        );
+      }
+      return summary.sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
+    },
+    getRunDetails: async (runId) => {
+      if (!runId) {
+        return null;
+      }
+      const runs = readRuns();
+      const run = runs.find((item) => String(item.id) === String(runId));
+      if (!run) {
+        return null;
+      }
+      const templates = readTemplates();
+      const template = templates.find((item) => item.id === run.templateId) || null;
+      const evidences = readEvidences();
+      const evidencesByAnswerId = {};
+      evidences.forEach((evidence) => {
+        if (evidence.ownerType !== "INSPECTION_ANSWER") {
+          return;
+        }
+        if (!evidencesByAnswerId[evidence.ownerId]) {
+          evidencesByAnswerId[evidence.ownerId] = [];
+        }
+        evidencesByAnswerId[evidence.ownerId].push(evidence);
+      });
+      const runEvidences = evidences.filter(
+        (evidence) => evidence.ownerType === "INSPECTION_RUN" && evidence.ownerId === run.id
+      );
+      const failStats = buildSstFailStats(run.answers);
+      const ncs = readNcs().filter((nc) => String(nc.sourceId) === String(run.id));
+      return {
+        ...run,
+        template,
+        answers: run.answers || [],
+        evidencesByAnswerId,
+        runEvidences,
+        failStats,
+        ncs,
+      };
+    },
+  };
+}
+
 function createLocalProvider() {
   const readSstDocs = () => {
     let list = readJson(SST_DOCS_KEY, []);
@@ -2155,6 +2713,7 @@ function createLocalProvider() {
     writeJson(SST_DOCS_KEY, list);
     return list;
   };
+  const sstInspections = createLocalSstInspectionsProvider();
   return {
     sstDocs: {
       list: async (filters = {}) => {
@@ -2218,6 +2777,7 @@ function createLocalProvider() {
         return { item: list[index], list: saveSstDocs(list) };
       },
     },
+    sstInspections,
   };
 }
 
@@ -2251,6 +2811,7 @@ function createApiProvider(fallback) {
 
   const provider = {
     sstDocs: {},
+    sstInspections: {},
   };
 
   provider.sstDocs.list = async (filters = {}) => {
@@ -2309,6 +2870,105 @@ function createApiProvider(fallback) {
     }
   };
 
+  provider.sstInspections.listTemplates = async (filters = {}) => {
+    if (!USE_SST_INSPECTIONS_API) {
+      return fallbackProvider.sstInspections.listTemplates(filters);
+    }
+    try {
+      const query = buildQuery(filters);
+      const data = await apiRequest(`/api/sst/inspection-templates${query ? `?${query}` : ""}`);
+      const list = Array.isArray(data.templates) ? data.templates : [];
+      return list.map(normalizeSstChecklistTemplate).filter(Boolean);
+    } catch (error) {
+      return fallbackProvider.sstInspections.listTemplates(filters);
+    }
+  };
+
+  provider.sstInspections.getTemplate = async (id) => {
+    if (!USE_SST_INSPECTIONS_API) {
+      return fallbackProvider.sstInspections.getTemplate(id);
+    }
+    return fallbackProvider.sstInspections.getTemplate(id);
+  };
+
+  provider.sstInspections.upsertTemplate = async (input) => {
+    if (!USE_SST_INSPECTIONS_API) {
+      return fallbackProvider.sstInspections.upsertTemplate(input);
+    }
+    try {
+      if (input && input.id) {
+        const data = await apiRequest(`/api/sst/inspection-templates/${encodeURIComponent(input.id)}`, {
+          method: "PUT",
+          body: JSON.stringify(input || {}),
+        });
+        return normalizeSstChecklistTemplate(data.template || data.item || input);
+      }
+      const data = await apiRequest("/api/sst/inspection-templates", {
+        method: "POST",
+        body: JSON.stringify(input || {}),
+      });
+      return normalizeSstChecklistTemplate(data.template || data.item || input);
+    } catch (error) {
+      return fallbackProvider.sstInspections.upsertTemplate(input);
+    }
+  };
+
+  provider.sstInspections.deleteTemplate = async (id) => {
+    if (!USE_SST_INSPECTIONS_API) {
+      return fallbackProvider.sstInspections.deleteTemplate(id);
+    }
+    try {
+      if (id) {
+        await apiRequest(`/api/sst/inspection-templates/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+        });
+      }
+      return;
+    } catch (error) {
+      return fallbackProvider.sstInspections.deleteTemplate(id);
+    }
+  };
+
+  provider.sstInspections.seedTemplatesIfEmpty = async () => {
+    return fallbackProvider.sstInspections.seedTemplatesIfEmpty();
+  };
+
+  provider.sstInspections.startRun = async (input) => {
+    return fallbackProvider.sstInspections.startRun(input);
+  };
+
+  provider.sstInspections.saveAnswer = async (input) => {
+    return fallbackProvider.sstInspections.saveAnswer(input);
+  };
+
+  provider.sstInspections.attachEvidence = async (input) => {
+    return fallbackProvider.sstInspections.attachEvidence(input);
+  };
+
+  provider.sstInspections.listEvidences = async (input) => {
+    return fallbackProvider.sstInspections.listEvidences(input);
+  };
+
+  provider.sstInspections.finishRun = async (input) => {
+    return fallbackProvider.sstInspections.finishRun(input);
+  };
+
+  provider.sstInspections.generateNcsFromRun = async (input) => {
+    return fallbackProvider.sstInspections.generateNcsFromRun(input);
+  };
+
+  provider.sstInspections.listNcs = async (filters = {}) => {
+    return fallbackProvider.sstInspections.listNcs(filters);
+  };
+
+  provider.sstInspections.listRuns = async (filters = {}) => {
+    return fallbackProvider.sstInspections.listRuns(filters);
+  };
+
+  provider.sstInspections.getRunDetails = async (runId) => {
+    return fallbackProvider.sstInspections.getRunDetails(runId);
+  };
+
   return provider;
 }
 
@@ -2330,6 +2990,7 @@ function isProjectStorageKey(eventKey, baseKey) {
 }
 
 const API_BASE = "";
+const USE_SST_INSPECTIONS_API = false;
 const API_TIMEOUT_MS = 15000;
 const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
 const AVATAR_ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];
@@ -2377,7 +3038,7 @@ async function apiRequest(path, options = {}) {
   }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const message = data && data.message ? data.message : "Falha na autenticação.";
+    const message = data && data.message ? data.message : "Falha na autenticaÃ§Ã£o.";
     const error = new Error(message);
     error.status = response.status;
     error.data = data;
@@ -2496,7 +3157,7 @@ function unmountProfileAvatarActions() {
 
 function formatProfileValue(value) {
   const texto = String(value || "").trim();
-  return texto ? texto : "Não informado";
+  return texto ? texto : "NÃ£o informado";
 }
 
 function ativarModoEdicaoPerfil() {
@@ -2507,7 +3168,7 @@ function ativarModoEdicaoPerfil() {
     !isFullAccessUser(currentUser) &&
     getCargoLevel(currentUser.cargo) < getCargoLevel("SUPERVISOR O&M")
   ) {
-    setPerfilSaveMessage("Sem permissão para editar este perfil.", true);
+    setPerfilSaveMessage("Sem permissÃ£o para editar este perfil.", true);
     return;
   }
   setProfileEditParam(true);
@@ -2786,7 +3447,7 @@ function getHealthLabel(status) {
     return "OK";
   }
   if (status === "warn") {
-    return "Atenção";
+    return "AtenÃ§Ã£o";
   }
   if (status === "error") {
     return "Falha";
@@ -2814,7 +3475,7 @@ function renderHealthSummary(snapshot) {
   if (!snapshot || !snapshot.modules) {
     const vazio = document.createElement("p");
     vazio.className = "empty-state";
-    vazio.textContent = "Diagnóstico indisponível.";
+    vazio.textContent = "DiagnÃ³stico indisponÃ­vel.";
     healthSummary.append(vazio);
     return;
   }
@@ -2840,7 +3501,7 @@ function renderHealthSummary(snapshot) {
     {
       titulo: "Backup",
       status: modules.backups ? modules.backups.status : "warn",
-      resumo: `Última execução: ${formatHealthDate(modules.backups && modules.backups.lastRun)}`,
+      resumo: `Ãšltima execuÃ§Ã£o: ${formatHealthDate(modules.backups && modules.backups.lastRun)}`,
     },
     {
       titulo: "Fila de tarefas",
@@ -2856,13 +3517,13 @@ function renderHealthSummary(snapshot) {
           : [];
         const count = issues.length;
         if (!count) {
-          return "Sem inconsistências.";
+          return "Sem inconsistÃªncias.";
         }
         const detail = issues
           .slice(0, 2)
-          .map((issue) => issue.message || "Inconsistência")
+          .map((issue) => issue.message || "InconsistÃªncia")
           .join(" | ");
-        return `Inconsistências: ${count}${detail ? ` | ${detail}` : ""}`;
+        return `InconsistÃªncias: ${count}${detail ? ` | ${detail}` : ""}`;
       })(),
     },
   ];
@@ -2907,7 +3568,7 @@ function renderHealthTasks(snapshot) {
     title.textContent = task.label || task.id;
     const details = document.createElement("div");
     details.className = "health-task__details";
-    details.textContent = `Última execução: ${formatHealthDate(task.lastRun)} | Intervalo: ${task.intervalMinutes} min`;
+    details.textContent = `Ãšltima execuÃ§Ã£o: ${formatHealthDate(task.lastRun)} | Intervalo: ${task.intervalMinutes} min`;
     meta.append(title, details);
     if (task.lastError) {
       const error = document.createElement("div");
@@ -2946,7 +3607,7 @@ function renderHealthIntegrity(snapshot) {
   if (!issues.length) {
     const ok = document.createElement("p");
     ok.className = "empty-state";
-    ok.textContent = "Sem inconsistências detectadas.";
+    ok.textContent = "Sem inconsistÃªncias detectadas.";
     healthIntegrity.append(ok);
     return;
   }
@@ -2954,7 +3615,7 @@ function renderHealthIntegrity(snapshot) {
     const item = document.createElement("div");
     const level = issue.level === "error" ? "error" : "warn";
     item.className = `health-issue health-issue--${level}`;
-    item.textContent = issue.message || "Inconsistência detectada.";
+    item.textContent = issue.message || "InconsistÃªncia detectada.";
     healthIntegrity.append(item);
   });
 }
@@ -2970,7 +3631,7 @@ async function carregarHealth(forcar = false) {
     return;
   }
   healthLoading = true;
-  mostrarMensagemHealth("Carregando diagnóstico...");
+  mostrarMensagemHealth("Carregando diagnÃ³stico...");
   try {
     const data = await apiAdminHealth();
     healthSnapshot = data;
@@ -2979,7 +3640,7 @@ async function carregarHealth(forcar = false) {
     renderHealthIntegrity(data);
     mostrarMensagemHealth(`Atualizado em ${formatHealthDate(data.generatedAt)}.`);
   } catch (error) {
-    mostrarMensagemHealth(error.message || "Falha ao carregar diagnóstico.", true);
+    mostrarMensagemHealth(error.message || "Falha ao carregar diagnÃ³stico.", true);
   } finally {
     healthLoading = false;
   }
@@ -3076,10 +3737,10 @@ function renderApiLogs() {
       <tr>
         <th>Data</th>
         <th>Endpoint</th>
-        <th>Usuário</th>
+        <th>UsuÃ¡rio</th>
         <th>Status</th>
-        <th>Duração</th>
-        <th>Ações</th>
+        <th>DuraÃ§Ã£o</th>
+        <th>AÃ§Ãµes</th>
       </tr>
     </thead>
   `;
@@ -3087,7 +3748,7 @@ function renderApiLogs() {
   items.forEach((entry) => {
     const row = document.createElement("tr");
     const data = parseTimestamp(entry.timestamp);
-    const userLabel = entry.userName || entry.userId || "Anônimo";
+    const userLabel = entry.userName || entry.userId || "AnÃ´nimo";
     const status = Number(entry.status) || 0;
     const statusClass = buildLogStatusClass(status);
     row.innerHTML = `
@@ -3355,7 +4016,7 @@ function renderPermissoesGerenciais() {
   if (!permissoesList.childElementCount) {
     const vazio = document.createElement("p");
     vazio.className = "empty-state";
-    vazio.textContent = "Nenhuma permissão encontrada com esse filtro.";
+    vazio.textContent = "Nenhuma permissÃ£o encontrada com esse filtro.";
     permissoesList.append(vazio);
   }
 
@@ -3364,7 +4025,7 @@ function renderPermissoesGerenciais() {
     permissoesSummary.innerHTML = "";
     const pills = [
       `Perfis: ${visibleProfiles}`,
-      `Permissões: ${totalVisible}`,
+      `PermissÃµes: ${totalVisible}`,
       `Ativas: ${totalEnabled}`,
     ];
     pills.forEach((text) => {
@@ -3410,7 +4071,7 @@ async function carregarPermissoes(forcar = false) {
     return;
   }
   permissoesState.loading = true;
-  mostrarMensagemPermissoes("Carregando permissões...");
+  mostrarMensagemPermissoes("Carregando permissÃµes...");
   try {
     const data = await apiAdminPermissoes();
     permissoesState.values = data.values || {};
@@ -3420,7 +4081,7 @@ async function carregarPermissoes(forcar = false) {
     renderPermissoesGerenciais();
     mostrarMensagemPermissoes("");
   } catch (error) {
-    mostrarMensagemPermissoes(error.message || "Falha ao carregar permissões.", true);
+    mostrarMensagemPermissoes(error.message || "Falha ao carregar permissÃµes.", true);
   } finally {
     permissoesState.loading = false;
   }
@@ -3428,23 +4089,23 @@ async function carregarPermissoes(forcar = false) {
 
 function getAutomationEventLabel(evento) {
   if (evento === "maintenance_created") {
-    return "Manutenção criada";
+    return "ManutenÃ§Ã£o criada";
   }
   return "Evento";
 }
 
 function getAutomationConditionLabel(condition) {
   if (condition && condition.type === "critical") {
-    return "Tag crítica";
+    return "Tag crÃ­tica";
   }
-  return "Sem condição";
+  return "Sem condiÃ§Ã£o";
 }
 
 function getAutomationActionLabel(action) {
   if (action && action.type === "notify_email") {
     return "Notificar e-mail";
   }
-  return "Ação";
+  return "AÃ§Ã£o";
 }
 
 function formatAutomationDate(value) {
@@ -3461,7 +4122,7 @@ function renderAutomacoes() {
   if (!items.length) {
     const vazio = document.createElement("p");
     vazio.className = "empty-state";
-    vazio.textContent = "Nenhuma automação configurada.";
+    vazio.textContent = "Nenhuma automaÃ§Ã£o configurada.";
     automationList.append(vazio);
     return;
   }
@@ -3474,19 +4135,19 @@ function renderAutomacoes() {
     main.className = "automation-main";
     const title = document.createElement("div");
     title.className = "automation-title";
-    title.textContent = automation.name || "Automação";
+    title.textContent = automation.name || "AutomaÃ§Ã£o";
     const meta = document.createElement("div");
     meta.className = "automation-meta";
-    meta.textContent = `Evento: ${getAutomationEventLabel(automation.event)} | Condição: ${getAutomationConditionLabel(
+    meta.textContent = `Evento: ${getAutomationEventLabel(automation.event)} | CondiÃ§Ã£o: ${getAutomationConditionLabel(
       automation.condition
-    )} | Ação: ${getAutomationActionLabel(automation.action)}`;
+    )} | AÃ§Ã£o: ${getAutomationActionLabel(automation.action)}`;
     const status = document.createElement("div");
     status.className = "automation-status";
     const lastLabel = formatAutomationDate(automation.lastRunAt);
     const statusLabel = automation.lastStatus
       ? automation.lastStatus.toUpperCase()
       : "PENDENTE";
-    status.textContent = `Última execução: ${lastLabel} | ${statusLabel}`;
+    status.textContent = `Ãšltima execuÃ§Ã£o: ${lastLabel} | ${statusLabel}`;
     main.append(title, meta, status);
 
     const actions = document.createElement("div");
@@ -3524,14 +4185,14 @@ async function carregarAutomacoes(forcar = false) {
     return;
   }
   automationsState.loading = true;
-  mostrarMensagemAutomacoes("Carregando automações...");
+  mostrarMensagemAutomacoes("Carregando automaÃ§Ãµes...");
   try {
     const data = await apiAdminAutomations();
     automationsState.items = Array.isArray(data.automations) ? data.automations : [];
     renderAutomacoes();
     mostrarMensagemAutomacoes("");
   } catch (error) {
-    mostrarMensagemAutomacoes(error.message || "Falha ao carregar automações.", true);
+    mostrarMensagemAutomacoes(error.message || "Falha ao carregar automaÃ§Ãµes.", true);
   } finally {
     automationsState.loading = false;
   }
@@ -3547,7 +4208,7 @@ function mostrarMensagemArquivos(texto, erro = false) {
 
 function getFileTypeLabel(tipo) {
   if (tipo === "evidence") {
-    return "Evidências";
+    return "EvidÃªncias";
   }
   if (tipo === "rdo") {
     return "Anexos de RDO";
@@ -4358,7 +5019,7 @@ function salvarConfiguracoes() {
   writeJson(REMINDER_KEY, reminderDays);
   gerarManutencoesRecorrentes();
   renderTudo();
-mostrarMensagemGerencial("Configuração atualizada.");
+mostrarMensagemGerencial("ConfiguraÃ§Ã£o atualizada.");
 }
 
 function startOfDay(date) {
@@ -4820,12 +5481,12 @@ function garantirTemplatesPadrao() {
   };
 
   templates = [
-    criarPadrao("Inspeção diária da subestação", { frequencia: "daily" }),
-    criarPadrao("Inspeção mensal da subestação", { frequencia: "monthly", monthlyDay: 10 }),
-    criarPadrao("Inspeção semanal do GMG BSO2", { frequencia: "weekly", weeklyDay: 3, weeklyInterval: 1 }),
-    criarPadrao("Inspeção semanal dos GMG PCT4", { frequencia: "weekly", weeklyDay: 4, weeklyInterval: 1 }),
-    criarPadrao("Inspeção mensal do GMG BSO2", { frequencia: "monthly", monthlyDay: 25 }),
-    criarPadrao("Inspeção mensal dos GMG PCT4", { frequencia: "monthly", monthlyDay: 25 }),
+    criarPadrao("InspeÃ§Ã£o diÃ¡ria da subestaÃ§Ã£o", { frequencia: "daily" }),
+    criarPadrao("InspeÃ§Ã£o mensal da subestaÃ§Ã£o", { frequencia: "monthly", monthlyDay: 10 }),
+    criarPadrao("InspeÃ§Ã£o semanal do GMG BSO2", { frequencia: "weekly", weeklyDay: 3, weeklyInterval: 1 }),
+    criarPadrao("InspeÃ§Ã£o semanal dos GMG PCT4", { frequencia: "weekly", weeklyDay: 4, weeklyInterval: 1 }),
+    criarPadrao("InspeÃ§Ã£o mensal do GMG BSO2", { frequencia: "monthly", monthlyDay: 25 }),
+    criarPadrao("InspeÃ§Ã£o mensal dos GMG PCT4", { frequencia: "monthly", monthlyDay: 25 }),
   ];
 
   salvarTemplates(templates);
@@ -5190,7 +5851,7 @@ const TAB_LABELS = {
   "sst-inspecoes": "Inspe\u00e7\u00f5es",
   "sst-ncs": "N\u00e3o conformidades",
   "sst-incidentes": "Incidentes",
-  "sst-apr-pt": "Documentações",
+  "sst-apr-pt": "DocumentaÃ§Ãµes",
   rastreabilidade: "Hist\u00f3rico de Execu\u00e7\u00e3o",
   gerencial: "Configura\u00e7\u00f5es Gerais",
   contas: "Equipe / Usu\u00e1rios",
@@ -5951,11 +6612,11 @@ function can(action) {
 
 function requirePermission(action) {
   if (!currentUser) {
-    mostrarMensagemManutencao("Faça login para executar esta ação.", true);
+    mostrarMensagemManutencao("FaÃ§a login para executar esta aÃ§Ã£o.", true);
     return false;
   }
   if (!can(action)) {
-    mostrarMensagemManutencao("Você não tem permissão para esta ação.", true);
+    mostrarMensagemManutencao("VocÃª nÃ£o tem permissÃ£o para esta aÃ§Ã£o.", true);
     return false;
   }
   return true;
@@ -6278,22 +6939,29 @@ function getParticipantesLabel(participantes) {
     .join(", ");
 }
 
-function openDocsDB() {
+function openOpscopeDb() {
   return new Promise((resolve, reject) => {
     if (typeof indexedDB === "undefined") {
       reject(new Error("IndexedDB indisponivel"));
       return;
     }
-    const request = indexedDB.open("opscope", 1);
+    const request = indexedDB.open("opscope", OPSCOPE_DB_VERSION);
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains("docs")) {
         db.createObjectStore("docs", { keyPath: "docId" });
       }
+      if (!db.objectStoreNames.contains("sst_evidences")) {
+        db.createObjectStore("sst_evidences", { keyPath: "evidenceId" });
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
+}
+
+function openDocsDB() {
+  return openOpscopeDb();
 }
 
 function getDocById(docId) {
@@ -6471,12 +7139,12 @@ async function abrirDocumento(doc) {
       abrirPreview(blobUrl, blobUrl);
       return;
     }
-    window.alert("Documento não encontrado.");
+    window.alert("Documento nÃ£o encontrado.");
     return;
   }
   const url = resolvePublicUrl(doc.url || "");
   if (!url) {
-    window.alert("Documento não encontrado.");
+    window.alert("Documento nÃ£o encontrado.");
     return;
   }
   abrirPreview(url);
@@ -6559,7 +7227,7 @@ function renderAlertaProgramacao() {
   const count = getOutrosMensalCount();
   if (count > OUTROS_ALERT_THRESHOLD) {
     alertaProgramacao.textContent =
-      `Alerta: motivo Outros usado ${count}x neste mês. Revisar governança.`;
+      `Alerta: motivo Outros usado ${count}x neste mÃªs. Revisar governanÃ§a.`;
     alertaProgramacao.hidden = false;
     return;
   }
@@ -6668,7 +7336,7 @@ function renderDashboardHome() {
     Number(saudeOperacional.concluidasPeriodo) || 0,
     atrasoMedioPct,
   ];
-  const pieLabels = ["Pontualidade", "Backlog", "Concluídas", "Atraso médio"];
+  const pieLabels = ["Pontualidade", "Backlog", "ConcluÃ­das", "Atraso mÃ©dio"];
   const pieDisplay = [
     `${saudeOperacional.pontualidadePct}%`,
     String(saudeOperacional.backlogTotal),
@@ -6721,7 +7389,7 @@ function renderDashboardHome() {
       <div class="home-header">
         <div class="home-header__title">
           <h2>Centro de controle operacional</h2>
-          <p class="hint">Visão tático-operacional com indicadores críticos e foco no dia.</p>
+          <p class="hint">VisÃ£o tÃ¡tico-operacional com indicadores crÃ­ticos e foco no dia.</p>
         </div>
         <div class="home-header__meta">
           <span class="hint">${updatedAt}</span>
@@ -6733,13 +7401,13 @@ function renderDashboardHome() {
         <div class="kpi-grid">
           ${renderKpiCard("VENCE HOJE", kpis.venceHoje)}
           ${renderKpiCard("ATRASADAS", kpis.atrasadas)}
-          ${renderKpiCard("CRÍTICAS", kpis.criticas)}
+          ${renderKpiCard("CRÃTICAS", kpis.criticas)}
           ${renderKpiCard("RISCO IMEDIATO", kpis.riscoImediato)}
         </div>
       </section>
 
       <section class="home-section">
-        <h3 class="home-section__title">Suporte e saúde</h3>
+        <h3 class="home-section__title">Suporte e saÃºde</h3>
         <div class="dashboard-row">
           <article class="card panel-card">
             <div class="panel-head">
@@ -6763,11 +7431,11 @@ function renderDashboardHome() {
                 <strong>${saudeOperacional.backlogTotal}</strong>
               </div>
               <div class="health-item">
-                <span>Concluídas</span>
+                <span>ConcluÃ­das</span>
                 <strong>${saudeOperacional.concluidasPeriodo}</strong>
               </div>
               <div class="health-item">
-                <span>Atraso médio</span>
+                <span>Atraso mÃ©dio</span>
                 <strong>${saudeOperacional.atrasoMedioDias}d</strong>
               </div>
             </div>
@@ -6776,16 +7444,16 @@ function renderDashboardHome() {
       </section>
 
       <section class="home-section">
-        <h3 class="home-section__title">Performance e previsão</h3>
+        <h3 class="home-section__title">Performance e previsÃ£o</h3>
         <div class="dashboard-row">
           <article class="card panel-card">
             <div class="panel-head">
-              <h3>EFICIÊNCIA OPERACIONAL</h3>
+              <h3>EFICIÃŠNCIA OPERACIONAL</h3>
               <span class="trend-tag">+8%</span>
             </div>
-            <div class="mini-chart neon-pie" data-tooltip="Distribuição operacional em pizza: Pontualidade mostra o percentual de entregas no prazo; Backlog indica tarefas pendentes; Concluídas mostra o volume finalizado no período; Atraso médio reflete o desvio médio em dias. Passe o mouse para revisar estes indicadores.">
+            <div class="mini-chart neon-pie" data-tooltip="DistribuiÃ§Ã£o operacional em pizza: Pontualidade mostra o percentual de entregas no prazo; Backlog indica tarefas pendentes; ConcluÃ­das mostra o volume finalizado no perÃ­odo; Atraso mÃ©dio reflete o desvio mÃ©dio em dias. Passe o mouse para revisar estes indicadores.">
               <div class="neon-tooltip">
-                Distribuição operacional em pizza: Pontualidade mostra o percentual de entregas no prazo; Backlog indica tarefas pendentes; Concluídas mostra o volume finalizado no período; Atraso médio reflete o desvio médio em dias.
+                DistribuiÃ§Ã£o operacional em pizza: Pontualidade mostra o percentual de entregas no prazo; Backlog indica tarefas pendentes; ConcluÃ­das mostra o volume finalizado no perÃ­odo; Atraso mÃ©dio reflete o desvio mÃ©dio em dias.
               </div>
               ${chart}
               <div class="pie-legend">
@@ -6800,21 +7468,21 @@ function renderDashboardHome() {
                   <span class="pie-legend__dot pie-legend__dot--blue"></span>
                   <div>
                     <strong>Backlog</strong>
-                    <span>Tarefas pendentes e não executadas.</span>
+                    <span>Tarefas pendentes e nÃ£o executadas.</span>
                   </div>
                 </div>
                 <div class="pie-legend__item">
                   <span class="pie-legend__dot pie-legend__dot--yellow"></span>
                   <div>
-                    <strong>Concluídas</strong>
-                    <span>Volume finalizado no período atual.</span>
+                    <strong>ConcluÃ­das</strong>
+                    <span>Volume finalizado no perÃ­odo atual.</span>
                   </div>
                 </div>
                 <div class="pie-legend__item">
                   <span class="pie-legend__dot pie-legend__dot--red"></span>
                   <div>
-                    <strong>Atraso médio</strong>
-                    <span>Percentual médio de atraso das atividades.</span>
+                    <strong>Atraso mÃ©dio</strong>
+                    <span>Percentual mÃ©dio de atraso das atividades.</span>
                   </div>
                 </div>
               </div>
@@ -6822,14 +7490,14 @@ function renderDashboardHome() {
           </article>
           <article class="card panel-card">
             <div class="panel-head">
-              <h3>PRÓXIMAS ATIVIDADES</h3>
+              <h3>PRÃ“XIMAS ATIVIDADES</h3>
             </div>
             <div class="table-wrap">
               <table class="data-table">
                 <thead>
                   <tr>
                     <th>Atividade</th>
-                    <th>Responsável</th>
+                    <th>ResponsÃ¡vel</th>
                     <th>Prazo</th>
                     <th>Status</th>
                   </tr>
@@ -6881,7 +7549,7 @@ function buildNeonPieChart(series, labels, displayValues = []) {
       return `<path class="pie-slice" d="${path}" fill="${colors[index % colors.length]}"><title>${escapeHtml(title)}</title></path>`;
     })
     .join("");
-  const title = labels && labels.length ? labels.join(", ") : "Distribuição";
+  const title = labels && labels.length ? labels.join(", ") : "DistribuiÃ§Ã£o";
   return `
     <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false" role="img">
       <title>${escapeHtml(title)}</title>
@@ -6905,16 +7573,16 @@ function startHomeTipsRotation() {
     return;
   }
   const tips = [
-    "Antes de iniciar a atividade, confirme subestação, OS e referência no OPSCOPE; isso evita retrabalho e garante que a equipe execute o procedimento correto.",
-    "Use o painel para registrar evidências completas (fotos, observações técnicas e resultados); um registro detalhado acelera liberações futuras e evita dúvidas em campo.",
-    "Ao identificar falha recorrente, registre a causa provável e a ação corretiva; isso ajuda outros técnicos a repetir o diagnóstico com mais rapidez.",
-    "Revise os documentos obrigatórios (APR, OS, PTE, PT) diretamente no sistema; manter anexos consistentes reduz bloqueios e atrasos na execução.",
-    "Atualize o status assim que finalizar a intervenção; o OPSCOPE sincroniza a equipe e evita que duas frentes atuem no mesmo ponto.",
-    "Em atividades críticas, confirme participantes e horários no registro; isso facilita auditoria técnica e garante rastreabilidade total da operação.",
-    "Use o histórico de manutenção para comparar sintomas anteriores; padrões repetidos indicam ajustes na causa raiz e economizam tempo.",
+    "Antes de iniciar a atividade, confirme subestaÃ§Ã£o, OS e referÃªncia no OPSCOPE; isso evita retrabalho e garante que a equipe execute o procedimento correto.",
+    "Use o painel para registrar evidÃªncias completas (fotos, observaÃ§Ãµes tÃ©cnicas e resultados); um registro detalhado acelera liberaÃ§Ãµes futuras e evita dÃºvidas em campo.",
+    "Ao identificar falha recorrente, registre a causa provÃ¡vel e a aÃ§Ã£o corretiva; isso ajuda outros tÃ©cnicos a repetir o diagnÃ³stico com mais rapidez.",
+    "Revise os documentos obrigatÃ³rios (APR, OS, PTE, PT) diretamente no sistema; manter anexos consistentes reduz bloqueios e atrasos na execuÃ§Ã£o.",
+    "Atualize o status assim que finalizar a intervenÃ§Ã£o; o OPSCOPE sincroniza a equipe e evita que duas frentes atuem no mesmo ponto.",
+    "Em atividades crÃ­ticas, confirme participantes e horÃ¡rios no registro; isso facilita auditoria tÃ©cnica e garante rastreabilidade total da operaÃ§Ã£o.",
+    "Use o histÃ³rico de manutenÃ§Ã£o para comparar sintomas anteriores; padrÃµes repetidos indicam ajustes na causa raiz e economizam tempo.",
     "Quando houver atraso, registre o motivo tecnico com clareza; isso protege a equipe e evita retrabalho no fechamento da OS.",
-    "Acompanhe as automações para tarefas recorrentes; elas ajudam a lembrar prazos e liberações sem depender de controles manuais.",
-    "Se encontrar divergência entre campo e sistema, registre a observação no OPSCOPE imediatamente; isso evita falhas de comunicação entre turnos.",
+    "Acompanhe as automaÃ§Ãµes para tarefas recorrentes; elas ajudam a lembrar prazos e liberaÃ§Ãµes sem depender de controles manuais.",
+    "Se encontrar divergÃªncia entre campo e sistema, registre a observaÃ§Ã£o no OPSCOPE imediatamente; isso evita falhas de comunicaÃ§Ã£o entre turnos.",
   ];
   if (homeTipsTimer) {
     window.clearInterval(homeTipsTimer);
@@ -7139,14 +7807,14 @@ function criarCardManutencao(item, permissoes, options = {}) {
   } else if (item.status === "em_execucao") {
     const inicio = parseTimestamp(item.executionStartedAt);
     statusInfo.textContent = inicio
-      ? `Em execução desde ${formatDateTime(inicio)}`
-      : "Em execução";
+      ? `Em execuÃ§Ã£o desde ${formatDateTime(inicio)}`
+      : "Em execuÃ§Ã£o";
   } else if (item.status === "encerramento") {
     statusInfo.textContent = "Encerramento em preenchimento";
   } else if (item.status === "concluida" && item.doneAt) {
     const feitoEm = parseTimestamp(item.doneAt);
     if (feitoEm) {
-      statusInfo.textContent = `concluída em ${formatDate(startOfDay(feitoEm))}`;
+      statusInfo.textContent = `concluÃ­da em ${formatDate(startOfDay(feitoEm))}`;
     }
   }
 
@@ -7156,7 +7824,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
   if (ultimaAcao) {
     const label = ACTION_LABELS[ultimaAcao.action] || ultimaAcao.action;
     const dataAcao = parseTimestamp(ultimaAcao.timestamp);
-    autoria.textContent = `Última ação: ${label} em ${
+    autoria.textContent = `Ãšltima aÃ§Ã£o: ${label} em ${
       dataAcao ? formatDateTime(dataAcao) : "-"
     } por ${getUserLabel(ultimaAcao.userId)}`;
   } else {
@@ -7206,7 +7874,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
     motivo.className = "submeta";
     const motivoData = parseTimestamp(item.backlogMotivo.registradoEm);
     const dataTexto = motivoData ? ` em ${formatDateTime(motivoData)}` : "";
-    motivo.textContent = `Motivo não executada: ${item.backlogMotivo.motivo}${dataTexto}`;
+    motivo.textContent = `Motivo nÃ£o executada: ${item.backlogMotivo.motivo}${dataTexto}`;
     info.append(motivo);
   }
   if (item.status === "backlog" && item.backlogMotivo && item.backlogMotivo.observacao) {
@@ -7220,7 +7888,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
   if (ultimoReagendamento && ultimoReagendamento.detalhes && ultimoReagendamento.detalhes.motivo) {
     const motivo = document.createElement("p");
     motivo.className = "submeta";
-    motivo.textContent = `Motivo do último reagendamento: ${ultimoReagendamento.detalhes.motivo}`;
+    motivo.textContent = `Motivo do Ãºltimo reagendamento: ${ultimoReagendamento.detalhes.motivo}`;
     info.append(motivo);
   }
   const rescheduleCount = getRescheduleCount(item);
@@ -7274,7 +7942,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
       : statusBase === "hoje"
         ? "Vence hoje"
       : statusBase === "amanha"
-        ? "Vence amanhã"
+        ? "Vence amanhÃ£"
         : STATUS_LABELS.agendada;
   badge.className = `status status--${statusBase}`;
   badge.textContent = label;
@@ -7311,13 +7979,13 @@ function criarCardManutencao(item, permissoes, options = {}) {
   }
 
   if (permite("note") && podeEditar) {
-    actions.append(criarBotaoAcao("Observação", "note"));
+    actions.append(criarBotaoAcao("ObservaÃ§Ã£o", "note"));
   }
 
   if (item.status === "agendada" || item.status === "liberada") {
     if (permite("execute")) {
       const action = liberacaoOk ? "execute" : "release";
-      const actionLabel = liberacaoOk ? "Iniciar execução" : "Liberar execução";
+      const actionLabel = liberacaoOk ? "Iniciar execuÃ§Ã£o" : "Liberar execuÃ§Ã£o";
       const botao = criarBotaoAcao(actionLabel, action);
       if (action === "release" && lockInfo && !lockInfo.canOverride) {
         botao.disabled = true;
@@ -7331,30 +7999,30 @@ function criarCardManutencao(item, permissoes, options = {}) {
     }
   } else if (item.status === "backlog") {
     if (permite("backlog_reason")) {
-      actions.append(criarBotaoAcao("Motivo não executada", "backlog_reason"));
+      actions.append(criarBotaoAcao("Motivo nÃ£o executada", "backlog_reason"));
     }
     if (permite("reschedule") && !isDailySubstationInspection(item)) {
       actions.append(criarBotaoAcao("Reagendar", "reschedule"));
     }
   } else if (item.status === "em_execucao") {
     if (permite("execute")) {
-      actions.append(criarBotaoAcao("Registrar execução", "register"));
+      actions.append(criarBotaoAcao("Registrar execuÃ§Ã£o", "register"));
     }
     if (permite("execute") && !item.registroExecucao) {
-      actions.append(criarBotaoAcao("Cancelar início", "cancel_start"));
+      actions.append(criarBotaoAcao("Cancelar inÃ­cio", "cancel_start"));
     }
     if (permite("execute") && item.registroExecucao) {
-      actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
+      actions.append(criarBotaoAcao("Concluir manutenÃ§Ã£o", "finish"));
     }
   } else if (item.status === "encerramento") {
     if (permite("execute")) {
-      actions.append(criarBotaoAcao("Registrar execução", "register"));
-      actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
+      actions.append(criarBotaoAcao("Registrar execuÃ§Ã£o", "register"));
+      actions.append(criarBotaoAcao("Concluir manutenÃ§Ã£o", "finish"));
     }
   }
 
   if (permite("history")) {
-    actions.append(criarBotaoAcao("Histórico", "history"));
+    actions.append(criarBotaoAcao("HistÃ³rico", "history"));
   }
 
   const podeExcluir = canDeleteMaintenance(currentUser);
@@ -7541,7 +8209,7 @@ function renderProgramacao() {
   });
 
   if (!filtrados.length) {
-    listaAgendadasVazia.textContent = "Nenhuma manutenção encontrada.";
+    listaAgendadasVazia.textContent = "Nenhuma manutenÃ§Ã£o encontrada.";
     listaAgendadasVazia.hidden = false;
     return;
   }
@@ -7614,7 +8282,7 @@ function renderProgramacao() {
     );
   });
 
-  listaAgendadasVazia.textContent = "Nenhuma manutenção agendada.";
+  listaAgendadasVazia.textContent = "Nenhuma manutenÃ§Ã£o agendada.";
   listaAgendadasVazia.hidden = true;
 }
 
@@ -7801,7 +8469,7 @@ function atualizarResumoRelatorios(lista) {
   const sla = concluidas.length ? Math.round((pontuais.length / concluidas.length) * 100) : 0;
 
   relatorioResumoTotal.textContent = String(lista.length);
-  relatorioResumoConcluidas.textContent = `${concluidas.length} concluídas`;
+  relatorioResumoConcluidas.textContent = `${concluidas.length} concluÃ­das`;
   if (relatorioResumoCriticos) {
     relatorioResumoCriticos.textContent = String(criticos.length);
   }
@@ -7913,7 +8581,7 @@ function renderRelatorios() {
     btnVer.type = "button";
     btnVer.className = "btn btn--ghost btn--small";
     btnVer.dataset.action = "open-report";
-    btnVer.textContent = "Ver relatório";
+    btnVer.textContent = "Ver relatÃ³rio";
     actions.append(btnVer);
 
     card.append(info, actions);
@@ -8120,12 +8788,12 @@ function renderDesempenho() {
     perfExecProgressValue.style.width = `${velocidadePct}%`;
   }
   if (perfExecTempoMedio) {
-    perfExecTempoMedio.textContent = `Tempo médio: ${
+    perfExecTempoMedio.textContent = `Tempo mÃ©dio: ${
       mediaPeriodo.media === null ? "-" : formatDuracaoMin(mediaPeriodo.media)
     }`;
   }
   if (perfExecSemana) {
-    perfExecSemana.textContent = `Última semana: ${
+    perfExecSemana.textContent = `Ãšltima semana: ${
       mediaSemana.media === null ? "-" : formatDuracaoMin(mediaSemana.media)
     }`;
   }
@@ -8159,7 +8827,7 @@ function renderDesempenho() {
     perfSlaForaPrazo.textContent = `Fora do prazo: ${slaStats.foraPrazo}`;
   }
   if (perfSlaBadge) {
-    const label = slaPct >= 90 ? "No prazo" : slaPct >= 75 ? "Atenção" : "Crítico";
+    const label = slaPct >= 90 ? "No prazo" : slaPct >= 75 ? "AtenÃ§Ã£o" : "CrÃ­tico";
     const badgeClass = slaPct >= 90 ? "badge--ok" : slaPct >= 75 ? "badge--warn" : "badge--danger";
     setBadgeState(perfSlaBadge, badgeClass, label);
   }
@@ -8183,7 +8851,7 @@ function renderDesempenho() {
     perfReopenProgressValue.style.width = `${reopensPct}%`;
   }
   if (perfReopenUltimos) {
-    perfReopenUltimos.textContent = `Últimos 7 dias: ${reopensSemana}`;
+    perfReopenUltimos.textContent = `Ãšltimos 7 dias: ${reopensSemana}`;
   }
   if (perfReopenImpacto) {
     const impacto = reopensPct <= 10 ? "baixo" : reopensPct <= 20 ? "moderado" : "alto";
@@ -8191,7 +8859,7 @@ function renderDesempenho() {
   }
   if (perfReopenBadge) {
     const badgeClass = reopensPct <= 10 ? "badge--ok" : reopensPct <= 20 ? "badge--warn" : "badge--danger";
-    const label = reopensPct <= 10 ? "Controlado" : reopensPct <= 20 ? "Atenção" : "Crítico";
+    const label = reopensPct <= 10 ? "Controlado" : reopensPct <= 20 ? "AtenÃ§Ã£o" : "CrÃ­tico";
     setBadgeState(perfReopenBadge, badgeClass, label);
   }
   if (perfReopenProgress) {
@@ -8328,17 +8996,17 @@ function renderPerformanceProjetos() {
     <div class="perf-card">
       <span>Projetos ativos</span>
       <strong>${projetosOrdenados.length}</strong>
-      <small>Período selecionado</small>
+      <small>PerÃ­odo selecionado</small>
     </div>
     <div class="perf-card">
-      <span>Concluídas</span>
+      <span>ConcluÃ­das</span>
       <strong>${total.concluida}</strong>
       <small>${total.noPrazo} no prazo</small>
     </div>
     <div class="perf-card">
       <span>SLA no prazo</span>
       <strong>${totalSla}%</strong>
-      <small>Índice mensal</small>
+      <small>Ãndice mensal</small>
     </div>
     <div class="perf-card">
       <span>Backlog</span>
@@ -8346,12 +9014,12 @@ function renderPerformanceProjetos() {
       <small>${totalBacklogRate}% do volume</small>
     </div>
     <div class="perf-card">
-      <span>Críticas</span>
+      <span>CrÃ­ticas</span>
       <strong>${total.criticas}</strong>
-      <small>Riscos no período</small>
+      <small>Riscos no perÃ­odo</small>
     </div>
     <div class="perf-card">
-      <span>Docs de segurança</span>
+      <span>Docs de seguranÃ§a</span>
       <strong>${totalDocs}</strong>
       <small>APR, OS, PTE, PT</small>
     </div>
@@ -8427,7 +9095,7 @@ function renderPerformanceProjetos() {
           ${rankingBacklog
             .map(
               (item) =>
-                `<li><strong>${escapeHtml(item.key)}</strong><span>${item.backlog} pendências</span></li>`
+                `<li><strong>${escapeHtml(item.key)}</strong><span>${item.backlog} pendÃªncias</span></li>`
             )
             .join("")}
         </ul>
@@ -8568,17 +9236,17 @@ function renderPerformancePessoas() {
     <div class="perf-card">
       <span>Colaboradores ativos</span>
       <strong>${pessoasOrdenadas.length}</strong>
-      <small>Período selecionado</small>
+      <small>PerÃ­odo selecionado</small>
     </div>
     <div class="perf-card">
-      <span>Concluídas</span>
+      <span>ConcluÃ­das</span>
       <strong>${total.concluida}</strong>
       <small>${total.noPrazo} no prazo</small>
     </div>
     <div class="perf-card">
       <span>SLA no prazo</span>
       <strong>${totalSla}%</strong>
-      <small>Índice mensal</small>
+      <small>Ãndice mensal</small>
     </div>
     <div class="perf-card">
       <span>Backlog</span>
@@ -8586,17 +9254,17 @@ function renderPerformancePessoas() {
       <small>${totalBacklogRate}% do volume</small>
     </div>
     <div class="perf-card">
-      <span>Críticas</span>
+      <span>CrÃ­ticas</span>
       <strong>${total.criticas}</strong>
-      <small>Riscos no período</small>
+      <small>Riscos no perÃ­odo</small>
     </div>
     <div class="perf-card">
-      <span>Docs de segurança</span>
+      <span>Docs de seguranÃ§a</span>
       <strong>${totalDocs}</strong>
       <small>APR, OS, PTE, PT</small>
     </div>
     <div class="perf-card">
-      <span>Média concluída</span>
+      <span>MÃ©dia concluÃ­da</span>
       <strong>${mediaConcluida}</strong>
       <small>Por colaborador</small>
     </div>
@@ -8652,7 +9320,7 @@ function renderPerformancePessoas() {
           ${rankingEntrega
             .map(
               (item) =>
-                `<li><strong>${escapeHtml(item.key)}</strong><span>${item.concluida} concluídas</span></li>`
+                `<li><strong>${escapeHtml(item.key)}</strong><span>${item.concluida} concluÃ­das</span></li>`
             )
             .join("")}
         </ul>
@@ -8663,7 +9331,7 @@ function renderPerformancePessoas() {
           ${rankingBacklog
             .map(
               (item) =>
-                `<li><strong>${escapeHtml(item.key)}</strong><span>${item.backlog} pendências</span></li>`
+                `<li><strong>${escapeHtml(item.key)}</strong><span>${item.backlog} pendÃªncias</span></li>`
             )
             .join("")}
         </ul>
@@ -8852,7 +9520,7 @@ function enviarFeedback() {
   const message = feedbackMessage ? feedbackMessage.value.trim() : "";
   if (!to || !message || !score) {
     if (feedbackSendMsg) {
-      feedbackSendMsg.textContent = "Preencha destinatário, avaliação e mensagem.";
+      feedbackSendMsg.textContent = "Preencha destinatÃ¡rio, avaliaÃ§Ã£o e mensagem.";
       feedbackSendMsg.classList.add("mensagem--erro");
     }
     return;
@@ -8936,31 +9604,31 @@ function buildRelatorioResumoHtml(titulo, periodoLabel, lista) {
           <span>${escapeHtml(titulo)}</span>
         </div>
         <div class="report__meta">
-          <div>Período: ${escapeHtml(periodoLabel)}</div>
+          <div>PerÃ­odo: ${escapeHtml(periodoLabel)}</div>
           <div>Gerado em: ${escapeHtml(formatDateTime(new Date()))}</div>
         </div>
       </header>
       <section class="report__grid">
-        <div><span>Manutenções</span><strong>${lista.length}</strong></div>
-        <div><span>Concluídas</span><strong>${concluidas.length}</strong></div>
-        <div><span>Críticos</span><strong>${criticos.length}</strong></div>
-        <div><span>Evidências</span><strong>${evidencias}</strong></div>
+        <div><span>ManutenÃ§Ãµes</span><strong>${lista.length}</strong></div>
+        <div><span>ConcluÃ­das</span><strong>${concluidas.length}</strong></div>
+        <div><span>CrÃ­ticos</span><strong>${criticos.length}</strong></div>
+        <div><span>EvidÃªncias</span><strong>${evidencias}</strong></div>
         <div><span>SLA no prazo</span><strong>${sla}%</strong></div>
       </section>
       <section class="report__body">
-        <h4>Resumo do período</h4>
+        <h4>Resumo do perÃ­odo</h4>
         <table class="report__table">
           <thead>
             <tr>
-              <th>Manutenção</th>
+              <th>ManutenÃ§Ã£o</th>
               <th>Local</th>
               <th>Data</th>
               <th>Status</th>
-              <th>Responsável</th>
+              <th>ResponsÃ¡vel</th>
             </tr>
           </thead>
           <tbody>
-            ${linhas || `<tr><td colspan="5">Nenhum registro no período.</td></tr>`}
+            ${linhas || `<tr><td colspan="5">Nenhum registro no perÃ­odo.</td></tr>`}
           </tbody>
         </table>
       </section>
@@ -9144,7 +9812,7 @@ function gerarRelatorioMensalHtml(range) {
   const periodoLabel = `${formatDate(range.start)} - ${formatDate(range.end)}`;
   const filtrados = filtrarRelatorioLista(manutencoes, { start: range.start, end: range.end });
   const clienteProjeto = getActiveProjectClient();
-  const titulo = `Relatório mensal (${relatorioCliente ? relatorioCliente.value || clienteProjeto : clienteProjeto})`;
+  const titulo = `RelatÃ³rio mensal (${relatorioCliente ? relatorioCliente.value || clienteProjeto : clienteProjeto})`;
   return buildRelatorioResumoHtml(titulo, periodoLabel, filtrados);
 }
 
@@ -9152,8 +9820,8 @@ function exportarRelatoriosPdf() {
   const filtros = getRelatorioFiltros();
   const filtrados = filtrarRelatorioLista(manutencoes, filtros);
   const periodoLabel = `${formatDate(filtros.start)} - ${formatDate(filtros.end)}`;
-  const html = buildRelatorioResumoHtml("Central de relatórios", periodoLabel, filtrados);
-  return abrirJanelaRelatorio(html, "Relatório - OPSCOPE", true);
+  const html = buildRelatorioResumoHtml("Central de relatÃ³rios", periodoLabel, filtrados);
+  return abrirJanelaRelatorio(html, "RelatÃ³rio - OPSCOPE", true);
 }
 
 function gerarResumoMensal() {
@@ -9168,13 +9836,13 @@ function gerarResumoMensal() {
 function previewRelatorioMensal() {
   const range = getMonthlyRange();
   const html = gerarRelatorioMensalHtml(range);
-  return abrirJanelaRelatorio(html, "Relatório mensal - OPSCOPE", false);
+  return abrirJanelaRelatorio(html, "RelatÃ³rio mensal - OPSCOPE", false);
 }
 
 function exportarRelatorioMensal() {
   const range = getMonthlyRange();
   const html = gerarRelatorioMensalHtml(range);
-  return abrirJanelaRelatorio(html, "Relatório mensal - OPSCOPE", true);
+  return abrirJanelaRelatorio(html, "RelatÃ³rio mensal - OPSCOPE", true);
 }
 
 function gerarRdoMensal(imprimir = false, returnHtml = false) {
@@ -9251,10 +9919,10 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
     .map((item) => `${item.key} (${item.total})`)
     .join(", ");
   const resumoExec = acumulado.totalRdos
-    ? `No período foram consolidados ${acumulado.totalRdos} RDOs, com ${acumulado.atividades} atividades, ${acumulado.concluidas} concluídas e ${acumulado.overdue} overdue. ${
+    ? `No perÃ­odo foram consolidados ${acumulado.totalRdos} RDOs, com ${acumulado.atividades} atividades, ${acumulado.concluidas} concluÃ­das e ${acumulado.overdue} overdue. ${
         topSubResumo ? `Subestacoes com maior volume: ${topSubResumo}.` : ""
       }`
-    : "Nenhum RDO encontrado no período selecionado.";
+    : "Nenhum RDO encontrado no perÃ­odo selecionado.";
 
   const segurancaResumo = rdos.reduce(
     (acc, item) => {
@@ -9387,7 +10055,7 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
     })
     .join("");
   const chartSvg = `
-    <svg class="rdo-chart" viewBox="0 0 ${chartWidth} ${chartHeight}" role="img" aria-label="Volume diário">
+    <svg class="rdo-chart" viewBox="0 0 ${chartWidth} ${chartHeight}" role="img" aria-label="Volume diÃ¡rio">
       <rect x="0" y="0" width="${chartWidth}" height="${chartHeight}" fill="#f8f6f1" rx="12" />
       <line x1="0" y1="${chartHeight - 20}" x2="${chartWidth}" y2="${chartHeight - 20}" stroke="#d9d4c8" />
       ${bars}
@@ -9411,7 +10079,7 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
   const percAbertas = Math.round((statusAbertas / totalDistribuicao) * 100);
   const percOverdue = Math.round((statusBacklog / totalDistribuicao) * 100);
   const donutSvg = `
-    <svg class="rdo-donut" viewBox="0 0 120 120" role="img" aria-label="Distribuição de status">
+    <svg class="rdo-donut" viewBox="0 0 120 120" role="img" aria-label="DistribuiÃ§Ã£o de status">
       <circle cx="60" cy="60" r="46" fill="none" stroke="#e5e1d6" stroke-width="16" />
       <circle cx="60" cy="60" r="46" fill="none" stroke="#4bd28f" stroke-width="16"
         stroke-dasharray="${percConclusao} ${100 - percConclusao}" stroke-dashoffset="25" />
@@ -9425,8 +10093,8 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
   `;
 
   const statusItems = [
-    { key: "concluida", label: "Concluídas", color: "#4bd28f" },
-    { key: "em_execucao", label: "Em execução", color: "#5b8def" },
+    { key: "concluida", label: "ConcluÃ­das", color: "#4bd28f" },
+    { key: "em_execucao", label: "Em execuÃ§Ã£o", color: "#5b8def" },
     { key: "liberada", label: "Liberadas", color: "#9aa4af" },
     { key: "agendada", label: "Agendadas", color: "#f6c453" },
     { key: "backlog", label: "Backlog", color: "#e2595c" },
@@ -9446,7 +10114,7 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
     })
     .join("");
   const statusChart = `
-    <svg class="rdo-chart" viewBox="0 0 260 140" role="img" aria-label="Manutenções por status">
+    <svg class="rdo-chart" viewBox="0 0 260 140" role="img" aria-label="ManutenÃ§Ãµes por status">
       <rect x="0" y="0" width="260" height="140" fill="#f8f6f1" rx="12" />
       ${statusBars}
     </svg>
@@ -9461,14 +10129,14 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
     })
     .join(" ");
   const backlogChart = `
-    <svg class="rdo-chart" viewBox="0 0 560 140" role="img" aria-label="Evolução diária do backlog">
+    <svg class="rdo-chart" viewBox="0 0 560 140" role="img" aria-label="EvoluÃ§Ã£o diÃ¡ria do backlog">
       <rect x="0" y="0" width="560" height="140" fill="#f8f6f1" rx="12" />
       <polyline fill="none" stroke="#e2595c" stroke-width="3" points="${linePoints}" />
     </svg>
   `;
 
   const tipoDistribuicao = manutencoesPeriodo.reduce((acc, item) => {
-    const tipo = (item.categoria || "Não informado").toLowerCase();
+    const tipo = (item.categoria || "NÃ£o informado").toLowerCase();
     acc[tipo] = (acc[tipo] || 0) + 1;
     return acc;
   }, {});
@@ -9494,7 +10162,7 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
     })
     .join("");
   const pieChart = `
-    <svg class="rdo-donut" viewBox="0 0 120 120" role="img" aria-label="Distribuição por tipo">
+    <svg class="rdo-donut" viewBox="0 0 120 120" role="img" aria-label="DistribuiÃ§Ã£o por tipo">
       <circle cx="60" cy="60" r="46" fill="none" stroke="#e5e1d6" stroke-width="16" />
       ${pieSlices}
     </svg>
@@ -9562,11 +10230,11 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
   const prevTotal = prevRdos.reduce((acc, item) => acc + ((item.metricas && item.metricas.total) || 0), 0);
   const tendencia = prevTotal
     ? manutencoesPeriodo.length > prevTotal
-      ? "↑"
+      ? "â†‘"
       : manutencoesPeriodo.length < prevTotal
-        ? "↓"
-        : "→"
-    : "→";
+        ? "â†“"
+        : "â†’"
+    : "â†’";
 
   const linhas = rdos
     .map((item) => {
@@ -9625,7 +10293,7 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
           ${isEmpty ? "<p>Sem atividades registradas neste dia.</p>" : ""}
           <div class="rdo-month__grid">
             <div>
-              <span>Subestação</span>
+              <span>SubestaÃ§Ã£o</span>
               <strong>${escapeHtml(filtros.subestacao || "-")}</strong>
             </div>
             <div>
@@ -9637,7 +10305,7 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
               <strong>${escapeHtml(filtros.prioridade || "-")}</strong>
             </div>
             <div>
-              <span>Usuário</span>
+              <span>UsuÃ¡rio</span>
               <strong>${escapeHtml(filtros.usuario || "-")}</strong>
             </div>
             <div>
@@ -9667,7 +10335,7 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
               <strong>${escapeHtml(manual.incidente || "-")}</strong>
             </div>
             <div>
-              <span>Bloqueio elétrico</span>
+              <span>Bloqueio elÃ©trico</span>
               <strong>${escapeHtml(manual.bloqueio || "-")}</strong>
             </div>
             <div>
@@ -9675,15 +10343,15 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
               <strong>${escapeHtml(manual.numeroSi || "-")} / ${escapeHtml(manual.numeroSgi || "-")}</strong>
             </div>
             <div>
-              <span>Concluídas</span>
+              <span>ConcluÃ­das</span>
               <strong>${escapeHtml(String(metricas.concluidas || 0))}</strong>
             </div>
             <div>
-              <span>Em execução</span>
+              <span>Em execuÃ§Ã£o</span>
               <strong>${escapeHtml(String(metricas.emExecucao || 0))}</strong>
             </div>
             <div>
-              <span>Críticas</span>
+              <span>CrÃ­ticas</span>
               <strong>${escapeHtml(String(metricas.criticas || 0))}</strong>
             </div>
             <div>
@@ -9709,7 +10377,7 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
               <p>${escapeHtml(resumo)}</p>
             </div>
             <div>
-              <h4>Narrativa técnica</h4>
+              <h4>Narrativa tÃ©cnica</h4>
               <p>${escapeHtml(narrativa)}</p>
             </div>
           </div>
@@ -9726,14 +10394,14 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
               <img class="rdo-logo" src="./assets/engelmig-logo.png" alt="ENGELMIG" width="110" height="40" />
               <div>
                 <span class="rdo-eyebrow">OPSCOPE</span>
-                <h2 class="rdo-title">RELATÓRIO MENSAL DE OPERAÇÃO</h2>
-                <p class="rdo-subtitle">Consolidado executivo do período</p>
+                <h2 class="rdo-title">RELATÃ“RIO MENSAL DE OPERAÃ‡ÃƒO</h2>
+                <p class="rdo-subtitle">Consolidado executivo do perÃ­odo</p>
               </div>
             </div>
           </div>
         <div class="rdo-meta">
           <span>RDO-M: ${escapeHtml(hashMensal)}</span>
-          <span>Período: ${escapeHtml(periodoLabel)}</span>
+          <span>PerÃ­odo: ${escapeHtml(periodoLabel)}</span>
           <span>Cliente: ${escapeHtml(cliente)}</span>
           <span>Emitido por: ${escapeHtml(emissor)}</span>
           <span>Emitido em: ${escapeHtml(formatDateTime(new Date()))}</span>
@@ -9763,13 +10431,13 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
         <div class="rdo-summary-grid rdo-summary-grid--cards">
           <div class="rdo-summary-item"><span>RDOs</span><strong>${acumulado.totalRdos}</strong></div>
           <div class="rdo-summary-item"><span>Atividades</span><strong>${manutencoesPeriodo.length}</strong></div>
-          <div class="rdo-summary-item"><span>Concluídas</span><strong>${statusConcluidas}</strong></div>
-          <div class="rdo-summary-item"><span>Em execução</span><strong>${statusExecucao}</strong></div>
-          <div class="rdo-summary-item"><span>Críticas</span><strong>${criticasCount}</strong></div>
+          <div class="rdo-summary-item"><span>ConcluÃ­das</span><strong>${statusConcluidas}</strong></div>
+          <div class="rdo-summary-item"><span>Em execuÃ§Ã£o</span><strong>${statusExecucao}</strong></div>
+          <div class="rdo-summary-item"><span>CrÃ­ticas</span><strong>${criticasCount}</strong></div>
           <div class="rdo-summary-item"><span>Backlog</span><strong>${statusBacklog}</strong></div>
           <div class="rdo-summary-item"><span>Docs OK</span><strong>${docsPercent}%</strong></div>
           <div class="rdo-summary-item"><span>SLA no prazo</span><strong>${slaPercent}%</strong></div>
-          <div class="rdo-summary-item"><span>Evidências</span><strong>${acumulado.evidencias}</strong></div>
+          <div class="rdo-summary-item"><span>EvidÃªncias</span><strong>${acumulado.evidencias}</strong></div>
           <div class="rdo-summary-item"><span>Tempo total</span><strong>${tempoTotalLabel}</strong></div>
         </div>
       </section>
@@ -9778,64 +10446,64 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
         <div class="rdo-kpi-grid">
           <div class="rdo-kpi-card rdo-kpi-card--ok"><span>SLA mensal</span><strong>${slaPercent}%</strong></div>
           <div class="rdo-kpi-card rdo-kpi-card--warn"><span>Taxa de backlog</span><strong>${backlogRate}%</strong></div>
-          <div class="rdo-kpi-card rdo-kpi-card--danger"><span>Taxa de críticas</span><strong>${criticasRate}%</strong></div>
-          <div class="rdo-kpi-card rdo-kpi-card--info"><span>Tempo médio de execução</span><strong>${tempoMedioExec}</strong></div>
-          <div class="rdo-kpi-card rdo-kpi-card--neutral"><span>Tendência</span><strong>${tendencia}</strong></div>
+          <div class="rdo-kpi-card rdo-kpi-card--danger"><span>Taxa de crÃ­ticas</span><strong>${criticasRate}%</strong></div>
+          <div class="rdo-kpi-card rdo-kpi-card--info"><span>Tempo mÃ©dio de execuÃ§Ã£o</span><strong>${tempoMedioExec}</strong></div>
+          <div class="rdo-kpi-card rdo-kpi-card--neutral"><span>TendÃªncia</span><strong>${tendencia}</strong></div>
         </div>
       </section>
       <section class="rdo-section rdo-block rdo-month__charts">
         <div>
-          <h4>Volume diário de atividades</h4>
+          <h4>Volume diÃ¡rio de atividades</h4>
           ${chartSvg}
-          <small>Conta de manutenções registradas por dia no período.</small>
+          <small>Conta de manutenÃ§Ãµes registradas por dia no perÃ­odo.</small>
         </div>
         <div>
-          <h4>Manutenções por status</h4>
+          <h4>ManutenÃ§Ãµes por status</h4>
           ${statusChart}
-          <small>Distribuição de status (concluídas, backlog, agendadas).</small>
+          <small>DistribuiÃ§Ã£o de status (concluÃ­das, backlog, agendadas).</small>
         </div>
         <div>
-          <h4>Distribuição de status</h4>
+          <h4>DistribuiÃ§Ã£o de status</h4>
           <div class="rdo-month__donut">
             ${donutSvg}
             <div class="rdo-legend">
-              <span><i class="legend-dot legend-dot--ok"></i>Concluídas (${percConclusao}%)</span>
-              <span><i class="legend-dot legend-dot--info"></i>Em execução (${percExecucao}%)</span>
+              <span><i class="legend-dot legend-dot--ok"></i>ConcluÃ­das (${percConclusao}%)</span>
+              <span><i class="legend-dot legend-dot--info"></i>Em execuÃ§Ã£o (${percExecucao}%)</span>
               <span><i class="legend-dot legend-dot--warn"></i>Abertas (${percAbertas}%)</span>
               <span><i class="legend-dot legend-dot--danger"></i>Backlog (${percOverdue}%)</span>
             </div>
           </div>
-          <small>Percentual consolidado do mês por status operacional.</small>
+          <small>Percentual consolidado do mÃªs por status operacional.</small>
         </div>
         <div>
-          <h4>Evolução diária do backlog</h4>
+          <h4>EvoluÃ§Ã£o diÃ¡ria do backlog</h4>
           ${backlogChart}
-          <small>Backlog diário com base nas OS atrasadas.</small>
+          <small>Backlog diÃ¡rio com base nas OS atrasadas.</small>
         </div>
         <div>
-          <h4>Distribuição por tipo</h4>
+          <h4>DistribuiÃ§Ã£o por tipo</h4>
           <div class="rdo-month__donut">
             ${pieChart}
             <div class="rdo-legend">
               ${pieLegend}
             </div>
           </div>
-          <small>Tipos de manutenção predominantes no período.</small>
+          <small>Tipos de manutenÃ§Ã£o predominantes no perÃ­odo.</small>
         </div>
         <div>
           <h4>SLA mensal</h4>
           ${slaChart}
-          <small>Percentual de concluída no prazo vs fora do SLA.</small>
+          <small>Percentual de concluÃ­da no prazo vs fora do SLA.</small>
         </div>
       </section>
       <section class="rdo-section rdo-block">
-        <h3>Segurança e logística</h3>
+        <h3>SeguranÃ§a e logÃ­stica</h3>
         <div class="rdo-month__grid">
           <div><span>Incidentes</span><strong>${segurancaResumo.incidentes}</strong></div>
-          <div><span>Bloqueios elétricos</span><strong>${segurancaResumo.bloqueios}</strong></div>
+          <div><span>Bloqueios elÃ©tricos</span><strong>${segurancaResumo.bloqueios}</strong></div>
           <div><span>Clima dominante</span><strong>${escapeHtml(climaTop ? climaTop.key : "-")}</strong></div>
           <div><span>KM total</span><strong>${segurancaResumo.kmTotal.toFixed(1)}</strong></div>
-          <div><span>Qt. pessoas (média)</span><strong>${pessoasMedia}</strong></div>
+          <div><span>Qt. pessoas (mÃ©dia)</span><strong>${pessoasMedia}</strong></div>
           <div><span>Condutores</span><strong>${segurancaResumo.condutores.size}</strong></div>
           <div><span>APR abertas</span><strong>${docsMensais.apr}</strong></div>
           <div><span>OS abertas</span><strong>${docsMensais.os}</strong></div>
@@ -9848,13 +10516,13 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
         <div class="rdo-month__grid">
           <div><span>Projeto</span><strong>${escapeHtml(projetoLabel)}</strong></div>
           <div><span>Equipes ativas</span><strong>${equipesAtivas.size}</strong></div>
-          <div><span>Execuções concluídas</span><strong>${concluidasPeriodo.length}</strong></div>
+          <div><span>ExecuÃ§Ãµes concluÃ­das</span><strong>${concluidasPeriodo.length}</strong></div>
           <div><span>Pontualidade</span><strong>${pontualidadeEquipe}%</strong></div>
           <div><span>Backlog</span><strong>${backlogRate}%</strong></div>
-          <div><span>Evolução mensal</span><strong>${tendencia}</strong></div>
+          <div><span>EvoluÃ§Ã£o mensal</span><strong>${tendencia}</strong></div>
         </div>
         <p>
-          Evolução técnica do time com foco em disciplina operacional, entrega no prazo e maturidade de processos.
+          EvoluÃ§Ã£o tÃ©cnica do time com foco em disciplina operacional, entrega no prazo e maturidade de processos.
         </p>
       </section>
       <section class="rdo-section rdo-block">
@@ -9864,21 +10532,21 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
             <thead>
               <tr>
                 <th>Data</th>
-                <th>Subestação</th>
+                <th>SubestaÃ§Ã£o</th>
               <th>Categoria</th>
               <th>Prioridade</th>
-              <th>Usuário</th>
+              <th>UsuÃ¡rio</th>
               <th>Atividades</th>
-              <th>Concluídas</th>
-              <th>Críticas</th>
+              <th>ConcluÃ­das</th>
+              <th>CrÃ­ticas</th>
             </tr>
           </thead>
           <tbody>
-            ${linhas || `<tr><td colspan="8">Nenhum RDO no período.</td></tr>`}
+            ${linhas || `<tr><td colspan="8">Nenhum RDO no perÃ­odo.</td></tr>`}
           </tbody>
           <tfoot>
             <tr>
-              <td colspan="5">Total do período</td>
+              <td colspan="5">Total do perÃ­odo</td>
               <td>${resumoDiaTotals.total}</td>
               <td>${resumoDiaTotals.concluidas}</td>
               <td>${resumoDiaTotals.criticas}</td>
@@ -9893,11 +10561,11 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
           <table class="report__table">
           <thead>
             <tr>
-              <th>Manutenção</th>
+              <th>ManutenÃ§Ã£o</th>
               <th>Local</th>
               <th>Data</th>
               <th>Status</th>
-              <th>Responsável</th>
+              <th>ResponsÃ¡vel</th>
               <th>Prioridade</th>
             </tr>
           </thead>
@@ -9928,12 +10596,12 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
                       </tr>`;
                     })
                     .join("")
-                : `<tr><td colspan="6">Nenhuma manutenção no período.</td></tr>`
+                : `<tr><td colspan="6">Nenhuma manutenÃ§Ã£o no perÃ­odo.</td></tr>`
             }
           </tbody>
           <tfoot>
             <tr>
-              <td colspan="5">Total de manutenções</td>
+              <td colspan="5">Total de manutenÃ§Ãµes</td>
               <td>${manutencoesPeriodo.length}</td>
             </tr>
           </tfoot>
@@ -9941,43 +10609,43 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
         </div>
       </section>
       <section class="rdo-section rdo-note">
-        <h3>Análise técnica do período</h3>
+        <h3>AnÃ¡lise tÃ©cnica do perÃ­odo</h3>
         <p>
           ${escapeHtml(
             acumulado.overdue
-              ? `Foram identificadas ${acumulado.overdue} atividades overdue, indicando gargalos no fluxo de execução e necessidade de ajustes na programação.`
-              : "Não foram identificadas atividades overdue no período."
+              ? `Foram identificadas ${acumulado.overdue} atividades overdue, indicando gargalos no fluxo de execuÃ§Ã£o e necessidade de ajustes na programaÃ§Ã£o.`
+              : "NÃ£o foram identificadas atividades overdue no perÃ­odo."
           )}
         </p>
         <p>
           ${escapeHtml(
             acumulado.criticas
-              ? `Houve ${acumulado.criticas} manutenções críticas; recomenda-se priorizar recursos e revisar planos de contingência.`
-              : "Sem manutenções críticas registradas."
+              ? `Houve ${acumulado.criticas} manutenÃ§Ãµes crÃ­ticas; recomenda-se priorizar recursos e revisar planos de contingÃªncia.`
+              : "Sem manutenÃ§Ãµes crÃ­ticas registradas."
           )}
         </p>
         <p>
           ${escapeHtml(
             docsPercent < 90
-              ? "O compliance documental ficou abaixo da meta; reforçar captura de evidências e checklists operacionais."
+              ? "O compliance documental ficou abaixo da meta; reforÃ§ar captura de evidÃªncias e checklists operacionais."
               : "Compliance documental dentro do esperado."
           )}
         </p>
       </section>
       <section class="rdo-section rdo-note">
-        <h3>Conclusão gerencial</h3>
+        <h3>ConclusÃ£o gerencial</h3>
         <p>
           ${escapeHtml(
             acumulado.totalRdos
-              ? `O período apresentou ${slaPercent}% de SLA no prazo, com ${acumulado.concluidas} concluídas e ${backlogRate}% de backlog. Recomenda-se manter o foco nas frentes críticas e sustentar a disciplina operacional.`
-              : "Não houve movimentação operacional no período. Sem impactos registrados."
+              ? `O perÃ­odo apresentou ${slaPercent}% de SLA no prazo, com ${acumulado.concluidas} concluÃ­das e ${backlogRate}% de backlog. Recomenda-se manter o foco nas frentes crÃ­ticas e sustentar a disciplina operacional.`
+              : "NÃ£o houve movimentaÃ§Ã£o operacional no perÃ­odo. Sem impactos registrados."
           )}
         </p>
       </section>
       <section class="rdo-section">
-        <h3>Detalhamento diário</h3>
+        <h3>Detalhamento diÃ¡rio</h3>
         <div class="rdo-items">
-          ${blocos || `<div class="rdo-item">Nenhum RDO no período.</div>`}
+          ${blocos || `<div class="rdo-item">Nenhum RDO no perÃ­odo.</div>`}
         </div>
       </section>
     </div>
@@ -10017,15 +10685,15 @@ function montarRdoUI() {
   card.innerHTML = `
     <div class="rdo-head">
       <div>
-        <h2>Relatórios Diários (RDO)</h2>
-        <p class="hint">Consolide a operação do dia com texto técnico e evidências.</p>
+        <h2>RelatÃ³rios DiÃ¡rios (RDO)</h2>
+        <p class="hint">Consolide a operaÃ§Ã£o do dia com texto tÃ©cnico e evidÃªncias.</p>
       </div>
       <button id="btnGerarRdo" class="btn btn--primary" type="button">Gerar RDO do dia</button>
     </div>
     <div class="rdo-actions">
       <label class="rdo-toggle">
         <input id="rdoShowDeleted" type="checkbox" />
-        <span>Exibir excluídos</span>
+        <span>Exibir excluÃ­dos</span>
       </label>
       <button id="btnRdoExcluir" class="btn btn--danger btn--small" type="button" disabled>
         Excluir selecionados
@@ -10044,8 +10712,8 @@ function montarRdoUI() {
     <div class="modal__content modal__content--wide">
       <div class="modal__header">
         <div>
-          <h3>Relatório Diário de Operação</h3>
-          <p class="hint">Geração automática baseada na execução do dia.</p>
+          <h3>RelatÃ³rio DiÃ¡rio de OperaÃ§Ã£o</h3>
+          <p class="hint">GeraÃ§Ã£o automÃ¡tica baseada na execuÃ§Ã£o do dia.</p>
         </div>
         <button class="btn btn--ghost btn--small" type="button" data-rdo-close>Fechar</button>
       </div>
@@ -10056,7 +10724,7 @@ function montarRdoUI() {
             <input id="rdoData" type="date" />
           </div>
           <div class="field">
-            <label for="rdoSubestacao">Subestação</label>
+            <label for="rdoSubestacao">SubestaÃ§Ã£o</label>
             <select id="rdoSubestacao">
               <option value="">Todas</option>
             </select>
@@ -10074,13 +10742,13 @@ function montarRdoUI() {
             </select>
           </div>
           <div class="field">
-            <label for="rdoUsuario">Usuário</label>
+            <label for="rdoUsuario">UsuÃ¡rio</label>
             <select id="rdoUsuario">
               <option value="">Todos</option>
             </select>
           </div>
           <div class="field">
-            <label for="rdoLimite">Limite de evidências no PDF</label>
+            <label for="rdoLimite">Limite de evidÃªncias no PDF</label>
             <select id="rdoLimite">
               <option value="8">8</option>
               <option value="16" selected>16</option>
@@ -10088,7 +10756,7 @@ function montarRdoUI() {
             </select>
           </div>
           <div class="field">
-            <label for="rdoCondutor">Condutor do veículo</label>
+            <label for="rdoCondutor">Condutor do veÃ­culo</label>
             <input id="rdoCondutor" type="text" />
           </div>
           <div class="field">
@@ -10133,7 +10801,7 @@ function montarRdoUI() {
             </select>
           </div>
           <div class="field">
-            <label for="rdoBloqueio">Bloqueio elétrico</label>
+            <label for="rdoBloqueio">Bloqueio elÃ©trico</label>
             <select id="rdoBloqueio">
               <option value="NAO">NAO</option>
               <option value="SIM">SIM</option>
@@ -10564,7 +11232,7 @@ function confirmarDeleteRdo() {
     return;
   }
   if (!currentUser || !canExcluirRdo(currentUser)) {
-    mostrarMensagemRdo("Sem permissão para excluir RDO.", true);
+    mostrarMensagemRdo("Sem permissÃ£o para excluir RDO.", true);
     return;
   }
   const motivo = rdoUI.deleteReason.value.trim();
@@ -10612,11 +11280,11 @@ function abrirRdoModal(snapshot) {
     return;
   }
   if (!currentUser || !canViewRdo(currentUser)) {
-    mostrarMensagemRdo("Sem permissão para acessar RDO.", true);
+    mostrarMensagemRdo("Sem permissÃ£o para acessar RDO.", true);
     return;
   }
   if (!snapshot && !canGerarRelatorio(currentUser)) {
-    mostrarMensagemRdo("Sem permissão para gerar RDO.", true);
+    mostrarMensagemRdo("Sem permissÃ£o para gerar RDO.", true);
     return;
   }
   atualizarFiltrosRdo(manutencoes);
@@ -11416,60 +12084,60 @@ function formatJanelaExecucaoRdo(inicioIso, fimIso) {
   const inicio = inicioDate ? formatDateTime(inicioDate) : "";
   const fim = fimDate ? formatDateTime(fimDate) : "";
   if (inicio && fim) {
-    return `A execução ocorreu entre ${inicio} e ${fim}.`;
+    return `A execuÃ§Ã£o ocorreu entre ${inicio} e ${fim}.`;
   }
   if (inicio) {
-    return `Início registrado em ${inicio}. Fim sem registro no período.`;
+    return `InÃ­cio registrado em ${inicio}. Fim sem registro no perÃ­odo.`;
   }
   if (fim) {
-    return `Fim registrado em ${fim}. Início sem registro no período.`;
+    return `Fim registrado em ${fim}. InÃ­cio sem registro no perÃ­odo.`;
   }
-  return "Sem registro de início e fim no período.";
+  return "Sem registro de inÃ­cio e fim no perÃ­odo.";
 }
 
 function gerarTextoItemRdo(item) {
   const tipo = (item.categoria || "").trim().toLowerCase();
-  const tipoLabel = tipo ? `manutenção ${tipo}` : "manutenção";
+  const tipoLabel = tipo ? `manutenÃ§Ã£o ${tipo}` : "manutenÃ§Ã£o";
   const chave = item.id || item.titulo || "";
   const variante = Number.parseInt(hashString(chave).slice(0, 2), 16) % 3;
   const titulo = item.titulo || "atividade";
-  const subestacao = item.subestacao || "subestação não informada";
-  let abertura = `Durante o período, foi executada ${tipoLabel} em ${subestacao}.`;
+  const subestacao = item.subestacao || "subestaÃ§Ã£o nÃ£o informada";
+  let abertura = `Durante o perÃ­odo, foi executada ${tipoLabel} em ${subestacao}.`;
   if (variante === 1) {
-    abertura = `No período, a equipe realizou ${tipoLabel} em ${subestacao}, vinculada a ${titulo}.`;
+    abertura = `No perÃ­odo, a equipe realizou ${tipoLabel} em ${subestacao}, vinculada a ${titulo}.`;
   }
   if (variante === 2) {
-    abertura = `Foi registrada ${tipoLabel} em ${subestacao} durante o período, referente a ${titulo}.`;
+    abertura = `Foi registrada ${tipoLabel} em ${subestacao} durante o perÃ­odo, referente a ${titulo}.`;
   }
   const descricao = item.descricao
-    ? `Descrição técnica: ${item.descricao}.`
-    : "Sem registro de descrição técnica no período.";
+    ? `DescriÃ§Ã£o tÃ©cnica: ${item.descricao}.`
+    : "Sem registro de descriÃ§Ã£o tÃ©cnica no perÃ­odo.";
   const diagnostico = item.descricao
-    ? `Diagnóstico: ${item.descricao}.`
-    : "Sem registro de diagnóstico no período.";
+    ? `DiagnÃ³stico: ${item.descricao}.`
+    : "Sem registro de diagnÃ³stico no perÃ­odo.";
   const acao = item.observacaoExecucao
-    ? `Ação executada: ${item.observacaoExecucao}.`
-    : "Sem registro de ação detalhada no período.";
+    ? `AÃ§Ã£o executada: ${item.observacaoExecucao}.`
+    : "Sem registro de aÃ§Ã£o detalhada no perÃ­odo.";
   const janela = formatJanelaExecucaoRdo(item.inicio, item.fim);
   const responsavel = item.responsavel
-    ? `Responsável: ${item.responsavel}.`
-    : "Sem registro de responsável no período.";
+    ? `ResponsÃ¡vel: ${item.responsavel}.`
+    : "Sem registro de responsÃ¡vel no perÃ­odo.";
   const participantes =
     item.participantes && item.participantes !== "-"
       ? `Participantes: ${item.participantes}.`
-      : "Sem registro de participantes no período.";
+      : "Sem registro de participantes no perÃ­odo.";
   const evidencias = item.evidenciasCount
-    ? `Foram registradas ${item.evidenciasCount} evidências fotográficas.`
-    : "Sem evidências fotográficas registradas no período.";
+    ? `Foram registradas ${item.evidenciasCount} evidÃªncias fotogrÃ¡ficas.`
+    : "Sem evidÃªncias fotogrÃ¡ficas registradas no perÃ­odo.";
   const docs = item.docsResumo
-    ? `Documentação registrada no sistema: ${item.docsResumo}.`
-    : "Sem registro de documentação no período.";
+    ? `DocumentaÃ§Ã£o registrada no sistema: ${item.docsResumo}.`
+    : "Sem registro de documentaÃ§Ã£o no perÃ­odo.";
   const resultado = item.resultadoLabel ? `Resultado: ${item.resultadoLabel}.` : "";
   const status = item.statusLabel ? `Status final: ${item.statusLabel}.` : "Status final: -.";
-  const criticidade = item.critico ? "Classificação: crítica." : "";
+  const criticidade = item.critico ? "ClassificaÃ§Ã£o: crÃ­tica." : "";
   const duracao =
     Number.isFinite(item.duracaoMin) && item.duracaoMin > 0
-      ? `Tempo total de execução: ${formatDuracaoMin(item.duracaoMin)}.`
+      ? `Tempo total de execuÃ§Ã£o: ${formatDuracaoMin(item.duracaoMin)}.`
       : "";
 
   if (["corretiva", "preditiva"].includes(tipo)) {
@@ -11492,8 +12160,8 @@ function gerarTextoItemRdo(item) {
   }
 
   const observacao = item.observacaoExecucao
-    ? `Observação de execução: ${item.observacaoExecucao}.`
-    : "Sem registro de observações adicionais no período.";
+    ? `ObservaÃ§Ã£o de execuÃ§Ã£o: ${item.observacaoExecucao}.`
+    : "Sem registro de observaÃ§Ãµes adicionais no perÃ­odo.";
   return [
     abertura,
     descricao,
@@ -11514,11 +12182,11 @@ function gerarTextoItemRdo(item) {
 
 function gerarResumoDiaRdo(itensRdo, metricas) {
   if (!itensRdo.length) {
-    return "Sem registro de atividades no período.";
+    return "Sem registro de atividades no perÃ­odo.";
   }
   const parts = [];
   parts.push(
-    `Foram registradas ${metricas.total} atividades no período, com ${metricas.concluidas} concluídas e ${metricas.abertas} em andamento.`
+    `Foram registradas ${metricas.total} atividades no perÃ­odo, com ${metricas.concluidas} concluÃ­das e ${metricas.abertas} em andamento.`
   );
   const subestacoes = itensRdo.reduce((acc, item) => {
     const chave = item.subestacao || "";
@@ -11534,7 +12202,7 @@ function gerarResumoDiaRdo(itensRdo, metricas) {
     .slice(0, 2);
   if (topSubs.length) {
     parts.push(
-      `Subestações com maior volume: ${topSubs
+      `SubestaÃ§Ãµes com maior volume: ${topSubs
         .map((item) => `${item.key} (${item.total})`)
         .join(", ")}.`
     );
@@ -11544,30 +12212,30 @@ function gerarResumoDiaRdo(itensRdo, metricas) {
   ).length;
   if (corretivas || metricas.criticas) {
     parts.push(
-      `Destaques: ${corretivas} corretivas e ${metricas.criticas} críticas no período.`
+      `Destaques: ${corretivas} corretivas e ${metricas.criticas} crÃ­ticas no perÃ­odo.`
     );
   }
   const docsPendentes = metricas.docsTotal - metricas.docsOk;
   if (metricas.overdue || docsPendentes > 0) {
     parts.push(
-      `Pendências: ${metricas.overdue} overdue e ${docsPendentes} atividades com documentação pendente.`
+      `PendÃªncias: ${metricas.overdue} overdue e ${docsPendentes} atividades com documentaÃ§Ã£o pendente.`
     );
   } else {
-    parts.push("Sem pendências críticas no período.");
+    parts.push("Sem pendÃªncias crÃ­ticas no perÃ­odo.");
   }
   return parts.join(" ");
 }
 
 function gerarNarrativaDiaRdo(itensRdo, metricas) {
   if (!itensRdo.length) {
-    return "Sem registro de execuções no período.";
+    return "Sem registro de execuÃ§Ãµes no perÃ­odo.";
   }
   const parts = [];
   const tempoTotal =
     metricas.tempoTotalMin && metricas.tempoTotalMin > 0
       ? formatDuracaoMin(metricas.tempoTotalMin)
       : "sem registro";
-  parts.push(`Tempo total de execução no período: ${tempoTotal}.`);
+  parts.push(`Tempo total de execuÃ§Ã£o no perÃ­odo: ${tempoTotal}.`);
   const corretivas = itensRdo.filter(
     (item) => (item.categoria || "").toLowerCase() === "corretiva"
   ).length;
@@ -11576,7 +12244,7 @@ function gerarNarrativaDiaRdo(itensRdo, metricas) {
   ).length;
   if (corretivas || preditivas || metricas.criticas) {
     parts.push(
-      `Atividades críticas: ${metricas.criticas}. Corretivas: ${corretivas}. Preditivas: ${preditivas}.`
+      `Atividades crÃ­ticas: ${metricas.criticas}. Corretivas: ${corretivas}. Preditivas: ${preditivas}.`
     );
   }
   if (metricas.docsTotal) {
@@ -11584,7 +12252,7 @@ function gerarNarrativaDiaRdo(itensRdo, metricas) {
       `Compliance documental: ${metricas.docsPercent}% (${metricas.docsOk}/${metricas.docsTotal}).`
     );
   } else {
-    parts.push("Sem base documental consolidada no período.");
+    parts.push("Sem base documental consolidada no perÃ­odo.");
   }
   const ocorrencias = itensRdo.filter(
     (item) => item.descricao || item.observacaoExecucao
@@ -11592,13 +12260,13 @@ function gerarNarrativaDiaRdo(itensRdo, metricas) {
   if (ocorrencias.length) {
     const destaques = ocorrencias.slice(0, 2).map((item) => item.titulo).join(", ");
     parts.push(
-      `Observações técnicas registradas em ${ocorrencias.length} atividades${destaques ? `, destaque para: ${destaques}` : ""}.`
+      `ObservaÃ§Ãµes tÃ©cnicas registradas em ${ocorrencias.length} atividades${destaques ? `, destaque para: ${destaques}` : ""}.`
     );
   }
   if (metricas.overdue) {
     parts.push(`Permanecem ${metricas.overdue} itens overdue com necessidade de tratativa.`);
   } else {
-    parts.push("Sem itens overdue registrados no período.");
+    parts.push("Sem itens overdue registrados no perÃ­odo.");
   }
   return parts.join(" ");
 }
@@ -11606,14 +12274,14 @@ function gerarNarrativaDiaRdo(itensRdo, metricas) {
 function gerarDescricaoConsolidadaRdo(itensRdo, metricas) {
   if (!itensRdo.length) {
     return {
-      resumo: "Sem registro de execuções no período.",
+      resumo: "Sem registro de execuÃ§Ãµes no perÃ­odo.",
       pontos: [],
     };
   }
-  const resumo = `Foram registradas ${metricas.total} atividades no período, com ${metricas.concluidas} concluídas, ${metricas.emExecucao} em execução e ${metricas.overdue} pendentes.`;
+  const resumo = `Foram registradas ${metricas.total} atividades no perÃ­odo, com ${metricas.concluidas} concluÃ­das, ${metricas.emExecucao} em execuÃ§Ã£o e ${metricas.overdue} pendentes.`;
   const pontos = [];
   if (metricas.criticas) {
-    pontos.push(`Atividades críticas: ${metricas.criticas}.`);
+    pontos.push(`Atividades crÃ­ticas: ${metricas.criticas}.`);
   }
   const corretivas = itensRdo.filter(
     (item) => (item.categoria || "").toLowerCase() === "corretiva"
@@ -11626,7 +12294,7 @@ function gerarDescricaoConsolidadaRdo(itensRdo, metricas) {
   }
   const docsPendentes = itensRdo.filter((item) => item.docsCompliance === false).length;
   if (docsPendentes) {
-    pontos.push(`Documentação pendente em ${docsPendentes} atividade(s).`);
+    pontos.push(`DocumentaÃ§Ã£o pendente em ${docsPendentes} atividade(s).`);
   }
   const observacoes = itensRdo
     .map((item) => {
@@ -11642,7 +12310,7 @@ function gerarDescricaoConsolidadaRdo(itensRdo, metricas) {
     pontos.push(truncarTexto(texto, 140));
   });
   if (!pontos.length) {
-    pontos.push("Sem apontamentos adicionais no período.");
+    pontos.push("Sem apontamentos adicionais no perÃ­odo.");
   }
   return { resumo, pontos };
 }
@@ -11830,7 +12498,7 @@ async function gerarSnapshotRdo(persistir = false) {
   const dataStr = rdoUI.data.value || formatDateISO(new Date());
   const dataBase = parseDate(dataStr);
   if (!dataBase) {
-    mostrarMensagemRdo("Data inválida.", true);
+    mostrarMensagemRdo("Data invÃ¡lida.", true);
     return null;
   }
   const filtros = coletarFiltrosRdo();
@@ -11897,9 +12565,9 @@ function renderRdoPreview(snapshot) {
     rdoUI.preview.hidden = false;
     rdoUI.preview.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
-    mostrarMensagemRdo("Não foi possível montar o preview do RDO.", true);
+    mostrarMensagemRdo("NÃ£o foi possÃ­vel montar o preview do RDO.", true);
     rdoUI.preview.hidden = false;
-    rdoUI.previewBody.innerHTML = `<p class="empty-state">Preview indisponível.</p>`;
+    rdoUI.previewBody.innerHTML = `<p class="empty-state">Preview indisponÃ­vel.</p>`;
   }
 }
 
@@ -11924,7 +12592,7 @@ function buildRdoHtml(snapshot, options = {}) {
     : "Sem base";
   const evidenciasLimitadas =
     snapshot.evidenciasTotal > snapshot.evidencias.length
-      ? `Evidências limitadas a ${snapshot.limiteEvidencias} no PDF.`
+      ? `EvidÃªncias limitadas a ${snapshot.limiteEvidencias} no PDF.`
       : "";
   const logoHtml = `
     <img
@@ -11989,9 +12657,9 @@ function buildRdoHtml(snapshot, options = {}) {
   const rdoNumero = snapshot.id ? snapshot.id.slice(0, 6).toUpperCase() : "-";
   const resumoItensBase = [
     { label: "Atividades", value: snapshot.metricas.total },
-    { label: "Concluídas", value: snapshot.metricas.concluidas },
-    { label: "Em execução", value: snapshot.metricas.emExecucao },
-    { label: "Críticas", value: snapshot.metricas.criticas },
+    { label: "ConcluÃ­das", value: snapshot.metricas.concluidas },
+    { label: "Em execuÃ§Ã£o", value: snapshot.metricas.emExecucao },
+    { label: "CrÃ­ticas", value: snapshot.metricas.criticas },
     { label: "Overdue", value: snapshot.metricas.overdue },
     { label: "Docs", value: docsPercent, meta: docsMeta },
     { label: "Tempo total", value: tempoTotal },
@@ -12026,7 +12694,7 @@ function buildRdoHtml(snapshot, options = {}) {
           .join("")}
       </div>
     `
-    : `<p class="empty-state">Sem indicadores relevantes no período.</p>`;
+    : `<p class="empty-state">Sem indicadores relevantes no perÃ­odo.</p>`;
   const jornadaRowsHtml = jornadasRows.length
     ? `
       <table class="rdo-table rdo-table--compact rdo-table--center">
@@ -12034,9 +12702,9 @@ function buildRdoHtml(snapshot, options = {}) {
           <tr>
             <th>Colaborador</th>
             <th>Entrada</th>
-            <th>Saída</th>
-            <th>Horas líquidas</th>
-            <th>Expediente líquido</th>
+            <th>SaÃ­da</th>
+            <th>Horas lÃ­quidas</th>
+            <th>Expediente lÃ­quido</th>
             <th>Extra calc.</th>
           </tr>
         </thead>
@@ -12058,26 +12726,26 @@ function buildRdoHtml(snapshot, options = {}) {
         </tbody>
       </table>
     `
-    : `<p class="empty-state">Sem apontamentos de jornada no período.</p>`;
+    : `<p class="empty-state">Sem apontamentos de jornada no perÃ­odo.</p>`;
   const acionamentoLabel =
     manual.acionamento && manual.acionamento.ativo
       ? `${manual.acionamento.inicio || "-"} - ${manual.acionamento.fim || "-"}`
-      : "Não informado";
+      : "NÃ£o informado";
   const horaExtraLabel =
     manual.horaExtra && manual.horaExtra.ativo
       ? `${manual.horaExtra.inicio || "-"} - ${manual.horaExtra.fim || "-"}`
-      : "Não informado";
+      : "NÃ£o informado";
   const jornadaResumoHtml = `
     <div class="rdo-summary-grid rdo-summary-grid--cards rdo-summary-grid--tight">
       <div class="rdo-summary-item">
-        <span>Jornada líquida</span>
+        <span>Jornada lÃ­quida</span>
         <strong>${totalJornadaMin ? formatDuracaoMin(totalJornadaMin) : "-"}</strong>
-        <small>${jornadasRows.length} colaboradores • -1h almoço</small>
+        <small>${jornadasRows.length} colaboradores â€¢ -1h almoÃ§o</small>
       </div>
       <div class="rdo-summary-item">
-        <span>Expediente líquido</span>
+        <span>Expediente lÃ­quido</span>
         <strong>${totalExpedienteMin ? formatDuracaoMin(totalExpedienteMin) : "-"}</strong>
-        <small>Base ${schedule.label} • -1h almoço</small>
+        <small>Base ${schedule.label} â€¢ -1h almoÃ§o</small>
       </div>
       <div class="rdo-summary-item">
         <span>Extra calculada</span>
@@ -12130,16 +12798,16 @@ function buildRdoHtml(snapshot, options = {}) {
       const duracao = Number.isFinite(item.duracaoMin) ? formatDuracaoMin(item.duracaoMin) : "-";
       const descricaoTecnica = item.descricao
         ? item.descricao
-        : "Sem descrição técnica registrada.";
+        : "Sem descriÃ§Ã£o tÃ©cnica registrada.";
       const acaoExecutada = item.observacaoExecucao
         ? item.observacaoExecucao
-        : "Sem ação detalhada registrada.";
+        : "Sem aÃ§Ã£o detalhada registrada.";
       const janelaExecucao = formatJanelaExecucaoRdo(item.inicio, item.fim);
       const participantes =
         item.participantes && item.participantes !== "-" ? item.participantes : "-";
       const resultadoLabel = item.resultadoLabel || "-";
       const statusFinal = item.statusLabel || "-";
-      const criticidade = item.critico ? "Crítica" : "Não crítica";
+      const criticidade = item.critico ? "CrÃ­tica" : "NÃ£o crÃ­tica";
       const evidenciasLabel = item.evidenciasCount ? `${item.evidenciasCount} foto(s)` : "0";
       return `
         <article class="rdo-item">
@@ -12151,26 +12819,26 @@ function buildRdoHtml(snapshot, options = {}) {
             <div class="rdo-item__section">
               <h4>Contexto</h4>
               <p>
-                Subestação: ${escapeHtml(item.subestacao || "-")} • Categoria: ${escapeHtml(
+                SubestaÃ§Ã£o: ${escapeHtml(item.subestacao || "-")} â€¢ Categoria: ${escapeHtml(
                   item.categoria || "-"
-                )} • Prioridade: ${escapeHtml(item.prioridade || "-")}
+                )} â€¢ Prioridade: ${escapeHtml(item.prioridade || "-")}
               </p>
             </div>
             <div class="rdo-item__section">
-              <h4>Descrição técnica</h4>
+              <h4>DescriÃ§Ã£o tÃ©cnica</h4>
               <p>${escapeHtml(descricaoTecnica)}</p>
             </div>
             <div class="rdo-item__section">
-              <h4>Ação executada</h4>
+              <h4>AÃ§Ã£o executada</h4>
               <p>${escapeHtml(acaoExecutada)}</p>
             </div>
             <div class="rdo-item__section">
-              <h4>Janela de execução</h4>
+              <h4>Janela de execuÃ§Ã£o</h4>
               <p>${escapeHtml(janelaExecucao)}</p>
             </div>
             <div class="rdo-item__grid">
               <div>
-                <span>Responsável</span>
+                <span>ResponsÃ¡vel</span>
                 <strong>${escapeHtml(item.responsavel || "-")}</strong>
               </div>
               <div>
@@ -12178,7 +12846,7 @@ function buildRdoHtml(snapshot, options = {}) {
                 <strong>${escapeHtml(participantes)}</strong>
               </div>
               <div>
-                <span>Duração</span>
+                <span>DuraÃ§Ã£o</span>
                 <strong>${escapeHtml(duracao)}</strong>
               </div>
               <div>
@@ -12194,7 +12862,7 @@ function buildRdoHtml(snapshot, options = {}) {
                 <strong>${escapeHtml(criticidade)}</strong>
               </div>
               <div>
-                <span>Evidências</span>
+                <span>EvidÃªncias</span>
                 <strong>${escapeHtml(evidenciasLabel)}</strong>
               </div>
             </div>
@@ -12203,7 +12871,7 @@ function buildRdoHtml(snapshot, options = {}) {
             <div class="rdo-docs">
               ${buildDocsChipsHtml(item.docsStatus)}
             </div>
-            <p class="rdo-docs-note">Documentação registrada no sistema: ${escapeHtml(
+            <p class="rdo-docs-note">DocumentaÃ§Ã£o registrada no sistema: ${escapeHtml(
               item.docsResumo || "Sem registro"
             )}</p>
           </div>
@@ -12226,12 +12894,12 @@ function buildRdoHtml(snapshot, options = {}) {
           `;
         })
         .join("")
-    : `<p class="empty-state">Sem evidências fotográficas no período.</p>`;
+    : `<p class="empty-state">Sem evidÃªncias fotogrÃ¡ficas no perÃ­odo.</p>`;
 
   const naoImagemHtml = snapshot.evidenciasNaoImagem.length
     ? `
       <div class="rdo-naoimagem">
-        <strong>Evidências não-imagem</strong>
+        <strong>EvidÃªncias nÃ£o-imagem</strong>
         <ul>
           ${snapshot.evidenciasNaoImagem
             .map(
@@ -12253,10 +12921,10 @@ function buildRdoHtml(snapshot, options = {}) {
             <span class="rdo-eyebrow">OPSCOPE</span>
             <h2 class="rdo-title">${
               isCliente
-                ? "RELATÓRIO DE OPERAÇÃO DIÁRIA - HV (CLIENTE)"
-                : "RELATÓRIO DE OPERAÇÃO DIÁRIA - HV"
+                ? "RELATÃ“RIO DE OPERAÃ‡ÃƒO DIÃRIA - HV (CLIENTE)"
+                : "RELATÃ“RIO DE OPERAÃ‡ÃƒO DIÃRIA - HV"
             }</h2>
-            <p class="rdo-subtitle">Relatório Diário de Operação</p>
+            <p class="rdo-subtitle">RelatÃ³rio DiÃ¡rio de OperaÃ§Ã£o</p>
           </div>
         </div>
         <div class="rdo-meta">
@@ -12298,14 +12966,14 @@ function buildRdoHtml(snapshot, options = {}) {
       </section>
 
       <section class="rdo-section rdo-block">
-        <h3>Segurança</h3>
+        <h3>SeguranÃ§a</h3>
         <div class="rdo-info-grid">
           <div>
             <span>Incidente/Acidente</span>
             <strong>${escapeHtml(manual.incidente || "-")}</strong>
           </div>
           <div>
-            <span>Bloqueio Elétrico</span>
+            <span>Bloqueio ElÃ©trico</span>
             <strong>${escapeHtml(manual.bloqueio || "-")}</strong>
           </div>
           <div>
@@ -12341,11 +13009,11 @@ function buildRdoHtml(snapshot, options = {}) {
             <strong>${escapeHtml(manual.qtPessoas || "-")}</strong>
           </div>
           <div>
-            <span>Nº de SI</span>
+            <span>NÂº de SI</span>
             <strong>${escapeHtml(manual.numeroSi || "-")}</strong>
           </div>
           <div>
-            <span>Nº de SGI</span>
+            <span>NÂº de SGI</span>
             <strong>${escapeHtml(manual.numeroSgi || "-")}</strong>
           </div>
         </div>
@@ -12357,21 +13025,21 @@ function buildRdoHtml(snapshot, options = {}) {
           <thead>
             <tr>
               <th>Atividade</th>
-              <th>Subestação</th>
+              <th>SubestaÃ§Ã£o</th>
               <th>Status</th>
-              <th>Início</th>
+              <th>InÃ­cio</th>
               <th>Fim</th>
-              <th>Responsável</th>
+              <th>ResponsÃ¡vel</th>
             </tr>
           </thead>
           <tbody>
-            ${rows || `<tr><td colspan="6">Sem itens no período.</td></tr>`}
+            ${rows || `<tr><td colspan="6">Sem itens no perÃ­odo.</td></tr>`}
           </tbody>
         </table>
       </section>
 
       <section class="rdo-section">
-        <h3>Descrição Consolidada do Dia</h3>
+        <h3>DescriÃ§Ã£o Consolidada do Dia</h3>
         <p>${escapeHtml(descricaoConsolidada.resumo || "")}</p>
         <ul class="rdo-lista">
           ${descricaoConsolidada.pontos
@@ -12394,12 +13062,12 @@ function buildRdoHtml(snapshot, options = {}) {
       <section class="rdo-section">
         <h3>Detalhamento por Atividade</h3>
         <div class="rdo-items">
-          ${detalhes || `<p class="empty-state">Sem itens no período.</p>`}
+          ${detalhes || `<p class="empty-state">Sem itens no perÃ­odo.</p>`}
         </div>
       </section>
 
       <section class="rdo-section">
-        <h3>Evidências</h3>
+        <h3>EvidÃªncias</h3>
         ${evidenciasLimitadas ? `<p class="hint">${escapeHtml(evidenciasLimitadas)}</p>` : ""}
         <div class="rdo-evidencias-grid">
           ${evidenciasHtml}
@@ -12686,7 +13354,7 @@ function renderKPIs() {
 
   kpiTotal.textContent = total;
   kpiConclusao.textContent = `${taxaConclusao}%`;
-  kpiConcluidas.textContent = `${concluidas.length} concluídas`;
+  kpiConcluidas.textContent = `${concluidas.length} concluÃ­das`;
   kpiBacklog.textContent = backlog.length;
   kpiPontual.textContent = `${taxaPontual}%`;
   kpiAtraso.textContent = mediaAtraso;
@@ -12712,7 +13380,7 @@ function inRange(date, start, end) {
 
 // KPI: tooltips
 function buildKpiTooltip(titulo, formula, periodo) {
-  return `O que é: ${titulo}\nComo calcula: ${formula}\nPeríodo: ${periodo}`;
+  return `O que Ã©: ${titulo}\nComo calcula: ${formula}\nPerÃ­odo: ${periodo}`;
 }
 
 function parseAnyDate(value) {
@@ -13167,7 +13835,7 @@ function renderKpiCards(itens, itensAnterior, filtros) {
   kpiCards.innerHTML = "";
   const atual = calcularKpisBase(itens);
   const anterior = calcularKpisBase(itensAnterior);
-  const periodoLabel = `últimos ${filtros.periodo} dias`;
+  const periodoLabel = `Ãºltimos ${filtros.periodo} dias`;
   const cards = [
     {
       key: "backlog_total",
@@ -13182,7 +13850,7 @@ function renderKpiCards(itens, itensAnterior, filtros) {
       formato: "count",
       tooltip: buildKpiTooltip(
         "Backlog total",
-        "Manutenções com status backlog.",
+        "ManutenÃ§Ãµes com status backlog.",
         periodoLabel
       ),
     },
@@ -13199,7 +13867,7 @@ function renderKpiCards(itens, itensAnterior, filtros) {
       formato: "count",
       tooltip: buildKpiTooltip(
         "Overdue",
-        "Manutenções abertas com data programada menor que hoje.",
+        "ManutenÃ§Ãµes abertas com data programada menor que hoje.",
         periodoLabel
       ),
     },
@@ -13216,13 +13884,13 @@ function renderKpiCards(itens, itensAnterior, filtros) {
       formato: "percent",
       tooltip: buildKpiTooltip(
         "SLA compliance",
-        "Concluídas no prazo / concluídas no período.",
+        "ConcluÃ­das no prazo / concluÃ­das no perÃ­odo.",
         periodoLabel
       ),
     },
     {
       key: "lead_time",
-      label: "Lead time médio",
+      label: "Lead time mÃ©dio",
       valor: atual.leadTimeMedio,
       delta: formatKpiDelta(
         atual.leadTimeMedio,
@@ -13233,25 +13901,25 @@ function renderKpiCards(itens, itensAnterior, filtros) {
       formato: "days",
       tooltip: buildKpiTooltip(
         "Lead time",
-        "Conclusão - criação (dias).",
+        "ConclusÃ£o - criaÃ§Ã£o (dias).",
         periodoLabel
       ),
     },
     {
       key: "mttr",
-      label: "MTTR médio",
+      label: "MTTR mÃ©dio",
       valor: atual.mttrMedio,
       delta: formatKpiDelta(atual.mttrMedio, anterior.mttrMedio, "duration", filtros.periodo),
       formato: "duration",
       tooltip: buildKpiTooltip(
-        "MTTR médio",
-        "Fim da execução - início da execução.",
+        "MTTR mÃ©dio",
+        "Fim da execuÃ§Ã£o - inÃ­cio da execuÃ§Ã£o.",
         periodoLabel
       ),
     },
     {
       key: "criticos_abertos",
-      label: "Críticos em aberto",
+      label: "CrÃ­ticos em aberto",
       valor: atual.criticosAbertos,
       delta: formatKpiDelta(
         atual.criticosAbertos,
@@ -13261,8 +13929,8 @@ function renderKpiCards(itens, itensAnterior, filtros) {
       ),
       formato: "count",
       tooltip: buildKpiTooltip(
-        "Críticos em aberto",
-        "Manutenções críticas não concluídas.",
+        "CrÃ­ticos em aberto",
+        "ManutenÃ§Ãµes crÃ­ticas nÃ£o concluÃ­das.",
         periodoLabel
       ),
     },
@@ -13436,7 +14104,7 @@ function renderKpiGraficos(itens, filtros) {
   });
 
   const maxTrend = Math.max(1, ...concluidasSeries, ...backlogSeries);
-  const trendPeriodo = `últimas ${semanasCount} semanas`;
+  const trendPeriodo = `Ãºltimas ${semanasCount} semanas`;
   buildLineChart(
     kpiTrendChart,
     weekLabels,
@@ -13451,7 +14119,7 @@ function renderKpiGraficos(itens, filtros) {
         weekKeys,
         tooltip: buildKpiTooltip(
           "Concluidas",
-          "Manutenções concluídas por semana.",
+          "ManutenÃ§Ãµes concluÃ­das por semana.",
           trendPeriodo
         ),
       },
@@ -13465,7 +14133,7 @@ function renderKpiGraficos(itens, filtros) {
         weekKeys,
         tooltip: buildKpiTooltip(
           "Backlog",
-          "Manutenções em backlog por semana.",
+          "ManutenÃ§Ãµes em backlog por semana.",
           trendPeriodo
         ),
       },
@@ -13552,7 +14220,7 @@ function renderKpiGraficos(itens, filtros) {
   });
   const slaTooltip = buildKpiTooltip(
     "SLA compliance",
-    "Concluídas no prazo / concluídas na semana.",
+    "ConcluÃ­das no prazo / concluÃ­das na semana.",
     trendPeriodo
   );
   const slaLabels = slaSeries.map((valor) =>
@@ -13686,20 +14354,20 @@ function renderKpiRanking(itens, filtros) {
   const headRow = document.createElement("tr");
   const headers = [
     {
-      label: "Usuário",
+      label: "UsuÃ¡rio",
       tooltip: buildKpiTooltip(
-        "Usuário",
-        "Responsável pela execução.",
+        "UsuÃ¡rio",
+        "ResponsÃ¡vel pela execuÃ§Ã£o.",
         "Filtro atual"
       ),
     },
     {
-      label: "Concluídas",
+      label: "ConcluÃ­das",
       sortKey: "concluidas",
       tooltip: buildKpiTooltip(
-        "Concluídas",
-        "Total de manutenções concluídas.",
-        `últimos ${filtros.periodo} dias`
+        "ConcluÃ­das",
+        "Total de manutenÃ§Ãµes concluÃ­das.",
+        `Ãºltimos ${filtros.periodo} dias`
       ),
     },
     {
@@ -13707,26 +14375,26 @@ function renderKpiRanking(itens, filtros) {
       sortKey: "overdue",
       tooltip: buildKpiTooltip(
         "Overdue aberto",
-        "Manutenções em aberto com data atrasada.",
-        `últimos ${filtros.periodo} dias`
+        "ManutenÃ§Ãµes em aberto com data atrasada.",
+        `Ãºltimos ${filtros.periodo} dias`
       ),
     },
     {
-      label: "Lead time médio",
+      label: "Lead time mÃ©dio",
       sortKey: "lead",
       tooltip: buildKpiTooltip(
-        "Lead time médio",
-        "Conclusão - criação (dias).",
-        `últimos ${filtros.periodo} dias`
+        "Lead time mÃ©dio",
+        "ConclusÃ£o - criaÃ§Ã£o (dias).",
+        `Ãºltimos ${filtros.periodo} dias`
       ),
     },
     {
-      label: "MTTR médio",
+      label: "MTTR mÃ©dio",
       sortKey: "mttr",
       tooltip: buildKpiTooltip(
-        "MTTR médio",
-        "Fim - início da execução.",
-        `últimos ${filtros.periodo} dias`
+        "MTTR mÃ©dio",
+        "Fim - inÃ­cio da execuÃ§Ã£o.",
+        `Ãºltimos ${filtros.periodo} dias`
       ),
     },
     {
@@ -13734,8 +14402,8 @@ function renderKpiRanking(itens, filtros) {
       sortKey: "docs",
       tooltip: buildKpiTooltip(
         "Compliance docs",
-        "APR/OS/PTE e PT quando crítico.",
-        `últimos ${filtros.periodo} dias`
+        "APR/OS/PTE e PT quando crÃ­tico.",
+        `Ãºltimos ${filtros.periodo} dias`
       ),
     },
   ];
@@ -13767,22 +14435,22 @@ function renderKpiRanking(itens, filtros) {
       tr.classList.add("is-selected");
     }
     tr.style.cursor = "pointer";
-    // formatação valores ranking
+    // formataÃ§Ã£o valores ranking
     const cols = [
       { value: getUserLabel(linha.userId) },
       { value: linha.concluidas },
       { value: linha.overdue },
       {
         value: lead === null ? "\u2014" : `${lead.toFixed(1)}d`,
-        tooltip: lead === null ? "Sem base de cálculo" : "",
+        tooltip: lead === null ? "Sem base de cÃ¡lculo" : "",
       },
       {
         value: mttr === null ? "\u2014" : formatDuracaoKpi(mttr),
-        tooltip: mttr === null ? "Sem base de cálculo" : "",
+        tooltip: mttr === null ? "Sem base de cÃ¡lculo" : "",
       },
       {
         value: docsPercent === null ? "\u2014" : `${docsPercent}%`,
-        tooltip: docsPercent === null ? "Sem documentos no período" : "",
+        tooltip: docsPercent === null ? "Sem documentos no perÃ­odo" : "",
       },
     ];
     cols.forEach((col, index) => {
@@ -13811,7 +14479,7 @@ function renderKpiDrilldown() {
   }
   kpiDrilldownTabela.innerHTML = "";
   if (!kpiDrilldown || !kpiDrilldown.items.length) {
-    kpiDrilldownTitulo.textContent = "Clique em um KPI ou gráfico para listar.";
+    kpiDrilldownTitulo.textContent = "Clique em um KPI ou grÃ¡fico para listar.";
     kpiDrilldownVazio.hidden = false;
     return;
   }
@@ -13825,20 +14493,20 @@ function renderKpiDrilldown() {
   const limite = kpiDrilldownLimite ? Number(kpiDrilldownLimite.value) || 25 : 25;
   const itensVisiveis = kpiDrilldown.items.slice(0, limite);
   // header drill-down
-  kpiDrilldownTitulo.textContent = `Métrica: ${kpiDrilldown.titulo} | Itens: ${itensVisiveis.length} | Período: ${periodoLabel} | Subestação: ${subestacaoLabel} | Categoria: ${categoriaLabel} | Prioridade: ${prioridadeLabel} | Usuário: ${usuarioLabel}`;
+  kpiDrilldownTitulo.textContent = `MÃ©trica: ${kpiDrilldown.titulo} | Itens: ${itensVisiveis.length} | PerÃ­odo: ${periodoLabel} | SubestaÃ§Ã£o: ${subestacaoLabel} | Categoria: ${categoriaLabel} | Prioridade: ${prioridadeLabel} | UsuÃ¡rio: ${usuarioLabel}`;
 
   const table = document.createElement("table");
   table.className = "kpi-table kpi-table--compact";
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
   const colunas = [
-    { label: "Manutenção", className: "is-wide" },
-    { label: "Subestação" },
+    { label: "ManutenÃ§Ã£o", className: "is-wide" },
+    { label: "SubestaÃ§Ã£o" },
     { label: "Status", className: "is-center" },
     { label: "Programada", className: "is-date" },
-    { label: "Início", className: "is-date" },
+    { label: "InÃ­cio", className: "is-date" },
     { label: "Fim", className: "is-date" },
-    { label: "Responsável" },
+    { label: "ResponsÃ¡vel" },
   ];
   colunas.forEach((coluna) => {
     const th = document.createElement("th");
@@ -13961,12 +14629,12 @@ function handleKpiDrilldownClick(event) {
     filtrados = itens.filter(
       (item) => item.status === "concluida" && getItemCriacaoDate(item) && getItemConclusaoDate(item)
     );
-    titulo = "Lead time médio";
+    titulo = "Lead time mÃ©dio";
   } else if (tipo === "mttr") {
     filtrados = itens.filter(
       (item) => item.status === "concluida" && getItemInicioExecucaoDate(item) && getItemFimExecucaoDate(item)
     );
-    titulo = "MTTR médio";
+    titulo = "MTTR mÃ©dio";
   } else if (tipo === "criticos_abertos") {
     filtrados = itens.filter((item) => item.status !== "concluida" && isItemCritico(item));
     titulo = "Criticos em aberto";
@@ -14034,7 +14702,7 @@ function handleKpiDrilldownClick(event) {
     const userId = alvo.dataset.userId;
     if (userId) {
       filtrados = itens.filter((item) => getExecutadoPorId(item) === userId);
-      titulo = `Usuário ${getUserLabel(userId)}`;
+      titulo = `UsuÃ¡rio ${getUserLabel(userId)}`;
     }
   }
 
@@ -14253,7 +14921,7 @@ function updateTemplateResumo() {
   }
   const nome = templateNome ? templateNome.value.trim() : "";
   const subestacao = templateSubestacao ? templateSubestacao.value : "";
-  const subestacaoLabel = subestacao || "Subestação não definida";
+  const subestacaoLabel = subestacao || "SubestaÃ§Ã£o nÃ£o definida";
   const tipo = templateFrequencia ? templateFrequencia.value : "none";
   const inicioStr = templateInicio ? templateInicio.value : "";
   const inicioDate = parseDate(inicioStr);
@@ -14265,21 +14933,21 @@ function updateTemplateResumo() {
 
   if (tipo === "none") {
     linhas.push(
-      `Este modelo NÃO possui recorrência automática. Uso apenas como modelo manual. Início: ${inicioLabel}.`
+      `Este modelo NÃƒO possui recorrÃªncia automÃ¡tica. Uso apenas como modelo manual. InÃ­cio: ${inicioLabel}.`
     );
   } else if (tipo === "daily") {
     const dias = getDailyDaysFromForm();
     const lista = dias.length ? dias.map(getWeekdayShort).filter(Boolean).join(", ") : "a definir";
     linhas.push(
-      `Este modelo irá gerar manutenções DIÁRIAS nos dias: [${lista}], a partir de ${inicioLabel}, para: ${subestacaoLabel}.`
+      `Este modelo irÃ¡ gerar manutenÃ§Ãµes DIÃRIAS nos dias: [${lista}], a partir de ${inicioLabel}, para: ${subestacaoLabel}.`
     );
   } else if (tipo === "weekly") {
     const diaSemana = templateWeeklyDay ? getWeekdayLabel(templateWeeklyDay.value) : "";
     const intervaloRaw = templateWeeklyInterval ? Number(templateWeeklyInterval.value) : 1;
     const intervalo = Math.max(1, Math.round(intervaloRaw || 1));
-    const diaLabel = diaSemana || "Dia não definido";
+    const diaLabel = diaSemana || "Dia nÃ£o definido";
     linhas.push(
-      `Este modelo irá gerar manutenções SEMANAIS toda(o) ${diaLabel}, a cada ${intervalo} semana(s), a partir de ${inicioLabel}, para: ${subestacaoLabel}.`
+      `Este modelo irÃ¡ gerar manutenÃ§Ãµes SEMANAIS toda(o) ${diaLabel}, a cada ${intervalo} semana(s), a partir de ${inicioLabel}, para: ${subestacaoLabel}.`
     );
   } else if (tipo === "monthly") {
     const modo = templateMonthlyMulti && templateMonthlyMulti.checked ? "multi" : "fixed";
@@ -14287,17 +14955,17 @@ function updateTemplateResumo() {
       const dias = parseMonthlyDaysInputValue(templateMonthlyDaysInput ? templateMonthlyDaysInput.value : "");
       const lista = dias.length ? dias.join(", ") : "a definir";
       linhas.push(
-        `Este modelo irá gerar manutenções MENSAIS nos dias ${lista} de cada mês, a partir de ${inicioLabel}, para: ${subestacaoLabel}.`
+        `Este modelo irÃ¡ gerar manutenÃ§Ãµes MENSAIS nos dias ${lista} de cada mÃªs, a partir de ${inicioLabel}, para: ${subestacaoLabel}.`
       );
     } else {
       const dia = templateMonthlyDay ? templateMonthlyDay.value : "";
       const diaLabel = dia || "-";
       linhas.push(
-        `Este modelo irá gerar manutenções MENSAIS no dia ${diaLabel} de cada mês, a partir de ${inicioLabel}, para: ${subestacaoLabel}.`
+        `Este modelo irÃ¡ gerar manutenÃ§Ãµes MENSAIS no dia ${diaLabel} de cada mÃªs, a partir de ${inicioLabel}, para: ${subestacaoLabel}.`
       );
     }
     linhas.push(
-      "Obs.: quando o mês não possuir o dia configurado, a ocorrência será IGNORADA."
+      "Obs.: quando o mÃªs nÃ£o possuir o dia configurado, a ocorrÃªncia serÃ¡ IGNORADA."
     );
   }
 
@@ -14325,7 +14993,7 @@ function handleTemplateFormChange(event) {
     ) {
       setFieldError(
         templateMonthlyDaysErro,
-        "Informe dias válidos entre 1 e 31 (ex.: 10, 25)."
+        "Informe dias vÃ¡lidos entre 1 e 31 (ex.: 10, 25)."
       );
     } else {
       setFieldError(templateMonthlyDaysErro, "");
@@ -14485,7 +15153,7 @@ function ajustarParaDiaSemana(base, weekday) {
 
 function formatIntervalo(template) {
   if (!template || !template.frequencia || template.frequencia === "none") {
-    return "Sem recorrência";
+    return "Sem recorrÃªncia";
   }
 
   if (template.frequencia === "daily") {
@@ -14512,7 +15180,7 @@ function formatIntervalo(template) {
     return Number.isFinite(dia) ? `Mensal (dia ${dia})` : "Mensal";
   }
 
-  return "Sem recorrência";
+  return "Sem recorrÃªncia";
 }
 
 function matchesRecorrencia(template, data) {
@@ -14878,7 +15546,7 @@ function salvarModelo(event) {
   const monthlyDays = monthlyValidation.valid ? monthlyValidation.dias : [];
 
   if (!parseDate(inicio)) {
-    setFieldError(templateInicioErro, "Data de início inválida.");
+    setFieldError(templateInicioErro, "Data de inÃ­cio invÃ¡lida.");
     return;
   }
   if (frequencia === "daily" && !dailyDays.length) {
@@ -14886,26 +15554,26 @@ function salvarModelo(event) {
     return;
   }
   if (frequencia === "weekly" && (!Number.isFinite(weeklyDay) || !weeklyIntervalValid)) {
-    setFieldError(templateWeeklyIntervalErro, "Informe um intervalo semanal válido (>= 1).");
+    setFieldError(templateWeeklyIntervalErro, "Informe um intervalo semanal vÃ¡lido (>= 1).");
     return;
   }
   if (frequencia === "monthly") {
     if (monthlyMode === "fixed" && !monthlyDayValid) {
-      setFieldError(templateMonthlyDayErro, "Informe um dia do mês válido (1 a 31).");
+      setFieldError(templateMonthlyDayErro, "Informe um dia do mÃªs vÃ¡lido (1 a 31).");
       return;
     }
     if (monthlyMode === "multi") {
       if (!monthlyValidation.valid) {
         setFieldError(
           templateMonthlyDaysErro,
-          "Informe dias válidos entre 1 e 31 (ex.: 10, 25)."
+          "Informe dias vÃ¡lidos entre 1 e 31 (ex.: 10, 25)."
         );
         return;
       }
       if (!monthlyDays.length) {
         setFieldError(
           templateMonthlyDaysErro,
-          "Informe ao menos um dia do mês para a recorrência."
+          "Informe ao menos um dia do mÃªs para a recorrÃªncia."
         );
         return;
       }
@@ -15089,7 +15757,7 @@ function renderModelos() {
 
     const proximaLabel = template.ativo
       ? template.frequencia === "none"
-        ? "Sem recorrência"
+        ? "Sem recorrÃªncia"
         : proximaDate
           ? formatDate(proximaDate)
           : "Sem proxima"
@@ -16595,7 +17263,7 @@ async function salvarPmpActivity(event) {
   }
   if (!currentUser || !canManagePmpActivities(currentUser)) {
     if (pmpFormMensagem) {
-      pmpFormMensagem.textContent = "Sem permissão para gerenciar PMP.";
+      pmpFormMensagem.textContent = "Sem permissÃ£o para gerenciar PMP.";
     }
     return;
   }
@@ -16948,7 +17616,7 @@ function renderPmpModule() {
       if (viewMode === "day") {
         tooltipLines.push(`Data: ${formatDate(period.start)}`);
       } else {
-        tooltipLines.push(`Período: ${formatDate(period.start)} - ${formatDate(period.end)}`);
+        tooltipLines.push(`PerÃ­odo: ${formatDate(period.start)} - ${formatDate(period.end)}`);
       }
       if (statusInfo.dueDate && viewMode !== "day") {
         tooltipLines.push(`Data prevista: ${formatDate(statusInfo.dueDate)}`);
@@ -17121,7 +17789,7 @@ async function openPmpImportModal() {
   const projectId = pmpFiltroProjeto.value;
   if (!projectId) {
     if (pmpFormMensagem) {
-      pmpFormMensagem.textContent = "Selecione um projeto para importar manutenções.";
+      pmpFormMensagem.textContent = "Selecione um projeto para importar manutenÃ§Ãµes.";
     }
     return;
   }
@@ -17198,8 +17866,8 @@ async function confirmPmpImport() {
   }
   if (pmpFormMensagem) {
     pmpFormMensagem.textContent = fallbackFreq
-      ? "Importação concluída. Revise a frequência das atividades importadas."
-      : "Importação concluída.";
+      ? "ImportaÃ§Ã£o concluÃ­da. Revise a frequÃªncia das atividades importadas."
+      : "ImportaÃ§Ã£o concluÃ­da.";
   }
   closePmpImportModal();
 }
@@ -17280,7 +17948,7 @@ function setPmpProcedimentoDoc(doc) {
 function openPmpProcedimento(doc) {
   const safeDoc = normalizePmpProcedimentoDoc(doc);
   if (!safeDoc || !safeDoc.url) {
-    window.alert("Procedimento não encontrado.");
+    window.alert("Procedimento nÃ£o encontrado.");
     return;
   }
   abrirPreview(safeDoc.url);
@@ -17366,14 +18034,14 @@ function openPmpCellModal(activityId, periodKey) {
     const periodoTexto =
       pmpLastSnapshot.viewMode === "day"
         ? `Data: ${formatDate(period.start)}`
-        : `Período: ${period.label} (${formatDate(period.start)} - ${formatDate(period.end)})`;
+        : `PerÃ­odo: ${period.label} (${formatDate(period.start)} - ${formatDate(period.end)})`;
     pmpCellMeta.textContent = `Projeto: ${projectLabel} | ${periodoTexto} | Status: ${
       PMP_STATUS_LABELS[statusInfo.status] || "-"
     }`;
   }
   const execEntries = [];
   if (statusInfo.exec) {
-    const tipo = statusInfo.exec.source === "auto" ? "Automático" : "Manual";
+    const tipo = statusInfo.exec.source === "auto" ? "AutomÃ¡tico" : "Manual";
     const data = statusInfo.executedAt ? formatDate(statusInfo.executedAt) : "-";
     const executor = statusInfo.exec.executorId ? getUserLabel(statusInfo.exec.executorId) : "-";
     const os = statusInfo.exec.osReferencia || statusInfo.exec.manutencaoId || "-";
@@ -17382,7 +18050,7 @@ function openPmpCellModal(activityId, periodKey) {
       execEntries.push(`Obs: ${statusInfo.exec.observacao}`);
     }
   }
-  renderPmpCellList(pmpCellExecList, execEntries, "Sem execução registrada.");
+  renderPmpCellList(pmpCellExecList, execEntries, "Sem execuÃ§Ã£o registrada.");
 
   const execRecord = manualEntry || statusInfo.exec;
   let evidencias = [];
@@ -17398,7 +18066,7 @@ function openPmpCellModal(activityId, periodKey) {
       return evidencia.nome || evidencia.name || evidencia.url || "Arquivo";
     });
   }
-  renderPmpCellList(pmpCellEvidencias, evidencias, "Sem evidências registradas.");
+  renderPmpCellList(pmpCellEvidencias, evidencias, "Sem evidÃªncias registradas.");
 
   const checklistExec = execRecord && Array.isArray(execRecord.checklist) ? execRecord.checklist : [];
   const checklist = checklistExec.length
@@ -17515,7 +18183,7 @@ async function marcarPmpCancelada() {
   if (!currentUser || !canManagePmpActivities(currentUser)) {
     return;
   }
-  const confirmacao = window.confirm("Marcar atividade como cancelada neste período?");
+  const confirmacao = window.confirm("Marcar atividade como cancelada neste perÃ­odo?");
   if (!confirmacao) {
     return;
   }
@@ -17578,7 +18246,7 @@ async function salvarPmpExecucaoManual() {
     }
   } catch (error) {
     if (pmpFormMensagem) {
-      pmpFormMensagem.textContent = "Erro ao salvar execução PMP.";
+      pmpFormMensagem.textContent = "Erro ao salvar execuÃ§Ã£o PMP.";
     }
   }
   closePmpCellModal();
@@ -17591,7 +18259,7 @@ async function removerPmpExecucaoManual() {
   if (!currentUser || !canManagePmpActivities(currentUser)) {
     return;
   }
-  const confirmacao = window.confirm("Remover execução manual deste período?");
+  const confirmacao = window.confirm("Remover execuÃ§Ã£o manual deste perÃ­odo?");
   if (!confirmacao) {
     return;
   }
@@ -17601,7 +18269,7 @@ async function removerPmpExecucaoManual() {
     renderTudo();
   } catch (error) {
     if (pmpFormMensagem) {
-      pmpFormMensagem.textContent = "Erro ao remover execução.";
+      pmpFormMensagem.textContent = "Erro ao remover execuÃ§Ã£o.";
     }
   }
   closePmpCellModal();
@@ -17614,7 +18282,7 @@ async function marcarPmpNaoPrevista() {
   if (!currentUser || !canManagePmpActivities(currentUser)) {
     return;
   }
-  const confirmacao = window.confirm("Marcar este período como não previsto?");
+  const confirmacao = window.confirm("Marcar este perÃ­odo como nÃ£o previsto?");
   if (!confirmacao) {
     return;
   }
@@ -17635,7 +18303,7 @@ async function marcarPmpNaoPrevista() {
     }
   } catch (error) {
     if (pmpFormMensagem) {
-      pmpFormMensagem.textContent = "Erro ao marcar como não prevista.";
+      pmpFormMensagem.textContent = "Erro ao marcar como nÃ£o prevista.";
     }
   }
   closePmpCellModal();
@@ -17722,7 +18390,7 @@ function exportarPmpExcel() {
         : null;
       const isScheduled = scheduledKeys.has(periodKey) || Boolean(manualEntry);
       if (!isScheduled) {
-        values.push(snapshot.viewMode === "day" ? (PMP_STATUS_LABELS.empty || "Não prevista") : "");
+        values.push(snapshot.viewMode === "day" ? (PMP_STATUS_LABELS.empty || "NÃ£o prevista") : "");
         return;
       }
       const statusInfo = getPmpStatusForPeriod(
@@ -17737,7 +18405,7 @@ function exportarPmpExcel() {
       );
       values.push(
         statusInfo.status === "empty"
-          ? PMP_STATUS_LABELS.empty || "Não prevista"
+          ? PMP_STATUS_LABELS.empty || "NÃ£o prevista"
           : PMP_STATUS_LABELS[statusInfo.status] || "Planejada"
       );
     });
@@ -17803,7 +18471,7 @@ function exportarPmpPdf() {
           if (!isScheduled) {
             const emptyLabel =
               snapshot.viewMode === "day"
-                ? PMP_STATUS_LABELS.empty || "Não prevista"
+                ? PMP_STATUS_LABELS.empty || "NÃ£o prevista"
                 : "-";
             return `<td class="pmp-cell empty">${escapeHtml(emptyLabel)}</td>`;
           }
@@ -17819,7 +18487,7 @@ function exportarPmpPdf() {
           );
           const status = statusInfo.status;
           if (status === "empty") {
-            const emptyLabel = PMP_STATUS_LABELS.empty || "Não prevista";
+            const emptyLabel = PMP_STATUS_LABELS.empty || "NÃ£o prevista";
             return `<td class="pmp-cell empty">${escapeHtml(emptyLabel)}</td>`;
           }
           totalCells += 1;
@@ -17888,7 +18556,7 @@ function exportarPmpPdf() {
       <span class="legend-item missed">Atrasada</span>
       <span class="legend-item scheduled">Planejada</span>
       <span class="legend-item late">Fora da janela</span>
-      <span class="legend-item empty">Não prevista</span>
+      <span class="legend-item empty">NÃ£o prevista</span>
       <span class="legend-item cancelled">Cancelada</span>
     </div>
   `;
@@ -17939,7 +18607,7 @@ function exportarPmpPdf() {
       </head>
       <body>
         <h1>PMP / Cronograma ${snapshot.year}</h1>
-        <p>Projeto: ${escapeHtml(projectLabel)} | Visualização: ${
+        <p>Projeto: ${escapeHtml(projectLabel)} | VisualizaÃ§Ã£o: ${
           snapshot.viewMode === "day"
             ? `Diario (${snapshot.monthLabel})`
             : snapshot.viewMode === "week"
@@ -18075,7 +18743,7 @@ function gerarManutencoesRecorrentes() {
           source: "recorrente",
           templateId: modelo.id,
           dataProgramada: dataStr,
-          resumo: "Manutenção criada automaticamente pela recorrência.",
+          resumo: "ManutenÃ§Ã£o criada automaticamente pela recorrÃªncia.",
         },
         SYSTEM_USER_ID
       );
@@ -18111,7 +18779,7 @@ function renderSolicitacoes() {
     return;
   }
   if (requests.length === 0) {
-    solicitacoesVazio.textContent = "Nenhuma solicitação pendente.";
+    solicitacoesVazio.textContent = "Nenhuma solicitaÃ§Ã£o pendente.";
     solicitacoesVazio.hidden = false;
     return;
   }
@@ -18253,7 +18921,7 @@ function renderUsuarios() {
 
   if (filtrados.length === 0) {
     usuariosVazio.hidden = false;
-    usuariosVazio.textContent = "Nenhum usuário encontrado.";
+    usuariosVazio.textContent = "Nenhum usuÃ¡rio encontrado.";
     return;
   }
 
@@ -18266,7 +18934,7 @@ function renderUsuarios() {
     const header = document.createElement("div");
     header.className = "account-header";
     const titulo = document.createElement("strong");
-    titulo.textContent = user.name || user.matricula || "Usuário";
+    titulo.textContent = user.name || user.matricula || "UsuÃ¡rio";
     const status = document.createElement("span");
     status.className = `status-pill ${user.active === false ? "status-pill--inactive" : "status-pill--active"}`;
     status.textContent = user.active === false ? "Inativo" : "Ativo";
@@ -18763,7 +19431,7 @@ function renderAlmoxarifado() {
     { label: "Itens cadastrados", value: almoxItems.length },
     { label: "Itens em baixa", value: lowStock.length },
     { label: "EPIs vencendo (30d)", value: expiring.length },
-    { label: "Movimentações hoje", value: movsToday.length },
+    { label: "MovimentaÃ§Ãµes hoje", value: movsToday.length },
   ];
   almoxDashCards.innerHTML = cards
     .map(
@@ -19017,6 +19685,12 @@ function renderSstProjectOptions() {
   renderProjectSelectOptions(sstDocProject, docProjectSelected || activeProjectId);
   const filterSelected = sstDocProjectFilter ? sstDocProjectFilter.value : "";
   renderProjectFilterOptions(sstDocProjectFilter, filterSelected);
+  const inspectionFilterSelected = sstInspectionFilterProject
+    ? sstInspectionFilterProject.value
+    : "";
+  renderProjectFilterOptions(sstInspectionFilterProject, inspectionFilterSelected);
+  const templateProjectSelected = sstTemplateProject ? sstTemplateProject.value : "";
+  renderProjectSelectOptions(sstTemplateProject, templateProjectSelected);
 }
 
 function renderProjectFilterOptions(select, selectedId) {
@@ -19027,6 +19701,72 @@ function renderProjectFilterOptions(select, selectedId) {
   const first = select.querySelector("option");
   if (first) {
     first.textContent = "Todos os projetos";
+  }
+}
+
+function renderSstInspectionLocalOptions() {
+  if (!sstInspectionLocal) {
+    return;
+  }
+  const locais = getActiveProjectLocais();
+  const selectedValue = sstInspectionLocal.value;
+  sstInspectionLocal.innerHTML = "";
+  const empty = document.createElement("option");
+  empty.value = "";
+  empty.textContent = locais.length ? "Sem local" : "Sem locais";
+  sstInspectionLocal.append(empty);
+  locais.forEach((local) => {
+    const opt = document.createElement("option");
+    opt.value = local;
+    opt.textContent = local;
+    sstInspectionLocal.append(opt);
+  });
+  if (selectedValue && locais.includes(selectedValue)) {
+    sstInspectionLocal.value = selectedValue;
+  }
+}
+
+function renderSstInspectionTemplateOptions() {
+  if (!sstInspectionTemplate) {
+    return;
+  }
+  const projectId = sstInspectionProject ? sstInspectionProject.value : activeProjectId;
+  const selected = sstInspectionTemplate.value;
+  sstInspectionTemplate.innerHTML = '<option value="">Selecione</option>';
+  const templates = Array.isArray(sstInspectionTemplates) ? sstInspectionTemplates : [];
+  templates
+    .filter((template) => template.isActive !== false)
+    .filter((template) => !template.projectId || String(template.projectId) === String(projectId))
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
+    .forEach((template) => {
+      const opt = document.createElement("option");
+      opt.value = template.id;
+      opt.textContent = template.name;
+      sstInspectionTemplate.append(opt);
+    });
+  if (selected) {
+    sstInspectionTemplate.value = selected;
+  }
+}
+
+function renderSstInspectionFilterTemplateOptions() {
+  if (!sstInspectionFilterTemplate) {
+    return;
+  }
+  const selected = sstInspectionFilterTemplate.value;
+  sstInspectionFilterTemplate.innerHTML = '<option value="">Todos os templates</option>';
+  const templates = Array.isArray(sstInspectionTemplates) ? sstInspectionTemplates : [];
+  templates
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
+    .forEach((template) => {
+      const opt = document.createElement("option");
+      opt.value = template.id;
+      opt.textContent = template.name;
+      sstInspectionFilterTemplate.append(opt);
+    });
+  if (selected) {
+    sstInspectionFilterTemplate.value = selected;
   }
 }
 
@@ -19049,10 +19789,23 @@ function renderSstDocResponsibleOptions() {
 
 function renderSstSelectors() {
   renderSstProjectOptions();
-  setFormDisabled(sstTrainingForm, !(currentUser && canManageSst(currentUser)));
-  setFormDisabled(sstInspectionForm, !(currentUser && canManageSst(currentUser)));
-  setFormDisabled(sstNcForm, !(currentUser && canManageSst(currentUser)));
-  setFormDisabled(sstIncidentForm, !(currentUser && canManageSst(currentUser)));
+  renderSstInspectionLocalOptions();
+  renderSstInspectionTemplateOptions();
+  renderSstInspectionFilterTemplateOptions();
+  const podeGerenciar = Boolean(currentUser && canManageSst(currentUser));
+  setFormDisabled(sstTrainingForm, !podeGerenciar);
+  setFormDisabled(sstInspectionForm, !podeGerenciar);
+  setFormDisabled(sstNcForm, !podeGerenciar);
+  setFormDisabled(sstIncidentForm, !podeGerenciar);
+  if (sstInspectionStartBtn) {
+    sstInspectionStartBtn.disabled = !podeGerenciar;
+  }
+  if (sstTemplateNewBtn) {
+    sstTemplateNewBtn.disabled = !podeGerenciar;
+  }
+  if (sstTemplateSeedBtn) {
+    sstTemplateSeedBtn.disabled = !podeGerenciar;
+  }
   renderSstDocResponsibleOptions();
   const podeEnviarDocs = Boolean(currentUser && canViewSst(currentUser));
   setFormDisabled(formSstDoc, !podeEnviarDocs);
@@ -19078,7 +19831,7 @@ function renderSstDashboard() {
     (nc) => String(nc.status || "").toUpperCase() !== "RESOLVIDA"
   );
   const naoConformes = scopedInspections.filter(
-    (insp) => String(insp.status || "").toUpperCase().includes("NAO")
+    (insp) => normalizeSstInspectionStatus(insp.status) === "NON_CONFORMING"
   );
   const incidentes = scopedIncidents.filter((inc) => {
     const data = parseDate(inc.date);
@@ -19093,7 +19846,7 @@ function renderSstDashboard() {
   );
   const cards = [
     { label: "Treinamentos vencendo (30d)", value: trainingsExpiring.length },
-    { label: "Inspeções não conformes", value: naoConformes.length },
+    { label: "InspeÃ§Ãµes nÃ£o conformes", value: naoConformes.length },
     { label: "NCs em aberto", value: openNcs.length },
     { label: "Incidentes (30d)", value: incidentes.length },
   ];
@@ -19162,23 +19915,123 @@ function renderSstTreinamentos() {
 }
 
 function renderSstInspecoes() {
-  if (!sstInspectionTableBody || !sstLoaded) {
+  if (!sstLoaded) {
     return;
   }
   renderSstSelectors();
-  const list = activeProjectId
-    ? sstInspections.filter((item) => item.projectId === activeProjectId)
-    : sstInspections;
-  sstInspectionTableBody.innerHTML = list
-    .map((insp) => {
-      const project = availableProjects.find((item) => item.id === insp.projectId);
-      const data = insp.createdAt ? formatDateTime(parseTimestamp(insp.createdAt)) : "-";
+  renderSstInspectionTemplates();
+  renderSstInspectionHistory();
+}
+
+function renderSstInspectionTemplates() {
+  if (!sstTemplateTableBody) {
+    return;
+  }
+  const list = Array.isArray(sstInspectionTemplates) ? sstInspectionTemplates.slice() : [];
+  sstTemplateTableBody.innerHTML = list
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
+    .map((template) => {
+      const statusLabel = template.isActive ? "Ativo" : "Inativo";
+      const statusBadge = template.isActive
+        ? `<span class="badge badge--ok">${statusLabel}</span>`
+        : `<span class="badge badge--warn">${statusLabel}</span>`;
+      const periodicity = getSstPeriodicityLabel(template.periodicityDays);
+      const qtd = Array.isArray(template.questions) ? template.questions.length : 0;
       return `
         <tr>
-          <td>${escapeHtml(insp.type || "-")}</td>
-          <td>${escapeHtml(project ? getProjectLabel(project) : insp.projectId || "-")}</td>
-          <td>${escapeHtml(insp.status || "-")}</td>
+          <td>${escapeHtml(template.name)}</td>
+          <td>${escapeHtml(getSstChecklistTypeLabel(template.type))}</td>
+          <td>${escapeHtml(periodicity)}</td>
+          <td>${statusBadge}</td>
+          <td>${escapeHtml(String(qtd))}</td>
+          <td>
+            <button class="btn btn--ghost btn--small" data-action="edit" data-id="${template.id}">
+              Editar
+            </button>
+            <button class="btn btn--ghost btn--small" data-action="duplicate" data-id="${template.id}">
+              Duplicar
+            </button>
+            <button class="btn btn--ghost btn--small" data-action="toggle" data-id="${template.id}">
+              ${template.isActive ? "Desativar" : "Ativar"}
+            </button>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+  if (sstTemplateEmpty) {
+    sstTemplateEmpty.hidden = list.length > 0;
+  }
+}
+
+function getSstInspectionHistoryFilters() {
+  return {
+    projectId: sstInspectionFilterProject ? sstInspectionFilterProject.value : "",
+    templateId: sstInspectionFilterTemplate ? sstInspectionFilterTemplate.value : "",
+    status: sstInspectionFilterStatus ? sstInspectionFilterStatus.value : "",
+    from: sstInspectionFilterFrom ? sstInspectionFilterFrom.value : "",
+    to: sstInspectionFilterTo ? sstInspectionFilterTo.value : "",
+    q: sstInspectionFilterSearch ? sstInspectionFilterSearch.value : "",
+  };
+}
+
+function renderSstInspectionHistory() {
+  if (!sstInspectionTableBody) {
+    return;
+  }
+  const filters = getSstInspectionHistoryFilters();
+  let list = Array.isArray(sstInspections) ? sstInspections.slice() : [];
+  if (filters.projectId) {
+    list = list.filter((run) => String(run.projectId) === String(filters.projectId));
+  }
+  if (filters.templateId) {
+    list = list.filter((run) => String(run.templateId) === String(filters.templateId));
+  }
+  if (filters.status) {
+    const status = normalizeSstInspectionStatus(filters.status);
+    list = list.filter((run) => normalizeSstInspectionStatus(run.status) === status);
+  }
+  if (filters.from) {
+    const fromDate = parseDate(filters.from);
+    list = list.filter((run) => {
+      const when = parseTimestamp(run.startedAt);
+      return when && fromDate ? when >= fromDate : true;
+    });
+  }
+  if (filters.to) {
+    const toDate = parseDate(filters.to);
+    list = list.filter((run) => {
+      const when = parseTimestamp(run.startedAt);
+      return when && toDate ? when <= endOfDay(toDate) : true;
+    });
+  }
+  if (filters.q) {
+    const term = normalizeSearchValue(filters.q);
+    list = list.filter(
+      (run) =>
+        normalizeSearchValue(run.templateName || "").includes(term) ||
+        normalizeSearchValue(run.notes || "").includes(term)
+    );
+  }
+  sstInspectionTableBody.innerHTML = list
+    .map((run) => {
+      const project = availableProjects.find((item) => item.id === run.projectId);
+      const data = run.startedAt ? formatDateTime(parseTimestamp(run.startedAt)) : "-";
+      const failLabel = `${run.failCount || 0} / ${run.criticalFailCount || 0}`;
+      return `
+        <tr>
           <td>${escapeHtml(data)}</td>
+          <td>${escapeHtml(run.templateName || "-")}</td>
+          <td>${escapeHtml(project ? getProjectLabel(project) : run.projectId || "-")}</td>
+          <td>${escapeHtml(run.worksiteId || "-")}</td>
+          <td>${escapeHtml(String(run.score ?? "-"))}</td>
+          <td>${getSstStatusBadge(run.status)}</td>
+          <td>${escapeHtml(failLabel)}</td>
+          <td>
+            <button class="btn btn--ghost btn--small" data-action="details" data-id="${run.id}">
+              Detalhes
+            </button>
+          </td>
         </tr>
       `;
     })
@@ -19198,12 +20051,15 @@ function renderSstNcs() {
     : sstNonconformities;
   sstNcTableBody.innerHTML = list
     .map((nc) => {
+      const status = String(nc.status || "OPEN").toUpperCase();
+      const statusLabel =
+        status === "DONE" || status === "RESOLVIDA" ? "Resolvida" : status === "IN_PROGRESS" ? "Em andamento" : status === "VERIFY" ? "Verificar" : "Aberta";
       return `
         <tr>
-          <td>${escapeHtml(nc.severity || "-")}</td>
-          <td>${escapeHtml(nc.description || "-")}</td>
+          <td>${getSstSeverityBadge(nc.severity || "")}</td>
+          <td>${escapeHtml(statusLabel)}</td>
           <td>${escapeHtml(nc.dueDate || "-")}</td>
-          <td>${escapeHtml(nc.status || "-")}</td>
+          <td>${escapeHtml(nc.description || "-")}</td>
         </tr>
       `;
     })
@@ -19290,6 +20146,889 @@ function normalizeSstDoc(doc) {
   };
 }
 
+function normalizeSstChecklistType(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "";
+  }
+  return raw.replace(/\s+/g, "_").replace(/[^a-z0-9_]/gi, "").toUpperCase();
+}
+
+function normalizeSstSeverity(value) {
+  const raw = String(value || "").trim().toUpperCase();
+  if (raw === "LOW" || raw === "BAIXA") {
+    return "LOW";
+  }
+  if (raw === "MED" || raw === "MEDIA" || raw === "MÃƒâ€°DIA") {
+    return "MED";
+  }
+  if (raw === "HIGH" || raw === "ALTA") {
+    return "HIGH";
+  }
+  if (raw === "CRITICAL" || raw === "CRITICA" || raw === "CRÃƒÂTICA") {
+    return "CRITICAL";
+  }
+  return "MED";
+}
+
+function normalizeSstAnswerValue(value) {
+  const raw = String(value || "").trim().toUpperCase();
+  if (raw === "OK") {
+    return "OK";
+  }
+  if (raw === "FAIL" || raw === "FALHA" || raw === "NAO_CONFORME" || raw === "NAO CONFORME") {
+    return "FAIL";
+  }
+  if (raw === "NA" || raw === "N/A") {
+    return "NA";
+  }
+  return "";
+}
+
+function normalizeSstInspectionStatus(value) {
+  const raw = String(value || "").trim().toUpperCase();
+  if (raw === "OK") {
+    return "OK";
+  }
+  if (raw === "ATTENTION" || raw === "ATENCAO") {
+    return "ATTENTION";
+  }
+  if (raw === "NON_CONFORMING" || raw === "NAO CONFORME" || raw === "NAO_CONFORME") {
+    return "NON_CONFORMING";
+  }
+  return "OK";
+}
+
+function normalizeSstChecklistQuestion(question, templateId, order) {
+  if (!question || typeof question !== "object") {
+    return null;
+  }
+  const text = String(question.text || "").trim();
+  if (!text) {
+    return null;
+  }
+  const safeOrder = Number.isFinite(Number(order)) ? Number(order) : Number(question.order || 1);
+  return {
+    id: question.id || criarId(),
+    templateId,
+    order: safeOrder || 1,
+    text,
+    helpText: question.helpText ? String(question.helpText) : "",
+    severity: normalizeSstSeverity(question.severity),
+    requiresPhotoOnFail: Boolean(question.requiresPhotoOnFail),
+    autoCreateNc: question.autoCreateNc !== false,
+  };
+}
+
+function normalizeSstChecklistTemplate(template) {
+  if (!template || typeof template !== "object") {
+    return null;
+  }
+  const name = String(template.name || template.nome || "").trim();
+  if (!name) {
+    return null;
+  }
+  const id = template.id || criarId();
+  const createdAt = template.createdAt || toIsoUtc(new Date());
+  const updatedAt = template.updatedAt || createdAt;
+  let periodicityDays = template.periodicityDays;
+  if (periodicityDays === "" || periodicityDays === undefined || periodicityDays === null) {
+    periodicityDays = null;
+  } else {
+    const num = Number(periodicityDays);
+    periodicityDays = Number.isFinite(num) && num > 0 ? Math.round(num) : null;
+  }
+  const rawQuestions = Array.isArray(template.questions) ? template.questions : [];
+  const questions = rawQuestions
+    .map((question, index) =>
+      normalizeSstChecklistQuestion(question, id, question.order || index + 1)
+    )
+    .filter(Boolean)
+    .sort((a, b) => a.order - b.order);
+  return {
+    id,
+    name,
+    type: normalizeSstChecklistType(template.type),
+    periodicityDays,
+    isActive: template.isActive !== false,
+    projectId: template.projectId || "",
+    createdAt,
+    updatedAt,
+    questions,
+  };
+}
+
+function normalizeSstInspectionAnswer(answer, runId, question) {
+  if (!answer || typeof answer !== "object") {
+    return null;
+  }
+  const answerValue = normalizeSstAnswerValue(answer.answer);
+  if (!answerValue) {
+    return null;
+  }
+  const questionId = answer.questionId || (question ? question.id : "");
+  if (!questionId) {
+    return null;
+  }
+  return {
+    id: answer.id || criarId(),
+    runId: answer.runId || runId || "",
+    questionId,
+    answer: answerValue,
+    notes: answer.notes ? String(answer.notes) : "",
+    severitySnapshot: normalizeSstSeverity(
+      answer.severitySnapshot || (question ? question.severity : "")
+    ),
+    createdAt: answer.createdAt || toIsoUtc(new Date()),
+    evidenceIds: Array.isArray(answer.evidenceIds) ? answer.evidenceIds.filter(Boolean) : [],
+  };
+}
+
+function normalizeSstInspectionRun(run) {
+  if (!run || typeof run !== "object") {
+    return null;
+  }
+  const templateId = run.templateId || "";
+  const projectId = run.projectId || "";
+  if (!templateId || !projectId) {
+    return null;
+  }
+  const id = run.id || criarId();
+  const startedAt = run.startedAt || run.createdAt || toIsoUtc(new Date());
+  const finishedAt = run.finishedAt || "";
+  const rawAnswers = Array.isArray(run.answers) ? run.answers : [];
+  const answers = rawAnswers
+    .map((answer) => normalizeSstInspectionAnswer(answer, id))
+    .filter(Boolean);
+  return {
+    id,
+    templateId,
+    projectId,
+    worksiteId: run.worksiteId || "",
+    inspectorId: run.inspectorId || run.createdBy || "",
+    startedAt,
+    finishedAt,
+    score: Number.isFinite(Number(run.score)) ? Number(run.score) : 0,
+    status: normalizeSstInspectionStatus(run.status),
+    notes: run.notes ? String(run.notes) : "",
+    answers,
+  };
+}
+
+function normalizeSstEvidence(evidence) {
+  if (!evidence || typeof evidence !== "object") {
+    return null;
+  }
+  const ownerType = String(evidence.ownerType || "").trim().toUpperCase();
+  if (!ownerType) {
+    return null;
+  }
+  const ownerId = String(evidence.ownerId || "").trim();
+  if (!ownerId) {
+    return null;
+  }
+  return {
+    id: evidence.id || criarId(),
+    ownerType,
+    ownerId,
+    fileName: evidence.fileName || evidence.name || "Evidencia",
+    fileType: evidence.fileType || "",
+    size: Number.isFinite(Number(evidence.size)) ? Number(evidence.size) : 0,
+    createdAt: evidence.createdAt || toIsoUtc(new Date()),
+    caption: evidence.caption ? String(evidence.caption) : "",
+    metadata: evidence.metadata || null,
+    createdBy: evidence.createdBy || "",
+    dataUrl: evidence.dataUrl || "",
+  };
+}
+
+function normalizeSstNonconformity(nc) {
+  if (!nc || typeof nc !== "object") {
+    return null;
+  }
+  const projectId = nc.projectId || "";
+  if (!projectId) {
+    return null;
+  }
+  const severity = normalizeSstSeverity(nc.severity);
+  return {
+    id: nc.id || criarId(),
+    projectId,
+    worksiteId: nc.worksiteId || "",
+    sourceType: nc.sourceType || "INSPECTION",
+    sourceId: nc.sourceId || "",
+    severity,
+    title: nc.title || "",
+    description: nc.description || "",
+    status: String(nc.status || "OPEN").toUpperCase(),
+    dueDate: nc.dueDate || "",
+    createdBy: nc.createdBy || "",
+    createdAt: nc.createdAt || toIsoUtc(new Date()),
+  };
+}
+
+function getSstChecklistTypeLabel(type) {
+  if (!type) {
+    return "-";
+  }
+  const key = normalizeSstChecklistType(type);
+  return SST_CHECKLIST_TYPE_LABELS[key] || type;
+}
+
+function getSstPeriodicityLabel(days) {
+  if (!days || Number(days) <= 0) {
+    return "Por operacao";
+  }
+  if (Number(days) === 1) {
+    return "Diaria";
+  }
+  if (Number(days) === 7) {
+    return "Semanal";
+  }
+  if (Number(days) === 30) {
+    return "Mensal";
+  }
+  return `${days} dias`;
+}
+
+function getSstSeverityBadge(severity) {
+  const normalized = normalizeSstSeverity(severity);
+  const label = SST_SEVERITY_LABELS[normalized] || normalized;
+  if (normalized === "LOW") {
+    return `<span class="badge badge--ok">${label}</span>`;
+  }
+  if (normalized === "MED") {
+    return `<span class="badge badge--warn">${label}</span>`;
+  }
+  return `<span class="badge badge--crit">${label}</span>`;
+}
+
+function getSstStatusBadge(status) {
+  const normalized = normalizeSstInspectionStatus(status);
+  const label = SST_STATUS_LABELS[normalized] || normalized;
+  if (normalized === "OK") {
+    return `<span class="badge badge--ok">${label}</span>`;
+  }
+  if (normalized === "ATTENTION") {
+    return `<span class="badge badge--warn">${label}</span>`;
+  }
+  return `<span class="badge badge--crit">${label}</span>`;
+}
+
+function buildSstFailStats(answers) {
+  const stats = { total: 0, LOW: 0, MED: 0, HIGH: 0, CRITICAL: 0 };
+  (answers || []).forEach((answer) => {
+    if (!answer || answer.answer !== "FAIL") {
+      return;
+    }
+    const severity = normalizeSstSeverity(answer.severitySnapshot);
+    stats.total += 1;
+    if (stats[severity] !== undefined) {
+      stats[severity] += 1;
+    }
+  });
+  return stats;
+}
+
+function calculateSstScore(answers) {
+  const penalties = { LOW: 2, MED: 5, HIGH: 12, CRITICAL: 25 };
+  let score = 100;
+  (answers || []).forEach((answer) => {
+    if (!answer || answer.answer !== "FAIL") {
+      return;
+    }
+    const severity = normalizeSstSeverity(answer.severitySnapshot);
+    score -= penalties[severity] || 0;
+  });
+  if (score < 0) {
+    return 0;
+  }
+  if (score > 100) {
+    return 100;
+  }
+  return Math.round(score);
+}
+
+function calculateSstStatus(answers) {
+  const stats = buildSstFailStats(answers);
+  if (stats.CRITICAL > 0 || stats.HIGH >= 2) {
+    return "NON_CONFORMING";
+  }
+  if (stats.HIGH > 0 || stats.MED > 0) {
+    return "ATTENTION";
+  }
+  return "OK";
+}
+
+function getSstDueDateForSeverity(severity) {
+  const normalized = normalizeSstSeverity(severity);
+  const today = new Date();
+  if (normalized === "CRITICAL") {
+    return toIsoUtc(addDays(today, 3));
+  }
+  if (normalized === "HIGH") {
+    return toIsoUtc(addDays(today, 7));
+  }
+  if (normalized === "MED") {
+    return toIsoUtc(addDays(today, 14));
+  }
+  return toIsoUtc(addDays(today, 30));
+}
+
+function getSstInspectionSeedTemplates() {
+  const photoHelp = "Se FAIL, descreva e fotografe a evidencia.";
+  return [
+    {
+      name: "NR-35 - Trabalho em Altura (pre-check)",
+      type: "WORK_AT_HEIGHT",
+      periodicityDays: 1,
+      questions: [
+        {
+          text: "Ancoragem/linha de vida certificada e inspecionada?",
+          severity: "CRITICAL",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Cinto paraquedista + talabarte (com absorvedor) em bom estado?",
+          severity: "CRITICAL",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Conexoes/travas funcionando e sem deformacoes?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Plano de resgate disponivel e equipe ciente?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Area isolada e sinalizada abaixo do trabalho?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        { text: "Condicoes climaticas seguras (vento/chuva)?", severity: "MED" },
+        { text: "Ferramentas com retencao/amarracao quando necessario?", severity: "MED" },
+        { text: "Checklist NR-35 do colaborador preenchido?", severity: "LOW" },
+      ],
+    },
+    {
+      name: "Andaimes - Montagem e Condicao",
+      type: "SCAFFOLDING",
+      periodicityDays: 7,
+      questions: [
+        {
+          text: "Guarda-corpo completo (superior/intermediario/rodape)?",
+          severity: "CRITICAL",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Piso completo, fixo e sem vaos?",
+          severity: "CRITICAL",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Acesso seguro (escada) fixado?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Travamentos/contraventamentos integros?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Base/sapatas niveladas?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        { text: "Sinalizacao de carga maxima visivel?", severity: "MED" },
+        { text: "Rodizios travados (se movel)?", severity: "MED" },
+        { text: "Inspecao diaria registrada?", severity: "LOW" },
+      ],
+    },
+    {
+      name: "Escadas Portateis",
+      type: "LADDERS",
+      periodicityDays: 7,
+      questions: [
+        {
+          text: "Escada sem trincas/deformacoes e com sapatas integras?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Angulo correto e base estavel?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Escada fixada no topo quando necessario?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        { text: "Proibido usar ultimos degraus (quando aplicavel)?", severity: "MED" },
+        { text: "Sem improvisos (caixas/tambores)?", severity: "MED" },
+        { text: "Area isolada em caso de circulacao?", severity: "LOW" },
+      ],
+    },
+    {
+      name: "EPI - Uso e Conformidade (campo)",
+      type: "PPE_COMPLIANCE",
+      periodicityDays: 1,
+      questions: [
+        {
+          text: "Capacete com jugular quando exigido e sem avarias?",
+          severity: "CRITICAL",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Oculos/face shield quando risco de projecao?",
+          severity: "CRITICAL",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Luvas corretas para a atividade?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Botina adequada (biqueira/solado)?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Protetor auricular quando ruido elevado?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        { text: "Vestimenta adequada e em boas condicoes?", severity: "MED" },
+        { text: "EPI limpo e armazenado adequadamente?", severity: "LOW" },
+      ],
+    },
+    {
+      name: "EPC - Sinalizacao e Isolamento de Area",
+      type: "EPC_ISOLATION",
+      periodicityDays: 1,
+      questions: [
+        {
+          text: "Area de risco isolada com barreira fisica (nao so fita)?",
+          severity: "CRITICAL",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Sinalizacao visivel e coerente com o risco?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Rotas de fuga desobstruidas?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        { text: "Iluminacao adequada na area?", severity: "MED" },
+        { text: "Placas de obrigatoriedade de EPI instaladas?", severity: "LOW" },
+      ],
+    },
+    {
+      name: "Extintores - Inspecao Mensal",
+      type: "FIRE_EXTINGUISHERS",
+      periodicityDays: 30,
+      questions: [
+        {
+          text: "Extintor acessivel e desobstruido?",
+          severity: "CRITICAL",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Lacre e pino intactos?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Manometro na faixa verde (se aplicavel)?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Sinalizacao e suporte adequados?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        { text: "Validade da carga/manutencao em dia?", severity: "MED" },
+        { text: "Identificacao do tipo correta para o risco do local?", severity: "LOW" },
+      ],
+    },
+    {
+      name: "Prevencao de Incendio - Housekeeping",
+      type: "FIRE_PREVENTION",
+      periodicityDays: 7,
+      questions: [
+        {
+          text: "Combustiveis armazenados corretamente?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Sem acumulo de residuos/embalagens?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        { text: "Proibido fumar sinalizado e respeitado?", severity: "MED" },
+        { text: "Extintores presentes nos pontos criticos?", severity: "MED" },
+        { text: "Rotas de fuga marcadas?", severity: "LOW" },
+      ],
+    },
+    {
+      name: "Eletricidade - NR-10 (campo)",
+      type: "NR10_ELECTRICAL",
+      periodicityDays: 7,
+      questions: [
+        {
+          text: "Quadros energizados fechados e identificados?",
+          severity: "CRITICAL",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "LOTO aplicado quando intervencao?",
+          severity: "CRITICAL",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Cabos/plugues sem emendas improvisadas?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Aterramento/DR onde exigido?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        { text: "Ferramentas isoladas quando aplicavel?", severity: "MED" },
+        { text: "Organizacao de cabos evitando tropeco?", severity: "LOW" },
+      ],
+    },
+    {
+      name: "Ferramentas Eletricas Portateis",
+      type: "POWER_TOOLS",
+      periodicityDays: 7,
+      questions: [
+        {
+          text: "Carcaca integra, sem fios expostos?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Protecoes/carenagens instaladas?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        { text: "Disco/acessorio correto e sem trincas?", severity: "MED" },
+        { text: "EPI adequado no uso?", severity: "MED" },
+        { text: "Check de funcionamento antes do uso?", severity: "LOW" },
+      ],
+    },
+    {
+      name: "Maquinas - Protecoes e Emergencia",
+      type: "MACHINERY_GUARDS",
+      periodicityDays: 7,
+      questions: [
+        {
+          text: "Protecoes fisicas instaladas?",
+          severity: "CRITICAL",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Botao de emergencia funcional e acessivel?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        { text: "Operador autorizado/treinado?", severity: "HIGH" },
+        { text: "Area sinalizada e sem terceiros?", severity: "MED" },
+        { text: "Manutencao preventiva registrada?", severity: "LOW" },
+      ],
+    },
+    {
+      name: "Icamento - Pre-operacao",
+      type: "LIFTING_OPERATIONS",
+      periodicityDays: null,
+      questions: [
+        {
+          text: "Plano de rigging e capacidade compativel?",
+          severity: "CRITICAL",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Cintas/manilhas/ganchos inspecionados?",
+          severity: "CRITICAL",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Area isolada e sinalizada?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        { text: "Sinaleiro designado e comunicacao definida?", severity: "HIGH" },
+        { text: "Solo/apoios estabilizados?", severity: "MED" },
+        { text: "Condicoes climaticas avaliadas?", severity: "LOW" },
+      ],
+    },
+    {
+      name: "Talhas/Guinchos/Correntes",
+      type: "HOISTS_CHAINS",
+      periodicityDays: 30,
+      questions: [
+        {
+          text: "Correntes/cabos sem deformacao/trinca?",
+          severity: "CRITICAL",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Trava de seguranca do gancho ok?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        { text: "Capacidade visivel?", severity: "MED" },
+        { text: "Registro de inspecao periodico?", severity: "LOW" },
+      ],
+    },
+    {
+      name: "Veiculos - Checklist Diario",
+      type: "VEHICLES_DAILY",
+      periodicityDays: 1,
+      questions: [
+        { text: "Freios/iluminacao/setas ok?", severity: "HIGH" },
+        { text: "Pneus ok?", severity: "HIGH" },
+        { text: "Cinto funciona?", severity: "MED" },
+        { text: "Extintor/triangulo presentes?", severity: "MED" },
+        { text: "Documentacao/habilitacao ok?", severity: "LOW" },
+      ],
+    },
+    {
+      name: "Empilhadeira - Operacao",
+      type: "FORKLIFT",
+      periodicityDays: 1,
+      questions: [
+        {
+          text: "Operador habilitado/autorizado?",
+          severity: "CRITICAL",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Buzina/alarme de re funcionando?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Garfos/correntes sem trincas?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        { text: "Rotas segregadas de pedestres?", severity: "MED" },
+        { text: "Checklist preenchido?", severity: "LOW" },
+      ],
+    },
+    {
+      name: "Espaco Confinado - Pre-Entrada",
+      type: "CONFINED_SPACE",
+      periodicityDays: null,
+      questions: [
+        {
+          text: "PT emitida e valida?",
+          severity: "CRITICAL",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Monitoramento atmosferico (O2/LEL/H2S/CO)?",
+          severity: "CRITICAL",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Vigia presente e comunicacao definida?",
+          severity: "CRITICAL",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Ventilacao/exaustao instalada?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Plano de resgate e equipamentos?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        { text: "EPIs especificos disponiveis?", severity: "MED" },
+        { text: "Isolamento e sinalizacao do acesso?", severity: "LOW" },
+      ],
+    },
+    {
+      name: "Solda/Trabalho a Quente - PTQ",
+      type: "HOT_WORK",
+      periodicityDays: null,
+      questions: [
+        {
+          text: "PTQ emitida e valida?",
+          severity: "CRITICAL",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Area limpa de combustiveis?",
+          severity: "CRITICAL",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Cortina/protecao de faiscas instalada?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Extintor adequado proximo?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        { text: "Aterramento e cabos ok?", severity: "MED" },
+        { text: "Vigilancia pos-trabalho realizada?", severity: "LOW" },
+      ],
+    },
+    {
+      name: "Quimicos - Armazenamento/Manuseio",
+      type: "CHEMICALS",
+      periodicityDays: 30,
+      questions: [
+        {
+          text: "FISPQ disponivel?",
+          severity: "CRITICAL",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Embalagens identificadas e integras?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Armazenamento segregado e ventilado?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        { text: "Kit de contencao disponivel?", severity: "MED" },
+        { text: "EPI quimico disponivel/uso?", severity: "MED" },
+        { text: "Registro de controle ok?", severity: "LOW" },
+      ],
+    },
+    {
+      name: "Ergonomia - Movimentacao Manual",
+      type: "ERGONOMICS",
+      periodicityDays: 30,
+      questions: [
+        { text: "Tecnica correta de levantamento?", severity: "MED" },
+        { text: "Peso compativel ou auxilio mecanico?", severity: "MED" },
+        { text: "Pausas/rodizio quando repetitivo?", severity: "LOW" },
+        { text: "Posto ajustado quando aplicavel?", severity: "LOW" },
+      ],
+    },
+    {
+      name: "Ordem e Limpeza - 5S",
+      type: "HOUSEKEEPING",
+      periodicityDays: 1,
+      questions: [
+        {
+          text: "Rotas livres de obstaculos?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Materiais organizados/empilhamento seguro?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        {
+          text: "Residuos segregados e coletores disponiveis?",
+          severity: "MED",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        { text: "Ferramentas guardadas apos uso?", severity: "MED" },
+        { text: "Iluminacao/sinalizacao ok?", severity: "LOW" },
+      ],
+    },
+    {
+      name: "Primeiros Socorros - Prontidao",
+      type: "FIRST_AID",
+      periodicityDays: 30,
+      questions: [
+        {
+          text: "Kit completo e dentro da validade?",
+          severity: "HIGH",
+          requiresPhotoOnFail: true,
+          helpText: photoHelp,
+        },
+        { text: "Pessoas treinadas identificadas?", severity: "HIGH" },
+        { text: "Contatos/rota de emergencia disponiveis?", severity: "MED" },
+        { text: "Registro de inspecao do kit em dia?", severity: "LOW" },
+      ],
+    },
+  ];
+}
+
 async function salvarSstDocArquivo(file) {
   if (!file) {
     return null;
@@ -19349,6 +21088,88 @@ async function salvarSstDocArquivo(file) {
       dataUrl: data.dataUrl,
       createdAt: agoraIso,
     };
+  }
+}
+
+async function salvarSstEvidenceArquivo(file) {
+  if (!file) {
+    return null;
+  }
+  const evidenceId = criarId();
+  const createdAt = toIsoUtc(new Date());
+  const name = file.name || "Evidencia";
+  if (typeof indexedDB === "undefined") {
+    const data = await lerDocumentoFile(file);
+    if (!data || !data.dataUrl) {
+      return null;
+    }
+    return {
+      evidenceId,
+      name: data.nome || name,
+      fileType: data.type || file.type || "",
+      size: file.size || 0,
+      createdAt,
+      dataUrl: data.dataUrl,
+    };
+  }
+  try {
+    const db = await openOpscopeDb();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction("sst_evidences", "readwrite");
+      const store = tx.objectStore("sst_evidences");
+      store.put({
+        evidenceId,
+        blob: file,
+        name,
+        fileType: file.type || "",
+        size: file.size || 0,
+        createdAt,
+      });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+    return {
+      evidenceId,
+      name,
+      fileType: file.type || "",
+      size: file.size || 0,
+      createdAt,
+    };
+  } catch (error) {
+    const data = await lerDocumentoFile(file);
+    if (!data || !data.dataUrl) {
+      return null;
+    }
+    return {
+      evidenceId,
+      name: data.nome || name,
+      fileType: data.type || file.type || "",
+      size: file.size || 0,
+      createdAt,
+      dataUrl: data.dataUrl,
+    };
+  }
+}
+
+async function getSstEvidenceById(evidenceId) {
+  if (!evidenceId) {
+    return null;
+  }
+  if (typeof indexedDB === "undefined") {
+    return null;
+  }
+  try {
+    const db = await openOpscopeDb();
+    return await new Promise((resolve) => {
+      const tx = db.transaction("sst_evidences", "readonly");
+      const store = tx.objectStore("sst_evidences");
+      const request = store.get(evidenceId);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => resolve(null);
+    });
+  } catch (error) {
+    return null;
   }
 }
 
@@ -19446,7 +21267,7 @@ function renderSstDocQueue(scopedDocs) {
           <div>
             <strong>${escapeHtml(doc.activity || "Atividade")}</strong>
             <div class="doc-queue-meta">
-              ${escapeHtml(projectLabel)} · ${escapeHtml(responsavel)} · ${escapeHtml(enviadoEm)}
+              ${escapeHtml(projectLabel)} Â· ${escapeHtml(responsavel)} Â· ${escapeHtml(enviadoEm)}
             </div>
           </div>
           <button class="btn btn--ghost btn--small" type="button" data-action="review">
@@ -19543,16 +21364,32 @@ async function carregarSst(force = false) {
     sstTrainingRecords = [];
   }
   try {
-    const data = await apiSstInspectionsList();
-    sstInspections = Array.isArray(data.inspections) ? data.inspections : [];
+    await dataProvider.sstInspections.seedTemplatesIfEmpty();
+    sstInspectionTemplates = await dataProvider.sstInspections.listTemplates();
+  } catch (error) {
+    sstInspectionTemplates = [];
+  }
+  try {
+    sstInspections = await dataProvider.sstInspections.listRuns();
   } catch (error) {
     sstInspections = [];
   }
+  let localNcs = [];
+  try {
+    localNcs = await dataProvider.sstInspections.listNcs();
+  } catch (error) {
+    localNcs = [];
+  }
   try {
     const data = await apiSstNonconformitiesList();
-    sstNonconformities = Array.isArray(data.nonconformities) ? data.nonconformities : [];
+    const remote = Array.isArray(data.nonconformities) ? data.nonconformities : [];
+    const normalizedRemote = remote.map(normalizeSstNonconformity).filter(Boolean);
+    const ids = new Set(localNcs.map((item) => item.id));
+    sstNonconformities = localNcs.concat(
+      normalizedRemote.filter((item) => !ids.has(item.id))
+    );
   } catch (error) {
-    sstNonconformities = [];
+    sstNonconformities = localNcs;
   }
   try {
     const data = await apiSstIncidentsList();
@@ -19573,7 +21410,7 @@ async function carregarSst(force = false) {
 async function handleAlmoxItemSubmit(event) {
   event.preventDefault();
   if (!currentUser || !canManageAlmoxarifado(currentUser)) {
-    setInlineMessage(almoxItemMsg, "Sem permissão para salvar item.", true);
+    setInlineMessage(almoxItemMsg, "Sem permissÃ£o para salvar item.", true);
     return;
   }
   const payload = {
@@ -19611,7 +21448,7 @@ async function handleAlmoxItemSubmit(event) {
 async function handleAlmoxMovSubmit(event) {
   event.preventDefault();
   if (!currentUser || !canManageAlmoxarifado(currentUser)) {
-    setInlineMessage(almoxMovMsg, "Sem permissão para movimentar estoque.", true);
+    setInlineMessage(almoxMovMsg, "Sem permissÃ£o para movimentar estoque.", true);
     return;
   }
   const payload = {
@@ -19634,11 +21471,11 @@ async function handleAlmoxMovSubmit(event) {
     return;
   }
   if (!payload.quantity || payload.quantity <= 0) {
-    setInlineMessage(almoxMovMsg, "Quantidade inválida.", true);
+    setInlineMessage(almoxMovMsg, "Quantidade invÃ¡lida.", true);
     return;
   }
   if (payload.type === "TRANSFERENCIA" && !payload.projectIdDestino) {
-    setInlineMessage(almoxMovMsg, "Informe o projeto destino da transferência.", true);
+    setInlineMessage(almoxMovMsg, "Informe o projeto destino da transferÃªncia.", true);
     return;
   }
   try {
@@ -19656,7 +21493,7 @@ async function handleAlmoxMovSubmit(event) {
       } catch (error) {
         // manter cache atual
       }
-      setInlineMessage(almoxMovMsg, "Movimentação registrada.");
+      setInlineMessage(almoxMovMsg, "MovimentaÃ§Ã£o registrada.");
       if (almoxMovForm) {
         almoxMovForm.reset();
       }
@@ -19669,14 +21506,14 @@ async function handleAlmoxMovSubmit(event) {
       renderAlmoxEpis();
     }
   } catch (error) {
-    setInlineMessage(almoxMovMsg, error.message || "Erro ao registrar movimentação.", true);
+    setInlineMessage(almoxMovMsg, error.message || "Erro ao registrar movimentaÃ§Ã£o.", true);
   }
 }
 
 async function handleSstTrainingSubmit(event) {
   event.preventDefault();
   if (!currentUser || !canManageSst(currentUser)) {
-    setInlineMessage(sstTrainingMsg, "Sem permissão para salvar treinamento.", true);
+    setInlineMessage(sstTrainingMsg, "Sem permissÃ£o para salvar treinamento.", true);
     return;
   }
   const payload = {
@@ -19706,47 +21543,884 @@ async function handleSstTrainingSubmit(event) {
   }
 }
 
-async function handleSstInspectionSubmit(event) {
+
+
+
+function openModal(modal) {
+  if (!modal) {
+    return;
+  }
+  modal.hidden = false;
+}
+
+function closeModal(modal) {
+  if (!modal) {
+    return;
+  }
+  modal.hidden = true;
+}
+
+function resetSstTemplateForm() {
+  if (formSstTemplate) {
+    formSstTemplate.reset();
+  }
+  if (sstTemplateId) {
+    sstTemplateId.value = "";
+  }
+  if (sstTemplateActive) {
+    sstTemplateActive.checked = true;
+  }
+  if (sstTemplateQuestions) {
+    sstTemplateQuestions.innerHTML = "";
+  }
+  setInlineMessage(sstTemplateMsg, "");
+}
+
+function addSstTemplateQuestionRow(question) {
+  if (!sstTemplateQuestions) {
+    return;
+  }
+  const data = question || {
+    id: criarId(),
+    text: "",
+    severity: "MED",
+    requiresPhotoOnFail: false,
+    autoCreateNc: true,
+    helpText: "",
+  };
+  const row = document.createElement("div");
+  row.className = "question-row";
+  row.dataset.questionId = data.id || criarId();
+  row.innerHTML = `
+    <div class="field" data-full>
+      <label>Pergunta</label>
+      <input type="text" data-field="text" placeholder="Descreva a pergunta" />
+    </div>
+    <div class="field">
+      <label>Severidade</label>
+      <select data-field="severity">
+        <option value="LOW">Baixa</option>
+        <option value="MED">Media</option>
+        <option value="HIGH">Alta</option>
+        <option value="CRITICAL">Critica</option>
+      </select>
+    </div>
+    <div class="field">
+      <label class="inline-check">
+        <input type="checkbox" data-field="photo" />
+        Foto obrigatoria no FAIL
+      </label>
+    </div>
+    <div class="field">
+      <label class="inline-check">
+        <input type="checkbox" data-field="autoNc" />
+        Gerar NC automaticamente
+      </label>
+    </div>
+    <div class="field" data-full>
+      <label>Help</label>
+      <input type="text" data-field="helpText" placeholder="Dica/observacao para o inspetor" />
+    </div>
+    <div class="question-actions">
+      <button class="btn btn--ghost btn--small" type="button" data-action="up">?</button>
+      <button class="btn btn--ghost btn--small" type="button" data-action="down">?</button>
+      <button class="btn btn--ghost btn--small btn--danger" type="button" data-action="remove">
+        Remover
+      </button>
+    </div>
+  `;
+  const textInput = row.querySelector("[data-field='text']");
+  const severityInput = row.querySelector("[data-field='severity']");
+  const photoInput = row.querySelector("[data-field='photo']");
+  const autoNcInput = row.querySelector("[data-field='autoNc']");
+  const helpInput = row.querySelector("[data-field='helpText']");
+  if (textInput) {
+    textInput.value = data.text || "";
+  }
+  if (severityInput) {
+    severityInput.value = normalizeSstSeverity(data.severity);
+  }
+  if (photoInput) {
+    photoInput.checked = Boolean(data.requiresPhotoOnFail);
+  }
+  if (autoNcInput) {
+    autoNcInput.checked = data.autoCreateNc !== false;
+  }
+  if (helpInput) {
+    helpInput.value = data.helpText || "";
+  }
+  sstTemplateQuestions.append(row);
+}
+
+function renderSstTemplateQuestionsEditor(questions) {
+  if (!sstTemplateQuestions) {
+    return;
+  }
+  sstTemplateQuestions.innerHTML = "";
+  const list = Array.isArray(questions) ? questions.slice() : [];
+  if (!list.length) {
+    addSstTemplateQuestionRow();
+    return;
+  }
+  list
+    .sort((a, b) => a.order - b.order)
+    .forEach((question) => addSstTemplateQuestionRow(question));
+}
+
+function openSstTemplateModal(template) {
+  if (!modalSstTemplate) {
+    return;
+  }
+  resetSstTemplateForm();
+  if (template) {
+    if (sstTemplateModalTitle) {
+      sstTemplateModalTitle.textContent = "Editar template de checklist";
+    }
+    if (sstTemplateId) {
+      sstTemplateId.value = template.id;
+    }
+    if (sstTemplateName) {
+      sstTemplateName.value = template.name || "";
+    }
+    if (sstTemplateType) {
+      sstTemplateType.value = template.type || "";
+    }
+    if (sstTemplatePeriodicity) {
+      sstTemplatePeriodicity.value =
+        template.periodicityDays !== null && template.periodicityDays !== undefined
+          ? String(template.periodicityDays)
+          : "";
+    }
+    if (sstTemplateProject) {
+      sstTemplateProject.value = template.projectId || "";
+    }
+    if (sstTemplateActive) {
+      sstTemplateActive.checked = template.isActive !== false;
+    }
+    renderSstTemplateQuestionsEditor(template.questions || []);
+  } else {
+    if (sstTemplateModalTitle) {
+      sstTemplateModalTitle.textContent = "Novo template de checklist";
+    }
+    renderSstTemplateQuestionsEditor([]);
+  }
+  openModal(modalSstTemplate);
+}
+
+function closeSstTemplateModal() {
+  closeModal(modalSstTemplate);
+  setInlineMessage(sstTemplateMsg, "");
+}
+
+function getSstTemplateFormData() {
+  const payload = {
+    id: sstTemplateId ? sstTemplateId.value : "",
+    name: sstTemplateName ? sstTemplateName.value.trim() : "",
+    type: sstTemplateType ? sstTemplateType.value.trim() : "",
+    periodicityDays: sstTemplatePeriodicity ? sstTemplatePeriodicity.value : "",
+    projectId: sstTemplateProject ? sstTemplateProject.value : "",
+    isActive: sstTemplateActive ? sstTemplateActive.checked : true,
+    questions: [],
+  };
+  const rows = sstTemplateQuestions ? sstTemplateQuestions.querySelectorAll(".question-row") : [];
+  Array.from(rows).forEach((row, index) => {
+    const textInput = row.querySelector("[data-field='text']");
+    const severityInput = row.querySelector("[data-field='severity']");
+    const photoInput = row.querySelector("[data-field='photo']");
+    const autoNcInput = row.querySelector("[data-field='autoNc']");
+    const helpInput = row.querySelector("[data-field='helpText']");
+    const text = textInput ? textInput.value.trim() : "";
+    if (!text) {
+      return;
+    }
+    payload.questions.push({
+      id: row.dataset.questionId || criarId(),
+      order: index + 1,
+      text,
+      severity: severityInput ? severityInput.value : "MED",
+      requiresPhotoOnFail: Boolean(photoInput && photoInput.checked),
+      autoCreateNc: autoNcInput ? autoNcInput.checked : true,
+      helpText: helpInput ? helpInput.value.trim() : "",
+    });
+  });
+  return payload;
+}
+
+async function handleSstTemplateSubmit(event) {
   event.preventDefault();
   if (!currentUser || !canManageSst(currentUser)) {
-    setInlineMessage(sstInspectionMsg, "Sem permissão para registrar inspeção.", true);
+    setInlineMessage(sstTemplateMsg, "Sem permissao para salvar template.", true);
     return;
   }
-  const payload = {
-    type: sstInspectionType ? sstInspectionType.value.trim() : "",
-    projectId: sstInspectionProject ? sstInspectionProject.value : "",
-    status: sstInspectionStatus ? sstInspectionStatus.value : "",
-    notes: sstInspectionNotes ? sstInspectionNotes.value.trim() : "",
-  };
-  if (!payload.type) {
-    setInlineMessage(sstInspectionMsg, "Informe o tipo de inspeção.", true);
+  const payload = getSstTemplateFormData();
+  if (!payload.name) {
+    setInlineMessage(sstTemplateMsg, "Informe o nome do template.", true);
     return;
   }
-  if (!payload.projectId) {
-    setInlineMessage(sstInspectionMsg, "Selecione o projeto.", true);
+  if (!payload.questions.length) {
+    setInlineMessage(sstTemplateMsg, "Adicione pelo menos uma pergunta.", true);
     return;
   }
   try {
-    const data = await apiSstInspectionCreate(payload);
-    if (data && data.inspection) {
-      sstInspections = [data.inspection].concat(sstInspections);
-      sstLoaded = true;
-      if (sstInspectionForm) {
-        sstInspectionForm.reset();
-      }
-      setInlineMessage(sstInspectionMsg, "Inspeção registrada.");
-      renderSstInspecoes();
-      renderSstDashboard();
+    await dataProvider.sstInspections.upsertTemplate(payload);
+    sstInspectionTemplates = await dataProvider.sstInspections.listTemplates();
+    setInlineMessage(sstTemplateMsg, "Template salvo com sucesso.");
+    closeSstTemplateModal();
+    renderSstInspecoes();
+  } catch (error) {
+    setInlineMessage(sstTemplateMsg, error.message || "Erro ao salvar template.", true);
+  }
+}
+
+async function handleSstTemplateSeed() {
+  if (!currentUser || !canManageSst(currentUser)) {
+    setInlineMessage(sstInspectionMsg, "Sem permissao para carregar templates.", true);
+    return;
+  }
+  try {
+    const result = await dataProvider.sstInspections.seedTemplatesIfEmpty();
+    sstInspectionTemplates = await dataProvider.sstInspections.listTemplates();
+    renderSstInspecoes();
+    if (result.seeded) {
+      setInlineMessage(sstInspectionMsg, `Templates iniciais carregados (${result.count}).`);
+    } else {
+      setInlineMessage(sstInspectionMsg, "Templates ja existentes.");
     }
   } catch (error) {
-    setInlineMessage(sstInspectionMsg, error.message || "Erro ao registrar inspeção.", true);
+    setInlineMessage(sstInspectionMsg, error.message || "Erro ao carregar templates.", true);
+  }
+}
+
+function handleSstTemplateTableClick(event) {
+  const button = event.target.closest("button[data-action]");
+  if (!button) {
+    return;
+  }
+  const id = button.dataset.id;
+  const action = button.dataset.action;
+  const template = sstInspectionTemplates.find((item) => String(item.id) === String(id));
+  if (!template) {
+    return;
+  }
+  if (action === "edit") {
+    openSstTemplateModal(template);
+    return;
+  }
+  if (action === "duplicate") {
+    openSstTemplateModal({
+      ...template,
+      id: "",
+      name: `${template.name} (copia)`,
+    });
+    return;
+  }
+  if (action === "toggle") {
+    dataProvider.sstInspections
+      .upsertTemplate({ ...template, isActive: !template.isActive })
+      .then(async () => {
+        sstInspectionTemplates = await dataProvider.sstInspections.listTemplates();
+        renderSstInspecoes();
+      });
+  }
+}
+
+function handleSstInspectionHistoryClick(event) {
+  const button = event.target.closest("button[data-action='details']");
+  if (!button) {
+    return;
+  }
+  const id = button.dataset.id;
+  if (!id) {
+    return;
+  }
+  openSstInspectionDetails(id);
+}
+
+function handleSstTemplateQuestionsClick(event) {
+  const button = event.target.closest("button[data-action]");
+  if (!button || !sstTemplateQuestions) {
+    return;
+  }
+  const row = button.closest(".question-row");
+  if (!row) {
+    return;
+  }
+  const action = button.dataset.action;
+  if (action === "remove") {
+    row.remove();
+    return;
+  }
+  if (action === "up" && row.previousElementSibling) {
+    sstTemplateQuestions.insertBefore(row, row.previousElementSibling);
+  }
+  if (action === "down" && row.nextElementSibling) {
+    sstTemplateQuestions.insertBefore(row.nextElementSibling, row);
+  }
+}
+
+async function handleSstInspectionStart() {
+  if (!currentUser || !canManageSst(currentUser)) {
+    setInlineMessage(sstInspectionMsg, "Sem permissao para iniciar inspecao.", true);
+    return;
+  }
+  const projectId = sstInspectionProject ? sstInspectionProject.value : "";
+  const templateId = sstInspectionTemplate ? sstInspectionTemplate.value : "";
+  const worksiteId = sstInspectionLocal ? sstInspectionLocal.value : "";
+  if (!projectId) {
+    setInlineMessage(sstInspectionMsg, "Selecione o projeto.", true);
+    return;
+  }
+  if (!templateId) {
+    setInlineMessage(sstInspectionMsg, "Selecione o template.", true);
+    return;
+  }
+  const template = sstInspectionTemplates.find((item) => String(item.id) === String(templateId));
+  if (!template) {
+    setInlineMessage(sstInspectionMsg, "Template nao encontrado.", true);
+    return;
+  }
+  sstWizardState = {
+    template,
+    projectId,
+    worksiteId,
+    inspectorId: currentUser.id,
+    startedAt: toIsoUtc(new Date()),
+    currentIndex: 0,
+    answers: {},
+    completed: false,
+    runId: "",
+    summary: null,
+  };
+  setInlineMessage(sstInspectionMsg, "");
+  openModal(modalSstInspectionWizard);
+  renderSstWizard();
+}
+
+function getWizardAnswerState(questionId) {
+  if (!sstWizardState) {
+    return null;
+  }
+  if (!sstWizardState.answers[questionId]) {
+    sstWizardState.answers[questionId] = {
+      answer: "",
+      notes: "",
+      evidences: [],
+    };
+  }
+  return sstWizardState.answers[questionId];
+}
+
+function clearWizardEvidenceUrls() {
+  if (!sstWizardState) {
+    return;
+  }
+  Object.values(sstWizardState.answers).forEach((state) => {
+    (state.evidences || []).forEach((item) => {
+      if (item.previewUrl) {
+        URL.revokeObjectURL(item.previewUrl);
+      }
+    });
+  });
+}
+
+function closeSstInspectionWizard() {
+  closeModal(modalSstInspectionWizard);
+  clearWizardEvidenceUrls();
+  sstWizardState = null;
+  setInlineMessage(sstWizardMsg, "");
+}
+
+function renderSstWizard() {
+  if (!sstWizardState || !sstWizardBody || !sstWizardProgress) {
+    return;
+  }
+  const { template, currentIndex, completed } = sstWizardState;
+  if (!template) {
+    return;
+  }
+  if (sstWizardTitle) {
+    sstWizardTitle.textContent = template.name;
+  }
+  if (sstWizardMeta) {
+    const project = availableProjects.find((item) => item.id === sstWizardState.projectId);
+    const projectLabel = project ? getProjectLabel(project) : sstWizardState.projectId || "-";
+    const localLabel = sstWizardState.worksiteId ? ` - ${sstWizardState.worksiteId}` : "";
+    sstWizardMeta.textContent = `${projectLabel}${localLabel}`;
+  }
+  const questions = Array.isArray(template.questions) ? template.questions : [];
+  if (completed) {
+    if (sstWizardSummary) {
+      sstWizardSummary.hidden = false;
+    }
+    if (sstWizardBody) {
+      sstWizardBody.innerHTML = "";
+    }
+    if (sstWizardPrev) {
+      sstWizardPrev.disabled = true;
+    }
+    if (sstWizardNext) {
+      sstWizardNext.textContent = "Fechar";
+    }
+    return;
+  }
+  if (!questions.length) {
+    sstWizardBody.innerHTML = `<p class="empty-state">Template sem perguntas.</p>`;
+    return;
+  }
+  const question = questions[currentIndex];
+  const state = getWizardAnswerState(question.id);
+  if (!state) {
+    return;
+  }
+  sstWizardProgress.textContent = `${currentIndex + 1} / ${questions.length}`;
+  const answerButtons = ["OK", "FAIL", "NA"]
+    .map((value) => {
+      const active = state.answer === value ? "is-active" : "";
+      const label = value === "NA" ? "N/A" : value;
+      return `<button class="${active}" type="button" data-answer="${value}" data-question-id="${question.id}">${label}</button>`;
+    })
+    .join("");
+  const evidenceItems = (state.evidences || [])
+    .map(
+      (item, index) => `
+        <div class="wizard-evidence-item">
+          <span>${escapeHtml(item.file.name)}</span>
+          <div class="question-actions">
+            <button class="btn btn--ghost btn--small" type="button" data-action="view-evidence" data-index="${index}" data-question-id="${question.id}">Ver</button>
+            <button class="btn btn--ghost btn--small btn--danger" type="button" data-action="remove-evidence" data-index="${index}" data-question-id="${question.id}">Remover</button>
+          </div>
+        </div>
+      `
+    )
+    .join("");
+  sstWizardBody.innerHTML = `
+    <div class="wizard-question">
+      <h4>${escapeHtml(question.text)}</h4>
+      ${question.helpText ? `<p class="hint">${escapeHtml(question.helpText)}</p>` : ""}
+      <div class="wizard-answers">${answerButtons}</div>
+      <div class="field" data-full>
+        <label>Observacoes</label>
+        <textarea id="sstWizardNotes" rows="2" placeholder="Observacoes rapidas"></textarea>
+      </div>
+      <div class="wizard-evidences">
+        <div class="section-title section-title--compact">
+          <div>
+            <h4>Evidencias</h4>
+            <p class="hint">Fotos ou PDFs da inspecao.</p>
+          </div>
+          <button class="btn btn--ghost btn--small" type="button" data-action="add-evidence">Adicionar</button>
+        </div>
+        <input id="sstWizardEvidenceInput" type="file" multiple accept="image/*,application/pdf" hidden />
+        <div class="wizard-evidences__list">${evidenceItems || "<p class=\"empty-state\">Sem evidencias anexadas.</p>"}</div>
+      </div>
+    </div>
+  `;
+  if (sstWizardSummary) {
+    sstWizardSummary.hidden = true;
+  }
+  const notesField = sstWizardBody.querySelector("#sstWizardNotes");
+  if (notesField) {
+    notesField.value = state.notes || "";
+    notesField.addEventListener("input", (event) => {
+      state.notes = event.target.value;
+    });
+  }
+  const evidenceInput = sstWizardBody.querySelector("#sstWizardEvidenceInput");
+  if (evidenceInput) {
+    evidenceInput.addEventListener("change", (event) => {
+      const files = Array.from(event.target.files || []);
+      if (!files.length) {
+        return;
+      }
+      files.forEach((file) => {
+        state.evidences.push({
+          file,
+          previewUrl: URL.createObjectURL(file),
+        });
+      });
+      evidenceInput.value = "";
+      renderSstWizard();
+    });
+  }
+  if (sstWizardPrev) {
+    sstWizardPrev.disabled = currentIndex === 0;
+  }
+  if (sstWizardNext) {
+    sstWizardNext.textContent = currentIndex === questions.length - 1 ? "Finalizar" : "Proximo";
+  }
+}
+
+function validateSstWizardStep(question, state) {
+  if (!state.answer) {
+    return "Selecione OK, FAIL ou N/A.";
+  }
+  if (state.answer === "FAIL" && question.requiresPhotoOnFail) {
+    const hasPhoto = (state.evidences || []).some((item) =>
+      item.file && item.file.type && item.file.type.startsWith("image/")
+    );
+    if (!hasPhoto) {
+      return "Anexe pelo menos uma foto para FAIL.";
+    }
+  }
+  return "";
+}
+
+async function finalizeSstWizard() {
+  if (!sstWizardState) {
+    return;
+  }
+  const template = sstWizardState.template;
+  const questions = Array.isArray(template.questions) ? template.questions : [];
+  const run = await dataProvider.sstInspections.startRun({
+    templateId: template.id,
+    projectId: sstWizardState.projectId,
+    worksiteId: sstWizardState.worksiteId,
+    inspectorId: sstWizardState.inspectorId,
+    startedAt: sstWizardState.startedAt,
+  });
+  for (const question of questions) {
+    const state = getWizardAnswerState(question.id);
+    if (!state || !state.answer) {
+      continue;
+    }
+    const answer = await dataProvider.sstInspections.saveAnswer({
+      runId: run.id,
+      questionId: question.id,
+      answer: state.answer,
+      notes: state.notes || "",
+    });
+    for (const item of state.evidences || []) {
+      await dataProvider.sstInspections.attachEvidence({
+        ownerType: "INSPECTION_ANSWER",
+        ownerId: answer.id,
+        file: item.file,
+      });
+    }
+  }
+  const finished = await dataProvider.sstInspections.finishRun({ runId: run.id });
+  const details = await dataProvider.sstInspections.getRunDetails(run.id);
+  sstWizardState.completed = true;
+  sstWizardState.runId = run.id;
+  sstWizardState.summary = details || finished;
+  sstInspections = await dataProvider.sstInspections.listRuns();
+  renderSstInspecoes();
+  renderSstDashboard();
+  if (sstWizardSummary) {
+    const stats = details ? details.failStats : buildSstFailStats(finished.answers || []);
+    const statusBadge = getSstStatusBadge(finished.status);
+    sstWizardSummary.innerHTML = `
+      <div class="wizard-summary__stats">
+        <div class="stat"><small>Score</small><strong>${escapeHtml(
+          String(finished.score)
+        )}</strong></div>
+        <div class="stat"><small>Status</small>${statusBadge}</div>
+        <div class="stat"><small>Falhas</small><strong>${escapeHtml(
+          String(stats.total)
+        )}</strong></div>
+        <div class="stat"><small>Criticas</small><strong>${escapeHtml(
+          String(stats.CRITICAL)
+        )}</strong></div>
+      </div>
+      <div class="wizard-summary__stats">
+        <label class="inline-check">
+          <input id="sstWizardIncludeMed" type="checkbox" />
+          Incluir severidade MED
+        </label>
+        <button id="sstWizardGenerateNc" class="btn btn--primary btn--small" type="button">
+          Gerar NCs
+        </button>
+      </div>
+    `;
+    const generateBtn = sstWizardSummary.querySelector("#sstWizardGenerateNc");
+    if (generateBtn) {
+      generateBtn.addEventListener("click", async () => {
+        const includeMed = Boolean(
+          sstWizardSummary.querySelector("#sstWizardIncludeMed")?.checked
+        );
+        const include = includeMed ? ["HIGH", "CRITICAL", "MED"] : ["HIGH", "CRITICAL"];
+        const created = await dataProvider.sstInspections.generateNcsFromRun({
+          runId: run.id,
+          includeSeverities: include,
+        });
+        if (created.length) {
+          const localNcs = await dataProvider.sstInspections.listNcs();
+          const ids = new Set(localNcs.map((item) => item.id));
+          sstNonconformities = localNcs.concat(
+            sstNonconformities.filter((item) => !ids.has(item.id))
+          );
+          renderSstNcs();
+          renderSstDashboard();
+          setInlineMessage(sstWizardMsg, `${created.length} NC(s) geradas.`);
+        } else {
+          setInlineMessage(sstWizardMsg, "Nenhuma NC nova para gerar.");
+        }
+      });
+    }
+  }
+  renderSstWizard();
+}
+
+function handleSstWizardBodyClick(event) {
+  if (!sstWizardState) {
+    return;
+  }
+  const answerBtn = event.target.closest("button[data-answer]");
+  if (answerBtn) {
+    const questionId = answerBtn.dataset.questionId;
+    const state = getWizardAnswerState(questionId);
+    if (state) {
+      state.answer = answerBtn.dataset.answer;
+      renderSstWizard();
+    }
+    return;
+  }
+  const actionBtn = event.target.closest("button[data-action]");
+  if (!actionBtn) {
+    return;
+  }
+  const action = actionBtn.dataset.action;
+  const questionId = actionBtn.dataset.questionId;
+  const state = getWizardAnswerState(questionId);
+  if (!state) {
+    return;
+  }
+  if (action === "remove-evidence") {
+    const index = Number(actionBtn.dataset.index);
+    const item = state.evidences[index];
+    if (item && item.previewUrl) {
+      URL.revokeObjectURL(item.previewUrl);
+    }
+    state.evidences.splice(index, 1);
+    renderSstWizard();
+    return;
+  }
+  if (action === "view-evidence") {
+    const index = Number(actionBtn.dataset.index);
+    const item = state.evidences[index];
+    if (item) {
+      openInNewTab(item.previewUrl || URL.createObjectURL(item.file));
+    }
+    return;
+  }
+  if (action === "add-evidence") {
+    const input = sstWizardBody.querySelector("#sstWizardEvidenceInput");
+    if (input) {
+      input.click();
+    }
+  }
+}
+
+async function handleSstWizardNext() {
+  if (!sstWizardState) {
+    return;
+  }
+  if (sstWizardState.completed) {
+    closeSstInspectionWizard();
+    return;
+  }
+  const template = sstWizardState.template;
+  const questions = Array.isArray(template.questions) ? template.questions : [];
+  const question = questions[sstWizardState.currentIndex];
+  const state = getWizardAnswerState(question.id);
+  const errorMessage = validateSstWizardStep(question, state);
+  if (errorMessage) {
+    setInlineMessage(sstWizardMsg, errorMessage, true);
+    return;
+  }
+  setInlineMessage(sstWizardMsg, "");
+  if (sstWizardState.currentIndex >= questions.length - 1) {
+    if (sstWizardNext) {
+      sstWizardNext.disabled = true;
+    }
+    try {
+      await finalizeSstWizard();
+    } finally {
+      if (sstWizardNext) {
+        sstWizardNext.disabled = false;
+      }
+    }
+    return;
+  }
+  sstWizardState.currentIndex += 1;
+  renderSstWizard();
+}
+
+function handleSstWizardPrev() {
+  if (!sstWizardState || sstWizardState.completed) {
+    return;
+  }
+  if (sstWizardState.currentIndex > 0) {
+    sstWizardState.currentIndex -= 1;
+    renderSstWizard();
+  }
+}
+
+async function openSstInspectionDetails(runId) {
+  if (!modalSstInspectionDetails || !sstInspectionDetailsBody) {
+    return;
+  }
+  sstInspectionDetailsId = runId;
+  sstInspectionDetailsData = null;
+  sstInspectionDetailsBody.innerHTML = "<p class=\"empty-state\">Carregando...</p>";
+  setInlineMessage(sstInspectionDetailsMsg, "");
+  openModal(modalSstInspectionDetails);
+  const details = await dataProvider.sstInspections.getRunDetails(runId);
+  if (!details) {
+    sstInspectionDetailsBody.innerHTML = "<p class=\"empty-state\">Inspecao nao encontrada.</p>";
+    return;
+  }
+  sstInspectionDetailsData = details;
+  const project = availableProjects.find((item) => item.id === details.projectId);
+  const projectLabel = project ? getProjectLabel(project) : details.projectId || "-";
+  const dataLabel = details.startedAt ? formatDateTime(parseTimestamp(details.startedAt)) : "-";
+  if (sstInspectionDetailsTitle) {
+    sstInspectionDetailsTitle.textContent = details.template
+      ? details.template.name
+      : "Detalhes da inspecao";
+  }
+  if (sstInspectionDetailsMeta) {
+    sstInspectionDetailsMeta.textContent = `${projectLabel} - ${dataLabel}`;
+  }
+  const summary = `
+    <div class="wizard-summary__stats">
+      <div class="stat"><small>Score</small><strong>${escapeHtml(
+        String(details.score)
+      )}</strong></div>
+      <div class="stat"><small>Status</small>${getSstStatusBadge(details.status)}</div>
+      <div class="stat"><small>Falhas</small><strong>${escapeHtml(
+        String(details.failStats.total)
+      )}</strong></div>
+      <div class="stat"><small>Criticas</small><strong>${escapeHtml(
+        String(details.failStats.CRITICAL)
+      )}</strong></div>
+    </div>
+  `;
+  const questions = details.template ? details.template.questions : [];
+  const answers = details.answers || [];
+  const answerMap = new Map(answers.map((answer) => [answer.questionId, answer]));
+  const htmlQuestions = questions
+    .map((question) => {
+      const answer = answerMap.get(question.id);
+      let badge = `<span class="badge badge--warn">Sem resposta</span>`;
+      if (answer) {
+        if (answer.answer === "OK") {
+          badge = `<span class="badge badge--ok">OK</span>`;
+        } else if (answer.answer === "FAIL") {
+          badge = `<span class="badge badge--crit">FAIL</span>`;
+        } else {
+          badge = `<span class="badge badge--warn">N/A</span>`;
+        }
+      }
+      const evidences = answer ? details.evidencesByAnswerId[answer.id] || [] : [];
+      const evidenceList = evidences.length
+        ? evidences
+            .map(
+              (evidence) => `
+            <div class="wizard-evidence-item">
+              <span>${escapeHtml(evidence.fileName)}</span>
+              <button class="btn btn--ghost btn--small" type="button" data-evidence-id="${evidence.id}">Ver</button>
+            </div>
+          `
+            )
+            .join("")
+        : `<p class="empty-state">Sem evidencias</p>`;
+      return `
+        <div class="wizard-question">
+          <div class="section-title section-title--compact">
+            <div>
+              <h4>${escapeHtml(question.text)}</h4>
+              ${question.helpText ? `<p class="hint">${escapeHtml(question.helpText)}</p>` : ""}
+            </div>
+            ${badge}
+          </div>
+          ${answer && answer.notes ? `<p class="hint">${escapeHtml(answer.notes)}</p>` : ""}
+          <div class="wizard-evidences__list">${evidenceList}</div>
+        </div>
+      `;
+    })
+    .join("");
+  sstInspectionDetailsBody.innerHTML = summary + htmlQuestions;
+  if (sstInspectionGenerateNc) {
+    sstInspectionGenerateNc.disabled = details.failStats.total === 0;
+  }
+}
+
+function closeSstInspectionDetails() {
+  closeModal(modalSstInspectionDetails);
+  sstInspectionDetailsId = null;
+  sstInspectionDetailsData = null;
+  setInlineMessage(sstInspectionDetailsMsg, "");
+}
+
+async function handleSstInspectionDetailsClick(event) {
+  const button = event.target.closest("button[data-evidence-id]");
+  if (!button) {
+    return;
+  }
+  const evidenceId = button.dataset.evidenceId;
+  if (!evidenceId) {
+    return;
+  }
+  const details = sstInspectionDetailsData;
+  let evidence =
+    details && details.evidencesByAnswerId
+      ? Object.values(details.evidencesByAnswerId)
+          .flat()
+          .find((item) => String(item.id) === String(evidenceId))
+      : null;
+  if (!evidence) {
+    return;
+  }
+  if (evidence.dataUrl) {
+    openInNewTab(evidence.dataUrl);
+    return;
+  }
+  const stored = await getSstEvidenceById(evidence.id);
+  if (stored && stored.blob) {
+    const url = URL.createObjectURL(stored.blob);
+    openInNewTab(url);
+    setTimeout(() => URL.revokeObjectURL(url), 300000);
+  }
+}
+
+async function handleSstInspectionGenerateNc() {
+  if (!sstInspectionDetailsId) {
+    return;
+  }
+  const includeMed = window.confirm(
+    "Incluir severidade MEDIA? (OK para incluir, Cancelar para HIGH/CRITICAL)"
+  );
+  const include = includeMed ? ["HIGH", "CRITICAL", "MED"] : ["HIGH", "CRITICAL"];
+  try {
+    const created = await dataProvider.sstInspections.generateNcsFromRun({
+      runId: sstInspectionDetailsId,
+      includeSeverities: include,
+    });
+    if (created.length) {
+      const localNcs = await dataProvider.sstInspections.listNcs();
+      const ids = new Set(localNcs.map((item) => item.id));
+      sstNonconformities = localNcs.concat(
+        sstNonconformities.filter((item) => !ids.has(item.id))
+      );
+      renderSstNcs();
+      renderSstDashboard();
+      setInlineMessage(sstInspectionDetailsMsg, `${created.length} NC(s) geradas.`);
+    } else {
+      setInlineMessage(sstInspectionDetailsMsg, "Nenhuma NC nova para gerar.");
+    }
+  } catch (error) {
+    setInlineMessage(
+      sstInspectionDetailsMsg,
+      error.message || "Erro ao gerar NCs.",
+      true
+    );
   }
 }
 
 async function handleSstNcSubmit(event) {
   event.preventDefault();
   if (!currentUser || !canManageSst(currentUser)) {
-    setInlineMessage(sstNcMsg, "Sem permissão para registrar NC.", true);
+    setInlineMessage(sstNcMsg, "Sem permissÃ£o para registrar NC.", true);
     return;
   }
   const payload = {
@@ -19760,7 +22434,7 @@ async function handleSstNcSubmit(event) {
     return;
   }
   if (!payload.description) {
-    setInlineMessage(sstNcMsg, "Descreva a não conformidade.", true);
+    setInlineMessage(sstNcMsg, "Descreva a nÃ£o conformidade.", true);
     return;
   }
   try {
@@ -19783,7 +22457,7 @@ async function handleSstNcSubmit(event) {
 async function handleSstIncidentSubmit(event) {
   event.preventDefault();
   if (!currentUser || !canManageSst(currentUser)) {
-    setInlineMessage(sstIncidentMsg, "Sem permissão para registrar incidente.", true);
+    setInlineMessage(sstIncidentMsg, "Sem permissÃ£o para registrar incidente.", true);
     return;
   }
   const payload = {
@@ -19827,7 +22501,7 @@ function abrirSstDocForm() {
     return;
   }
   if (!currentUser || !canViewSst(currentUser)) {
-    window.alert("Sem permissão para enviar documentação.");
+    window.alert("Sem permissÃ£o para enviar documentaÃ§Ã£o.");
     return;
   }
   renderSstSelectors();
@@ -19896,7 +22570,7 @@ function handleSstDocAprView() {
 async function handleSstDocSubmit(event) {
   event.preventDefault();
   if (!currentUser || !canViewSst(currentUser)) {
-    setInlineMessage(sstDocFormMsg, "Sem permissão para enviar documentação.", true);
+    setInlineMessage(sstDocFormMsg, "Sem permissÃ£o para enviar documentaÃ§Ã£o.", true);
     return;
   }
   const payload = {
@@ -19911,7 +22585,7 @@ async function handleSstDocSubmit(event) {
     return;
   }
   if (!payload.responsibleId) {
-    setInlineMessage(sstDocFormMsg, "Informe o responsável.", true);
+    setInlineMessage(sstDocFormMsg, "Informe o responsÃ¡vel.", true);
     return;
   }
   if (!payload.activity) {
@@ -19923,12 +22597,12 @@ async function handleSstDocSubmit(event) {
       ? sstDocAprInput.files[0]
       : null;
   if (!aprFile) {
-    setInlineMessage(sstDocFormMsg, "Anexe a APR obrigatória.", true);
+    setInlineMessage(sstDocFormMsg, "Anexe a APR obrigatÃ³ria.", true);
     return;
   }
   const aprDoc = await salvarSstDocArquivo(aprFile);
   if (!aprDoc) {
-    setInlineMessage(sstDocFormMsg, "Não foi possível anexar a APR.", true);
+    setInlineMessage(sstDocFormMsg, "NÃ£o foi possÃ­vel anexar a APR.", true);
     return;
   }
   const attachments = [];
@@ -19954,7 +22628,7 @@ async function handleSstDocSubmit(event) {
     source: "manual",
   });
   if (!novo) {
-    setInlineMessage(sstDocFormMsg, "Falha ao registrar documentação.", true);
+    setInlineMessage(sstDocFormMsg, "Falha ao registrar documentaÃ§Ã£o.", true);
     return;
   }
   const result = await dataProvider.sstDocs.create(novo);
@@ -19978,7 +22652,7 @@ function abrirSstDocReview(docId) {
     sstDocReviewId.value = doc.id;
   }
   if (sstDocReviewTitle) {
-    sstDocReviewTitle.textContent = doc.activity || "Documentação";
+    sstDocReviewTitle.textContent = doc.activity || "DocumentaÃ§Ã£o";
   }
   if (sstDocReviewStatus) {
     sstDocReviewStatus.innerHTML = getSstDocStatusBadge(doc.status);
@@ -19988,7 +22662,7 @@ function abrirSstDocReview(docId) {
     const projectLabel = project ? getProjectLabel(project) : doc.projectId || "-";
     const responsavel = getUserLabel(doc.responsibleId);
     const enviadoEm = doc.createdAt ? formatDateTime(parseTimestamp(doc.createdAt)) : "-";
-    sstDocReviewMeta.textContent = `${projectLabel} · ${responsavel} · Enviado em ${enviadoEm}`;
+    sstDocReviewMeta.textContent = `${projectLabel} Â· ${responsavel} Â· Enviado em ${enviadoEm}`;
   }
   if (sstDocReviewNotes) {
     sstDocReviewNotes.value = doc.reviewNotes || "";
@@ -20063,13 +22737,13 @@ function fecharSstDocReview() {
 
 async function atualizarSstDocStatus(status) {
   if (!currentUser || !canManageSst(currentUser)) {
-    setInlineMessage(sstDocReviewMsg, "Sem permissão para revisar.", true);
+    setInlineMessage(sstDocReviewMsg, "Sem permissÃ£o para revisar.", true);
     return;
   }
   const docId = sstDocReviewingId || (sstDocReviewId ? sstDocReviewId.value : "");
   const index = sstDocs.findIndex((item) => String(item.id) === String(docId));
   if (index < 0) {
-    setInlineMessage(sstDocReviewMsg, "Documentação não encontrada.", true);
+    setInlineMessage(sstDocReviewMsg, "DocumentaÃ§Ã£o nÃ£o encontrada.", true);
     return;
   }
   const notes = sstDocReviewNotes ? sstDocReviewNotes.value.trim() : "";
@@ -20077,7 +22751,7 @@ async function atualizarSstDocStatus(status) {
     ? sstDocReviewInstructions.value.trim()
     : "";
   if (String(status).toUpperCase() === "REPROVADO" && !instructions) {
-    setInlineMessage(sstDocReviewMsg, "Informe as instruções de correção.", true);
+    setInlineMessage(sstDocReviewMsg, "Informe as instruÃ§Ãµes de correÃ§Ã£o.", true);
     return;
   }
   const agoraIso = toIsoUtc(new Date());
@@ -20100,7 +22774,7 @@ async function atualizarSstDocStatus(status) {
   }
   setInlineMessage(
     sstDocReviewMsg,
-    atualizado.status === "APROVADO" ? "Documentação aprovada." : "Documentação reprovada."
+    atualizado.status === "APROVADO" ? "DocumentaÃ§Ã£o aprovada." : "DocumentaÃ§Ã£o reprovada."
   );
 }
 
@@ -20356,18 +23030,18 @@ function renderPerfil() {
     perfilRole.textContent = formatProfileValue(getRoleLabel(currentUser));
   }
   if (perfilAtribuicoes) {
-    perfilAtribuicoes.textContent = currentUser.atribuicoes || "Não informado.";
+    perfilAtribuicoes.textContent = currentUser.atribuicoes || "NÃ£o informado.";
   }
   if (perfilPermissoes) {
     perfilPermissoes.textContent = isAdminUser
       ? "Total"
       : permissoesAtivas.length
         ? permissoesAtivas.join(", ")
-        : "Sem permissões.";
+        : "Sem permissÃµes.";
   }
   if (perfilSecoes) {
     perfilSecoes.textContent = isAdminUser
-      ? "Todas (inclui governança)"
+      ? "Todas (inclui governanÃ§a)"
       : secoesAtivas.length
         ? secoesAtivas.join(", ")
         : "Nenhuma.";
@@ -20669,7 +23343,7 @@ function initAvatarUpload() {
       return;
     }
     if (!AVATAR_ALLOWED_TYPES.includes(file.type)) {
-      setAvatarError("Formato de imagem não suportado.");
+      setAvatarError("Formato de imagem nÃ£o suportado.");
       return;
     }
     if (file.size > AVATAR_MAX_BYTES) {
@@ -20775,7 +23449,7 @@ function importarDados() {
       renderTudo();
       mostrarMensagemGerencial("Dados importados com sucesso.");
     } catch (error) {
-      mostrarMensagemGerencial("Arquivo inválido ou corrompido.", true);
+      mostrarMensagemGerencial("Arquivo invÃ¡lido ou corrompido.", true);
     }
   };
   leitor.readAsText(arquivo);
@@ -20828,7 +23502,7 @@ function recalcularBacklog() {
 
 function gerarRelatorio() {
   if (!currentUser || !canExportRelatorios(currentUser)) {
-    mostrarMensagemGerencial("Sem permissão para gerar relatório.", true);
+    mostrarMensagemGerencial("Sem permissÃ£o para gerar relatÃ³rio.", true);
     return;
   }
   const total = manutencoes.length;
@@ -20854,7 +23528,7 @@ function gerarRelatorio() {
   const reagendamentosTotal = reagendamentos.length;
   const motivosReagendamento = reagendamentos.reduce((acc, entry) => {
     const motivo =
-      entry && entry.detalhes && entry.detalhes.motivo ? entry.detalhes.motivo : "Não informado";
+      entry && entry.detalhes && entry.detalhes.motivo ? entry.detalhes.motivo : "NÃ£o informado";
     acc[motivo] = (acc[motivo] || 0) + 1;
     return acc;
   }, {});
@@ -20978,7 +23652,7 @@ function gerarRelatorio() {
   const execucoesCanceladas = cancelamentosInicio.length;
   const cancelMotivos = cancelamentosInicio.reduce((acc, entry) => {
     const motivo =
-      entry && entry.detalhes && entry.detalhes.motivo ? entry.detalhes.motivo : "Não informado";
+      entry && entry.detalhes && entry.detalhes.motivo ? entry.detalhes.motivo : "NÃ£o informado";
     acc[motivo] = (acc[motivo] || 0) + 1;
     return acc;
   }, {});
@@ -21006,33 +23680,33 @@ function gerarRelatorio() {
       `Total: ${total}\n` +
       `Agendadas: ${agendadas}\n` +
       `Backlog: ${backlog}\n` +
-      `Concluídas: ${concluidas.length}\n` +
-      `Conclusão: ${taxaConclusao}%\n` +
+      `ConcluÃ­das: ${concluidas.length}\n` +
+      `ConclusÃ£o: ${taxaConclusao}%\n` +
       `Percentual no prazo: ${taxaPontual}%\n` +
       `Reagendamentos: ${reagendamentosTotal}\n` +
       `Motivos de reagendamento: ${motivosTexto}\n` +
       `Reagendamentos por modelo (top 5):\n${reagPorModeloTexto}\n` +
       `Outros (total): ${outrosTotal}\n` +
-      `Observações de Outros (top 10):\n${outrosTexto}\n` +
+      `ObservaÃ§Ãµes de Outros (top 10):\n${outrosTexto}\n` +
       `Backlog (entradas): ${backlogEntradas}\n` +
-      `Backlog (manutenções afetadas): ${backlogUnicos}\n` +
-      `Backlog médio (dias): ${backlogMedio}\n` +
+      `Backlog (manutenÃ§Ãµes afetadas): ${backlogUnicos}\n` +
+      `Backlog mÃ©dio (dias): ${backlogMedio}\n` +
       `Top 5 atrasadas:\n${backlogTopTexto}\n` +
-      `Motivos não executada (backlog): ${backlogMotivosTotal}\n` +
+      `Motivos nÃ£o executada (backlog): ${backlogMotivosTotal}\n` +
       `Detalhes motivos backlog: ${backlogMotivosResumo}\n` +
-      `Tempo médio entre programada e execução (dias): ${tempoMedioExecucao}\n` +
-      `Tempo médio de execução (HH:MM): ${mediaDuracaoExecucao}\n` +
-      `Tempo médio de atraso (dias): ${mediaAtrasoExec}\n` +
-        `Execuções: ${execPontuais} no prazo, ${execAdiantadas} adiantadas, ${execAtrasadas} atrasadas\n` +
-        `Execuções com ressalva: ${execComRessalva}\n` +
-        `Execuções não executadas: ${execNaoExecutada}\n` +
-        `Execuções iniciadas: ${execucoesIniciadas}\n` +
-        `Inícios cancelados: ${execucoesCanceladas}\n` +
+      `Tempo mÃ©dio entre programada e execuÃ§Ã£o (dias): ${tempoMedioExecucao}\n` +
+      `Tempo mÃ©dio de execuÃ§Ã£o (HH:MM): ${mediaDuracaoExecucao}\n` +
+      `Tempo mÃ©dio de atraso (dias): ${mediaAtrasoExec}\n` +
+        `ExecuÃ§Ãµes: ${execPontuais} no prazo, ${execAdiantadas} adiantadas, ${execAtrasadas} atrasadas\n` +
+        `ExecuÃ§Ãµes com ressalva: ${execComRessalva}\n` +
+        `ExecuÃ§Ãµes nÃ£o executadas: ${execNaoExecutada}\n` +
+        `ExecuÃ§Ãµes iniciadas: ${execucoesIniciadas}\n` +
+        `InÃ­cios cancelados: ${execucoesCanceladas}\n` +
         `Motivos de cancelamento: ${cancelMotivosTexto}\n` +
         `Compliance documental: ${complianceDocs}/${concluidas.length} (${compliancePercent}%)\n` +
-        `Evidências médias por manutenção: ${evidenciasMedia}`;
+        `EvidÃªncias mÃ©dias por manutenÃ§Ã£o: ${evidenciasMedia}`;
   }
-  mostrarMensagemGerencial("Relatório atualizado.");
+  mostrarMensagemGerencial("RelatÃ³rio atualizado.");
 }
 
 function renderTudo() {
@@ -21101,7 +23775,7 @@ function atualizarSeNecessario() {
               to: change.to,
               dataProgramada: item.data || "",
               atrasoDias,
-              resumo: "Manutenção movida para backlog por não conclusão até a data programada.",
+              resumo: "ManutenÃ§Ã£o movida para backlog por nÃ£o conclusÃ£o atÃ© a data programada.",
             },
             SYSTEM_USER_ID
           );
@@ -21197,21 +23871,21 @@ async function adicionarManutencao() {
   }
   if (!titulo || !local || !data || !categoria || !prioridade) {
     mostrarMensagemManutencao(
-      "Preencha tipo, subestação, início da execução, categoria e prioridade.",
+      "Preencha tipo, subestaÃ§Ã£o, inÃ­cio da execuÃ§Ã£o, categoria e prioridade.",
       true
     );
     return;
   }
   if (!equipamentoId) {
-    mostrarMensagemManutencao("Informe o equipamento da manutenção.", true);
+    mostrarMensagemManutencao("Informe o equipamento da manutenÃ§Ã£o.", true);
     return;
   }
   if (!observacao) {
-    mostrarMensagemManutencao("Descreva a demanda técnica.", true);
+    mostrarMensagemManutencao("Descreva a demanda tÃ©cnica.", true);
     return;
   }
   if (!osReferencia) {
-    mostrarMensagemManutencao("Informe a OS / referência.", true);
+    mostrarMensagemManutencao("Informe a OS / referÃªncia.", true);
     return;
   }
   setFieldError(participantesManutencaoErro, "");
@@ -21230,7 +23904,7 @@ async function adicionarManutencao() {
         documentos[chave] = await uploadLiberacaoDoc(file, chave);
       } catch (error) {
         mostrarMensagemManutencao(
-          error && error.message ? error.message : "Não foi possível enviar o documento.",
+          error && error.message ? error.message : "NÃ£o foi possÃ­vel enviar o documento.",
           true
         );
         return;
@@ -21242,7 +23916,7 @@ async function adicionarManutencao() {
     return;
   }
   if (critico && !documentos.pt) {
-    mostrarMensagemManutencao("PT obrigatória para trabalho crítico.", true);
+    mostrarMensagemManutencao("PT obrigatÃ³ria para trabalho crÃ­tico.", true);
     return;
   }
 
@@ -21251,7 +23925,7 @@ async function adicionarManutencao() {
   const usuarioLabel = getUserLabel(currentUser.id);
   const teamName = getProjectTeamName(activeProjectId);
   const executadoPorTime = teamName ? `team:${teamName}` : currentUser.id;
-  const ultimaAcao = `Execução iniciada em ${formatDateTime(agora)} por ${usuarioLabel}`;
+  const ultimaAcao = `ExecuÃ§Ã£o iniciada em ${formatDateTime(agora)} por ${usuarioLabel}`;
   const liberacao = {
     osNumero: osReferencia,
     participantes,
@@ -21299,7 +23973,7 @@ async function adicionarManutencao() {
   logAction("create", nova, {
     source: "manual",
     dataProgramada: data,
-    resumo: "Manutenção criada e iniciada.",
+    resumo: "ManutenÃ§Ã£o criada e iniciada.",
   });
   const documentosLista = DOC_KEYS.filter((key) => documentos[key]).map(
     (key) => DOC_LABELS[key] || key
@@ -21311,7 +23985,7 @@ async function adicionarManutencao() {
     participantes,
     critico,
     documentos: documentosLista,
-    resumo: "Execução iniciada.",
+    resumo: "ExecuÃ§Ã£o iniciada.",
   });
   await registrarSstDocumentacao(nova, liberacao);
   renderTudo();
@@ -21321,7 +23995,7 @@ async function adicionarManutencao() {
   if (criada) {
     abrirRegistroExecucao(criada);
   }
-  mostrarMensagemManutencao("Execução iniciada.");
+  mostrarMensagemManutencao("ExecuÃ§Ã£o iniciada.");
 }
 
 let manutencaoEmConclusao = null;
@@ -21371,13 +24045,13 @@ function setEditModeManutencao(item) {
       if (!dataValor) {
         dataValor = "-";
       }
-      manutencaoEditInfo.textContent = `${projetoLabel} · ${item.titulo || "-"} · ${
+      manutencaoEditInfo.textContent = `${projetoLabel} Â· ${item.titulo || "-"} Â· ${
         item.local || "-"
-      } · ${dataValor}`;
+      } Â· ${dataValor}`;
     }
   }
   if (btnAdicionarManutencao) {
-    btnAdicionarManutencao.textContent = ativo ? "Salvar edição" : "Iniciar execução";
+    btnAdicionarManutencao.textContent = ativo ? "Salvar ediÃ§Ã£o" : "Iniciar execuÃ§Ã£o";
     const podeCriar = can("create") && secConfig.nova !== false;
     const podeSalvar = ativo ? can("edit") : podeCriar;
     btnAdicionarManutencao.disabled = !podeSalvar;
@@ -21782,7 +24456,7 @@ async function abrirEdicaoManutencao(item) {
     return;
   }
   if (item.status === "concluida" && !canEditConcludedMaintenance(currentUser)) {
-    mostrarMensagemManutencao("Apenas PCM pode editar manutenções concluídas.", true);
+    mostrarMensagemManutencao("Apenas PCM pode editar manutenÃ§Ãµes concluÃ­das.", true);
     return;
   }
   if (item.projectId && item.projectId !== activeProjectId) {
@@ -21808,13 +24482,13 @@ async function salvarEdicaoManutencao() {
   }
   const index = manutencoes.findIndex((item) => item.id === manutencaoEmEdicao);
   if (index < 0) {
-    mostrarMensagemManutencao("Manutenção não encontrada.", true);
+    mostrarMensagemManutencao("ManutenÃ§Ã£o nÃ£o encontrada.", true);
     return;
   }
   const item = manutencoes[index];
   const isConcluida = item.status === "concluida";
   if (isConcluida && !canEditConcludedMaintenance(currentUser)) {
-    mostrarMensagemManutencao("Apenas PCM pode editar manutenções concluídas.", true);
+    mostrarMensagemManutencao("Apenas PCM pode editar manutenÃ§Ãµes concluÃ­das.", true);
     return;
   }
 
@@ -21964,26 +24638,26 @@ async function salvarEdicaoManutencao() {
   const participantesFinal = participantes;
 
   if (!tituloFinal || !localFinal || !dataFinal) {
-    mostrarMensagemManutencao("Preencha tipo, subestação e início da execução.", true);
+    mostrarMensagemManutencao("Preencha tipo, subestaÃ§Ã£o e inÃ­cio da execuÃ§Ã£o.", true);
     return;
   }
   if (!isConcluida && (!categoriaFinal || !prioridadeFinal)) {
     mostrarMensagemManutencao(
-      "Preencha tipo, subestação, início da execução, categoria e prioridade.",
+      "Preencha tipo, subestaÃ§Ã£o, inÃ­cio da execuÃ§Ã£o, categoria e prioridade.",
       true
     );
     return;
   }
   if (!isConcluida && !equipamentoFinal) {
-    mostrarMensagemManutencao("Informe o equipamento da manutenção.", true);
+    mostrarMensagemManutencao("Informe o equipamento da manutenÃ§Ã£o.", true);
     return;
   }
   if (!isConcluida && !observacaoFinal) {
-    mostrarMensagemManutencao("Descreva a demanda técnica.", true);
+    mostrarMensagemManutencao("Descreva a demanda tÃ©cnica.", true);
     return;
   }
   if (!isConcluida && !osReferenciaFinal) {
-    mostrarMensagemManutencao("Informe a OS / referência.", true);
+    mostrarMensagemManutencao("Informe a OS / referÃªncia.", true);
     return;
   }
   setFieldError(participantesManutencaoErro, "");
@@ -22007,7 +24681,7 @@ async function salvarEdicaoManutencao() {
         documentosAtualizados[chave] = await uploadLiberacaoDoc(file, chave);
       } catch (error) {
         mostrarMensagemManutencao(
-          error && error.message ? error.message : "Não foi possível enviar o documento.",
+          error && error.message ? error.message : "NÃ£o foi possÃ­vel enviar o documento.",
           true
         );
         return;
@@ -22018,11 +24692,11 @@ async function salvarEdicaoManutencao() {
   const exigirDocs = !isConcluida && item.status !== "agendada" && item.status !== "backlog";
   if (exigirDocs) {
     if (!documentosAtualizados.apr || !documentosAtualizados.os || !documentosAtualizados.pte) {
-      mostrarMensagemManutencao("Anexe APR, OS e PTE para manter a execução.", true);
+      mostrarMensagemManutencao("Anexe APR, OS e PTE para manter a execuÃ§Ã£o.", true);
       return;
     }
     if (critico && !documentosAtualizados.pt) {
-      mostrarMensagemManutencao("PT obrigatória para trabalho crítico.", true);
+      mostrarMensagemManutencao("PT obrigatÃ³ria para trabalho crÃ­tico.", true);
       return;
     }
   }
@@ -22084,10 +24758,10 @@ async function salvarEdicaoManutencao() {
   const resultado = normalizarManutencoes(manutencoes);
   manutencoes = resultado.normalizadas;
   salvarManutencoes(manutencoes);
-  logAction("edit", atualizado, { resumo: "Edição via painel" });
+  logAction("edit", atualizado, { resumo: "EdiÃ§Ã£o via painel" });
   renderTudo();
   limparEdicaoManutencao();
-  mostrarMensagemManutencao("Manutenção atualizada.");
+  mostrarMensagemManutencao("ManutenÃ§Ã£o atualizada.");
 }
 
 function normalizeUserLookup(value) {
@@ -22208,12 +24882,13 @@ async function editarManutencao(index) {
     return;
   }
   if (item.status === "concluida" && !canEditConcludedMaintenance(currentUser)) {
-    mostrarMensagemManutencao("Apenas PCM pode editar manutenções concluídas.", true);
+    mostrarMensagemManutencao("Apenas PCM pode editar manutenÃ§Ãµes concluÃ­das.", true);
     return;
   }
   await abrirEdicaoManutencao(item);
 }
-
+
+
 function editarManutencaoConcluida(index) {
   const item = manutencoes[index];
   if (!item) {
@@ -22223,27 +24898,27 @@ function editarManutencaoConcluida(index) {
   const registro = item.registroExecucao || {};
   const conclusao = item.conclusao || {};
 
-  const novoTitulo = window.prompt("Título da manutenção:", item.titulo || "");
+  const novoTitulo = window.prompt("TÃ­tulo da manutenÃ§Ã£o:", item.titulo || "");
   if (novoTitulo === null) {
     return;
   }
   const tituloLimpo = novoTitulo.trim();
   if (!tituloLimpo) {
-    mostrarMensagemManutencao("Título inválido.", true);
+    mostrarMensagemManutencao("TÃ­tulo invÃ¡lido.", true);
     return;
   }
 
-  const novoLocal = window.prompt("Local/Subestação:", item.local || "");
+  const novoLocal = window.prompt("Local/SubestaÃ§Ã£o:", item.local || "");
   if (novoLocal === null) {
     return;
   }
   const localLimpo = novoLocal.trim();
   if (!localLimpo) {
-    mostrarMensagemManutencao("Local inválido.", true);
+    mostrarMensagemManutencao("Local invÃ¡lido.", true);
     return;
   }
 
-  const novaObs = window.prompt("Observações:", item.observacao || "");
+  const novaObs = window.prompt("ObservaÃ§Ãµes:", item.observacao || "");
   if (novaObs === null) {
     return;
   }
@@ -22260,7 +24935,7 @@ function editarManutencaoConcluida(index) {
   if (novaDataInput.trim()) {
     const parsed = parseDate(novaDataInput.trim());
     if (!parsed) {
-      mostrarMensagemManutencao("Data inválida.", true);
+      mostrarMensagemManutencao("Data invÃ¡lida.", true);
       return;
     }
     dataFinal = formatDateISO(parsed);
@@ -22280,7 +24955,7 @@ function editarManutencaoConcluida(index) {
   const executadoPorAtual = getExecutadoPorId(item);
   const executadoPorLabel = executadoPorAtual ? getUserLabel(executadoPorAtual) : "";
   const executadoPorInput = window.prompt(
-    "Executada por (matrícula, nome ou time:Nome). Deixe vazio para manter:",
+    "Executada por (matrÃ­cula, nome ou time:Nome). Deixe vazio para manter:",
     executadoPorLabel
   );
   if (executadoPorInput === null) {
@@ -22288,7 +24963,7 @@ function editarManutencaoConcluida(index) {
   }
   const executadoPorFinal = resolveExecutadoPorInput(executadoPorInput, executadoPorAtual);
   if (!executadoPorFinal) {
-    mostrarMensagemManutencao("Executada por inválida.", true);
+    mostrarMensagemManutencao("Executada por invÃ¡lida.", true);
     return;
   }
 
@@ -22303,13 +24978,13 @@ function editarManutencaoConcluida(index) {
   const resultadoNormalizado = normalizeResultadoInput(resultadoInput);
   const resultadoFinal = resultadoNormalizado || resultadoAtual;
   if (!resultadoFinal) {
-    mostrarMensagemManutencao("Resultado inválido.", true);
+    mostrarMensagemManutencao("Resultado invÃ¡lido.", true);
     return;
   }
 
   const comentarioAtual = registro.comentario || conclusao.comentario || "";
   const comentarioInput = window.prompt(
-    "Descrição técnica (registro de execução):",
+    "DescriÃ§Ã£o tÃ©cnica (registro de execuÃ§Ã£o):",
     comentarioAtual
   );
   if (comentarioInput === null) {
@@ -22317,13 +24992,13 @@ function editarManutencaoConcluida(index) {
   }
   const comentarioFinal = comentarioInput.trim();
   if (!comentarioFinal) {
-    mostrarMensagemManutencao("Descrição técnica obrigatória.", true);
+    mostrarMensagemManutencao("DescriÃ§Ã£o tÃ©cnica obrigatÃ³ria.", true);
     return;
   }
 
   const obsExecucaoAtual = registro.observacaoExecucao || conclusao.observacaoExecucao || "";
   const obsExecucaoInput = window.prompt(
-    "Observação de execução (opcional):",
+    "ObservaÃ§Ã£o de execuÃ§Ã£o (opcional):",
     obsExecucaoAtual
   );
   if (obsExecucaoInput === null) {
@@ -22332,13 +25007,13 @@ function editarManutencaoConcluida(index) {
   const obsExecucaoFinal = obsExecucaoInput.trim();
 
   const referenciaAtual = conclusao.referencia || liberacao.osNumero || "";
-  const referenciaInput = window.prompt("Nº OS / referência:", referenciaAtual);
+  const referenciaInput = window.prompt("NÂº OS / referÃªncia:", referenciaAtual);
   if (referenciaInput === null) {
     return;
   }
   const referenciaFinal = referenciaInput.trim() || referenciaAtual;
   if (!referenciaFinal) {
-    mostrarMensagemManutencao("Nº OS / referência obrigatório.", true);
+    mostrarMensagemManutencao("NÂº OS / referÃªncia obrigatÃ³rio.", true);
     return;
   }
 
@@ -22360,7 +25035,7 @@ function editarManutencaoConcluida(index) {
   if (participantesInput.trim()) {
     participantesFinal = resolveParticipantesInput(participantesInput);
     if (!participantesFinal.length) {
-      mostrarMensagemManutencao("Participantes inválidos.", true);
+      mostrarMensagemManutencao("Participantes invÃ¡lidos.", true);
       return;
     }
   }
@@ -22368,7 +25043,7 @@ function editarManutencaoConcluida(index) {
   const inicioAtual = getItemInicioExecucaoDate(item);
   const fimAtual = getItemFimExecucaoDate(item) || getItemConclusaoDate(item);
   const inicioInput = window.prompt(
-    "Início da execução (AAAA-MM-DDTHH:MM). Deixe vazio para manter:",
+    "InÃ­cio da execuÃ§Ã£o (AAAA-MM-DDTHH:MM). Deixe vazio para manter:",
     inicioAtual ? formatDateTimeInput(inicioAtual) : ""
   );
   if (inicioInput === null) {
@@ -22378,14 +25053,14 @@ function editarManutencaoConcluida(index) {
   if (inicioInput.trim()) {
     const parsed = parseDateTimeInputFlexible(inicioInput);
     if (!parsed) {
-      mostrarMensagemManutencao("Início inválido.", true);
+      mostrarMensagemManutencao("InÃ­cio invÃ¡lido.", true);
       return;
     }
     inicioFinal = parsed;
   }
 
   const fimInput = window.prompt(
-    "Fim da execução (AAAA-MM-DDTHH:MM). Deixe vazio para manter:",
+    "Fim da execuÃ§Ã£o (AAAA-MM-DDTHH:MM). Deixe vazio para manter:",
     fimAtual ? formatDateTimeInput(fimAtual) : ""
   );
   if (fimInput === null) {
@@ -22395,13 +25070,13 @@ function editarManutencaoConcluida(index) {
   if (fimInput.trim()) {
     const parsed = parseDateTimeInputFlexible(fimInput);
     if (!parsed) {
-      mostrarMensagemManutencao("Fim inválido.", true);
+      mostrarMensagemManutencao("Fim invÃ¡lido.", true);
       return;
     }
     fimFinal = parsed;
   }
   if (inicioFinal && fimFinal && fimFinal < inicioFinal) {
-    mostrarMensagemManutencao("Fim deve ser maior ou igual ao início.", true);
+    mostrarMensagemManutencao("Fim deve ser maior ou igual ao inÃ­cio.", true);
     return;
   }
 
@@ -22472,9 +25147,9 @@ function editarManutencaoConcluida(index) {
   const resultado = normalizarManutencoes(manutencoes);
   manutencoes = resultado.normalizadas;
   salvarManutencoes(manutencoes);
-  logAction("edit", atualizado, { resumo: "Edição após conclusão" });
+  logAction("edit", atualizado, { resumo: "EdiÃ§Ã£o apÃ³s conclusÃ£o" });
   renderTudo();
-  mostrarMensagemManutencao("Manutenção concluída atualizada.");
+  mostrarMensagemManutencao("ManutenÃ§Ã£o concluÃ­da atualizada.");
 }
 
 function registrarObservacao(index) {
@@ -22482,13 +25157,13 @@ function registrarObservacao(index) {
     return;
   }
   const item = manutencoes[index];
-  const novaObs = window.prompt("Observação técnica:", item.observacao || "");
+  const novaObs = window.prompt("ObservaÃ§Ã£o tÃ©cnica:", item.observacao || "");
   if (novaObs === null) {
     return;
   }
   const obsLimpa = novaObs.trim();
   if (!obsLimpa) {
-    mostrarMensagemManutencao("Observação vazia.", true);
+    mostrarMensagemManutencao("ObservaÃ§Ã£o vazia.", true);
     return;
   }
 
@@ -22504,9 +25179,9 @@ function registrarObservacao(index) {
   const resultado = normalizarManutencoes(manutencoes);
   manutencoes = resultado.normalizadas;
   salvarManutencoes(manutencoes);
-  logAction("note", atualizado, { resumo: "Observação registrada" });
+  logAction("note", atualizado, { resumo: "ObservaÃ§Ã£o registrada" });
   renderTudo();
-  mostrarMensagemManutencao("Observação registrada.");
+  mostrarMensagemManutencao("ObservaÃ§Ã£o registrada.");
 }
 
 function registrarMotivoBacklog(index) {
@@ -22560,7 +25235,7 @@ function salvarBacklogMotivo(event) {
   }
   const index = manutencoes.findIndex((item) => item.id === manutencaoEmBacklogMotivo);
   if (index < 0) {
-    mostrarMensagemBacklogMotivo("Manutenção não encontrada.", true);
+    mostrarMensagemBacklogMotivo("ManutenÃ§Ã£o nÃ£o encontrada.", true);
     return;
   }
   const item = manutencoes[index];
@@ -22575,7 +25250,7 @@ function salvarBacklogMotivo(event) {
   }
   const observacao = backlogMotivoObs ? backlogMotivoObs.value.trim() : "";
   if (motivo === "Outros" && !observacao) {
-    mostrarMensagemBacklogMotivo("Informe a observação para o motivo Outros.", true);
+    mostrarMensagemBacklogMotivo("Informe a observaÃ§Ã£o para o motivo Outros.", true);
     return;
   }
 
@@ -22625,7 +25300,7 @@ function renderDrawerPermissions(user, overridePermissions = null) {
   if (!adminPermissionCatalog.length) {
     const aviso = document.createElement("p");
     aviso.className = "hint";
-    aviso.textContent = "Catálogo de permissões indisponível.";
+    aviso.textContent = "CatÃ¡logo de permissÃµes indisponÃ­vel.";
     drawerPermissions.append(aviso);
     return;
   }
@@ -22642,7 +25317,7 @@ function renderDrawerPermissions(user, overridePermissions = null) {
     const bloco = document.createElement("div");
     bloco.className = "perm-group";
     const titulo = document.createElement("strong");
-    titulo.textContent = grupo.label || "Módulo";
+    titulo.textContent = grupo.label || "MÃ³dulo";
     const grid = document.createElement("div");
     grid.className = "perm-grid";
 
@@ -22675,7 +25350,7 @@ function mostrarMensagemDrawer(texto, erro = false) {
 
 function abrirUserDrawer(userId) {
   if (!canAdminUsersRead()) {
-    mostrarMensagemGerencial("Sem permissão para visualizar usuários.", true);
+    mostrarMensagemGerencial("Sem permissÃ£o para visualizar usuÃ¡rios.", true);
     return;
   }
   const user = users.find((item) => item.id === userId);
@@ -22730,16 +25405,16 @@ function abrirUserDrawer(userId) {
   }
   if (drawerSubtitle) {
     const perfil = getRoleLabel(user);
-    drawerSubtitle.textContent = `Matrícula: ${user.matricula || "-"} | Perfil: ${perfil}`;
+    drawerSubtitle.textContent = `MatrÃ­cula: ${user.matricula || "-"} | Perfil: ${perfil}`;
   }
   if (btnSalvarUserDrawer) {
     btnSalvarUserDrawer.disabled = !podeSalvar;
   }
   renderDrawerPermissions(user);
   if (!podeSalvar) {
-    mostrarMensagemDrawer("Sem permissão para alterar este perfil.", true);
+    mostrarMensagemDrawer("Sem permissÃ£o para alterar este perfil.", true);
   } else if (!podeEditarPerfil && podeDesativar) {
-    mostrarMensagemDrawer("Edição bloqueada. Apenas ativação/desativação disponível.", true);
+    mostrarMensagemDrawer("EdiÃ§Ã£o bloqueada. Apenas ativaÃ§Ã£o/desativaÃ§Ã£o disponÃ­vel.", true);
   } else {
     mostrarMensagemDrawer("");
   }
@@ -22759,13 +25434,13 @@ async function salvarUserDrawer(event) {
   const userId = drawerUserId ? drawerUserId.value : "";
   const user = users.find((item) => item.id === userId);
   if (!user) {
-    mostrarMensagemDrawer("Usuário não encontrado.", true);
+    mostrarMensagemDrawer("UsuÃ¡rio nÃ£o encontrado.", true);
     return;
   }
   const podeEditarPerfil = Boolean(currentUser && canEditProfile(currentUser, user));
   const podeDesativar = Boolean(currentUser && canDesativarUsuarios(currentUser));
   if (!podeEditarPerfil && !podeDesativar) {
-    mostrarMensagemDrawer("Sem permissão para salvar alterações.", true);
+    mostrarMensagemDrawer("Sem permissÃ£o para salvar alteraÃ§Ãµes.", true);
     return;
   }
   const payload = {};
@@ -22789,7 +25464,7 @@ async function salvarUserDrawer(event) {
     payload.active = drawerActive ? drawerActive.checked : true;
   }
   if (!Object.keys(payload).length) {
-    mostrarMensagemDrawer("Nenhuma alteração permitida.", true);
+    mostrarMensagemDrawer("Nenhuma alteraÃ§Ã£o permitida.", true);
     return;
   }
   try {
@@ -22805,7 +25480,7 @@ async function salvarUserDrawer(event) {
     }
     mostrarMensagemDrawer("Perfil atualizado.");
   } catch (error) {
-    mostrarMensagemDrawer("Não foi possível salvar. Tente novamente.", true);
+    mostrarMensagemDrawer("NÃ£o foi possÃ­vel salvar. Tente novamente.", true);
   }
 }
 function executarManutencao(index) {
@@ -22814,7 +25489,7 @@ function executarManutencao(index) {
   }
   const item = manutencoes[index];
   if (item.status === "backlog") {
-    mostrarMensagemManutencao("Manutenção em backlog. Registre o motivo.", true);
+    mostrarMensagemManutencao("ManutenÃ§Ã£o em backlog. Registre o motivo.", true);
     return;
   }
   if (!isLiberacaoOk(item)) {
@@ -22832,15 +25507,15 @@ function abrirInicioExecucao(item) {
     return;
   }
   if (item.status === "concluida") {
-    mostrarMensagemManutencao("Manutenção concluída. Apenas leitura.", true);
+    mostrarMensagemManutencao("ManutenÃ§Ã£o concluÃ­da. Apenas leitura.", true);
     return;
   }
   if (item.status === "backlog") {
-    mostrarMensagemManutencao("Manutenção em backlog. Registre o motivo.", true);
+    mostrarMensagemManutencao("ManutenÃ§Ã£o em backlog. Registre o motivo.", true);
     return;
   }
   if (item.status === "em_execucao") {
-    mostrarMensagemManutencao("Manutenção já está em execução.", true);
+    mostrarMensagemManutencao("ManutenÃ§Ã£o jÃ¡ estÃ¡ em execuÃ§Ã£o.", true);
     return;
   }
   if (item.status === "encerramento") {
@@ -22848,7 +25523,7 @@ function abrirInicioExecucao(item) {
     return;
   }
   if (!isLiberacaoOk(item)) {
-    mostrarMensagemManutencao("Liberação incompleta. Preencha os requisitos.", true);
+    mostrarMensagemManutencao("LiberaÃ§Ã£o incompleta. Preencha os requisitos.", true);
     return;
   }
   inicioExecucaoId.value = item.id;
@@ -22871,21 +25546,21 @@ function confirmarInicioExecucao() {
     return;
   }
   if (!inicioExecucaoId || !inicioExecucaoId.value) {
-    mostrarMensagemInicioExecucao("Selecione uma manutenção.", true);
+    mostrarMensagemInicioExecucao("Selecione uma manutenÃ§Ã£o.", true);
     return;
   }
   const index = manutencoes.findIndex((item) => item.id === inicioExecucaoId.value);
   if (index < 0) {
-    mostrarMensagemInicioExecucao("Manutenção não encontrada.", true);
+    mostrarMensagemInicioExecucao("ManutenÃ§Ã£o nÃ£o encontrada.", true);
     return;
   }
   const item = manutencoes[index];
   if (item.status === "concluida") {
-    mostrarMensagemInicioExecucao("Manutenção concluída. Apenas leitura.", true);
+    mostrarMensagemInicioExecucao("ManutenÃ§Ã£o concluÃ­da. Apenas leitura.", true);
     return;
   }
   if (item.status === "em_execucao") {
-    mostrarMensagemInicioExecucao("Manutenção já está em execução.", true);
+    mostrarMensagemInicioExecucao("ManutenÃ§Ã£o jÃ¡ estÃ¡ em execuÃ§Ã£o.", true);
     return;
   }
   if (item.status === "encerramento") {
@@ -22893,7 +25568,7 @@ function confirmarInicioExecucao() {
     return;
   }
   if (!isLiberacaoOk(item)) {
-    mostrarMensagemInicioExecucao("Liberação incompleta. Preencha os requisitos.", true);
+    mostrarMensagemInicioExecucao("LiberaÃ§Ã£o incompleta. Preencha os requisitos.", true);
     return;
   }
   const inicioIso = toIsoUtc(new Date());
@@ -22918,11 +25593,11 @@ function confirmarInicioExecucao() {
     participantes: liberacao.participantes || [],
     critico: liberacao.critico,
     documentos: documentosLista,
-    resumo: "Execução iniciada.",
+    resumo: "ExecuÃ§Ã£o iniciada.",
   });
   renderTudo();
   fecharInicioExecucao();
-  mostrarMensagemManutencao("Execução iniciada.");
+  mostrarMensagemManutencao("ExecuÃ§Ã£o iniciada.");
 }
 
 function abrirRegistroExecucao(item) {
@@ -22933,12 +25608,12 @@ function abrirRegistroExecucao(item) {
     return;
   }
   if (!item || (item.status !== "em_execucao" && item.status !== "encerramento")) {
-    mostrarMensagemManutencao("Inicie a execução antes de registrar.", true);
+    mostrarMensagemManutencao("Inicie a execuÃ§Ã£o antes de registrar.", true);
     return;
   }
   const inicio = parseTimestamp(item.executionStartedAt);
   if (!inicio) {
-    mostrarMensagemManutencao("Início da execução não encontrado.", true);
+    mostrarMensagemManutencao("InÃ­cio da execuÃ§Ã£o nÃ£o encontrado.", true);
     return;
   }
   manutencaoEmRegistro = item.id;
@@ -23062,17 +25737,17 @@ function abrirCancelarExecucao() {
     return;
   }
   if (!manutencaoEmRegistro) {
-    mostrarMensagemRegistroExecucao("Selecione uma manutenção.", true);
+    mostrarMensagemRegistroExecucao("Selecione uma manutenÃ§Ã£o.", true);
     return;
   }
   const index = manutencoes.findIndex((item) => item.id === manutencaoEmRegistro);
   if (index < 0) {
-    mostrarMensagemRegistroExecucao("Manutenção não encontrada.", true);
+    mostrarMensagemRegistroExecucao("ManutenÃ§Ã£o nÃ£o encontrada.", true);
     return;
   }
   const item = manutencoes[index];
   if (item.status !== "em_execucao") {
-    mostrarMensagemRegistroExecucao("A manutenção precisa estar em execução.", true);
+    mostrarMensagemRegistroExecucao("A manutenÃ§Ã£o precisa estar em execuÃ§Ã£o.", true);
     return;
   }
   formRegistroExecucao.hidden = true;
@@ -23103,17 +25778,17 @@ function salvarCancelamentoExecucao(event) {
     return;
   }
   if (!manutencaoEmRegistro) {
-    mostrarMensagemCancelarExecucao("Selecione uma manutenção.", true);
+    mostrarMensagemCancelarExecucao("Selecione uma manutenÃ§Ã£o.", true);
     return;
   }
   const index = manutencoes.findIndex((item) => item.id === manutencaoEmRegistro);
   if (index < 0) {
-    mostrarMensagemCancelarExecucao("Manutenção não encontrada.", true);
+    mostrarMensagemCancelarExecucao("ManutenÃ§Ã£o nÃ£o encontrada.", true);
     return;
   }
   const item = manutencoes[index];
   if (item.status !== "em_execucao") {
-    mostrarMensagemCancelarExecucao("A manutenção precisa estar em execução.", true);
+    mostrarMensagemCancelarExecucao("A manutenÃ§Ã£o precisa estar em execuÃ§Ã£o.", true);
     return;
   }
   const motivo = cancelarExecucaoMotivo ? cancelarExecucaoMotivo.value.trim() : "";
@@ -23138,7 +25813,7 @@ function salvarCancelamentoExecucao(event) {
   salvarManutencoes(manutencoes);
   renderTudo();
   fecharRegistroExecucao();
-  mostrarMensagemManutencao("Execução cancelada.");
+  mostrarMensagemManutencao("ExecuÃ§Ã£o cancelada.");
 }
 
 function salvarRegistroExecucao(event) {
@@ -23147,21 +25822,21 @@ function salvarRegistroExecucao(event) {
     return;
   }
   if (!manutencaoEmRegistro) {
-    mostrarMensagemRegistroExecucao("Selecione uma manutenção.", true);
+    mostrarMensagemRegistroExecucao("Selecione uma manutenÃ§Ã£o.", true);
     return;
   }
   const index = manutencoes.findIndex((item) => item.id === manutencaoEmRegistro);
   if (index < 0) {
-    mostrarMensagemRegistroExecucao("Manutenção não encontrada.", true);
+    mostrarMensagemRegistroExecucao("ManutenÃ§Ã£o nÃ£o encontrada.", true);
     return;
   }
   const item = manutencoes[index];
   if (item.status !== "em_execucao" && item.status !== "encerramento") {
-    mostrarMensagemRegistroExecucao("Inicie a execução antes de registrar.", true);
+    mostrarMensagemRegistroExecucao("Inicie a execuÃ§Ã£o antes de registrar.", true);
     return;
   }
   if (!item.executionStartedAt) {
-    mostrarMensagemRegistroExecucao("Início da execução não encontrado.", true);
+    mostrarMensagemRegistroExecucao("InÃ­cio da execuÃ§Ã£o nÃ£o encontrado.", true);
     return;
   }
   const executadoPor = registroExecutadaPor ? registroExecutadaPor.value : "";
@@ -23174,13 +25849,13 @@ function salvarRegistroExecucao(event) {
   const resultadoVisivel = !resultadoField || !resultadoField.hidden;
   const resultadoInformado = registroResultado ? registroResultado.value : "";
   if (resultadoVisivel && !resultadoInformado) {
-    mostrarMensagemRegistroExecucao("Informe o resultado da execução.", true);
+    mostrarMensagemRegistroExecucao("Informe o resultado da execuÃ§Ã£o.", true);
     return;
   }
   const resultadoFinal = resultadoInformado || registroSalvo.resultado || "";
   const comentario = registroComentario ? registroComentario.value.trim() : "";
   if (!comentario) {
-    mostrarMensagemRegistroExecucao("Descrição técnica obrigatória.", true);
+    mostrarMensagemRegistroExecucao("DescriÃ§Ã£o tÃ©cnica obrigatÃ³ria.", true);
     return;
   }
   const observacaoExecucao = registroObsExecucao ? registroObsExecucao.value.trim() : "";
@@ -23214,11 +25889,11 @@ function salvarRegistroExecucao(event) {
     participantes: liberacao.participantes || [],
     critico: liberacao.critico,
     documentos: documentosLista,
-    resumo: "Registro de execução salvo.",
+    resumo: "Registro de execuÃ§Ã£o salvo.",
   });
   renderTudo();
   fecharRegistroExecucao();
-  mostrarMensagemManutencao("Registro de execução salvo.");
+  mostrarMensagemManutencao("Registro de execuÃ§Ã£o salvo.");
 }
 
 function preencherParticipantesSelect(select, selecionados = []) {
@@ -23354,8 +26029,8 @@ function atualizarLiberacaoChecklist() {
   const docPte = getLiberacaoDocAtual("pte");
   const docPt = getLiberacaoDocAtual("pt");
   const itens = [
-    { label: "Trabalho crítico definido", ok: Boolean(criticoSelecionado) },
-    { label: "OS / referência", ok: Boolean(osNumero) },
+    { label: "Trabalho crÃ­tico definido", ok: Boolean(criticoSelecionado) },
+    { label: "OS / referÃªncia", ok: Boolean(osNumero) },
     { label: "Participantes", ok: participantes.length > 0 },
     { label: "APR anexada", ok: Boolean(docApr) },
     { label: "OS anexada", ok: Boolean(docOs) },
@@ -23381,7 +26056,7 @@ function atualizarLiberacaoChecklist() {
     } else if (critico && participantes.length < 2) {
       setFieldError(
         liberacaoParticipantesErro,
-        "Para trabalho crítico, informe ao menos 2 participantes."
+        "Para trabalho crÃ­tico, informe ao menos 2 participantes."
       );
     } else {
       setFieldError(liberacaoParticipantesErro, "");
@@ -23418,11 +26093,11 @@ function abrirLiberacao(item) {
     return;
   }
   if (item.status === "concluida") {
-    mostrarMensagemManutencao("Manutenção concluída. Apenas leitura.", true);
+    mostrarMensagemManutencao("ManutenÃ§Ã£o concluÃ­da. Apenas leitura.", true);
     return;
   }
   if (item.status === "em_execucao" || item.status === "encerramento") {
-    mostrarMensagemManutencao("Execução em andamento. Não é possível liberar.", true);
+    mostrarMensagemManutencao("ExecuÃ§Ã£o em andamento. NÃ£o Ã© possÃ­vel liberar.", true);
     return;
   }
   manutencaoEmLiberacao = item.id;
@@ -23479,7 +26154,7 @@ function abrirOverrideLiberacao(dataProgramada) {
   }
   if (overrideInfo) {
     const dataLabel = dataProgramada ? formatDate(dataProgramada) : "-";
-    overrideInfo.textContent = `Liberação antes da data prevista (${dataLabel}).`;
+    overrideInfo.textContent = `LiberaÃ§Ã£o antes da data prevista (${dataLabel}).`;
   }
   if (overrideMotivo) {
     overrideMotivo.value = "";
@@ -23529,30 +26204,30 @@ async function finalizarLiberacao(index, item, liberacaoBase, overrideJustificat
     critico: liberacao.critico,
     documentos: documentosLista,
     justificativa: overrideJustificativa || undefined,
-    resumo: overrideJustificativa ? "Liberação antecipada registrada." : "Liberação registrada.",
+    resumo: overrideJustificativa ? "LiberaÃ§Ã£o antecipada registrada." : "LiberaÃ§Ã£o registrada.",
   });
   await registrarSstDocumentacao(atualizado, liberacao);
   renderTudo();
   fecharLiberacao();
-  mostrarMensagemManutencao("Liberação registrada.");
+  mostrarMensagemManutencao("LiberaÃ§Ã£o registrada.");
 }
 
 async function confirmarOverrideLiberacao(event) {
   event.preventDefault();
   if (!pendingLiberacaoOverride) {
-    mostrarMensagemOverride("Nenhuma liberação pendente.", true);
+    mostrarMensagemOverride("Nenhuma liberaÃ§Ã£o pendente.", true);
     return;
   }
   const motivo = overrideMotivo ? overrideMotivo.value.trim() : "";
   if (!motivo) {
-    mostrarMensagemOverride("Justificativa obrigatória.", true);
+    mostrarMensagemOverride("Justificativa obrigatÃ³ria.", true);
     return;
   }
   const index = manutencoes.findIndex(
     (registro) => registro.id === pendingLiberacaoOverride.id
   );
   if (index < 0) {
-    mostrarMensagemOverride("Manutenção não encontrada.", true);
+    mostrarMensagemOverride("ManutenÃ§Ã£o nÃ£o encontrada.", true);
     pendingLiberacaoOverride = null;
     return;
   }
@@ -23564,7 +26239,7 @@ async function confirmarOverrideLiberacao(event) {
       justificativa: motivo,
     });
   } catch (error) {
-    mostrarMensagemOverride(error.message || "Não foi possível liberar.", true);
+    mostrarMensagemOverride(error.message || "NÃ£o foi possÃ­vel liberar.", true);
     return;
   }
   const liberacaoBase = pendingLiberacaoOverride.liberacaoBase;
@@ -23579,18 +26254,18 @@ async function salvarLiberacao(event) {
     return;
   }
   if (!manutencaoEmLiberacao) {
-    mostrarMensagemLiberacao("Selecione uma manutenção.", true);
+    mostrarMensagemLiberacao("Selecione uma manutenÃ§Ã£o.", true);
     return;
   }
   const index = manutencoes.findIndex((item) => item.id === manutencaoEmLiberacao);
   if (index < 0) {
-    mostrarMensagemLiberacao("Manutenção não encontrada.", true);
+    mostrarMensagemLiberacao("ManutenÃ§Ã£o nÃ£o encontrada.", true);
     return;
   }
   const item = manutencoes[index];
   const osNumero = liberacaoOs ? liberacaoOs.value.trim() : "";
   if (!osNumero) {
-    mostrarMensagemLiberacao("Informe o Nº OS / referência.", true);
+    mostrarMensagemLiberacao("Informe o NÂº OS / referÃªncia.", true);
     return;
   }
   const participantesTexto = liberacaoParticipantes ? liberacaoParticipantes.value : "";
@@ -23608,17 +26283,17 @@ async function salvarLiberacao(event) {
   }
   const criticoValor = liberacaoCritico ? liberacaoCritico.value : "";
   if (!criticoValor) {
-    mostrarMensagemLiberacao("Informe se o trabalho é crítico.", true);
+    mostrarMensagemLiberacao("Informe se o trabalho Ã© crÃ­tico.", true);
     return;
   }
   const critico = criticoValor === "sim";
   if (critico && participantes.length < 2) {
     setFieldError(
       liberacaoParticipantesErro,
-      "Para trabalho crítico, informe ao menos 2 participantes."
+      "Para trabalho crÃ­tico, informe ao menos 2 participantes."
     );
     mostrarMensagemLiberacao(
-      "Para trabalho crítico, informe ao menos 2 participantes.",
+      "Para trabalho crÃ­tico, informe ao menos 2 participantes.",
       true
     );
     return;
@@ -23631,7 +26306,7 @@ async function salvarLiberacao(event) {
         documentos[chave] = await uploadLiberacaoDoc(input.files[0], chave);
       } catch (error) {
         mostrarMensagemLiberacao(
-          error && error.message ? error.message : "Não foi possível enviar o documento.",
+          error && error.message ? error.message : "NÃ£o foi possÃ­vel enviar o documento.",
           true
         );
         return;
@@ -23648,7 +26323,7 @@ async function salvarLiberacao(event) {
     return;
   }
   if (critico && !documentos.pt) {
-    mostrarMensagemLiberacao("PT obrigatória para trabalho crítico.", true);
+    mostrarMensagemLiberacao("PT obrigatÃ³ria para trabalho crÃ­tico.", true);
     return;
   }
   const dataProgramada = parseDate(item.data);
@@ -23675,7 +26350,7 @@ async function salvarLiberacao(event) {
   try {
     await apiMaintenanceRelease({ id: item.id, dataProgramada: item.data });
   } catch (error) {
-    mostrarMensagemLiberacao(error.message || "Não foi possível liberar.", true);
+    mostrarMensagemLiberacao(error.message || "NÃ£o foi possÃ­vel liberar.", true);
     return;
   }
   await finalizarLiberacao(index, item, liberacaoBase);
@@ -23711,7 +26386,7 @@ function liberarManutencao(index) {
   }
   const item = manutencoes[index];
   if (item.status === "backlog") {
-    mostrarMensagemManutencao("Manutenção em backlog. Não é possível liberar.", true);
+    mostrarMensagemManutencao("ManutenÃ§Ã£o em backlog. NÃ£o Ã© possÃ­vel liberar.", true);
     return;
   }
   const dataProgramada = parseDate(item.data);
@@ -23735,11 +26410,11 @@ function abrirCancelarInicio(item) {
     return;
   }
   if (item.status !== "em_execucao") {
-    mostrarMensagemManutencao("A manutenção precisa estar em execução.", true);
+    mostrarMensagemManutencao("A manutenÃ§Ã£o precisa estar em execuÃ§Ã£o.", true);
     return;
   }
   if (item.registroExecucao) {
-    mostrarMensagemManutencao("Registro já iniciado. Não é possível cancelar.", true);
+    mostrarMensagemManutencao("Registro jÃ¡ iniciado. NÃ£o Ã© possÃ­vel cancelar.", true);
     return;
   }
   manutencaoEmCancelamento = item.id;
@@ -23770,12 +26445,12 @@ function salvarCancelarInicio(event) {
     return;
   }
   if (!manutencaoEmCancelamento) {
-    mostrarMensagemCancelarInicio("Selecione uma manutenção.", true);
+    mostrarMensagemCancelarInicio("Selecione uma manutenÃ§Ã£o.", true);
     return;
   }
   const index = manutencoes.findIndex((item) => item.id === manutencaoEmCancelamento);
   if (index < 0) {
-    mostrarMensagemCancelarInicio("Manutenção não encontrada.", true);
+    mostrarMensagemCancelarInicio("ManutenÃ§Ã£o nÃ£o encontrada.", true);
     return;
   }
   const item = manutencoes[index];
@@ -23786,7 +26461,7 @@ function salvarCancelarInicio(event) {
   }
   const observacao = cancelarInicioObs ? cancelarInicioObs.value.trim() : "";
   if (motivo === "Outros" && !observacao) {
-    mostrarMensagemCancelarInicio("Informe a observação para o motivo Outros.", true);
+    mostrarMensagemCancelarInicio("Informe a observaÃ§Ã£o para o motivo Outros.", true);
     return;
   }
   const inicioAnterior = item.executionStartedAt || "";
@@ -23814,11 +26489,11 @@ function salvarCancelarInicio(event) {
     critico: liberacao.critico,
     documentos: documentosLista,
     inicioExecucao: inicioAnterior,
-    resumo: "Início cancelado.",
+    resumo: "InÃ­cio cancelado.",
   });
   renderTudo();
   fecharCancelarInicio();
-  mostrarMensagemManutencao("Início cancelado.");
+  mostrarMensagemManutencao("InÃ­cio cancelado.");
 }
 
 function abrirReagendamento(item) {
@@ -23855,17 +26530,17 @@ function reagendarManutencao(index) {
   const item = manutencoes[index];
   if (isDailySubstationInspection(item)) {
     mostrarMensagemManutencao(
-      "Inspeção diária de subestação não pode ser reagendada.",
+      "InspeÃ§Ã£o diÃ¡ria de subestaÃ§Ã£o nÃ£o pode ser reagendada.",
       true
     );
     return;
   }
   if (item.status === "em_execucao" || item.status === "encerramento") {
-    mostrarMensagemManutencao("Não é possível reagendar durante a execução.", true);
+    mostrarMensagemManutencao("NÃ£o Ã© possÃ­vel reagendar durante a execuÃ§Ã£o.", true);
     return;
   }
   if (item.status === "concluida") {
-    mostrarMensagemManutencao("Manutenção concluída. Apenas leitura.", true);
+    mostrarMensagemManutencao("ManutenÃ§Ã£o concluÃ­da. Apenas leitura.", true);
     return;
   }
   abrirReagendamento(item);
@@ -23881,13 +26556,13 @@ function salvarReagendamento(event) {
   }
   const index = manutencoes.findIndex((item) => item.id === reagendarId.value);
   if (index < 0) {
-    mostrarMensagemReagendar("Manutenção não encontrada.", true);
+    mostrarMensagemReagendar("ManutenÃ§Ã£o nÃ£o encontrada.", true);
     return;
   }
   const item = manutencoes[index];
   if (isDailySubstationInspection(item)) {
     mostrarMensagemReagendar(
-      "Inspeção diária de subestação não pode ser reagendada.",
+      "InspeÃ§Ã£o diÃ¡ria de subestaÃ§Ã£o nÃ£o pode ser reagendada.",
       true
     );
     return;
@@ -23900,11 +26575,11 @@ function salvarReagendamento(event) {
   const dataLimpa = reagendarData.value.trim();
   const novaData = parseDate(dataLimpa);
   if (!novaData) {
-    mostrarMensagemReagendar("Data inválida. Use AAAA-MM-DD.", true);
+    mostrarMensagemReagendar("Data invÃ¡lida. Use AAAA-MM-DD.", true);
     return;
   }
   if (item.status === "em_execucao" || item.status === "encerramento") {
-    mostrarMensagemReagendar("Não é possível reagendar durante a execução.", true);
+    mostrarMensagemReagendar("NÃ£o Ã© possÃ­vel reagendar durante a execuÃ§Ã£o.", true);
     return;
   }
   const dataAnterior = item.data || "";
@@ -23915,7 +26590,7 @@ function salvarReagendamento(event) {
   const hoje = startOfDay(new Date());
   if (novaData < hoje) {
     const confirmar = window.confirm(
-      "A nova data está no passado e a manutenção ficará em backlog. Deseja continuar?"
+      "A nova data estÃ¡ no passado e a manutenÃ§Ã£o ficarÃ¡ em backlog. Deseja continuar?"
     );
     if (!confirmar) {
       return;
@@ -23923,7 +26598,7 @@ function salvarReagendamento(event) {
   }
   const observacao = reagendarObs ? reagendarObs.value.trim() : "";
   if (motivo === "Outros" && !observacao) {
-    mostrarMensagemReagendar("Informe a observação para o motivo Outros.", true);
+    mostrarMensagemReagendar("Informe a observaÃ§Ã£o para o motivo Outros.", true);
     return;
   }
 
@@ -23949,7 +26624,7 @@ function salvarReagendamento(event) {
   });
   renderTudo();
   fecharReagendamento();
-  mostrarMensagemManutencao("Manutenção reagendada.");
+  mostrarMensagemManutencao("ManutenÃ§Ã£o reagendada.");
 }
 
 function formatDateTimeInput(date) {
@@ -24067,7 +26742,7 @@ function renderHistorico(item) {
         linhas.push(`Participantes: ${participantesTexto}`);
       }
       if (detalhes.critico !== undefined) {
-        linhas.push(`Crítico: ${detalhes.critico ? "Sim" : "Não"}`);
+        linhas.push(`CrÃ­tico: ${detalhes.critico ? "Sim" : "NÃ£o"}`);
       }
       if (detalhes.documentos) {
         const docsTexto = Array.isArray(detalhes.documentos)
@@ -24081,19 +26756,19 @@ function renderHistorico(item) {
         linhas.push(`Resultado: ${RESULTADO_LABELS[detalhes.resultado] || detalhes.resultado}`);
       }
     if (detalhes.referencia) {
-      linhas.push(`Referência: ${detalhes.referencia}`);
+      linhas.push(`ReferÃªncia: ${detalhes.referencia}`);
     }
     if (detalhes.observacaoExecucao) {
-      linhas.push(`Obs. execução: ${detalhes.observacaoExecucao}`);
+      linhas.push(`Obs. execuÃ§Ã£o: ${detalhes.observacaoExecucao}`);
     }
     if (detalhes.evidenciasCount !== undefined) {
-      linhas.push(`Evidências: ${detalhes.evidenciasCount}`);
+      linhas.push(`EvidÃªncias: ${detalhes.evidenciasCount}`);
     }
     if (detalhes.inicioExecucao) {
-      linhas.push(`Início execução: ${formatHistoricoData(detalhes.inicioExecucao)}`);
+      linhas.push(`InÃ­cio execuÃ§Ã£o: ${formatHistoricoData(detalhes.inicioExecucao)}`);
     }
     if (detalhes.fimExecucao) {
-      linhas.push(`Fim execução: ${formatHistoricoData(detalhes.fimExecucao)}`);
+      linhas.push(`Fim execuÃ§Ã£o: ${formatHistoricoData(detalhes.fimExecucao)}`);
     }
     if (detalhes.atrasoDias !== undefined) {
       linhas.push(`Atraso (dias): ${detalhes.atrasoDias}`);
@@ -24215,7 +26890,7 @@ function exportarHistorico(item) {
         detalhes.observacao || "",
         detalhes.osNumero || "",
         participantesTexto,
-        detalhes.critico === undefined ? "" : detalhes.critico ? "Sim" : "Não",
+        detalhes.critico === undefined ? "" : detalhes.critico ? "Sim" : "NÃ£o",
         documentosTexto,
         detalhes.inicioExecucao || "",
         detalhes.fimExecucao || "",
@@ -24254,7 +26929,7 @@ function exportarHistoricoPdf(item) {
   }
   const dataBase = item.data ? formatDate(parseDate(item.data)) : "data indefinida";
   const header = `
-    <h1>Histórico da manutenção</h1>
+    <h1>HistÃ³rico da manutenÃ§Ã£o</h1>
     <p><strong>${item.titulo}</strong> | ${item.local} | ${dataBase}</p>
   `;
   const itens = historico
@@ -24286,7 +26961,7 @@ function exportarHistoricoPdf(item) {
           linhas.push(`Participantes: ${participantesTexto}`);
         }
         if (entry.detalhes && entry.detalhes.critico !== undefined) {
-          linhas.push(`Crítico: ${entry.detalhes.critico ? "Sim" : "Não"}`);
+          linhas.push(`CrÃ­tico: ${entry.detalhes.critico ? "Sim" : "NÃ£o"}`);
         }
         if (entry.detalhes && entry.detalhes.documentos) {
           const docsTexto = Array.isArray(entry.detalhes.documentos)
@@ -24304,19 +26979,19 @@ function exportarHistoricoPdf(item) {
         );
       }
       if (entry.detalhes && entry.detalhes.referencia) {
-        linhas.push(`Referência: ${entry.detalhes.referencia}`);
+        linhas.push(`ReferÃªncia: ${entry.detalhes.referencia}`);
       }
       if (entry.detalhes && entry.detalhes.observacaoExecucao) {
-        linhas.push(`Obs. execução: ${entry.detalhes.observacaoExecucao}`);
+        linhas.push(`Obs. execuÃ§Ã£o: ${entry.detalhes.observacaoExecucao}`);
       }
       if (entry.detalhes && entry.detalhes.evidenciasCount !== undefined) {
-        linhas.push(`Evidências: ${entry.detalhes.evidenciasCount}`);
+        linhas.push(`EvidÃªncias: ${entry.detalhes.evidenciasCount}`);
       }
       if (entry.detalhes && entry.detalhes.inicioExecucao) {
-        linhas.push(`Início execução: ${formatHistoricoData(entry.detalhes.inicioExecucao)}`);
+        linhas.push(`InÃ­cio execuÃ§Ã£o: ${formatHistoricoData(entry.detalhes.inicioExecucao)}`);
       }
       if (entry.detalhes && entry.detalhes.fimExecucao) {
-        linhas.push(`Fim execução: ${formatHistoricoData(entry.detalhes.fimExecucao)}`);
+        linhas.push(`Fim execuÃ§Ã£o: ${formatHistoricoData(entry.detalhes.fimExecucao)}`);
       }
       if (entry.detalhes && entry.detalhes.atrasoDias !== undefined) {
         linhas.push(`Atraso (dias): ${entry.detalhes.atrasoDias}`);
@@ -24346,7 +27021,7 @@ function exportarHistoricoPdf(item) {
     <html lang="pt-BR">
       <head>
         <meta charset="utf-8" />
-        <title>Histórico ${item.titulo}</title>
+        <title>HistÃ³rico ${item.titulo}</title>
         <style>
           body { font-family: Arial, sans-serif; padding: 24px; color: #1c1c1c; }
           h1 { margin: 0 0 8px; font-size: 20px; }
@@ -24498,16 +27173,16 @@ function abrirConclusao(item) {
     return;
   }
   if (!item || (item.status !== "em_execucao" && item.status !== "encerramento")) {
-    mostrarMensagemManutencao("Inicie a execução antes de concluir.", true);
+    mostrarMensagemManutencao("Inicie a execuÃ§Ã£o antes de concluir.", true);
     return;
   }
   if (!item.executionStartedAt) {
-    mostrarMensagemManutencao("Início da execução não encontrado.", true);
+    mostrarMensagemManutencao("InÃ­cio da execuÃ§Ã£o nÃ£o encontrado.", true);
     return;
   }
   const registro = item.registroExecucao || {};
   if (!registro.executadoPor || !registro.comentario) {
-    mostrarMensagemManutencao("Registre a execução antes de concluir.", true);
+    mostrarMensagemManutencao("Registre a execuÃ§Ã£o antes de concluir.", true);
     return;
   }
   manutencaoEmConclusao = item.id;
@@ -24611,34 +27286,34 @@ async function salvarConclusao(event) {
     return;
   }
   if (!manutencaoEmConclusao) {
-    mostrarMensagemConclusao("Selecione uma manutenção.", true);
+    mostrarMensagemConclusao("Selecione uma manutenÃ§Ã£o.", true);
     return;
   }
   const index = manutencoes.findIndex((item) => item.id === manutencaoEmConclusao);
   if (index < 0) {
-    mostrarMensagemConclusao("Manutenção não encontrada.", true);
+    mostrarMensagemConclusao("ManutenÃ§Ã£o nÃ£o encontrada.", true);
     return;
   }
 
   const item = manutencoes[index];
   if (item.status !== "em_execucao" && item.status !== "encerramento") {
-    mostrarMensagemConclusao("Inicie a execução antes de concluir.", true);
+    mostrarMensagemConclusao("Inicie a execuÃ§Ã£o antes de concluir.", true);
     return;
   }
   const registro = item.registroExecucao || {};
   if (!registro.executadoPor || !registro.comentario) {
-    mostrarMensagemConclusao("Registre a execução antes de concluir.", true);
+    mostrarMensagemConclusao("Registre a execuÃ§Ã£o antes de concluir.", true);
     return;
   }
   const resultadoSelecionado = conclusaoResultado ? conclusaoResultado.value : "";
   const resultado = resultadoSelecionado || registro.resultado || "";
   if (!resultado) {
-    mostrarMensagemConclusao("Informe o resultado da execução.", true);
+    mostrarMensagemConclusao("Informe o resultado da execuÃ§Ã£o.", true);
     return;
   }
   const liberacao = getLiberacao(item);
   if (!isLiberacaoOk(item)) {
-    mostrarMensagemConclusao("Documentação de liberação pendente.", true);
+    mostrarMensagemConclusao("DocumentaÃ§Ã£o de liberaÃ§Ã£o pendente.", true);
     return;
   }
   const executadoPor = registro.executadoPor;
@@ -24650,28 +27325,28 @@ async function salvarConclusao(event) {
   const referenciaInformada = conclusaoReferencia ? conclusaoReferencia.value.trim() : "";
   const referencia = referenciaInformada || (liberacao ? liberacao.osNumero || "" : "");
   if (!referencia) {
-    mostrarMensagemConclusao("Informe o Nº OS / referência.", true);
+    mostrarMensagemConclusao("Informe o NÂº OS / referÃªncia.", true);
     return;
   }
   const inicioDate = parseTimestamp(item.executionStartedAt);
   if (!inicioDate) {
-    mostrarMensagemConclusao("Início da execução não encontrado.", true);
+    mostrarMensagemConclusao("InÃ­cio da execuÃ§Ã£o nÃ£o encontrado.", true);
     return;
   }
   const fimValor = conclusaoFim ? conclusaoFim.value : "";
   const fimDate = parseDateTimeInput(fimValor);
   if (!fimDate) {
-    mostrarMensagemConclusao("Informe o horário de fim da execução.", true);
+    mostrarMensagemConclusao("Informe o horÃ¡rio de fim da execuÃ§Ã£o.", true);
     return;
   }
   if (fimDate < inicioDate) {
-    mostrarMensagemConclusao("Fim deve ser maior ou igual ao início.", true);
+    mostrarMensagemConclusao("Fim deve ser maior ou igual ao inÃ­cio.", true);
     return;
   }
   const duracaoHoras = (fimDate.getTime() - inicioDate.getTime()) / 3600000;
   if (duracaoHoras > MAX_EXECUCAO_HORAS) {
     const confirmar = window.confirm(
-      `Execução com ${Math.round(duracaoHoras)}h. Deseja continuar?`
+      `ExecuÃ§Ã£o com ${Math.round(duracaoHoras)}h. Deseja continuar?`
     );
     if (!confirmar) {
       return;
@@ -24681,7 +27356,7 @@ async function salvarConclusao(event) {
   const arquivos = fotosObrigatorias ? getEvidenciaFiles() : [];
   const arquivosValidos = arquivos.filter(Boolean);
   if (fotosObrigatorias && arquivosValidos.length < MIN_EVIDENCIAS) {
-    mostrarMensagemConclusao(`Adicione as ${MIN_EVIDENCIAS} fotos obrigatórias.`, true);
+    mostrarMensagemConclusao(`Adicione as ${MIN_EVIDENCIAS} fotos obrigatÃ³rias.`, true);
     return;
   }
   if (fotosObrigatorias) {
@@ -24689,18 +27364,18 @@ async function salvarConclusao(event) {
       (file) => !file.type || !file.type.startsWith("image/")
     );
     if (arquivosInvalidos.length) {
-      mostrarMensagemConclusao("Apenas fotos são permitidas.", true);
+      mostrarMensagemConclusao("Apenas fotos sÃ£o permitidas.", true);
       return;
     }
   }
   if (fotosObrigatorias) {
-    mostrarMensagemConclusao("Processando evidências...");
+    mostrarMensagemConclusao("Processando evidÃªncias...");
   }
   const evidencias = fotosObrigatorias
     ? await lerEvidencias(arquivosValidos)
     : [];
   if (fotosObrigatorias && evidencias.length < MIN_EVIDENCIAS) {
-    mostrarMensagemConclusao("Não foi possível ler as evidências.", true);
+    mostrarMensagemConclusao("NÃ£o foi possÃ­vel ler as evidÃªncias.", true);
     return;
   }
 
@@ -24773,7 +27448,7 @@ async function salvarConclusao(event) {
   });
   renderTudo();
   fecharConclusao();
-  mostrarMensagemManutencao("Manutenção concluída.");
+  mostrarMensagemManutencao("ManutenÃ§Ã£o concluÃ­da.");
 }
 
 function toggleConclusaoFotosUI() {
@@ -24862,14 +27537,14 @@ function abrirRelatorio(item) {
     if (evidencias.length === 0) {
       const vazio = document.createElement("p");
       vazio.className = "empty-state";
-      vazio.textContent = "Sem evidências.";
+      vazio.textContent = "Sem evidÃªncias.";
       relatorioEvidencias.append(vazio);
     } else {
       evidencias.forEach((evidencia) => {
         if (evidencia.type && evidencia.type.startsWith("image/")) {
           const img = document.createElement("img");
           img.src = evidencia.dataUrl || evidencia.url || "";
-          img.alt = evidencia.nome || "Evidência";
+          img.alt = evidencia.nome || "EvidÃªncia";
           relatorioEvidencias.append(img);
           return;
         }
@@ -24902,11 +27577,11 @@ function imprimirRelatorio() {
 
 function removerManutencao(index) {
   if (!canDeleteMaintenance(currentUser)) {
-    mostrarMensagemManutencao("Apenas PCM pode excluir manutenções.", true);
+    mostrarMensagemManutencao("Apenas PCM pode excluir manutenÃ§Ãµes.", true);
     return;
   }
   const item = manutencoes[index];
-  const confirmar = window.confirm("Excluir esta manutenção?");
+  const confirmar = window.confirm("Excluir esta manutenÃ§Ã£o?");
   if (!confirmar) {
     return;
   }
@@ -24914,12 +27589,12 @@ function removerManutencao(index) {
     .then(() => {
       manutencoes = manutencoes.filter((entry) => entry && entry.id !== item.id);
       salvarManutencoes(manutencoes);
-      logAction("remove", item, { resumo: "Excluída" });
+      logAction("remove", item, { resumo: "ExcluÃ­da" });
       renderTudo();
-      mostrarMensagemManutencao("Manutenção excluída.");
+      mostrarMensagemManutencao("ManutenÃ§Ã£o excluÃ­da.");
     })
     .catch((error) => {
-      const message = error && error.message ? error.message : "Falha ao excluir manutenção.";
+      const message = error && error.message ? error.message : "Falha ao excluir manutenÃ§Ã£o.";
       mostrarMensagemManutencao(message, true);
     });
 }
@@ -25546,7 +28221,7 @@ async function loadDashboardSummary(force) {
 
 function aprovarSolicitacao(item) {
   if (!currentUser || !canInviteUsuarios(currentUser)) {
-    mostrarMensagemGerencial("Sem permissão para aprovar solicitações.", true);
+    mostrarMensagemGerencial("Sem permissÃ£o para aprovar solicitaÃ§Ãµes.", true);
     return;
   }
   const requestId = item.dataset.requestId;
@@ -25592,7 +28267,7 @@ function aprovarSolicitacao(item) {
 
 function recusarSolicitacao(item) {
   if (!currentUser || !canInviteUsuarios(currentUser)) {
-    mostrarMensagemGerencial("Sem permissão para recusar solicitações.", true);
+    mostrarMensagemGerencial("Sem permissÃ£o para recusar solicitaÃ§Ãµes.", true);
     return;
   }
   const requestId = item.dataset.requestId;
@@ -25648,7 +28323,7 @@ function atualizarRoleUsuario(checkbox) {
   }
   if (currentUser && user.id === currentUser.id) {
     checkbox.checked = true;
-    mostrarMensagemGerencial("Não é possível alterar o próprio cargo.", true);
+    mostrarMensagemGerencial("NÃ£o Ã© possÃ­vel alterar o prÃ³prio cargo.", true);
     return;
   }
   if (!checkbox.checked && user.role === "admin" && contarAdmins() <= 1) {
@@ -25675,7 +28350,7 @@ function salvarDadosUsuario(item) {
     return;
   }
   if (!currentUser || !canEditProfile(currentUser, user)) {
-    mostrarMensagemGerencial("Sem permissão para editar este perfil.", true);
+    mostrarMensagemGerencial("Sem permissÃ£o para editar este perfil.", true);
     return;
   }
   const cargoInput = item.querySelector("[data-user-field='cargo']");
@@ -25695,7 +28370,7 @@ function salvarDadosUsuario(item) {
 
 function removerUsuario(item) {
   if (!currentUser || !canDesativarUsuarios(currentUser)) {
-    mostrarMensagemGerencial("Sem permissão para remover usuários.", true);
+    mostrarMensagemGerencial("Sem permissÃ£o para remover usuÃ¡rios.", true);
     return;
   }
   const userId = item.dataset.userId;
@@ -25704,7 +28379,7 @@ function removerUsuario(item) {
     return;
   }
   if (currentUser && user.id === currentUser.id) {
-    mostrarMensagemGerencial("Não é possível remover a conta logada.", true);
+    mostrarMensagemGerencial("NÃ£o Ã© possÃ­vel remover a conta logada.", true);
     return;
   }
   if (user.role === "admin" && contarAdmins() <= 1) {
@@ -25871,15 +28546,15 @@ if (automationList) {
     }
     const enabled = toggle.checked;
     toggle.disabled = true;
-    mostrarMensagemAutomacoes("Salvando automação...");
+    mostrarMensagemAutomacoes("Salvando automaÃ§Ã£o...");
     try {
       const data = await apiUpdateAutomation(automationId, { enabled });
       automationsState.items = Array.isArray(data.automations) ? data.automations : [];
       renderAutomacoes();
-      mostrarMensagemAutomacoes("Automação atualizada.");
+      mostrarMensagemAutomacoes("AutomaÃ§Ã£o atualizada.");
     } catch (error) {
       toggle.checked = !enabled;
-      mostrarMensagemAutomacoes(error.message || "Falha ao atualizar automação.", true);
+      mostrarMensagemAutomacoes(error.message || "Falha ao atualizar automaÃ§Ã£o.", true);
     } finally {
       toggle.disabled = false;
     }
@@ -25915,7 +28590,7 @@ if (btnFilesUpload) {
       return;
     }
     if (!currentUser || !canUploadFilesClient(currentUser)) {
-      mostrarMensagemArquivos("Sem permissão para enviar arquivos.", true);
+      mostrarMensagemArquivos("Sem permissÃ£o para enviar arquivos.", true);
       return;
     }
     const type = filesUploadType.value;
@@ -25929,7 +28604,7 @@ if (btnFilesUpload) {
       return;
     }
     if (!FILE_ALLOWED_TYPES.includes(file.type)) {
-      mostrarMensagemArquivos("Tipo de arquivo não suportado.", true);
+      mostrarMensagemArquivos("Tipo de arquivo nÃ£o suportado.", true);
       return;
     }
     if (file.size > FILE_MAX_BYTES) {
@@ -25961,7 +28636,7 @@ if (filesList) {
       return;
     }
     if (!currentUser || !canDeleteFilesClient(currentUser)) {
-      mostrarMensagemArquivos("Sem permissão para remover arquivos.", true);
+      mostrarMensagemArquivos("Sem permissÃ£o para remover arquivos.", true);
       return;
     }
     const fileId = removeBtn.dataset.fileId;
@@ -25989,12 +28664,12 @@ if (filesList) {
 if (btnPermissoesSalvar) {
   btnPermissoesSalvar.addEventListener("click", async () => {
     if (!currentUser || !isAdmin() || !canViewGerencial(currentUser)) {
-      mostrarMensagemPermissoes("Sem permissão para editar permissões.", true);
+      mostrarMensagemPermissoes("Sem permissÃ£o para editar permissÃµes.", true);
       return;
     }
     const payload = { values: coletarPermissoesGerenciais() };
     btnPermissoesSalvar.disabled = true;
-    mostrarMensagemPermissoes("Salvando permissões...");
+    mostrarMensagemPermissoes("Salvando permissÃµes...");
     try {
       const data = await apiSalvarPermissoes(payload);
       permissoesState.values = data.values || payload.values;
@@ -26012,9 +28687,9 @@ if (btnPermissoesSalvar) {
       renderPermissoesGerenciais();
       renderAuthUI();
       renderPerfil();
-      mostrarMensagemPermissoes("Permissões atualizadas.");
+      mostrarMensagemPermissoes("PermissÃµes atualizadas.");
     } catch (error) {
-      mostrarMensagemPermissoes(error.message || "Falha ao salvar permissões.", true);
+      mostrarMensagemPermissoes(error.message || "Falha ao salvar permissÃµes.", true);
     } finally {
       btnPermissoesSalvar.disabled = false;
     }
@@ -26194,7 +28869,7 @@ document.addEventListener("click", (event) => {
   const cancelarEdicao = event.target.closest("#btnCancelarEdicaoManutencao");
   if (cancelarEdicao) {
     limparEdicaoManutencao();
-    mostrarMensagemManutencao("Edição cancelada.");
+    mostrarMensagemManutencao("EdiÃ§Ã£o cancelada.");
     return;
   }
   const editar = event.target.closest("#btnPerfilEditar");
@@ -26217,7 +28892,7 @@ document.addEventListener("click", (event) => {
     return;
   }
   if (!canEditProfile(currentUser, currentUser)) {
-    setPerfilSaveMessage("Sem permissão para editar este perfil.", true);
+    setPerfilSaveMessage("Sem permissÃ£o para editar este perfil.", true);
     return;
   }
   const uenInput = document.getElementById("perfilUenInput");
@@ -26232,7 +28907,7 @@ document.addEventListener("click", (event) => {
     payload.projectId = projetoValue;
   }
   if (!Object.keys(payload).length) {
-    setPerfilSaveMessage("Nenhuma alteração para salvar.");
+    setPerfilSaveMessage("Nenhuma alteraÃ§Ã£o para salvar.");
     return;
   }
   salvar.disabled = true;
@@ -26250,7 +28925,7 @@ document.addEventListener("click", (event) => {
       setPerfilSaveMessage("Perfil atualizado.");
     })
     .catch((error) => {
-      const message = error && error.message ? error.message : "Não foi possível salvar.";
+      const message = error && error.message ? error.message : "NÃ£o foi possÃ­vel salvar.";
       setPerfilSaveMessage(message, true);
     })
     .finally(() => {
@@ -26289,7 +28964,7 @@ if (btnGerarConvite) {
   btnGerarConvite.addEventListener("click", async () => {
     if (!currentUser || !canInviteUsuarios(currentUser)) {
       if (inviteResultado) {
-        inviteResultado.textContent = "Sem permissão para gerar convite.";
+        inviteResultado.textContent = "Sem permissÃ£o para gerar convite.";
       }
       return;
     }
@@ -26305,7 +28980,7 @@ if (btnGerarConvite) {
       }
     } catch (error) {
       if (inviteResultado) {
-        inviteResultado.textContent = "Não foi possível gerar o convite.";
+        inviteResultado.textContent = "NÃ£o foi possÃ­vel gerar o convite.";
       }
     }
   });
@@ -26316,7 +28991,7 @@ loginForm.addEventListener("submit", async (event) => {
   const login = loginUsuario.value.trim();
   const senha = loginSenha.value.trim();
   if (!login || !senha) {
-    mostrarMensagemConta("Informe usuário e senha.", true);
+    mostrarMensagemConta("Informe usuÃ¡rio e senha.", true);
     return;
   }
   if (btnLoginSubmit) {
@@ -26331,7 +29006,7 @@ loginForm.addEventListener("submit", async (event) => {
     esconderAuthPanels();
     await carregarSessaoServidor();
   } catch (error) {
-    const message = error && error.message ? error.message : "Usuário ou senha inválidos.";
+    const message = error && error.message ? error.message : "UsuÃ¡rio ou senha invÃ¡lidos.";
     mostrarMensagemConta(message, true);
     if (error && error.data && error.data.requiresEmailVerification) {
       const pendingEmail = normalizeVerificationEmail(error.data.email || login);
@@ -26366,7 +29041,7 @@ reqForm.addEventListener("submit", async (event) => {
       setFieldError(reqSenhaErro, "Senha fora da politica.");
     }
     if (senha !== senhaConfirm) {
-      setFieldError(reqSenhaConfirmErro, "As senhas não conferem.");
+      setFieldError(reqSenhaConfirmErro, "As senhas nÃ£o conferem.");
     }
     return;
   }
@@ -26375,7 +29050,7 @@ reqForm.addEventListener("submit", async (event) => {
     return;
   }
   if (senha !== senhaConfirm) {
-    setFieldError(reqSenhaConfirmErro, "As senhas não conferem.");
+    setFieldError(reqSenhaConfirmErro, "As senhas nÃ£o conferem.");
     return;
   }
   if (btnRegistroSubmit) {
@@ -26422,7 +29097,7 @@ reqForm.addEventListener("submit", async (event) => {
     if (errors.convite) {
       setFieldError(reqCodigoErro, errors.convite);
     }
-    const message = error && error.message ? error.message : "Não foi possível criar a conta.";
+    const message = error && error.message ? error.message : "NÃ£o foi possÃ­vel criar a conta.";
     mostrarMensagemConta(message, true);
   } finally {
     if (btnRegistroSubmit) {
@@ -26461,7 +29136,7 @@ if (verifyForm) {
       if (loginUsuario) {
         loginUsuario.value = email;
       }
-      mostrarMensagemConta("Email confirmado. Faça login.", false);
+      mostrarMensagemConta("Email confirmado. FaÃ§a login.", false);
       mostrarAuthPanel("login");
       if (loginSenha) {
         loginSenha.focus();
@@ -26473,7 +29148,7 @@ if (verifyForm) {
     } finally {
       if (btnVerifySubmit) {
         btnVerifySubmit.disabled = false;
-        btnVerifySubmit.textContent = "Confirmar código";
+        btnVerifySubmit.textContent = "Confirmar cÃ³digo";
       }
     }
   });
@@ -26511,7 +29186,7 @@ if (btnVerifyResend) {
       mostrarMensagemConta(message, true);
     } finally {
       btnVerifyResend.disabled = false;
-      btnVerifyResend.textContent = "Reenviar código";
+      btnVerifyResend.textContent = "Reenviar cÃ³digo";
     }
   });
 }
@@ -26655,7 +29330,7 @@ if (btnAdicionarManutencao) {
 if (btnCancelarEdicaoManutencao) {
   btnCancelarEdicaoManutencao.addEventListener("click", () => {
     limparEdicaoManutencao();
-    mostrarMensagemManutencao("Edição cancelada.");
+    mostrarMensagemManutencao("EdiÃ§Ã£o cancelada.");
   });
 }
 if (novaManutencaoCard) {
@@ -26847,7 +29522,7 @@ if (projectTable) {
       return;
     }
     if (action.dataset.action === "delete-project") {
-      const ok = confirm("Excluir projeto? Essa ação não pode ser desfeita.");
+      const ok = confirm("Excluir projeto? Essa aÃ§Ã£o nÃ£o pode ser desfeita.");
       if (!ok) {
         return;
       }
@@ -27006,7 +29681,7 @@ if (equipeTable) {
       return;
     }
     if (action.dataset.action === "remove-team") {
-      const ok = confirm("Remover usuário do projeto?");
+      const ok = confirm("Remover usuÃ¡rio do projeto?");
       if (!ok || !activeProjectId) {
         return;
       }
@@ -27014,7 +29689,7 @@ if (equipeTable) {
         await apiProjetosEquipeRemove(activeProjectId, userId);
         await carregarEquipeProjeto();
       } catch (error) {
-        alert(error && error.message ? error.message : "Falha ao remover usuário.");
+        alert(error && error.message ? error.message : "Falha ao remover usuÃ¡rio.");
       }
     }
   });
@@ -27024,11 +29699,11 @@ if (btnEnviarFeedback) {
 }
 if (feedbackTemplateButtons.length && feedbackMessage) {
   const templates = {
-    bom: "Excelente atuação no atendimento e registro das atividades. Sua organização ajudou a equipe a manter o ritmo.",
+    bom: "Excelente atuaÃ§Ã£o no atendimento e registro das atividades. Sua organizaÃ§Ã£o ajudou a equipe a manter o ritmo.",
     melhora:
-      "Observei pontos que podem melhorar: alinhar o status no OPSCOPE logo após a execução e detalhar melhor o impacto.",
+      "Observei pontos que podem melhorar: alinhar o status no OPSCOPE logo apÃ³s a execuÃ§Ã£o e detalhar melhor o impacto.",
     apoio:
-      "Obrigado pelo apoio em campo. Sua prontidão e comunicação clara facilitaram o fechamento das tarefas.",
+      "Obrigado pelo apoio em campo. Sua prontidÃ£o e comunicaÃ§Ã£o clara facilitaram o fechamento das tarefas.",
   };
   feedbackTemplateButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -27114,7 +29789,7 @@ if (btnRelatorioMensalPreview) {
   btnRelatorioMensalPreview.addEventListener("click", () => {
     const ok = abrirRdoMensalPreview();
     if (!ok) {
-      alert("Não foi possível abrir o preview do RDO mensal.");
+      alert("NÃ£o foi possÃ­vel abrir o preview do RDO mensal.");
     }
   });
 }
@@ -27130,7 +29805,7 @@ if (btnRelatorioMensalRdo) {
   btnRelatorioMensalRdo.addEventListener("click", () => {
     const ok = abrirRdoMensalPreview();
     if (!ok) {
-      alert("Não foi possível abrir o preview do RDO mensal.");
+      alert("NÃ£o foi possÃ­vel abrir o preview do RDO mensal.");
     }
   });
 }
@@ -27895,8 +30570,83 @@ if (almoxMovForm) {
 if (sstTrainingForm) {
   sstTrainingForm.addEventListener("submit", handleSstTrainingSubmit);
 }
-if (sstInspectionForm) {
-  sstInspectionForm.addEventListener("submit", handleSstInspectionSubmit);
+if (sstTemplateSeedBtn) {
+  sstTemplateSeedBtn.addEventListener("click", handleSstTemplateSeed);
+}
+if (sstTemplateNewBtn) {
+  sstTemplateNewBtn.addEventListener("click", () => openSstTemplateModal());
+}
+if (formSstTemplate) {
+  formSstTemplate.addEventListener("submit", handleSstTemplateSubmit);
+}
+if (sstTemplateAddQuestion) {
+  sstTemplateAddQuestion.addEventListener("click", () => addSstTemplateQuestionRow());
+}
+if (sstTemplateQuestions) {
+  sstTemplateQuestions.addEventListener("click", handleSstTemplateQuestionsClick);
+}
+if (sstTemplateTableBody) {
+  sstTemplateTableBody.addEventListener("click", handleSstTemplateTableClick);
+}
+if (sstInspectionStartBtn) {
+  sstInspectionStartBtn.addEventListener("click", handleSstInspectionStart);
+}
+if (sstInspectionTableBody) {
+  sstInspectionTableBody.addEventListener("click", handleSstInspectionHistoryClick);
+}
+if (sstInspectionFilterProject) {
+  sstInspectionFilterProject.addEventListener("change", renderSstInspecoes);
+}
+if (sstInspectionFilterTemplate) {
+  sstInspectionFilterTemplate.addEventListener("change", renderSstInspecoes);
+}
+if (sstInspectionFilterStatus) {
+  sstInspectionFilterStatus.addEventListener("change", renderSstInspecoes);
+}
+if (sstInspectionFilterFrom) {
+  sstInspectionFilterFrom.addEventListener("change", renderSstInspecoes);
+}
+if (sstInspectionFilterTo) {
+  sstInspectionFilterTo.addEventListener("change", renderSstInspecoes);
+}
+if (sstInspectionFilterSearch) {
+  sstInspectionFilterSearch.addEventListener("input", renderSstInspecoes);
+}
+if (sstInspectionProject) {
+  sstInspectionProject.addEventListener("change", () => {
+    renderSstInspectionLocalOptions();
+    renderSstInspectionTemplateOptions();
+  });
+}
+if (btnFecharSstTemplate) {
+  btnFecharSstTemplate.addEventListener("click", closeSstTemplateModal);
+}
+if (btnCancelarSstTemplate) {
+  btnCancelarSstTemplate.addEventListener("click", closeSstTemplateModal);
+}
+if (btnFecharSstWizard) {
+  btnFecharSstWizard.addEventListener("click", closeSstInspectionWizard);
+}
+if (sstWizardPrev) {
+  sstWizardPrev.addEventListener("click", handleSstWizardPrev);
+}
+if (sstWizardNext) {
+  sstWizardNext.addEventListener("click", handleSstWizardNext);
+}
+if (sstWizardBody) {
+  sstWizardBody.addEventListener("click", handleSstWizardBodyClick);
+}
+if (btnFecharSstDetails) {
+  btnFecharSstDetails.addEventListener("click", closeSstInspectionDetails);
+}
+if (btnCancelarSstDetails) {
+  btnCancelarSstDetails.addEventListener("click", closeSstInspectionDetails);
+}
+if (sstInspectionGenerateNc) {
+  sstInspectionGenerateNc.addEventListener("click", handleSstInspectionGenerateNc);
+}
+if (sstInspectionDetailsBody) {
+  sstInspectionDetailsBody.addEventListener("click", handleSstInspectionDetailsClick);
 }
 if (sstNcForm) {
   sstNcForm.addEventListener("submit", handleSstNcSubmit);
@@ -28015,3 +30765,7 @@ window.addEventListener("storage", (event) => {
     carregarSessaoServidor();
   }
 });
+
+
+
+

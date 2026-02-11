@@ -3464,31 +3464,34 @@
         <div class="section-title">
           <div>
             <h3>Inspeções</h3>
-            <p>Registro de inspeções e checklists.</p>
+            <p>Checklists guiados com evidências e rastreabilidade.</p>
+          </div>
+          <div class="table-actions">
+            <button id="sstTemplateSeedBtn" class="btn btn--ghost btn--small" type="button">
+              Carregar templates iniciais
+            </button>
+            <button id="sstTemplateNewBtn" class="btn btn--primary btn--small" type="button">
+              Novo template
+            </button>
           </div>
         </div>
         <form id="sstInspectionForm" class="form-grid">
-          <div class="field">
-            <label for="sstInspectionType">Tipo</label>
-            <input id="sstInspectionType" type="text" placeholder="EPI / Andaime / Extintor" />
-          </div>
           <div class="field">
             <label for="sstInspectionProject">Projeto</label>
             <select id="sstInspectionProject"></select>
           </div>
           <div class="field">
-            <label for="sstInspectionStatus">Status</label>
-            <select id="sstInspectionStatus">
-              <option value="OK">OK</option>
-              <option value="NAO_CONFORME">Não conforme</option>
-            </select>
+            <label for="sstInspectionLocal">Local</label>
+            <select id="sstInspectionLocal"></select>
+          </div>
+          <div class="field">
+            <label for="sstInspectionTemplate">Template</label>
+            <select id="sstInspectionTemplate"></select>
           </div>
           <div class="field" data-full>
-            <label for="sstInspectionNotes">Observações</label>
-            <textarea id="sstInspectionNotes" rows="2" placeholder="Resumo da inspeção"></textarea>
-          </div>
-          <div class="field" data-full>
-            <button id="sstInspectionSubmit" class="btn btn--primary" type="submit">Registrar inspeção</button>
+            <button id="sstInspectionStartBtn" class="btn btn--primary" type="button">
+              Iniciar inspeção guiada
+            </button>
           </div>
         </form>
         <p id="sstInspectionMsg" class="mensagem" aria-live="polite"></p>
@@ -3496,17 +3499,76 @@
       <section class="card">
         <div class="section-title">
           <div>
+            <h3>Templates de checklist</h3>
+            <p>Cadastre, edite e execute templates por tipo e projeto.</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Template</th>
+                <th>Tipo</th>
+                <th>Periodicidade</th>
+                <th>Status</th>
+                <th>Perguntas</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="sstTemplateTableBody"></tbody>
+          </table>
+        </div>
+        <p id="sstTemplateEmpty" class="empty-state">Nenhum template cadastrado.</p>
+      </section>
+      <section class="card">
+        <div class="section-title">
+          <div>
             <h3>Histórico de inspeções</h3>
-            <p>Execuções com status e evidências.</p>
+            <p>Filtre por projeto, template e status.</p>
+          </div>
+        </div>
+        <div class="form-grid sst-inspection-filters">
+          <div class="field">
+            <label for="sstInspectionFilterProject">Projeto</label>
+            <select id="sstInspectionFilterProject"></select>
+          </div>
+          <div class="field">
+            <label for="sstInspectionFilterTemplate">Template</label>
+            <select id="sstInspectionFilterTemplate"></select>
+          </div>
+          <div class="field">
+            <label for="sstInspectionFilterStatus">Status</label>
+            <select id="sstInspectionFilterStatus">
+              <option value="">Todos</option>
+              <option value="OK">OK</option>
+              <option value="ATTENTION">Atenção</option>
+              <option value="NON_CONFORMING">Não conforme</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="sstInspectionFilterFrom">De</label>
+            <input id="sstInspectionFilterFrom" type="date" />
+          </div>
+          <div class="field">
+            <label for="sstInspectionFilterTo">Até</label>
+            <input id="sstInspectionFilterTo" type="date" />
+          </div>
+          <div class="field" data-full>
+            <label for="sstInspectionFilterSearch">Buscar</label>
+            <input id="sstInspectionFilterSearch" type="text" placeholder="Template ou observações" />
           </div>
         </div>
         <table class="data-table">
           <thead>
             <tr>
-              <th>Tipo</th>
-              <th>Projeto</th>
-              <th>Status</th>
               <th>Data</th>
+              <th>Template</th>
+              <th>Projeto</th>
+              <th>Local</th>
+              <th>Score</th>
+              <th>Status</th>
+              <th>Falhas</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody id="sstInspectionTableBody"></tbody>
@@ -4734,6 +4796,105 @@
         </div>
         <p id="sstDocReviewMsg" class="mensagem" aria-live="polite"></p>
       </div>
+    </div>
+  </div>
+  <div id="modalSstTemplate" class="modal" hidden>
+    <div class="modal__content modal__content--wide">
+      <div class="modal__header">
+        <div>
+          <h3 id="sstTemplateModalTitle">Novo template de checklist</h3>
+          <p class="hint">Configure perguntas, severidade e evidencias obrigatorias.</p>
+        </div>
+        <button id="btnFecharSstTemplate" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <form id="formSstTemplate" class="modal__form">
+        <input id="sstTemplateId" type="hidden" />
+        <div class="form-grid">
+          <div class="field" data-full>
+            <label for="sstTemplateName">Nome do template</label>
+            <input id="sstTemplateName" type="text" placeholder="NR-35 Trabalho em Altura" required />
+          </div>
+          <div class="field">
+            <label for="sstTemplateType">Tipo</label>
+            <input id="sstTemplateType" type="text" placeholder="WORK_AT_HEIGHT" />
+          </div>
+          <div class="field">
+            <label for="sstTemplatePeriodicity">Periodicidade (dias)</label>
+            <input id="sstTemplatePeriodicity" type="number" min="0" placeholder="1" />
+          </div>
+          <div class="field">
+            <label for="sstTemplateProject">Projeto (opcional)</label>
+            <select id="sstTemplateProject"></select>
+          </div>
+          <div class="field">
+            <label class="inline-check">
+              <input id="sstTemplateActive" type="checkbox" checked />
+              Template ativo
+            </label>
+          </div>
+        </div>
+        <div class="question-list">
+          <div class="section-title section-title--compact">
+            <div>
+              <h4>Perguntas</h4>
+              <p>Defina severidade e evidencias obrigatorias.</p>
+            </div>
+            <button id="sstTemplateAddQuestion" class="btn btn--ghost btn--small" type="button">Adicionar pergunta</button>
+          </div>
+          <div id="sstTemplateQuestions" class="question-list__items"></div>
+        </div>
+        <div class="modal__actions">
+          <button class="btn btn--primary" type="submit">Salvar template</button>
+          <button id="btnCancelarSstTemplate" class="btn btn--ghost" type="button">Cancelar</button>
+        </div>
+        <p id="sstTemplateMsg" class="mensagem" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalSstInspectionWizard" class="modal" hidden>
+    <div class="modal__content modal__content--wide">
+      <div class="modal__header">
+        <div>
+          <h3 id="sstWizardTitle">Executar inspeção</h3>
+          <p id="sstWizardMeta" class="hint">Template</p>
+        </div>
+        <button id="btnFecharSstWizard" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <div class="modal__form">
+        <div id="sstWizardProgress" class="wizard-progress"></div>
+        <div id="sstWizardBody" class="wizard-body"></div>
+        <div id="sstWizardSummary" class="wizard-summary" hidden></div>
+        <div class="modal__actions">
+          <button id="sstWizardPrev" class="btn btn--ghost" type="button">Voltar</button>
+          <button id="sstWizardNext" class="btn btn--primary" type="button">Próximo</button>
+        </div>
+        <p id="sstWizardMsg" class="mensagem" aria-live="polite"></p>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalSstInspectionDetails" class="modal" hidden>
+    <div class="modal__content modal__content--wide">
+      <div class="modal__header">
+        <div>
+          <h3 id="sstInspectionDetailsTitle">Detalhes da inspeção</h3>
+          <p id="sstInspectionDetailsMeta" class="hint">-</p>
+        </div>
+        <button id="btnFecharSstDetails" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <div id="sstInspectionDetailsBody" class="modal__form"></div>
+      <div class="modal__actions">
+        <button id="sstInspectionGenerateNc" class="btn btn--primary" type="button">Gerar NCs</button>
+        <button id="btnCancelarSstDetails" class="btn btn--ghost" type="button">Fechar</button>
+      </div>
+      <p id="sstInspectionDetailsMsg" class="mensagem" aria-live="polite"></p>
     </div>
   </div>
 
