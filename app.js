@@ -2143,6 +2143,178 @@ function writeJson(key, value) {
   }
 }
 
+function createLocalProvider() {
+  const readSstDocs = () => {
+    let list = readJson(SST_DOCS_KEY, []);
+    if (!Array.isArray(list)) {
+      list = [];
+    }
+    return list.map(normalizeSstDoc).filter(Boolean);
+  };
+  const saveSstDocs = (list) => {
+    writeJson(SST_DOCS_KEY, list);
+    return list;
+  };
+  return {
+    sstDocs: {
+      list: async (filters = {}) => {
+        let list = readSstDocs();
+        if (filters && filters.projectId) {
+          list = list.filter((doc) => String(doc.projectId || "") === String(filters.projectId));
+        }
+        if (filters && filters.status) {
+          const status = String(filters.status).toUpperCase();
+          list = list.filter((doc) => String(doc.status || "").toUpperCase() === status);
+        }
+        return list;
+      },
+      create: async (payload) => {
+        const list = readSstDocs();
+        const item = normalizeSstDoc(payload);
+        if (!item) {
+          return { item: null, list };
+        }
+        const updated = [item].concat(list);
+        return { item, list: saveSstDocs(updated) };
+      },
+      update: async (id, patch) => {
+        const list = readSstDocs();
+        const index = list.findIndex((doc) => String(doc.id) === String(id));
+        if (index < 0) {
+          return { item: null, list };
+        }
+        const updatedItem = normalizeSstDoc({ ...list[index], ...patch, id: list[index].id });
+        list[index] = updatedItem;
+        return { item: updatedItem, list: saveSstDocs(list) };
+      },
+      upsertByRelatedId: async (payload) => {
+        const list = readSstDocs();
+        const item = normalizeSstDoc(payload);
+        if (!item) {
+          return { item: null, list };
+        }
+        let index = -1;
+        if (item.relatedId) {
+          index = list.findIndex(
+            (doc) => doc.relatedId && String(doc.relatedId) === String(item.relatedId)
+          );
+        }
+        if (index >= 0) {
+          list[index] = {
+            ...list[index],
+            ...item,
+            status: "PENDENTE",
+            reviewedAt: "",
+            reviewedBy: "",
+            reviewNotes: "",
+            correctionInstructions: "",
+            notifiedAt: "",
+            updatedAt: item.createdAt || list[index].createdAt,
+          };
+        } else {
+          list.unshift(item);
+          index = 0;
+        }
+        return { item: list[index], list: saveSstDocs(list) };
+      },
+    },
+  };
+}
+
+function createApiProvider(fallback) {
+  const fallbackProvider = fallback || createLocalProvider();
+  const buildQuery = (params) =>
+    Object.entries(params || {})
+      .filter(([, value]) => value !== undefined && value !== null && value !== "")
+      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+      .join("&");
+
+  const normalizeList = (data) => {
+    if (!data) {
+      return [];
+    }
+    const list =
+      (Array.isArray(data.docs) && data.docs) ||
+      (Array.isArray(data.items) && data.items) ||
+      (Array.isArray(data.sstDocs) && data.sstDocs) ||
+      [];
+    return list.map(normalizeSstDoc).filter(Boolean);
+  };
+
+  const pickItem = (data, fallbackItem) => {
+    if (!data) {
+      return fallbackItem || null;
+    }
+    const item = data.doc || data.item || data.sstDoc || fallbackItem || null;
+    return item ? normalizeSstDoc(item) : null;
+  };
+
+  const provider = {
+    sstDocs: {},
+  };
+
+  provider.sstDocs.list = async (filters = {}) => {
+    try {
+      const query = buildQuery(filters);
+      const data = await apiRequest(`/api/sst/docs${query ? `?${query}` : ""}`);
+      return normalizeList(data);
+    } catch (error) {
+      return fallbackProvider.sstDocs.list(filters);
+    }
+  };
+
+  provider.sstDocs.create = async (payload) => {
+    try {
+      const data = await apiRequest("/api/sst/docs", {
+        method: "POST",
+        body: JSON.stringify(payload || {}),
+      });
+      const item = pickItem(data, payload);
+      const list = await provider.sstDocs.list();
+      return { item, list };
+    } catch (error) {
+      return fallbackProvider.sstDocs.create(payload);
+    }
+  };
+
+  provider.sstDocs.update = async (id, patch) => {
+    if (!id) {
+      return { item: null, list: await fallbackProvider.sstDocs.list() };
+    }
+    try {
+      const data = await apiRequest(`/api/sst/docs/${encodeURIComponent(id)}`, {
+        method: "PUT",
+        body: JSON.stringify(patch || {}),
+      });
+      const item = pickItem(data, patch);
+      const list = await provider.sstDocs.list();
+      return { item, list };
+    } catch (error) {
+      return fallbackProvider.sstDocs.update(id, patch);
+    }
+  };
+
+  provider.sstDocs.upsertByRelatedId = async (payload) => {
+    if (!payload || !payload.relatedId) {
+      return provider.sstDocs.create(payload);
+    }
+    try {
+      const existing = await provider.sstDocs.list({ relatedId: payload.relatedId });
+      if (existing && existing.length) {
+        return provider.sstDocs.update(existing[0].id, payload);
+      }
+      return provider.sstDocs.create(payload);
+    } catch (error) {
+      return fallbackProvider.sstDocs.upsertByRelatedId(payload);
+    }
+  };
+
+  return provider;
+}
+
+const localProvider = createLocalProvider();
+const dataProvider = createApiProvider(localProvider);
+
 function getProjectStorageKey(baseKey) {
   if (!activeProjectId) {
     return baseKey;
@@ -19118,10 +19290,6 @@ function normalizeSstDoc(doc) {
   };
 }
 
-function salvarSstDocs() {
-  writeJson(SST_DOCS_KEY, sstDocs);
-}
-
 async function salvarSstDocArquivo(file) {
   if (!file) {
     return null;
@@ -19392,12 +19560,7 @@ async function carregarSst(force = false) {
   } catch (error) {
     sstIncidents = [];
   }
-  sstDocs = readJson(SST_DOCS_KEY, []);
-  if (!Array.isArray(sstDocs)) {
-    sstDocs = [];
-  }
-  sstDocs = sstDocs.map(normalizeSstDoc).filter(Boolean);
-  writeJson(SST_DOCS_KEY, sstDocs);
+  sstDocs = await dataProvider.sstDocs.list();
   sstLoaded = true;
   renderSstDashboard();
   renderSstTreinamentos();
@@ -19794,8 +19957,8 @@ async function handleSstDocSubmit(event) {
     setInlineMessage(sstDocFormMsg, "Falha ao registrar documentação.", true);
     return;
   }
-  sstDocs = [novo].concat(sstDocs);
-  salvarSstDocs();
+  const result = await dataProvider.sstDocs.create(novo);
+  sstDocs = result.list;
   sstLoaded = true;
   fecharSstDocForm();
   renderSstAprPt();
@@ -19898,7 +20061,7 @@ function fecharSstDocReview() {
   setInlineMessage(sstDocReviewMsg, "");
 }
 
-function atualizarSstDocStatus(status) {
+async function atualizarSstDocStatus(status) {
   if (!currentUser || !canManageSst(currentUser)) {
     setInlineMessage(sstDocReviewMsg, "Sem permissão para revisar.", true);
     return;
@@ -19928,8 +20091,8 @@ function atualizarSstDocStatus(status) {
     notifiedAt: String(status).toUpperCase() === "REPROVADO" ? agoraIso : "",
     updatedAt: agoraIso,
   };
-  sstDocs[index] = atualizado;
-  salvarSstDocs();
+  const result = await dataProvider.sstDocs.update(docId, atualizado);
+  sstDocs = result.list;
   renderSstAprPt();
   renderSstDashboard();
   if (sstDocReviewStatus) {
@@ -19941,7 +20104,7 @@ function atualizarSstDocStatus(status) {
   );
 }
 
-function registrarSstDocumentacao(item, liberacao) {
+async function registrarSstDocumentacao(item, liberacao) {
   if (!item || !liberacao || !liberacao.documentos) {
     return;
   }
@@ -19983,25 +20146,8 @@ function registrarSstDocumentacao(item, liberacao) {
   if (!novo) {
     return;
   }
-  const existingIndex = sstDocs.findIndex(
-    (doc) => doc.relatedId && novo.relatedId && doc.relatedId === novo.relatedId
-  );
-  if (existingIndex >= 0) {
-    sstDocs[existingIndex] = {
-      ...sstDocs[existingIndex],
-      ...novo,
-      status: "PENDENTE",
-      reviewedAt: "",
-      reviewedBy: "",
-      reviewNotes: "",
-      correctionInstructions: "",
-      notifiedAt: "",
-      updatedAt: novo.createdAt,
-    };
-  } else {
-    sstDocs = [novo].concat(sstDocs);
-  }
-  salvarSstDocs();
+  const result = await dataProvider.sstDocs.upsertByRelatedId(novo);
+  sstDocs = result.list;
 }
 
 function handleSstDocContainerClick(event) {
@@ -21167,7 +21313,7 @@ async function adicionarManutencao() {
     documentos: documentosLista,
     resumo: "Execução iniciada.",
   });
-  registrarSstDocumentacao(nova, liberacao);
+  await registrarSstDocumentacao(nova, liberacao);
   renderTudo();
   limparFormularioManutencao();
 
@@ -23351,7 +23497,7 @@ function fecharOverrideLiberacao() {
   pendingLiberacaoOverride = null;
 }
 
-function finalizarLiberacao(index, item, liberacaoBase, overrideJustificativa = "") {
+async function finalizarLiberacao(index, item, liberacaoBase, overrideJustificativa = "") {
   const dataProgramada = parseDate(item.data);
   const atrasada = dataProgramada && dataProgramada < startOfDay(new Date());
   const agoraIso = toIsoUtc(new Date());
@@ -23385,7 +23531,7 @@ function finalizarLiberacao(index, item, liberacaoBase, overrideJustificativa = 
     justificativa: overrideJustificativa || undefined,
     resumo: overrideJustificativa ? "Liberação antecipada registrada." : "Liberação registrada.",
   });
-  registrarSstDocumentacao(atualizado, liberacao);
+  await registrarSstDocumentacao(atualizado, liberacao);
   renderTudo();
   fecharLiberacao();
   mostrarMensagemManutencao("Liberação registrada.");
@@ -23424,7 +23570,7 @@ async function confirmarOverrideLiberacao(event) {
   const liberacaoBase = pendingLiberacaoOverride.liberacaoBase;
   pendingLiberacaoOverride = null;
   fecharOverrideLiberacao();
-  finalizarLiberacao(index, item, liberacaoBase, motivo);
+  await finalizarLiberacao(index, item, liberacaoBase, motivo);
 }
 
 async function salvarLiberacao(event) {
@@ -23532,7 +23678,7 @@ async function salvarLiberacao(event) {
     mostrarMensagemLiberacao(error.message || "Não foi possível liberar.", true);
     return;
   }
-  finalizarLiberacao(index, item, liberacaoBase);
+  await finalizarLiberacao(index, item, liberacaoBase);
 }
 
 function handleLiberacaoDocChange(input) {
