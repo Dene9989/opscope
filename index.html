@@ -1157,7 +1157,7 @@
                 <span class="nav-item__label">Incidentes</span>
                 <span class="nav-item__meta"></span>
               </button>
-              <button class="nav-item" type="button" data-tab="sst-apr-pt" data-tooltip="APR / PT">
+              <button class="nav-item" type="button" data-tab="sst-apr-pt" data-tooltip="Documenta&ccedil;&otilde;es">
                 <span class="nav-item__ico">
                   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                     <path
@@ -1169,7 +1169,7 @@
                     />
                   </svg>
                 </span>
-                <span class="nav-item__label">APR / PT</span>
+                <span class="nav-item__label">Documenta&ccedil;&otilde;es</span>
                 <span class="nav-item__meta"></span>
               </button>
             </div>
@@ -3635,115 +3635,62 @@
       <section class="card">
         <div class="section-title">
           <div>
-            <h3>APR / Permissão de Trabalho</h3>
-            <p>Controle de análise de risco e PTs vinculadas.</p>
+            <h3>Documentações de Execução</h3>
+            <p>Receba, revise e aprove a documentação enviada antes do início das atividades.</p>
+          </div>
+          <div class="table-actions">
+            <button id="sstDocNewBtn" class="btn btn--primary btn--small" type="button">
+              Nova documentação
+            </button>
           </div>
         </div>
-        <form id="sstAprForm" class="form-grid">
+        <div class="form-grid sst-doc-filters">
           <div class="field">
-            <label for="sstAprProject">Projeto</label>
-            <select id="sstAprProject"></select>
-          </div>
-          <div class="field" data-full>
-            <label for="sstAprActivity">Atividade</label>
-            <input id="sstAprActivity" type="text" placeholder="Atividade executada" />
-          </div>
-          <div class="field" data-full>
-            <label for="sstAprHazards">Perigos (separe por vírgula)</label>
-            <input id="sstAprHazards" type="text" placeholder="queda, ruído, eletricidade" />
-          </div>
-          <div class="field" data-full>
-            <label for="sstAprRisks">Riscos (separe por vírgula)</label>
-            <input id="sstAprRisks" type="text" placeholder="lesão, queimadura" />
-          </div>
-          <div class="field" data-full>
-            <label for="sstAprControls">Controles (separe por vírgula)</label>
-            <input id="sstAprControls" type="text" placeholder="EPI, EPC, treinamento" />
-          </div>
-          <div class="field" data-full>
-            <button id="sstAprSubmit" class="btn btn--primary" type="submit">Salvar APR</button>
-          </div>
-        </form>
-        <p id="sstAprMsg" class="mensagem" aria-live="polite"></p>
-      </section>
-      <section class="card">
-        <div class="section-title">
-          <div>
-            <h3>Permissão de Trabalho (PT)</h3>
-            <p>Vincule a APR e controle validade.</p>
-          </div>
-        </div>
-        <form id="sstPermitForm" class="form-grid">
-          <div class="field">
-            <label for="sstPermitApr">APR vinculada</label>
-            <select id="sstPermitApr"></select>
+            <label for="sstDocProjectFilter">Projeto</label>
+            <select id="sstDocProjectFilter"></select>
           </div>
           <div class="field">
-            <label for="sstPermitType">Tipo</label>
-            <select id="sstPermitType">
-              <option value="ALTURA">Altura</option>
-              <option value="QUENTE">Quente</option>
-              <option value="ESPACO_CONFINADO">Espaço confinado</option>
-              <option value="ELETRICA">Elétrica</option>
+            <label for="sstDocStatusFilter">Status</label>
+            <select id="sstDocStatusFilter">
+              <option value="">Todos</option>
+              <option value="PENDENTE">Pendente</option>
+              <option value="APROVADO">Aprovado</option>
+              <option value="REPROVADO">Reprovado</option>
             </select>
           </div>
-          <div class="field">
-            <label for="sstPermitFrom">Validade início</label>
-            <input id="sstPermitFrom" type="date" />
-          </div>
-          <div class="field">
-            <label for="sstPermitTo">Validade fim</label>
-            <input id="sstPermitTo" type="date" />
-          </div>
           <div class="field" data-full>
-            <label for="sstPermitReqs">Requisitos (separe por vírgula)</label>
-            <input id="sstPermitReqs" type="text" placeholder="EPI, APR aprovada, bloqueio" />
+            <label for="sstDocSearch">Buscar</label>
+            <input id="sstDocSearch" type="text" placeholder="Atividade, responsável, APR" />
           </div>
-          <div class="field" data-full>
-            <button id="sstPermitSubmit" class="btn btn--primary" type="submit">Salvar PT</button>
-          </div>
-        </form>
-        <p id="sstPermitMsg" class="mensagem" aria-live="polite"></p>
+        </div>
+        <div id="sstDocStats" class="sst-doc-stats"></div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>Atividade</th>
+                <th>Projeto</th>
+                <th>Responsável</th>
+                <th>APR</th>
+                <th>Envio</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="sstDocTableBody"></tbody>
+          </table>
+        </div>
+        <p id="sstDocEmpty" class="empty-state">Nenhuma documentação registrada.</p>
       </section>
       <section class="card">
         <div class="section-title">
           <div>
-            <h3>APRs registradas</h3>
-            <p>Histórico de APRs por projeto.</p>
+            <h3>Fila de revisão</h3>
+            <p>Pendências aguardando avaliação do SST.</p>
           </div>
         </div>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Atividade</th>
-              <th>Projeto</th>
-              <th>Status</th>
-              <th>Data</th>
-            </tr>
-          </thead>
-          <tbody id="sstAprTableBody"></tbody>
-        </table>
-        <p id="sstAprEmpty" class="empty-state">Nenhuma APR registrada.</p>
-      </section>
-      <section class="card">
-        <div class="section-title">
-          <div>
-            <h3>Permissões de trabalho</h3>
-            <p>PTs vinculadas às APRs.</p>
-          </div>
-        </div>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Tipo</th>
-              <th>APR</th>
-              <th>Validade</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="sstPermitTableBody"></tbody>
-        </table>
-        <p id="sstPermitEmpty" class="empty-state">Nenhuma PT registrada.</p>
+        <div id="sstDocQueue" class="doc-queue"></div>
+        <p id="sstDocQueueEmpty" class="empty-state">Nenhuma documentação pendente.</p>
       </section>
     </section>
 
@@ -4678,6 +4625,115 @@
         title="Visualizar documento"
         style="width: 100%; height: 70vh; border: 0;"
       ></iframe>
+    </div>
+  </div>
+
+  <div id="modalSstDocForm" class="modal" hidden>
+    <div class="modal__content">
+      <div class="modal__header">
+        <h3>Nova documentação de execução</h3>
+        <button id="btnFecharSstDocForm" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <form id="formSstDoc" class="modal__form">
+        <div class="form-grid">
+          <div class="field">
+            <label for="sstDocProject">Projeto</label>
+            <select id="sstDocProject" required></select>
+          </div>
+          <div class="field">
+            <label for="sstDocResponsible">Técnico responsável</label>
+            <select id="sstDocResponsible" required></select>
+          </div>
+          <div class="field" data-full>
+            <label for="sstDocActivity">Atividade</label>
+            <input id="sstDocActivity" type="text" placeholder="Nome da atividade" required />
+          </div>
+          <div class="field">
+            <label for="sstDocAprCode">APR (código/referência)</label>
+            <input id="sstDocAprCode" type="text" placeholder="Ex.: APR-2026-0021" />
+          </div>
+          <div class="field" data-full>
+            <label>APR (arquivo obrigatório)</label>
+            <div class="doc-grid doc-grid--compact">
+              <div class="doc-item">
+                <div class="doc-head">
+                  <span>APR*</span>
+                  <button id="sstDocAprView" class="btn btn--ghost btn--small" type="button" disabled>
+                    Visualizar
+                  </button>
+                </div>
+                <div class="doc-actions">
+                  <button id="sstDocAprBtn" class="btn btn--ghost btn--small" type="button">Anexar</button>
+                  <input id="sstDocAprInput" type="file" accept=".pdf,image/*" hidden />
+                  <span id="sstDocAprName" class="doc-name">Nenhum arquivo</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="field" data-full>
+            <label for="sstDocAttachments">Anexos adicionais</label>
+            <input id="sstDocAttachments" type="file" multiple accept=".pdf,image/*" />
+            <p class="hint">Você pode anexar OS, PTE, PT e demais evidências.</p>
+          </div>
+          <div class="field" data-full>
+            <label for="sstDocNotes">Observações</label>
+            <textarea id="sstDocNotes" rows="3" placeholder="Detalhes relevantes"></textarea>
+          </div>
+        </div>
+        <div class="modal__actions">
+          <button class="btn btn--primary" type="submit">Enviar documentação</button>
+          <button id="btnCancelarSstDocForm" class="btn btn--ghost" type="button">Cancelar</button>
+        </div>
+        <p id="sstDocFormMsg" class="mensagem" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalSstDocReview" class="modal" hidden>
+    <div class="modal__content modal__content--wide">
+      <div class="modal__header">
+        <div>
+          <h3>Revisar documentação</h3>
+          <p id="sstDocReviewMeta" class="hint">-</p>
+        </div>
+        <button id="btnFecharSstDocReview" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <div class="modal__form">
+        <input id="sstDocReviewId" type="hidden" />
+        <div class="doc-review-head">
+          <div>
+            <h4 id="sstDocReviewTitle">Atividade</h4>
+          </div>
+          <div id="sstDocReviewStatus"></div>
+        </div>
+        <div class="doc-review-grid">
+          <div>
+            <p class="hint">Documentos anexados</p>
+            <div id="sstDocReviewAttachments" class="doc-review-list"></div>
+          </div>
+          <div>
+            <label for="sstDocReviewNotes">Parecer do SST</label>
+            <textarea id="sstDocReviewNotes" rows="3" placeholder="Observações técnicas"></textarea>
+            <label for="sstDocReviewInstructions">Instruções de correção</label>
+            <textarea
+              id="sstDocReviewInstructions"
+              rows="3"
+              placeholder="Explique o que precisa ser ajustado"
+            ></textarea>
+            <p class="hint">Obrigatório para reprovar.</p>
+          </div>
+        </div>
+        <div class="modal__actions">
+          <button id="sstDocApproveBtn" class="btn btn--primary" type="button">Aprovar</button>
+          <button id="sstDocRejectBtn" class="btn btn--ghost btn--danger" type="button">Reprovar</button>
+          <button id="btnCancelarSstDocReview" class="btn btn--ghost" type="button">Fechar</button>
+        </div>
+        <p id="sstDocReviewMsg" class="mensagem" aria-live="polite"></p>
+      </div>
     </div>
   </div>
 

@@ -7759,6 +7759,10 @@ textarea:focus {
   gap: 16px;
 }
 
+.doc-grid--compact {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
 .doc-item {
   display: grid;
   gap: 8px;
@@ -7798,6 +7802,78 @@ textarea:focus {
 .doc-name {
   font-size: 0.8rem;
   color: var(--ink-soft);
+}
+
+.sst-doc-filters {
+  margin-top: 6px;
+}
+
+.sst-doc-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin: 12px 0 4px;
+}
+
+.sst-doc-stats .stat-card {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(19, 32, 42, 0.18);
+  background: rgba(19, 32, 42, 0.04);
+}
+
+.sst-doc-stats .stat-card small {
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.doc-queue {
+  display: grid;
+  gap: 10px;
+}
+
+.doc-queue-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(19, 32, 42, 0.18);
+  background: rgba(19, 32, 42, 0.04);
+}
+
+.doc-queue-item .doc-queue-meta {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.doc-review-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.doc-review-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  margin-bottom: 8px;
+}
+
+.doc-review-list {
+  display: grid;
+  gap: 8px;
+}
+
+.doc-review-list .doc-row {
+  font-size: 0.82rem;
 }
 
 .doc-list {

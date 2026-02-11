@@ -407,6 +407,43 @@ const sstAprTableBody = document.getElementById("sstAprTableBody");
 const sstAprEmpty = document.getElementById("sstAprEmpty");
 const sstPermitTableBody = document.getElementById("sstPermitTableBody");
 const sstPermitEmpty = document.getElementById("sstPermitEmpty");
+const sstDocNewBtn = document.getElementById("sstDocNewBtn");
+const sstDocProjectFilter = document.getElementById("sstDocProjectFilter");
+const sstDocStatusFilter = document.getElementById("sstDocStatusFilter");
+const sstDocSearch = document.getElementById("sstDocSearch");
+const sstDocStats = document.getElementById("sstDocStats");
+const sstDocTableBody = document.getElementById("sstDocTableBody");
+const sstDocEmpty = document.getElementById("sstDocEmpty");
+const sstDocQueue = document.getElementById("sstDocQueue");
+const sstDocQueueEmpty = document.getElementById("sstDocQueueEmpty");
+const modalSstDocForm = document.getElementById("modalSstDocForm");
+const formSstDoc = document.getElementById("formSstDoc");
+const sstDocProject = document.getElementById("sstDocProject");
+const sstDocResponsible = document.getElementById("sstDocResponsible");
+const sstDocActivity = document.getElementById("sstDocActivity");
+const sstDocAprCode = document.getElementById("sstDocAprCode");
+const sstDocAprView = document.getElementById("sstDocAprView");
+const sstDocAprBtn = document.getElementById("sstDocAprBtn");
+const sstDocAprInput = document.getElementById("sstDocAprInput");
+const sstDocAprName = document.getElementById("sstDocAprName");
+const sstDocAttachments = document.getElementById("sstDocAttachments");
+const sstDocNotes = document.getElementById("sstDocNotes");
+const sstDocFormMsg = document.getElementById("sstDocFormMsg");
+const btnFecharSstDocForm = document.getElementById("btnFecharSstDocForm");
+const btnCancelarSstDocForm = document.getElementById("btnCancelarSstDocForm");
+const modalSstDocReview = document.getElementById("modalSstDocReview");
+const sstDocReviewId = document.getElementById("sstDocReviewId");
+const sstDocReviewTitle = document.getElementById("sstDocReviewTitle");
+const sstDocReviewMeta = document.getElementById("sstDocReviewMeta");
+const sstDocReviewStatus = document.getElementById("sstDocReviewStatus");
+const sstDocReviewAttachments = document.getElementById("sstDocReviewAttachments");
+const sstDocReviewNotes = document.getElementById("sstDocReviewNotes");
+const sstDocReviewInstructions = document.getElementById("sstDocReviewInstructions");
+const sstDocReviewMsg = document.getElementById("sstDocReviewMsg");
+const sstDocApproveBtn = document.getElementById("sstDocApproveBtn");
+const sstDocRejectBtn = document.getElementById("sstDocRejectBtn");
+const btnFecharSstDocReview = document.getElementById("btnFecharSstDocReview");
+const btnCancelarSstDocReview = document.getElementById("btnCancelarSstDocReview");
 const btnLembretes = document.getElementById("btnBell") || document.getElementById("btnLembretes");
 const lembretesCount = document.getElementById("bellDot") || document.getElementById("lembretesCount");
 const painelLembretes = document.getElementById("painelLembretes");
@@ -805,6 +842,7 @@ const REQUEST_KEY = "denemanu.requests";
 const AUDIT_KEY = "denemanu.audit";
 const RDO_KEY = "denemanu.rdo";
 const FEEDBACK_KEY = "opscope.feedbacks";
+const SST_DOCS_KEY = "opscope.sst.docs";
 const SESSION_KEY = "denemanu.session";
 const ACTIVE_PROJECT_KEY = "opscope.activeProjectId";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -914,7 +952,7 @@ const SECTION_LABELS = {
   "sst-inspecoes": "Inspeções",
   "sst-ncs": "Não conformidades",
   "sst-incidentes": "Incidentes",
-  "sst-apr-pt": "APR / PT",
+  "sst-apr-pt": "Documentações",
 };
 const ADMIN_SECTIONS = ["solicitacoes", "rastreabilidade", "gerencial", "contas"];
 const DEFAULT_SECTIONS = Object.keys(SECTION_LABELS).reduce((acc, key) => {
@@ -1964,9 +2002,10 @@ let sstInspectionTemplates = [];
 let sstInspections = [];
 let sstNonconformities = [];
 let sstIncidents = [];
-let sstAprs = [];
-let sstPermits = [];
+let sstDocs = [];
 let sstLoaded = false;
+let pendingSstDocAprPreview = null;
+let sstDocReviewingId = null;
 const pmpEquipamentosCache = new Map();
 const pmpMaintenanceCache = new Map();
 let pmpChecklistItems = [];
@@ -4979,7 +5018,7 @@ const TAB_LABELS = {
   "sst-inspecoes": "Inspe\u00e7\u00f5es",
   "sst-ncs": "N\u00e3o conformidades",
   "sst-incidentes": "Incidentes",
-  "sst-apr-pt": "APR / PT",
+  "sst-apr-pt": "Documentações",
   rastreabilidade: "Hist\u00f3rico de Execu\u00e7\u00e3o",
   gerencial: "Configura\u00e7\u00f5es Gerais",
   contas: "Equipe / Usu\u00e1rios",
@@ -18802,37 +18841,52 @@ async function carregarAlmoxarifado(force = false) {
 function renderSstProjectOptions() {
   renderProjectSelectOptions(sstInspectionProject, activeProjectId);
   renderProjectSelectOptions(sstIncidentProject, activeProjectId);
-  renderProjectSelectOptions(sstAprProject, activeProjectId);
+  const docProjectSelected = sstDocProject ? sstDocProject.value : "";
+  renderProjectSelectOptions(sstDocProject, docProjectSelected || activeProjectId);
+  const filterSelected = sstDocProjectFilter ? sstDocProjectFilter.value : "";
+  renderProjectFilterOptions(sstDocProjectFilter, filterSelected);
 }
 
-function renderSstAprOptions() {
-  if (!sstPermitApr) {
+function renderProjectFilterOptions(select, selectedId) {
+  if (!select) {
     return;
   }
-  const selected = sstPermitApr.value;
-  sstPermitApr.innerHTML = '<option value="">Selecione</option>';
-  sstAprs.forEach((apr) => {
-    const project = availableProjects.find((item) => item.id === apr.projectId);
-    const projectLabel = project ? getProjectLabel(project) : apr.projectId || "";
+  renderProjectSelectOptions(select, selectedId);
+  const first = select.querySelector("option");
+  if (first) {
+    first.textContent = "Todos os projetos";
+  }
+}
+
+function renderSstDocResponsibleOptions() {
+  if (!sstDocResponsible) {
+    return;
+  }
+  const selected = sstDocResponsible.value || (currentUser ? currentUser.id : "");
+  sstDocResponsible.innerHTML = '<option value="">Selecione</option>';
+  getOperationalUsers().forEach((user) => {
     const opt = document.createElement("option");
-    opt.value = apr.id;
-    opt.textContent = `${apr.activity || "APR"} - ${projectLabel}`;
-    sstPermitApr.append(opt);
+    opt.value = user.id;
+    opt.textContent = getUserLabel(user.id);
+    sstDocResponsible.append(opt);
   });
   if (selected) {
-    sstPermitApr.value = selected;
+    sstDocResponsible.value = selected;
   }
 }
 
 function renderSstSelectors() {
   renderSstProjectOptions();
-  renderSstAprOptions();
   setFormDisabled(sstTrainingForm, !(currentUser && canManageSst(currentUser)));
   setFormDisabled(sstInspectionForm, !(currentUser && canManageSst(currentUser)));
   setFormDisabled(sstNcForm, !(currentUser && canManageSst(currentUser)));
   setFormDisabled(sstIncidentForm, !(currentUser && canManageSst(currentUser)));
-  setFormDisabled(sstAprForm, !(currentUser && canManageSst(currentUser)));
-  setFormDisabled(sstPermitForm, !(currentUser && canManageSst(currentUser)));
+  renderSstDocResponsibleOptions();
+  const podeEnviarDocs = Boolean(currentUser && canViewSst(currentUser));
+  setFormDisabled(formSstDoc, !podeEnviarDocs);
+  if (sstDocNewBtn) {
+    sstDocNewBtn.disabled = !podeEnviarDocs;
+  }
 }
 
 function renderSstDashboard() {
@@ -19013,55 +19067,276 @@ function renderSstIncidentes() {
   }
 }
 
+function getSstDocStatusLabel(status) {
+  const normalizado = String(status || "").toUpperCase();
+  if (normalizado === "APROVADO") {
+    return "Aprovado";
+  }
+  if (normalizado === "REPROVADO") {
+    return "Reprovado";
+  }
+  return "Pendente";
+}
+
+function getSstDocStatusBadge(status) {
+  const normalizado = String(status || "").toUpperCase();
+  if (normalizado === "APROVADO") {
+    return `<span class="badge badge--ok">Aprovado</span>`;
+  }
+  if (normalizado === "REPROVADO") {
+    return `<span class="badge badge--crit">Reprovado</span>`;
+  }
+  return `<span class="badge badge--warn">Pendente</span>`;
+}
+
+function normalizeSstDoc(doc) {
+  if (!doc || typeof doc !== "object") {
+    return null;
+  }
+  const createdAt = doc.createdAt || toIsoUtc(new Date());
+  const status = doc.status ? String(doc.status).toUpperCase() : "PENDENTE";
+  return {
+    id: doc.id || criarId(),
+    activity: doc.activity || doc.activityName || "",
+    projectId: doc.projectId || "",
+    responsibleId: doc.responsibleId || doc.createdBy || "",
+    aprCode: doc.aprCode || "",
+    aprDoc: doc.aprDoc || doc.apr || null,
+    attachments: Array.isArray(doc.attachments) ? doc.attachments.filter(Boolean) : [],
+    status,
+    notes: doc.notes || "",
+    createdAt,
+    createdBy: doc.createdBy || doc.responsibleId || "",
+    reviewedAt: doc.reviewedAt || "",
+    reviewedBy: doc.reviewedBy || "",
+    reviewNotes: doc.reviewNotes || "",
+    correctionInstructions: doc.correctionInstructions || "",
+    notifiedAt: doc.notifiedAt || "",
+    source: doc.source || "manual",
+    relatedId: doc.relatedId || "",
+    updatedAt: doc.updatedAt || createdAt,
+  };
+}
+
+function salvarSstDocs() {
+  writeJson(SST_DOCS_KEY, sstDocs);
+}
+
+async function salvarSstDocArquivo(file) {
+  if (!file) {
+    return null;
+  }
+  const docId = criarId();
+  const agoraIso = toIsoUtc(new Date());
+  const nome = file.name || "Documento";
+  if (typeof indexedDB === "undefined") {
+    const data = await lerDocumentoFile(file);
+    if (!data || !data.dataUrl) {
+      return null;
+    }
+    return {
+      docId,
+      name: data.nome || nome,
+      nome: data.nome || nome,
+      mime: data.type || file.type || "",
+      dataUrl: data.dataUrl,
+      createdAt: agoraIso,
+    };
+  }
+  try {
+    const db = await openDocsDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction("docs", "readwrite");
+      const store = tx.objectStore("docs");
+      store.put({
+        docId,
+        blob: file,
+        name: nome,
+        mime: file.type || "",
+        size: file.size || 0,
+        createdAt: agoraIso,
+      });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+    return {
+      docId,
+      name: nome,
+      nome,
+      mime: file.type || "",
+      size: file.size || 0,
+      createdAt: agoraIso,
+    };
+  } catch (error) {
+    const data = await lerDocumentoFile(file);
+    if (!data || !data.dataUrl) {
+      return null;
+    }
+    return {
+      docId,
+      name: data.nome || nome,
+      nome: data.nome || nome,
+      mime: data.type || file.type || "",
+      dataUrl: data.dataUrl,
+      createdAt: agoraIso,
+    };
+  }
+}
+
+function getSstDocsScoped() {
+  let list = Array.isArray(sstDocs) ? sstDocs.slice() : [];
+  if (!currentUser || !canManageSst(currentUser)) {
+    if (!currentUser) {
+      return [];
+    }
+    list = list.filter(
+      (doc) => doc.responsibleId === currentUser.id || doc.createdBy === currentUser.id
+    );
+  }
+  const projectFilter = sstDocProjectFilter ? sstDocProjectFilter.value : "";
+  if (projectFilter) {
+    list = list.filter((doc) => String(doc.projectId || "") === String(projectFilter));
+  }
+  return list;
+}
+
+function getSstDocsFiltered() {
+  let list = getSstDocsScoped();
+  const statusFilter = sstDocStatusFilter ? sstDocStatusFilter.value : "";
+  if (statusFilter) {
+    list = list.filter(
+      (doc) => String(doc.status || "").toUpperCase() === String(statusFilter).toUpperCase()
+    );
+  }
+  const termo = sstDocSearch ? normalizeSearchValue(sstDocSearch.value || "") : "";
+  if (termo) {
+    list = list.filter((doc) => {
+      const project = availableProjects.find((item) => item.id === doc.projectId);
+      const projectLabel = project ? getProjectLabel(project) : doc.projectId || "";
+      const responsavel = getUserLabel(doc.responsibleId);
+      const aprLabel =
+        doc.aprCode || (doc.aprDoc && (doc.aprDoc.name || doc.aprDoc.nome)) || "";
+      const base = `${doc.activity || ""} ${projectLabel} ${responsavel} ${aprLabel}`;
+      return normalizeSearchValue(base).includes(termo);
+    });
+  }
+  list.sort((a, b) => {
+    const stampA = parseTimestamp(a.createdAt) || 0;
+    const stampB = parseTimestamp(b.createdAt) || 0;
+    return stampB - stampA;
+  });
+  return list;
+}
+
+function renderSstDocStats(scopedDocs) {
+  if (!sstDocStats) {
+    return;
+  }
+  const total = scopedDocs.length;
+  const pendentes = scopedDocs.filter(
+    (doc) => String(doc.status || "").toUpperCase() === "PENDENTE"
+  ).length;
+  const aprovados = scopedDocs.filter(
+    (doc) => String(doc.status || "").toUpperCase() === "APROVADO"
+  ).length;
+  const reprovados = scopedDocs.filter(
+    (doc) => String(doc.status || "").toUpperCase() === "REPROVADO"
+  ).length;
+  const cards = [
+    { label: "Pendentes", value: pendentes },
+    { label: "Aprovadas", value: aprovados },
+    { label: "Reprovadas", value: reprovados },
+    { label: "Total", value: total },
+  ];
+  sstDocStats.innerHTML = cards
+    .map(
+      (card) =>
+        `<div class="stat-card"><small>${escapeHtml(card.label)}</small><strong>${escapeHtml(
+          String(card.value)
+        )}</strong></div>`
+    )
+    .join("");
+}
+
+function renderSstDocQueue(scopedDocs) {
+  if (!sstDocQueue) {
+    return;
+  }
+  const pendentes = scopedDocs.filter(
+    (doc) => String(doc.status || "").toUpperCase() === "PENDENTE"
+  );
+  const lista = pendentes.slice(0, 6);
+  sstDocQueue.innerHTML = lista
+    .map((doc) => {
+      const project = availableProjects.find((item) => item.id === doc.projectId);
+      const projectLabel = project ? getProjectLabel(project) : doc.projectId || "-";
+      const responsavel = getUserLabel(doc.responsibleId);
+      const enviadoEm = doc.createdAt ? formatDateTime(parseTimestamp(doc.createdAt)) : "-";
+      return `
+        <div class="doc-queue-item" data-doc-id="${escapeHtml(String(doc.id))}">
+          <div>
+            <strong>${escapeHtml(doc.activity || "Atividade")}</strong>
+            <div class="doc-queue-meta">
+              ${escapeHtml(projectLabel)} · ${escapeHtml(responsavel)} · ${escapeHtml(enviadoEm)}
+            </div>
+          </div>
+          <button class="btn btn--ghost btn--small" type="button" data-action="review">
+            ${currentUser && canManageSst(currentUser) ? "Revisar" : "Detalhes"}
+          </button>
+        </div>
+      `;
+    })
+    .join("");
+  if (sstDocQueueEmpty) {
+    sstDocQueueEmpty.hidden = lista.length > 0;
+  }
+}
+
 function renderSstAprPt() {
-  if (!sstAprTableBody || !sstLoaded) {
+  if (!sstDocTableBody || !sstLoaded) {
     return;
   }
   renderSstSelectors();
-  const aprList = activeProjectId
-    ? sstAprs.filter((item) => item.projectId === activeProjectId)
-    : sstAprs;
-  sstAprTableBody.innerHTML = aprList
-    .map((apr) => {
-      const project = availableProjects.find((item) => item.id === apr.projectId);
-      const data = apr.createdAt ? formatDateTime(parseTimestamp(apr.createdAt)) : "-";
+  if (sstDocProjectFilter && !sstDocProjectFilter.dataset.init) {
+    if (activeProjectId) {
+      sstDocProjectFilter.value = activeProjectId;
+    }
+    sstDocProjectFilter.dataset.init = "true";
+  }
+  const scoped = getSstDocsScoped();
+  renderSstDocStats(scoped);
+  renderSstDocQueue(scoped);
+  const list = getSstDocsFiltered();
+  sstDocTableBody.innerHTML = list
+    .map((doc) => {
+      const project = availableProjects.find((item) => item.id === doc.projectId);
+      const projectLabel = project ? getProjectLabel(project) : doc.projectId || "-";
+      const responsavel = getUserLabel(doc.responsibleId);
+      const envio = doc.createdAt ? formatDateTime(parseTimestamp(doc.createdAt)) : "-";
+      const aprLabel =
+        doc.aprCode || (doc.aprDoc && (doc.aprDoc.name || doc.aprDoc.nome)) || "-";
       return `
-        <tr>
-          <td>${escapeHtml(project ? getProjectLabel(project) : apr.projectId || "-")}</td>
-          <td>${escapeHtml(apr.activity || "-")}</td>
-          <td>${escapeHtml((apr.hazards || []).join(", "))}</td>
-          <td>${escapeHtml(data)}</td>
+        <tr data-doc-id="${escapeHtml(String(doc.id))}">
+          <td>${getSstDocStatusBadge(doc.status)}</td>
+          <td>${escapeHtml(doc.activity || "-")}</td>
+          <td>${escapeHtml(projectLabel)}</td>
+          <td>${escapeHtml(responsavel)}</td>
+          <td>${escapeHtml(aprLabel)}</td>
+          <td>${escapeHtml(envio)}</td>
+          <td>
+            <div class="table-actions">
+              <button class="btn btn--ghost btn--small" type="button" data-action="review">
+                ${currentUser && canManageSst(currentUser) ? "Revisar" : "Detalhes"}
+              </button>
+            </div>
+          </td>
         </tr>
       `;
     })
     .join("");
-  if (sstAprEmpty) {
-    sstAprEmpty.hidden = aprList.length > 0;
-  }
-
-  const permitsList = activeProjectId
-    ? sstPermits.filter((permit) => {
-        const apr = sstAprs.find((item) => item.id === permit.aprId);
-        return apr && apr.projectId === activeProjectId;
-      })
-    : sstPermits;
-  if (sstPermitTableBody) {
-    sstPermitTableBody.innerHTML = permitsList
-      .map((permit) => {
-        const apr = sstAprs.find((item) => item.id === permit.aprId);
-        return `
-          <tr>
-            <td>${escapeHtml(permit.type || "-")}</td>
-            <td>${escapeHtml(apr ? apr.activity || apr.id : permit.aprId || "-")}</td>
-            <td>${escapeHtml(permit.validTo || "-")}</td>
-            <td>${escapeHtml(permit.status || "-")}</td>
-          </tr>
-        `;
-      })
-      .join("");
-  }
-  if (sstPermitEmpty) {
-    sstPermitEmpty.hidden = permitsList.length > 0;
+  if (sstDocEmpty) {
+    sstDocEmpty.hidden = list.length > 0;
   }
 }
 
@@ -19073,8 +19348,7 @@ async function carregarSst(force = false) {
     sstInspections = [];
     sstNonconformities = [];
     sstIncidents = [];
-    sstAprs = [];
-    sstPermits = [];
+    sstDocs = [];
     sstLoaded = false;
     renderSstDashboard();
     renderSstTreinamentos();
@@ -19118,18 +19392,12 @@ async function carregarSst(force = false) {
   } catch (error) {
     sstIncidents = [];
   }
-  try {
-    const data = await apiSstAprsList();
-    sstAprs = Array.isArray(data.aprs) ? data.aprs : [];
-  } catch (error) {
-    sstAprs = [];
+  sstDocs = readJson(SST_DOCS_KEY, []);
+  if (!Array.isArray(sstDocs)) {
+    sstDocs = [];
   }
-  try {
-    const data = await apiSstPermitsList();
-    sstPermits = Array.isArray(data.permits) ? data.permits : [];
-  } catch (error) {
-    sstPermits = [];
-  }
+  sstDocs = sstDocs.map(normalizeSstDoc).filter(Boolean);
+  writeJson(SST_DOCS_KEY, sstDocs);
   sstLoaded = true;
   renderSstDashboard();
   renderSstTreinamentos();
@@ -19391,80 +19659,369 @@ async function handleSstIncidentSubmit(event) {
   }
 }
 
-async function handleSstAprSubmit(event) {
-  event.preventDefault();
-  if (!currentUser || !canManageSst(currentUser)) {
-    setInlineMessage(sstAprMsg, "Sem permissão para salvar APR.", true);
+function abrirSstDocForm() {
+  if (!modalSstDocForm) {
     return;
   }
-  const payload = {
-    projectId: sstAprProject ? sstAprProject.value : "",
-    activity: sstAprActivity ? sstAprActivity.value.trim() : "",
-    hazards: sstAprHazards ? sstAprHazards.value.trim() : "",
-    risks: sstAprRisks ? sstAprRisks.value.trim() : "",
-    controls: sstAprControls ? sstAprControls.value.trim() : "",
-  };
-  if (!payload.projectId) {
-    setInlineMessage(sstAprMsg, "Selecione o projeto.", true);
+  if (!currentUser || !canViewSst(currentUser)) {
+    window.alert("Sem permissão para enviar documentação.");
     return;
   }
-  if (!payload.activity) {
-    setInlineMessage(sstAprMsg, "Informe a atividade.", true);
+  renderSstSelectors();
+  if (sstDocProject && activeProjectId) {
+    sstDocProject.value = activeProjectId;
+  }
+  if (sstDocResponsible && currentUser) {
+    sstDocResponsible.value = currentUser.id;
+  }
+  setInlineMessage(sstDocFormMsg, "");
+  modalSstDocForm.hidden = false;
+}
+
+function fecharSstDocForm() {
+  if (!modalSstDocForm) {
     return;
   }
-  try {
-    const data = await apiSstAprCreate(payload);
-    if (data && data.apr) {
-      sstAprs = [data.apr].concat(sstAprs);
-      sstLoaded = true;
-      if (sstAprForm) {
-        sstAprForm.reset();
-      }
-      setInlineMessage(sstAprMsg, "APR salva.");
-      renderSstAprPt();
-      renderSstDashboard();
+  modalSstDocForm.hidden = true;
+  if (formSstDoc) {
+    formSstDoc.reset();
+  }
+  pendingSstDocAprPreview = null;
+  if (sstDocAprName) {
+    sstDocAprName.textContent = "Nenhum arquivo";
+  }
+  if (sstDocAprView) {
+    sstDocAprView.disabled = true;
+  }
+  setInlineMessage(sstDocFormMsg, "");
+}
+
+async function handleSstDocAprChange() {
+  if (!sstDocAprInput) {
+    return;
+  }
+  const file = sstDocAprInput.files && sstDocAprInput.files[0] ? sstDocAprInput.files[0] : null;
+  pendingSstDocAprPreview = null;
+  if (!file) {
+    if (sstDocAprName) {
+      sstDocAprName.textContent = "Nenhum arquivo";
     }
-  } catch (error) {
-    setInlineMessage(sstAprMsg, error.message || "Erro ao salvar APR.", true);
+    if (sstDocAprView) {
+      sstDocAprView.disabled = true;
+    }
+    return;
+  }
+  if (sstDocAprName) {
+    sstDocAprName.textContent = file.name;
+  }
+  const preview = await lerDocumentoFile(file);
+  if (preview && preview.dataUrl) {
+    pendingSstDocAprPreview = preview;
+    if (sstDocAprView) {
+      sstDocAprView.disabled = false;
+    }
   }
 }
 
-async function handleSstPermitSubmit(event) {
+function handleSstDocAprView() {
+  if (!pendingSstDocAprPreview || !pendingSstDocAprPreview.dataUrl) {
+    return;
+  }
+  abrirDocumento({ dataUrl: pendingSstDocAprPreview.dataUrl });
+}
+
+async function handleSstDocSubmit(event) {
   event.preventDefault();
-  if (!currentUser || !canManageSst(currentUser)) {
-    setInlineMessage(sstPermitMsg, "Sem permissão para salvar PT.", true);
+  if (!currentUser || !canViewSst(currentUser)) {
+    setInlineMessage(sstDocFormMsg, "Sem permissão para enviar documentação.", true);
     return;
   }
   const payload = {
-    aprId: sstPermitApr ? sstPermitApr.value : "",
-    type: sstPermitType ? sstPermitType.value : "",
-    validFrom: sstPermitFrom ? sstPermitFrom.value : "",
-    validTo: sstPermitTo ? sstPermitTo.value : "",
-    requirements: sstPermitReqs ? sstPermitReqs.value.trim() : "",
+    projectId: sstDocProject ? sstDocProject.value : "",
+    responsibleId: sstDocResponsible ? sstDocResponsible.value : "",
+    activity: sstDocActivity ? sstDocActivity.value.trim() : "",
+    aprCode: sstDocAprCode ? sstDocAprCode.value.trim() : "",
+    notes: sstDocNotes ? sstDocNotes.value.trim() : "",
   };
-  if (!payload.aprId) {
-    setInlineMessage(sstPermitMsg, "Selecione a APR vinculada.", true);
+  if (!payload.projectId) {
+    setInlineMessage(sstDocFormMsg, "Selecione o projeto.", true);
     return;
   }
-  if (!payload.type) {
-    setInlineMessage(sstPermitMsg, "Selecione o tipo de PT.", true);
+  if (!payload.responsibleId) {
+    setInlineMessage(sstDocFormMsg, "Informe o responsável.", true);
     return;
   }
-  try {
-    const data = await apiSstPermitCreate(payload);
-    if (data && data.permit) {
-      sstPermits = [data.permit].concat(sstPermits);
-      sstLoaded = true;
-      if (sstPermitForm) {
-        sstPermitForm.reset();
-      }
-      setInlineMessage(sstPermitMsg, "PT salva.");
-      renderSstAprPt();
-      renderSstDashboard();
+  if (!payload.activity) {
+    setInlineMessage(sstDocFormMsg, "Informe a atividade.", true);
+    return;
+  }
+  const aprFile =
+    sstDocAprInput && sstDocAprInput.files && sstDocAprInput.files[0]
+      ? sstDocAprInput.files[0]
+      : null;
+  if (!aprFile) {
+    setInlineMessage(sstDocFormMsg, "Anexe a APR obrigatória.", true);
+    return;
+  }
+  const aprDoc = await salvarSstDocArquivo(aprFile);
+  if (!aprDoc) {
+    setInlineMessage(sstDocFormMsg, "Não foi possível anexar a APR.", true);
+    return;
+  }
+  const attachments = [];
+  const extraFiles = sstDocAttachments ? Array.from(sstDocAttachments.files || []) : [];
+  for (const file of extraFiles) {
+    const doc = await salvarSstDocArquivo(file);
+    if (doc) {
+      attachments.push({ label: file.name || "Anexo", doc });
     }
-  } catch (error) {
-    setInlineMessage(sstPermitMsg, error.message || "Erro ao salvar PT.", true);
   }
+  const novo = normalizeSstDoc({
+    id: criarId(),
+    activity: payload.activity,
+    projectId: payload.projectId,
+    responsibleId: payload.responsibleId,
+    aprCode: payload.aprCode,
+    aprDoc,
+    attachments,
+    notes: payload.notes,
+    status: "PENDENTE",
+    createdAt: toIsoUtc(new Date()),
+    createdBy: currentUser.id,
+    source: "manual",
+  });
+  if (!novo) {
+    setInlineMessage(sstDocFormMsg, "Falha ao registrar documentação.", true);
+    return;
+  }
+  sstDocs = [novo].concat(sstDocs);
+  salvarSstDocs();
+  sstLoaded = true;
+  fecharSstDocForm();
+  renderSstAprPt();
+  renderSstDashboard();
+}
+
+function abrirSstDocReview(docId) {
+  if (!modalSstDocReview) {
+    return;
+  }
+  const doc = sstDocs.find((item) => String(item.id) === String(docId));
+  if (!doc) {
+    return;
+  }
+  sstDocReviewingId = doc.id;
+  if (sstDocReviewId) {
+    sstDocReviewId.value = doc.id;
+  }
+  if (sstDocReviewTitle) {
+    sstDocReviewTitle.textContent = doc.activity || "Documentação";
+  }
+  if (sstDocReviewStatus) {
+    sstDocReviewStatus.innerHTML = getSstDocStatusBadge(doc.status);
+  }
+  if (sstDocReviewMeta) {
+    const project = availableProjects.find((item) => item.id === doc.projectId);
+    const projectLabel = project ? getProjectLabel(project) : doc.projectId || "-";
+    const responsavel = getUserLabel(doc.responsibleId);
+    const enviadoEm = doc.createdAt ? formatDateTime(parseTimestamp(doc.createdAt)) : "-";
+    sstDocReviewMeta.textContent = `${projectLabel} · ${responsavel} · Enviado em ${enviadoEm}`;
+  }
+  if (sstDocReviewNotes) {
+    sstDocReviewNotes.value = doc.reviewNotes || "";
+  }
+  if (sstDocReviewInstructions) {
+    sstDocReviewInstructions.value = doc.correctionInstructions || "";
+  }
+  if (sstDocReviewAttachments) {
+    sstDocReviewAttachments.innerHTML = "";
+    const lista = [];
+    if (doc.aprDoc) {
+      lista.push({ label: "APR", doc: doc.aprDoc });
+    }
+    if (Array.isArray(doc.attachments)) {
+      doc.attachments.forEach((item) => {
+        if (item && item.doc) {
+          lista.push({ label: item.label || "Anexo", doc: item.doc });
+        }
+      });
+    }
+    if (!lista.length) {
+      const vazio = document.createElement("p");
+      vazio.className = "empty-state";
+      vazio.textContent = "Sem anexos.";
+      sstDocReviewAttachments.append(vazio);
+    } else {
+      lista.forEach((item) => {
+        const row = document.createElement("div");
+        row.className = "doc-row";
+        const label = document.createElement("span");
+        label.textContent = item.label;
+        const action = document.createElement("div");
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn btn--ghost btn--small";
+        btn.textContent = "Visualizar";
+        btn.addEventListener("click", () => abrirDocumento(item.doc));
+        action.append(btn);
+        row.append(label, action);
+        sstDocReviewAttachments.append(row);
+      });
+    }
+  }
+  const podeRevisar = Boolean(currentUser && canManageSst(currentUser));
+  if (sstDocApproveBtn) {
+    sstDocApproveBtn.disabled = !podeRevisar;
+  }
+  if (sstDocRejectBtn) {
+    sstDocRejectBtn.disabled = !podeRevisar;
+  }
+  if (sstDocReviewNotes) {
+    sstDocReviewNotes.disabled = !podeRevisar;
+  }
+  if (sstDocReviewInstructions) {
+    sstDocReviewInstructions.disabled = !podeRevisar;
+  }
+  setInlineMessage(sstDocReviewMsg, "");
+  modalSstDocReview.hidden = false;
+}
+
+function fecharSstDocReview() {
+  if (!modalSstDocReview) {
+    return;
+  }
+  modalSstDocReview.hidden = true;
+  sstDocReviewingId = null;
+  if (sstDocReviewId) {
+    sstDocReviewId.value = "";
+  }
+  setInlineMessage(sstDocReviewMsg, "");
+}
+
+function atualizarSstDocStatus(status) {
+  if (!currentUser || !canManageSst(currentUser)) {
+    setInlineMessage(sstDocReviewMsg, "Sem permissão para revisar.", true);
+    return;
+  }
+  const docId = sstDocReviewingId || (sstDocReviewId ? sstDocReviewId.value : "");
+  const index = sstDocs.findIndex((item) => String(item.id) === String(docId));
+  if (index < 0) {
+    setInlineMessage(sstDocReviewMsg, "Documentação não encontrada.", true);
+    return;
+  }
+  const notes = sstDocReviewNotes ? sstDocReviewNotes.value.trim() : "";
+  const instructions = sstDocReviewInstructions
+    ? sstDocReviewInstructions.value.trim()
+    : "";
+  if (String(status).toUpperCase() === "REPROVADO" && !instructions) {
+    setInlineMessage(sstDocReviewMsg, "Informe as instruções de correção.", true);
+    return;
+  }
+  const agoraIso = toIsoUtc(new Date());
+  const atualizado = {
+    ...sstDocs[index],
+    status: String(status).toUpperCase(),
+    reviewedAt: agoraIso,
+    reviewedBy: currentUser.id,
+    reviewNotes: notes,
+    correctionInstructions: instructions,
+    notifiedAt: String(status).toUpperCase() === "REPROVADO" ? agoraIso : "",
+    updatedAt: agoraIso,
+  };
+  sstDocs[index] = atualizado;
+  salvarSstDocs();
+  renderSstAprPt();
+  renderSstDashboard();
+  if (sstDocReviewStatus) {
+    sstDocReviewStatus.innerHTML = getSstDocStatusBadge(atualizado.status);
+  }
+  setInlineMessage(
+    sstDocReviewMsg,
+    atualizado.status === "APROVADO" ? "Documentação aprovada." : "Documentação reprovada."
+  );
+}
+
+function registrarSstDocumentacao(item, liberacao) {
+  if (!item || !liberacao || !liberacao.documentos) {
+    return;
+  }
+  const aprDoc = liberacao.documentos.apr || null;
+  if (!aprDoc) {
+    return;
+  }
+  const attachments = [];
+  Object.keys(liberacao.documentos || {}).forEach((key) => {
+    if (key === "apr") {
+      return;
+    }
+    const doc = liberacao.documentos[key];
+    if (doc) {
+      attachments.push({ label: DOC_LABELS[key] || key.toUpperCase(), doc });
+    }
+  });
+  let responsavel = liberacao.liberadoPor || item.updatedBy || item.createdBy || "";
+  if (
+    typeof responsavel === "string" &&
+    (responsavel.startsWith("team:") || responsavel.startsWith("time:"))
+  ) {
+    responsavel = currentUser ? currentUser.id : "";
+  }
+  const novo = normalizeSstDoc({
+    id: criarId(),
+    activity: item.titulo || item.atividade || item.local || "Atividade",
+    projectId: item.projectId || "",
+    responsibleId: responsavel,
+    aprCode: liberacao.aprCode || "",
+    aprDoc,
+    attachments,
+    status: "PENDENTE",
+    createdAt: liberacao.liberadoEm || toIsoUtc(new Date()),
+    createdBy: liberacao.liberadoPor || (currentUser ? currentUser.id : ""),
+    source: "liberacao",
+    relatedId: item.id || "",
+  });
+  if (!novo) {
+    return;
+  }
+  const existingIndex = sstDocs.findIndex(
+    (doc) => doc.relatedId && novo.relatedId && doc.relatedId === novo.relatedId
+  );
+  if (existingIndex >= 0) {
+    sstDocs[existingIndex] = {
+      ...sstDocs[existingIndex],
+      ...novo,
+      status: "PENDENTE",
+      reviewedAt: "",
+      reviewedBy: "",
+      reviewNotes: "",
+      correctionInstructions: "",
+      notifiedAt: "",
+      updatedAt: novo.createdAt,
+    };
+  } else {
+    sstDocs = [novo].concat(sstDocs);
+  }
+  salvarSstDocs();
+}
+
+function handleSstDocContainerClick(event) {
+  const target = event.target;
+  if (!target) {
+    return;
+  }
+  const button = target.closest("button[data-action]");
+  if (!button) {
+    return;
+  }
+  const row = target.closest("[data-doc-id]");
+  if (!row) {
+    return;
+  }
+  const docId = row.dataset.docId;
+  if (!docId) {
+    return;
+  }
+  abrirSstDocReview(docId);
 }
 
 
@@ -20610,6 +21167,7 @@ async function adicionarManutencao() {
     documentos: documentosLista,
     resumo: "Execução iniciada.",
   });
+  registrarSstDocumentacao(nova, liberacao);
   renderTudo();
   limparFormularioManutencao();
 
@@ -22827,6 +23385,7 @@ function finalizarLiberacao(index, item, liberacaoBase, overrideJustificativa = 
     justificativa: overrideJustificativa || undefined,
     resumo: overrideJustificativa ? "Liberação antecipada registrada." : "Liberação registrada.",
   });
+  registrarSstDocumentacao(atualizado, liberacao);
   renderTudo();
   fecharLiberacao();
   mostrarMensagemManutencao("Liberação registrada.");
@@ -27199,11 +27758,53 @@ if (sstNcForm) {
 if (sstIncidentForm) {
   sstIncidentForm.addEventListener("submit", handleSstIncidentSubmit);
 }
-if (sstAprForm) {
-  sstAprForm.addEventListener("submit", handleSstAprSubmit);
+if (sstDocNewBtn) {
+  sstDocNewBtn.addEventListener("click", abrirSstDocForm);
 }
-if (sstPermitForm) {
-  sstPermitForm.addEventListener("submit", handleSstPermitSubmit);
+if (btnFecharSstDocForm) {
+  btnFecharSstDocForm.addEventListener("click", fecharSstDocForm);
+}
+if (btnCancelarSstDocForm) {
+  btnCancelarSstDocForm.addEventListener("click", fecharSstDocForm);
+}
+if (formSstDoc) {
+  formSstDoc.addEventListener("submit", handleSstDocSubmit);
+}
+if (sstDocAprBtn && sstDocAprInput) {
+  sstDocAprBtn.addEventListener("click", () => sstDocAprInput.click());
+}
+if (sstDocAprInput) {
+  sstDocAprInput.addEventListener("change", handleSstDocAprChange);
+}
+if (sstDocAprView) {
+  sstDocAprView.addEventListener("click", handleSstDocAprView);
+}
+if (sstDocStatusFilter) {
+  sstDocStatusFilter.addEventListener("change", renderSstAprPt);
+}
+if (sstDocProjectFilter) {
+  sstDocProjectFilter.addEventListener("change", renderSstAprPt);
+}
+if (sstDocSearch) {
+  sstDocSearch.addEventListener("input", renderSstAprPt);
+}
+if (sstDocTableBody) {
+  sstDocTableBody.addEventListener("click", handleSstDocContainerClick);
+}
+if (sstDocQueue) {
+  sstDocQueue.addEventListener("click", handleSstDocContainerClick);
+}
+if (sstDocApproveBtn) {
+  sstDocApproveBtn.addEventListener("click", () => atualizarSstDocStatus("APROVADO"));
+}
+if (sstDocRejectBtn) {
+  sstDocRejectBtn.addEventListener("click", () => atualizarSstDocStatus("REPROVADO"));
+}
+if (btnFecharSstDocReview) {
+  btnFecharSstDocReview.addEventListener("click", fecharSstDocReview);
+}
+if (btnCancelarSstDocReview) {
+  btnCancelarSstDocReview.addEventListener("click", fecharSstDocReview);
 }
 
 users = [];
@@ -27238,6 +27839,7 @@ window.addEventListener("storage", (event) => {
     AUDIT_KEY,
     RDO_KEY,
     FEEDBACK_KEY,
+    SST_DOCS_KEY,
     REMINDER_KEY,
     TEMPLATE_KEY,
   ];
