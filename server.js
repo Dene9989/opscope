@@ -46,6 +46,7 @@ try {
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
+const HOST = process.env.HOST || "0.0.0.0";
 const SESSION_SECRET = process.env.SESSION_SECRET || "opscope_dev_secret_change";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Admin@12345!";
 const MASTER_USERNAME = "denisson.alves";
@@ -7255,8 +7256,8 @@ app.get("/api/dashboard/summary", requireAuth, (req, res) => {
 
 bootstrap()
   .then(() => {
-    app.listen(PORT, () => {
-      console.log(`OPSCOPE auth server rodando em http://localhost:${PORT}`);
+    app.listen(PORT, HOST, () => {
+      console.log(`OPSCOPE auth server rodando em http://${HOST}:${PORT}`);
     });
   })
   .catch((error) => {
