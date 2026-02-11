@@ -160,6 +160,12 @@ enum SstAlertType {
   PT_VENCIDA
 }
 
+enum DocumentReviewStatus {
+  PENDENTE
+  APROVADO
+  REPROVADO
+}
+
 model User {
   id           String           @id @default(uuid())
   name         String
@@ -182,6 +188,9 @@ model User {
   actionPlanItems ActionPlanItem[] @relation("action_responsible")
   permitApprovals PermitApproval[] @relation("permit_approver")
   permitCollaborations PermitCollaborator[]
+  documentationResponsible ActivityDocumentation[] @relation("doc_responsible")
+  documentationReviewed ActivityDocumentation[] @relation("doc_reviewer")
+  notifications UserNotification[]
   auditLogs    AuditLog[]
 }
 
@@ -207,6 +216,7 @@ model Project {
   aprs        Apr[]
   permits     PermitToWork[]
   sstAlerts   SstAlert[]
+  documentations ActivityDocumentation[]
 }
 
 model Worksite {
@@ -227,6 +237,7 @@ model Worksite {
   incidents   Incident[]
   aprs        Apr[]
   permits     PermitToWork[]
+  documentations ActivityDocumentation[]
 
   @@index([projectId])
 }
@@ -237,6 +248,7 @@ model Activity {
   name      String
   scheduledAt DateTime?
   project   Project @relation(fields: [projectId], references: [id])
+  documentations ActivityDocumentation[]
 }
 
 model InventoryItem {
@@ -742,6 +754,59 @@ model SstAlert {
 
   @@index([status])
   @@index([projectId])
+}
+
+model ActivityDocumentation {
+  id            String   @id @default(uuid())
+  activityId    String?
+  activityName  String
+  projectId     String
+  worksiteId    String?
+  responsibleId String
+  aprReference  String?
+  aprFileUrl    String?
+  status        DocumentReviewStatus @default(PENDENTE)
+  reviewNotes   String?
+  correctionInstructions String?
+  reviewedAt    DateTime?
+  reviewerId    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  activity      Activity? @relation(fields: [activityId], references: [id])
+  project       Project  @relation(fields: [projectId], references: [id])
+  worksite      Worksite? @relation(fields: [worksiteId], references: [id])
+  responsible   User     @relation("doc_responsible", fields: [responsibleId], references: [id])
+  reviewer      User?    @relation("doc_reviewer", fields: [reviewerId], references: [id])
+  attachments   DocumentationAttachment[]
+
+  @@index([projectId])
+  @@index([status])
+  @@index([responsibleId])
+}
+
+model DocumentationAttachment {
+  id              String   @id @default(uuid())
+  documentationId String
+  name            String
+  url             String
+  type            String?
+  documentation   ActivityDocumentation @relation(fields: [documentationId], references: [id])
+
+  @@index([documentationId])
+}
+
+model UserNotification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  entityType String?
+  entityId  String?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 model AuditLog {

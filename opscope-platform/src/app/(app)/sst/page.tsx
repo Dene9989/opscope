@@ -109,6 +109,9 @@ export default function SstDashboard() {
             <Link className="rounded-lg border border-border p-3 text-sm hover:bg-border/40" href="/sst/inspecoes">
               Executar inspecao
             </Link>
+            <Link className="rounded-lg border border-border p-3 text-sm hover:bg-border/40" href="/sst/apr-pt">
+              Revisar documentacoes
+            </Link>
             <Link className="rounded-lg border border-border p-3 text-sm hover:bg-border/40" href="/sst/ncs">
               Abrir NC
             </Link>

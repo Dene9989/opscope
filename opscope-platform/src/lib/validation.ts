@@ -354,3 +354,29 @@ export const sstAlertSchema = z.object({
   entityType: z.string().optional().nullable(),
   entityId: z.string().optional().nullable()
 });
+
+export const documentationSchema = z.object({
+  activityId: z.string().uuid().optional().nullable(),
+  activityName: z.string().min(2),
+  projectId: z.string().uuid(),
+  worksiteId: z.string().uuid().optional().nullable(),
+  responsibleId: z.string().uuid(),
+  aprReference: z.string().optional().nullable(),
+  aprFileUrl: z.string().url().optional().nullable(),
+  attachments: z
+    .array(
+      z.object({
+        name: z.string().min(2),
+        url: z.string().url(),
+        type: z.string().optional().nullable()
+      })
+    )
+    .optional()
+    .nullable()
+});
+
+export const documentationReviewSchema = z.object({
+  status: z.enum(["APROVADO", "REPROVADO"]),
+  reviewNotes: z.string().optional().nullable(),
+  correctionInstructions: z.string().optional().nullable()
+});

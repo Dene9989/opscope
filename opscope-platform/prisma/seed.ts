@@ -278,6 +278,24 @@ async function main() {
     }
   });
 
+  await prisma.activityDocumentation.create({
+    data: {
+      activityName: "Montagem de estrutura",
+      projectId: project.id,
+      worksiteId: worksite.id,
+      responsibleId: sst.id,
+      aprReference: "APR-2026-001",
+      aprFileUrl: "https://example.com/apr.pdf",
+      status: "PENDENTE",
+      attachments: {
+        create: [
+          { name: "Plano de atividade", url: "https://example.com/plano.pdf", type: "PDF" },
+          { name: "Checklist equipamentos", url: "https://example.com/checklist.pdf", type: "PDF" }
+        ]
+      }
+    }
+  });
+
   console.log("Seed concluido");
 }
 

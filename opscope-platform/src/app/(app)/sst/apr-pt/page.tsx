@@ -8,25 +8,20 @@ import { useAuth } from "@/components/auth/AuthContext";
 import { apiFetch } from "@/lib/client";
 import { useToast } from "@/components/ui/Toast";
 
-interface AprTemplate {
+interface Documentation {
   id: string;
-  name: string;
-  activity: string;
-}
-
-interface Apr {
-  id: string;
-  activity: string;
-  status: string;
-  project?: { name: string };
-}
-
-interface Permit {
-  id: string;
-  type: string;
-  status: string;
-  validTo: string;
-  apr?: { activity: string };
+  activityName: string;
+  status: "PENDENTE" | "APROVADO" | "REPROVADO";
+  project?: { name: string } | null;
+  worksite?: { name: string } | null;
+  responsible?: { name: string } | null;
+  reviewer?: { name: string } | null;
+  aprReference?: string | null;
+  aprFileUrl?: string | null;
+  reviewNotes?: string | null;
+  correctionInstructions?: string | null;
+  createdAt: string;
+  attachments: Array<{ id: string; name: string; url: string; type?: string | null }>;
 }
 
 interface ProjectOption {
@@ -45,335 +40,255 @@ interface UserOption {
   name: string;
 }
 
-interface TrainingOption {
-  id: string;
-  name: string;
-}
-
-interface ItemOption {
-  id: string;
-  name: string;
-}
-
 export default function AprPtPage() {
   const { token } = useAuth();
   const { push } = useToast();
-  const [templates, setTemplates] = useState<AprTemplate[]>([]);
-  const [aprs, setAprs] = useState<Apr[]>([]);
-  const [permits, setPermits] = useState<Permit[]>([]);
+  const [rows, setRows] = useState<Documentation[]>([]);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [worksites, setWorksites] = useState<WorksiteOption[]>([]);
   const [users, setUsers] = useState<UserOption[]>([]);
-  const [trainings, setTrainings] = useState<TrainingOption[]>([]);
-  const [epis, setEpis] = useState<ItemOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [projectFilter, setProjectFilter] = useState("");
 
-  const [openTemplate, setOpenTemplate] = useState(false);
-  const [openApr, setOpenApr] = useState(false);
-  const [openPermit, setOpenPermit] = useState(false);
+  const [openCreate, setOpenCreate] = useState(false);
+  const [openReview, setOpenReview] = useState(false);
+  const [selected, setSelected] = useState<Documentation | null>(null);
 
-  const [templateForm, setTemplateForm] = useState({
-    name: "",
-    activity: "",
-    hazards: "",
-    risks: "",
-    controls: "",
-    requiredTrainings: [] as string[],
-    requiredEpis: [] as string[]
-  });
-
-  const [aprForm, setAprForm] = useState({
+  const [createForm, setCreateForm] = useState({
+    activityName: "",
     projectId: "",
     worksiteId: "",
-    templateId: "",
-    activity: "",
-    hazards: "",
-    risks: "",
-    controls: "",
-    status: "RASCUNHO"
+    responsibleId: "",
+    aprReference: "",
+    aprFileUrl: "",
+    attachments: [{ name: "", url: "" }]
   });
 
-  const [permitForm, setPermitForm] = useState({
-    aprId: "",
-    type: "ALTURA",
-    requirements: "",
-    validFrom: new Date().toISOString().slice(0, 10),
-    validTo: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().slice(0, 10),
-    collaboratorIds: [] as string[],
-    approverIds: [] as string[]
+  const [reviewForm, setReviewForm] = useState({
+    reviewNotes: "",
+    correctionInstructions: ""
   });
 
   const load = () => {
     setLoading(true);
+    const query = new URLSearchParams();
+    if (statusFilter) query.set("status", statusFilter);
+    if (projectFilter) query.set("projectId", projectFilter);
+
     Promise.all([
-      apiFetch("/api/sst/apr-templates?pageSize=200", token),
-      apiFetch("/api/sst/aprs?pageSize=200", token),
-      apiFetch("/api/sst/permits?pageSize=200", token),
-      apiFetch("/api/core/projects?pageSize=100", token),
+      apiFetch(`/api/sst/documentacoes?pageSize=200&${query.toString()}`, token),
+      apiFetch("/api/core/projects?pageSize=200", token),
       apiFetch("/api/core/worksites?pageSize=200", token),
-      apiFetch("/api/core/users?pageSize=200", token),
-      apiFetch("/api/sst/trainings?pageSize=200", token),
-      apiFetch("/api/inventory/items?pageSize=200&type=EPI", token)
+      apiFetch("/api/core/users?pageSize=200", token)
     ])
-      .then((responses) => {
-        setTemplates(responses[0].data.items);
-        setAprs(responses[1].data.items);
-        setPermits(responses[2].data.items);
-        setProjects(responses[3].data.items);
-        setWorksites(responses[4].data.items);
-        setUsers(responses[5].data.items);
-        setTrainings(responses[6].data.items);
-        setEpis(responses[7].data.items);
+      .then(([docResponse, projectResponse, worksiteResponse, userResponse]) => {
+        setRows(docResponse.data.items);
+        setProjects(projectResponse.data.items);
+        setWorksites(worksiteResponse.data.items);
+        setUsers(userResponse.data.items);
       })
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     load();
-  }, [token]);
+  }, [token, statusFilter, projectFilter]);
 
-  const handleCreateTemplate = async () => {
-    try {
-      await apiFetch("/api/sst/apr-templates", token, {
-        method: "POST",
-        body: JSON.stringify({
-          name: templateForm.name,
-          activity: templateForm.activity,
-          hazards: templateForm.hazards.split(",").map((item) => item.trim()).filter(Boolean),
-          risks: templateForm.risks.split(",").map((item) => item.trim()).filter(Boolean),
-          controls: templateForm.controls.split(",").map((item) => item.trim()).filter(Boolean),
-          requiredTrainings: templateForm.requiredTrainings,
-          requiredEpis: templateForm.requiredEpis
-        })
-      });
-      push("Template criado", "success");
-      setOpenTemplate(false);
-      setTemplateForm({ name: "", activity: "", hazards: "", risks: "", controls: "", requiredTrainings: [], requiredEpis: [] });
-      load();
-    } catch (err) {
-      push(err instanceof Error ? err.message : "Erro ao criar", "error");
-    }
-  };
-
-  const handleCreateApr = async () => {
-    try {
-      await apiFetch("/api/sst/aprs", token, {
-        method: "POST",
-        body: JSON.stringify({
-          projectId: aprForm.projectId,
-          worksiteId: aprForm.worksiteId || null,
-          templateId: aprForm.templateId || null,
-          activity: aprForm.activity,
-          hazards: aprForm.hazards.split(",").map((item) => item.trim()).filter(Boolean),
-          risks: aprForm.risks.split(",").map((item) => item.trim()).filter(Boolean),
-          controls: aprForm.controls.split(",").map((item) => item.trim()).filter(Boolean),
-          status: aprForm.status
-        })
-      });
-      push("APR criada", "success");
-      setOpenApr(false);
-      load();
-    } catch (err) {
-      push(err instanceof Error ? err.message : "Erro ao criar", "error");
-    }
-  };
-
-  const handleCreatePermit = async () => {
-    try {
-      await apiFetch("/api/sst/permits", token, {
-        method: "POST",
-        body: JSON.stringify({
-          aprId: permitForm.aprId,
-          type: permitForm.type,
-          requirements: permitForm.requirements.split(",").map((item) => item.trim()).filter(Boolean),
-          validFrom: new Date(permitForm.validFrom).toISOString(),
-          validTo: new Date(permitForm.validTo).toISOString(),
-          status: "ABERTA",
-          collaboratorIds: permitForm.collaboratorIds,
-          approverIds: permitForm.approverIds
-        })
-      });
-      push("PT criada", "success");
-      setOpenPermit(false);
-      load();
-    } catch (err) {
-      push(err instanceof Error ? err.message : "Erro ao criar", "error");
-    }
-  };
+  const stats = useMemo(() => {
+    const total = rows.length;
+    const pending = rows.filter((row) => row.status === "PENDENTE").length;
+    const approved = rows.filter((row) => row.status === "APROVADO").length;
+    const rejected = rows.filter((row) => row.status === "REPROVADO").length;
+    return { total, pending, approved, rejected };
+  }, [rows]);
 
   const filteredWorksites = useMemo(
-    () => worksites.filter((worksite) => !aprForm.projectId || worksite.projectId === aprForm.projectId),
-    [worksites, aprForm.projectId]
+    () => worksites.filter((worksite) => !createForm.projectId || worksite.projectId === createForm.projectId),
+    [worksites, createForm.projectId]
   );
+
+  const handleCreate = async () => {
+    try {
+      await apiFetch("/api/sst/documentacoes", token, {
+        method: "POST",
+        body: JSON.stringify({
+          activityName: createForm.activityName,
+          projectId: createForm.projectId,
+          worksiteId: createForm.worksiteId || null,
+          responsibleId: createForm.responsibleId,
+          aprReference: createForm.aprReference || null,
+          aprFileUrl: createForm.aprFileUrl || null,
+          attachments: createForm.attachments
+            .filter((attachment) => attachment.name && attachment.url)
+            .map((attachment) => ({ name: attachment.name, url: attachment.url }))
+        })
+      });
+      push("Documentacao enviada", "success");
+      setOpenCreate(false);
+      setCreateForm({
+        activityName: "",
+        projectId: "",
+        worksiteId: "",
+        responsibleId: "",
+        aprReference: "",
+        aprFileUrl: "",
+        attachments: [{ name: "", url: "" }]
+      });
+      load();
+    } catch (err) {
+      push(err instanceof Error ? err.message : "Erro ao enviar", "error");
+    }
+  };
+
+  const openReviewModal = (doc: Documentation) => {
+    setSelected(doc);
+    setReviewForm({
+      reviewNotes: doc.reviewNotes ?? "",
+      correctionInstructions: doc.correctionInstructions ?? ""
+    });
+    setOpenReview(true);
+  };
+
+  const handleReview = async (status: "APROVADO" | "REPROVADO") => {
+    if (!selected) return;
+    if (status === "REPROVADO" && !reviewForm.correctionInstructions.trim()) {
+      push("Informe as instrucoes para correção", "error");
+      return;
+    }
+    try {
+      await apiFetch(`/api/sst/documentacoes/${selected.id}`, token, {
+        method: "PUT",
+        body: JSON.stringify({
+          status,
+          reviewNotes: reviewForm.reviewNotes || null,
+          correctionInstructions: reviewForm.correctionInstructions || null
+        })
+      });
+      push(`Documentacao ${status === "APROVADO" ? "aprovada" : "reprovada"}`, "success");
+      setOpenReview(false);
+      load();
+    } catch (err) {
+      push(err instanceof Error ? err.message : "Erro ao revisar", "error");
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <Header title="APR / PT" subtitle="Templates, analise de risco e permissao de trabalho" />
+      <Header title="Documentacoes de Execucao" subtitle="Revisao de APR manual e documentos de inicio da atividade" />
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="card p-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Templates APR</h3>
-            <button className="text-xs text-primary" onClick={() => setOpenTemplate(true)}>
-              Novo
-            </button>
-          </div>
-          <div className="mt-4">
-            <DataTable
-              loading={loading}
-              rows={templates}
-              emptyMessage="Sem templates"
-              columns={[
-                { key: "name", label: "Template" },
-                { key: "activity", label: "Atividade" }
-              ]}
-            />
-          </div>
+      <div className="grid gap-4 md:grid-cols-4">
+        <div className="card p-4">
+          <p className="text-xs uppercase text-muted">Total</p>
+          <p className="mt-2 text-2xl font-semibold">{stats.total}</p>
         </div>
-        <div className="card p-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">APRs</h3>
-            <button className="text-xs text-primary" onClick={() => setOpenApr(true)}>
-              Nova APR
-            </button>
-          </div>
-          <div className="mt-4">
-            <DataTable
-              loading={loading}
-              rows={aprs}
-              emptyMessage="Sem APRs"
-              columns={[
-                { key: "activity", label: "Atividade" },
-                { key: "status", label: "Status" },
-                { key: "project", label: "Projeto", render: (row) => row.project?.name ?? "-" }
-              ]}
-            />
-          </div>
+        <div className="card p-4">
+          <p className="text-xs uppercase text-muted">Pendentes</p>
+          <p className="mt-2 text-2xl font-semibold text-amber-400">{stats.pending}</p>
         </div>
-        <div className="card p-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Permissoes de Trabalho</h3>
-            <button className="text-xs text-primary" onClick={() => setOpenPermit(true)}>
-              Nova PT
-            </button>
+        <div className="card p-4">
+          <p className="text-xs uppercase text-muted">Aprovadas</p>
+          <p className="mt-2 text-2xl font-semibold text-emerald-400">{stats.approved}</p>
+        </div>
+        <div className="card p-4">
+          <p className="text-xs uppercase text-muted">Reprovadas</p>
+          <p className="mt-2 text-2xl font-semibold text-rose-400">{stats.rejected}</p>
+        </div>
+      </div>
+
+      <div className="card p-4">
+        <div className="grid gap-4 md:grid-cols-4">
+          <div>
+            <label className="text-xs uppercase text-muted">Projeto</label>
+            <select className="select mt-2" value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)}>
+              <option value="">Todos</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
           </div>
-          <div className="mt-4">
-            <DataTable
-              loading={loading}
-              rows={permits}
-              emptyMessage="Sem PTs"
-              columns={[
-                { key: "type", label: "Tipo" },
-                { key: "status", label: "Status" },
-                {
-                  key: "validTo",
-                  label: "Validade",
-                  render: (row) => new Date(row.validTo).toLocaleDateString("pt-BR")
-                }
-              ]}
-            />
+          <div>
+            <label className="text-xs uppercase text-muted">Status</label>
+            <select className="select mt-2" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="">Todos</option>
+              <option value="PENDENTE">Pendente</option>
+              <option value="APROVADO">Aprovado</option>
+              <option value="REPROVADO">Reprovado</option>
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-black" onClick={() => setOpenCreate(true)}>
+              Enviar documentacao
+            </button>
           </div>
         </div>
       </div>
 
-      <ModalForm
-        open={openTemplate}
-        title="Novo template APR"
-        onClose={() => setOpenTemplate(false)}
-        footer={
-          <>
-            <button className="rounded-lg border border-border px-4 py-2 text-sm" onClick={() => setOpenTemplate(false)}>
-              Cancelar
-            </button>
-            <button className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-black" onClick={handleCreateTemplate}>
-              Salvar
-            </button>
-          </>
-        }
-      >
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="text-xs uppercase text-muted">Nome</label>
-            <input className="input mt-2" value={templateForm.name} onChange={(e) => setTemplateForm({ ...templateForm, name: e.target.value })} />
-          </div>
-          <div>
-            <label className="text-xs uppercase text-muted">Atividade</label>
-            <input className="input mt-2" value={templateForm.activity} onChange={(e) => setTemplateForm({ ...templateForm, activity: e.target.value })} />
-          </div>
-          <div className="md:col-span-2">
-            <label className="text-xs uppercase text-muted">Perigos (CSV)</label>
-            <input className="input mt-2" value={templateForm.hazards} onChange={(e) => setTemplateForm({ ...templateForm, hazards: e.target.value })} />
-          </div>
-          <div className="md:col-span-2">
-            <label className="text-xs uppercase text-muted">Riscos (CSV)</label>
-            <input className="input mt-2" value={templateForm.risks} onChange={(e) => setTemplateForm({ ...templateForm, risks: e.target.value })} />
-          </div>
-          <div className="md:col-span-2">
-            <label className="text-xs uppercase text-muted">Controles (CSV)</label>
-            <input className="input mt-2" value={templateForm.controls} onChange={(e) => setTemplateForm({ ...templateForm, controls: e.target.value })} />
-          </div>
-          <div className="md:col-span-2">
-            <label className="text-xs uppercase text-muted">Treinamentos obrigatorios</label>
-            <select
-              multiple
-              className="select mt-2 h-28"
-              value={templateForm.requiredTrainings}
-              onChange={(e) =>
-                setTemplateForm({
-                  ...templateForm,
-                  requiredTrainings: Array.from(e.target.selectedOptions).map((option) => option.value)
-                })
-              }
-            >
-              {trainings.map((training) => (
-                <option key={training.id} value={training.id}>
-                  {training.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="md:col-span-2">
-            <label className="text-xs uppercase text-muted">EPIs obrigatorios</label>
-            <select
-              multiple
-              className="select mt-2 h-28"
-              value={templateForm.requiredEpis}
-              onChange={(e) =>
-                setTemplateForm({
-                  ...templateForm,
-                  requiredEpis: Array.from(e.target.selectedOptions).map((option) => option.value)
-                })
-              }
-            >
-              {epis.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </ModalForm>
+      <DataTable
+        loading={loading}
+        rows={rows}
+        rowKey={(row) => row.id}
+        emptyMessage="Sem documentacoes"
+        columns={[
+          { key: "activityName", label: "Atividade" },
+          { key: "project", label: "Projeto", render: (row) => row.project?.name ?? "-" },
+          { key: "responsible", label: "Responsavel", render: (row) => row.responsible?.name ?? "-" },
+          { key: "aprReference", label: "APR", render: (row) => row.aprReference ?? "-" },
+          {
+            key: "status",
+            label: "Status",
+            render: (row) => (
+              <span
+                className={
+                  row.status === "APROVADO"
+                    ? "text-emerald-400"
+                    : row.status === "REPROVADO"
+                    ? "text-rose-400"
+                    : "text-amber-400"
+                }
+              >
+                {row.status}
+              </span>
+            )
+          },
+          {
+            key: "createdAt",
+            label: "Envio",
+            render: (row) => new Date(row.createdAt).toLocaleDateString("pt-BR")
+          }
+        ]}
+        actions={(row) => (
+          <button className="text-xs text-primary" onClick={() => openReviewModal(row)}>
+            Revisar
+          </button>
+        )}
+      />
 
       <ModalForm
-        open={openApr}
-        title="Nova APR"
-        onClose={() => setOpenApr(false)}
+        open={openCreate}
+        title="Enviar documentacao"
+        onClose={() => setOpenCreate(false)}
         footer={
           <>
-            <button className="rounded-lg border border-border px-4 py-2 text-sm" onClick={() => setOpenApr(false)}>
+            <button className="rounded-lg border border-border px-4 py-2 text-sm" onClick={() => setOpenCreate(false)}>
               Cancelar
             </button>
-            <button className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-black" onClick={handleCreateApr}>
-              Salvar
+            <button className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-black" onClick={handleCreate}>
+              Enviar
             </button>
           </>
         }
       >
         <div className="grid gap-4 md:grid-cols-2">
+          <div className="md:col-span-2">
+            <label className="text-xs uppercase text-muted">Atividade</label>
+            <input className="input mt-2" value={createForm.activityName} onChange={(e) => setCreateForm({ ...createForm, activityName: e.target.value })} />
+          </div>
           <div>
             <label className="text-xs uppercase text-muted">Projeto</label>
-            <select className="select mt-2" value={aprForm.projectId} onChange={(e) => setAprForm({ ...aprForm, projectId: e.target.value })}>
+            <select className="select mt-2" value={createForm.projectId} onChange={(e) => setCreateForm({ ...createForm, projectId: e.target.value })}>
               <option value="">Selecione</option>
               {projects.map((project) => (
                 <option key={project.id} value={project.id}>
@@ -384,7 +299,7 @@ export default function AprPtPage() {
           </div>
           <div>
             <label className="text-xs uppercase text-muted">Local</label>
-            <select className="select mt-2" value={aprForm.worksiteId} onChange={(e) => setAprForm({ ...aprForm, worksiteId: e.target.value })}>
+            <select className="select mt-2" value={createForm.worksiteId} onChange={(e) => setCreateForm({ ...createForm, worksiteId: e.target.value })}>
               <option value="">Opcional</option>
               {filteredWorksites.map((worksite) => (
                 <option key={worksite.id} value={worksite.id}>
@@ -393,125 +308,122 @@ export default function AprPtPage() {
               ))}
             </select>
           </div>
-          <div className="md:col-span-2">
-            <label className="text-xs uppercase text-muted">Template (opcional)</label>
-            <select className="select mt-2" value={aprForm.templateId} onChange={(e) => setAprForm({ ...aprForm, templateId: e.target.value })}>
-              <option value="">Manual</option>
-              {templates.map((template) => (
-                <option key={template.id} value={template.id}>
-                  {template.name}
+          <div>
+            <label className="text-xs uppercase text-muted">Tecnico responsavel</label>
+            <select className="select mt-2" value={createForm.responsibleId} onChange={(e) => setCreateForm({ ...createForm, responsibleId: e.target.value })}>
+              <option value="">Selecione</option>
+              {users.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name}
                 </option>
               ))}
             </select>
           </div>
-          <div className="md:col-span-2">
-            <label className="text-xs uppercase text-muted">Atividade</label>
-            <input className="input mt-2" value={aprForm.activity} onChange={(e) => setAprForm({ ...aprForm, activity: e.target.value })} />
+          <div>
+            <label className="text-xs uppercase text-muted">APR (codigo)</label>
+            <input className="input mt-2" value={createForm.aprReference} onChange={(e) => setCreateForm({ ...createForm, aprReference: e.target.value })} />
           </div>
           <div className="md:col-span-2">
-            <label className="text-xs uppercase text-muted">Perigos (CSV)</label>
-            <input className="input mt-2" value={aprForm.hazards} onChange={(e) => setAprForm({ ...aprForm, hazards: e.target.value })} />
+            <label className="text-xs uppercase text-muted">APR digitalizada (URL)</label>
+            <input className="input mt-2" value={createForm.aprFileUrl} onChange={(e) => setCreateForm({ ...createForm, aprFileUrl: e.target.value })} />
           </div>
-          <div className="md:col-span-2">
-            <label className="text-xs uppercase text-muted">Riscos (CSV)</label>
-            <input className="input mt-2" value={aprForm.risks} onChange={(e) => setAprForm({ ...aprForm, risks: e.target.value })} />
-          </div>
-          <div className="md:col-span-2">
-            <label className="text-xs uppercase text-muted">Controles (CSV)</label>
-            <input className="input mt-2" value={aprForm.controls} onChange={(e) => setAprForm({ ...aprForm, controls: e.target.value })} />
-          </div>
+        </div>
+        <div className="mt-4 space-y-3">
+          <p className="text-sm font-semibold">Documentos anexos</p>
+          {createForm.attachments.map((attachment, index) => (
+            <div key={`doc-${index}`} className="grid gap-2 md:grid-cols-2">
+              <input
+                className="input"
+                placeholder="Nome do documento"
+                value={attachment.name}
+                onChange={(e) => {
+                  const updated = [...createForm.attachments];
+                  updated[index].name = e.target.value;
+                  setCreateForm({ ...createForm, attachments: updated });
+                }}
+              />
+              <input
+                className="input"
+                placeholder="URL do documento"
+                value={attachment.url}
+                onChange={(e) => {
+                  const updated = [...createForm.attachments];
+                  updated[index].url = e.target.value;
+                  setCreateForm({ ...createForm, attachments: updated });
+                }}
+              />
+            </div>
+          ))}
+          <button
+            className="rounded-lg border border-border px-3 py-2 text-xs"
+            onClick={() => setCreateForm({ ...createForm, attachments: [...createForm.attachments, { name: "", url: "" }] })}
+          >
+            Adicionar documento
+          </button>
         </div>
       </ModalForm>
 
       <ModalForm
-        open={openPermit}
-        title="Nova PT"
-        onClose={() => setOpenPermit(false)}
+        open={openReview}
+        title="Revisao da documentacao"
+        onClose={() => setOpenReview(false)}
         footer={
           <>
-            <button className="rounded-lg border border-border px-4 py-2 text-sm" onClick={() => setOpenPermit(false)}>
-              Cancelar
+            <button className="rounded-lg border border-border px-4 py-2 text-sm" onClick={() => setOpenReview(false)}>
+              Fechar
             </button>
-            <button className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-black" onClick={handleCreatePermit}>
-              Salvar
+            <button className="rounded-lg border border-rose-500 px-4 py-2 text-sm text-rose-400" onClick={() => handleReview("REPROVADO")}>
+              Reprovar
+            </button>
+            <button className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-black" onClick={() => handleReview("APROVADO")}>
+              Aprovar
             </button>
           </>
         }
       >
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="md:col-span-2">
-            <label className="text-xs uppercase text-muted">APR</label>
-            <select className="select mt-2" value={permitForm.aprId} onChange={(e) => setPermitForm({ ...permitForm, aprId: e.target.value })}>
-              <option value="">Selecione</option>
-              {aprs.map((apr) => (
-                <option key={apr.id} value={apr.id}>
-                  {apr.activity}
-                </option>
-              ))}
-            </select>
+        {selected ? (
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm font-semibold">{selected.activityName}</p>
+              <p className="text-xs text-muted">
+                {selected.project?.name ?? "-"} · {selected.worksite?.name ?? ""}
+              </p>
+            </div>
+            <div className="grid gap-2 text-xs text-muted md:grid-cols-2">
+              <span>Responsavel: {selected.responsible?.name ?? "-"}</span>
+              <span>APR: {selected.aprReference ?? "-"}</span>
+              <span>Status atual: {selected.status}</span>
+              <span>Enviado em: {new Date(selected.createdAt).toLocaleDateString("pt-BR")}</span>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold">Documentos</h4>
+              <ul className="mt-2 space-y-2 text-sm text-muted">
+                {selected.aprFileUrl ? (
+                  <li>
+                    APR: <a className="text-primary" href={selected.aprFileUrl} target="_blank" rel="noreferrer">Ver documento</a>
+                  </li>
+                ) : null}
+                {selected.attachments.length ? (
+                  selected.attachments.map((doc) => (
+                    <li key={doc.id}>
+                      {doc.name}: <a className="text-primary" href={doc.url} target="_blank" rel="noreferrer">Abrir</a>
+                    </li>
+                  ))
+                ) : (
+                  <li>Nenhum anexo informado.</li>
+                )}
+              </ul>
+            </div>
+            <div>
+              <label className="text-xs uppercase text-muted">Observacoes do SST</label>
+              <textarea className="input mt-2 h-20" value={reviewForm.reviewNotes} onChange={(e) => setReviewForm({ ...reviewForm, reviewNotes: e.target.value })} />
+            </div>
+            <div>
+              <label className="text-xs uppercase text-muted">Instrucoes para correcao</label>
+              <textarea className="input mt-2 h-24" value={reviewForm.correctionInstructions} onChange={(e) => setReviewForm({ ...reviewForm, correctionInstructions: e.target.value })} />
+            </div>
           </div>
-          <div>
-            <label className="text-xs uppercase text-muted">Tipo</label>
-            <select className="select mt-2" value={permitForm.type} onChange={(e) => setPermitForm({ ...permitForm, type: e.target.value })}>
-              <option value="ALTURA">ALTURA</option>
-              <option value="QUENTE">QUENTE</option>
-              <option value="ESPACO_CONFINADO">ESPACO CONFINADO</option>
-              <option value="ELETRICA">ELETRICA</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs uppercase text-muted">Valido de</label>
-            <input className="input mt-2" type="date" value={permitForm.validFrom} onChange={(e) => setPermitForm({ ...permitForm, validFrom: e.target.value })} />
-          </div>
-          <div>
-            <label className="text-xs uppercase text-muted">Valido ate</label>
-            <input className="input mt-2" type="date" value={permitForm.validTo} onChange={(e) => setPermitForm({ ...permitForm, validTo: e.target.value })} />
-          </div>
-          <div className="md:col-span-2">
-            <label className="text-xs uppercase text-muted">Requisitos (CSV)</label>
-            <input className="input mt-2" value={permitForm.requirements} onChange={(e) => setPermitForm({ ...permitForm, requirements: e.target.value })} />
-          </div>
-          <div className="md:col-span-2">
-            <label className="text-xs uppercase text-muted">Colaboradores</label>
-            <select
-              multiple
-              className="select mt-2 h-28"
-              value={permitForm.collaboratorIds}
-              onChange={(e) =>
-                setPermitForm({
-                  ...permitForm,
-                  collaboratorIds: Array.from(e.target.selectedOptions).map((option) => option.value)
-                })
-              }
-            >
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="md:col-span-2">
-            <label className="text-xs uppercase text-muted">Aprovadores</label>
-            <select
-              multiple
-              className="select mt-2 h-28"
-              value={permitForm.approverIds}
-              onChange={(e) =>
-                setPermitForm({
-                  ...permitForm,
-                  approverIds: Array.from(e.target.selectedOptions).map((option) => option.value)
-                })
-              }
-            >
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+        ) : null}
       </ModalForm>
     </div>
   );

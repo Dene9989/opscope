@@ -54,7 +54,7 @@ const sections = [
       { label: "Inspecoes", href: "/sst/inspecoes" },
       { label: "NCs", href: "/sst/ncs" },
       { label: "Incidentes", href: "/sst/incidentes" },
-      { label: "APR / PT", href: "/sst/apr-pt" }
+      { label: "Documentacoes", href: "/sst/apr-pt" }
     ]
   }
 ];
