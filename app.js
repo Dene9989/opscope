@@ -30570,6 +30570,9 @@ if (almoxMovForm) {
 if (sstTrainingForm) {
   sstTrainingForm.addEventListener("submit", handleSstTrainingSubmit);
 }
+if (sstInspectionForm) {
+  sstInspectionForm.addEventListener("submit", (event) => event.preventDefault());
+}
 if (sstTemplateSeedBtn) {
   sstTemplateSeedBtn.addEventListener("click", handleSstTemplateSeed);
 }
