@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getPagination, handleApiError, jsonOk } from "@/lib/api";
 import { requireAuth, requireRoles, getRequestMeta } from "@/lib/auth";
-import { trainingSchema } from "@/lib/validation";
+import { actionPlanItemSchema } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
 
@@ -11,22 +11,22 @@ export async function GET(req: NextRequest) {
     requireAuth(req);
     const { page, pageSize, skip } = getPagination(req);
     const { searchParams } = new URL(req.url);
-    const projectId = searchParams.get("projectId") || undefined;
-    const query = searchParams.get("q") || undefined;
+    const nonConformityId = searchParams.get("nonConformityId") || undefined;
+    const status = searchParams.get("status") || undefined;
 
     const where: any = {};
-    if (projectId) where.projectId = projectId;
-    if (query) where.name = { contains: query, mode: "insensitive" };
+    if (nonConformityId) where.nonConformityId = nonConformityId;
+    if (status) where.status = status;
 
     const [items, total] = await Promise.all([
-      prisma.training.findMany({
+      prisma.actionPlanItem.findMany({
         where,
         skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
-        include: { requirements: true, project: true }
+        include: { nonConformity: true, responsible: true }
       }),
-      prisma.training.count({ where })
+      prisma.actionPlanItem.count({ where })
     ]);
 
     return jsonOk({ items, total, page, pageSize });
@@ -39,27 +39,30 @@ export async function POST(req: NextRequest) {
   try {
     const user = requireAuth(req);
     requireRoles(user, ["ADMIN", "GESTOR", "TECNICO_SST"]);
-    const payload = trainingSchema.parse(await req.json());
-    const training = await prisma.training.create({
+    const payload = actionPlanItemSchema.parse(await req.json());
+    const item = await prisma.actionPlanItem.create({
       data: {
-        name: payload.name,
-        nr: payload.nr ?? null,
-        hours: payload.hours,
-        validityDays: payload.validityDays,
-        projectId: payload.projectId ?? null
+        nonConformityId: payload.nonConformityId,
+        title: payload.title,
+        description: payload.description ?? null,
+        responsibleId: payload.responsibleId,
+        dueDate: new Date(payload.dueDate),
+        status: payload.status,
+        evidenceUrls: payload.evidenceUrls ?? undefined,
+        notes: payload.notes ?? null
       }
     });
     const meta = getRequestMeta(req);
     await writeAuditLog({
       userId: user.sub,
       action: "CREATE",
-      entity: "Training",
-      entityId: training.id,
-      after: training as unknown as Record<string, unknown>,
+      entity: "ActionPlanItem",
+      entityId: item.id,
+      after: item as unknown as Record<string, unknown>,
       ip: meta.ip,
       userAgent: meta.userAgent
     });
-    return jsonOk(training, { status: 201 });
+    return jsonOk(item, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return handleApiError(new Error("Dados invalidos"));

@@ -113,6 +113,53 @@ enum PermitStatus {
   ENCERRADA
 }
 
+enum ChecklistQuestionType {
+  BOOLEAN
+  TEXT
+  SCORE
+  SELECT
+}
+
+enum ActionPlanStatus {
+  PENDENTE
+  EM_ANDAMENTO
+  CONCLUIDA
+  VERIFICADA
+}
+
+enum IncidentStatus {
+  ABERTO
+  INVESTIGACAO
+  ENCERRADO
+}
+
+enum PermitApprovalStatus {
+  PENDENTE
+  APROVADO
+  REPROVADO
+}
+
+enum SstAlertStatus {
+  ABERTO
+  RESOLVIDO
+}
+
+enum SstAlertSeverity {
+  INFO
+  ATENCAO
+  CRITICA
+}
+
+enum SstAlertType {
+  TREINAMENTO_VENCER
+  TREINAMENTO_VENCIDO
+  INSPECAO_ATRASADA
+  NC_VENCENDO
+  NC_VENCIDA
+  PT_VENCER
+  PT_VENCIDA
+}
+
 model User {
   id           String           @id @default(uuid())
   name         String
@@ -128,7 +175,13 @@ model User {
   reservationsCreated Reservation[] @relation("reservation_creator")
   responsibilityTerms ResponsibilityTerm[] @relation("term_collaborator")
   training     TrainingRecord[]
-  inspections  InspectionExecution[] @relation("inspection_performer")
+  inspectionRuns  InspectionRun[] @relation("inspection_performer")
+  nonConformitiesResponsible NonConformity[] @relation("nc_responsible")
+  nonConformitiesCreated NonConformity[] @relation("nc_created")
+  nonConformitiesVerified NonConformity[] @relation("nc_verified")
+  actionPlanItems ActionPlanItem[] @relation("action_responsible")
+  permitApprovals PermitApproval[] @relation("permit_approver")
+  permitCollaborations PermitCollaborator[]
   auditLogs    AuditLog[]
 }
 
@@ -146,9 +199,14 @@ model Project {
   movementsDestination Movement[] @relation("movement_dest_project")
   reservations Reservation[]
   trainings   Training[]
-  inspections InspectionExecution[]
+  trainingRequirements TrainingRequirementByRole[]
+  checklistTemplates ChecklistTemplate[]
+  inspectionRuns InspectionRun[]
+  nonConformities NonConformity[]
   incidents   Incident[]
   aprs        Apr[]
+  permits     PermitToWork[]
+  sstAlerts   SstAlert[]
 }
 
 model Worksite {
@@ -164,9 +222,11 @@ model Worksite {
   movementsOrigin Movement[] @relation("movement_origin_worksite")
   movementsDestination Movement[] @relation("movement_dest_worksite")
   reservations Reservation[]
-  inspections InspectionExecution[]
+  inspectionRuns InspectionRun[]
+  nonConformities NonConformity[]
   incidents   Incident[]
   aprs        Apr[]
+  permits     PermitToWork[]
 
   @@index([projectId])
 }
@@ -393,12 +453,26 @@ model Training {
   nr             String?
   hours          Int
   validityDays   Int
-  mandatoryRoles Json?
   projectId      String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   records        TrainingRecord[]
+  requirements   TrainingRequirementByRole[]
   project        Project? @relation(fields: [projectId], references: [id])
+}
+
+model TrainingRequirementByRole {
+  id          String   @id @default(uuid())
+  trainingId  String
+  role        Role
+  projectId   String?
+  mandatory   Boolean @default(true)
+  createdAt   DateTime @default(now())
+  training    Training @relation(fields: [trainingId], references: [id])
+  project     Project? @relation(fields: [projectId], references: [id])
+
+  @@unique([trainingId, role, projectId])
+  @@index([role])
 }
 
 model TrainingRecord {
@@ -409,43 +483,69 @@ model TrainingRecord {
   validUntil    DateTime
   status        TrainingStatus
   certificateUrl String?
+  projectId     String?
   createdAt     DateTime @default(now())
   training      Training @relation(fields: [trainingId], references: [id])
   user          User     @relation(fields: [userId], references: [id])
+  project       Project? @relation(fields: [projectId], references: [id])
 
   @@index([userId])
 }
 
-model InspectionTemplate {
+model ChecklistTemplate {
   id              String   @id @default(uuid())
   type            String
   title           String
   periodicityDays Int
   projectId       String?
   worksiteId      String?
-  questions       Json
   active          Boolean @default(true)
   createdAt       DateTime @default(now())
-  executions      InspectionExecution[]
+  updatedAt       DateTime @updatedAt
+  questions       ChecklistQuestion[]
+  runs            InspectionRun[]
+  project         Project? @relation(fields: [projectId], references: [id])
+  worksite        Worksite? @relation(fields: [worksiteId], references: [id])
+
+  @@index([projectId])
 }
 
-model InspectionExecution {
+model ChecklistQuestion {
+  id               String   @id @default(uuid())
+  templateId       String
+  order            Int
+  text             String
+  type             ChecklistQuestionType
+  required         Boolean @default(true)
+  options          Json?
+  weight           Int?
+  requiresPhotoOnFail Boolean @default(false)
+  createdAt        DateTime @default(now())
+  template         ChecklistTemplate @relation(fields: [templateId], references: [id])
+
+  @@index([templateId])
+}
+
+model InspectionRun {
   id            String   @id @default(uuid())
   templateId    String
   projectId     String
   worksiteId    String?
   performedById String
   performedAt   DateTime
-  answers       Json
-  photos        Json?
-  geo           Json?
   status        InspectionStatus
+  answers       Json
+  evidenceUrls  Json?
+  geo           Json?
   createdAt     DateTime @default(now())
-  template      InspectionTemplate @relation(fields: [templateId], references: [id])
+  template      ChecklistTemplate @relation(fields: [templateId], references: [id])
   project       Project @relation(fields: [projectId], references: [id])
   worksite      Worksite? @relation(fields: [worksiteId], references: [id])
   performedBy   User @relation("inspection_performer", fields: [performedById], references: [id])
   nonConformity NonConformity?
+
+  @@index([projectId])
+  @@index([templateId])
 }
 
 model NonConformity {
@@ -453,7 +553,10 @@ model NonConformity {
   originType    OriginType
   inspectionId  String?
   incidentId    String?
+  projectId     String?
+  worksiteId    String?
   severity      IncidentSeverity
+  title         String?
   description   String
   evidenceUrls  Json?
   responsibleId String
@@ -461,18 +564,40 @@ model NonConformity {
   status        NonConformityStatus
   createdAt     DateTime @default(now())
   createdById   String
-  actionPlan    ActionPlan?
-  inspection    InspectionExecution? @relation(fields: [inspectionId], references: [id])
+  closedAt      DateTime?
+  verifiedById  String?
+  verifiedAt    DateTime?
+  actionItems   ActionPlanItem[]
+  inspection    InspectionRun? @relation(fields: [inspectionId], references: [id])
   incident      Incident? @relation(fields: [incidentId], references: [id])
+  project       Project? @relation(fields: [projectId], references: [id])
+  worksite      Worksite? @relation(fields: [worksiteId], references: [id])
+  responsible   User     @relation("nc_responsible", fields: [responsibleId], references: [id])
+  createdBy     User     @relation("nc_created", fields: [createdById], references: [id])
+  verifiedBy    User?    @relation("nc_verified", fields: [verifiedById], references: [id])
+
+  @@index([status])
+  @@index([projectId])
 }
 
-model ActionPlan {
-  id               String   @id @default(uuid())
-  nonConformityId  String   @unique
-  actions          Json
-  status           String
-  createdAt        DateTime @default(now())
-  nonConformity    NonConformity @relation(fields: [nonConformityId], references: [id])
+model ActionPlanItem {
+  id              String   @id @default(uuid())
+  nonConformityId String
+  title           String
+  description     String?
+  responsibleId   String
+  dueDate         DateTime
+  status          ActionPlanStatus
+  evidenceUrls    Json?
+  completedAt     DateTime?
+  verifiedAt      DateTime?
+  notes           String?
+  createdAt       DateTime @default(now())
+  nonConformity   NonConformity @relation(fields: [nonConformityId], references: [id])
+  responsible     User     @relation("action_responsible", fields: [responsibleId], references: [id])
+
+  @@index([nonConformityId])
+  @@index([status])
 }
 
 model Incident {
@@ -481,15 +606,20 @@ model Incident {
   worksiteId  String?
   date        DateTime
   severity    IncidentSeverity
+  status      IncidentStatus @default(ABERTO)
   description String
   category    String
   photos      Json?
-  fiveWhys    Json?
+  createdById String
   createdAt   DateTime @default(now())
   project     Project @relation(fields: [projectId], references: [id])
   worksite    Worksite? @relation(fields: [worksiteId], references: [id])
+  createdBy   User     @relation(fields: [createdById], references: [id])
   involved    IncidentInvolved[]
   nonConformities NonConformity[]
+  investigation IncidentInvestigation?
+
+  @@index([projectId])
 }
 
 model IncidentInvolved {
@@ -502,10 +632,42 @@ model IncidentInvolved {
   @@unique([incidentId, userId])
 }
 
+model IncidentInvestigation {
+  id              String   @id @default(uuid())
+  incidentId      String   @unique
+  fiveWhys        Json
+  rootCause       String?
+  immediateActions Json?
+  correctiveActions Json?
+  preventiveActions Json?
+  effectivenessCheck String?
+  verifiedById    String?
+  verifiedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  incident        Incident @relation(fields: [incidentId], references: [id])
+  verifiedBy      User?    @relation(fields: [verifiedById], references: [id])
+}
+
+model AprTemplate {
+  id               String   @id @default(uuid())
+  name             String
+  activity         String
+  hazards          Json
+  risks            Json
+  controls         Json
+  requiredTrainings Json?
+  requiredEpis     Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  aprs             Apr[]
+}
+
 model Apr {
   id          String   @id @default(uuid())
   projectId   String
   worksiteId  String?
+  templateId  String?
   activity    String
   hazards     Json
   risks       Json
@@ -515,20 +677,71 @@ model Apr {
   createdAt   DateTime @default(now())
   project     Project @relation(fields: [projectId], references: [id])
   worksite    Worksite? @relation(fields: [worksiteId], references: [id])
-  permits     Permit[]
+  template    AprTemplate? @relation(fields: [templateId], references: [id])
+  permits     PermitToWork[]
 }
 
-model Permit {
+model PermitToWork {
   id          String   @id @default(uuid())
   aprId       String
+  projectId   String?
+  worksiteId  String?
   type        PermitType
   requirements Json
-  approvedById String?
   validFrom   DateTime
   validTo     DateTime
   status      PermitStatus
   createdAt   DateTime @default(now())
   apr         Apr @relation(fields: [aprId], references: [id])
+  project     Project? @relation(fields: [projectId], references: [id])
+  worksite    Worksite? @relation(fields: [worksiteId], references: [id])
+  approvals   PermitApproval[]
+  collaborators PermitCollaborator[]
+
+  @@index([projectId])
+}
+
+model PermitApproval {
+  id        String   @id @default(uuid())
+  permitId  String
+  userId    String
+  status    PermitApprovalStatus
+  notes     String?
+  createdAt DateTime @default(now())
+  permit    PermitToWork @relation(fields: [permitId], references: [id])
+  user      User     @relation("permit_approver", fields: [userId], references: [id])
+
+  @@unique([permitId, userId])
+}
+
+model PermitCollaborator {
+  id        String @id @default(uuid())
+  permitId  String
+  userId    String
+  permit    PermitToWork @relation(fields: [permitId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([permitId, userId])
+}
+
+model SstAlert {
+  id         String   @id @default(uuid())
+  projectId  String?
+  type       SstAlertType
+  severity   SstAlertSeverity
+  title      String
+  message    String
+  dueDate    DateTime?
+  entityType String?
+  entityId   String?
+  status     SstAlertStatus @default(ABERTO)
+  createdAt  DateTime @default(now())
+  readAt     DateTime?
+  resolvedAt DateTime?
+  project    Project? @relation(fields: [projectId], references: [id])
+
+  @@index([status])
+  @@index([projectId])
 }
 
 model AuditLog {

@@ -2,20 +2,20 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { handleApiError, jsonOk } from "@/lib/api";
 import { requireAuth, requireRoles, getRequestMeta } from "@/lib/auth";
-import { inspectionExecutionSchema } from "@/lib/validation";
+import { inspectionRunSchema } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
 
-const updateSchema = inspectionExecutionSchema.partial();
+const updateSchema = inspectionRunSchema.partial();
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = requireAuth(req);
     requireRoles(user, ["ADMIN", "GESTOR", "TECNICO_SST"]);
     const payload = updateSchema.parse(await req.json());
-    const before = await prisma.inspectionExecution.findUnique({ where: { id: params.id } });
+    const before = await prisma.inspectionRun.findUnique({ where: { id: params.id } });
     if (!before) throw new Error("NOT_FOUND");
-    const inspection = await prisma.inspectionExecution.update({
+    const inspection = await prisma.inspectionRun.update({
       where: { id: params.id },
       data: {
         templateId: payload.templateId ?? undefined,
@@ -24,7 +24,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         performedAt: payload.performedAt ? new Date(payload.performedAt) : undefined,
         status: payload.status ?? undefined,
         answers: payload.answers ?? undefined,
-        photos: payload.photos ?? undefined,
+        evidenceUrls: payload.evidenceUrls ?? undefined,
         geo: payload.geo ?? undefined
       }
     });
@@ -32,7 +32,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     await writeAuditLog({
       userId: user.sub,
       action: "UPDATE",
-      entity: "InspectionExecution",
+      entity: "InspectionRun",
       entityId: inspection.id,
       before: before as unknown as Record<string, unknown>,
       after: inspection as unknown as Record<string, unknown>,
@@ -52,14 +52,14 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   try {
     const user = requireAuth(req);
     requireRoles(user, ["ADMIN", "GESTOR"]);
-    const before = await prisma.inspectionExecution.findUnique({ where: { id: params.id } });
+    const before = await prisma.inspectionRun.findUnique({ where: { id: params.id } });
     if (!before) throw new Error("NOT_FOUND");
-    await prisma.inspectionExecution.delete({ where: { id: params.id } });
+    await prisma.inspectionRun.delete({ where: { id: params.id } });
     const meta = getRequestMeta(req);
     await writeAuditLog({
       userId: user.sub,
       action: "DELETE",
-      entity: "InspectionExecution",
+      entity: "InspectionRun",
       entityId: params.id,
       before: before as unknown as Record<string, unknown>,
       ip: meta.ip,

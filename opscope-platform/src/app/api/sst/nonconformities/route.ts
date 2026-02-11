@@ -1,9 +1,10 @@
-﻿import { NextRequest } from "next/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getPagination, handleApiError, jsonOk } from "@/lib/api";
 import { requireAuth, requireRoles, getRequestMeta } from "@/lib/auth";
 import { nonConformitySchema } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
+import { generateSimplePdf } from "@/lib/services/simplePdf";
 import { z } from "zod";
 
 export async function GET(req: NextRequest) {
@@ -13,10 +14,13 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status") || undefined;
     const severity = searchParams.get("severity") || undefined;
+    const projectId = searchParams.get("projectId") || undefined;
+    const format = searchParams.get("format") || undefined;
 
     const where: any = {};
     if (status) where.status = status;
     if (severity) where.severity = severity;
+    if (projectId) where.projectId = projectId;
 
     const [items, total] = await Promise.all([
       prisma.nonConformity.findMany({
@@ -24,10 +28,59 @@ export async function GET(req: NextRequest) {
         skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
-        include: { inspection: true, incident: true }
+        include: {
+          inspection: true,
+          incident: true,
+          project: true,
+          worksite: true,
+          responsible: true,
+          createdBy: true,
+          actionItems: true
+        }
       }),
       prisma.nonConformity.count({ where })
     ]);
+
+    if (format === "csv") {
+      const header = "id,title,project,severity,status,dueDate,responsible";
+      const rows = items
+        .map((item) =>
+          [
+            item.id,
+            item.title ?? "",
+            item.project?.name ?? "",
+            item.severity,
+            item.status,
+            item.dueDate.toISOString(),
+            item.responsible?.name ?? ""
+          ].join(",")
+        )
+        .join("\n");
+      return new Response(`${header}\n${rows}`, {
+        headers: {
+          "Content-Type": "text/csv",
+          "Content-Disposition": "attachment; filename=ncs.csv"
+        }
+      });
+    }
+
+    if (format === "pdf") {
+      const lines = items.map((item) => {
+        return [
+          item.title ?? "NC",
+          item.project?.name ?? "-",
+          item.status,
+          new Date(item.dueDate).toLocaleDateString("pt-BR")
+        ].join(" | ");
+      });
+      const pdfBytes = await generateSimplePdf("Relatorio de NCs", lines);
+      return new Response(pdfBytes, {
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": "attachment; filename=ncs.pdf"
+        }
+      });
+    }
 
     return jsonOk({ items, total, page, pageSize });
   } catch (error) {
@@ -45,7 +98,10 @@ export async function POST(req: NextRequest) {
         originType: payload.originType,
         inspectionId: payload.inspectionId ?? null,
         incidentId: payload.incidentId ?? null,
+        projectId: payload.projectId ?? null,
+        worksiteId: payload.worksiteId ?? null,
         severity: payload.severity,
+        title: payload.title ?? null,
         description: payload.description,
         evidenceUrls: payload.evidenceUrls ?? undefined,
         responsibleId: payload.responsibleId,

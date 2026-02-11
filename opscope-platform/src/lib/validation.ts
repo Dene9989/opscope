@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 
 export const itemSchema = z.object({
   type: z.enum(["FERRAMENTA", "EPI", "EPC", "CONSUMIVEL"]),
@@ -160,10 +160,19 @@ export const worksiteSchema = z.object({
   address: z.string().optional().nullable()
 });
 
+export const roleSchema = z.enum([
+  "ADMIN",
+  "GESTOR",
+  "ALMOXARIFE",
+  "TECNICO_SST",
+  "SUPERVISOR",
+  "COLABORADOR"
+]);
+
 export const userSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
-  role: z.enum(["ADMIN", "GESTOR", "ALMOXARIFE", "TECNICO_SST", "SUPERVISOR", "COLABORADOR"]),
+  role: roleSchema,
   password: z.string().min(6)
 });
 
@@ -172,8 +181,14 @@ export const trainingSchema = z.object({
   nr: z.string().optional().nullable(),
   hours: z.number().min(1),
   validityDays: z.number().min(1),
-  mandatoryRoles: z.array(z.string()).optional().nullable(),
   projectId: z.string().uuid().optional().nullable()
+});
+
+export const trainingRequirementSchema = z.object({
+  trainingId: z.string().uuid(),
+  role: roleSchema,
+  projectId: z.string().uuid().optional().nullable(),
+  mandatory: z.boolean().optional().default(true)
 });
 
 export const trainingRecordSchema = z.object({
@@ -182,45 +197,79 @@ export const trainingRecordSchema = z.object({
   date: z.string(),
   validUntil: z.string(),
   status: z.enum(["VALIDO", "VENCIDO", "PENDENTE"]).default("VALIDO"),
-  certificateUrl: z.string().url().optional().nullable()
+  certificateUrl: z.string().url().optional().nullable(),
+  projectId: z.string().uuid().optional().nullable()
 });
 
-export const inspectionTemplateSchema = z.object({
+export const checklistQuestionSchema = z.object({
+  text: z.string().min(2),
+  type: z.enum(["BOOLEAN", "TEXT", "SCORE", "SELECT"]),
+  required: z.boolean().optional().default(true),
+  options: z.array(z.string()).optional().nullable(),
+  weight: z.number().int().optional().nullable(),
+  requiresPhotoOnFail: z.boolean().optional().default(false)
+});
+
+export const checklistTemplateSchema = z.object({
   type: z.string().min(2),
   title: z.string().min(2),
   periodicityDays: z.number().min(1),
   projectId: z.string().uuid().optional().nullable(),
   worksiteId: z.string().uuid().optional().nullable(),
-  questions: z.array(
-    z.object({
-      id: z.string(),
-      text: z.string(),
-      required: z.boolean().default(false)
-    })
-  )
+  active: z.boolean().optional().default(true),
+  questions: z.array(checklistQuestionSchema).min(1)
 });
 
-export const inspectionExecutionSchema = z.object({
+export const inspectionRunSchema = z.object({
   templateId: z.string().uuid(),
   projectId: z.string().uuid(),
   worksiteId: z.string().uuid().optional().nullable(),
   performedAt: z.string(),
   status: z.enum(["OK", "NAO_CONFORME"]),
-  answers: z.array(z.object({ id: z.string(), answer: z.string() })),
-  photos: z.array(z.string().url()).optional().nullable(),
-  geo: z.object({ lat: z.number(), lng: z.number() }).optional().nullable()
+  answers: z.array(
+    z.object({
+      questionId: z.string().uuid(),
+      answer: z.union([z.string(), z.number(), z.boolean()]).optional().nullable(),
+      ok: z.boolean().optional().nullable(),
+      score: z.number().optional().nullable(),
+      notes: z.string().optional().nullable(),
+      photoUrls: z.array(z.string().url()).optional().nullable()
+    })
+  ),
+  evidenceUrls: z.array(z.string().url()).optional().nullable(),
+  geo: z
+    .object({
+      lat: z.number(),
+      lng: z.number()
+    })
+    .optional()
+    .nullable()
 });
 
 export const nonConformitySchema = z.object({
   originType: z.enum(["INSPECAO", "OBSERVACAO", "INCIDENTE"]),
   inspectionId: z.string().uuid().optional().nullable(),
   incidentId: z.string().uuid().optional().nullable(),
+  projectId: z.string().uuid().optional().nullable(),
+  worksiteId: z.string().uuid().optional().nullable(),
   severity: z.enum(["BAIXA", "MEDIA", "ALTA", "CRITICA"]),
+  title: z.string().optional().nullable(),
   description: z.string().min(3),
   evidenceUrls: z.array(z.string().url()).optional().nullable(),
   responsibleId: z.string().uuid(),
   dueDate: z.string(),
   status: z.enum(["ABERTA", "EM_ANDAMENTO", "RESOLVIDA", "CANCELADA"]).default("ABERTA")
+});
+
+export const actionPlanItemSchema = z.object({
+  nonConformityId: z.string().uuid(),
+  title: z.string().min(2),
+  description: z.string().optional().nullable(),
+  responsibleId: z.string().uuid(),
+  dueDate: z.string(),
+  status: z.enum(["PENDENTE", "EM_ANDAMENTO", "CONCLUIDA", "VERIFICADA"]).default("PENDENTE"),
+  evidenceUrls: z.array(z.string().url()).optional().nullable(),
+  notes: z.string().optional().nullable()
 });
 
 export const incidentSchema = z.object({
@@ -231,13 +280,34 @@ export const incidentSchema = z.object({
   description: z.string().min(3),
   category: z.string().min(2),
   involvedUserIds: z.array(z.string().uuid()).optional().nullable(),
-  photos: z.array(z.string().url()).optional().nullable(),
-  fiveWhys: z.array(z.string()).optional().nullable()
+  photos: z.array(z.string().url()).optional().nullable()
+});
+
+export const incidentInvestigationSchema = z.object({
+  incidentId: z.string().uuid(),
+  fiveWhys: z.array(z.string().min(2)).length(5),
+  rootCause: z.string().optional().nullable(),
+  immediateActions: z.array(z.string()).optional().nullable(),
+  correctiveActions: z.array(z.string()).optional().nullable(),
+  preventiveActions: z.array(z.string()).optional().nullable(),
+  effectivenessCheck: z.string().optional().nullable(),
+  verifiedById: z.string().uuid().optional().nullable()
+});
+
+export const aprTemplateSchema = z.object({
+  name: z.string().min(2),
+  activity: z.string().min(2),
+  hazards: z.array(z.string()).min(1),
+  risks: z.array(z.string()).min(1),
+  controls: z.array(z.string()).min(1),
+  requiredTrainings: z.array(z.string().uuid()).optional().nullable(),
+  requiredEpis: z.array(z.string().uuid()).optional().nullable()
 });
 
 export const aprSchema = z.object({
   projectId: z.string().uuid(),
   worksiteId: z.string().uuid().optional().nullable(),
+  templateId: z.string().uuid().optional().nullable(),
   activity: z.string().min(2),
   hazards: z.array(z.string()).min(1),
   risks: z.array(z.string()).min(1),
@@ -248,10 +318,39 @@ export const aprSchema = z.object({
 
 export const permitSchema = z.object({
   aprId: z.string().uuid(),
+  projectId: z.string().uuid().optional().nullable(),
+  worksiteId: z.string().uuid().optional().nullable(),
   type: z.enum(["ALTURA", "QUENTE", "ESPACO_CONFINADO", "ELETRICA"]),
   requirements: z.array(z.string()).min(1),
-  approvedById: z.string().uuid().optional().nullable(),
   validFrom: z.string(),
   validTo: z.string(),
-  status: z.enum(["ABERTA", "APROVADA", "ENCERRADA"]).default("ABERTA")
+  status: z.enum(["ABERTA", "APROVADA", "ENCERRADA"]).default("ABERTA"),
+  collaboratorIds: z.array(z.string().uuid()).optional().nullable(),
+  approverIds: z.array(z.string().uuid()).optional().nullable()
+});
+
+export const permitApprovalSchema = z.object({
+  permitId: z.string().uuid(),
+  userId: z.string().uuid(),
+  status: z.enum(["PENDENTE", "APROVADO", "REPROVADO"]),
+  notes: z.string().optional().nullable()
+});
+
+export const sstAlertSchema = z.object({
+  projectId: z.string().uuid().optional().nullable(),
+  type: z.enum([
+    "TREINAMENTO_VENCER",
+    "TREINAMENTO_VENCIDO",
+    "INSPECAO_ATRASADA",
+    "NC_VENCENDO",
+    "NC_VENCIDA",
+    "PT_VENCER",
+    "PT_VENCIDA"
+  ]),
+  severity: z.enum(["INFO", "ATENCAO", "CRITICA"]),
+  title: z.string().min(3),
+  message: z.string().min(3),
+  dueDate: z.string().optional().nullable(),
+  entityType: z.string().optional().nullable(),
+  entityId: z.string().optional().nullable()
 });

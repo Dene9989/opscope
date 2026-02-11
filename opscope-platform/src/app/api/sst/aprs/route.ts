@@ -1,4 +1,4 @@
-﻿import { NextRequest } from "next/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getPagination, handleApiError, jsonOk } from "@/lib/api";
 import { requireAuth, requireRoles, getRequestMeta } from "@/lib/auth";
@@ -12,9 +12,11 @@ export async function GET(req: NextRequest) {
     const { page, pageSize, skip } = getPagination(req);
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get("projectId") || undefined;
+    const status = searchParams.get("status") || undefined;
 
     const where: any = {};
     if (projectId) where.projectId = projectId;
+    if (status) where.status = status;
 
     const [items, total] = await Promise.all([
       prisma.apr.findMany({
@@ -22,7 +24,7 @@ export async function GET(req: NextRequest) {
         skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
-        include: { permits: true, project: true, worksite: true }
+        include: { project: true, worksite: true, template: true, permits: true }
       }),
       prisma.apr.count({ where })
     ]);
@@ -38,18 +40,25 @@ export async function POST(req: NextRequest) {
     const user = requireAuth(req);
     requireRoles(user, ["ADMIN", "GESTOR", "TECNICO_SST"]);
     const payload = aprSchema.parse(await req.json());
+
+    const template = payload.templateId
+      ? await prisma.aprTemplate.findUnique({ where: { id: payload.templateId } })
+      : null;
+
     const apr = await prisma.apr.create({
       data: {
         projectId: payload.projectId,
         worksiteId: payload.worksiteId ?? null,
-        activity: payload.activity,
-        hazards: payload.hazards,
-        risks: payload.risks,
-        controls: payload.controls,
+        templateId: payload.templateId ?? null,
+        activity: payload.activity || template?.activity || "",
+        hazards: payload.hazards?.length ? payload.hazards : template?.hazards ?? [],
+        risks: payload.risks?.length ? payload.risks : template?.risks ?? [],
+        controls: payload.controls?.length ? payload.controls : template?.controls ?? [],
         approvedById: payload.approvedById ?? null,
         status: payload.status
       }
     });
+
     const meta = getRequestMeta(req);
     await writeAuditLog({
       userId: user.sub,
@@ -60,6 +69,7 @@ export async function POST(req: NextRequest) {
       ip: meta.ip,
       userAgent: meta.userAgent
     });
+
     return jsonOk(apr, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {

@@ -15,19 +15,26 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     const payload = updateSchema.parse(await req.json());
     const before = await prisma.apr.findUnique({ where: { id: params.id } });
     if (!before) throw new Error("NOT_FOUND");
+
+    const template = payload.templateId
+      ? await prisma.aprTemplate.findUnique({ where: { id: payload.templateId } })
+      : null;
+
     const apr = await prisma.apr.update({
       where: { id: params.id },
       data: {
         projectId: payload.projectId ?? undefined,
         worksiteId: payload.worksiteId ?? undefined,
-        activity: payload.activity ?? undefined,
-        hazards: payload.hazards ?? undefined,
-        risks: payload.risks ?? undefined,
-        controls: payload.controls ?? undefined,
+        templateId: payload.templateId ?? undefined,
+        activity: payload.activity ?? template?.activity ?? undefined,
+        hazards: payload.hazards ?? template?.hazards ?? undefined,
+        risks: payload.risks ?? template?.risks ?? undefined,
+        controls: payload.controls ?? template?.controls ?? undefined,
         approvedById: payload.approvedById ?? undefined,
         status: payload.status ?? undefined
       }
     });
+
     const meta = getRequestMeta(req);
     await writeAuditLog({
       userId: user.sub,
@@ -39,6 +46,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       ip: meta.ip,
       userAgent: meta.userAgent
     });
+
     return jsonOk(apr);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -54,7 +62,6 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     requireRoles(user, ["ADMIN", "GESTOR"]);
     const before = await prisma.apr.findUnique({ where: { id: params.id } });
     if (!before) throw new Error("NOT_FOUND");
-    await prisma.permit.deleteMany({ where: { aprId: params.id } });
     await prisma.apr.delete({ where: { id: params.id } });
     const meta = getRequestMeta(req);
     await writeAuditLog({

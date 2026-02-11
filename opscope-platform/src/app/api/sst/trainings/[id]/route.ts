@@ -22,7 +22,6 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         nr: payload.nr ?? undefined,
         hours: payload.hours ?? undefined,
         validityDays: payload.validityDays ?? undefined,
-        mandatoryRoles: payload.mandatoryRoles ?? undefined,
         projectId: payload.projectId ?? undefined
       }
     });

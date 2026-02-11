@@ -1,32 +1,78 @@
-﻿import { NextRequest } from "next/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getPagination, handleApiError, jsonOk } from "@/lib/api";
 import { requireAuth, requireRoles, getRequestMeta } from "@/lib/auth";
 import { trainingRecordSchema } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
+import { generateSimplePdf } from "@/lib/services/simplePdf";
 import { z } from "zod";
 
 export async function GET(req: NextRequest) {
   try {
-    const user = requireAuth(req);
+    requireAuth(req);
     const { page, pageSize, skip } = getPagination(req);
     const { searchParams } = new URL(req.url);
+    const projectId = searchParams.get("projectId") || undefined;
     const userId = searchParams.get("userId") || undefined;
+    const status = searchParams.get("status") || undefined;
+    const format = searchParams.get("format") || undefined;
 
     const where: any = {};
+    if (projectId) where.projectId = projectId;
     if (userId) where.userId = userId;
-    if (user.role === "COLABORADOR") where.userId = user.sub;
+    if (status) where.status = status;
 
     const [items, total] = await Promise.all([
       prisma.trainingRecord.findMany({
         where,
         skip,
         take: pageSize,
-        orderBy: { createdAt: "desc" },
-        include: { training: true, user: true }
+        orderBy: { date: "desc" },
+        include: { training: true, user: true, project: true }
       }),
       prisma.trainingRecord.count({ where })
     ]);
+
+    if (format === "csv") {
+      const header = "id,training,user,date,validUntil,status,project";
+      const rows = items
+        .map((record) =>
+          [
+            record.id,
+            record.training?.name ?? "",
+            record.user?.name ?? "",
+            record.date.toISOString(),
+            record.validUntil.toISOString(),
+            record.status,
+            record.project?.name ?? ""
+          ].join(",")
+        )
+        .join("\n");
+      return new Response(`${header}\n${rows}`, {
+        headers: {
+          "Content-Type": "text/csv",
+          "Content-Disposition": "attachment; filename=treinamentos.csv"
+        }
+      });
+    }
+
+    if (format === "pdf") {
+      const lines = items.map((record) => {
+        return [
+          record.training?.name ?? "-",
+          record.user?.name ?? "-",
+          new Date(record.validUntil).toLocaleDateString("pt-BR"),
+          record.status
+        ].join(" | ");
+      });
+      const pdfBytes = await generateSimplePdf("Relatorio de Treinamentos", lines);
+      return new Response(pdfBytes, {
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": "attachment; filename=treinamentos.pdf"
+        }
+      });
+    }
 
     return jsonOk({ items, total, page, pageSize });
   } catch (error) {
@@ -46,7 +92,8 @@ export async function POST(req: NextRequest) {
         date: new Date(payload.date),
         validUntil: new Date(payload.validUntil),
         status: payload.status,
-        certificateUrl: payload.certificateUrl ?? null
+        certificateUrl: payload.certificateUrl ?? null,
+        projectId: payload.projectId ?? null
       }
     });
     const meta = getRequestMeta(req);

@@ -40,6 +40,16 @@ Acesse: `http://localhost:3000`
 - /almoxarifado/epis-colaborador
 - /almoxarifado/scan
 
+## Rotas principais de SST
+
+- /sst (dashboard)
+- /sst/conformidade
+- /sst/treinamentos
+- /sst/inspecoes
+- /sst/ncs
+- /sst/incidentes
+- /sst/apr-pt
+
 ## Usuarios seed
 
 - admin@opscope.local / Opscope@123 (ADMIN)

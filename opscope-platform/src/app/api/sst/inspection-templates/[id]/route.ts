@@ -2,20 +2,24 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { handleApiError, jsonOk } from "@/lib/api";
 import { requireAuth, requireRoles, getRequestMeta } from "@/lib/auth";
-import { inspectionTemplateSchema } from "@/lib/validation";
+import { checklistTemplateSchema } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
 
-const updateSchema = inspectionTemplateSchema.partial();
+const updateSchema = checklistTemplateSchema.partial();
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = requireAuth(req);
     requireRoles(user, ["ADMIN", "GESTOR", "TECNICO_SST"]);
     const payload = updateSchema.parse(await req.json());
-    const before = await prisma.inspectionTemplate.findUnique({ where: { id: params.id } });
+    const before = await prisma.checklistTemplate.findUnique({
+      where: { id: params.id },
+      include: { questions: true }
+    });
     if (!before) throw new Error("NOT_FOUND");
-    const template = await prisma.inspectionTemplate.update({
+
+    const template = await prisma.checklistTemplate.update({
       where: { id: params.id },
       data: {
         type: payload.type ?? undefined,
@@ -23,15 +27,30 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         periodicityDays: payload.periodicityDays ?? undefined,
         projectId: payload.projectId ?? undefined,
         worksiteId: payload.worksiteId ?? undefined,
-        questions: payload.questions ?? undefined,
-        active: payload.active ?? undefined
-      }
+        active: payload.active ?? undefined,
+        questions: payload.questions
+          ? {
+              deleteMany: {},
+              create: payload.questions.map((question, index) => ({
+                order: index + 1,
+                text: question.text,
+                type: question.type,
+                required: question.required ?? true,
+                options: question.options ?? undefined,
+                weight: question.weight ?? undefined,
+                requiresPhotoOnFail: question.requiresPhotoOnFail ?? false
+              }))
+            }
+          : undefined
+      },
+      include: { questions: true }
     });
+
     const meta = getRequestMeta(req);
     await writeAuditLog({
       userId: user.sub,
       action: "UPDATE",
-      entity: "InspectionTemplate",
+      entity: "ChecklistTemplate",
       entityId: template.id,
       before: before as unknown as Record<string, unknown>,
       after: template as unknown as Record<string, unknown>,
@@ -51,14 +70,14 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   try {
     const user = requireAuth(req);
     requireRoles(user, ["ADMIN", "GESTOR"]);
-    const before = await prisma.inspectionTemplate.findUnique({ where: { id: params.id } });
+    const before = await prisma.checklistTemplate.findUnique({ where: { id: params.id } });
     if (!before) throw new Error("NOT_FOUND");
-    await prisma.inspectionTemplate.delete({ where: { id: params.id } });
+    await prisma.checklistTemplate.delete({ where: { id: params.id } });
     const meta = getRequestMeta(req);
     await writeAuditLog({
       userId: user.sub,
       action: "DELETE",
-      entity: "InspectionTemplate",
+      entity: "ChecklistTemplate",
       entityId: params.id,
       before: before as unknown as Record<string, unknown>,
       ip: meta.ip,

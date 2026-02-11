@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -49,9 +49,10 @@ const sections = [
     title: "Seguranca do Trabalho (SST)",
     items: [
       { label: "Dashboard", href: "/sst" },
+      { label: "Centro de Conformidade", href: "/sst/conformidade" },
       { label: "Treinamentos", href: "/sst/treinamentos" },
       { label: "Inspecoes", href: "/sst/inspecoes" },
-      { label: "Nao Conformidades", href: "/sst/nao-conformidades" },
+      { label: "NCs", href: "/sst/ncs" },
       { label: "Incidentes", href: "/sst/incidentes" },
       { label: "APR / PT", href: "/sst/apr-pt" }
     ]
