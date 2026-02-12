@@ -1819,7 +1819,7 @@ function buildSessionUser(account, role) {
   );
   const roleName = role ? role.name : account.roleName || "";
   const status = String(account.status || "ATIVO").toUpperCase() === "INATIVO" ? "INATIVO" : "ATIVO";
-  const granularPermissions = mapAccessPermissionsToGranular(rolePermissions);
+  let granularPermissions = mapAccessPermissionsToGranular(rolePermissions);
   const permissions = deriveMaintenancePermissions(rolePermissions, account.permissions);
   let sections = { ...DEFAULT_SECTIONS };
   if (account.sections && typeof account.sections === "object") {
@@ -1842,6 +1842,13 @@ function buildSessionUser(account, role) {
   const derivedRbacRole =
     account.rbacRole || (rolePermissions.includes("ADMIN") ? "admin" : roleName ? buildRbacRoleKey(roleName) : "");
   const derivedRole = account.role || derivedRbacRole || "";
+  const fullAccessRole =
+    rolePermissions.includes("ADMIN") ||
+    derivedRole === "admin" ||
+    FULL_ACCESS_RBAC.has(String(derivedRbacRole || "").trim().toLowerCase());
+  if (fullAccessRole) {
+    granularPermissions = mapAccessPermissionsToGranular(["ADMIN"]);
+  }
   return {
     ...account,
     roleId: account.roleId || (role ? role.id : ""),
