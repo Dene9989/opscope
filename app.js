@@ -188,6 +188,7 @@ const homeAtrasoMedio = document.getElementById("homeAtrasoMedio");
 const projectSelect = document.getElementById("projectSelect");
 const projectSelectLabel = document.getElementById("projectSelectLabel");
 const projectManageBtn = document.getElementById("projectManageBtn");
+const projectVehiclesBtn = document.getElementById("projectVehiclesBtn");
 const crumbs = document.getElementById("crumbs");
 const btnDashboard = document.getElementById("btnDashboard");
 const btnHelp = document.getElementById("btnHelp");
@@ -368,6 +369,15 @@ const sstInspectionSafety = document.getElementById("sstInspectionSafety");
 const sstInspectionExecutor = document.getElementById("sstInspectionExecutor");
 const sstInspectionVehicle = document.getElementById("sstInspectionVehicle");
 const sstInspectionVehicleField = document.getElementById("sstInspectionVehicleField");
+const sstInspectionVehicleEmpty = document.getElementById("sstInspectionVehicleEmpty");
+const sstInspectionVehicleCta = document.getElementById("sstInspectionVehicleCta");
+const sstInspectionVehicleStatusField = document.getElementById("sstInspectionVehicleStatusField");
+const sstInspectionVehicleStatusFilter = document.getElementById("sstInspectionVehicleStatusFilter");
+const sstInspectionVehicleInfo = document.getElementById("sstInspectionVehicleInfo");
+const sstInspectionVehiclePlate = document.getElementById("sstInspectionVehiclePlate");
+const sstInspectionVehicleModel = document.getElementById("sstInspectionVehicleModel");
+const sstInspectionVehicleType = document.getElementById("sstInspectionVehicleType");
+const sstInspectionVehicleStatus = document.getElementById("sstInspectionVehicleStatus");
 const sstInspectionStartBtn = document.getElementById("sstInspectionStartBtn");
 const sstInspectionMsg = document.getElementById("sstInspectionMsg");
 const sstVehicleForm = document.getElementById("sstVehicleForm");
@@ -381,6 +391,8 @@ const sstVehicleSubmit = document.getElementById("sstVehicleSubmit");
 const sstVehicleCancel = document.getElementById("sstVehicleCancel");
 const sstVehicleMsg = document.getElementById("sstVehicleMsg");
 const sstVehicleFilterProject = document.getElementById("sstVehicleFilterProject");
+const sstVehicleFilterStatus = document.getElementById("sstVehicleFilterStatus");
+const sstVehicleFilterSearch = document.getElementById("sstVehicleFilterSearch");
 const sstVehicleTableBody = document.getElementById("sstVehicleTableBody");
 const sstVehicleEmpty = document.getElementById("sstVehicleEmpty");
 const sstTemplateSeedBtn = document.getElementById("sstTemplateSeedBtn");
@@ -951,7 +963,7 @@ const SST_INSPECTIONS_KEY = "opscope.sst.inspections";
 const SST_NCS_KEY = "opscope.sst.ncs.local";
 const SST_EVIDENCES_KEY = "opscope.sst.evidences";
 const SST_VEHICLES_KEY = "opscope.sst.vehicles";
-const OPSCOPE_DB_VERSION = 2;
+const OPSCOPE_DB_VERSION = 3;
 const SESSION_KEY = "denemanu.session";
 const ACTIVE_PROJECT_KEY = "opscope.activeProjectId";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -2144,6 +2156,7 @@ let sstInspectionTemplates = [];
 let sstInspections = [];
 let sstVehicles = [];
 let sstVehicleEditingId = null;
+let vehiclesLoaded = false;
 let sstNonconformities = [];
 let sstIncidents = [];
 let sstDocs = [];
@@ -2339,17 +2352,6 @@ function createLocalSstInspectionsProvider() {
     writeJson(SST_NCS_KEY, list);
     return list;
   };
-  const readVehicles = () => {
-    const list = readJson(SST_VEHICLES_KEY, []);
-    if (!Array.isArray(list)) {
-      return [];
-    }
-    return list.map(normalizeSstVehicle).filter(Boolean);
-  };
-  const saveVehicles = (list) => {
-    writeJson(SST_VEHICLES_KEY, list);
-    return list;
-  };
 
   return {
     listTemplates: async (filters = {}) => {
@@ -2440,67 +2442,6 @@ function createLocalSstInspectionsProvider() {
       saveTemplates(seeds);
       return { seeded: true, count: seeds.length };
     },
-    listVehicles: async (filters = {}) => {
-      let list = readVehicles();
-      if (filters.projectId) {
-        list = list.filter(
-          (item) => String(item.projectId) === String(filters.projectId)
-        );
-      }
-      if (filters.status) {
-        const status = normalizeSstVehicleStatus(filters.status);
-        list = list.filter((item) => normalizeSstVehicleStatus(item.status) === status);
-      }
-      if (filters.q) {
-        const term = normalizeSearchValue(filters.q);
-        list = list.filter(
-          (item) =>
-            normalizeSearchValue(item.plate).includes(term) ||
-            normalizeSearchValue(item.model).includes(term)
-        );
-      }
-      return list;
-    },
-    upsertVehicle: async (input) => {
-      const vehicles = readVehicles();
-      const now = toIsoUtc(new Date());
-      const existingIndex = vehicles.findIndex((item) => String(item.id) === String(input.id));
-      const base = existingIndex >= 0 ? vehicles[existingIndex] : {};
-      const normalized = normalizeSstVehicle({
-        ...base,
-        ...input,
-        id: base.id || input.id || criarId(),
-        createdAt: base.createdAt || now,
-        updatedAt: now,
-        createdBy: base.createdBy || (currentUser ? currentUser.id : ""),
-      });
-      if (!normalized) {
-        throw new Error("Veiculo invalido.");
-      }
-      if (existingIndex >= 0) {
-        vehicles[existingIndex] = normalized;
-      } else {
-        vehicles.unshift(normalized);
-      }
-      saveVehicles(vehicles);
-      return normalized;
-    },
-    deleteVehicle: async (id) => {
-      if (!id) {
-        return;
-      }
-      const vehicles = readVehicles();
-      const index = vehicles.findIndex((item) => String(item.id) === String(id));
-      if (index < 0) {
-        return;
-      }
-      vehicles[index] = {
-        ...vehicles[index],
-        status: "INATIVO",
-        updatedAt: toIsoUtc(new Date()),
-      };
-      saveVehicles(vehicles);
-    },
     startRun: async (input) => {
       if (
         !input ||
@@ -2519,6 +2460,7 @@ function createLocalSstInspectionsProvider() {
         inspectorId: input.inspectorId,
         safetyResponsibleId: input.safetyResponsibleId,
         vehicleId: input.vehicleId || "",
+        vehicleSnapshot: input.vehicleSnapshot || null,
         startedAt: input.startedAt || toIsoUtc(new Date()),
         status: "OK",
         score: 100,
@@ -2810,6 +2752,7 @@ function createLocalSstInspectionsProvider() {
           inspectorId: run.inspectorId,
           safetyResponsibleId: run.safetyResponsibleId || "",
           vehicleId: run.vehicleId || "",
+          vehicleSnapshot: run.vehicleSnapshot || null,
           score: run.score,
           status: normalizeSstInspectionStatus(run.status),
           failCount: stats.total,
@@ -2972,6 +2915,12 @@ function createLocalProvider() {
       },
     },
     sstInspections,
+    vehicles: {
+      listVehicles: async (filters = {}) => listVehiclesFromDb(filters),
+      getVehicle: async (id) => getVehicleFromDb(id),
+      upsertVehicle: async (input) => upsertVehicleToDb(input || {}),
+      deleteVehicle: async (id) => softDeleteVehicle(id),
+    },
   };
 }
 
@@ -3006,6 +2955,7 @@ function createApiProvider(fallback) {
   const provider = {
     sstDocs: {},
     sstInspections: {},
+    vehicles: {},
   };
 
   provider.sstDocs.list = async (filters = {}) => {
@@ -3127,17 +3077,6 @@ function createApiProvider(fallback) {
     return fallbackProvider.sstInspections.seedTemplatesIfEmpty();
   };
 
-  provider.sstInspections.listVehicles = async (filters = {}) => {
-    return fallbackProvider.sstInspections.listVehicles(filters);
-  };
-
-  provider.sstInspections.upsertVehicle = async (input) => {
-    return fallbackProvider.sstInspections.upsertVehicle(input);
-  };
-
-  provider.sstInspections.deleteVehicle = async (id) => {
-    return fallbackProvider.sstInspections.deleteVehicle(id);
-  };
 
   provider.sstInspections.startRun = async (input) => {
     return fallbackProvider.sstInspections.startRun(input);
@@ -3181,6 +3120,22 @@ function createApiProvider(fallback) {
 
   provider.sstInspections.getRunDetails = async (runId) => {
     return fallbackProvider.sstInspections.getRunDetails(runId);
+  };
+
+  provider.vehicles.listVehicles = async (filters = {}) => {
+    return fallbackProvider.vehicles.listVehicles(filters);
+  };
+
+  provider.vehicles.getVehicle = async (id) => {
+    return fallbackProvider.vehicles.getVehicle(id);
+  };
+
+  provider.vehicles.upsertVehicle = async (input) => {
+    return fallbackProvider.vehicles.upsertVehicle(input);
+  };
+
+  provider.vehicles.deleteVehicle = async (id) => {
+    return fallbackProvider.vehicles.deleteVehicle(id);
   };
 
   return provider;
@@ -7168,6 +7123,12 @@ function openOpscopeDb() {
       if (!db.objectStoreNames.contains("sst_evidences")) {
         db.createObjectStore("sst_evidences", { keyPath: "evidenceId" });
       }
+      if (!db.objectStoreNames.contains("vehicles")) {
+        const store = db.createObjectStore("vehicles", { keyPath: "id" });
+        store.createIndex("projectId", "projectId", { unique: false });
+        store.createIndex("plateNormalized", "plateNormalized", { unique: false });
+        store.createIndex("project_plate", ["projectId", "plateNormalized"], { unique: true });
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
@@ -7176,6 +7137,176 @@ function openOpscopeDb() {
 
 function openDocsDB() {
   return openOpscopeDb();
+}
+
+function readVehiclesStorage() {
+  const list = readJson(SST_VEHICLES_KEY, []);
+  if (!Array.isArray(list)) {
+    return [];
+  }
+  return list.map(normalizeSstVehicle).filter(Boolean);
+}
+
+function writeVehiclesStorage(list) {
+  writeJson(SST_VEHICLES_KEY, list);
+  return list;
+}
+
+function filterVehicles(list, filters = {}) {
+  let filtered = Array.isArray(list) ? list.slice() : [];
+  if (filters.projectId) {
+    filtered = filtered.filter(
+      (item) => String(item.projectId) === String(filters.projectId)
+    );
+  }
+  if (filters.status && filters.status !== "ALL") {
+    const status = normalizeVehicleStatusValue(filters.status);
+    filtered = filtered.filter(
+      (item) => normalizeVehicleStatusValue(item.status) === status
+    );
+  }
+  if (filters.q) {
+    const term = normalizeSearchValue(filters.q);
+    filtered = filtered.filter(
+      (item) =>
+        normalizeSearchValue(item.plate).includes(term) ||
+        normalizeSearchValue(item.model).includes(term)
+    );
+  }
+  return filtered;
+}
+
+async function listVehiclesFromDb(filters = {}) {
+  if (typeof indexedDB === "undefined") {
+    return filterVehicles(readVehiclesStorage(), filters);
+  }
+  try {
+    const db = await openOpscopeDb();
+    return await new Promise((resolve) => {
+      const tx = db.transaction("vehicles", "readonly");
+      const store = tx.objectStore("vehicles");
+      const request = filters.projectId
+        ? store.index("projectId").getAll(filters.projectId)
+        : store.getAll();
+      request.onsuccess = () => {
+        const list = (request.result || []).map(normalizeSstVehicle).filter(Boolean);
+        resolve(filterVehicles(list, filters));
+      };
+      request.onerror = () => resolve(filterVehicles(readVehiclesStorage(), filters));
+    });
+  } catch (error) {
+    return filterVehicles(readVehiclesStorage(), filters);
+  }
+}
+
+async function getVehicleFromDb(id) {
+  if (!id) {
+    return null;
+  }
+  if (typeof indexedDB === "undefined") {
+    const list = readVehiclesStorage();
+    return list.find((item) => String(item.id) === String(id)) || null;
+  }
+  try {
+    const db = await openOpscopeDb();
+    return await new Promise((resolve) => {
+      const tx = db.transaction("vehicles", "readonly");
+      const store = tx.objectStore("vehicles");
+      const request = store.get(id);
+      request.onsuccess = () => resolve(normalizeSstVehicle(request.result));
+      request.onerror = () => resolve(null);
+    });
+  } catch (error) {
+    return null;
+  }
+}
+
+async function getVehicleByProjectPlate(projectId, plateNormalized) {
+  if (!projectId || !plateNormalized) {
+    return null;
+  }
+  if (typeof indexedDB === "undefined") {
+    const list = readVehiclesStorage();
+    return (
+      list.find(
+        (item) =>
+          String(item.projectId) === String(projectId) &&
+          String(item.plateNormalized) === String(plateNormalized)
+      ) || null
+    );
+  }
+  try {
+    const db = await openOpscopeDb();
+    return await new Promise((resolve) => {
+      const tx = db.transaction("vehicles", "readonly");
+      const store = tx.objectStore("vehicles");
+      const index = store.index("project_plate");
+      const request = index.get([projectId, plateNormalized]);
+      request.onsuccess = () => resolve(normalizeSstVehicle(request.result));
+      request.onerror = () => resolve(null);
+    });
+  } catch (error) {
+    return null;
+  }
+}
+
+async function upsertVehicleToDb(input) {
+  const now = toIsoUtc(new Date());
+  const id = input && input.id ? input.id : criarId();
+  const existing = await getVehicleFromDb(id);
+  const normalized = normalizeSstVehicle({
+    ...existing,
+    ...input,
+    id,
+    createdAt: existing && existing.createdAt ? existing.createdAt : now,
+    updatedAt: now,
+    createdBy: existing && existing.createdBy ? existing.createdBy : currentUser ? currentUser.id : "",
+  });
+  if (!normalized) {
+    throw new Error("Veiculo invalido.");
+  }
+  const duplicate = await getVehicleByProjectPlate(
+    normalized.projectId,
+    normalized.plateNormalized
+  );
+  if (duplicate && String(duplicate.id) !== String(normalized.id)) {
+    throw new Error("Ja existe veiculo com essa placa neste projeto.");
+  }
+  if (typeof indexedDB === "undefined") {
+    const list = readVehiclesStorage();
+    const index = list.findIndex((item) => String(item.id) === String(normalized.id));
+    if (index >= 0) {
+      list[index] = normalized;
+    } else {
+      list.unshift(normalized);
+    }
+    writeVehiclesStorage(list);
+    return normalized;
+  }
+  const db = await openOpscopeDb();
+  return await new Promise((resolve, reject) => {
+    const tx = db.transaction("vehicles", "readwrite");
+    const store = tx.objectStore("vehicles");
+    const request = store.put(normalized);
+    request.onsuccess = () => resolve(normalized);
+    request.onerror = () => reject(request.error || new Error("Falha ao salvar veiculo."));
+  });
+}
+
+async function softDeleteVehicle(id) {
+  if (!id) {
+    return;
+  }
+  const existing = await getVehicleFromDb(id);
+  if (!existing) {
+    return;
+  }
+  const updated = {
+    ...existing,
+    status: "Inativo",
+    updatedAt: toIsoUtc(new Date()),
+  };
+  await upsertVehicleToDb(updated);
 }
 
 function getDocById(docId) {
@@ -19247,6 +19378,21 @@ function setProjectTab(tab) {
   });
 }
 
+function openProjectVehiclesTab(projectId) {
+  abrirPainelComCarregamento("projetos");
+  setProjectTab("veiculos");
+  if (projectId) {
+    setActiveProjectId(projectId);
+    if (sstVehicleProject) {
+      sstVehicleProject.value = projectId;
+    }
+    if (sstVehicleFilterProject) {
+      sstVehicleFilterProject.value = projectId;
+    }
+  }
+  renderProjectPanel();
+}
+
 function renderProjetosTable() {
   if (!projectTableBody) {
     return;
@@ -19408,6 +19554,7 @@ function renderEquipeTable() {
 }
 
 function renderProjectPanel() {
+  carregarVeiculos();
   renderProjetosTable();
   renderProjectFormSelect();
   renderEquipamentosTable();
@@ -19415,9 +19562,13 @@ function renderProjectPanel() {
   renderEquipeTable();
   renderEquipeSelectOptions();
   renderProjectSelectOptions(equipamentoFormProject, activeProjectId);
+  renderProjectSelectOptions(sstVehicleProject, sstVehicleProject ? sstVehicleProject.value : activeProjectId);
+  renderProjectFilterOptions(sstVehicleFilterProject, sstVehicleFilterProject ? sstVehicleFilterProject.value : "");
+  renderSstVehicles();
   setFormDisabled(projectForm, !(currentUser && canManageProjetos(currentUser)));
   setFormDisabled(equipamentoForm, !(currentUser && canManageEquipamentos(currentUser)));
   setFormDisabled(equipeForm, !(currentUser && canManageEquipeProjeto(currentUser)));
+  setFormDisabled(sstVehicleForm, !(currentUser && canManageProjetos(currentUser)));
   if (projectPanels.length && !projectPanels.some((panel) => !panel.hidden)) {
     setProjectTab("lista");
   }
@@ -20004,13 +20155,19 @@ function updateSstInspectionVehicleVisibility() {
   if (!sstInspectionVehicleField) {
     return;
   }
-  const templateId = sstInspectionTemplate ? sstInspectionTemplate.value : "";
-  const template = sstInspectionTemplates.find((item) => String(item.id) === String(templateId));
-  const isVehicle =
-    template && normalizeSstChecklistType(template.type) === "VEHICLES_DAILY";
-  sstInspectionVehicleField.hidden = !isVehicle;
-  if (!isVehicle && sstInspectionVehicle) {
-    sstInspectionVehicle.value = "";
+  const shouldShow = true;
+  sstInspectionVehicleField.hidden = !shouldShow;
+  if (sstInspectionVehicleStatusField) {
+    sstInspectionVehicleStatusField.hidden = !shouldShow;
+  }
+  if (sstInspectionVehicleInfo && !shouldShow) {
+    sstInspectionVehicleInfo.hidden = true;
+  }
+  if (!shouldShow) {
+    if (sstInspectionVehicle) {
+      sstInspectionVehicle.value = "";
+    }
+    updateSstInspectionVehicleInfo(null);
   }
 }
 
@@ -20022,19 +20179,68 @@ function renderSstVehicleOptions() {
   const selected = sstInspectionVehicle.value;
   sstInspectionVehicle.innerHTML = '<option value="">Selecione</option>';
   const list = Array.isArray(sstVehicles) ? sstVehicles.slice() : [];
-  list
-    .filter((vehicle) => normalizeSstVehicleStatus(vehicle.status) !== "INATIVO")
+  const statusFilter = sstInspectionVehicleStatusFilter
+    ? sstInspectionVehicleStatusFilter.value
+    : "Ativo";
+  const filtered = list
     .filter((vehicle) => !projectId || String(vehicle.projectId) === String(projectId))
-    .sort((a, b) => String(a.plate).localeCompare(String(b.plate), "pt-BR"))
-    .forEach((vehicle) => {
-      const opt = document.createElement("option");
-      opt.value = vehicle.id;
-      opt.textContent = getSstVehicleLabel(vehicle);
-      sstInspectionVehicle.append(opt);
-    });
+    .filter((vehicle) => {
+      const status = normalizeVehicleStatusValue(vehicle.status);
+      if (statusFilter === "ALL") {
+        return true;
+      }
+      return status === normalizeVehicleStatusValue(statusFilter);
+    })
+    .sort((a, b) => String(a.plate).localeCompare(String(b.plate), "pt-BR"));
+  filtered.forEach((vehicle) => {
+    const opt = document.createElement("option");
+    opt.value = vehicle.id;
+    opt.textContent = getSstVehicleLabel(vehicle);
+    sstInspectionVehicle.append(opt);
+  });
   if (selected) {
     sstInspectionVehicle.value = selected;
   }
+  const hasVehicles = filtered.length > 0;
+  if (sstInspectionVehicleEmpty) {
+    sstInspectionVehicleEmpty.hidden = hasVehicles;
+  }
+  if (sstInspectionVehicleCta) {
+    const base = `?tab=projetos&projectTab=veiculos${
+      projectId ? `&projectId=${encodeURIComponent(projectId)}` : ""
+    }`;
+    sstInspectionVehicleCta.setAttribute("href", base);
+  }
+  if (!hasVehicles) {
+    updateSstInspectionVehicleInfo(null);
+  }
+  const chosen =
+    sstInspectionVehicle && sstInspectionVehicle.value
+      ? filtered.find((item) => String(item.id) === String(sstInspectionVehicle.value)) ||
+        sstVehicles.find((item) => String(item.id) === String(sstInspectionVehicle.value))
+      : null;
+  updateSstInspectionVehicleInfo(chosen);
+}
+
+function updateSstInspectionVehicleInfo(vehicle) {
+  if (!sstInspectionVehicleInfo) {
+    return;
+  }
+  if (!vehicle) {
+    if (sstInspectionVehiclePlate) sstInspectionVehiclePlate.textContent = "-";
+    if (sstInspectionVehicleModel) sstInspectionVehicleModel.textContent = "-";
+    if (sstInspectionVehicleType) sstInspectionVehicleType.textContent = "-";
+    if (sstInspectionVehicleStatus) sstInspectionVehicleStatus.textContent = "-";
+    sstInspectionVehicleInfo.hidden = true;
+    return;
+  }
+  if (sstInspectionVehiclePlate) sstInspectionVehiclePlate.textContent = vehicle.plate || "-";
+  if (sstInspectionVehicleModel) sstInspectionVehicleModel.textContent = vehicle.model || "-";
+  if (sstInspectionVehicleType) sstInspectionVehicleType.textContent = vehicle.type || "-";
+  if (sstInspectionVehicleStatus) {
+    sstInspectionVehicleStatus.textContent = getVehicleStatusLabel(vehicle.status || "-");
+  }
+  sstInspectionVehicleInfo.hidden = false;
 }
 
 function renderSstInspectionFilterTemplateOptions() {
@@ -20146,7 +20352,6 @@ function renderSstSelectors() {
   const podeGerenciar = Boolean(currentUser && canManageSst(currentUser));
   setFormDisabled(sstTrainingForm, !podeGerenciar);
   setFormDisabled(sstInspectionForm, !podeGerenciar);
-  setFormDisabled(sstVehicleForm, !podeGerenciar);
   setFormDisabled(sstNcForm, !podeGerenciar);
   setFormDisabled(sstIncidentForm, !podeGerenciar);
   if (sstInspectionStartBtn) {
@@ -20274,7 +20479,6 @@ function renderSstInspecoes() {
     return;
   }
   renderSstSelectors();
-  renderSstVehicles();
   renderSstInspectionTemplates();
   renderSstInspectionHistory();
 }
@@ -20378,7 +20582,8 @@ function renderSstInspectionHistory() {
         ? getUserLabel(run.safetyResponsibleId)
         : "-";
       const inspectorLabel = run.inspectorId ? getUserLabel(run.inspectorId) : "-";
-      const vehicleLabel = run.vehicleId ? getSstVehicleLabel(run.vehicleId) : "-";
+      const vehicleData = getRunVehicleData(run);
+      const vehicleLabel = vehicleData ? getSstVehicleLabel(vehicleData) : "-";
       const auditLines = [
         `SST: ${escapeHtml(safetyLabel)}`,
         `Insp: ${escapeHtml(inspectorLabel)}`,
@@ -20445,7 +20650,7 @@ function fillSstVehicleForm(vehicle) {
     sstVehicleType.value = vehicle.type || "OUTRO";
   }
   if (sstVehicleStatus) {
-    sstVehicleStatus.value = normalizeSstVehicleStatus(vehicle.status);
+    sstVehicleStatus.value = getVehicleStatusLabel(vehicle.status);
   }
   sstVehicleEditingId = vehicle.id || null;
   if (sstVehicleSubmit) {
@@ -20458,18 +20663,33 @@ function renderSstVehicles() {
     return;
   }
   const filterProject = sstVehicleFilterProject ? sstVehicleFilterProject.value : "";
+  const filterStatus = sstVehicleFilterStatus ? sstVehicleFilterStatus.value : "ALL";
+  const filterSearch = sstVehicleFilterSearch ? sstVehicleFilterSearch.value : "";
   let list = Array.isArray(sstVehicles) ? sstVehicles.slice() : [];
   if (filterProject) {
     list = list.filter((item) => String(item.projectId) === String(filterProject));
+  }
+  if (filterStatus && filterStatus !== "ALL") {
+    const status = normalizeVehicleStatusValue(filterStatus);
+    list = list.filter((item) => normalizeVehicleStatusValue(item.status) === status);
+  }
+  if (filterSearch) {
+    const term = normalizeSearchValue(filterSearch);
+    list = list.filter(
+      (item) =>
+        normalizeSearchValue(item.plate).includes(term) ||
+        normalizeSearchValue(item.model).includes(term)
+    );
   }
   list.sort((a, b) => String(a.plate).localeCompare(String(b.plate), "pt-BR"));
   sstVehicleTableBody.innerHTML = list
     .map((vehicle) => {
       const project = availableProjects.find((item) => item.id === vehicle.projectId);
-      const status = normalizeSstVehicleStatus(vehicle.status);
-      const toggleLabel = status === "INATIVO" ? "Reativar" : "Inativar";
-      const toggleClass =
-        status === "INATIVO" ? "btn btn--ghost btn--small" : "btn btn--ghost btn--small btn--danger";
+      const status = normalizeVehicleStatusValue(vehicle.status);
+      const inactiveLabel = status === "INATIVO" ? "Reativar" : "Inativar";
+      const inactiveNext = status === "INATIVO" ? "Ativo" : "Inativo";
+      const maintenanceLabel = status === "MANUTENCAO" ? "Ativar" : "Manutenção";
+      const maintenanceNext = status === "MANUTENCAO" ? "Ativo" : "Manutenção";
       return `
         <tr>
           <td>${escapeHtml(project ? getProjectLabel(project) : vehicle.projectId || "-")}</td>
@@ -20481,8 +20701,11 @@ function renderSstVehicles() {
             <button class="btn btn--ghost btn--small" data-action="edit-vehicle" data-id="${vehicle.id}">
               Editar
             </button>
-            <button class="${toggleClass}" data-action="toggle-vehicle" data-id="${vehicle.id}">
-              ${toggleLabel}
+            <button class="btn btn--ghost btn--small" data-action="set-status" data-status="${maintenanceNext}" data-id="${vehicle.id}">
+              ${maintenanceLabel}
+            </button>
+            <button class="btn btn--ghost btn--small btn--danger" data-action="set-status" data-status="${inactiveNext}" data-id="${vehicle.id}">
+              ${inactiveLabel}
             </button>
           </td>
         </tr>
@@ -20496,17 +20719,17 @@ function renderSstVehicles() {
 
 async function handleSstVehicleSubmit(event) {
   event.preventDefault();
-  if (!currentUser || !canManageSst(currentUser)) {
+  if (!currentUser || !canManageProjetos(currentUser)) {
     setInlineMessage(sstVehicleMsg, "Sem permissao para salvar veiculo.", true);
     return;
   }
   const payload = {
     id: sstVehicleEditingId || (sstVehicleId ? sstVehicleId.value : ""),
     projectId: sstVehicleProject ? sstVehicleProject.value : "",
-    plate: sstVehiclePlate ? sstVehiclePlate.value.trim().toUpperCase() : "",
+    plate: sstVehiclePlate ? normalizeVehiclePlate(sstVehiclePlate.value) : "",
     model: sstVehicleModel ? sstVehicleModel.value.trim() : "",
     type: sstVehicleType ? sstVehicleType.value : "",
-    status: sstVehicleStatus ? sstVehicleStatus.value : "ATIVO",
+    status: sstVehicleStatus ? sstVehicleStatus.value : "Ativo",
   };
   if (!payload.projectId) {
     setInlineMessage(sstVehicleMsg, "Selecione o projeto.", true);
@@ -20517,8 +20740,8 @@ async function handleSstVehicleSubmit(event) {
     return;
   }
   try {
-    await dataProvider.sstInspections.upsertVehicle(payload);
-    sstVehicles = await dataProvider.sstInspections.listVehicles();
+    await dataProvider.vehicles.upsertVehicle(payload);
+    sstVehicles = await dataProvider.vehicles.listVehicles();
     renderSstVehicles();
     renderSstVehicleOptions();
     resetSstVehicleForm();
@@ -20531,6 +20754,10 @@ async function handleSstVehicleSubmit(event) {
 async function handleSstVehicleTableClick(event) {
   const button = event.target.closest("button[data-action]");
   if (!button) {
+    return;
+  }
+  if (!currentUser || !canManageProjetos(currentUser)) {
+    setInlineMessage(sstVehicleMsg, "Sem permissao para alterar veiculo.", true);
     return;
   }
   const id = button.dataset.id;
@@ -20546,15 +20773,11 @@ async function handleSstVehicleTableClick(event) {
     fillSstVehicleForm(vehicle);
     return;
   }
-  if (action === "toggle-vehicle") {
-    const nextStatus =
-      normalizeSstVehicleStatus(vehicle.status) === "INATIVO" ? "ATIVO" : "INATIVO";
+  if (action === "set-status") {
+    const nextStatus = button.dataset.status || "Ativo";
     try {
-      await dataProvider.sstInspections.upsertVehicle({
-        ...vehicle,
-        status: nextStatus,
-      });
-      sstVehicles = await dataProvider.sstInspections.listVehicles();
+      await dataProvider.vehicles.upsertVehicle({ ...vehicle, status: nextStatus });
+      sstVehicles = await dataProvider.vehicles.listVehicles();
       renderSstVehicles();
       renderSstVehicleOptions();
     } catch (error) {
@@ -20922,6 +21145,7 @@ function normalizeSstInspectionRun(run) {
     inspectorId: run.inspectorId || run.createdBy || "",
     safetyResponsibleId: run.safetyResponsibleId || "",
     vehicleId: run.vehicleId || "",
+    vehicleSnapshot: run.vehicleSnapshot || null,
     startedAt,
     finishedAt,
     score: Number.isFinite(Number(run.score)) ? Number(run.score) : 0,
@@ -20931,7 +21155,13 @@ function normalizeSstInspectionRun(run) {
   };
 }
 
-function normalizeSstVehicleStatus(status) {
+function normalizeVehiclePlate(rawPlate) {
+  return String(rawPlate || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+function normalizeVehicleStatusValue(status) {
   const normalized = String(status || "ATIVO").toUpperCase();
   if (normalized === "MANUTENCAO" || normalized === "MANUTENÇÃO") {
     return "MANUTENCAO";
@@ -20942,12 +21172,47 @@ function normalizeSstVehicleStatus(status) {
   return "ATIVO";
 }
 
+function getVehicleStatusLabel(status) {
+  const normalized = normalizeVehicleStatusValue(status);
+  if (normalized === "MANUTENCAO") {
+    return "Manutenção";
+  }
+  if (normalized === "INATIVO") {
+    return "Inativo";
+  }
+  return "Ativo";
+}
+
+function normalizeVehicleType(type) {
+  const normalized = String(type || "OUTRO").toUpperCase();
+  if (normalized === "CARRO") {
+    return "Carro";
+  }
+  if (normalized === "CAMINHONETE") {
+    return "Caminhonete";
+  }
+  if (normalized === "CAMINHAO" || normalized === "CAMINHÃO") {
+    return "Caminhão";
+  }
+  if (normalized === "VAN") {
+    return "Van";
+  }
+  if (normalized === "ONIBUS" || normalized === "ÔNIBUS") {
+    return "Ônibus";
+  }
+  if (normalized === "MOTO") {
+    return "Moto";
+  }
+  return "Outro";
+}
+
 function normalizeSstVehicle(vehicle) {
   if (!vehicle || typeof vehicle !== "object") {
     return null;
   }
   const projectId = String(vehicle.projectId || "").trim();
-  const plate = String(vehicle.plate || vehicle.placa || "").trim().toUpperCase();
+  const plateRaw = String(vehicle.plate || vehicle.placa || "").trim();
+  const plate = normalizeVehiclePlate(plateRaw);
   if (!projectId || !plate) {
     return null;
   }
@@ -20958,9 +21223,10 @@ function normalizeSstVehicle(vehicle) {
     id,
     projectId,
     plate,
+    plateNormalized: normalizeVehiclePlate(plate),
     model: vehicle.model ? String(vehicle.model) : "",
-    type: vehicle.type ? String(vehicle.type).toUpperCase() : "OUTRO",
-    status: normalizeSstVehicleStatus(vehicle.status),
+    type: normalizeVehicleType(vehicle.type),
+    status: getVehicleStatusLabel(vehicle.status),
     notes: vehicle.notes ? String(vehicle.notes) : "",
     createdBy: vehicle.createdBy || (currentUser ? currentUser.id : ""),
     createdAt,
@@ -20983,8 +21249,21 @@ function getSstVehicleLabel(vehicleOrId) {
   return `${vehicle.plate}${model}`;
 }
 
+function getRunVehicleData(run) {
+  if (!run) {
+    return null;
+  }
+  if (run.vehicleSnapshot && run.vehicleSnapshot.plate) {
+    return run.vehicleSnapshot;
+  }
+  if (run.vehicleId) {
+    return sstVehicles.find((item) => String(item.id) === String(run.vehicleId)) || null;
+  }
+  return null;
+}
+
 function getSstVehicleStatusBadge(status) {
-  const normalized = normalizeSstVehicleStatus(status);
+  const normalized = normalizeVehicleStatusValue(status);
   if (normalized === "MANUTENCAO") {
     return `<span class="badge badge--warn">Manutenção</span>`;
   }
@@ -22130,6 +22409,22 @@ function renderSstAprPt() {
   }
 }
 
+async function carregarVeiculos(force = false) {
+  if (vehiclesLoaded && !force) {
+    renderSstVehicles();
+    renderSstVehicleOptions();
+    return;
+  }
+  try {
+    sstVehicles = await dataProvider.vehicles.listVehicles();
+  } catch (error) {
+    sstVehicles = [];
+  }
+  vehiclesLoaded = true;
+  renderSstVehicles();
+  renderSstVehicleOptions();
+}
+
 async function carregarSst(force = false) {
   if (!currentUser || !canViewSst(currentUser)) {
     sstTrainings = [];
@@ -22137,6 +22432,7 @@ async function carregarSst(force = false) {
     sstInspectionTemplates = [];
     sstInspections = [];
     sstVehicles = [];
+    vehiclesLoaded = false;
     sstNonconformities = [];
     sstIncidents = [];
     sstDocs = [];
@@ -22176,11 +22472,7 @@ async function carregarSst(force = false) {
   } catch (error) {
     sstInspections = [];
   }
-  try {
-    sstVehicles = await dataProvider.sstInspections.listVehicles();
-  } catch (error) {
-    sstVehicles = [];
-  }
+  await carregarVeiculos(true);
   let localNcs = [];
   try {
     localNcs = await dataProvider.sstInspections.listNcs();
@@ -22697,12 +22989,29 @@ async function handleSstInspectionStart() {
     setInlineMessage(sstInspectionMsg, "Template nao encontrado.", true);
     return;
   }
+  const typeNormalized = normalizeSstChecklistType(template.type);
+  const nameNormalized = normalizeSearchValue(template.name || "");
   const isVehicle =
-    normalizeSstChecklistType(template.type) === "VEHICLES_DAILY";
+    typeNormalized === "VEHICLES_DAILY" ||
+    typeNormalized === "VEICULOS_DIARIO" ||
+    typeNormalized === "VEICULOS" ||
+    nameNormalized.includes("veiculo");
   if (isVehicle && !vehicleId) {
     setInlineMessage(sstInspectionMsg, "Selecione o veiculo.", true);
     return;
   }
+  const selectedVehicle =
+    vehicleId && sstVehicles.length
+      ? sstVehicles.find((vehicle) => String(vehicle.id) === String(vehicleId))
+      : null;
+  const vehicleSnapshot = selectedVehicle
+    ? {
+        plate: selectedVehicle.plate || "",
+        model: selectedVehicle.model || "",
+        type: selectedVehicle.type || "",
+        status: selectedVehicle.status || "",
+      }
+    : null;
   sstWizardState = {
     template,
     projectId,
@@ -22710,6 +23019,7 @@ async function handleSstInspectionStart() {
     inspectorId,
     safetyResponsibleId,
     vehicleId,
+    vehicleSnapshot,
     startedAt: toIsoUtc(new Date()),
     currentIndex: 0,
     answers: {},
@@ -22777,9 +23087,12 @@ function renderSstWizard() {
     const inspectorLabel = sstWizardState.inspectorId
       ? getUserLabel(sstWizardState.inspectorId)
       : "-";
-    const vehicleLabel = sstWizardState.vehicleId
-      ? getSstVehicleLabel(sstWizardState.vehicleId)
-      : "";
+    const vehicleData =
+      sstWizardState.vehicleSnapshot ||
+      (sstWizardState.vehicleId
+        ? sstVehicles.find((item) => String(item.id) === String(sstWizardState.vehicleId))
+        : null);
+    const vehicleLabel = vehicleData ? getSstVehicleLabel(vehicleData) : "";
     const base = localLabel ? `${projectLabel} · ${localLabel}` : projectLabel;
     const auditParts = [
       `Resp. SST: ${safetyLabel}`,
@@ -22925,6 +23238,7 @@ async function finalizeSstWizard() {
     inspectorId: sstWizardState.inspectorId,
     safetyResponsibleId: sstWizardState.safetyResponsibleId,
     vehicleId: sstWizardState.vehicleId,
+    vehicleSnapshot: sstWizardState.vehicleSnapshot,
     startedAt: sstWizardState.startedAt,
   });
   for (const question of questions) {
@@ -23134,7 +23448,11 @@ async function openSstInspectionDetails(runId) {
     ? getUserLabel(details.safetyResponsibleId)
     : "-";
   const inspectorLabel = details.inspectorId ? getUserLabel(details.inspectorId) : "-";
-  const vehicleLabel = details.vehicleId ? getSstVehicleLabel(details.vehicleId) : "-";
+  const vehicleData = getRunVehicleData(details);
+  const vehicleStatusLabel = vehicleData ? getVehicleStatusLabel(vehicleData.status || "") : "-";
+  const vehicleBase = vehicleData ? getSstVehicleLabel(vehicleData) : "-";
+  const vehicleType = vehicleData && vehicleData.type ? ` · ${vehicleData.type}` : "";
+  const vehicleLabel = vehicleData ? `${vehicleBase}${vehicleType} (${vehicleStatusLabel})` : "-";
   const summary = `
     <div class="inspection-details">
       <div class="wizard-summary__stats wizard-summary__stats--cards">
@@ -23149,11 +23467,11 @@ async function openSstInspectionDetails(runId) {
           String(details.failStats.CRITICAL)
         )}</strong></div>
       </div>
-      <div class="inspection-meta-grid">
-        <div><small>Responsável SST</small><strong>${escapeHtml(safetyLabel)}</strong></div>
-        <div><small>Inspetor</small><strong>${escapeHtml(inspectorLabel)}</strong></div>
-        <div><small>Veículo</small><strong>${escapeHtml(vehicleLabel)}</strong></div>
-      </div>
+        <div class="inspection-meta-grid">
+          <div><small>Responsável SST</small><strong>${escapeHtml(safetyLabel)}</strong></div>
+          <div><small>Inspetor</small><strong>${escapeHtml(inspectorLabel)}</strong></div>
+          <div><small>Veículo</small><strong>${escapeHtml(vehicleLabel)}</strong></div>
+        </div>
     </div>
   `;
   const questions = details.template ? details.template.questions : [];
@@ -30914,6 +31232,11 @@ if (projectManageBtn && !projectManageBtn.dataset.tab) {
     abrirPainelComCarregamento("projetos");
   });
 }
+if (projectVehiclesBtn) {
+  projectVehiclesBtn.addEventListener("click", () => {
+    openProjectVehiclesTab(activeProjectId || "");
+  });
+}
 
 if (projectTabs.length) {
   projectTabs.forEach((button) => {
@@ -32089,6 +32412,24 @@ if (sstInspectionProject) {
     updateSstInspectionVehicleVisibility();
   });
 }
+if (sstInspectionVehicle) {
+  sstInspectionVehicle.addEventListener("change", () => {
+    const vehicle = sstVehicles.find(
+      (item) => String(item.id) === String(sstInspectionVehicle.value)
+    );
+    updateSstInspectionVehicleInfo(vehicle || null);
+  });
+}
+if (sstInspectionVehicleStatusFilter) {
+  sstInspectionVehicleStatusFilter.addEventListener("change", renderSstVehicleOptions);
+}
+if (sstInspectionVehicleCta) {
+  sstInspectionVehicleCta.addEventListener("click", (event) => {
+    event.preventDefault();
+    const projectId = sstInspectionProject ? sstInspectionProject.value : activeProjectId;
+    openProjectVehiclesTab(projectId || "");
+  });
+}
 if (sstInspectionTemplate) {
   sstInspectionTemplate.addEventListener("change", () => {
     updateSstInspectionVehicleVisibility();
@@ -32103,6 +32444,12 @@ if (sstVehicleTableBody) {
 }
 if (sstVehicleFilterProject) {
   sstVehicleFilterProject.addEventListener("change", renderSstVehicles);
+}
+if (sstVehicleFilterStatus) {
+  sstVehicleFilterStatus.addEventListener("change", renderSstVehicles);
+}
+if (sstVehicleFilterSearch) {
+  sstVehicleFilterSearch.addEventListener("input", renderSstVehicles);
 }
 if (sstVehicleCancel) {
   sstVehicleCancel.addEventListener("click", resetSstVehicleForm);
@@ -32270,6 +32617,17 @@ initFontGroups();
 carregarSessaoServidor();
 preencherInicioExecucaoNova();
 
+function applyProjectVehiclesQuery() {
+  const params = new URLSearchParams(window.location.search);
+  const tab = params.get("tab");
+  const projectTab = params.get("projectTab");
+  if (tab === "projetos" && projectTab === "veiculos") {
+    openProjectVehiclesTab(params.get("projectId") || "");
+  }
+}
+
+applyProjectVehiclesQuery();
+
 window.addEventListener("focus", atualizarSeNecessario);
 window.addEventListener("storage", (event) => {
   const keysBase = [
@@ -32279,6 +32637,7 @@ window.addEventListener("storage", (event) => {
     RDO_KEY,
     FEEDBACK_KEY,
     SST_DOCS_KEY,
+    SST_VEHICLES_KEY,
     REMINDER_KEY,
     TEMPLATE_KEY,
   ];

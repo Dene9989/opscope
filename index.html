@@ -1213,6 +1213,28 @@
                 <span class="nav-item__label">Gerenciar Projeto</span>
                 <span class="nav-item__meta"></span>
               </button>
+              <button
+                id="projectVehiclesBtn"
+                class="nav-item"
+                type="button"
+                data-tab="projetos"
+                data-tooltip="Ve&iacute;culos"
+              >
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M3 15h18M5 15l1.6-5.2A2 2 0 0 1 8.5 8h7a2 2 0 0 1 1.9 1.8L19 15M7 18a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Ve&iacute;culos</span>
+                <span class="nav-item__meta"></span>
+              </button>
               <button class="nav-item" type="button" data-tab="gerencial" data-tooltip="Configura&ccedil;&otilde;es Gerais" data-admin-only>
                 <span class="nav-item__ico">
                   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -2400,6 +2422,7 @@
           <button class="tab-btn is-active" type="button" data-project-tab="lista">Projetos</button>
           <button class="tab-btn" type="button" data-project-tab="equipamentos">Equipamentos</button>
           <button class="tab-btn" type="button" data-project-tab="equipe">Equipe do projeto</button>
+          <button class="tab-btn" type="button" data-project-tab="veiculos">Ve&iacute;culos</button>
         </div>
         <div class="project-panel" data-project-panel="lista">
           <form id="projectForm" class="project-form">
@@ -2539,6 +2562,91 @@
               <tbody></tbody>
             </table>
           </div>
+        </div>
+        <div class="project-panel" data-project-panel="veiculos" hidden>
+          <div class="section-title section-title--compact">
+            <div>
+              <h3>Ve&iacute;culos por projeto</h3>
+              <p>Cadastre a frota para inspe&ccedil;&otilde;es di&aacute;rias e auditoria.</p>
+            </div>
+          </div>
+          <form id="sstVehicleForm" class="form-grid">
+            <input id="sstVehicleId" type="hidden" />
+            <div class="field">
+              <label for="sstVehicleProject">Projeto</label>
+              <select id="sstVehicleProject"></select>
+            </div>
+            <div class="field">
+              <label for="sstVehiclePlate">Placa</label>
+              <input id="sstVehiclePlate" type="text" placeholder="ABC1D23" />
+            </div>
+            <div class="field">
+              <label for="sstVehicleModel">Modelo</label>
+              <input id="sstVehicleModel" type="text" placeholder="Hilux, Amarok, Fiorino..." />
+            </div>
+            <div class="field">
+              <label for="sstVehicleType">Tipo</label>
+              <select id="sstVehicleType">
+                <option value="Carro">Carro</option>
+                <option value="Caminhonete">Caminhonete</option>
+                <option value="Caminh&atilde;o">Caminh&atilde;o</option>
+                <option value="Van">Van</option>
+                <option value="&Ocirc;nibus">&Ocirc;nibus</option>
+                <option value="Moto">Moto</option>
+                <option value="Outro">Outro</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="sstVehicleStatus">Status</label>
+              <select id="sstVehicleStatus">
+                <option value="Ativo" selected>Ativo</option>
+                <option value="Manuten&ccedil;&atilde;o">Manuten&ccedil;&atilde;o</option>
+                <option value="Inativo">Inativo</option>
+              </select>
+            </div>
+            <div class="field" data-full>
+              <div class="table-actions">
+                <button id="sstVehicleSubmit" class="btn btn--primary" type="submit">Salvar ve&iacute;culo</button>
+                <button id="sstVehicleCancel" class="btn btn--ghost" type="button">Limpar</button>
+              </div>
+            </div>
+          </form>
+          <p id="sstVehicleMsg" class="mensagem" aria-live="polite"></p>
+          <div class="form-grid sst-vehicle-filters">
+            <div class="field">
+              <label for="sstVehicleFilterProject">Projeto</label>
+              <select id="sstVehicleFilterProject"></select>
+            </div>
+            <div class="field">
+              <label for="sstVehicleFilterStatus">Status</label>
+              <select id="sstVehicleFilterStatus">
+                <option value="ALL">Todos</option>
+                <option value="Ativo" selected>Ativo</option>
+                <option value="Manuten&ccedil;&atilde;o">Manuten&ccedil;&atilde;o</option>
+                <option value="Inativo">Inativo</option>
+              </select>
+            </div>
+            <div class="field" data-full>
+              <label for="sstVehicleFilterSearch">Buscar</label>
+              <input id="sstVehicleFilterSearch" type="search" placeholder="Placa ou modelo" />
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Projeto</th>
+                  <th>Placa</th>
+                  <th>Modelo</th>
+                  <th>Tipo</th>
+                  <th>Status</th>
+                  <th>A&ccedil;&otilde;es</th>
+                </tr>
+              </thead>
+              <tbody id="sstVehicleTableBody"></tbody>
+            </table>
+          </div>
+          <p id="sstVehicleEmpty" class="empty-state">Nenhum ve&iacute;culo cadastrado.</p>
         </div>
       </section>
     </section>
@@ -3497,9 +3605,41 @@
             <select id="sstInspectionExecutor"></select>
           </div>
           <div class="field" id="sstInspectionVehicleField" hidden>
-            <label for="sstInspectionVehicle">Veículo</label>
-            <select id="sstInspectionVehicle"></select>
-          </div>
+  <label for="sstInspectionVehicle">Veículo</label>
+  <select id="sstInspectionVehicle"></select>
+  <p id="sstInspectionVehicleEmpty" class="hint" hidden>
+    Nenhum veículo cadastrado neste projeto.
+    <a id="sstInspectionVehicleCta" href="#" class="link">Cadastrar agora</a>
+  </p>
+</div>
+<div class="field" id="sstInspectionVehicleStatusField" hidden>
+  <label for="sstInspectionVehicleStatusFilter">Status do veículo</label>
+  <select id="sstInspectionVehicleStatusFilter">
+    <option value="Ativo" selected>Somente ativos</option>
+    <option value="Manutenção">Incluir manutenção</option>
+    <option value="ALL">Todos</option>
+  </select>
+</div>
+<div class="field" data-full id="sstInspectionVehicleInfo" hidden>
+  <div class="vehicle-info-grid">
+    <div>
+      <small>Placa</small>
+      <strong id="sstInspectionVehiclePlate">-</strong>
+    </div>
+    <div>
+      <small>Modelo</small>
+      <strong id="sstInspectionVehicleModel">-</strong>
+    </div>
+    <div>
+      <small>Tipo</small>
+      <strong id="sstInspectionVehicleType">-</strong>
+    </div>
+    <div>
+      <small>Status</small>
+      <strong id="sstInspectionVehicleStatus">-</strong>
+    </div>
+  </div>
+</div>
           <div class="field" data-full>
             <button id="sstInspectionStartBtn" class="btn btn--primary" type="button">
               Iniciar inspeção guiada
@@ -3508,78 +3648,7 @@
         </form>
         <p id="sstInspectionMsg" class="mensagem" aria-live="polite"></p>
       </section>
-      <section class="card">
-        <div class="section-title">
-          <div>
-            <h3>Veículos por projeto</h3>
-            <p>Cadastre a frota para inspeções diárias e auditoria.</p>
-          </div>
-        </div>
-        <form id="sstVehicleForm" class="form-grid">
-          <input id="sstVehicleId" type="hidden" />
-          <div class="field">
-            <label for="sstVehicleProject">Projeto</label>
-            <select id="sstVehicleProject"></select>
-          </div>
-          <div class="field">
-            <label for="sstVehiclePlate">Placa</label>
-            <input id="sstVehiclePlate" type="text" placeholder="ABC1D23" />
-          </div>
-          <div class="field">
-            <label for="sstVehicleModel">Modelo</label>
-            <input id="sstVehicleModel" type="text" placeholder="Hilux, Amarok, Fiorino..." />
-          </div>
-          <div class="field">
-            <label for="sstVehicleType">Tipo</label>
-            <select id="sstVehicleType">
-              <option value="CARRO">Carro</option>
-              <option value="CAMINHONETE">Caminhonete</option>
-              <option value="CAMINHAO">Caminhão</option>
-              <option value="VAN">Van</option>
-              <option value="ONIBUS">Ônibus</option>
-              <option value="MOTO">Moto</option>
-              <option value="OUTRO">Outro</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="sstVehicleStatus">Status</label>
-            <select id="sstVehicleStatus">
-              <option value="ATIVO" selected>Ativo</option>
-              <option value="MANUTENCAO">Manutenção</option>
-              <option value="INATIVO">Inativo</option>
-            </select>
-          </div>
-          <div class="field" data-full>
-            <div class="table-actions">
-              <button id="sstVehicleSubmit" class="btn btn--primary" type="submit">Salvar veículo</button>
-              <button id="sstVehicleCancel" class="btn btn--ghost" type="button">Limpar</button>
-            </div>
-          </div>
-        </form>
-        <p id="sstVehicleMsg" class="mensagem" aria-live="polite"></p>
-        <div class="form-grid sst-vehicle-filters">
-          <div class="field">
-            <label for="sstVehicleFilterProject">Projeto</label>
-            <select id="sstVehicleFilterProject"></select>
-          </div>
-        </div>
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Projeto</th>
-                <th>Placa</th>
-                <th>Modelo</th>
-                <th>Tipo</th>
-                <th>Status</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="sstVehicleTableBody"></tbody>
-          </table>
-        </div>
-        <p id="sstVehicleEmpty" class="empty-state">Nenhum veículo cadastrado.</p>
-      </section>
+      
       <section class="card">
         <div class="section-title">
           <div>
@@ -5961,6 +6030,8 @@
     <script src="app.js"></script>
   </body>
 </html>
+
+
 
 
 

@@ -9431,6 +9431,30 @@ textarea:focus {
   gap: 4px;
 }
 
+.vehicle-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.vehicle-info-grid > div {
+  background: rgba(6, 18, 31, 0.6);
+  border: 1px solid var(--border-color, #1f2f44);
+  border-radius: 12px;
+  padding: 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.link {
+  color: #9fd4ff;
+  text-decoration: underline;
+}
+
+.link:hover {
+  color: #c2e2ff;
+}
+
 .sst-vehicle-filters {
   margin-top: 8px;
 }
