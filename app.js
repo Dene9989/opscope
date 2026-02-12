@@ -6347,6 +6347,11 @@ async function carregarSessaoServidor() {
     currentUser = null;
     activeProjectId = "";
     await dataProvider.roles.seedDefaultRolesIfEmpty();
+    try {
+      await ensureBootstrapAccessAccount();
+    } catch (error) {
+      // noop
+    }
     await refreshAccessRoles();
     const session = carregarSessao();
     if (session && session.userId) {
@@ -31148,6 +31153,11 @@ async function authLoginLocal(login, senha) {
     throw new Error("Informe usuario e senha.");
   }
   await dataProvider.roles.seedDefaultRolesIfEmpty();
+  try {
+    await ensureBootstrapAccessAccount();
+  } catch (error) {
+    // noop
+  }
   const account = await getUserByMatriculaNormalized(normalizeMatricula(matricula));
   if (!account) {
     throw new Error("Usuario ou senha invalidos.");
