@@ -7779,6 +7779,10 @@ function normalizeAccessUserRecord(user) {
     email: normalizeEmail(user.email || ""),
     roleId: user.roleId || "",
     projectId: user.projectId || null,
+    uen: user.uen || "",
+    atribuicoes: user.atribuicoes || "",
+    avatarUrl: user.avatarUrl || "",
+    avatarUpdatedAt: user.avatarUpdatedAt || "",
     status,
     passwordHash: user.passwordHash || "",
     passwordUpdatedAt: user.passwordUpdatedAt || "",
@@ -8366,6 +8370,17 @@ async function updateUserToDb(input) {
           ? String(payload.projectId)
           : null
         : existing.projectId || null,
+    uen: payload.uen !== undefined ? String(payload.uen || "").trim() : existing.uen || "",
+    atribuicoes:
+      payload.atribuicoes !== undefined
+        ? String(payload.atribuicoes || "").trim()
+        : existing.atribuicoes || "",
+    avatarUrl:
+      payload.avatarUrl !== undefined ? String(payload.avatarUrl || "").trim() : existing.avatarUrl || "",
+    avatarUpdatedAt:
+      payload.avatarUpdatedAt !== undefined
+        ? String(payload.avatarUpdatedAt || "").trim()
+        : existing.avatarUpdatedAt || "",
     status,
     updatedAt: now,
   };
@@ -31465,6 +31480,14 @@ async function apiAdminUpdateUser(userId, payload) {
 }
 
 async function apiUpdateProfile(payload) {
+  if (!USE_AUTH_API) {
+    if (!currentUser) {
+      throw new Error("Nao autorizado.");
+    }
+    const updated = await updateUserToDb({ id: currentUser.id, ...(payload || {}) });
+    const user = buildSessionUser(updated, accessRoleMap.get(updated.roleId));
+    return { user };
+  }
   return apiRequest("/api/profile", {
     method: "PATCH",
     body: JSON.stringify(payload),
