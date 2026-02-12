@@ -1024,6 +1024,8 @@ const SST_INSPECTIONS_KEY = "opscope.sst.inspections";
 const SST_NCS_KEY = "opscope.sst.ncs.local";
 const SST_EVIDENCES_KEY = "opscope.sst.evidences";
 const SST_VEHICLES_KEY = "opscope.sst.vehicles";
+const PROJECTS_KEY = "opscope.projects";
+const PROJECTS_SYNC_KEY = "opscope.projects.sync";
 const OPSCOPE_DB_VERSION = 4;
 const SESSION_KEY = "denemanu.session";
 const ACTIVE_PROJECT_KEY = "opscope.activeProjectId";
@@ -1418,6 +1420,18 @@ const RELEASE_OVERRIDE_RBAC = new Set([
 const MASTER_MATRICULA = "35269";
 const MASTER_USERNAME = "denisson.alves";
 const DEFAULT_PROJECT_LOCAIS = ["LZC-BOS2", "LZC-PCT4", "LZC-LT", "LZC-BSO2/LZC-PCT4"];
+const DEFAULT_PROJECTS_SEED = [
+  {
+    id: "b2f1f2a6-7c1a-4a0d-9e0c-0f2e2c1c1a50",
+    codigo: DEFAULT_PROJECT_CODE,
+    nome: "PARACATU/SOLARIG (Boa Sorte II)",
+    cliente: "",
+    descricao: "",
+    locais: DEFAULT_PROJECT_LOCAIS.slice(),
+    createdAt: "2026-01-21T18:10:00.000Z",
+    updatedAt: "2026-01-21T18:10:00.000Z",
+  },
+];
 const PERFORMANCE_TABS = new Set(["performance-projects", "performance-people"]);
 const TAB_PERMISSION_MAP = {
   desempenho: "verRelatorios",
@@ -7755,6 +7769,67 @@ function writeUsersStorage(list) {
   writeJson(ACCESS_USERS_KEY, list);
   touchAccessSync();
   return list;
+}
+
+function touchProjectsSync() {
+  writeJson(PROJECTS_SYNC_KEY, Date.now());
+}
+
+function normalizeProjectRecord(project) {
+  if (!project || typeof project !== "object") {
+    return null;
+  }
+  const id = String(project.id || "").trim() || criarId();
+  const codigo = String(project.codigo || "").trim();
+  const nome = String(project.nome || "").trim();
+  if (!codigo || !nome) {
+    return null;
+  }
+  const locais = Array.isArray(project.locais)
+    ? project.locais.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+  const cliente = String(project.cliente || "").trim();
+  const descricao = String(project.descricao || "").trim();
+  const nomeTime = String(project.nomeTime || project.timeName || project.time || "").trim();
+  return {
+    ...project,
+    id,
+    codigo,
+    nome,
+    cliente,
+    descricao,
+    nomeTime,
+    locais,
+    createdAt: project.createdAt || "",
+    updatedAt: project.updatedAt || "",
+  };
+}
+
+function readProjectsStorage() {
+  const list = readJson(PROJECTS_KEY, []);
+  if (!Array.isArray(list)) {
+    return [];
+  }
+  return list.map(normalizeProjectRecord).filter(Boolean);
+}
+
+function writeProjectsStorage(list) {
+  writeJson(PROJECTS_KEY, list);
+  touchProjectsSync();
+  return list;
+}
+
+function seedDefaultProjectsIfEmpty() {
+  const existing = readProjectsStorage();
+  if (existing.length) {
+    return { seeded: false, count: existing.length };
+  }
+  const defaults = (DEFAULT_PROJECTS_SEED || []).map(normalizeProjectRecord).filter(Boolean);
+  if (!defaults.length) {
+    return { seeded: false, count: 0 };
+  }
+  writeProjectsStorage(defaults);
+  return { seeded: true, count: defaults.length };
 }
 
 async function listRolesFromDb(q = "") {
@@ -21330,26 +21405,41 @@ async function refreshProjects() {
   if (!currentUser) {
     return;
   }
-  try {
-    const data = await apiProjetosList();
-    if (Array.isArray(data.projects)) {
-      availableProjects = data.projects;
+  if (!USE_AUTH_API) {
+    try {
+      seedDefaultProjectsIfEmpty();
+      availableProjects = readProjectsStorage();
+    } catch (error) {
+      availableProjects = [];
     }
-  } catch (error) {
-    // Mantem o que ja carregou de /api/auth/me caso a rota de projetos falhe.
+  } else {
+    try {
+      const data = await apiProjetosList();
+      if (Array.isArray(data.projects)) {
+        availableProjects = data.projects;
+      }
+    } catch (error) {
+      // Mantem o que ja carregou de /api/auth/me caso a rota de projetos falhe.
+    }
   }
   if (!availableProjects.length) {
     renderProjectSelector();
     renderProjectPanel();
     return;
   }
-  const activeStillValid = activeProjectId
-    ? availableProjects.some((item) => item.id === activeProjectId)
+  const storedProjectId = localStorage.getItem(ACTIVE_PROJECT_KEY) || "";
+  const desiredProjectId = activeProjectId || storedProjectId;
+  const activeStillValid = desiredProjectId
+    ? availableProjects.some((item) => item.id === desiredProjectId)
     : false;
+  if (activeStillValid && desiredProjectId !== activeProjectId) {
+    await setActiveProjectId(desiredProjectId, { sync: !USE_AUTH_API, force: true });
+    return;
+  }
   if (!activeStillValid) {
     const fallback = availableProjects[0]?.id || "";
     if (fallback) {
-      await setActiveProjectId(fallback, { sync: true, force: true });
+      await setActiveProjectId(fallback, { sync: !USE_AUTH_API, force: true });
       return;
     }
   }
@@ -31389,10 +31479,34 @@ async function apiDashboardSummary() {
 }
 
 async function apiProjetosList() {
+  if (!USE_AUTH_API) {
+    seedDefaultProjectsIfEmpty();
+    return { projects: readProjectsStorage() };
+  }
   return apiRequest("/api/projetos");
 }
 
 async function apiProjetosCreate(payload) {
+  if (!USE_AUTH_API) {
+    const now = toIsoUtc(new Date());
+    const record = normalizeProjectRecord({
+      ...(payload || {}),
+      id: criarId(),
+      createdAt: now,
+      updatedAt: now,
+    });
+    if (!record) {
+      throw new Error("Informe codigo e nome do projeto.");
+    }
+    const list = readProjectsStorage();
+    const codigo = String(record.codigo || "").trim();
+    if (codigo && list.some((item) => String(item.codigo || "").trim() === codigo)) {
+      throw new Error("Codigo ja cadastrado.");
+    }
+    list.push(record);
+    writeProjectsStorage(list);
+    return { project: record, projects: list };
+  }
   return apiRequest("/api/projetos", {
     method: "POST",
     body: JSON.stringify(payload || {}),
@@ -31400,6 +31514,39 @@ async function apiProjetosCreate(payload) {
 }
 
 async function apiProjetosUpdate(projectId, payload) {
+  if (!USE_AUTH_API) {
+    const id = String(projectId || "").trim();
+    if (!id) {
+      throw new Error("Projeto invalido.");
+    }
+    const list = readProjectsStorage();
+    const index = list.findIndex((item) => String(item.id) === id);
+    if (index < 0) {
+      throw new Error("Projeto nao encontrado.");
+    }
+    const existing = list[index];
+    const now = toIsoUtc(new Date());
+    const updated = normalizeProjectRecord({
+      ...existing,
+      ...(payload || {}),
+      id: existing.id,
+      createdAt: existing.createdAt || now,
+      updatedAt: now,
+    });
+    if (!updated) {
+      throw new Error("Dados do projeto invalidos.");
+    }
+    const codigo = String(updated.codigo || "").trim();
+    if (
+      codigo &&
+      list.some((item, idx) => idx !== index && String(item.codigo || "").trim() === codigo)
+    ) {
+      throw new Error("Codigo ja cadastrado.");
+    }
+    list[index] = updated;
+    writeProjectsStorage(list);
+    return { project: updated, projects: list };
+  }
   return apiRequest(`/api/projetos/${encodeURIComponent(projectId)}`, {
     method: "PUT",
     body: JSON.stringify(payload || {}),
@@ -31407,6 +31554,15 @@ async function apiProjetosUpdate(projectId, payload) {
 }
 
 async function apiProjetosDelete(projectId) {
+  if (!USE_AUTH_API) {
+    const id = String(projectId || "").trim();
+    if (!id) {
+      return { ok: true };
+    }
+    const list = readProjectsStorage().filter((item) => String(item.id) !== id);
+    writeProjectsStorage(list);
+    return { ok: true };
+  }
   return apiRequest(`/api/projetos/${encodeURIComponent(projectId)}`, {
     method: "DELETE",
   });
@@ -31455,10 +31611,17 @@ async function apiEquipamentosDelete(equipamentoId) {
 }
 
 async function apiProjetosGetActive() {
+  if (!USE_AUTH_API) {
+    const projectId = localStorage.getItem(ACTIVE_PROJECT_KEY) || "";
+    return { projectId };
+  }
   return apiRequest("/api/projetos/active");
 }
 
 async function apiProjetosSetActive(projectId) {
+  if (!USE_AUTH_API) {
+    return { projectId: String(projectId || "").trim() };
+  }
   return apiRequest("/api/projetos/active", {
     method: "POST",
     body: JSON.stringify({ projectId }),
@@ -34626,15 +34789,23 @@ window.addEventListener("storage", (event) => {
     TEMPLATE_KEY,
   ];
   const accessKeys = [ACCESS_SYNC_KEY, ACCESS_USERS_KEY, ACCESS_ROLES_KEY];
+  const projectKeys = [PROJECTS_SYNC_KEY, PROJECTS_KEY];
   const isAccessUpdate = accessKeys.includes(event.key);
-  const isProjectUpdate = keysBase.some((base) => isProjectStorageKey(event.key, base));
+  const isProjectListUpdate = projectKeys.includes(event.key);
+  const isProjectStorageUpdate = keysBase.some((base) => isProjectStorageKey(event.key, base));
   if (isAccessUpdate) {
     if (currentUser) {
       refreshAccessData();
     }
     return;
   }
-  if (isProjectUpdate) {
+  if (isProjectListUpdate) {
+    if (currentUser) {
+      refreshProjects();
+    }
+    return;
+  }
+  if (isProjectStorageUpdate) {
     templates = carregarTemplates();
     garantirTemplatesPadrao();
     const normalizados = normalizarTemplates(templates);
