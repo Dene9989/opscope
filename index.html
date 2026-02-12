@@ -3488,6 +3488,18 @@
             <label for="sstInspectionTemplate">Template</label>
             <select id="sstInspectionTemplate"></select>
           </div>
+          <div class="field">
+            <label for="sstInspectionSafety">Responsável SST</label>
+            <select id="sstInspectionSafety"></select>
+          </div>
+          <div class="field">
+            <label for="sstInspectionExecutor">Inspetor designado</label>
+            <select id="sstInspectionExecutor"></select>
+          </div>
+          <div class="field" id="sstInspectionVehicleField" hidden>
+            <label for="sstInspectionVehicle">Veículo</label>
+            <select id="sstInspectionVehicle"></select>
+          </div>
           <div class="field" data-full>
             <button id="sstInspectionStartBtn" class="btn btn--primary" type="button">
               Iniciar inspeção guiada
@@ -3495,6 +3507,78 @@
           </div>
         </form>
         <p id="sstInspectionMsg" class="mensagem" aria-live="polite"></p>
+      </section>
+      <section class="card">
+        <div class="section-title">
+          <div>
+            <h3>Veículos por projeto</h3>
+            <p>Cadastre a frota para inspeções diárias e auditoria.</p>
+          </div>
+        </div>
+        <form id="sstVehicleForm" class="form-grid">
+          <input id="sstVehicleId" type="hidden" />
+          <div class="field">
+            <label for="sstVehicleProject">Projeto</label>
+            <select id="sstVehicleProject"></select>
+          </div>
+          <div class="field">
+            <label for="sstVehiclePlate">Placa</label>
+            <input id="sstVehiclePlate" type="text" placeholder="ABC1D23" />
+          </div>
+          <div class="field">
+            <label for="sstVehicleModel">Modelo</label>
+            <input id="sstVehicleModel" type="text" placeholder="Hilux, Amarok, Fiorino..." />
+          </div>
+          <div class="field">
+            <label for="sstVehicleType">Tipo</label>
+            <select id="sstVehicleType">
+              <option value="CARRO">Carro</option>
+              <option value="CAMINHONETE">Caminhonete</option>
+              <option value="CAMINHAO">Caminhão</option>
+              <option value="VAN">Van</option>
+              <option value="ONIBUS">Ônibus</option>
+              <option value="MOTO">Moto</option>
+              <option value="OUTRO">Outro</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="sstVehicleStatus">Status</label>
+            <select id="sstVehicleStatus">
+              <option value="ATIVO" selected>Ativo</option>
+              <option value="MANUTENCAO">Manutenção</option>
+              <option value="INATIVO">Inativo</option>
+            </select>
+          </div>
+          <div class="field" data-full>
+            <div class="table-actions">
+              <button id="sstVehicleSubmit" class="btn btn--primary" type="submit">Salvar veículo</button>
+              <button id="sstVehicleCancel" class="btn btn--ghost" type="button">Limpar</button>
+            </div>
+          </div>
+        </form>
+        <p id="sstVehicleMsg" class="mensagem" aria-live="polite"></p>
+        <div class="form-grid sst-vehicle-filters">
+          <div class="field">
+            <label for="sstVehicleFilterProject">Projeto</label>
+            <select id="sstVehicleFilterProject"></select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Projeto</th>
+                <th>Placa</th>
+                <th>Modelo</th>
+                <th>Tipo</th>
+                <th>Status</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="sstVehicleTableBody"></tbody>
+          </table>
+        </div>
+        <p id="sstVehicleEmpty" class="empty-state">Nenhum veículo cadastrado.</p>
       </section>
       <section class="card">
         <div class="section-title">
@@ -3565,6 +3649,7 @@
               <th>Template</th>
               <th>Projeto</th>
               <th>Local</th>
+              <th>Auditoria</th>
               <th>Score</th>
               <th>Status</th>
               <th>Falhas</th>

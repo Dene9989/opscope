@@ -364,8 +364,25 @@ const sstInspectionForm = document.getElementById("sstInspectionForm");
 const sstInspectionProject = document.getElementById("sstInspectionProject");
 const sstInspectionLocal = document.getElementById("sstInspectionLocal");
 const sstInspectionTemplate = document.getElementById("sstInspectionTemplate");
+const sstInspectionSafety = document.getElementById("sstInspectionSafety");
+const sstInspectionExecutor = document.getElementById("sstInspectionExecutor");
+const sstInspectionVehicle = document.getElementById("sstInspectionVehicle");
+const sstInspectionVehicleField = document.getElementById("sstInspectionVehicleField");
 const sstInspectionStartBtn = document.getElementById("sstInspectionStartBtn");
 const sstInspectionMsg = document.getElementById("sstInspectionMsg");
+const sstVehicleForm = document.getElementById("sstVehicleForm");
+const sstVehicleId = document.getElementById("sstVehicleId");
+const sstVehicleProject = document.getElementById("sstVehicleProject");
+const sstVehiclePlate = document.getElementById("sstVehiclePlate");
+const sstVehicleModel = document.getElementById("sstVehicleModel");
+const sstVehicleType = document.getElementById("sstVehicleType");
+const sstVehicleStatus = document.getElementById("sstVehicleStatus");
+const sstVehicleSubmit = document.getElementById("sstVehicleSubmit");
+const sstVehicleCancel = document.getElementById("sstVehicleCancel");
+const sstVehicleMsg = document.getElementById("sstVehicleMsg");
+const sstVehicleFilterProject = document.getElementById("sstVehicleFilterProject");
+const sstVehicleTableBody = document.getElementById("sstVehicleTableBody");
+const sstVehicleEmpty = document.getElementById("sstVehicleEmpty");
 const sstTemplateSeedBtn = document.getElementById("sstTemplateSeedBtn");
 const sstTemplateNewBtn = document.getElementById("sstTemplateNewBtn");
 const sstTemplateTableBody = document.getElementById("sstTemplateTableBody");
@@ -933,6 +950,7 @@ const SST_TEMPLATES_KEY = "opscope.sst.templates";
 const SST_INSPECTIONS_KEY = "opscope.sst.inspections";
 const SST_NCS_KEY = "opscope.sst.ncs.local";
 const SST_EVIDENCES_KEY = "opscope.sst.evidences";
+const SST_VEHICLES_KEY = "opscope.sst.vehicles";
 const OPSCOPE_DB_VERSION = 2;
 const SESSION_KEY = "denemanu.session";
 const ACTIVE_PROJECT_KEY = "opscope.activeProjectId";
@@ -2124,6 +2142,8 @@ let sstTrainings = [];
 let sstTrainingRecords = [];
 let sstInspectionTemplates = [];
 let sstInspections = [];
+let sstVehicles = [];
+let sstVehicleEditingId = null;
 let sstNonconformities = [];
 let sstIncidents = [];
 let sstDocs = [];
@@ -2319,6 +2339,17 @@ function createLocalSstInspectionsProvider() {
     writeJson(SST_NCS_KEY, list);
     return list;
   };
+  const readVehicles = () => {
+    const list = readJson(SST_VEHICLES_KEY, []);
+    if (!Array.isArray(list)) {
+      return [];
+    }
+    return list.map(normalizeSstVehicle).filter(Boolean);
+  };
+  const saveVehicles = (list) => {
+    writeJson(SST_VEHICLES_KEY, list);
+    return list;
+  };
 
   return {
     listTemplates: async (filters = {}) => {
@@ -2409,8 +2440,75 @@ function createLocalSstInspectionsProvider() {
       saveTemplates(seeds);
       return { seeded: true, count: seeds.length };
     },
+    listVehicles: async (filters = {}) => {
+      let list = readVehicles();
+      if (filters.projectId) {
+        list = list.filter(
+          (item) => String(item.projectId) === String(filters.projectId)
+        );
+      }
+      if (filters.status) {
+        const status = normalizeSstVehicleStatus(filters.status);
+        list = list.filter((item) => normalizeSstVehicleStatus(item.status) === status);
+      }
+      if (filters.q) {
+        const term = normalizeSearchValue(filters.q);
+        list = list.filter(
+          (item) =>
+            normalizeSearchValue(item.plate).includes(term) ||
+            normalizeSearchValue(item.model).includes(term)
+        );
+      }
+      return list;
+    },
+    upsertVehicle: async (input) => {
+      const vehicles = readVehicles();
+      const now = toIsoUtc(new Date());
+      const existingIndex = vehicles.findIndex((item) => String(item.id) === String(input.id));
+      const base = existingIndex >= 0 ? vehicles[existingIndex] : {};
+      const normalized = normalizeSstVehicle({
+        ...base,
+        ...input,
+        id: base.id || input.id || criarId(),
+        createdAt: base.createdAt || now,
+        updatedAt: now,
+        createdBy: base.createdBy || (currentUser ? currentUser.id : ""),
+      });
+      if (!normalized) {
+        throw new Error("Veiculo invalido.");
+      }
+      if (existingIndex >= 0) {
+        vehicles[existingIndex] = normalized;
+      } else {
+        vehicles.unshift(normalized);
+      }
+      saveVehicles(vehicles);
+      return normalized;
+    },
+    deleteVehicle: async (id) => {
+      if (!id) {
+        return;
+      }
+      const vehicles = readVehicles();
+      const index = vehicles.findIndex((item) => String(item.id) === String(id));
+      if (index < 0) {
+        return;
+      }
+      vehicles[index] = {
+        ...vehicles[index],
+        status: "INATIVO",
+        updatedAt: toIsoUtc(new Date()),
+      };
+      saveVehicles(vehicles);
+    },
     startRun: async (input) => {
-      if (!input || !input.templateId || !input.projectId || !input.inspectorId) {
+      if (
+        !input ||
+        !input.templateId ||
+        !input.projectId ||
+        !input.inspectorId ||
+        !input.safetyResponsibleId
+      ) {
         throw new Error("Dados insuficientes para iniciar a inspeÃ§Ã£o.");
       }
       const run = normalizeSstInspectionRun({
@@ -2419,6 +2517,8 @@ function createLocalSstInspectionsProvider() {
         projectId: input.projectId,
         worksiteId: input.worksiteId || "",
         inspectorId: input.inspectorId,
+        safetyResponsibleId: input.safetyResponsibleId,
+        vehicleId: input.vehicleId || "",
         startedAt: input.startedAt || toIsoUtc(new Date()),
         status: "OK",
         score: 100,
@@ -2708,6 +2808,8 @@ function createLocalSstInspectionsProvider() {
           templateId: run.templateId,
           templateName: template ? template.name : run.templateId,
           inspectorId: run.inspectorId,
+          safetyResponsibleId: run.safetyResponsibleId || "",
+          vehicleId: run.vehicleId || "",
           score: run.score,
           status: normalizeSstInspectionStatus(run.status),
           failCount: stats.total,
@@ -3023,6 +3125,18 @@ function createApiProvider(fallback) {
 
   provider.sstInspections.seedTemplatesIfEmpty = async () => {
     return fallbackProvider.sstInspections.seedTemplatesIfEmpty();
+  };
+
+  provider.sstInspections.listVehicles = async (filters = {}) => {
+    return fallbackProvider.sstInspections.listVehicles(filters);
+  };
+
+  provider.sstInspections.upsertVehicle = async (input) => {
+    return fallbackProvider.sstInspections.upsertVehicle(input);
+  };
+
+  provider.sstInspections.deleteVehicle = async (id) => {
+    return fallbackProvider.sstInspections.deleteVehicle(id);
   };
 
   provider.sstInspections.startRun = async (input) => {
@@ -19781,6 +19895,8 @@ async function carregarAlmoxarifado(force = false) {
 function renderSstProjectOptions() {
   renderProjectSelectOptions(sstInspectionProject, activeProjectId);
   renderProjectSelectOptions(sstIncidentProject, activeProjectId);
+  const vehicleProjectSelected = sstVehicleProject ? sstVehicleProject.value : "";
+  renderProjectSelectOptions(sstVehicleProject, vehicleProjectSelected || activeProjectId);
   const ncProjectSelected = sstNcProject ? sstNcProject.value : "";
   renderProjectSelectOptions(sstNcProject, ncProjectSelected || activeProjectId);
   const docProjectSelected = sstDocProject ? sstDocProject.value : "";
@@ -19791,6 +19907,8 @@ function renderSstProjectOptions() {
     ? sstInspectionFilterProject.value
     : "";
   renderProjectFilterOptions(sstInspectionFilterProject, inspectionFilterSelected);
+  const vehicleFilterSelected = sstVehicleFilterProject ? sstVehicleFilterProject.value : "";
+  renderProjectFilterOptions(sstVehicleFilterProject, vehicleFilterSelected);
   const ncFilterSelected = sstNcFilterProject ? sstNcFilterProject.value : "";
   renderProjectFilterOptions(sstNcFilterProject, ncFilterSelected);
   const templateProjectSelected = sstTemplateProject ? sstTemplateProject.value : "";
@@ -19850,6 +19968,72 @@ function renderSstInspectionTemplateOptions() {
     });
   if (selected) {
     sstInspectionTemplate.value = selected;
+  }
+  updateSstInspectionVehicleVisibility();
+  renderSstVehicleOptions();
+}
+
+function renderSstInspectionUserOptions() {
+  const usersList = getOperationalUsers();
+  const fill = (select, selectedValue, emptyLabel) => {
+    if (!select) {
+      return;
+    }
+    const selected = selectedValue || select.value || "";
+    select.innerHTML = `<option value="">${emptyLabel}</option>`;
+    usersList.forEach((user) => {
+      const opt = document.createElement("option");
+      opt.value = user.id;
+      opt.textContent = getUserLabel(user.id);
+      select.append(opt);
+    });
+    if (selected) {
+      select.value = selected;
+    }
+  };
+  const defaultId = currentUser ? currentUser.id : "";
+  fill(sstInspectionSafety, sstInspectionSafety ? sstInspectionSafety.value || defaultId : "", "Selecione");
+  fill(
+    sstInspectionExecutor,
+    sstInspectionExecutor ? sstInspectionExecutor.value || defaultId : "",
+    "Selecione"
+  );
+}
+
+function updateSstInspectionVehicleVisibility() {
+  if (!sstInspectionVehicleField) {
+    return;
+  }
+  const templateId = sstInspectionTemplate ? sstInspectionTemplate.value : "";
+  const template = sstInspectionTemplates.find((item) => String(item.id) === String(templateId));
+  const isVehicle =
+    template && normalizeSstChecklistType(template.type) === "VEHICLES_DAILY";
+  sstInspectionVehicleField.hidden = !isVehicle;
+  if (!isVehicle && sstInspectionVehicle) {
+    sstInspectionVehicle.value = "";
+  }
+}
+
+function renderSstVehicleOptions() {
+  if (!sstInspectionVehicle) {
+    return;
+  }
+  const projectId = sstInspectionProject ? sstInspectionProject.value : activeProjectId;
+  const selected = sstInspectionVehicle.value;
+  sstInspectionVehicle.innerHTML = '<option value="">Selecione</option>';
+  const list = Array.isArray(sstVehicles) ? sstVehicles.slice() : [];
+  list
+    .filter((vehicle) => normalizeSstVehicleStatus(vehicle.status) !== "INATIVO")
+    .filter((vehicle) => !projectId || String(vehicle.projectId) === String(projectId))
+    .sort((a, b) => String(a.plate).localeCompare(String(b.plate), "pt-BR"))
+    .forEach((vehicle) => {
+      const opt = document.createElement("option");
+      opt.value = vehicle.id;
+      opt.textContent = getSstVehicleLabel(vehicle);
+      sstInspectionVehicle.append(opt);
+    });
+  if (selected) {
+    sstInspectionVehicle.value = selected;
   }
 }
 
@@ -19958,9 +20142,11 @@ function renderSstSelectors() {
   renderSstInspectionLocalOptions();
   renderSstInspectionTemplateOptions();
   renderSstInspectionFilterTemplateOptions();
+  renderSstInspectionUserOptions();
   const podeGerenciar = Boolean(currentUser && canManageSst(currentUser));
   setFormDisabled(sstTrainingForm, !podeGerenciar);
   setFormDisabled(sstInspectionForm, !podeGerenciar);
+  setFormDisabled(sstVehicleForm, !podeGerenciar);
   setFormDisabled(sstNcForm, !podeGerenciar);
   setFormDisabled(sstIncidentForm, !podeGerenciar);
   if (sstInspectionStartBtn) {
@@ -20088,6 +20274,7 @@ function renderSstInspecoes() {
     return;
   }
   renderSstSelectors();
+  renderSstVehicles();
   renderSstInspectionTemplates();
   renderSstInspectionHistory();
 }
@@ -20187,12 +20374,26 @@ function renderSstInspectionHistory() {
       const project = availableProjects.find((item) => item.id === run.projectId);
       const data = run.startedAt ? formatDateTime(parseTimestamp(run.startedAt)) : "-";
       const failLabel = `${run.failCount || 0} / ${run.criticalFailCount || 0}`;
+      const safetyLabel = run.safetyResponsibleId
+        ? getUserLabel(run.safetyResponsibleId)
+        : "-";
+      const inspectorLabel = run.inspectorId ? getUserLabel(run.inspectorId) : "-";
+      const vehicleLabel = run.vehicleId ? getSstVehicleLabel(run.vehicleId) : "-";
+      const auditLines = [
+        `SST: ${escapeHtml(safetyLabel)}`,
+        `Insp: ${escapeHtml(inspectorLabel)}`,
+      ];
+      if (vehicleLabel && vehicleLabel !== "-") {
+        auditLines.push(`Veículo: ${escapeHtml(vehicleLabel)}`);
+      }
+      const auditHtml = auditLines.join("<br/>");
       return `
         <tr>
           <td>${escapeHtml(data)}</td>
           <td>${escapeHtml(run.templateName || "-")}</td>
           <td>${escapeHtml(project ? getProjectLabel(project) : run.projectId || "-")}</td>
           <td>${escapeHtml(run.worksiteId || "-")}</td>
+          <td>${auditHtml}</td>
           <td>${escapeHtml(String(run.score ?? "-"))}</td>
           <td>${getSstStatusBadge(run.status)}</td>
           <td>${escapeHtml(failLabel)}</td>
@@ -20207,6 +20408,158 @@ function renderSstInspectionHistory() {
     .join("");
   if (sstInspectionEmpty) {
     sstInspectionEmpty.hidden = list.length > 0;
+  }
+}
+
+function resetSstVehicleForm() {
+  if (sstVehicleForm) {
+    sstVehicleForm.reset();
+  }
+  if (sstVehicleId) {
+    sstVehicleId.value = "";
+  }
+  sstVehicleEditingId = null;
+  if (sstVehicleSubmit) {
+    sstVehicleSubmit.textContent = "Salvar veículo";
+  }
+}
+
+function fillSstVehicleForm(vehicle) {
+  if (!vehicle) {
+    resetSstVehicleForm();
+    return;
+  }
+  if (sstVehicleId) {
+    sstVehicleId.value = vehicle.id || "";
+  }
+  if (sstVehicleProject) {
+    sstVehicleProject.value = vehicle.projectId || "";
+  }
+  if (sstVehiclePlate) {
+    sstVehiclePlate.value = vehicle.plate || "";
+  }
+  if (sstVehicleModel) {
+    sstVehicleModel.value = vehicle.model || "";
+  }
+  if (sstVehicleType) {
+    sstVehicleType.value = vehicle.type || "OUTRO";
+  }
+  if (sstVehicleStatus) {
+    sstVehicleStatus.value = normalizeSstVehicleStatus(vehicle.status);
+  }
+  sstVehicleEditingId = vehicle.id || null;
+  if (sstVehicleSubmit) {
+    sstVehicleSubmit.textContent = "Atualizar veículo";
+  }
+}
+
+function renderSstVehicles() {
+  if (!sstVehicleTableBody) {
+    return;
+  }
+  const filterProject = sstVehicleFilterProject ? sstVehicleFilterProject.value : "";
+  let list = Array.isArray(sstVehicles) ? sstVehicles.slice() : [];
+  if (filterProject) {
+    list = list.filter((item) => String(item.projectId) === String(filterProject));
+  }
+  list.sort((a, b) => String(a.plate).localeCompare(String(b.plate), "pt-BR"));
+  sstVehicleTableBody.innerHTML = list
+    .map((vehicle) => {
+      const project = availableProjects.find((item) => item.id === vehicle.projectId);
+      const status = normalizeSstVehicleStatus(vehicle.status);
+      const toggleLabel = status === "INATIVO" ? "Reativar" : "Inativar";
+      const toggleClass =
+        status === "INATIVO" ? "btn btn--ghost btn--small" : "btn btn--ghost btn--small btn--danger";
+      return `
+        <tr>
+          <td>${escapeHtml(project ? getProjectLabel(project) : vehicle.projectId || "-")}</td>
+          <td>${escapeHtml(vehicle.plate || "-")}</td>
+          <td>${escapeHtml(vehicle.model || "-")}</td>
+          <td>${escapeHtml(vehicle.type || "-")}</td>
+          <td>${getSstVehicleStatusBadge(status)}</td>
+          <td>
+            <button class="btn btn--ghost btn--small" data-action="edit-vehicle" data-id="${vehicle.id}">
+              Editar
+            </button>
+            <button class="${toggleClass}" data-action="toggle-vehicle" data-id="${vehicle.id}">
+              ${toggleLabel}
+            </button>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+  if (sstVehicleEmpty) {
+    sstVehicleEmpty.hidden = list.length > 0;
+  }
+}
+
+async function handleSstVehicleSubmit(event) {
+  event.preventDefault();
+  if (!currentUser || !canManageSst(currentUser)) {
+    setInlineMessage(sstVehicleMsg, "Sem permissao para salvar veiculo.", true);
+    return;
+  }
+  const payload = {
+    id: sstVehicleEditingId || (sstVehicleId ? sstVehicleId.value : ""),
+    projectId: sstVehicleProject ? sstVehicleProject.value : "",
+    plate: sstVehiclePlate ? sstVehiclePlate.value.trim().toUpperCase() : "",
+    model: sstVehicleModel ? sstVehicleModel.value.trim() : "",
+    type: sstVehicleType ? sstVehicleType.value : "",
+    status: sstVehicleStatus ? sstVehicleStatus.value : "ATIVO",
+  };
+  if (!payload.projectId) {
+    setInlineMessage(sstVehicleMsg, "Selecione o projeto.", true);
+    return;
+  }
+  if (!payload.plate) {
+    setInlineMessage(sstVehicleMsg, "Informe a placa.", true);
+    return;
+  }
+  try {
+    await dataProvider.sstInspections.upsertVehicle(payload);
+    sstVehicles = await dataProvider.sstInspections.listVehicles();
+    renderSstVehicles();
+    renderSstVehicleOptions();
+    resetSstVehicleForm();
+    setInlineMessage(sstVehicleMsg, "Veiculo salvo com sucesso.");
+  } catch (error) {
+    setInlineMessage(sstVehicleMsg, error.message || "Erro ao salvar veiculo.", true);
+  }
+}
+
+async function handleSstVehicleTableClick(event) {
+  const button = event.target.closest("button[data-action]");
+  if (!button) {
+    return;
+  }
+  const id = button.dataset.id;
+  if (!id) {
+    return;
+  }
+  const vehicle = sstVehicles.find((item) => String(item.id) === String(id));
+  if (!vehicle) {
+    return;
+  }
+  const action = button.dataset.action;
+  if (action === "edit-vehicle") {
+    fillSstVehicleForm(vehicle);
+    return;
+  }
+  if (action === "toggle-vehicle") {
+    const nextStatus =
+      normalizeSstVehicleStatus(vehicle.status) === "INATIVO" ? "ATIVO" : "INATIVO";
+    try {
+      await dataProvider.sstInspections.upsertVehicle({
+        ...vehicle,
+        status: nextStatus,
+      });
+      sstVehicles = await dataProvider.sstInspections.listVehicles();
+      renderSstVehicles();
+      renderSstVehicleOptions();
+    } catch (error) {
+      setInlineMessage(sstVehicleMsg, error.message || "Erro ao atualizar veiculo.", true);
+    }
   }
 }
 
@@ -20567,6 +20920,8 @@ function normalizeSstInspectionRun(run) {
     projectId,
     worksiteId: run.worksiteId || "",
     inspectorId: run.inspectorId || run.createdBy || "",
+    safetyResponsibleId: run.safetyResponsibleId || "",
+    vehicleId: run.vehicleId || "",
     startedAt,
     finishedAt,
     score: Number.isFinite(Number(run.score)) ? Number(run.score) : 0,
@@ -20574,6 +20929,69 @@ function normalizeSstInspectionRun(run) {
     notes: run.notes ? String(run.notes) : "",
     answers,
   };
+}
+
+function normalizeSstVehicleStatus(status) {
+  const normalized = String(status || "ATIVO").toUpperCase();
+  if (normalized === "MANUTENCAO" || normalized === "MANUTENÇÃO") {
+    return "MANUTENCAO";
+  }
+  if (normalized === "INATIVO" || normalized === "INACTIVE") {
+    return "INATIVO";
+  }
+  return "ATIVO";
+}
+
+function normalizeSstVehicle(vehicle) {
+  if (!vehicle || typeof vehicle !== "object") {
+    return null;
+  }
+  const projectId = String(vehicle.projectId || "").trim();
+  const plate = String(vehicle.plate || vehicle.placa || "").trim().toUpperCase();
+  if (!projectId || !plate) {
+    return null;
+  }
+  const id = vehicle.id || criarId();
+  const createdAt = vehicle.createdAt || toIsoUtc(new Date());
+  const updatedAt = vehicle.updatedAt || createdAt;
+  return {
+    id,
+    projectId,
+    plate,
+    model: vehicle.model ? String(vehicle.model) : "",
+    type: vehicle.type ? String(vehicle.type).toUpperCase() : "OUTRO",
+    status: normalizeSstVehicleStatus(vehicle.status),
+    notes: vehicle.notes ? String(vehicle.notes) : "",
+    createdBy: vehicle.createdBy || (currentUser ? currentUser.id : ""),
+    createdAt,
+    updatedAt,
+  };
+}
+
+function getSstVehicleLabel(vehicleOrId) {
+  if (!vehicleOrId) {
+    return "-";
+  }
+  const vehicle =
+    typeof vehicleOrId === "object"
+      ? vehicleOrId
+      : sstVehicles.find((item) => String(item.id) === String(vehicleOrId));
+  if (!vehicle) {
+    return String(vehicleOrId || "-");
+  }
+  const model = vehicle.model ? ` · ${vehicle.model}` : "";
+  return `${vehicle.plate}${model}`;
+}
+
+function getSstVehicleStatusBadge(status) {
+  const normalized = normalizeSstVehicleStatus(status);
+  if (normalized === "MANUTENCAO") {
+    return `<span class="badge badge--warn">Manutenção</span>`;
+  }
+  if (normalized === "INATIVO") {
+    return `<span class="badge badge--crit">Inativo</span>`;
+  }
+  return `<span class="badge badge--ok">Ativo</span>`;
 }
 
 function normalizeSstEvidence(evidence) {
@@ -21718,6 +22136,7 @@ async function carregarSst(force = false) {
     sstTrainingRecords = [];
     sstInspectionTemplates = [];
     sstInspections = [];
+    sstVehicles = [];
     sstNonconformities = [];
     sstIncidents = [];
     sstDocs = [];
@@ -21756,6 +22175,11 @@ async function carregarSst(force = false) {
     sstInspections = await dataProvider.sstInspections.listRuns();
   } catch (error) {
     sstInspections = [];
+  }
+  try {
+    sstVehicles = await dataProvider.sstInspections.listVehicles();
+  } catch (error) {
+    sstVehicles = [];
   }
   let localNcs = [];
   try {
@@ -22249,6 +22673,9 @@ async function handleSstInspectionStart() {
   const projectId = sstInspectionProject ? sstInspectionProject.value : "";
   const templateId = sstInspectionTemplate ? sstInspectionTemplate.value : "";
   const worksiteId = sstInspectionLocal ? sstInspectionLocal.value : "";
+  const safetyResponsibleId = sstInspectionSafety ? sstInspectionSafety.value : "";
+  const inspectorId = sstInspectionExecutor ? sstInspectionExecutor.value : "";
+  const vehicleId = sstInspectionVehicle ? sstInspectionVehicle.value : "";
   if (!projectId) {
     setInlineMessage(sstInspectionMsg, "Selecione o projeto.", true);
     return;
@@ -22257,16 +22684,32 @@ async function handleSstInspectionStart() {
     setInlineMessage(sstInspectionMsg, "Selecione o template.", true);
     return;
   }
+  if (!safetyResponsibleId) {
+    setInlineMessage(sstInspectionMsg, "Selecione o responsavel SST.", true);
+    return;
+  }
+  if (!inspectorId) {
+    setInlineMessage(sstInspectionMsg, "Selecione o inspetor designado.", true);
+    return;
+  }
   const template = sstInspectionTemplates.find((item) => String(item.id) === String(templateId));
   if (!template) {
     setInlineMessage(sstInspectionMsg, "Template nao encontrado.", true);
+    return;
+  }
+  const isVehicle =
+    normalizeSstChecklistType(template.type) === "VEHICLES_DAILY";
+  if (isVehicle && !vehicleId) {
+    setInlineMessage(sstInspectionMsg, "Selecione o veiculo.", true);
     return;
   }
   sstWizardState = {
     template,
     projectId,
     worksiteId,
-    inspectorId: currentUser.id,
+    inspectorId,
+    safetyResponsibleId,
+    vehicleId,
     startedAt: toIsoUtc(new Date()),
     currentIndex: 0,
     answers: {},
@@ -22327,8 +22770,25 @@ function renderSstWizard() {
   if (sstWizardMeta) {
     const project = availableProjects.find((item) => item.id === sstWizardState.projectId);
     const projectLabel = project ? getProjectLabel(project) : sstWizardState.projectId || "-";
-    const localLabel = sstWizardState.worksiteId ? ` - ${sstWizardState.worksiteId}` : "";
-    sstWizardMeta.textContent = `${projectLabel}${localLabel}`;
+    const localLabel = sstWizardState.worksiteId ? sstWizardState.worksiteId : "";
+    const safetyLabel = sstWizardState.safetyResponsibleId
+      ? getUserLabel(sstWizardState.safetyResponsibleId)
+      : "-";
+    const inspectorLabel = sstWizardState.inspectorId
+      ? getUserLabel(sstWizardState.inspectorId)
+      : "-";
+    const vehicleLabel = sstWizardState.vehicleId
+      ? getSstVehicleLabel(sstWizardState.vehicleId)
+      : "";
+    const base = localLabel ? `${projectLabel} · ${localLabel}` : projectLabel;
+    const auditParts = [
+      `Resp. SST: ${safetyLabel}`,
+      `Inspetor: ${inspectorLabel}`,
+    ];
+    if (vehicleLabel) {
+      auditParts.push(`Veículo: ${vehicleLabel}`);
+    }
+    sstWizardMeta.textContent = `${base} · ${auditParts.join(" · ")}`;
   }
   const questions = Array.isArray(template.questions) ? template.questions : [];
   if (completed) {
@@ -22378,8 +22838,12 @@ function renderSstWizard() {
     .join("");
   sstWizardBody.innerHTML = `
     <div class="wizard-question">
-      <h4>${escapeHtml(question.text)}</h4>
-      ${question.helpText ? `<p class="hint">${escapeHtml(question.helpText)}</p>` : ""}
+      <div class="wizard-question__title">
+        <div>
+          <h4>${escapeHtml(question.text)}</h4>
+          ${question.helpText ? `<p class="hint">${escapeHtml(question.helpText)}</p>` : ""}
+        </div>
+      </div>
       <div class="wizard-answers">${answerButtons}</div>
       <div class="field" data-full>
         <label>Observacoes</label>
@@ -22459,6 +22923,8 @@ async function finalizeSstWizard() {
     projectId: sstWizardState.projectId,
     worksiteId: sstWizardState.worksiteId,
     inspectorId: sstWizardState.inspectorId,
+    safetyResponsibleId: sstWizardState.safetyResponsibleId,
+    vehicleId: sstWizardState.vehicleId,
     startedAt: sstWizardState.startedAt,
   });
   for (const question of questions) {
@@ -22492,7 +22958,7 @@ async function finalizeSstWizard() {
     const stats = details ? details.failStats : buildSstFailStats(finished.answers || []);
     const statusBadge = getSstStatusBadge(finished.status);
     sstWizardSummary.innerHTML = `
-      <div class="wizard-summary__stats">
+      <div class="wizard-summary__stats wizard-summary__stats--cards">
         <div class="stat"><small>Score</small><strong>${escapeHtml(
           String(finished.score)
         )}</strong></div>
@@ -22504,7 +22970,7 @@ async function finalizeSstWizard() {
           String(stats.CRITICAL)
         )}</strong></div>
       </div>
-      <div class="wizard-summary__stats">
+      <div class="wizard-summary__actions">
         <label class="inline-check">
           <input id="sstWizardIncludeMed" type="checkbox" />
           Incluir severidade MED
@@ -22664,18 +23130,30 @@ async function openSstInspectionDetails(runId) {
   if (sstInspectionDetailsMeta) {
     sstInspectionDetailsMeta.textContent = `${projectLabel} - ${dataLabel}`;
   }
+  const safetyLabel = details.safetyResponsibleId
+    ? getUserLabel(details.safetyResponsibleId)
+    : "-";
+  const inspectorLabel = details.inspectorId ? getUserLabel(details.inspectorId) : "-";
+  const vehicleLabel = details.vehicleId ? getSstVehicleLabel(details.vehicleId) : "-";
   const summary = `
-    <div class="wizard-summary__stats">
-      <div class="stat"><small>Score</small><strong>${escapeHtml(
-        String(details.score)
-      )}</strong></div>
-      <div class="stat"><small>Status</small>${getSstStatusBadge(details.status)}</div>
-      <div class="stat"><small>Falhas</small><strong>${escapeHtml(
-        String(details.failStats.total)
-      )}</strong></div>
-      <div class="stat"><small>Criticas</small><strong>${escapeHtml(
-        String(details.failStats.CRITICAL)
-      )}</strong></div>
+    <div class="inspection-details">
+      <div class="wizard-summary__stats wizard-summary__stats--cards">
+        <div class="stat"><small>Score</small><strong>${escapeHtml(
+          String(details.score)
+        )}</strong></div>
+        <div class="stat"><small>Status</small>${getSstStatusBadge(details.status)}</div>
+        <div class="stat"><small>Falhas</small><strong>${escapeHtml(
+          String(details.failStats.total)
+        )}</strong></div>
+        <div class="stat"><small>Criticas</small><strong>${escapeHtml(
+          String(details.failStats.CRITICAL)
+        )}</strong></div>
+      </div>
+      <div class="inspection-meta-grid">
+        <div><small>Responsável SST</small><strong>${escapeHtml(safetyLabel)}</strong></div>
+        <div><small>Inspetor</small><strong>${escapeHtml(inspectorLabel)}</strong></div>
+        <div><small>Veículo</small><strong>${escapeHtml(vehicleLabel)}</strong></div>
+      </div>
     </div>
   `;
   const questions = details.template ? details.template.questions : [];
@@ -22708,8 +23186,8 @@ async function openSstInspectionDetails(runId) {
             .join("")
         : `<p class="empty-state">Sem evidencias</p>`;
       return `
-        <div class="wizard-question">
-          <div class="section-title section-title--compact">
+        <div class="wizard-question wizard-question--compact">
+          <div class="wizard-question__title">
             <div>
               <h4>${escapeHtml(question.text)}</h4>
               ${question.helpText ? `<p class="hint">${escapeHtml(question.helpText)}</p>` : ""}
@@ -31607,7 +32085,27 @@ if (sstInspectionProject) {
   sstInspectionProject.addEventListener("change", () => {
     renderSstInspectionLocalOptions();
     renderSstInspectionTemplateOptions();
+    renderSstVehicleOptions();
+    updateSstInspectionVehicleVisibility();
   });
+}
+if (sstInspectionTemplate) {
+  sstInspectionTemplate.addEventListener("change", () => {
+    updateSstInspectionVehicleVisibility();
+    renderSstVehicleOptions();
+  });
+}
+if (sstVehicleForm) {
+  sstVehicleForm.addEventListener("submit", handleSstVehicleSubmit);
+}
+if (sstVehicleTableBody) {
+  sstVehicleTableBody.addEventListener("click", handleSstVehicleTableClick);
+}
+if (sstVehicleFilterProject) {
+  sstVehicleFilterProject.addEventListener("change", renderSstVehicles);
+}
+if (sstVehicleCancel) {
+  sstVehicleCancel.addEventListener("click", resetSstVehicleForm);
 }
 if (btnFecharSstTemplate) {
   btnFecharSstTemplate.addEventListener("click", closeSstTemplateModal);
