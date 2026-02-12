@@ -1202,6 +1202,25 @@ const PERMISSIONS = {
   complete: "Executar",
 };
 
+const ACCESS_SECTION_PERMISSIONS = [
+  "inicio",
+  "programacao",
+  "nova",
+  "modelos",
+  "execucao",
+  "backlog",
+  "feedbacks",
+  "perfil",
+];
+
+const MAINTENANCE_ACCESS_PERMISSIONS = [
+  "MAINT_CREATE",
+  "MAINT_EDIT",
+  "MAINT_REMOVE",
+  "MAINT_RESCHEDULE",
+  "MAINT_COMPLETE",
+];
+
 const ACCESS_PERMISSIONS = [
   "USER_READ",
   "USER_WRITE",
@@ -1216,6 +1235,39 @@ const ACCESS_PERMISSIONS = [
   "REPORTS_READ",
   "KPIS_READ",
   "ADMIN",
+  ...MAINTENANCE_ACCESS_PERMISSIONS,
+  ...ACCESS_SECTION_PERMISSIONS,
+  "editarPerfil",
+  "editarPerfilOutros",
+  "verUsuarios",
+  "convidarUsuarios",
+  "desativarUsuarios",
+  "verArquivos",
+  "uploadArquivos",
+  "excluirArquivos",
+  "vincularArquivo",
+  "verRDOs",
+  "gerarRDOs",
+  "excluirRDOs",
+  "verRelatorios",
+  "exportarRelatorios",
+  "reexecutarTarefas",
+  "verLogsAPI",
+  "limparLogsAPI",
+  "gerenciarAutomacoes",
+  "verAutomacoes",
+  "verDiagnostico",
+  "verPainelGerencial",
+  "gerenciarAcessos",
+  "verProjetos",
+  "gerenciarProjetos",
+  "gerenciarEquipamentos",
+  "gerenciarEquipeProjeto",
+  "gerenciarPMP",
+  "verAlmoxarifado",
+  "gerenciarAlmoxarifado",
+  "verSST",
+  "gerenciarSST",
 ];
 
 const ACCESS_PERMISSION_LABELS = {
@@ -1232,33 +1284,88 @@ const ACCESS_PERMISSION_LABELS = {
   REPORTS_READ: "Relatorios - leitura",
   KPIS_READ: "KPIs - leitura",
   ADMIN: "Administrador total",
+  MAINT_CREATE: "Manutenção - criar",
+  MAINT_EDIT: "Manutenção - editar",
+  MAINT_REMOVE: "Manutenção - excluir",
+  MAINT_RESCHEDULE: "Manutenção - reagendar",
+  MAINT_COMPLETE: "Manutenção - executar",
 };
 
 const ACCESS_PERMISSION_GROUPS = [
   {
     key: "admin",
     label: "Administração",
-    items: ["ADMIN", "USER_READ", "USER_WRITE", "ROLE_READ", "ROLE_WRITE"],
+    items: ["ADMIN", "gerenciarAcessos", "editarPerfil", "editarPerfilOutros"],
+  },
+  {
+    key: "visibilidade",
+    label: "Visibilidade (navegação)",
+    items: ACCESS_SECTION_PERMISSIONS.slice(),
+  },
+  {
+    key: "manutencao",
+    label: "Manutenção (ações)",
+    items: MAINTENANCE_ACCESS_PERMISSIONS.slice(),
+  },
+  {
+    key: "usuarios",
+    label: "Contas e equipe",
+    items: ["verUsuarios", "convidarUsuarios", "desativarUsuarios"],
   },
   {
     key: "projetos",
     label: "Projetos",
-    items: ["PROJECT_READ", "PROJECT_WRITE"],
+    items: ["verProjetos", "gerenciarProjetos", "gerenciarEquipamentos", "gerenciarEquipeProjeto"],
+  },
+  {
+    key: "pmp",
+    label: "PMP / Cronograma",
+    items: ["gerenciarPMP"],
   },
   {
     key: "sst",
-    label: "SST",
-    items: ["SST_READ", "SST_WRITE"],
+    label: "Segurança do Trabalho (SST)",
+    items: ["verSST", "gerenciarSST"],
   },
   {
     key: "almox",
     label: "Almoxarifado",
-    items: ["ALMOX_READ", "ALMOX_WRITE"],
+    items: ["verAlmoxarifado", "gerenciarAlmoxarifado"],
+  },
+  {
+    key: "arquivos",
+    label: "Arquivos",
+    items: ["verArquivos", "uploadArquivos", "excluirArquivos", "vincularArquivo"],
+  },
+  {
+    key: "rdo",
+    label: "RDOs",
+    items: ["verRDOs", "gerarRDOs", "excluirRDOs"],
   },
   {
     key: "relatorios",
     label: "Relatórios & KPIs",
-    items: ["REPORTS_READ", "KPIS_READ"],
+    items: ["verRelatorios", "exportarRelatorios"],
+  },
+  {
+    key: "automacoes",
+    label: "Automações",
+    items: ["verAutomacoes", "gerenciarAutomacoes"],
+  },
+  {
+    key: "diagnostico",
+    label: "Diagnóstico",
+    items: ["verDiagnostico", "reexecutarTarefas"],
+  },
+  {
+    key: "logs",
+    label: "Logs & Rastreabilidade",
+    items: ["verLogsAPI", "limparLogsAPI"],
+  },
+  {
+    key: "gerencial",
+    label: "Painel gerencial",
+    items: ["verPainelGerencial"],
   },
 ];
 
@@ -1500,12 +1607,29 @@ function normalizeRoleName(value) {
 }
 
 function normalizeAccessPermissionList(list) {
-  const allowed = new Set(ACCESS_PERMISSIONS);
+  const allowed = new Map();
+  const allowedLower = new Map();
+  ACCESS_PERMISSIONS.forEach((perm) => {
+    const key = String(perm || "").trim();
+    if (!key) {
+      return;
+    }
+    allowed.set(key, key);
+    allowedLower.set(key.toLowerCase(), key);
+  });
   const result = new Set();
   (Array.isArray(list) ? list : []).forEach((perm) => {
-    const normalized = String(perm || "").trim().toUpperCase();
-    if (allowed.has(normalized)) {
-      result.add(normalized);
+    const raw = String(perm || "").trim();
+    if (!raw) {
+      return;
+    }
+    if (allowed.has(raw)) {
+      result.add(allowed.get(raw));
+      return;
+    }
+    const lower = raw.toLowerCase();
+    if (allowedLower.has(lower)) {
+      result.add(allowedLower.get(lower));
     }
   });
   return Array.from(result);
@@ -1521,6 +1645,11 @@ function mapAccessPermissionsToGranular(permissionList = []) {
     return result;
   }
   const allow = new Set(normalized);
+  Object.keys(GRANULAR_PERMISSION_LABELS).forEach((key) => {
+    if (allow.has(key)) {
+      result[key] = true;
+    }
+  });
   if (allow.has("USER_READ") || allow.has("USER_WRITE")) {
     result.verUsuarios = true;
   }
@@ -1556,7 +1685,79 @@ function mapAccessPermissionsToGranular(permissionList = []) {
   if (allow.has("REPORTS_READ") || allow.has("KPIS_READ")) {
     result.verRelatorios = true;
   }
+  if (result.gerenciarSST) {
+    result.verSST = true;
+  }
+  if (result.gerenciarAlmoxarifado) {
+    result.verAlmoxarifado = true;
+  }
+  if (result.gerenciarProjetos || result.gerenciarEquipamentos || result.gerenciarEquipeProjeto) {
+    result.verProjetos = true;
+  }
+  if (result.gerenciarAutomacoes) {
+    result.verAutomacoes = true;
+  }
+  if (result.exportarRelatorios) {
+    result.verRelatorios = true;
+  }
+  if (result.gerarRDOs || result.excluirRDOs) {
+    result.verRDOs = true;
+  }
+  if (result.uploadArquivos || result.excluirArquivos || result.vincularArquivo) {
+    result.verArquivos = true;
+  }
+  if (result.reexecutarTarefas) {
+    result.verDiagnostico = true;
+  }
+  if (result.limparLogsAPI) {
+    result.verLogsAPI = true;
+  }
   return result;
+}
+
+function deriveMaintenancePermissions(rolePermissions, accountPermissions) {
+  if (
+    accountPermissions &&
+    typeof accountPermissions === "object" &&
+    !Array.isArray(accountPermissions)
+  ) {
+    return accountPermissions;
+  }
+  const normalized = normalizeAccessPermissionList(rolePermissions);
+  if (normalized.includes("ADMIN")) {
+    return getDefaultPermissions();
+  }
+  const hasMaintenanceKeys = MAINTENANCE_ACCESS_PERMISSIONS.some((key) =>
+    normalized.includes(key)
+  );
+  if (!hasMaintenanceKeys) {
+    return getDefaultPermissions();
+  }
+  return {
+    create: normalized.includes("MAINT_CREATE"),
+    edit: normalized.includes("MAINT_EDIT"),
+    remove: normalized.includes("MAINT_REMOVE"),
+    reschedule: normalized.includes("MAINT_RESCHEDULE"),
+    complete: normalized.includes("MAINT_COMPLETE"),
+  };
+}
+
+function deriveSectionsFromAccessPermissions(rolePermissions) {
+  const normalized = normalizeAccessPermissionList(rolePermissions);
+  if (normalized.includes("ADMIN")) {
+    return null;
+  }
+  const hasSectionControl = ACCESS_SECTION_PERMISSIONS.some((key) =>
+    normalized.includes(key)
+  );
+  if (!hasSectionControl) {
+    return null;
+  }
+  const sections = { ...DEFAULT_SECTIONS };
+  ACCESS_SECTION_PERMISSIONS.forEach((key) => {
+    sections[key] = normalized.includes(key);
+  });
+  return sections;
 }
 
 function hasAccessPermission(user, permission) {
@@ -1619,7 +1820,20 @@ function buildSessionUser(account, role) {
   const roleName = role ? role.name : account.roleName || "";
   const status = String(account.status || "ATIVO").toUpperCase() === "INATIVO" ? "INATIVO" : "ATIVO";
   const granularPermissions = mapAccessPermissionsToGranular(rolePermissions);
-  const sections = { ...DEFAULT_SECTIONS };
+  const permissions = deriveMaintenancePermissions(rolePermissions, account.permissions);
+  let sections = { ...DEFAULT_SECTIONS };
+  if (account.sections && typeof account.sections === "object") {
+    Object.keys(DEFAULT_SECTIONS).forEach((key) => {
+      if (key in account.sections) {
+        sections[key] = Boolean(account.sections[key]);
+      }
+    });
+  } else {
+    const derivedSections = deriveSectionsFromAccessPermissions(rolePermissions);
+    if (derivedSections) {
+      sections = { ...sections, ...derivedSections };
+    }
+  }
   if (rolePermissions.includes("ADMIN")) {
     ADMIN_SECTIONS.forEach((key) => {
       sections[key] = true;
@@ -1639,10 +1853,7 @@ function buildSessionUser(account, role) {
     cargo: account.cargo || roleName,
     active: status !== "INATIVO",
     status,
-    permissions:
-      account.permissions && !Array.isArray(account.permissions)
-        ? account.permissions
-        : getDefaultPermissions(),
+    permissions,
     sections,
   };
 }
@@ -2485,7 +2696,8 @@ function canManageAccess(user) {
   return (
     hasAccessPermission(user, "ADMIN") ||
     hasAccessPermission(user, "USER_WRITE") ||
-    hasAccessPermission(user, "ROLE_WRITE")
+    hasAccessPermission(user, "ROLE_WRITE") ||
+    hasGranularPermission(user, "gerenciarAcessos")
   );
 }
 
@@ -21034,7 +21246,18 @@ function renderAccessRolePermissions(selected = []) {
   if (!accessRolePermissions) {
     return;
   }
-  const selectedSet = new Set(normalizeAccessPermissionList(selected));
+  const normalized = normalizeAccessPermissionList(selected);
+  const selectedSet = new Set(normalized);
+  const granular = mapAccessPermissionsToGranular(normalized);
+  Object.keys(granular).forEach((key) => {
+    if (granular[key]) {
+      selectedSet.add(key);
+    }
+  });
+  if (selectedSet.has("ADMIN")) {
+    MAINTENANCE_ACCESS_PERMISSIONS.forEach((key) => selectedSet.add(key));
+    ACCESS_SECTION_PERMISSIONS.forEach((key) => selectedSet.add(key));
+  }
   accessRolePermissions.innerHTML = "";
   ACCESS_PERMISSION_GROUPS.forEach((group) => {
     const block = document.createElement("div");
@@ -21051,7 +21274,11 @@ function renderAccessRolePermissions(selected = []) {
       checkbox.dataset.accessPermission = perm;
       checkbox.checked = selectedSet.has(perm);
       const text = document.createElement("span");
-      text.textContent = ACCESS_PERMISSION_LABELS[perm] || perm;
+      text.textContent =
+        ACCESS_PERMISSION_LABELS[perm] ||
+        GRANULAR_PERMISSION_LABELS[perm] ||
+        SECTION_LABELS[perm] ||
+        perm;
       label.append(checkbox, text);
       grid.append(label);
     });
