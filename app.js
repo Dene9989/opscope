@@ -188,7 +188,6 @@ const homeAtrasoMedio = document.getElementById("homeAtrasoMedio");
 const projectSelect = document.getElementById("projectSelect");
 const projectSelectLabel = document.getElementById("projectSelectLabel");
 const projectManageBtn = document.getElementById("projectManageBtn");
-const projectVehiclesBtn = document.getElementById("projectVehiclesBtn");
 const crumbs = document.getElementById("crumbs");
 const btnDashboard = document.getElementById("btnDashboard");
 const btnHelp = document.getElementById("btnHelp");
@@ -31232,12 +31231,6 @@ if (projectManageBtn && !projectManageBtn.dataset.tab) {
     abrirPainelComCarregamento("projetos");
   });
 }
-if (projectVehiclesBtn) {
-  projectVehiclesBtn.addEventListener("click", () => {
-    openProjectVehiclesTab(activeProjectId || "");
-  });
-}
-
 if (projectTabs.length) {
   projectTabs.forEach((button) => {
     button.addEventListener("click", () => {
