@@ -798,6 +798,65 @@ const btnCancelarUserDrawer = document.getElementById("btnCancelarUserDrawer");
 const btnSalvarUserDrawer = document.getElementById("btnSalvarUserDrawer");
 const btnGerarConvite = document.getElementById("btnGerarConvite");
 const inviteResultado = document.getElementById("inviteResultado");
+const btnIrAcessos = document.getElementById("btnIrAcessos");
+const accessTabs = Array.from(document.querySelectorAll("[data-access-tab]"));
+const accessPanels = Array.from(document.querySelectorAll("[data-access-panel]"));
+const accessMsg = document.getElementById("accessMsg");
+const btnAccessNewUser = document.getElementById("btnAccessNewUser");
+const btnAccessNewRole = document.getElementById("btnAccessNewRole");
+const btnAccessClearFilters = document.getElementById("btnAccessClearFilters");
+const accessUserSearch = document.getElementById("accessUserSearch");
+const accessUserStatusFilter = document.getElementById("accessUserStatusFilter");
+const accessUserRoleFilter = document.getElementById("accessUserRoleFilter");
+const accessUserProjectFilter = document.getElementById("accessUserProjectFilter");
+const accessUsersTableBody = document.getElementById("accessUsersTableBody");
+const accessUsersEmpty = document.getElementById("accessUsersEmpty");
+const accessRoleSearch = document.getElementById("accessRoleSearch");
+const accessRolesTableBody = document.getElementById("accessRolesTableBody");
+const accessRolesEmpty = document.getElementById("accessRolesEmpty");
+const modalAccessUser = document.getElementById("modalAccessUser");
+const accessUserForm = document.getElementById("accessUserForm");
+const accessUserId = document.getElementById("accessUserId");
+const accessUserName = document.getElementById("accessUserName");
+const accessUserMatricula = document.getElementById("accessUserMatricula");
+const accessUserEmail = document.getElementById("accessUserEmail");
+const accessUserRole = document.getElementById("accessUserRole");
+const accessUserProject = document.getElementById("accessUserProject");
+const accessUserStatus = document.getElementById("accessUserStatus");
+const accessUserPasswordBlock = document.getElementById("accessUserPasswordBlock");
+const accessUserPassword = document.getElementById("accessUserPassword");
+const accessUserPasswordHint = document.getElementById("accessUserPasswordHint");
+const accessUserModalTitle = document.getElementById("accessUserModalTitle");
+const accessUserModalSubtitle = document.getElementById("accessUserModalSubtitle");
+const accessUserFormMsg = document.getElementById("accessUserFormMsg");
+const btnCloseAccessUserModal = document.getElementById("btnCloseAccessUserModal");
+const btnAccessUserCancel = document.getElementById("btnAccessUserCancel");
+const btnAccessGeneratePassword = document.getElementById("btnAccessGeneratePassword");
+const modalResetPassword = document.getElementById("modalResetPassword");
+const resetPasswordForm = document.getElementById("resetPasswordForm");
+const resetPasswordUserId = document.getElementById("resetPasswordUserId");
+const resetPasswordUserLabel = document.getElementById("resetPasswordUserLabel");
+const resetPasswordManualField = document.getElementById("resetPasswordManualField");
+const resetPasswordValue = document.getElementById("resetPasswordValue");
+const resetPasswordMsg = document.getElementById("resetPasswordMsg");
+const btnCloseResetPassword = document.getElementById("btnCloseResetPassword");
+const btnResetPasswordCancel = document.getElementById("btnResetPasswordCancel");
+const btnResetGeneratePassword = document.getElementById("btnResetGeneratePassword");
+const modalGeneratedPassword = document.getElementById("modalGeneratedPassword");
+const generatedPasswordValue = document.getElementById("generatedPasswordValue");
+const btnCopyGeneratedPassword = document.getElementById("btnCopyGeneratedPassword");
+const btnCloseGeneratedPassword = document.getElementById("btnCloseGeneratedPassword");
+const btnGeneratedPasswordDone = document.getElementById("btnGeneratedPasswordDone");
+const modalAccessRole = document.getElementById("modalAccessRole");
+const accessRoleForm = document.getElementById("accessRoleForm");
+const accessRoleId = document.getElementById("accessRoleId");
+const accessRoleName = document.getElementById("accessRoleName");
+const accessRolePermissions = document.getElementById("accessRolePermissions");
+const accessRoleModalTitle = document.getElementById("accessRoleModalTitle");
+const accessRoleModalSubtitle = document.getElementById("accessRoleModalSubtitle");
+const accessRoleFormMsg = document.getElementById("accessRoleFormMsg");
+const btnCloseAccessRoleModal = document.getElementById("btnCloseAccessRoleModal");
+const btnAccessRoleCancel = document.getElementById("btnAccessRoleCancel");
 const modalInicioExecucao = document.getElementById("modalInicioExecucao");
 const inicioExecucaoId = document.getElementById("inicioExecucaoId");
 const btnConfirmarInicioExecucao = document.getElementById("btnConfirmarInicioExecucao");
@@ -952,6 +1011,9 @@ const NOTIFICATION_READ_KEY = "opscope.notifications.read";
 const STORAGE_KEY = "denemanu.manutencoes";
 const TEMPLATE_KEY = "denemanu.templates";
 const USER_KEY = "denemanu.users";
+const ACCESS_USERS_KEY = "opscope.access.users";
+const ACCESS_ROLES_KEY = "opscope.access.roles";
+const ACCESS_SYNC_KEY = "opscope.access.sync";
 const REQUEST_KEY = "denemanu.requests";
 const AUDIT_KEY = "denemanu.audit";
 const RDO_KEY = "denemanu.rdo";
@@ -962,7 +1024,7 @@ const SST_INSPECTIONS_KEY = "opscope.sst.inspections";
 const SST_NCS_KEY = "opscope.sst.ncs.local";
 const SST_EVIDENCES_KEY = "opscope.sst.evidences";
 const SST_VEHICLES_KEY = "opscope.sst.vehicles";
-const OPSCOPE_DB_VERSION = 3;
+const OPSCOPE_DB_VERSION = 4;
 const SESSION_KEY = "denemanu.session";
 const ACTIVE_PROJECT_KEY = "opscope.activeProjectId";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -1095,6 +1157,7 @@ const SECTION_LABELS = {
   relatorios: "RelatÃ³rios",
   feedbacks: "Feedbacks",
   perfil: "Meu perfil",
+  acessos: "GestÃ£o de Acessos",
   almoxarifado: "Almoxarifado",
   "almoxarifado-itens": "Itens",
   "almoxarifado-estoque": "Estoque por projeto",
@@ -1107,7 +1170,7 @@ const SECTION_LABELS = {
   "sst-incidentes": "Incidentes",
   "sst-apr-pt": "DocumentaÃ§Ãµes",
 };
-const ADMIN_SECTIONS = ["solicitacoes", "rastreabilidade", "gerencial", "contas"];
+const ADMIN_SECTIONS = ["rastreabilidade", "gerencial", "contas", "acessos"];
 const DEFAULT_SECTIONS = Object.keys(SECTION_LABELS).reduce((acc, key) => {
   acc[key] = true;
   return acc;
@@ -1131,6 +1194,66 @@ const PERMISSIONS = {
   complete: "Executar",
 };
 
+const ACCESS_PERMISSIONS = [
+  "USER_READ",
+  "USER_WRITE",
+  "ROLE_READ",
+  "ROLE_WRITE",
+  "SST_READ",
+  "SST_WRITE",
+  "ALMOX_READ",
+  "ALMOX_WRITE",
+  "PROJECT_READ",
+  "PROJECT_WRITE",
+  "REPORTS_READ",
+  "KPIS_READ",
+  "ADMIN",
+];
+
+const ACCESS_PERMISSION_LABELS = {
+  USER_READ: "Visualizar usuarios",
+  USER_WRITE: "Gerenciar usuarios",
+  ROLE_READ: "Visualizar cargos",
+  ROLE_WRITE: "Gerenciar cargos",
+  SST_READ: "SST - leitura",
+  SST_WRITE: "SST - escrita",
+  ALMOX_READ: "Almoxarifado - leitura",
+  ALMOX_WRITE: "Almoxarifado - escrita",
+  PROJECT_READ: "Projetos - leitura",
+  PROJECT_WRITE: "Projetos - escrita",
+  REPORTS_READ: "Relatorios - leitura",
+  KPIS_READ: "KPIs - leitura",
+  ADMIN: "Administrador total",
+};
+
+const ACCESS_PERMISSION_GROUPS = [
+  {
+    key: "admin",
+    label: "AdministraÃ§Ã£o",
+    items: ["ADMIN", "USER_READ", "USER_WRITE", "ROLE_READ", "ROLE_WRITE"],
+  },
+  {
+    key: "projetos",
+    label: "Projetos",
+    items: ["PROJECT_READ", "PROJECT_WRITE"],
+  },
+  {
+    key: "sst",
+    label: "SST",
+    items: ["SST_READ", "SST_WRITE"],
+  },
+  {
+    key: "almox",
+    label: "Almoxarifado",
+    items: ["ALMOX_READ", "ALMOX_WRITE"],
+  },
+  {
+    key: "relatorios",
+    label: "RelatÃ³rios & KPIs",
+    items: ["REPORTS_READ", "KPIS_READ"],
+  },
+];
+
 const GRANULAR_PERMISSION_LABELS = {
   editarPerfil: "Editar perfil (UEN/Projeto)",
   editarPerfilOutros: "Editar perfil de outros",
@@ -1153,6 +1276,8 @@ const GRANULAR_PERMISSION_LABELS = {
   verAutomacoes: "Ver automaÃ§Ãµes",
   verDiagnostico: "Ver diagnÃ³stico",
   verPainelGerencial: "Ver painel gerencial",
+  gerenciarAcessos: "Gerenciar acessos",
+  verProjetos: "Ver projetos",
   gerenciarProjetos: "Gerenciar projetos",
   gerenciarEquipamentos: "Gerenciar equipamentos",
   gerenciarEquipeProjeto: "Gerenciar equipe do projeto",
@@ -1166,12 +1291,19 @@ const PERMISSION_GROUPS = [
   {
     key: "perfil",
     label: "Perfis e usuÃ¡rios",
-    items: ["editarPerfil", "editarPerfilOutros", "verUsuarios", "convidarUsuarios", "desativarUsuarios"],
+    items: [
+      "editarPerfil",
+      "editarPerfilOutros",
+      "verUsuarios",
+      "convidarUsuarios",
+      "desativarUsuarios",
+      "gerenciarAcessos",
+    ],
   },
   {
     key: "projetos",
     label: "Projetos corporativos",
-    items: ["gerenciarProjetos", "gerenciarEquipamentos", "gerenciarEquipeProjeto"],
+    items: ["verProjetos", "gerenciarProjetos", "gerenciarEquipamentos", "gerenciarEquipeProjeto"],
   },
   {
     key: "pmp",
@@ -1287,10 +1419,11 @@ const TAB_PERMISSION_MAP = {
   "performance-people": "verRelatorios",
   tendencias: "verRelatorios",
   relatorios: ["verRelatorios", "verRDOs"],
-  projetos: ["gerenciarProjetos", "gerenciarEquipamentos", "gerenciarEquipeProjeto"],
+  projetos: ["verProjetos", "gerenciarProjetos", "gerenciarEquipamentos", "gerenciarEquipeProjeto"],
   pmp: "gerenciarPMP",
   solicitacoes: "verUsuarios",
   contas: "verUsuarios",
+  acessos: "gerenciarAcessos",
   gerencial: "verPainelGerencial",
   rastreabilidade: "verLogsAPI",
   almoxarifado: "verAlmoxarifado",
@@ -1312,6 +1445,9 @@ function getRoleLabel(user) {
   if (!user) {
     return "EXECUTOR";
   }
+  if (user.roleName) {
+    return String(user.roleName).trim() || "EXECUTOR";
+  }
   const rbacRole = String(user.rbacRole || "").trim().toLowerCase();
   if (rbacRole && RBAC_ROLE_LABELS[rbacRole]) {
     return RBAC_ROLE_LABELS[rbacRole];
@@ -1331,6 +1467,166 @@ function normalizeSearchValue(value) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
+function normalizeMatricula(value) {
+  return normalizeSearchValue(value).replace(/\s+/g, "");
+}
+
+function normalizeEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function normalizeRoleName(value) {
+  return normalizeSearchValue(value).replace(/\s+/g, " ").trim();
+}
+
+function normalizeAccessPermissionList(list) {
+  const allowed = new Set(ACCESS_PERMISSIONS);
+  const result = new Set();
+  (Array.isArray(list) ? list : []).forEach((perm) => {
+    const normalized = String(perm || "").trim().toUpperCase();
+    if (allowed.has(normalized)) {
+      result.add(normalized);
+    }
+  });
+  return Array.from(result);
+}
+
+function mapAccessPermissionsToGranular(permissionList = []) {
+  const normalized = normalizeAccessPermissionList(permissionList);
+  const result = {};
+  if (normalized.includes("ADMIN")) {
+    Object.keys(GRANULAR_PERMISSION_LABELS).forEach((key) => {
+      result[key] = true;
+    });
+    return result;
+  }
+  const allow = new Set(normalized);
+  if (allow.has("USER_READ") || allow.has("USER_WRITE")) {
+    result.verUsuarios = true;
+  }
+  if (allow.has("USER_WRITE")) {
+    result.convidarUsuarios = true;
+    result.desativarUsuarios = true;
+    result.editarPerfilOutros = true;
+    result.gerenciarAcessos = true;
+  }
+  if (allow.has("ROLE_WRITE")) {
+    result.gerenciarAcessos = true;
+  }
+  if (allow.has("PROJECT_READ") || allow.has("PROJECT_WRITE")) {
+    result.verProjetos = true;
+  }
+  if (allow.has("PROJECT_WRITE")) {
+    result.gerenciarProjetos = true;
+    result.gerenciarEquipamentos = true;
+    result.gerenciarEquipeProjeto = true;
+  }
+  if (allow.has("SST_READ") || allow.has("SST_WRITE")) {
+    result.verSST = true;
+  }
+  if (allow.has("SST_WRITE")) {
+    result.gerenciarSST = true;
+  }
+  if (allow.has("ALMOX_READ") || allow.has("ALMOX_WRITE")) {
+    result.verAlmoxarifado = true;
+  }
+  if (allow.has("ALMOX_WRITE")) {
+    result.gerenciarAlmoxarifado = true;
+  }
+  if (allow.has("REPORTS_READ") || allow.has("KPIS_READ")) {
+    result.verRelatorios = true;
+  }
+  return result;
+}
+
+function hasAccessPermission(user, permission) {
+  if (!user || !permission) {
+    return false;
+  }
+  const list = Array.isArray(user.rolePermissions)
+    ? user.rolePermissions
+    : Array.isArray(user.accessPermissions)
+      ? user.accessPermissions
+      : [];
+  if (!list.length) {
+    return false;
+  }
+  if (list.includes("ADMIN")) {
+    return true;
+  }
+  return list.includes(permission);
+}
+
+function buildRbacRoleKey(roleName) {
+  const normalized = normalizeSearchValue(roleName);
+  if (!normalized) {
+    return "";
+  }
+  if (normalized === "pcm") {
+    return "pcm";
+  }
+  if (normalized.includes("administrador") || normalized === "admin") {
+    return "admin";
+  }
+  if (normalized.includes("supervisor o m")) {
+    return "supervisor_om";
+  }
+  if (normalized.includes("diretor o m")) {
+    return "diretor_om";
+  }
+  if (normalized.includes("gerente de contrato")) {
+    return "gerente_contrato";
+  }
+  if (normalized.includes("tecnico senior")) {
+    return "tecnico_senior";
+  }
+  if (normalized.includes("tecnico pleno")) {
+    return "tecnico_pleno";
+  }
+  if (normalized.includes("tecnico junior")) {
+    return "tecnico_junior";
+  }
+  return normalized.replace(/[^a-z0-9]+/g, "_");
+}
+
+function buildSessionUser(account, role) {
+  if (!account) {
+    return null;
+  }
+  const rolePermissions = normalizeAccessPermissionList(
+    (role && role.permissions) || account.rolePermissions || account.accessPermissions || []
+  );
+  const roleName = role ? role.name : account.roleName || "";
+  const status = String(account.status || "ATIVO").toUpperCase() === "INATIVO" ? "INATIVO" : "ATIVO";
+  const granularPermissions = mapAccessPermissionsToGranular(rolePermissions);
+  const sections = { ...DEFAULT_SECTIONS };
+  if (rolePermissions.includes("ADMIN")) {
+    ADMIN_SECTIONS.forEach((key) => {
+      sections[key] = true;
+    });
+  }
+  const derivedRbacRole =
+    account.rbacRole || (rolePermissions.includes("ADMIN") ? "admin" : roleName ? buildRbacRoleKey(roleName) : "");
+  const derivedRole = account.role || derivedRbacRole || "";
+  return {
+    ...account,
+    roleId: account.roleId || (role ? role.id : ""),
+    roleName,
+    rolePermissions,
+    granularPermissions,
+    rbacRole: derivedRbacRole,
+    role: derivedRole,
+    cargo: account.cargo || roleName,
+    active: status !== "INATIVO",
+    status,
+    permissions:
+      account.permissions && !Array.isArray(account.permissions)
+        ? account.permissions
+        : getDefaultPermissions(),
+    sections,
+  };
+}
+
 function normalizeCargo(value) {
   return String(value || "")
     .trim()
@@ -1339,6 +1635,88 @@ function normalizeCargo(value) {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+}
+
+function getCryptoProvider() {
+  if (typeof crypto !== "undefined") {
+    return crypto;
+  }
+  if (typeof window !== "undefined" && window.crypto) {
+    return window.crypto;
+  }
+  return null;
+}
+
+function bufferToHex(buffer) {
+  return Array.from(buffer || [])
+    .map((item) => item.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function getRandomInt(max) {
+  const safeMax = Number.isFinite(max) && max > 0 ? Math.floor(max) : 1;
+  const provider = getCryptoProvider();
+  if (provider && provider.getRandomValues) {
+    const array = new Uint32Array(1);
+    provider.getRandomValues(array);
+    return array[0] % safeMax;
+  }
+  return Math.floor(Math.random() * safeMax);
+}
+
+function generatePassword(length = 12) {
+  const safeLength = Math.max(12, Number.isFinite(length) ? Math.floor(length) : 12);
+  const lower = "abcdefghijkmnpqrstuvwxyz";
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const digits = "23456789";
+  const symbols = "!@#$%*?-_";
+  const all = `${lower}${upper}${digits}${symbols}`;
+  const pick = (chars) => chars[getRandomInt(chars.length)];
+  const result = [pick(lower), pick(upper), pick(digits), pick(symbols)];
+  while (result.length < safeLength) {
+    result.push(pick(all));
+  }
+  for (let i = result.length - 1; i > 0; i -= 1) {
+    const j = getRandomInt(i + 1);
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result.join("");
+}
+
+async function hashPasswordWithSalt(password, saltHex = "") {
+  const plain = String(password || "");
+  if (!plain) {
+    throw new Error("Senha obrigatoria.");
+  }
+  const provider = getCryptoProvider();
+  if (!provider || !provider.subtle || typeof TextEncoder === "undefined") {
+    throw new Error("Criptografia indisponivel neste navegador.");
+  }
+  const saltBytes = saltHex
+    ? null
+    : (() => {
+        const bytes = new Uint8Array(16);
+        provider.getRandomValues(bytes);
+        return bytes;
+      })();
+  const salt = saltHex || bufferToHex(saltBytes);
+  const payload = new TextEncoder().encode(`${salt}:${plain}`);
+  const digest = await provider.subtle.digest("SHA-256", payload);
+  const hash = bufferToHex(new Uint8Array(digest));
+  return `sha256:${salt}:${hash}`;
+}
+
+async function verifyPasswordHash(password, storedHash) {
+  const raw = String(storedHash || "");
+  if (!raw) {
+    return false;
+  }
+  const parts = raw.split(":");
+  if (parts.length !== 3 || parts[0] !== "sha256") {
+    return false;
+  }
+  const recomputed = await hashPasswordWithSalt(password, parts[1]);
+  return recomputed === raw;
 }
 
 function getCargoLevel(cargo) {
@@ -1392,7 +1770,25 @@ function getProfileKeyForUser(user) {
 }
 
 function hasGranularPermission(user, permissionKey) {
-  return Boolean(user && user.granularPermissions && user.granularPermissions[permissionKey]);
+  if (!user || !permissionKey) {
+    return false;
+  }
+  if (user.granularPermissions && user.granularPermissions[permissionKey]) {
+    return true;
+  }
+  if (
+    user.permissions &&
+    typeof user.permissions === "object" &&
+    !Array.isArray(user.permissions) &&
+    user.permissions[permissionKey]
+  ) {
+    return true;
+  }
+  if (Array.isArray(user.rolePermissions)) {
+    const derived = mapAccessPermissionsToGranular(user.rolePermissions);
+    return Boolean(derived[permissionKey]);
+  }
+  return false;
 }
 
 function canEditProfile(actor, target) {
@@ -1430,6 +1826,9 @@ function isFullAccessUser(user) {
     return false;
   }
   if (isMasterUser(user)) {
+    return true;
+  }
+  if (hasAccessPermission(user, "ADMIN")) {
     return true;
   }
   const rbacRole = String(user.rbacRole || "").trim().toLowerCase();
@@ -1512,6 +1911,7 @@ function canAdminUsersWrite() {
     return true;
   }
   return (
+    hasGranularPermission(currentUser, "gerenciarAcessos") ||
     hasGranularPermission(currentUser, "editarPerfilOutros") ||
     hasGranularPermission(currentUser, "desativarUsuarios") ||
     hasGranularPermission(currentUser, "convidarUsuarios")
@@ -2055,6 +2455,20 @@ function canDesativarUsuarios(user) {
   return hasGranularPermission(user, "desativarUsuarios");
 }
 
+function canManageAccess(user) {
+  if (!user) {
+    return false;
+  }
+  if (isFullAccessUser(user)) {
+    return true;
+  }
+  return (
+    hasAccessPermission(user, "ADMIN") ||
+    hasAccessPermission(user, "USER_WRITE") ||
+    hasAccessPermission(user, "ROLE_WRITE")
+  );
+}
+
 function canViewPerformanceTab(user) {
   if (!user) {
     return false;
@@ -2071,6 +2485,9 @@ function canViewPerformanceTab(user) {
 function canViewTab(tab, user, secConfig) {
   if (!tab) {
     return false;
+  }
+  if (tab === "acessos") {
+    return Boolean(user && canManageAccess(user));
   }
   const permissionKey = TAB_PERMISSION_MAP[tab];
   if (permissionKey) {
@@ -2134,6 +2551,9 @@ const weekLabelFormatter = new Intl.DateTimeFormat("pt-BR", {
 let manutencoes = [];
 let templates = [];
 let users = [];
+let accessUsers = [];
+let accessRoles = [];
+let accessRoleMap = new Map();
 let requests = [];
 let auditLog = [];
 let currentUser = null;
@@ -2920,6 +3340,22 @@ function createLocalProvider() {
       upsertVehicle: async (input) => upsertVehicleToDb(input || {}),
       deleteVehicle: async (id) => softDeleteVehicle(id),
     },
+    roles: {
+      listRoles: async (q) => listRolesFromDb(q),
+      getRole: async (id) => getRoleFromDb(id),
+      upsertRole: async (input) => upsertRoleToDb(input || {}),
+      deleteRole: async (id) => deleteRoleFromDb(id),
+      seedDefaultRolesIfEmpty: async () => seedDefaultRolesIfEmpty(),
+    },
+    authAdmin: {
+      listUsers: async (filters = {}) => listUsersFromDb(filters),
+      getUser: async (id) => getUserFromDb(id),
+      createUser: async (input) => createUserToDb(input || {}),
+      updateUser: async (input) => updateUserToDb(input || {}),
+      resetPassword: async (input) => resetPasswordForUser(input || {}),
+      deactivateUser: async (id) => setUserStatus(id, "INATIVO"),
+      activateUser: async (id) => setUserStatus(id, "ATIVO"),
+    },
   };
 }
 
@@ -2955,6 +3391,8 @@ function createApiProvider(fallback) {
     sstDocs: {},
     sstInspections: {},
     vehicles: {},
+    roles: {},
+    authAdmin: {},
   };
 
   provider.sstDocs.list = async (filters = {}) => {
@@ -3137,6 +3575,54 @@ function createApiProvider(fallback) {
     return fallbackProvider.vehicles.deleteVehicle(id);
   };
 
+  provider.roles.listRoles = async (q) => {
+    return fallbackProvider.roles.listRoles(q);
+  };
+
+  provider.roles.getRole = async (id) => {
+    return fallbackProvider.roles.getRole(id);
+  };
+
+  provider.roles.upsertRole = async (input) => {
+    return fallbackProvider.roles.upsertRole(input);
+  };
+
+  provider.roles.deleteRole = async (id) => {
+    return fallbackProvider.roles.deleteRole(id);
+  };
+
+  provider.roles.seedDefaultRolesIfEmpty = async () => {
+    return fallbackProvider.roles.seedDefaultRolesIfEmpty();
+  };
+
+  provider.authAdmin.listUsers = async (filters = {}) => {
+    return fallbackProvider.authAdmin.listUsers(filters);
+  };
+
+  provider.authAdmin.getUser = async (id) => {
+    return fallbackProvider.authAdmin.getUser(id);
+  };
+
+  provider.authAdmin.createUser = async (input) => {
+    return fallbackProvider.authAdmin.createUser(input);
+  };
+
+  provider.authAdmin.updateUser = async (input) => {
+    return fallbackProvider.authAdmin.updateUser(input);
+  };
+
+  provider.authAdmin.resetPassword = async (input) => {
+    return fallbackProvider.authAdmin.resetPassword(input);
+  };
+
+  provider.authAdmin.deactivateUser = async (id) => {
+    return fallbackProvider.authAdmin.deactivateUser(id);
+  };
+
+  provider.authAdmin.activateUser = async (id) => {
+    return fallbackProvider.authAdmin.activateUser(id);
+  };
+
   return provider;
 }
 
@@ -3158,6 +3644,7 @@ function isProjectStorageKey(eventKey, baseKey) {
 }
 
 const API_BASE = "";
+const USE_AUTH_API = false;
 const USE_SST_INSPECTIONS_API = false;
 const API_TIMEOUT_MS = 15000;
 const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
@@ -5750,11 +6237,15 @@ function garantirAdmin() {
 }
 
 function carregarSessao() {
-  return null;
+  return readJson(SESSION_KEY, null);
 }
 
-function salvarSessao() {
-  return;
+function salvarSessao(session) {
+  if (!session) {
+    localStorage.removeItem(SESSION_KEY);
+    return;
+  }
+  writeJson(SESSION_KEY, session);
 }
 
 function persistActiveProjectId(projectId) {
@@ -5828,22 +6319,38 @@ async function carregarSessaoServidor() {
   if (!currentUser) {
     mostrarAuthPanel("login");
   }
-  try {
-    const data = await apiRequest("/api/auth/me");
-    currentUser = data.user || null;
-    availableProjects = Array.isArray(data.projects) ? data.projects : [];
-    const storedProjectId = localStorage.getItem(ACTIVE_PROJECT_KEY) || "";
-    const validStored = availableProjects.some((item) => item.id === storedProjectId);
-    const resolvedProjectId =
-      data.activeProjectId ||
-      (validStored ? storedProjectId : availableProjects[0]?.id || "");
-    if (resolvedProjectId) {
-      await setActiveProjectId(resolvedProjectId, { sync: false, force: true });
+  if (USE_AUTH_API) {
+    try {
+      const data = await apiRequest("/api/auth/me");
+      currentUser = data.user || null;
+      availableProjects = Array.isArray(data.projects) ? data.projects : [];
+      const storedProjectId = localStorage.getItem(ACTIVE_PROJECT_KEY) || "";
+      const validStored = availableProjects.some((item) => item.id === storedProjectId);
+      const resolvedProjectId =
+        data.activeProjectId ||
+        (validStored ? storedProjectId : availableProjects[0]?.id || "");
+      if (resolvedProjectId) {
+        await setActiveProjectId(resolvedProjectId, { sync: false, force: true });
+      }
+    } catch (error) {
+      currentUser = null;
+      availableProjects = [];
+      activeProjectId = "";
     }
-  } catch (error) {
+  } else {
     currentUser = null;
-    availableProjects = [];
     activeProjectId = "";
+    await dataProvider.roles.seedDefaultRolesIfEmpty();
+    await refreshAccessRoles();
+    const session = carregarSessao();
+    if (session && session.userId) {
+      const account = await dataProvider.authAdmin.getUser(session.userId);
+      if (account && String(account.status || "").toUpperCase() !== "INATIVO") {
+        currentUser = buildSessionUser(account, accessRoleMap.get(account.roleId));
+      } else {
+        salvarSessao(null);
+      }
+    }
   }
   await carregarUsuariosServidor();
   renderAuthUI();
@@ -5862,7 +6369,9 @@ async function carregarSessaoServidor() {
     renderProjectSelector();
     renderProjectPanel();
   }
-  await handleEmailVerification();
+  if (USE_AUTH_API) {
+    await handleEmailVerification();
+  }
   handleFocusFromUrl();
   if (!currentUser) {
     mostrarAuthPanel("login");
@@ -5872,6 +6381,12 @@ async function carregarSessaoServidor() {
 async function carregarUsuariosServidor() {
   if (!currentUser) {
     users = [];
+    accessUsers = [];
+    return;
+  }
+  if (!USE_AUTH_API) {
+    await refreshAccessData();
+    renderEquipeSelectOptions();
     return;
   }
   try {
@@ -5886,7 +6401,7 @@ async function carregarUsuariosServidor() {
 }
 
 async function carregarPermissoesAdmin() {
-  if (!canAdminUsersRead()) {
+  if (!USE_AUTH_API || !canAdminUsersRead()) {
     adminPermissionCatalog = [];
     return;
   }
@@ -5938,6 +6453,9 @@ function isRealUser(user) {
     return false;
   }
   if (isSystemUserId(user.id)) {
+    return false;
+  }
+  if (user.active === false || String(user.status || "").toUpperCase() === "INATIVO") {
     return false;
   }
   return !isAdminUser(user);
@@ -7122,6 +7640,17 @@ function openOpscopeDb() {
       if (!db.objectStoreNames.contains("sst_evidences")) {
         db.createObjectStore("sst_evidences", { keyPath: "evidenceId" });
       }
+      if (!db.objectStoreNames.contains("roles")) {
+        const store = db.createObjectStore("roles", { keyPath: "id" });
+        store.createIndex("nameNormalized", "nameNormalized", { unique: true });
+      }
+      if (!db.objectStoreNames.contains("users")) {
+        const store = db.createObjectStore("users", { keyPath: "id" });
+        store.createIndex("matriculaNormalized", "matriculaNormalized", { unique: true });
+        store.createIndex("roleId", "roleId", { unique: false });
+        store.createIndex("status", "status", { unique: false });
+        store.createIndex("projectId", "projectId", { unique: false });
+      }
       if (!db.objectStoreNames.contains("vehicles")) {
         const store = db.createObjectStore("vehicles", { keyPath: "id" });
         store.createIndex("projectId", "projectId", { unique: false });
@@ -7136,6 +7665,610 @@ function openOpscopeDb() {
 
 function openDocsDB() {
   return openOpscopeDb();
+}
+
+function touchAccessSync() {
+  writeJson(ACCESS_SYNC_KEY, Date.now());
+}
+
+function normalizeAccessRoleRecord(role) {
+  if (!role || typeof role !== "object") {
+    return null;
+  }
+  const id = String(role.id || "").trim();
+  const name = String(role.name || "").trim();
+  if (!id || !name) {
+    return null;
+  }
+  return {
+    id,
+    name,
+    nameNormalized: normalizeRoleName(name),
+    permissions: normalizeAccessPermissionList(role.permissions || []),
+    isSystem: Boolean(role.isSystem),
+    createdAt: role.createdAt || "",
+    updatedAt: role.updatedAt || "",
+  };
+}
+
+function normalizeAccessUserRecord(user) {
+  if (!user || typeof user !== "object") {
+    return null;
+  }
+  const id = String(user.id || "").trim();
+  const name = String(user.name || "").trim();
+  const matricula = String(user.matricula || "").trim();
+  if (!id || !name || !matricula) {
+    return null;
+  }
+  const status = String(user.status || "ATIVO").toUpperCase() === "INATIVO" ? "INATIVO" : "ATIVO";
+  return {
+    id,
+    name,
+    matricula,
+    matriculaNormalized: normalizeMatricula(matricula),
+    email: normalizeEmail(user.email || ""),
+    roleId: user.roleId || "",
+    projectId: user.projectId || null,
+    status,
+    passwordHash: user.passwordHash || "",
+    passwordUpdatedAt: user.passwordUpdatedAt || "",
+    createdAt: user.createdAt || "",
+    updatedAt: user.updatedAt || "",
+  };
+}
+
+function readRolesStorage() {
+  const list = readJson(ACCESS_ROLES_KEY, []);
+  if (!Array.isArray(list)) {
+    return [];
+  }
+  return list.map(normalizeAccessRoleRecord).filter(Boolean);
+}
+
+function writeRolesStorage(list) {
+  writeJson(ACCESS_ROLES_KEY, list);
+  touchAccessSync();
+  return list;
+}
+
+function readUsersStorage() {
+  const list = readJson(ACCESS_USERS_KEY, []);
+  if (!Array.isArray(list)) {
+    return [];
+  }
+  return list.map(normalizeAccessUserRecord).filter(Boolean);
+}
+
+function writeUsersStorage(list) {
+  writeJson(ACCESS_USERS_KEY, list);
+  touchAccessSync();
+  return list;
+}
+
+async function listRolesFromDb(q = "") {
+  const query = normalizeSearchValue(q);
+  if (typeof indexedDB === "undefined") {
+    const list = readRolesStorage();
+    return query
+      ? list.filter((role) => normalizeSearchValue(role.name).includes(query))
+      : list;
+  }
+  try {
+    const db = await openOpscopeDb();
+    return await new Promise((resolve) => {
+      const tx = db.transaction("roles", "readonly");
+      const store = tx.objectStore("roles");
+      const request = store.getAll();
+      request.onsuccess = () => {
+        const list = (request.result || []).map(normalizeAccessRoleRecord).filter(Boolean);
+        resolve(
+          query
+            ? list.filter((role) => normalizeSearchValue(role.name).includes(query))
+            : list
+        );
+      };
+      request.onerror = () => resolve(readRolesStorage());
+    });
+  } catch (error) {
+    return readRolesStorage();
+  }
+}
+
+async function getRoleFromDb(id) {
+  if (!id) {
+    return null;
+  }
+  if (typeof indexedDB === "undefined") {
+    return readRolesStorage().find((role) => String(role.id) === String(id)) || null;
+  }
+  try {
+    const db = await openOpscopeDb();
+    return await new Promise((resolve) => {
+      const tx = db.transaction("roles", "readonly");
+      const store = tx.objectStore("roles");
+      const request = store.get(id);
+      request.onsuccess = () => resolve(normalizeAccessRoleRecord(request.result));
+      request.onerror = () => resolve(null);
+    });
+  } catch (error) {
+    return null;
+  }
+}
+
+async function getRoleByNameNormalized(nameNormalized) {
+  const normalized = normalizeRoleName(nameNormalized);
+  if (!normalized) {
+    return null;
+  }
+  if (typeof indexedDB === "undefined") {
+    return readRolesStorage().find((role) => role.nameNormalized === normalized) || null;
+  }
+  try {
+    const db = await openOpscopeDb();
+    return await new Promise((resolve) => {
+      const tx = db.transaction("roles", "readonly");
+      const store = tx.objectStore("roles");
+      const index = store.index("nameNormalized");
+      const request = index.get(normalized);
+      request.onsuccess = () => resolve(normalizeAccessRoleRecord(request.result));
+      request.onerror = () => resolve(null);
+    });
+  } catch (error) {
+    return null;
+  }
+}
+
+async function upsertRoleToDb(input) {
+  const payload = input || {};
+  const name = String(payload.name || "").trim();
+  if (!name) {
+    throw new Error("Informe o nome do cargo.");
+  }
+  const now = toIsoUtc(new Date());
+  const id = payload.id ? String(payload.id) : criarId();
+  const nameNormalized = normalizeRoleName(name);
+  const existing = await getRoleFromDb(id);
+  const duplicate = await getRoleByNameNormalized(nameNormalized);
+  if (duplicate && String(duplicate.id) !== String(id)) {
+    throw new Error("Ja existe um cargo com esse nome.");
+  }
+  const role = {
+    id,
+    name,
+    nameNormalized,
+    permissions: normalizeAccessPermissionList(payload.permissions || existing?.permissions || []),
+    isSystem: existing ? Boolean(existing.isSystem) : Boolean(payload.isSystem),
+    createdAt: existing && existing.createdAt ? existing.createdAt : now,
+    updatedAt: now,
+  };
+  if (typeof indexedDB === "undefined") {
+    const list = readRolesStorage();
+    const index = list.findIndex((item) => String(item.id) === String(id));
+    if (index >= 0) {
+      list[index] = role;
+    } else {
+      list.unshift(role);
+    }
+    writeRolesStorage(list);
+    return role;
+  }
+  const db = await openOpscopeDb();
+  return await new Promise((resolve, reject) => {
+    const tx = db.transaction("roles", "readwrite");
+    const store = tx.objectStore("roles");
+    const request = store.put(role);
+    request.onsuccess = () => {
+      touchAccessSync();
+      resolve(role);
+    };
+    request.onerror = () => reject(request.error || new Error("Falha ao salvar cargo."));
+  });
+}
+
+async function deleteRoleFromDb(id) {
+  if (!id) {
+    return;
+  }
+  const role = await getRoleFromDb(id);
+  if (!role) {
+    return;
+  }
+  if (role.isSystem) {
+    throw new Error("Cargo do sistema nao pode ser removido.");
+  }
+  const usersWithRole = await listUsersFromDb({ roleId: id });
+  if (usersWithRole.length) {
+    throw new Error("Cargo em uso por usuarios.");
+  }
+  if (typeof indexedDB === "undefined") {
+    const list = readRolesStorage().filter((item) => String(item.id) !== String(id));
+    writeRolesStorage(list);
+    return;
+  }
+  const db = await openOpscopeDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction("roles", "readwrite");
+    const store = tx.objectStore("roles");
+    const request = store.delete(id);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error || new Error("Falha ao remover cargo."));
+  });
+  touchAccessSync();
+}
+
+function buildDefaultAccessRoles() {
+  const now = toIsoUtc(new Date());
+  return [
+    {
+      id: criarId(),
+      name: "Administrador",
+      permissions: ["ADMIN"],
+      isSystem: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: criarId(),
+      name: "PCM",
+      permissions: [
+        "USER_READ",
+        "USER_WRITE",
+        "ROLE_READ",
+        "PROJECT_READ",
+        "SST_WRITE",
+        "ALMOX_READ",
+        "REPORTS_READ",
+      ],
+      isSystem: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: criarId(),
+      name: "Supervisor O&M",
+      permissions: ["SST_WRITE", "REPORTS_READ", "PROJECT_READ"],
+      isSystem: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: criarId(),
+      name: "Tecnico Junior",
+      permissions: ["SST_READ", "ALMOX_READ", "PROJECT_READ"],
+      isSystem: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: criarId(),
+      name: "Tecnico Pleno",
+      permissions: ["SST_READ", "ALMOX_READ", "PROJECT_READ"],
+      isSystem: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: criarId(),
+      name: "Tecnico Senior",
+      permissions: ["SST_READ", "ALMOX_READ", "PROJECT_READ"],
+      isSystem: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: criarId(),
+      name: "Gerente de Contrato",
+      permissions: ["REPORTS_READ", "KPIS_READ", "PROJECT_READ"],
+      isSystem: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: criarId(),
+      name: "Diretor O&M",
+      permissions: ["REPORTS_READ", "KPIS_READ", "PROJECT_READ"],
+      isSystem: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
+}
+
+async function seedDefaultRolesIfEmpty() {
+  const existing = await listRolesFromDb();
+  if (existing.length) {
+    return { seeded: false, count: existing.length };
+  }
+  const defaults = buildDefaultAccessRoles();
+  if (typeof indexedDB === "undefined") {
+    writeRolesStorage(defaults);
+    return { seeded: true, count: defaults.length };
+  }
+  const db = await openOpscopeDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction("roles", "readwrite");
+    const store = tx.objectStore("roles");
+    defaults.forEach((role) => store.put(role));
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error || new Error("Falha ao criar cargos."));
+  });
+  touchAccessSync();
+  return { seeded: true, count: defaults.length };
+}
+
+async function listUsersFromDb(filters = {}) {
+  const query = normalizeSearchValue(filters.q || "");
+  const roleId = filters.roleId ? String(filters.roleId) : "";
+  const status = filters.status ? String(filters.status).toUpperCase() : "";
+  const projectId = filters.projectId ? String(filters.projectId) : "";
+  const applyFilters = (list) =>
+    list.filter((user) => {
+      if (roleId && String(user.roleId || "") !== roleId) {
+        return false;
+      }
+      if (status && String(user.status || "").toUpperCase() !== status) {
+        return false;
+      }
+      if (projectId && String(user.projectId || "") !== projectId) {
+        return false;
+      }
+      if (query) {
+        const nome = normalizeSearchValue(user.name);
+        const matricula = normalizeSearchValue(user.matricula);
+        const email = normalizeSearchValue(user.email || "");
+        if (!nome.includes(query) && !matricula.includes(query) && !email.includes(query)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  if (typeof indexedDB === "undefined") {
+    return applyFilters(readUsersStorage());
+  }
+  try {
+    const db = await openOpscopeDb();
+    return await new Promise((resolve) => {
+      const tx = db.transaction("users", "readonly");
+      const store = tx.objectStore("users");
+      const request = store.getAll();
+      request.onsuccess = () => {
+        const list = (request.result || []).map(normalizeAccessUserRecord).filter(Boolean);
+        resolve(applyFilters(list));
+      };
+      request.onerror = () => resolve(applyFilters(readUsersStorage()));
+    });
+  } catch (error) {
+    return applyFilters(readUsersStorage());
+  }
+}
+
+async function getUserFromDb(id) {
+  if (!id) {
+    return null;
+  }
+  if (typeof indexedDB === "undefined") {
+    return readUsersStorage().find((user) => String(user.id) === String(id)) || null;
+  }
+  try {
+    const db = await openOpscopeDb();
+    return await new Promise((resolve) => {
+      const tx = db.transaction("users", "readonly");
+      const store = tx.objectStore("users");
+      const request = store.get(id);
+      request.onsuccess = () => resolve(normalizeAccessUserRecord(request.result));
+      request.onerror = () => resolve(null);
+    });
+  } catch (error) {
+    return null;
+  }
+}
+
+async function getUserByMatriculaNormalized(matriculaNormalized) {
+  const normalized = normalizeMatricula(matriculaNormalized);
+  if (!normalized) {
+    return null;
+  }
+  if (typeof indexedDB === "undefined") {
+    return readUsersStorage().find((user) => user.matriculaNormalized === normalized) || null;
+  }
+  try {
+    const db = await openOpscopeDb();
+    return await new Promise((resolve) => {
+      const tx = db.transaction("users", "readonly");
+      const store = tx.objectStore("users");
+      const index = store.index("matriculaNormalized");
+      const request = index.get(normalized);
+      request.onsuccess = () => resolve(normalizeAccessUserRecord(request.result));
+      request.onerror = () => resolve(null);
+    });
+  } catch (error) {
+    return null;
+  }
+}
+
+async function createUserToDb(input) {
+  const payload = input || {};
+  const name = String(payload.name || "").trim();
+  const matricula = String(payload.matricula || "").trim();
+  const roleId = String(payload.roleId || "").trim();
+  if (!name) {
+    throw new Error("Informe o nome do usuario.");
+  }
+  if (!matricula) {
+    throw new Error("Informe a matricula.");
+  }
+  if (!roleId) {
+    throw new Error("Selecione o cargo.");
+  }
+  const normalizedMatricula = normalizeMatricula(matricula);
+  const duplicate = await getUserByMatriculaNormalized(normalizedMatricula);
+  if (duplicate) {
+    throw new Error("Matricula ja cadastrada.");
+  }
+  const role = await getRoleFromDb(roleId);
+  if (!role) {
+    throw new Error("Cargo invalido.");
+  }
+  const status = String(payload.status || "ATIVO").toUpperCase() === "INATIVO" ? "INATIVO" : "ATIVO";
+  const mode = String(payload.passwordMode || "MANUAL").toUpperCase();
+  let generatedPassword = "";
+  let password = String(payload.password || "");
+  if (mode === "GERADA") {
+    generatedPassword = generatePassword(12);
+    password = generatedPassword;
+  }
+  if (!password) {
+    throw new Error("Informe a senha.");
+  }
+  const now = toIsoUtc(new Date());
+  const passwordHash = await hashPasswordWithSalt(password);
+  const user = {
+    id: criarId(),
+    name,
+    matricula,
+    matriculaNormalized: normalizedMatricula,
+    email: normalizeEmail(payload.email || ""),
+    roleId,
+    projectId: payload.projectId ? String(payload.projectId) : null,
+    status,
+    passwordHash,
+    passwordUpdatedAt: now,
+    createdAt: now,
+    updatedAt: now,
+  };
+  if (typeof indexedDB === "undefined") {
+    const list = readUsersStorage();
+    list.unshift(user);
+    writeUsersStorage(list);
+    return { user, generatedPassword: generatedPassword || undefined };
+  }
+  const db = await openOpscopeDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction("users", "readwrite");
+    const store = tx.objectStore("users");
+    const request = store.put(user);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error || new Error("Falha ao salvar usuario."));
+  });
+  touchAccessSync();
+  return { user, generatedPassword: generatedPassword || undefined };
+}
+
+async function updateUserToDb(input) {
+  const payload = input || {};
+  const id = String(payload.id || "").trim();
+  if (!id) {
+    throw new Error("Usuario invalido.");
+  }
+  const existing = await getUserFromDb(id);
+  if (!existing) {
+    throw new Error("Usuario nao encontrado.");
+  }
+  const now = toIsoUtc(new Date());
+  if (payload.name !== undefined && !String(payload.name || "").trim()) {
+    throw new Error("Informe o nome do usuario.");
+  }
+  if (payload.roleId) {
+    const role = await getRoleFromDb(payload.roleId);
+    if (!role) {
+      throw new Error("Cargo invalido.");
+    }
+  }
+  const status =
+    payload.status !== undefined
+      ? String(payload.status).toUpperCase() === "INATIVO"
+        ? "INATIVO"
+        : "ATIVO"
+      : existing.status || "ATIVO";
+  const updated = {
+    ...existing,
+    name: payload.name !== undefined ? String(payload.name || "").trim() : existing.name,
+    email:
+      payload.email !== undefined ? normalizeEmail(payload.email || "") : existing.email || "",
+    roleId: payload.roleId !== undefined ? String(payload.roleId || "").trim() : existing.roleId,
+    projectId:
+      payload.projectId !== undefined
+        ? payload.projectId
+          ? String(payload.projectId)
+          : null
+        : existing.projectId || null,
+    status,
+    updatedAt: now,
+  };
+  if (typeof indexedDB === "undefined") {
+    const list = readUsersStorage();
+    const index = list.findIndex((item) => String(item.id) === String(id));
+    if (index >= 0) {
+      list[index] = updated;
+      writeUsersStorage(list);
+    }
+    return updated;
+  }
+  const db = await openOpscopeDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction("users", "readwrite");
+    const store = tx.objectStore("users");
+    const request = store.put(updated);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error || new Error("Falha ao salvar usuario."));
+  });
+  touchAccessSync();
+  return updated;
+}
+
+async function resetPasswordForUser(input) {
+  const payload = input || {};
+  const id = String(payload.id || "").trim();
+  if (!id) {
+    throw new Error("Usuario invalido.");
+  }
+  const existing = await getUserFromDb(id);
+  if (!existing) {
+    throw new Error("Usuario nao encontrado.");
+  }
+  const mode = String(payload.mode || "MANUAL").toUpperCase();
+  let generatedPassword = "";
+  let password = String(payload.password || "");
+  if (mode === "GERADA") {
+    generatedPassword = generatePassword(12);
+    password = generatedPassword;
+  }
+  if (!password) {
+    throw new Error("Informe a senha.");
+  }
+  const now = toIsoUtc(new Date());
+  const passwordHash = await hashPasswordWithSalt(password);
+  const updated = {
+    ...existing,
+    passwordHash,
+    passwordUpdatedAt: now,
+    updatedAt: now,
+  };
+  if (typeof indexedDB === "undefined") {
+    const list = readUsersStorage();
+    const index = list.findIndex((item) => String(item.id) === String(id));
+    if (index >= 0) {
+      list[index] = updated;
+      writeUsersStorage(list);
+    }
+    return { user: updated, generatedPassword: generatedPassword || undefined };
+  }
+  const db = await openOpscopeDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction("users", "readwrite");
+    const store = tx.objectStore("users");
+    const request = store.put(updated);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error || new Error("Falha ao salvar senha."));
+  });
+  touchAccessSync();
+  return { user: updated, generatedPassword: generatedPassword || undefined };
+}
+
+async function setUserStatus(id, status) {
+  const targetStatus = String(status || "").toUpperCase() === "INATIVO" ? "INATIVO" : "ATIVO";
+  return updateUserToDb({ id, status: targetStatus });
 }
 
 function readVehiclesStorage() {
@@ -19295,6 +20428,503 @@ function renderUsuarios() {
   });
 }
 
+function setAccessMessage(texto, erro = false) {
+  if (!accessMsg) {
+    return;
+  }
+  accessMsg.textContent = texto || "";
+  accessMsg.hidden = !texto;
+  accessMsg.classList.toggle("mensagem--erro", erro);
+}
+
+function setAccessTab(tab) {
+  if (!accessTabs.length || !accessPanels.length) {
+    return;
+  }
+  accessTabs.forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.accessTab === tab);
+  });
+  accessPanels.forEach((panel) => {
+    panel.hidden = panel.dataset.accessPanel !== tab;
+  });
+}
+
+function renderAccessRoleSelectOptions() {
+  const sorted = accessRoles.slice().sort((a, b) =>
+    String(a.name || "").localeCompare(String(b.name || ""), "pt-BR")
+  );
+  if (accessUserRole) {
+    accessUserRole.innerHTML = '<option value="">Selecione</option>';
+    sorted.forEach((role) => {
+      const opt = document.createElement("option");
+      opt.value = role.id;
+      opt.textContent = role.name || "-";
+      accessUserRole.append(opt);
+    });
+  }
+  if (accessUserRoleFilter) {
+    accessUserRoleFilter.innerHTML = '<option value="">Todos</option>';
+    sorted.forEach((role) => {
+      const opt = document.createElement("option");
+      opt.value = role.id;
+      opt.textContent = role.name || "-";
+      accessUserRoleFilter.append(opt);
+    });
+  }
+}
+
+function renderAccessProjectSelectOptions() {
+  const projects = Array.isArray(availableProjects) ? availableProjects : [];
+  if (accessUserProject) {
+    accessUserProject.innerHTML = '<option value="">Sem projeto</option>';
+    projects.forEach((project) => {
+      const opt = document.createElement("option");
+      opt.value = project.id;
+      opt.textContent = getProjectLabel(project);
+      accessUserProject.append(opt);
+    });
+  }
+  if (accessUserProjectFilter) {
+    accessUserProjectFilter.innerHTML = '<option value="">Todos</option>';
+    projects.forEach((project) => {
+      const opt = document.createElement("option");
+      opt.value = project.id;
+      opt.textContent = getProjectLabel(project);
+      accessUserProjectFilter.append(opt);
+    });
+  }
+}
+
+function renderAccessUsers() {
+  if (!accessUsersTableBody || !accessUsersEmpty) {
+    return;
+  }
+  accessUsersTableBody.innerHTML = "";
+  if (!currentUser || !canManageAccess(currentUser)) {
+    accessUsersEmpty.hidden = false;
+    accessUsersEmpty.textContent = "Acesso restrito.";
+    return;
+  }
+  const query = normalizeSearchValue(accessUserSearch ? accessUserSearch.value : "");
+  const status = accessUserStatusFilter ? accessUserStatusFilter.value : "";
+  const roleId = accessUserRoleFilter ? accessUserRoleFilter.value : "";
+  const projectId = accessUserProjectFilter ? accessUserProjectFilter.value : "";
+  const filtered = accessUsers.filter((user) => {
+    if (status && String(user.status || "").toUpperCase() !== status) {
+      return false;
+    }
+    if (roleId && String(user.roleId || "") !== roleId) {
+      return false;
+    }
+    if (projectId && String(user.projectId || "") !== projectId) {
+      return false;
+    }
+    if (query) {
+      const nome = normalizeSearchValue(user.name || "");
+      const matricula = normalizeSearchValue(user.matricula || "");
+      const email = normalizeSearchValue(user.email || "");
+      if (!nome.includes(query) && !matricula.includes(query) && !email.includes(query)) {
+        return false;
+      }
+    }
+    return true;
+  });
+  if (!filtered.length) {
+    accessUsersEmpty.hidden = false;
+    accessUsersEmpty.textContent = "Nenhuma conta cadastrada.";
+    return;
+  }
+  accessUsersEmpty.hidden = true;
+  const canWrite = Boolean(currentUser && canManageAccess(currentUser));
+  filtered.forEach((user) => {
+    const tr = document.createElement("tr");
+    const statusText = user.status === "INATIVO" ? "Inativo" : "Ativo";
+    const statusClass = user.status === "INATIVO" ? "status-pill--inactive" : "status-pill--active";
+    const actions = [];
+    if (canWrite) {
+      actions.push(
+        `<button class="btn btn--ghost btn--small" type="button" data-action="edit-user" data-user-id="${user.id}">Editar</button>`
+      );
+      actions.push(
+        `<button class="btn btn--ghost btn--small" type="button" data-action="reset-password" data-user-id="${user.id}">Resetar senha</button>`
+      );
+      actions.push(
+        `<button class="btn btn--ghost btn--small" type="button" data-action="toggle-status" data-user-id="${user.id}">${
+          user.status === "INATIVO" ? "Ativar" : "Inativar"
+        }</button>`
+      );
+    }
+    tr.innerHTML = `
+      <td>${escapeHtml(user.name || "-")}</td>
+      <td>${escapeHtml(user.matricula || "-")}</td>
+      <td>${escapeHtml(user.roleName || "-")}</td>
+      <td>${escapeHtml(getUserProjectLabel(user))}</td>
+      <td><span class="status-pill ${statusClass}">${statusText}</span></td>
+      <td class="table-actions">${actions.length ? actions.join(" ") : "-"}</td>
+    `;
+    accessUsersTableBody.append(tr);
+  });
+}
+
+function renderAccessRoles() {
+  if (!accessRolesTableBody || !accessRolesEmpty) {
+    return;
+  }
+  accessRolesTableBody.innerHTML = "";
+  if (!currentUser || !canManageAccess(currentUser)) {
+    accessRolesEmpty.hidden = false;
+    accessRolesEmpty.textContent = "Acesso restrito.";
+    return;
+  }
+  const query = normalizeSearchValue(accessRoleSearch ? accessRoleSearch.value : "");
+  const filtered = accessRoles.filter((role) => {
+    if (!query) {
+      return true;
+    }
+    return normalizeSearchValue(role.name || "").includes(query);
+  });
+  if (!filtered.length) {
+    accessRolesEmpty.hidden = false;
+    accessRolesEmpty.textContent = "Nenhum cargo cadastrado.";
+    return;
+  }
+  accessRolesEmpty.hidden = true;
+  const canWrite = Boolean(currentUser && canManageAccess(currentUser));
+  filtered
+    .slice()
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR"))
+    .forEach((role) => {
+      const tr = document.createElement("tr");
+      const inUse = accessUsers.some((user) => String(user.roleId || "") === String(role.id));
+      const statusLabel = role.isSystem ? "Sistema" : inUse ? "Em uso" : "Customizado";
+      const permLabel = role.permissions && role.permissions.includes("ADMIN")
+        ? "Admin total"
+        : `${(role.permissions || []).length} permissao(oes)`;
+      const actions = [];
+      if (canWrite) {
+        actions.push(
+          `<button class="btn btn--ghost btn--small" type="button" data-action="edit-role" data-role-id="${role.id}">Editar</button>`
+        );
+        const disabled = role.isSystem || inUse ? "disabled" : "";
+        const title = role.isSystem
+          ? "Cargo do sistema"
+          : inUse
+            ? "Cargo em uso"
+            : "Remover";
+        actions.push(
+          `<button class="btn btn--ghost btn--small btn--danger" type="button" data-action="delete-role" data-role-id="${role.id}" ${disabled} title="${title}">Excluir</button>`
+        );
+      }
+      tr.innerHTML = `
+        <td>${escapeHtml(role.name || "-")}</td>
+        <td>${escapeHtml(permLabel)}</td>
+        <td>${escapeHtml(statusLabel)}</td>
+        <td class="table-actions">${actions.length ? actions.join(" ") : "-"}</td>
+      `;
+      accessRolesTableBody.append(tr);
+    });
+}
+
+async function refreshAccessRoles() {
+  try {
+    accessRoles = await dataProvider.roles.listRoles();
+  } catch (error) {
+    accessRoles = [];
+  }
+  accessRoleMap = new Map(accessRoles.map((role) => [role.id, role]));
+  renderAccessRoleSelectOptions();
+  renderAccessRoles();
+}
+
+async function refreshAccessUsers() {
+  if (!currentUser) {
+    accessUsers = [];
+    users = [];
+    renderAccessUsers();
+    return;
+  }
+  let shouldRenderAuth = false;
+  try {
+    const list = await dataProvider.authAdmin.listUsers();
+    accessUsers = list
+      .map((account) => buildSessionUser(account, accessRoleMap.get(account.roleId)))
+      .filter(Boolean);
+  } catch (error) {
+    accessUsers = [];
+  }
+  users = accessUsers.slice();
+  if (currentUser) {
+    const updated = accessUsers.find((item) => String(item.id) === String(currentUser.id));
+    if (updated) {
+      if (String(updated.status || "").toUpperCase() === "INATIVO") {
+        salvarSessao(null);
+        currentUser = null;
+      } else {
+        currentUser = updated;
+      }
+      shouldRenderAuth = true;
+    }
+  }
+  renderAccessUsers();
+  renderAccessRoles();
+  if (shouldRenderAuth) {
+    renderAuthUI();
+  }
+}
+
+async function refreshAccessData() {
+  try {
+    await dataProvider.roles.seedDefaultRolesIfEmpty();
+  } catch (error) {
+    // noop
+  }
+  await refreshAccessRoles();
+  await refreshAccessUsers();
+}
+
+function setAccessUserFormMessage(texto, erro = false) {
+  if (!accessUserFormMsg) {
+    return;
+  }
+  accessUserFormMsg.textContent = texto || "";
+  accessUserFormMsg.hidden = !texto;
+  accessUserFormMsg.classList.toggle("mensagem--erro", erro);
+}
+
+function getSelectedAccessUserPasswordMode() {
+  const input = document.querySelector('input[name="accessUserPasswordMode"]:checked');
+  return input ? input.value : "MANUAL";
+}
+
+function updateAccessUserPasswordMode() {
+  if (!accessUserPassword) {
+    return;
+  }
+  const mode = getSelectedAccessUserPasswordMode();
+  const manual = mode === "MANUAL";
+  accessUserPassword.disabled = !manual;
+  if (!manual) {
+    accessUserPassword.value = "";
+  }
+}
+
+function openAccessUserModal(user = null) {
+  if (!modalAccessUser || !accessUserForm) {
+    return;
+  }
+  const editing = Boolean(user);
+  if (accessUserModalTitle) {
+    accessUserModalTitle.textContent = editing ? "Editar conta" : "Nova conta";
+  }
+  if (accessUserModalSubtitle) {
+    accessUserModalSubtitle.textContent = editing
+      ? "Atualize os dados do usuario."
+      : "Defina os dados de acesso.";
+  }
+  setAccessUserFormMessage("");
+  if (accessUserId) {
+    accessUserId.value = editing ? user.id : "";
+  }
+  if (accessUserName) {
+    accessUserName.value = editing ? user.name || "" : "";
+  }
+  if (accessUserMatricula) {
+    accessUserMatricula.value = editing ? user.matricula || "" : "";
+    accessUserMatricula.disabled = editing;
+  }
+  if (accessUserEmail) {
+    accessUserEmail.value = editing ? user.email || "" : "";
+  }
+  renderAccessRoleSelectOptions();
+  if (accessUserRole) {
+    accessUserRole.value = editing ? user.roleId || "" : "";
+  }
+  renderAccessProjectSelectOptions();
+  if (accessUserProject) {
+    accessUserProject.value = editing && user.projectId ? String(user.projectId) : "";
+  }
+  if (accessUserStatus) {
+    accessUserStatus.value = editing ? user.status || "ATIVO" : "ATIVO";
+  }
+  if (accessUserPasswordBlock) {
+    accessUserPasswordBlock.hidden = editing;
+  }
+  const modeInput = document.querySelector('input[name="accessUserPasswordMode"][value="MANUAL"]');
+  if (modeInput) {
+    modeInput.checked = true;
+  }
+  if (accessUserPassword) {
+    accessUserPassword.value = "";
+  }
+  if (accessUserPasswordHint) {
+    accessUserPasswordHint.textContent = "A senha gerada sera exibida uma unica vez.";
+  }
+  updateAccessUserPasswordMode();
+  modalAccessUser.hidden = false;
+}
+
+function closeAccessUserModal() {
+  if (!modalAccessUser) {
+    return;
+  }
+  modalAccessUser.hidden = true;
+}
+
+function setResetPasswordMessage(texto, erro = false) {
+  if (!resetPasswordMsg) {
+    return;
+  }
+  resetPasswordMsg.textContent = texto || "";
+  resetPasswordMsg.hidden = !texto;
+  resetPasswordMsg.classList.toggle("mensagem--erro", erro);
+}
+
+function getSelectedResetPasswordMode() {
+  const input = document.querySelector('input[name="resetPasswordMode"]:checked');
+  return input ? input.value : "MANUAL";
+}
+
+function updateResetPasswordMode() {
+  if (!resetPasswordManualField || !resetPasswordValue) {
+    return;
+  }
+  const mode = getSelectedResetPasswordMode();
+  const manual = mode === "MANUAL";
+  resetPasswordManualField.hidden = !manual;
+  resetPasswordValue.disabled = !manual;
+  if (!manual) {
+    resetPasswordValue.value = "";
+  }
+}
+
+function openResetPasswordModal(user) {
+  if (!modalResetPassword || !resetPasswordForm || !user) {
+    return;
+  }
+  if (resetPasswordUserId) {
+    resetPasswordUserId.value = user.id;
+  }
+  if (resetPasswordUserLabel) {
+    resetPasswordUserLabel.textContent = `UsuÃ¡rio: ${user.name || user.matricula || "-"}`;
+  }
+  const modeInput = document.querySelector('input[name="resetPasswordMode"][value="MANUAL"]');
+  if (modeInput) {
+    modeInput.checked = true;
+  }
+  if (resetPasswordValue) {
+    resetPasswordValue.value = "";
+  }
+  setResetPasswordMessage("");
+  updateResetPasswordMode();
+  modalResetPassword.hidden = false;
+}
+
+function closeResetPasswordModal() {
+  if (!modalResetPassword) {
+    return;
+  }
+  modalResetPassword.hidden = true;
+}
+
+function showGeneratedPassword(password) {
+  if (!modalGeneratedPassword || !generatedPasswordValue) {
+    return;
+  }
+  generatedPasswordValue.textContent = password || "-";
+  modalGeneratedPassword.hidden = false;
+}
+
+function closeGeneratedPasswordModal() {
+  if (!modalGeneratedPassword) {
+    return;
+  }
+  modalGeneratedPassword.hidden = true;
+}
+
+function renderAccessRolePermissions(selected = []) {
+  if (!accessRolePermissions) {
+    return;
+  }
+  const selectedSet = new Set(normalizeAccessPermissionList(selected));
+  accessRolePermissions.innerHTML = "";
+  ACCESS_PERMISSION_GROUPS.forEach((group) => {
+    const block = document.createElement("div");
+    block.className = "perm-group";
+    const title = document.createElement("strong");
+    title.textContent = group.label || "Modulo";
+    const grid = document.createElement("div");
+    grid.className = "perm-grid";
+    (group.items || []).forEach((perm) => {
+      const label = document.createElement("label");
+      label.className = "perm-item";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.dataset.accessPermission = perm;
+      checkbox.checked = selectedSet.has(perm);
+      const text = document.createElement("span");
+      text.textContent = ACCESS_PERMISSION_LABELS[perm] || perm;
+      label.append(checkbox, text);
+      grid.append(label);
+    });
+    block.append(title, grid);
+    accessRolePermissions.append(block);
+  });
+}
+
+function collectAccessRolePermissions() {
+  if (!accessRolePermissions) {
+    return [];
+  }
+  const selected = [];
+  accessRolePermissions.querySelectorAll("input[data-access-permission]").forEach((input) => {
+    if (input.checked) {
+      selected.push(input.dataset.accessPermission);
+    }
+  });
+  return normalizeAccessPermissionList(selected);
+}
+
+function setAccessRoleFormMessage(texto, erro = false) {
+  if (!accessRoleFormMsg) {
+    return;
+  }
+  accessRoleFormMsg.textContent = texto || "";
+  accessRoleFormMsg.hidden = !texto;
+  accessRoleFormMsg.classList.toggle("mensagem--erro", erro);
+}
+
+function openAccessRoleModal(role = null) {
+  if (!modalAccessRole || !accessRoleForm) {
+    return;
+  }
+  const editing = Boolean(role);
+  if (accessRoleModalTitle) {
+    accessRoleModalTitle.textContent = editing ? "Editar cargo" : "Novo cargo";
+  }
+  if (accessRoleModalSubtitle) {
+    accessRoleModalSubtitle.textContent = editing
+      ? "Atualize as permissoes do cargo."
+      : "Defina o nome e permissoes do cargo.";
+  }
+  setAccessRoleFormMessage("");
+  if (accessRoleId) {
+    accessRoleId.value = editing ? role.id : "";
+  }
+  if (accessRoleName) {
+    accessRoleName.value = editing ? role.name || "" : "";
+    accessRoleName.disabled = Boolean(role && role.isSystem);
+  }
+  renderAccessRolePermissions(editing ? role.permissions || [] : []);
+  modalAccessRole.hidden = false;
+}
+
+function closeAccessRoleModal() {
+  if (!modalAccessRole) {
+    return;
+  }
+  modalAccessRole.hidden = true;
+}
+
 function getActiveProject() {
   return availableProjects.find((project) => project.id === activeProjectId) || null;
 }
@@ -19347,6 +20977,7 @@ function renderProjectSelector() {
   }
   renderProjectSelectOptions(manutencaoProjeto, activeProjectId);
   renderProjectSelectOptions(templateProjeto, activeProjectId);
+  renderAccessProjectSelectOptions();
   renderRelatorioClienteSelect();
 }
 
@@ -24893,9 +26524,15 @@ function renderAuthUI() {
     }
     applyAvatarToElement(userAvatar, getAvatarUrl(currentUser));
     applyAvatarToElement(userMenuAvatar, getAvatarUrl(currentUser));
-    btnTabLogin.hidden = true;
-    btnTabRegistro.hidden = true;
-    btnSair.hidden = false;
+    if (btnTabLogin) {
+      btnTabLogin.hidden = true;
+    }
+    if (btnTabRegistro) {
+      btnTabRegistro.hidden = true;
+    }
+    if (btnSair) {
+      btnSair.hidden = false;
+    }
     esconderAuthPanels();
     if (maintenanceLastUserId !== currentUser.id) {
       if (maintenanceLoadedProjects.has(activeProjectId)) {
@@ -24905,9 +26542,15 @@ function renderAuthUI() {
   } else {
     usuarioAtual.textContent = "Visitante";
     usuarioAtual.hidden = true;
-    btnTabLogin.hidden = false;
-    btnTabRegistro.hidden = false;
-    btnSair.hidden = true;
+    if (btnTabLogin) {
+      btnTabLogin.hidden = false;
+    }
+    if (btnTabRegistro) {
+      btnTabRegistro.hidden = false;
+    }
+    if (btnSair) {
+      btnSair.hidden = true;
+    }
     pendingAvatarDataUrl = "";
     const btnAvatarSaveAtual = document.getElementById("btnAvatarSave");
     if (btnAvatarSaveAtual) {
@@ -25006,15 +26649,6 @@ function renderAuthUI() {
     const podeExportar = currentUser && canExportRelatorios(currentUser);
     btnGerarRelatorio.disabled = !podeExportar;
     btnGerarRelatorio.classList.toggle("is-disabled", !podeExportar);
-  }
-
-  const podeConvidarUsuarios = Boolean(currentUser && canInviteUsuarios(currentUser));
-  if (btnGerarConvite) {
-    btnGerarConvite.disabled = !podeConvidarUsuarios;
-    btnGerarConvite.classList.toggle("is-disabled", !podeConvidarUsuarios);
-  }
-  if (inviteRole) {
-    inviteRole.disabled = !podeConvidarUsuarios;
   }
 
   aplicarPermissoesRdo();
@@ -29450,15 +31084,53 @@ function ativarTab(nome) {
   atualizarTituloPagina(nome);
 }
 
+async function authLoginLocal(login, senha) {
+  const matricula = String(login || "").trim();
+  const password = String(senha || "");
+  if (!matricula || !password) {
+    throw new Error("Informe usuario e senha.");
+  }
+  await dataProvider.roles.seedDefaultRolesIfEmpty();
+  const account = await getUserByMatriculaNormalized(normalizeMatricula(matricula));
+  if (!account) {
+    throw new Error("Usuario ou senha invalidos.");
+  }
+  if (String(account.status || "").toUpperCase() === "INATIVO") {
+    throw new Error("Conta inativa.");
+  }
+  const ok = await verifyPasswordHash(password, account.passwordHash);
+  if (!ok) {
+    throw new Error("Usuario ou senha invalidos.");
+  }
+  const role = await getRoleFromDb(account.roleId);
+  const user = buildSessionUser(account, role);
+  salvarSessao({ userId: user.id, createdAt: toIsoUtc(new Date()) });
+  return { user };
+}
+
+async function authLogoutLocal() {
+  salvarSessao(null);
+  currentUser = null;
+  users = [];
+  accessUsers = [];
+  renderAuthUI();
+}
+
 async function apiLogin(login, senha) {
-  return apiRequest("/api/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ login, senha }),
-  });
+  if (USE_AUTH_API) {
+    return apiRequest("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ login, senha }),
+    });
+  }
+  return authLoginLocal(login, senha);
 }
 
 async function apiLogout() {
-  return apiRequest("/api/auth/logout", { method: "POST", body: "{}" });
+  if (USE_AUTH_API) {
+    return apiRequest("/api/auth/logout", { method: "POST", body: "{}" });
+  }
+  return authLogoutLocal();
 }
 
 async function apiRegister(payload) {
@@ -30626,10 +32298,6 @@ if (btnTabRegistro) {
       return;
     }
     mostrarAuthPanel("registro");
-    mostrarFormularioRegistro();
-    if (reqMatricula) {
-      reqMatricula.focus();
-    }
   });
 }
 
@@ -30643,7 +32311,6 @@ if (btnSair) {
     currentUser = null;
     renderTudo();
     pendingVerificationEmail = "";
-    mostrarFormularioRegistro();
     mostrarAuthPanel("login");
   });
 }
@@ -30743,31 +32410,7 @@ if (btnRecalcularBacklog) {
 if (btnGerarRelatorio) {
   btnGerarRelatorio.addEventListener("click", gerarRelatorio);
 }
-if (btnGerarConvite) {
-  btnGerarConvite.addEventListener("click", async () => {
-    if (!currentUser || !canInviteUsuarios(currentUser)) {
-      if (inviteResultado) {
-        inviteResultado.textContent = "Sem permissÃ£o para gerar convite.";
-      }
-      return;
-    }
-    if (inviteResultado) {
-      inviteResultado.textContent = "Gerando convite...";
-    }
-    try {
-      const role = inviteRole ? inviteRole.value : "EXECUTOR";
-      const data = await apiInvite(role);
-      const expira = data.expiresAt ? formatDateTime(new Date(data.expiresAt)) : "-";
-      if (inviteResultado) {
-        inviteResultado.textContent = `Convite: ${data.code} | Perfil: ${role} | Expira: ${expira}`;
-      }
-    } catch (error) {
-      if (inviteResultado) {
-        inviteResultado.textContent = "NÃ£o foi possÃ­vel gerar o convite.";
-      }
-    }
-  });
-}
+// Convites removidos: gestao de acessos e feita via administracao.
 
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -30803,92 +32446,12 @@ loginForm.addEventListener("submit", async (event) => {
   }
 });
 
-reqForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  setFieldError(reqSenhaErro, "");
-  setFieldError(reqSenhaConfirmErro, "");
-  setFieldError(reqCodigoErro, "");
-  const matricula = reqMatricula.value.trim();
-  const email = matricula;
-  const nome = reqNome.value.trim();
-  const senha = reqSenha.value.trim();
-  const senhaConfirm = reqSenhaConfirm ? reqSenhaConfirm.value.trim() : "";
-  const convite = reqCodigoConvite ? reqCodigoConvite.value.trim().toUpperCase() : "";
-  const rulesOk = atualizarSenhaRules();
-  if (!matricula || !nome || !senha || !senhaConfirm || !convite) {
-    mostrarMensagemConta("Preencha os campos obrigatorios.", true);
-    if (!convite) {
-      setFieldError(reqCodigoErro, "Codigo de convite obrigatorio.");
-    }
-    if (!rulesOk) {
-      setFieldError(reqSenhaErro, "Senha fora da politica.");
-    }
-    if (senha !== senhaConfirm) {
-      setFieldError(reqSenhaConfirmErro, "As senhas nÃ£o conferem.");
-    }
-    return;
-  }
-  if (!rulesOk) {
-    setFieldError(reqSenhaErro, "Senha fora da politica.");
-    return;
-  }
-  if (senha !== senhaConfirm) {
-    setFieldError(reqSenhaConfirmErro, "As senhas nÃ£o conferem.");
-    return;
-  }
-  if (btnRegistroSubmit) {
-    btnRegistroSubmit.disabled = true;
-    btnRegistroSubmit.textContent = "Solicitando...";
-  }
-  try {
-    const data = await apiRegister({ matricula, email, nome, senha, senhaConfirm, convite });
-    const needsVerification = !data || data.verificationRequired !== false;
-    const pendingEmail = normalizeVerificationEmail(
-      (data && data.pendingEmail) || email || matricula
-    );
-    const successMessage = needsVerification
-      ? "Conta criada. Digite o codigo enviado para o seu e-mail."
-      : "Conta criada. Voce ja pode entrar.";
-    mostrarMensagemConta(successMessage, false);
-    reqMatricula.value = "";
-    reqNome.value = "";
-    reqSenha.value = "";
-    if (reqSenhaConfirm) {
-      reqSenhaConfirm.value = "";
-    }
-    if (reqCodigoConvite) {
-      reqCodigoConvite.value = "";
-    }
-    if (needsVerification) {
-      mostrarFormularioVerificacao(pendingEmail);
-      return;
-    }
-    mostrarFormularioRegistro();
-    pendingVerificationEmail = "";
-    if (loginUsuario) {
-      loginUsuario.value = pendingEmail;
-    }
-    mostrarAuthPanel("login");
-  } catch (error) {
-    const errors = error.data && error.data.errors ? error.data.errors : {};
-    if (errors.senha) {
-      setFieldError(reqSenhaErro, errors.senha);
-    }
-    if (errors.senhaConfirm) {
-      setFieldError(reqSenhaConfirmErro, errors.senhaConfirm);
-    }
-    if (errors.convite) {
-      setFieldError(reqCodigoErro, errors.convite);
-    }
-    const message = error && error.message ? error.message : "NÃ£o foi possÃ­vel criar a conta.";
-    mostrarMensagemConta(message, true);
-  } finally {
-    if (btnRegistroSubmit) {
-      btnRegistroSubmit.disabled = false;
-      btnRegistroSubmit.textContent = "Solicitar acesso";
-    }
-  }
-});
+if (reqForm) {
+  reqForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    mostrarMensagemConta("Cadastro desativado. Procure o PCM/Admin.", true);
+  });
+}
 
 if (verifyForm) {
   verifyForm.addEventListener("submit", async (event) => {
@@ -32127,6 +33690,367 @@ if (drawerRole) {
   });
 }
 
+if (btnIrAcessos) {
+  btnIrAcessos.addEventListener("click", () => {
+    abrirPainelComCarregamento("acessos");
+    setAccessTab("contas");
+  });
+}
+
+if (accessTabs.length) {
+  accessTabs.forEach((button) => {
+    button.addEventListener("click", () => {
+      setAccessTab(button.dataset.accessTab || "contas");
+    });
+  });
+}
+
+if (btnAccessNewUser) {
+  btnAccessNewUser.addEventListener("click", () => {
+    if (!currentUser || !canManageAccess(currentUser)) {
+      setAccessMessage("Sem permissao para criar contas.", true);
+      return;
+    }
+    openAccessUserModal();
+  });
+}
+
+if (btnAccessNewRole) {
+  btnAccessNewRole.addEventListener("click", () => {
+    if (!currentUser || !canManageAccess(currentUser)) {
+      setAccessMessage("Sem permissao para criar cargos.", true);
+      return;
+    }
+    openAccessRoleModal();
+  });
+}
+
+if (btnAccessClearFilters) {
+  btnAccessClearFilters.addEventListener("click", () => {
+    if (accessUserSearch) {
+      accessUserSearch.value = "";
+    }
+    if (accessUserStatusFilter) {
+      accessUserStatusFilter.value = "";
+    }
+    if (accessUserRoleFilter) {
+      accessUserRoleFilter.value = "";
+    }
+    if (accessUserProjectFilter) {
+      accessUserProjectFilter.value = "";
+    }
+    renderAccessUsers();
+  });
+}
+
+if (accessUserSearch) {
+  accessUserSearch.addEventListener("input", renderAccessUsers);
+}
+if (accessUserStatusFilter) {
+  accessUserStatusFilter.addEventListener("change", renderAccessUsers);
+}
+if (accessUserRoleFilter) {
+  accessUserRoleFilter.addEventListener("change", renderAccessUsers);
+}
+if (accessUserProjectFilter) {
+  accessUserProjectFilter.addEventListener("change", renderAccessUsers);
+}
+if (accessRoleSearch) {
+  accessRoleSearch.addEventListener("input", renderAccessRoles);
+}
+
+if (accessUsersTableBody) {
+  accessUsersTableBody.addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) {
+      return;
+    }
+    const userId = button.dataset.userId;
+    const user = accessUsers.find((item) => String(item.id) === String(userId));
+    if (!user) {
+      return;
+    }
+    if (!currentUser || !canManageAccess(currentUser)) {
+      setAccessMessage("Sem permissao para esta acao.", true);
+      return;
+    }
+    if (button.dataset.action === "edit-user") {
+      openAccessUserModal(user);
+      return;
+    }
+    if (button.dataset.action === "reset-password") {
+      openResetPasswordModal(user);
+      return;
+    }
+    if (button.dataset.action === "toggle-status") {
+      const nextStatus = user.status === "INATIVO" ? "ATIVO" : "INATIVO";
+      const confirmar =
+        nextStatus === "INATIVO"
+          ? window.confirm("Inativar esta conta?")
+          : window.confirm("Ativar esta conta?");
+      if (!confirmar) {
+        return;
+      }
+      setAccessMessage("Atualizando status...");
+      try {
+        if (nextStatus === "INATIVO") {
+          await dataProvider.authAdmin.deactivateUser(user.id);
+        } else {
+          await dataProvider.authAdmin.activateUser(user.id);
+        }
+        await refreshAccessUsers();
+        setAccessMessage("Status atualizado.");
+      } catch (error) {
+        setAccessMessage(error.message || "Falha ao atualizar status.", true);
+      }
+    }
+  });
+}
+
+if (accessRolesTableBody) {
+  accessRolesTableBody.addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) {
+      return;
+    }
+    const roleId = button.dataset.roleId;
+    const role = accessRoles.find((item) => String(item.id) === String(roleId));
+    if (!role) {
+      return;
+    }
+    if (!currentUser || !canManageAccess(currentUser)) {
+      setAccessMessage("Sem permissao para esta acao.", true);
+      return;
+    }
+    if (button.dataset.action === "edit-role") {
+      openAccessRoleModal(role);
+      return;
+    }
+    if (button.dataset.action === "delete-role") {
+      const confirmar = window.confirm("Excluir este cargo?");
+      if (!confirmar) {
+        return;
+      }
+      setAccessMessage("Removendo cargo...");
+      try {
+        await dataProvider.roles.deleteRole(role.id);
+        await refreshAccessRoles();
+        await refreshAccessUsers();
+        setAccessMessage("Cargo removido.");
+      } catch (error) {
+        setAccessMessage(error.message || "Falha ao remover cargo.", true);
+      }
+    }
+  });
+}
+
+if (btnCloseAccessUserModal) {
+  btnCloseAccessUserModal.addEventListener("click", closeAccessUserModal);
+}
+if (btnAccessUserCancel) {
+  btnAccessUserCancel.addEventListener("click", closeAccessUserModal);
+}
+if (modalAccessUser) {
+  modalAccessUser.addEventListener("click", (event) => {
+    if (event.target === modalAccessUser) {
+      closeAccessUserModal();
+    }
+  });
+}
+
+document.querySelectorAll('input[name="accessUserPasswordMode"]').forEach((input) => {
+  input.addEventListener("change", updateAccessUserPasswordMode);
+});
+
+if (btnAccessGeneratePassword) {
+  btnAccessGeneratePassword.addEventListener("click", () => {
+    const password = generatePassword(12);
+    const manualRadio = document.querySelector('input[name="accessUserPasswordMode"][value="MANUAL"]');
+    if (manualRadio) {
+      manualRadio.checked = true;
+    }
+    if (accessUserPassword) {
+      accessUserPassword.value = password;
+      accessUserPassword.focus();
+    }
+    if (accessUserPasswordHint) {
+      accessUserPasswordHint.textContent = "Senha gerada automaticamente. Copie antes de salvar.";
+    }
+    updateAccessUserPasswordMode();
+  });
+}
+
+if (accessUserForm) {
+  accessUserForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!currentUser || !canManageAccess(currentUser)) {
+      setAccessUserFormMessage("Sem permissao para salvar.", true);
+      return;
+    }
+    const id = accessUserId ? accessUserId.value.trim() : "";
+    const payload = {
+      name: accessUserName ? accessUserName.value.trim() : "",
+      matricula: accessUserMatricula ? accessUserMatricula.value.trim() : "",
+      email: accessUserEmail ? accessUserEmail.value.trim() : "",
+      roleId: accessUserRole ? accessUserRole.value : "",
+      projectId: accessUserProject ? accessUserProject.value : null,
+      status: accessUserStatus ? accessUserStatus.value : "ATIVO",
+    };
+    setAccessUserFormMessage("");
+    try {
+      if (id) {
+        await dataProvider.authAdmin.updateUser({ ...payload, id });
+        closeAccessUserModal();
+        await refreshAccessUsers();
+        setAccessMessage("Conta atualizada.");
+      } else {
+        const mode = getSelectedAccessUserPasswordMode();
+        const password = accessUserPassword ? accessUserPassword.value.trim() : "";
+        const result = await dataProvider.authAdmin.createUser({
+          ...payload,
+          passwordMode: mode,
+          password,
+        });
+        closeAccessUserModal();
+        await refreshAccessUsers();
+        setAccessMessage("Conta criada.");
+        if (result && result.generatedPassword) {
+          showGeneratedPassword(result.generatedPassword);
+        }
+      }
+    } catch (error) {
+      setAccessUserFormMessage(error.message || "Falha ao salvar conta.", true);
+    }
+  });
+}
+
+if (btnCloseResetPassword) {
+  btnCloseResetPassword.addEventListener("click", closeResetPasswordModal);
+}
+if (btnResetPasswordCancel) {
+  btnResetPasswordCancel.addEventListener("click", closeResetPasswordModal);
+}
+if (modalResetPassword) {
+  modalResetPassword.addEventListener("click", (event) => {
+    if (event.target === modalResetPassword) {
+      closeResetPasswordModal();
+    }
+  });
+}
+
+document.querySelectorAll('input[name="resetPasswordMode"]').forEach((input) => {
+  input.addEventListener("change", updateResetPasswordMode);
+});
+
+if (btnResetGeneratePassword) {
+  btnResetGeneratePassword.addEventListener("click", () => {
+    const password = generatePassword(12);
+    const manualRadio = document.querySelector('input[name="resetPasswordMode"][value="MANUAL"]');
+    if (manualRadio) {
+      manualRadio.checked = true;
+    }
+    if (resetPasswordValue) {
+      resetPasswordValue.value = password;
+      resetPasswordValue.focus();
+    }
+    updateResetPasswordMode();
+  });
+}
+
+if (resetPasswordForm) {
+  resetPasswordForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!currentUser || !canManageAccess(currentUser)) {
+      setResetPasswordMessage("Sem permissao para salvar.", true);
+      return;
+    }
+    const id = resetPasswordUserId ? resetPasswordUserId.value.trim() : "";
+    const mode = getSelectedResetPasswordMode();
+    const password = resetPasswordValue ? resetPasswordValue.value.trim() : "";
+    setResetPasswordMessage("");
+    try {
+      const result = await dataProvider.authAdmin.resetPassword({ id, mode, password });
+      closeResetPasswordModal();
+      await refreshAccessUsers();
+      setAccessMessage("Senha atualizada.");
+      if (result && result.generatedPassword) {
+        showGeneratedPassword(result.generatedPassword);
+      }
+    } catch (error) {
+      setResetPasswordMessage(error.message || "Falha ao atualizar senha.", true);
+    }
+  });
+}
+
+if (btnCloseGeneratedPassword) {
+  btnCloseGeneratedPassword.addEventListener("click", closeGeneratedPasswordModal);
+}
+if (btnGeneratedPasswordDone) {
+  btnGeneratedPasswordDone.addEventListener("click", closeGeneratedPasswordModal);
+}
+if (btnCopyGeneratedPassword) {
+  btnCopyGeneratedPassword.addEventListener("click", async () => {
+    const text = generatedPasswordValue ? generatedPasswordValue.textContent : "";
+    if (!text) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      btnCopyGeneratedPassword.textContent = "Copiado!";
+      setTimeout(() => {
+        btnCopyGeneratedPassword.textContent = "Copiar";
+      }, 2000);
+    } catch (error) {
+      // noop
+    }
+  });
+}
+
+if (modalGeneratedPassword) {
+  modalGeneratedPassword.addEventListener("click", (event) => {
+    if (event.target === modalGeneratedPassword) {
+      closeGeneratedPasswordModal();
+    }
+  });
+}
+
+if (btnCloseAccessRoleModal) {
+  btnCloseAccessRoleModal.addEventListener("click", closeAccessRoleModal);
+}
+if (btnAccessRoleCancel) {
+  btnAccessRoleCancel.addEventListener("click", closeAccessRoleModal);
+}
+if (modalAccessRole) {
+  modalAccessRole.addEventListener("click", (event) => {
+    if (event.target === modalAccessRole) {
+      closeAccessRoleModal();
+    }
+  });
+}
+
+if (accessRoleForm) {
+  accessRoleForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!currentUser || !canManageAccess(currentUser)) {
+      setAccessRoleFormMessage("Sem permissao para salvar.", true);
+      return;
+    }
+    const id = accessRoleId ? accessRoleId.value.trim() : "";
+    const name = accessRoleName ? accessRoleName.value.trim() : "";
+    const permissions = collectAccessRolePermissions();
+    setAccessRoleFormMessage("");
+    try {
+      await dataProvider.roles.upsertRole({ id: id || undefined, name, permissions });
+      closeAccessRoleModal();
+      await refreshAccessRoles();
+      await refreshAccessUsers();
+      setAccessMessage("Cargo salvo.");
+    } catch (error) {
+      setAccessRoleFormMessage(error.message || "Falha ao salvar cargo.", true);
+    }
+  });
+}
+
 if (listaModelos) {
   listaModelos.addEventListener("click", (event) => {
     const botao = event.target.closest("button[data-action]");
@@ -32634,11 +34558,16 @@ window.addEventListener("storage", (event) => {
     REMINDER_KEY,
     TEMPLATE_KEY,
   ];
-  const isRelevant =
-    event.key === USER_KEY ||
-    keysBase.some((base) => isProjectStorageKey(event.key, base));
-  if (isRelevant) {
-    users = carregarUsuarios();
+  const accessKeys = [ACCESS_SYNC_KEY, ACCESS_USERS_KEY, ACCESS_ROLES_KEY];
+  const isAccessUpdate = accessKeys.includes(event.key);
+  const isProjectUpdate = keysBase.some((base) => isProjectStorageKey(event.key, base));
+  if (isAccessUpdate) {
+    if (currentUser) {
+      refreshAccessData();
+    }
+    return;
+  }
+  if (isProjectUpdate) {
     templates = carregarTemplates();
     garantirTemplatesPadrao();
     const normalizados = normalizarTemplates(templates);

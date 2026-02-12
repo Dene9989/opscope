@@ -151,308 +151,20 @@
               <span>Acessos auditados e registrados</span>
             </div>
           </div>
-          <div class="auth-panel auth-panel--right auth-card">
-            <p class="auth-kicker">Ainda n&atilde;o tem acesso? Solicite uma conta.</p>
-            <form id="reqForm" class="auth-form auth-form--register" data-auth-panel="registro">
-              <h3>Registrar</h3>
-              <div class="field">
-                <label for="reqNome">Nome completo</label>
-                <div class="input-wrap has-icon-left">
-                  <span class="input-icon left" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" focusable="false">
-                      <path
-                        d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.4 0-8 2.2-8 4.8V21h16v-2.2c0-2.6-3.6-4.8-8-4.8Z"
-                        fill="currentColor"
-                      />
-                    </svg>
-                  </span>
-                  <input id="reqNome" type="text" placeholder="Nome completo" autocomplete="name" />
-                </div>
-              </div>
-              <div class="field">
-                <label for="reqMatricula">E-mail corporativo</label>
-                <div class="input-wrap has-icon-left">
-                  <span class="input-icon left" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" focusable="false">
-                      <path
-                        d="M4 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Zm0 2 8 5 8-5H4Z"
-                        fill="currentColor"
-                      />
-                    </svg>
-                  </span>
-                  <input
-                    id="reqMatricula"
-                    type="email"
-                    placeholder="nome.sobrenome@engelmig.com.br"
-                    autocomplete="email"
-                  />
-                </div>
-              </div>
-              <div class="field">
-                <label for="reqTelefone">Telefone (com DDD)</label>
-                <div class="input-wrap has-icon-left">
-                  <span class="input-icon left" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" focusable="false">
-                      <path
-                        d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.2 11.7 11.7 0 0 0 3.6.6 1 1 0 0 1 1 1v3.4a1 1 0 0 1-1 1A18 18 0 0 1 3 5a1 1 0 0 1 1-1h3.4a1 1 0 0 1 1 1 11.7 11.7 0 0 0 .6 3.6 1 1 0 0 1-.2 1Z"
-                        fill="currentColor"
-                      />
-                    </svg>
-                  </span>
-                  <input id="reqTelefone" type="tel" placeholder="(00) 00000-0000" autocomplete="tel" />
-                </div>
-              </div>
-              <div class="field">
-                <label for="reqMotivo">Motivo do acesso</label>
-                <div class="input-wrap has-icon-left">
-                  <span class="input-icon left" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" focusable="false">
-                      <path
-                        d="M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8l-4 4V6a2 2 0 0 1 2-2Zm3 5h6v2H9V9Zm0 4h6v2H9v-2Z"
-                        fill="currentColor"
-                      />
-                    </svg>
-                  </span>
-                  <textarea id="reqMotivo" rows="2" placeholder="Descreva o motivo do acesso"></textarea>
-                </div>
-              </div>
-              <div class="field field--password">
-                <label for="reqSenha">Senha</label>
-                <div class="input-wrap has-icon-left has-icon-right">
-                  <span class="input-icon left" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" focusable="false">
-                      <path
-                        d="M7 10V7a5 5 0 0 1 10 0v3h1a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h1Zm2 0h6V7a3 3 0 0 0-6 0v3Z"
-                        fill="currentColor"
-                      />
-                    </svg>
-                  </span>
-                  <input id="reqSenha" type="password" placeholder="Senha" autocomplete="new-password" />
-                  <button
-                    id="btnToggleReqSenha"
-                    class="icon-btn toggle-password"
-                    type="button"
-                    aria-label="Mostrar senha"
-                    aria-pressed="false"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                      <path
-                        class="eye-open"
-                        d="M1.5 12s4.5-7 10.5-7 10.5 7 10.5 7-4.5 7-10.5 7S1.5 12 1.5 12Z"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.6"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      />
-                      <circle
-                        class="eye-open"
-                        cx="12"
-                        cy="12"
-                        r="3.5"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.6"
-                      />
-                      <path
-                        class="eye-closed"
-                        d="M4 5.5 20 19.5"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.6"
-                        stroke-linecap="round"
-                      />
-                      <path
-                        class="eye-closed"
-                        d="M6.8 7.4A10.7 10.7 0 0 1 12 6c6 0 10 6 10 6a18 18 0 0 1-3.9 4.4"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.6"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      />
-                      <path
-                        class="eye-closed"
-                        d="M4.8 16.6A10.7 10.7 0 0 1 2 12s1.4-2.4 3.9-4.6"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.6"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      />
-                      <path
-                        class="eye-closed"
-                        d="M9.6 9.6a3 3 0 0 0 4.8 4.8"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.6"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      />
-                    </svg>
-                  </button>
-                </div>
-                <small id="capsLockRegistro" class="caps-hint" hidden>Caps Lock ativado</small>
-                <ul id="reqSenhaRules" class="password-rules">
-                  <li data-rule="length">Mínimo 12 caracteres</li>
-                  <li data-rule="upper">1 letra maiuscula</li>
-                  <li data-rule="lower">1 letra minuscula</li>
-                  <li data-rule="number">1 número</li>
-                  <li data-rule="symbol">1 simbolo</li>
-                </ul>
-                <p id="reqSenhaErro" class="field-error" hidden></p>
-              </div>
-              <div class="field field--password">
-                <label for="reqSenhaConfirm">Confirmar senha</label>
-                <div class="input-wrap has-icon-left has-icon-right">
-                  <span class="input-icon left" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" focusable="false">
-                      <path
-                        d="M7 10V7a5 5 0 0 1 10 0v3h1a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h1Zm2 0h6V7a3 3 0 0 0-6 0v3Z"
-                        fill="currentColor"
-                      />
-                    </svg>
-                  </span>
-                  <input id="reqSenhaConfirm" type="password" placeholder="Confirmar senha" autocomplete="new-password" />
-                  <button
-                    id="btnToggleReqSenhaConfirm"
-                    class="icon-btn toggle-password"
-                    type="button"
-                    aria-label="Mostrar senha"
-                    aria-pressed="false"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                      <path
-                        class="eye-open"
-                        d="M1.5 12s4.5-7 10.5-7 10.5 7 10.5 7-4.5 7-10.5 7S1.5 12 1.5 12Z"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.6"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      />
-                      <circle
-                        class="eye-open"
-                        cx="12"
-                        cy="12"
-                        r="3.5"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.6"
-                      />
-                      <path
-                        class="eye-closed"
-                        d="M4 5.5 20 19.5"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.6"
-                        stroke-linecap="round"
-                      />
-                      <path
-                        class="eye-closed"
-                        d="M6.8 7.4A10.7 10.7 0 0 1 12 6c6 0 10 6 10 6a18 18 0 0 1-3.9 4.4"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.6"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      />
-                      <path
-                        class="eye-closed"
-                        d="M4.8 16.6A10.7 10.7 0 0 1 2 12s1.4-2.4 3.9-4.6"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.6"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      />
-                      <path
-                        class="eye-closed"
-                        d="M9.6 9.6a3 3 0 0 0 4.8 4.8"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.6"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      />
-                    </svg>
-                  </button>
-                </div>
-                <p id="reqSenhaConfirmErro" class="field-error" hidden></p>
-              </div>
-              <div class="field">
-                <label for="reqCodigoConvite">Código de convite</label>
-                <div class="input-wrap has-icon-left">
-                  <span class="input-icon left" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" focusable="false">
-                      <path
-                        d="M12 3a4 4 0 0 1 4 4v3h2a2 2 0 0 1 2 2v2h-2v6a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-6H4v-2a2 2 0 0 1 2-2h2V7a4 4 0 0 1 4-4Zm0 2a2 2 0 0 0-2 2v3h4V7a2 2 0 0 0-2-2Z"
-                        fill="currentColor"
-                      />
-                    </svg>
-                  </span>
-                  <input id="reqCodigoConvite" type="text" placeholder="Codigo enviado pelo admin" />
-                </div>
-                <p id="reqCodigoErro" class="field-error" hidden></p>
-              </div>
-              <button id="btnRegistroSubmit" class="btn btn--primary" type="submit">
-                Solicitar acesso
-              </button>
-              <p class="auth-helper">
-                Sua solicita&ccedil;&atilde;o ser&aacute; encaminhada ao PCM/O&amp;M respons&aacute;vel.
+          <div class="auth-panel auth-panel--right auth-card" data-auth-panel="registro">
+            <p class="auth-kicker">Acesso controlado pelo PCM</p>
+            <div class="auth-info">
+              <h3>Gest&atilde;o de acessos centralizada</h3>
+              <p>
+                As contas s&atilde;o criadas e gerenciadas pelo PCM/Admin em
+                Administra&ccedil;&atilde;o &gt; Gest&atilde;o de Acessos.
               </p>
-            </form>
-            <form id="verifyForm" class="auth-form auth-form--verify" hidden>
-              <h3>Confirmar e-mail</h3>
-              <p class="auth-helper">
-                Digite o c&oacute;digo enviado para <strong id="verifyHintEmail">seu e-mail</strong>.
-              </p>
-              <div class="field">
-                <label for="verifyEmail">E-mail corporativo</label>
-                <div class="input-wrap has-icon-left">
-                  <span class="input-icon left" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" focusable="false">
-                      <path
-                        d="M4 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Zm0 2 8 5 8-5H4Z"
-                        fill="currentColor"
-                      />
-                    </svg>
-                  </span>
-                  <input id="verifyEmail" type="email" placeholder="nome.sobrenome@engelmig.com.br" autocomplete="email" />
-                </div>
-              </div>
-              <div class="field">
-                <label for="verifyCode">C&oacute;digo de verifica&ccedil;&atilde;o</label>
-                <div class="input-wrap has-icon-left">
-                  <span class="input-icon left" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" focusable="false">
-                      <path
-                        d="M12 3a4 4 0 0 1 4 4v3h2a2 2 0 0 1 2 2v2h-2v6a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-6H4v-2a2 2 0 0 1 2-2h2V7a4 4 0 0 1 4-4Zm0 2a2 2 0 0 0-2 2v3h4V7a2 2 0 0 0-2-2Z"
-                        fill="currentColor"
-                      />
-                    </svg>
-                  </span>
-                  <input
-                    id="verifyCode"
-                    type="text"
-                    inputmode="numeric"
-                    pattern="[0-9]*"
-                    maxlength="8"
-                    placeholder="Codigo recebido no e-mail"
-                    autocomplete="one-time-code"
-                  />
-                </div>
-                <p id="verifyCodeError" class="field-error" hidden></p>
-              </div>
-              <div class="auth-actions">
-                <button id="btnVerifySubmit" class="btn btn--primary" type="submit">Confirmar c&oacute;digo</button>
-                <button id="btnVerifyResend" class="btn btn--ghost" type="button">Reenviar c&oacute;digo</button>
-              </div>
-              <p class="auth-helper">
-                N&atilde;o recebeu? Verifique caixa de spam e depois clique em reenviar.
-              </p>
-              <button id="btnVerifyBack" class="btn btn--ghost" type="button">Voltar para cadastro</button>
-            </form>
+              <ul class="auth-list">
+                <li>Solicite seu acesso ao PCM respons&aacute;vel.</li>
+                <li>Use sua matr&iacute;cula e senha fornecida para entrar.</li>
+                <li>Para reset de senha, contate o PCM/Admin.</li>
+              </ul>
+            </div>
           </div>
         </div>
         <div class="auth-footer-global">
@@ -679,30 +391,6 @@
                 <span class="nav-item__label">Backlog</span>
                 <span class="nav-item__meta">
                   <span class="badge badge--neutral" id="badgeBacklog">0</span>
-                </span>
-              </button>
-              <button class="nav-item" type="button" data-tab="solicitacoes" data-tooltip="Solicita&ccedil;&otilde;es Pendentes" data-admin-only>
-                <span class="nav-item__ico">
-                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <path
-                      d="M4 6h16v10a2 2 0 0 1-2 2H8l-4 4V6Z"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.6"
-                      stroke-linejoin="round"
-                    />
-                    <path
-                      d="M7 10h10M7 14h6"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.6"
-                      stroke-linecap="round"
-                    />
-                  </svg>
-                </span>
-                <span class="nav-item__label">Solicita&ccedil;&otilde;es Pendentes</span>
-                <span class="nav-item__meta">
-                  <span class="badge badge--warn">0</span>
                 </span>
               </button>
               <button class="nav-item" type="button" data-tab="projetos" data-tooltip="Locais de Trabalho">
@@ -1175,7 +863,7 @@
             </div>
           </section>
 
-          <section class="nav-group" data-group="administracao" data-admin-only>
+          <section class="nav-group" data-group="administracao">
             <button class="nav-group__header" type="button" aria-expanded="true">
               <span class="nav-group__title">
                 <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -1211,6 +899,23 @@
                   </svg>
                 </span>
                 <span class="nav-item__label">Gerenciar Projeto</span>
+                <span class="nav-item__meta"></span>
+              </button>
+              <button class="nav-item" type="button" data-tab="acessos" data-tooltip="Gest&atilde;o de Acessos">
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M12 3a4 4 0 0 1 4 4v3h2a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h2V7a4 4 0 0 1 4-4Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <circle cx="12" cy="12" r="2.5" fill="none" stroke="currentColor" stroke-width="1.6" />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Gest&atilde;o de Acessos</span>
                 <span class="nav-item__meta"></span>
               </button>
               <button class="nav-item" type="button" data-tab="gerencial" data-tooltip="Configura&ccedil;&otilde;es Gerais" data-admin-only>
@@ -2628,16 +2333,7 @@
         </div>
       </section>
     </section>
-
-    <section class="panel" id="solicitacoes" data-panel="solicitacoes" data-admin-only>
-      <section class="card" id="adminSolicitacoes">
-        <h2>Solicitações pendentes</h2>
-        <div id="listaSolicitacoes" class="account-list"></div>
-        <p id="solicitacoesVazio" class="empty-state">Nenhuma solicitação pendente.</p>
-      </section>
-    </section>
-
-    <section class="panel" id="desempenho" data-panel="desempenho">
+<section class="panel" id="desempenho" data-panel="desempenho">
       <section class="card">
         <h2>Acompanhar desempenho</h2>
         <div class="kpi-grid">
@@ -4521,59 +4217,286 @@
         </div>
       </div>
     </section>
+<section class="panel" id="acessos" data-panel="acessos" data-admin-only>
+      <section class="card" id="adminAcessos">
+        <div class="card-header card-header--split">
+          <div>
+            <h2>Gest&atilde;o de Acessos</h2>
+            <p class="hint">Contas e cargos com controle de permiss&otilde;es.</p>
+          </div>
+          <div class="access-tabs" role="tablist" aria-label="Gest&atilde;o de acessos">
+            <button class="tab-btn is-active" type="button" data-access-tab="contas">Contas</button>
+            <button class="tab-btn" type="button" data-access-tab="cargos">Cargos</button>
+          </div>
+        </div>
+        <div class="access-panel" data-access-panel="contas">
+          <div class="access-toolbar">
+            <div class="access-actions">
+              <button id="btnAccessNewUser" class="btn btn--primary btn--small" type="button">
+                Nova conta
+              </button>
+            </div>
+            <div class="access-filters form-grid">
+              <div class="field">
+                <label for="accessUserSearch">Buscar</label>
+                <input id="accessUserSearch" type="search" placeholder="Nome, matricula ou e-mail" />
+              </div>
+              <div class="field">
+                <label for="accessUserStatusFilter">Status</label>
+                <select id="accessUserStatusFilter">
+                  <option value="">Todos</option>
+                  <option value="ATIVO">Ativos</option>
+                  <option value="INATIVO">Inativos</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="accessUserRoleFilter">Cargo</label>
+                <select id="accessUserRoleFilter"></select>
+              </div>
+              <div class="field">
+                <label for="accessUserProjectFilter">Projeto</label>
+                <select id="accessUserProjectFilter"></select>
+              </div>
+              <button id="btnAccessClearFilters" class="btn btn--ghost btn--small" type="button">
+                Limpar filtros
+              </button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Matr&iacute;cula</th>
+                  <th>Cargo</th>
+                  <th>Projeto</th>
+                  <th>Status</th>
+                  <th>A&ccedil;&otilde;es</th>
+                </tr>
+              </thead>
+              <tbody id="accessUsersTableBody"></tbody>
+            </table>
+          </div>
+          <p id="accessUsersEmpty" class="empty-state">Nenhuma conta cadastrada.</p>
+        </div>
+        <div class="access-panel" data-access-panel="cargos" hidden>
+          <div class="access-toolbar">
+            <div class="access-actions">
+              <button id="btnAccessNewRole" class="btn btn--primary btn--small" type="button">
+                Novo cargo
+              </button>
+            </div>
+            <div class="access-filters form-grid">
+              <div class="field">
+                <label for="accessRoleSearch">Buscar cargo</label>
+                <input id="accessRoleSearch" type="search" placeholder="Nome do cargo" />
+              </div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Cargo</th>
+                  <th>Permiss&otilde;es</th>
+                  <th>Status</th>
+                  <th>A&ccedil;&otilde;es</th>
+                </tr>
+              </thead>
+              <tbody id="accessRolesTableBody"></tbody>
+            </table>
+          </div>
+          <p id="accessRolesEmpty" class="empty-state">Nenhum cargo cadastrado.</p>
+        </div>
+        <p id="accessMsg" class="mensagem" aria-live="polite"></p>
+      </section>
+    </section>
+
 <section class="panel" id="contas" data-panel="contas" data-admin-only>
-      <section class="card" id="adminUsuarios">
-        <h2>Contas ativas</h2>
-        <div class="invite-bar">
-          <div class="field">
-            <label for="inviteRole">Perfil do convite</label>
-            <select id="inviteRole">
-              <option value="T&Eacute;CNICO J&Uacute;NIOR">T&Eacute;CNICO J&Uacute;NIOR</option>
-              <option value="T&Eacute;CNICO PLENO">T&Eacute;CNICO PLENO</option>
-              <option value="T&Eacute;CNICO S&Ecirc;NIOR">T&Eacute;CNICO S&Ecirc;NIOR</option>
-              <option value="SUPERVISOR O&amp;M">SUPERVISOR O&amp;M</option>
-              <option value="GERENTE DE CONTRATO">GERENTE DE CONTRATO</option>
-              <option value="DIRETOR O&amp;M">DIRETOR O&amp;M</option>
-              <option value="PCM">PCM</option>
-            </select>
-          </div>
-          <button id="btnGerarConvite" class="btn btn--primary btn--small" type="button">
-            Gerar convite
-          </button>
-          <p id="inviteResultado" class="hint"></p>
-        </div>
-        <div class="account-filters">
-          <div class="field">
-            <label for="userFiltroNome">Buscar por nome</label>
-            <input id="userFiltroNome" type="text" placeholder="Nome do colaborador" />
-          </div>
-          <div class="field">
-            <label for="userFiltroCargo">Cargo</label>
-            <input id="userFiltroCargo" type="text" placeholder="Cargo" />
-          </div>
-          <div class="field">
-            <label for="userFiltroProjeto">Projeto / Localização</label>
-            <input id="userFiltroProjeto" type="text" placeholder="Projeto ou local" />
-          </div>
-          <div class="field">
-            <label for="userFiltroStatus">Status</label>
-            <select id="userFiltroStatus">
-              <option value="">Todos</option>
-              <option value="active">Ativos</option>
-              <option value="inactive">Inativos</option>
-            </select>
-          </div>
-          <button id="btnLimparFiltroUsuarios" class="btn btn--ghost btn--small" type="button">
-            Limpar filtros
-          </button>
-        </div>
-        <div id="listaUsuarios" class="account-list"></div>
-        <p id="usuariosVazio" class="empty-state">Nenhuma conta cadastrada.</p>
+      <section class="card">
+        <h2>Equipe / Usu&aacute;rios</h2>
+        <p class="hint">
+          Contas s&atilde;o gerenciadas pelo PCM em Administra&ccedil;&atilde;o &gt;
+          Gest&atilde;o de Acessos.
+        </p>
+        <button id="btnIrAcessos" class="btn btn--primary btn--small" type="button">
+          Ir para Gest&atilde;o de Acessos
+        </button>
       </section>
     </section>
   </div>
 
-  <div id="userDrawer" class="drawer" hidden>
+    <div id="modalAccessUser" class="modal" hidden>
+    <div class="modal__content modal__content--lg">
+      <div class="modal__header">
+        <div>
+          <h3 id="accessUserModalTitle">Nova conta</h3>
+          <p id="accessUserModalSubtitle" class="hint">Defina os dados de acesso.</p>
+        </div>
+        <button id="btnCloseAccessUserModal" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <form id="accessUserForm" class="modal__form">
+        <input id="accessUserId" type="hidden" />
+        <div class="form-grid">
+          <div class="field">
+            <label for="accessUserName">Nome completo</label>
+            <input id="accessUserName" type="text" required />
+          </div>
+          <div class="field">
+            <label for="accessUserMatricula">Matr&iacute;cula</label>
+            <input id="accessUserMatricula" type="text" required />
+          </div>
+          <div class="field">
+            <label for="accessUserEmail">E-mail (opcional)</label>
+            <input id="accessUserEmail" type="email" />
+          </div>
+          <div class="field">
+            <label for="accessUserRole">Cargo</label>
+            <select id="accessUserRole" required></select>
+          </div>
+          <div class="field">
+            <label for="accessUserProject">Projeto (opcional)</label>
+            <select id="accessUserProject"></select>
+          </div>
+          <div class="field">
+            <label for="accessUserStatus">Status</label>
+            <select id="accessUserStatus">
+              <option value="ATIVO">Ativo</option>
+              <option value="INATIVO">Inativo</option>
+            </select>
+          </div>
+          <div class="field" data-full id="accessUserPasswordBlock">
+            <label>Senha</label>
+            <div class="choice-group">
+              <label>
+                <input type="radio" name="accessUserPasswordMode" value="MANUAL" checked />
+                Definir manualmente
+              </label>
+              <label>
+                <input type="radio" name="accessUserPasswordMode" value="GERADA" />
+                Gerar aleat&oacute;ria
+              </label>
+            </div>
+            <div class="input-wrap access-password-wrap">
+              <input id="accessUserPassword" type="password" placeholder="Senha" />
+              <button id="btnAccessGeneratePassword" class="btn btn--ghost btn--small" type="button">
+                Gerar senha
+              </button>
+            </div>
+            <p id="accessUserPasswordHint" class="hint">
+              A senha gerada ser&aacute; exibida uma &uacute;nica vez.
+            </p>
+          </div>
+        </div>
+        <div class="modal__actions">
+          <button id="btnAccessUserSave" class="btn btn--primary" type="submit">Salvar conta</button>
+          <button id="btnAccessUserCancel" class="btn btn--ghost" type="button">Cancelar</button>
+        </div>
+        <p id="accessUserFormMsg" class="mensagem" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalResetPassword" class="modal" hidden>
+    <div class="modal__content">
+      <div class="modal__header">
+        <div>
+          <h3>Resetar senha</h3>
+          <p id="resetPasswordUserLabel" class="hint">Defina a nova senha do usu&aacute;rio.</p>
+        </div>
+        <button id="btnCloseResetPassword" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <form id="resetPasswordForm" class="modal__form">
+        <input id="resetPasswordUserId" type="hidden" />
+        <div class="field">
+          <label>Modo</label>
+          <div class="choice-group">
+            <label>
+              <input type="radio" name="resetPasswordMode" value="MANUAL" checked />
+              Definir manualmente
+            </label>
+            <label>
+              <input type="radio" name="resetPasswordMode" value="GERADA" />
+              Gerar aleat&oacute;ria
+            </label>
+          </div>
+        </div>
+        <div class="field" id="resetPasswordManualField">
+          <label for="resetPasswordValue">Nova senha</label>
+          <div class="input-wrap access-password-wrap">
+            <input id="resetPasswordValue" type="password" placeholder="Senha" />
+            <button id="btnResetGeneratePassword" class="btn btn--ghost btn--small" type="button">
+              Gerar senha
+            </button>
+          </div>
+        </div>
+        <div class="modal__actions">
+          <button id="btnResetPasswordConfirm" class="btn btn--primary" type="submit">Salvar</button>
+          <button id="btnResetPasswordCancel" class="btn btn--ghost" type="button">Cancelar</button>
+        </div>
+        <p id="resetPasswordMsg" class="mensagem" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalGeneratedPassword" class="modal" hidden>
+    <div class="modal__content">
+      <div class="modal__header">
+        <div>
+          <h3>Senha gerada</h3>
+          <p class="hint">Copie e salve a senha. Ela ser&aacute; exibida apenas uma vez.</p>
+        </div>
+        <button id="btnCloseGeneratedPassword" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <div class="generated-password">
+        <code id="generatedPasswordValue">-</code>
+        <button id="btnCopyGeneratedPassword" class="btn btn--ghost btn--small" type="button">Copiar</button>
+      </div>
+      <div class="modal__actions">
+        <button id="btnGeneratedPasswordDone" class="btn btn--primary" type="button">Ok</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalAccessRole" class="modal" hidden>
+    <div class="modal__content modal__content--lg">
+      <div class="modal__header">
+        <div>
+          <h3 id="accessRoleModalTitle">Novo cargo</h3>
+          <p id="accessRoleModalSubtitle" class="hint">Defina o nome e permiss&otilde;es do cargo.</p>
+        </div>
+        <button id="btnCloseAccessRoleModal" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <form id="accessRoleForm" class="modal__form">
+        <input id="accessRoleId" type="hidden" />
+        <div class="form-grid">
+          <div class="field" data-full>
+            <label for="accessRoleName">Nome do cargo</label>
+            <input id="accessRoleName" type="text" required />
+          </div>
+          <div class="field" data-full>
+            <label>Permiss&otilde;es</label>
+            <div id="accessRolePermissions" class="perm-groups"></div>
+          </div>
+        </div>
+        <div class="modal__actions">
+          <button id="btnAccessRoleSave" class="btn btn--primary" type="submit">Salvar cargo</button>
+          <button id="btnAccessRoleCancel" class="btn btn--ghost" type="button">Cancelar</button>
+        </div>
+        <p id="accessRoleFormMsg" class="mensagem" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+
+<div id="userDrawer" class="drawer" hidden>
     <div class="drawer__backdrop" data-drawer-close></div>
     <div class="drawer__panel">
       <div class="drawer__header">
@@ -6008,6 +5931,7 @@
     <script src="app.js"></script>
   </body>
 </html>
+
 
 
 

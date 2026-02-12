@@ -9592,3 +9592,102 @@ textarea:focus {
 .text-danger {
   color: var(--color-danger);
 }
+
+.auth-info {
+  display: grid;
+  gap: 12px;
+  color: #dbe7f3;
+}
+
+.auth-info p {
+  margin: 0;
+}
+
+.auth-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  color: #b9c7d6;
+  font-size: 0.95rem;
+}
+
+.card-header--split {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.access-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.access-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.access-toolbar {
+  display: grid;
+  gap: 12px;
+}
+
+.access-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.access-filters.form-grid {
+  align-items: end;
+}
+
+.choice-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+
+.choice-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #c7d3e3;
+}
+
+.access-password-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.access-password-wrap input {
+  flex: 1;
+}
+
+.generated-password {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-color, #1f2f44);
+  border-radius: 12px;
+  background: rgba(6, 18, 31, 0.6);
+  margin: 12px 0;
+}
+
+.generated-password code {
+  font-size: 1.05rem;
+  letter-spacing: 0.4px;
+  color: #e8f0ff;
+}
+
+.modal__content--lg {
+  max-width: 860px;
+}
