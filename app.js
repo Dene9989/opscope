@@ -1028,6 +1028,12 @@ const OPSCOPE_DB_VERSION = 4;
 const SESSION_KEY = "denemanu.session";
 const ACTIVE_PROJECT_KEY = "opscope.activeProjectId";
 const DAY_MS = 24 * 60 * 60 * 1000;
+const ACCESS_BOOTSTRAP_USER = {
+  matricula: "35269",
+  name: "Denisson Silva Alves",
+  password: "20082000",
+  roleName: "Administrador",
+};
 const MAX_REAGENDAMENTOS = 3;
 const OUTROS_ALERT_THRESHOLD = 3;
 const MIN_EVIDENCIAS = 4;
@@ -7995,6 +8001,52 @@ async function seedDefaultRolesIfEmpty() {
   });
   touchAccessSync();
   return { seeded: true, count: defaults.length };
+}
+
+async function ensureBootstrapAccessAccount() {
+  if (USE_AUTH_API) {
+    return { seeded: false, reason: "api" };
+  }
+  if (
+    !ACCESS_BOOTSTRAP_USER ||
+    !ACCESS_BOOTSTRAP_USER.matricula ||
+    !ACCESS_BOOTSTRAP_USER.password
+  ) {
+    return { seeded: false, reason: "missing" };
+  }
+  const matriculaNormalized = normalizeMatricula(ACCESS_BOOTSTRAP_USER.matricula);
+  const existing = await getUserByMatriculaNormalized(matriculaNormalized);
+  const roleName = ACCESS_BOOTSTRAP_USER.roleName || "Administrador";
+  let role =
+    (await getRoleByNameNormalized(roleName)) ||
+    (await listRolesFromDb()).find((item) => (item.permissions || []).includes("ADMIN")) ||
+    null;
+  if (!role) {
+    return { seeded: false, reason: "role" };
+  }
+  if (existing) {
+    await updateUserToDb({
+      id: existing.id,
+      name: ACCESS_BOOTSTRAP_USER.name || existing.name,
+      roleId: role.id,
+      status: "ATIVO",
+    });
+    await resetPasswordForUser({
+      id: existing.id,
+      mode: "MANUAL",
+      password: ACCESS_BOOTSTRAP_USER.password,
+    });
+    return { seeded: false, updated: true, id: existing.id };
+  }
+  const created = await createUserToDb({
+    name: ACCESS_BOOTSTRAP_USER.name || "Administrador",
+    matricula: ACCESS_BOOTSTRAP_USER.matricula,
+    roleId: role.id,
+    status: "ATIVO",
+    passwordMode: "MANUAL",
+    password: ACCESS_BOOTSTRAP_USER.password,
+  });
+  return { seeded: true, id: created && created.user ? created.user.id : "" };
 }
 
 async function listUsersFromDb(filters = {}) {
@@ -20675,6 +20727,11 @@ async function refreshAccessUsers() {
 async function refreshAccessData() {
   try {
     await dataProvider.roles.seedDefaultRolesIfEmpty();
+  } catch (error) {
+    // noop
+  }
+  try {
+    await ensureBootstrapAccessAccount();
   } catch (error) {
     // noop
   }
