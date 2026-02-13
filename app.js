@@ -3640,6 +3640,7 @@ let accessRoleEditorState = {
 let requests = [];
 let auditLog = [];
 let currentUser = null;
+let profileViewingUserId = "";
 let activeProjectId = "";
 let availableProjects = [];
 let projectEquipamentos = [];
@@ -4929,6 +4930,49 @@ function setProfileEditParam(isEdit) {
   window.history.replaceState(null, "", url.toString());
 }
 
+function setProfileTargetUserId(userId) {
+  profileViewingUserId = userId ? String(userId) : "";
+}
+
+function clearProfileTargetUserId() {
+  profileViewingUserId = "";
+}
+
+function getProfileTargetUser() {
+  const desiredId = String(profileViewingUserId || "").trim();
+  if (!desiredId) {
+    return currentUser;
+  }
+  const pool = accessUsers && accessUsers.length ? accessUsers : users;
+  const found = (pool || []).find((item) => String(item.id) === desiredId);
+  if (found) {
+    return found;
+  }
+  if (currentUser && String(currentUser.id) === desiredId) {
+    return currentUser;
+  }
+  profileViewingUserId = "";
+  return currentUser;
+}
+
+function openProfileForUser(userId, options = {}) {
+  if (!currentUser) {
+    return;
+  }
+  const targetId = userId ? String(userId) : currentUser.id;
+  setProfileTargetUserId(targetId);
+  abrirPainelComCarregamento("perfil");
+  if (options.edit) {
+    setProfileEditParam(true);
+    window.setTimeout(() => {
+      ativarModoEdicaoPerfil();
+    }, 0);
+  } else {
+    setProfileEditParam(false);
+  }
+  renderPerfil();
+}
+
 function mountProfileTemplate(template, mount) {
   if (!template || !mount || mount.childElementCount) {
     return;
@@ -4962,17 +5006,18 @@ function unmountProfileAvatarActions() {
 
 function formatProfileValue(value) {
   const texto = String(value || "").trim();
-  return texto ? texto : "Não informado";
+  return texto ? texto : "N\u00e3o informado";
 }
 
 function ativarModoEdicaoPerfil() {
   if (!currentUser) {
     return;
   }
-  if (
-    !isFullAccessUser(currentUser) &&
-    getCargoLevel(currentUser.cargo) < getCargoLevel("SUPERVISOR O&M")
-  ) {
+  const perfilUsuario = getProfileTargetUser();
+  if (!perfilUsuario) {
+    return;
+  }
+  if (!canEditProfile(currentUser, perfilUsuario)) {
     setPerfilSaveMessage("Sem permissão para editar este perfil.", true);
     return;
   }
@@ -6628,6 +6673,7 @@ function abrirPainelComCarregamento(tab, scrollTarget = null) {
 
 function fecharPainelPerfil() {
   setProfileEditParam(false);
+  clearProfileTargetUserId();
   abrirPainelComCarregamento("inicio");
 }
 
@@ -13058,7 +13104,7 @@ function gerarRdoMensal(imprimir = false, returnHtml = false) {
   `;
 
   const tipoDistribuicao = manutencoesPeriodo.reduce((acc, item) => {
-    const tipo = (item.categoria || "Não informado").toLowerCase();
+    const tipo = (item.categoria || "N\u00e3o informado").toLowerCase();
     acc[tipo] = (acc[tipo] || 0) + 1;
     return acc;
   }, {});
@@ -15652,11 +15698,11 @@ function buildRdoHtml(snapshot, options = {}) {
   const acionamentoLabel =
     manual.acionamento && manual.acionamento.ativo
       ? `${manual.acionamento.inicio || "-"} - ${manual.acionamento.fim || "-"}`
-      : "Não informado";
+      : "N\u00e3o informado";
   const horaExtraLabel =
     manual.horaExtra && manual.horaExtra.ativo
       ? `${manual.horaExtra.inicio || "-"} - ${manual.horaExtra.fim || "-"}`
-      : "Não informado";
+      : "N\u00e3o informado";
   const jornadaResumoHtml = `
     <div class="rdo-summary-grid rdo-summary-grid--cards rdo-summary-grid--tight">
       <div class="rdo-summary-item">
@@ -22028,8 +22074,10 @@ function renderAccessUsers() {
         }</button>`
       );
     }
+    const nameLabel = escapeHtml(user.name || "-");
+    const nameButton = `<button class="access-user-link link" type="button" data-action="view-profile" data-user-id="${user.id}">${nameLabel}</button>`;
     tr.innerHTML = `
-      <td>${escapeHtml(user.name || "-")}</td>
+      <td>${nameButton}</td>
       <td>${escapeHtml(user.matricula || "-")}</td>
       <td>${escapeHtml(user.roleName || "-")}</td>
       <td>${escapeHtml(getUserProjectLabel(user))}</td>
@@ -28366,9 +28414,10 @@ function renderPerfil() {
   }
 
   const editRequested = isProfileEditMode();
-  const podeEditarPerfil = currentUser ? canEditProfile(currentUser, currentUser) : false;
+  const perfilUsuario = getProfileTargetUser();
+  const podeEditarPerfil =
+    currentUser && perfilUsuario ? canEditProfile(currentUser, perfilUsuario) : false;
   const isEdit = Boolean(editRequested && podeEditarPerfil);
-  const perfilUsuario = currentUser;
   const isSelfProfile = Boolean(
     currentUser && perfilUsuario && String(currentUser.id) === String(perfilUsuario.id)
   );
@@ -28393,7 +28442,14 @@ function renderPerfil() {
     perfilModeBadge.hidden = !isEdit;
   }
   if (perfilTitle) {
-    perfilTitle.textContent = isEdit ? "Editar perfil" : "Meu perfil";
+    if (isEdit) {
+      perfilTitle.textContent = "Editar perfil";
+    } else if (isSelfProfile) {
+      perfilTitle.textContent = "Meu perfil";
+    } else {
+      const displayName = perfilUsuario && String(perfilUsuario.name || "").trim();
+      perfilTitle.textContent = displayName ? `Perfil de ${displayName}` : "Perfil do colaborador";
+    }
   }
   if (btnPerfilEditar) {
     btnPerfilEditar.hidden = !podeEditarPerfil;
@@ -28413,7 +28469,7 @@ function renderPerfil() {
     pendingAvatarDataUrl = "";
   }
 
-  if (!currentUser) {
+  if (!perfilUsuario) {
     perfilNome.textContent = "-";
     if (perfilMatricula) {
       perfilMatricula.textContent = "-";
@@ -28454,57 +28510,59 @@ function renderPerfil() {
     return;
   }
 
-  const isAdminUser = currentUser.role === "admin";
-  const secConfig = getSectionConfig(currentUser);
+  const isAdminUser = isFullAccessUser(perfilUsuario);
+  const secConfig = getSectionConfig(perfilUsuario);
   const permissoesAtivas = Object.keys(PERMISSIONS)
-    .filter((key) => !isAdminUser && currentUser.permissions && currentUser.permissions[key])
+    .filter(
+      (key) => !isAdminUser && perfilUsuario.permissions && perfilUsuario.permissions[key]
+    )
     .map((key) => PERMISSIONS[key]);
   const secoesAtivas = Object.keys(SECTION_LABELS)
     .filter((key) => secConfig[key])
     .map((key) => SECTION_LABELS[key]);
 
-  perfilNome.textContent = formatProfileValue(currentUser.name);
+  perfilNome.textContent = formatProfileValue(perfilUsuario.name);
   if (perfilMatricula) {
     perfilMatricula.textContent = formatProfileValue(
-      currentUser.matricula || currentUser.username || ""
+      perfilUsuario.matricula || perfilUsuario.username || ""
     );
   }
   if (perfilCargo) {
-    perfilCargo.textContent = formatProfileValue(currentUser.cargo);
+    perfilCargo.textContent = formatProfileValue(perfilUsuario.cargo);
   }
   if (perfilProjeto) {
-    perfilProjeto.textContent = formatProfileValue(getUserProjectLabel(currentUser));
+    perfilProjeto.textContent = formatProfileValue(getUserProjectLabel(perfilUsuario));
   }
   if (perfilUen) {
-    perfilUen.textContent = formatProfileValue(currentUser.uen);
+    perfilUen.textContent = formatProfileValue(perfilUsuario.uen);
   }
   if (perfilRole) {
-    perfilRole.textContent = formatProfileValue(getRoleLabel(currentUser));
+    perfilRole.textContent = formatProfileValue(getRoleLabel(perfilUsuario));
   }
   if (perfilAtribuicoes) {
-    perfilAtribuicoes.textContent = currentUser.atribuicoes || "Não informado.";
+    perfilAtribuicoes.textContent = perfilUsuario.atribuicoes || "N\u00e3o informado.";
   }
   if (perfilPermissoes) {
     perfilPermissoes.textContent = isAdminUser
       ? "Total"
       : permissoesAtivas.length
         ? permissoesAtivas.join(", ")
-        : "Sem permissões.";
+        : "Sem permiss\u00f5es.";
   }
   if (perfilSecoes) {
     perfilSecoes.textContent = isAdminUser
-      ? "Todas (inclui governança)"
+      ? "Todas (inclui governan\u00e7a)"
       : secoesAtivas.length
         ? secoesAtivas.join(", ")
         : "Nenhuma.";
   }
   const perfilUenInputAtual = document.getElementById("perfilUenInput");
   if (perfilUenInputAtual) {
-    perfilUenInputAtual.value = currentUser.uen || "";
+    perfilUenInputAtual.value = perfilUsuario.uen || "";
   }
   const perfilProjetoInputAtual = document.getElementById("perfilProjetoInput");
   if (perfilProjetoInputAtual) {
-    renderProjectSelectOptions(perfilProjetoInputAtual, currentUser.projectId || "");
+    renderProjectSelectOptions(perfilProjetoInputAtual, perfilUsuario.projectId || "");
   }
   const btnSalvarAtual = document.getElementById("btnPerfilSalvar");
   if (btnSalvarAtual) {
@@ -28512,14 +28570,17 @@ function renderPerfil() {
   }
   const btnAvatarSaveAtual = document.getElementById("btnAvatarSave");
   if (btnAvatarSaveAtual) {
-    btnAvatarSaveAtual.disabled = !pendingAvatarDataUrl;
+    btnAvatarSaveAtual.disabled = !isSelfProfile || !pendingAvatarDataUrl;
   }
   const btnAvatarRemoveAtual = document.getElementById("btnAvatarRemove");
   if (btnAvatarRemoveAtual) {
-    btnAvatarRemoveAtual.disabled = !currentUser.avatarUrl && !pendingAvatarDataUrl;
+    btnAvatarRemoveAtual.disabled =
+      !isSelfProfile || (!perfilUsuario.avatarUrl && !pendingAvatarDataUrl);
   }
 
-  const avatarUrl = pendingAvatarDataUrl || getAvatarUrl(currentUser);
+  const avatarUrl = isSelfProfile
+    ? pendingAvatarDataUrl || getAvatarUrl(perfilUsuario)
+    : getAvatarUrl(perfilUsuario);
   applyAvatarToElement(perfilAvatarPreview, avatarUrl);
   applyAvatarToElement(userAvatar, getAvatarUrl(currentUser));
 }
@@ -28531,6 +28592,7 @@ function renderAuthUI() {
   document.body.classList.toggle("is-visitor", !autenticado);
 
   if (!autenticado) {
+    clearProfileTargetUserId();
     fecharPainelLembretes();
     fecharUserMenu();
     esconderCarregando();
@@ -28983,7 +29045,7 @@ function gerarRelatorio() {
   const reagendamentosTotal = reagendamentos.length;
   const motivosReagendamento = reagendamentos.reduce((acc, entry) => {
     const motivo =
-      entry && entry.detalhes && entry.detalhes.motivo ? entry.detalhes.motivo : "Não informado";
+      entry && entry.detalhes && entry.detalhes.motivo ? entry.detalhes.motivo : "N\u00e3o informado";
     acc[motivo] = (acc[motivo] || 0) + 1;
     return acc;
   }, {});
@@ -29107,7 +29169,7 @@ function gerarRelatorio() {
   const execucoesCanceladas = cancelamentosInicio.length;
   const cancelMotivos = cancelamentosInicio.reduce((acc, entry) => {
     const motivo =
-      entry && entry.detalhes && entry.detalhes.motivo ? entry.detalhes.motivo : "Não informado";
+      entry && entry.detalhes && entry.detalhes.motivo ? entry.detalhes.motivo : "N\u00e3o informado";
     acc[motivo] = (acc[motivo] || 0) + 1;
     return acc;
   }, {});
@@ -33513,6 +33575,27 @@ async function apiUpdateProfile(payload) {
   });
 }
 
+async function updateProfileForUser(userId, payload) {
+  const targetId = String(userId || "").trim();
+  if (!targetId) {
+    throw new Error("Usuario invalido.");
+  }
+  if (!USE_AUTH_API) {
+    const updated = await updateUserToDb({ id: targetId, ...(payload || {}) });
+    const user = buildSessionUser(updated, resolveRoleFromAccessMap(updated));
+    return { user };
+  }
+  if (currentUser && String(currentUser.id) === targetId) {
+    return apiUpdateProfile(payload);
+  }
+  const data = await apiAdminUpdateUser(targetId, payload);
+  const updated = data && (data.user || data);
+  if (updated) {
+    return { user: buildSessionUser(updated, resolveRoleFromAccessMap(updated)) };
+  }
+  return { user: null };
+}
+
 async function apiUploadAvatar(dataUrl) {
   return apiRequest("/api/profile/avatar", {
     method: "POST",
@@ -34868,15 +34951,12 @@ if (userMenuPanel) {
       return;
     }
     if (action === "view-profile") {
-      abrirPainelComCarregamento("perfil");
+      openProfileForUser(currentUser.id, { edit: false });
       cancelarModoEdicaoPerfil();
       return;
     }
     if (action === "edit-profile") {
-      abrirPainelComCarregamento("perfil");
-      window.setTimeout(() => {
-        ativarModoEdicaoPerfil();
-      }, 0);
+      openProfileForUser(currentUser.id, { edit: true });
     }
   });
 }
@@ -34993,11 +35073,12 @@ document.addEventListener("click", (event) => {
   if (!salvar) {
     return;
   }
-  if (!currentUser) {
+  const perfilUsuario = getProfileTargetUser();
+  if (!currentUser || !perfilUsuario) {
     return;
   }
-  if (!canEditProfile(currentUser, currentUser)) {
-    setPerfilSaveMessage("Sem permissão para editar este perfil.", true);
+  if (!canEditProfile(currentUser, perfilUsuario)) {
+    setPerfilSaveMessage("Sem permiss\u00e3o para editar este perfil.", true);
     return;
   }
   const uenInput = document.getElementById("perfilUenInput");
@@ -35005,32 +35086,30 @@ document.addEventListener("click", (event) => {
   const payload = {};
   const uenValue = uenInput ? uenInput.value.trim() : "";
   const projetoValue = projetoInput ? projetoInput.value.trim() : "";
-  if (uenInput && uenValue !== (currentUser.uen || "")) {
+  if (uenInput && uenValue !== (perfilUsuario.uen || "")) {
     payload.uen = uenValue;
   }
-  if (projetoInput && projetoValue !== (currentUser.projectId || "")) {
+  if (projetoInput && projetoValue !== (perfilUsuario.projectId || "")) {
     payload.projectId = projetoValue;
   }
   if (!Object.keys(payload).length) {
-    setPerfilSaveMessage("Nenhuma alteração para salvar.");
+    setPerfilSaveMessage("Nenhuma altera\u00e7\u00e3o para salvar.");
     return;
   }
   salvar.disabled = true;
   setPerfilSaveMessage("");
-  apiUpdateProfile(payload)
-    .then((data) => {
-      if (data && data.user) {
-        currentUser = data.user;
-        users = users.map((usuario) => (usuario.id === currentUser.id ? data.user : usuario));
-      }
+  updateProfileForUser(perfilUsuario.id, payload)
+    .then(() => {
       setProfileEditParam(false);
+      return refreshAccessUsers();
+    })
+    .then(() => {
       renderPerfil();
       renderUsuarios();
-      renderAuthUI();
       setPerfilSaveMessage("Perfil atualizado.");
     })
     .catch((error) => {
-      const message = error && error.message ? error.message : "Não foi possível salvar.";
+      const message = error && error.message ? error.message : "N\u00e3o foi poss\u00edvel salvar.";
       setPerfilSaveMessage(message, true);
     })
     .finally(() => {
@@ -36548,6 +36627,10 @@ if (accessUsersTableBody) {
     }
     if (!currentUser || !canManageAccess(currentUser)) {
       setAccessMessage("Sem permiss\u00e3o para esta acao.", true);
+      return;
+    }
+    if (button.dataset.action === "view-profile") {
+      openProfileForUser(user.id, { edit: false });
       return;
     }
     if (button.dataset.action === "edit-user") {

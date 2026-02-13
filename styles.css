@@ -9807,6 +9807,20 @@ textarea:focus {
   color: #c2e2ff;
 }
 
+.access-user-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.access-user-link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 6px;
+}
+
 .sst-vehicle-filters {
   margin-top: 8px;
 }
