@@ -188,6 +188,7 @@
         <div class="modal__actions auth-modal__actions">
           <button id="btnAccessHelpRequest" class="btn btn--primary" type="button">Solicitar acesso</button>
           <button id="btnAccessHelpReset" class="btn btn--ghost" type="button">Reset de senha</button>
+          <button id="btnAccessHelpImport" class="btn btn--ghost" type="button">Importar acesso</button>
         </div>
       </div>
     </div>
@@ -4248,6 +4249,12 @@
               <button id="btnAccessNewUser" class="btn btn--primary btn--small" type="button">
                 Nova conta
               </button>
+              <button id="btnAccessExport" class="btn btn--ghost btn--small" type="button">
+                Exportar acessos
+              </button>
+              <button id="btnAccessImport" class="btn btn--ghost btn--small" type="button">
+                Importar acessos
+              </button>
             </div>
             <div class="access-filters form-grid">
               <div class="field">
@@ -4322,6 +4329,7 @@
           <p id="accessRolesEmpty" class="empty-state">Nenhum cargo cadastrado.</p>
         </div>
         <p id="accessMsg" class="mensagem" aria-live="polite"></p>
+        <input id="accessImportInput" type="file" accept="application/json" hidden />
       </section>
     </section>
 

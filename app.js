@@ -614,6 +614,7 @@ const modalAccessHelp = document.getElementById("modalAccessHelp");
 const btnAccessHelpClose = document.getElementById("btnAccessHelpClose");
 const btnAccessHelpRequest = document.getElementById("btnAccessHelpRequest");
 const btnAccessHelpReset = document.getElementById("btnAccessHelpReset");
+const btnAccessHelpImport = document.getElementById("btnAccessHelpImport");
 const authToast = document.getElementById("authToast");
 const btnToggleLoginSenha = document.getElementById("btnToggleLoginSenha");
 const capsLockLogin = document.getElementById("capsLockLogin");
@@ -810,6 +811,9 @@ const accessPanels = Array.from(document.querySelectorAll("[data-access-panel]")
 const accessMsg = document.getElementById("accessMsg");
 const btnAccessNewUser = document.getElementById("btnAccessNewUser");
 const btnAccessNewRole = document.getElementById("btnAccessNewRole");
+const btnAccessExport = document.getElementById("btnAccessExport");
+const btnAccessImport = document.getElementById("btnAccessImport");
+const accessImportInput = document.getElementById("accessImportInput");
 const btnAccessClearFilters = document.getElementById("btnAccessClearFilters");
 const accessUserSearch = document.getElementById("accessUserSearch");
 const accessUserStatusFilter = document.getElementById("accessUserStatusFilter");
@@ -1050,6 +1054,7 @@ const USER_KEY = "denemanu.users";
 const ACCESS_USERS_KEY = "opscope.access.users";
 const ACCESS_ROLES_KEY = "opscope.access.roles";
 const ACCESS_SYNC_KEY = "opscope.access.sync";
+const ACCESS_PACKAGE_VERSION = 1;
 const ACCESS_USERS_BACKUP_KEY = "opscope.access.users.backup";
 const ACCESS_ROLES_BACKUP_KEY = "opscope.access.roles.backup";
 const TEMPLATE_SEED_DISABLED_KEY = "opscope.templates.seed.disabled";
@@ -4727,67 +4732,267 @@ function createApiProvider(fallback) {
   };
 
   provider.vehicles.listVehicles = async (filters = {}) => {
-    return fallbackProvider.vehicles.listVehicles(filters);
+    if (!USE_AUTH_API) {
+      return fallbackProvider.vehicles.listVehicles(filters);
+    }
+    try {
+      const query = buildQuery(filters);
+      const data = await apiRequest(`/api/sst/vehicles${query ? `?${query}` : ""}`);
+      const list = Array.isArray(data.vehicles) ? data.vehicles : [];
+      return list.map(normalizeSstVehicle).filter(Boolean);
+    } catch (error) {
+      return fallbackProvider.vehicles.listVehicles(filters);
+    }
   };
 
   provider.vehicles.getVehicle = async (id) => {
-    return fallbackProvider.vehicles.getVehicle(id);
+    if (!USE_AUTH_API) {
+      return fallbackProvider.vehicles.getVehicle(id);
+    }
+    if (!id) {
+      return null;
+    }
+    try {
+      const data = await apiRequest(`/api/sst/vehicles/${encodeURIComponent(id)}`);
+      const vehicle = data.vehicle || data.item || data;
+      return normalizeSstVehicle(vehicle);
+    } catch (error) {
+      return fallbackProvider.vehicles.getVehicle(id);
+    }
   };
 
   provider.vehicles.upsertVehicle = async (input) => {
-    return fallbackProvider.vehicles.upsertVehicle(input);
+    if (!USE_AUTH_API) {
+      return fallbackProvider.vehicles.upsertVehicle(input);
+    }
+    try {
+      const payload = input || {};
+      if (payload.id) {
+        const data = await apiRequest(`/api/sst/vehicles/${encodeURIComponent(payload.id)}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+        return normalizeSstVehicle(data.vehicle || data.item || payload);
+      }
+      const data = await apiRequest("/api/sst/vehicles", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      return normalizeSstVehicle(data.vehicle || data.item || payload);
+    } catch (error) {
+      return fallbackProvider.vehicles.upsertVehicle(input);
+    }
   };
 
   provider.vehicles.deleteVehicle = async (id) => {
-    return fallbackProvider.vehicles.deleteVehicle(id);
+    if (!USE_AUTH_API) {
+      return fallbackProvider.vehicles.deleteVehicle(id);
+    }
+    if (!id) {
+      return;
+    }
+    try {
+      await apiRequest(`/api/sst/vehicles/${encodeURIComponent(id)}`, { method: "DELETE" });
+      return;
+    } catch (error) {
+      return fallbackProvider.vehicles.deleteVehicle(id);
+    }
   };
 
   provider.roles.listRoles = async (q) => {
-    return fallbackProvider.roles.listRoles(q);
+    if (!USE_AUTH_API) {
+      return fallbackProvider.roles.listRoles(q);
+    }
+    try {
+      const query = buildQuery({ q });
+      const data = await apiRequest(`/api/admin/access/roles${query ? `?${query}` : ""}`);
+      const list = Array.isArray(data.roles) ? data.roles : [];
+      return list.map(normalizeAccessRoleRecord).filter(Boolean);
+    } catch (error) {
+      return fallbackProvider.roles.listRoles(q);
+    }
   };
 
   provider.roles.getRole = async (id) => {
-    return fallbackProvider.roles.getRole(id);
+    if (!USE_AUTH_API) {
+      return fallbackProvider.roles.getRole(id);
+    }
+    if (!id) {
+      return null;
+    }
+    try {
+      const data = await apiRequest(`/api/admin/access/roles/${encodeURIComponent(id)}`);
+      return normalizeAccessRoleRecord(data.role || data.item || data);
+    } catch (error) {
+      return fallbackProvider.roles.getRole(id);
+    }
   };
 
   provider.roles.upsertRole = async (input) => {
-    return fallbackProvider.roles.upsertRole(input);
+    if (!USE_AUTH_API) {
+      return fallbackProvider.roles.upsertRole(input);
+    }
+    try {
+      const payload = input || {};
+      const id = payload.id ? String(payload.id) : "";
+      const url = id
+        ? `/api/admin/access/roles/${encodeURIComponent(id)}`
+        : "/api/admin/access/roles";
+      const method = id ? "PUT" : "POST";
+      const data = await apiRequest(url, { method, body: JSON.stringify(payload) });
+      return normalizeAccessRoleRecord(data.role || data.item || payload);
+    } catch (error) {
+      return fallbackProvider.roles.upsertRole(input);
+    }
   };
 
   provider.roles.deleteRole = async (id) => {
-    return fallbackProvider.roles.deleteRole(id);
+    if (!USE_AUTH_API) {
+      return fallbackProvider.roles.deleteRole(id);
+    }
+    if (!id) {
+      return;
+    }
+    try {
+      await apiRequest(`/api/admin/access/roles/${encodeURIComponent(id)}`, { method: "DELETE" });
+      return;
+    } catch (error) {
+      return fallbackProvider.roles.deleteRole(id);
+    }
   };
 
   provider.roles.seedDefaultRolesIfEmpty = async () => {
-    return fallbackProvider.roles.seedDefaultRolesIfEmpty();
+    if (!USE_AUTH_API) {
+      return fallbackProvider.roles.seedDefaultRolesIfEmpty();
+    }
+    try {
+      return await apiRequest("/api/admin/access/roles/seed", { method: "POST", body: "{}" });
+    } catch (error) {
+      return fallbackProvider.roles.seedDefaultRolesIfEmpty();
+    }
   };
 
   provider.authAdmin.listUsers = async (filters = {}) => {
-    return fallbackProvider.authAdmin.listUsers(filters);
+    if (!USE_AUTH_API) {
+      return fallbackProvider.authAdmin.listUsers(filters);
+    }
+    try {
+      const query = buildQuery(filters);
+      const data = await apiRequest(`/api/admin/access/users${query ? `?${query}` : ""}`);
+      const list = Array.isArray(data.users) ? data.users : [];
+      return list.map(normalizeAccessUserRecord).filter(Boolean);
+    } catch (error) {
+      return fallbackProvider.authAdmin.listUsers(filters);
+    }
   };
 
   provider.authAdmin.getUser = async (id) => {
-    return fallbackProvider.authAdmin.getUser(id);
+    if (!USE_AUTH_API) {
+      return fallbackProvider.authAdmin.getUser(id);
+    }
+    if (!id) {
+      return null;
+    }
+    try {
+      const data = await apiRequest(`/api/admin/access/users/${encodeURIComponent(id)}`);
+      return normalizeAccessUserRecord(data.user || data.item || data);
+    } catch (error) {
+      return fallbackProvider.authAdmin.getUser(id);
+    }
   };
 
   provider.authAdmin.createUser = async (input) => {
-    return fallbackProvider.authAdmin.createUser(input);
+    if (!USE_AUTH_API) {
+      return fallbackProvider.authAdmin.createUser(input);
+    }
+    const payload = input || {};
+    try {
+      const data = await apiRequest("/api/admin/access/users", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      const user = normalizeAccessUserRecord(data.user || data.item || payload);
+      return { user, generatedPassword: data.generatedPassword };
+    } catch (error) {
+      return fallbackProvider.authAdmin.createUser(input);
+    }
   };
 
   provider.authAdmin.updateUser = async (input) => {
-    return fallbackProvider.authAdmin.updateUser(input);
+    if (!USE_AUTH_API) {
+      return fallbackProvider.authAdmin.updateUser(input);
+    }
+    const payload = input || {};
+    const id = payload.id ? String(payload.id) : "";
+    if (!id) {
+      return fallbackProvider.authAdmin.updateUser(input);
+    }
+    try {
+      const data = await apiRequest(`/api/admin/access/users/${encodeURIComponent(id)}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+      return normalizeAccessUserRecord(data.user || data.item || payload);
+    } catch (error) {
+      return fallbackProvider.authAdmin.updateUser(input);
+    }
   };
 
   provider.authAdmin.resetPassword = async (input) => {
-    return fallbackProvider.authAdmin.resetPassword(input);
+    if (!USE_AUTH_API) {
+      return fallbackProvider.authAdmin.resetPassword(input);
+    }
+    const payload = input || {};
+    const id = payload.id ? String(payload.id) : "";
+    if (!id) {
+      return fallbackProvider.authAdmin.resetPassword(input);
+    }
+    try {
+      const data = await apiRequest(`/api/admin/access/users/${encodeURIComponent(id)}/reset-password`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      const user = normalizeAccessUserRecord(data.user || data.item || payload);
+      return { user, generatedPassword: data.generatedPassword };
+    } catch (error) {
+      return fallbackProvider.authAdmin.resetPassword(input);
+    }
   };
 
   provider.authAdmin.deactivateUser = async (id) => {
-    return fallbackProvider.authAdmin.deactivateUser(id);
+    if (!USE_AUTH_API) {
+      return fallbackProvider.authAdmin.deactivateUser(id);
+    }
+    if (!id) {
+      return null;
+    }
+    try {
+      const data = await apiRequest(`/api/admin/access/users/${encodeURIComponent(id)}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "INATIVO" }),
+      });
+      return normalizeAccessUserRecord(data.user || data.item || data);
+    } catch (error) {
+      return fallbackProvider.authAdmin.deactivateUser(id);
+    }
   };
 
   provider.authAdmin.activateUser = async (id) => {
-    return fallbackProvider.authAdmin.activateUser(id);
+    if (!USE_AUTH_API) {
+      return fallbackProvider.authAdmin.activateUser(id);
+    }
+    if (!id) {
+      return null;
+    }
+    try {
+      const data = await apiRequest(`/api/admin/access/users/${encodeURIComponent(id)}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "ATIVO" }),
+      });
+      return normalizeAccessUserRecord(data.user || data.item || data);
+    } catch (error) {
+      return fallbackProvider.authAdmin.activateUser(id);
+    }
   };
 
   return provider;
@@ -4811,8 +5016,8 @@ function isProjectStorageKey(eventKey, baseKey) {
 }
 
 const API_BASE = "";
-const USE_AUTH_API = false;
-const USE_SST_INSPECTIONS_API = false;
+const USE_AUTH_API = true;
+const USE_SST_INSPECTIONS_API = true;
 const API_TIMEOUT_MS = 15000;
 const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
 const AVATAR_ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];
@@ -29140,6 +29345,195 @@ function exportarDados() {
   mostrarMensagemGerencial("Backup exportado.");
 }
 
+function buildAccessPackageFilename() {
+  const dataAtual = new Date().toISOString().slice(0, 10);
+  return `opscope-acessos-${dataAtual}.json`;
+}
+
+async function buildAccessPackage() {
+  const roles = await dataProvider.roles.listRoles();
+  const usersList = await dataProvider.authAdmin.listUsers();
+  const projects = readProjectsStorage();
+  return {
+    version: ACCESS_PACKAGE_VERSION,
+    exportedAt: toIsoUtc(new Date()),
+    roles,
+    users: usersList,
+    projects,
+  };
+}
+
+function normalizeAccessPackage(payload) {
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Arquivo invalido.");
+  }
+  const roles = Array.isArray(payload.roles)
+    ? payload.roles.map(normalizeAccessRoleRecord).filter(Boolean)
+    : [];
+  const usersList = Array.isArray(payload.users)
+    ? payload.users.map(normalizeAccessUserRecord).filter(Boolean)
+    : [];
+  const projects = Array.isArray(payload.projects)
+    ? payload.projects.map(normalizeProjectRecord).filter(Boolean)
+    : [];
+  if (!roles.length) {
+    throw new Error("Arquivo sem cargos validos.");
+  }
+  if (!usersList.length) {
+    throw new Error("Arquivo sem contas validas.");
+  }
+  return { roles, users: usersList, projects };
+}
+
+async function persistAccessRoles(roles) {
+  writeRolesStorage(roles);
+  if (typeof indexedDB === "undefined") {
+    return;
+  }
+  const db = await openOpscopeDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction("roles", "readwrite");
+    const store = tx.objectStore("roles");
+    const clearRequest = store.clear();
+    clearRequest.onsuccess = () => {
+      roles.forEach((role) => store.put(role));
+    };
+    clearRequest.onerror = () =>
+      reject(clearRequest.error || new Error("Falha ao importar cargos."));
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error || new Error("Falha ao importar cargos."));
+  });
+}
+
+async function persistAccessUsers(usersList) {
+  writeUsersStorage(usersList);
+  if (typeof indexedDB === "undefined") {
+    return;
+  }
+  const db = await openOpscopeDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction("users", "readwrite");
+    const store = tx.objectStore("users");
+    const clearRequest = store.clear();
+    clearRequest.onsuccess = () => {
+      usersList.forEach((user) => store.put(user));
+    };
+    clearRequest.onerror = () =>
+      reject(clearRequest.error || new Error("Falha ao importar contas."));
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error || new Error("Falha ao importar contas."));
+  });
+}
+
+function persistAccessProjects(projects) {
+  if (!Array.isArray(projects) || !projects.length) {
+    return;
+  }
+  writeProjectsStorage(projects);
+}
+
+function showAccessImportMessage(texto, erro = false) {
+  if (currentUser) {
+    setAccessMessage(texto, erro);
+  } else {
+    mostrarMensagemConta(texto, erro);
+    if (!erro) {
+      showAuthToast(texto);
+    }
+  }
+}
+
+async function applyAccessPackage(payload) {
+  if (USE_AUTH_API) {
+    await apiRequest("/api/admin/access/import", {
+      method: "POST",
+      body: JSON.stringify(payload || {}),
+    });
+    if (currentUser) {
+      await refreshAccessRoles();
+      await refreshAccessUsers();
+      await refreshProjects();
+    }
+    return;
+  }
+  const normalized = normalizeAccessPackage(payload);
+  await persistAccessRoles(normalized.roles);
+  await persistAccessUsers(normalized.users);
+  if (normalized.projects.length) {
+    persistAccessProjects(normalized.projects);
+  } else {
+    seedDefaultProjectsIfEmpty();
+  }
+  if (currentUser) {
+    await refreshAccessRoles();
+    await refreshAccessUsers();
+    await refreshProjects();
+  }
+}
+
+async function exportAccessPackage() {
+  if (!currentUser || !canManageAccess(currentUser)) {
+    setAccessMessage("Sem permiss\u00e3o para exportar acessos.", true);
+    return;
+  }
+  setAccessMessage("Gerando pacote de acesso...");
+  try {
+    const payload = await buildAccessPackage();
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = buildAccessPackageFilename();
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    setAccessMessage("Pacote de acesso exportado.");
+  } catch (error) {
+    setAccessMessage(error.message || "Falha ao exportar acessos.", true);
+  }
+}
+
+function openAccessImportDialog() {
+  if (!accessImportInput) {
+    return;
+  }
+  accessImportInput.value = "";
+  accessImportInput.click();
+}
+
+function importAccessPackageFromFile(file) {
+  if (!file) {
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    let payload;
+    try {
+      payload = JSON.parse(reader.result);
+    } catch (error) {
+      showAccessImportMessage("Arquivo invalido ou corrompido.", true);
+      return;
+    }
+    applyAccessPackage(payload)
+      .then(() => {
+        showAccessImportMessage("Acessos importados. Fa\u00e7a login novamente.");
+        if (modalAccessHelp && !modalAccessHelp.hidden) {
+          closeAccessHelpModal();
+        }
+      })
+      .catch((error) => {
+        showAccessImportMessage(error.message || "Falha ao importar acessos.", true);
+      });
+  };
+  reader.onerror = () => {
+    showAccessImportMessage("Falha ao ler o arquivo.", true);
+  };
+  reader.readAsText(file);
+}
+
 function importarDados() {
   if (!isAdmin()) {
     mostrarMensagemGerencial("Apenas administradores podem importar dados.", true);
@@ -36687,6 +37081,34 @@ if (btnAccessNewRole) {
   });
 }
 
+if (btnAccessExport) {
+  btnAccessExport.addEventListener("click", exportAccessPackage);
+}
+
+if (btnAccessImport) {
+  btnAccessImport.addEventListener("click", () => {
+    if (currentUser && !canManageAccess(currentUser)) {
+      setAccessMessage("Sem permiss\u00e3o para importar acessos.", true);
+      return;
+    }
+    openAccessImportDialog();
+  });
+}
+
+if (accessImportInput) {
+  accessImportInput.addEventListener("change", () => {
+    const file = accessImportInput.files && accessImportInput.files[0];
+    if (!file) {
+      return;
+    }
+    if (currentUser && !canManageAccess(currentUser)) {
+      showAccessImportMessage("Sem permiss\u00e3o para importar acessos.", true);
+      return;
+    }
+    importAccessPackageFromFile(file);
+  });
+}
+
 if (btnAccessClearFilters) {
   btnAccessClearFilters.addEventListener("click", () => {
     if (accessUserSearch) {
@@ -37152,6 +37574,11 @@ if (btnAccessHelpRequest) {
 if (btnAccessHelpReset) {
   btnAccessHelpReset.addEventListener("click", () => {
     handleAccessHelpCopy("reset");
+  });
+}
+if (btnAccessHelpImport) {
+  btnAccessHelpImport.addEventListener("click", () => {
+    openAccessImportDialog();
   });
 }
 

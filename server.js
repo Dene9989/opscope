@@ -114,6 +114,8 @@ const DATA_FILE_NAMES = [
   "sst_incidents.json",
   "sst_aprs.json",
   "sst_permits.json",
+  "sst_vehicles.json",
+  "access_roles.json",
 ];
 
 const ENV_DATA_DIR = process.env.OPSCOPE_DATA_DIR
@@ -156,6 +158,8 @@ const SST_NONCONFORMITIES_FILE = path.join(DATA_DIR, "sst_nonconformities.json")
 const SST_INCIDENTS_FILE = path.join(DATA_DIR, "sst_incidents.json");
 const SST_APRS_FILE = path.join(DATA_DIR, "sst_aprs.json");
 const SST_PERMITS_FILE = path.join(DATA_DIR, "sst_permits.json");
+const SST_VEHICLES_FILE = path.join(DATA_DIR, "sst_vehicles.json");
+const ACCESS_ROLES_FILE = path.join(DATA_DIR, "access_roles.json");
 const PMP_ACTIVITIES_FILE = path.join(DATA_DIR, "pmp_activities.json");
 const PMP_EXECUTIONS_FILE = path.join(DATA_DIR, "pmp_executions.json");
 const STORE_FILES = [
@@ -184,6 +188,8 @@ const STORE_FILES = [
   SST_INCIDENTS_FILE,
   SST_APRS_FILE,
   SST_PERMITS_FILE,
+  SST_VEHICLES_FILE,
+  ACCESS_ROLES_FILE,
   PMP_ACTIVITIES_FILE,
   PMP_EXECUTIONS_FILE,
 ];
@@ -481,6 +487,383 @@ const GRANULAR_DEFAULT_PERMISSIONS = {
   tecnico_junior: GRANULAR_BASE_PERMISSIONS,
   leitura: GRANULAR_BASE_PERMISSIONS,
 };
+const ACCESS_PERMISSION_KEYS = new Set([
+  "USER_READ",
+  "USER_WRITE",
+  "ROLE_READ",
+  "ROLE_WRITE",
+  "SST_READ",
+  "SST_WRITE",
+  "ALMOX_READ",
+  "ALMOX_WRITE",
+  "PROJECT_READ",
+  "PROJECT_WRITE",
+  "REPORTS_READ",
+  "KPIS_READ",
+  "ADMIN",
+  "MAINT_CREATE",
+  "MAINT_EDIT",
+  "MAINT_REMOVE",
+  "MAINT_RESCHEDULE",
+  "MAINT_COMPLETE",
+  "inicio",
+  "programacao",
+  "nova",
+  "modelos",
+  "execucao",
+  "backlog",
+  "feedbacks",
+  "perfil",
+  "editarPerfil",
+  "editarPerfilOutros",
+  "verUsuarios",
+  "convidarUsuarios",
+  "desativarUsuarios",
+  "verArquivos",
+  "uploadArquivos",
+  "excluirArquivos",
+  "vincularArquivo",
+  "verRDOs",
+  "gerarRDOs",
+  "excluirRDOs",
+  "verRelatorios",
+  "exportarRelatorios",
+  "reexecutarTarefas",
+  "verLogsAPI",
+  "limparLogsAPI",
+  "gerenciarAutomacoes",
+  "verAutomacoes",
+  "verDiagnostico",
+  "verPainelGerencial",
+  "gerenciarAcessos",
+  "verProjetos",
+  "gerenciarProjetos",
+  "gerenciarEquipamentos",
+  "gerenciarEquipeProjeto",
+  "gerenciarPMP",
+  "verAlmoxarifado",
+  "gerenciarAlmoxarifado",
+  "verSST",
+  "gerenciarSST",
+]);
+const ACCESS_MAINTENANCE_PERMISSION_MAP = {
+  create: "MAINT_CREATE",
+  edit: "MAINT_EDIT",
+  remove: "MAINT_REMOVE",
+  reschedule: "MAINT_RESCHEDULE",
+  complete: "MAINT_COMPLETE",
+  "admin:users:read": "verUsuarios",
+  "admin:users:write": "convidarUsuarios",
+};
+
+function normalizeAccessRoleName(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeAccessPermissionList(list) {
+  const result = new Set();
+  (Array.isArray(list) ? list : []).forEach((perm) => {
+    const raw = String(perm || "").trim();
+    if (!raw) {
+      return;
+    }
+    if (ACCESS_PERMISSION_KEYS.has(raw)) {
+      result.add(raw);
+      return;
+    }
+    const upper = raw.toUpperCase();
+    if (ACCESS_PERMISSION_KEYS.has(upper)) {
+      result.add(upper);
+      return;
+    }
+  });
+  return Array.from(result);
+}
+
+function expandAccessPermissions(list) {
+  const base = new Set(normalizeAccessPermissionList(list));
+  if (base.has("ADMIN")) {
+    GRANULAR_PERMISSION_CATALOG.forEach((perm) => base.add(perm.key));
+    return base;
+  }
+  if (base.has("USER_READ") || base.has("USER_WRITE")) {
+    base.add("verUsuarios");
+  }
+  if (base.has("USER_WRITE")) {
+    base.add("convidarUsuarios");
+    base.add("desativarUsuarios");
+    base.add("gerenciarAcessos");
+  }
+  if (base.has("ROLE_READ") || base.has("ROLE_WRITE")) {
+    base.add("gerenciarAcessos");
+  }
+  if (base.has("ROLE_WRITE")) {
+    base.add("gerenciarAcessos");
+  }
+  if (base.has("PROJECT_READ")) {
+    base.add("verProjetos");
+  }
+  if (base.has("PROJECT_WRITE")) {
+    base.add("gerenciarProjetos");
+    base.add("gerenciarEquipamentos");
+    base.add("gerenciarEquipeProjeto");
+  }
+  if (base.has("SST_READ")) {
+    base.add("verSST");
+  }
+  if (base.has("SST_WRITE")) {
+    base.add("verSST");
+    base.add("gerenciarSST");
+  }
+  if (base.has("ALMOX_READ")) {
+    base.add("verAlmoxarifado");
+  }
+  if (base.has("ALMOX_WRITE")) {
+    base.add("verAlmoxarifado");
+    base.add("gerenciarAlmoxarifado");
+  }
+  if (base.has("REPORTS_READ") || base.has("KPIS_READ")) {
+    base.add("verRelatorios");
+  }
+  return base;
+}
+
+function buildDefaultAccessRoles() {
+  const now = new Date().toISOString();
+  return [
+    {
+      id: crypto.randomUUID(),
+      name: "Administrador",
+      permissions: ["ADMIN"],
+      isSystem: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: crypto.randomUUID(),
+      name: "PCM",
+      permissions: [
+        "USER_READ",
+        "USER_WRITE",
+        "ROLE_READ",
+        "PROJECT_READ",
+        "SST_WRITE",
+        "ALMOX_READ",
+        "REPORTS_READ",
+      ],
+      isSystem: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: crypto.randomUUID(),
+      name: "Supervisor O&M",
+      permissions: ["SST_WRITE", "REPORTS_READ"],
+      isSystem: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: crypto.randomUUID(),
+      name: "Tecnico Senior",
+      permissions: ["SST_READ", "ALMOX_READ", "PROJECT_READ"],
+      isSystem: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: crypto.randomUUID(),
+      name: "Tecnico Pleno",
+      permissions: ["SST_READ", "ALMOX_READ", "PROJECT_READ"],
+      isSystem: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: crypto.randomUUID(),
+      name: "Tecnico Junior",
+      permissions: ["SST_READ", "ALMOX_READ", "PROJECT_READ"],
+      isSystem: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: crypto.randomUUID(),
+      name: "Gerente de Contrato",
+      permissions: ["REPORTS_READ", "KPIS_READ", "PROJECT_READ"],
+      isSystem: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: crypto.randomUUID(),
+      name: "Diretor O&M",
+      permissions: ["REPORTS_READ", "KPIS_READ", "PROJECT_READ"],
+      isSystem: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
+}
+
+function normalizeAccessRoleRecord(role) {
+  if (!role || typeof role !== "object") {
+    return null;
+  }
+  const id = String(role.id || "").trim() || crypto.randomUUID();
+  const name = String(role.name || "").trim();
+  if (!name) {
+    return null;
+  }
+  const createdAt = role.createdAt || new Date().toISOString();
+  return {
+    id,
+    name,
+    nameNormalized: normalizeAccessRoleName(name),
+    permissions: normalizeAccessPermissionList(role.permissions || []),
+    isSystem: Boolean(role.isSystem),
+    createdAt,
+    updatedAt: role.updatedAt || createdAt,
+  };
+}
+
+function loadAccessRoles() {
+  const data = readJson(ACCESS_ROLES_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.map(normalizeAccessRoleRecord).filter(Boolean);
+}
+
+function saveAccessRoles(list) {
+  accessRoles = (Array.isArray(list) ? list : [])
+    .map(normalizeAccessRoleRecord)
+    .filter(Boolean);
+  writeJson(ACCESS_ROLES_FILE, accessRoles);
+  return accessRoles;
+}
+
+function seedDefaultAccessRolesIfEmpty() {
+  if (accessRoles && accessRoles.length) {
+    return { seeded: false, count: accessRoles.length };
+  }
+  const defaults = buildDefaultAccessRoles();
+  saveAccessRoles(defaults);
+  return { seeded: true, count: defaults.length };
+}
+
+function getAccessRoleById(roleId) {
+  if (!roleId) {
+    return null;
+  }
+  const id = String(roleId);
+  return accessRoles.find((role) => String(role.id) === id) || null;
+}
+
+function getAccessRoleByName(name) {
+  const normalized = normalizeAccessRoleName(name);
+  if (!normalized) {
+    return null;
+  }
+  return (
+    accessRoles.find((role) => role.nameNormalized === normalized) ||
+    accessRoles.find((role) => normalizeAccessRoleName(role.name) === normalized) ||
+    null
+  );
+}
+
+function deriveRbacRoleFromRoleName(roleName) {
+  const normalized = normalizeAccessRoleName(roleName);
+  if (!normalized) {
+    return "";
+  }
+  if (normalized === "pcm") {
+    return "pcm";
+  }
+  if (normalized.includes("administrador") || normalized === "admin") {
+    return "admin";
+  }
+  if (normalized.includes("supervisor o m")) {
+    return "supervisor_om";
+  }
+  if (normalized.includes("diretor o m")) {
+    return "diretor_om";
+  }
+  if (normalized.includes("gerente de contrato")) {
+    return "gerente_contrato";
+  }
+  if (normalized.includes("tecnico senior")) {
+    return "tecnico_senior";
+  }
+  if (normalized.includes("tecnico pleno")) {
+    return "tecnico_pleno";
+  }
+  if (normalized.includes("tecnico junior")) {
+    return "tecnico_junior";
+  }
+  return normalized.replace(/[^a-z0-9]+/g, "_");
+}
+
+function getAccessPermissionsForUser(user) {
+  if (!user) {
+    return [];
+  }
+  const direct = Array.isArray(user.accessPermissions)
+    ? user.accessPermissions
+    : Array.isArray(user.rolePermissions)
+      ? user.rolePermissions
+      : [];
+  if (direct.length) {
+    return normalizeAccessPermissionList(direct);
+  }
+  const role =
+    (user.roleId && getAccessRoleById(user.roleId)) ||
+    getAccessRoleByName(user.roleName || user.cargo || user.role);
+  if (role && Array.isArray(role.permissions)) {
+    return normalizeAccessPermissionList(role.permissions);
+  }
+  return [];
+}
+
+function canViewAccessForUser(user) {
+  if (!user) {
+    return false;
+  }
+  if (isMasterUser(user) || isFullAccessRole(user.rbacRole || user.role)) {
+    return true;
+  }
+  const access = new Set(getAccessPermissionsForUser(user));
+  return (
+    access.has("ADMIN") ||
+    access.has("USER_READ") ||
+    access.has("USER_WRITE") ||
+    access.has("ROLE_READ") ||
+    access.has("ROLE_WRITE") ||
+    access.has("gerenciarAcessos")
+  );
+}
+
+function canManageAccessForUser(user) {
+  if (!user) {
+    return false;
+  }
+  if (isMasterUser(user) || isFullAccessRole(user.rbacRole || user.role)) {
+    return true;
+  }
+  const access = new Set(getAccessPermissionsForUser(user));
+  return (
+    access.has("ADMIN") ||
+    access.has("USER_WRITE") ||
+    access.has("ROLE_WRITE") ||
+    access.has("gerenciarAcessos")
+  );
+}
 
 const DEFAULT_SECTIONS = {
   inicio: true,
@@ -1540,15 +1923,29 @@ function saveSstInspectionTemplates(list) {
 
 function normalizeSstInspection(record) {
   const now = new Date().toISOString();
+  const startedAt = record && record.startedAt ? record.startedAt : record && record.createdAt ? record.createdAt : now;
+  const finishedAt = record && record.finishedAt ? record.finishedAt : "";
+  const answers = Array.isArray(record && record.answers ? record.answers : [])
+    ? record.answers
+    : [];
   return {
     id: record && record.id ? String(record.id) : crypto.randomUUID(),
     templateId: String(record && record.templateId ? record.templateId : "").trim(),
     type: String(record && (record.type || record.tipo) ? record.type || record.tipo : "").trim(),
     projectId: String(record && record.projectId ? record.projectId : "").trim(),
     local: String(record && (record.local || record.worksite) ? record.local || record.worksite : "").trim(),
+    worksiteId: String(record && record.worksiteId ? record.worksiteId : "").trim(),
+    inspectorId: String(record && record.inspectorId ? record.inspectorId : "").trim(),
+    safetyResponsibleId: String(record && record.safetyResponsibleId ? record.safetyResponsibleId : "").trim(),
+    vehicleId: String(record && record.vehicleId ? record.vehicleId : "").trim(),
+    vehicleSnapshot: record && record.vehicleSnapshot ? record.vehicleSnapshot : null,
     status: String(record && record.status ? record.status : "OK").trim().toUpperCase() || "OK",
     notes: String(record && (record.notes || record.observacoes) ? record.notes || record.observacoes : "").trim(),
     photos: Array.isArray(record && record.photos ? record.photos : []) ? record.photos : [],
+    answers,
+    score: Number.isFinite(Number(record && record.score)) ? Number(record.score) : 0,
+    startedAt,
+    finishedAt,
     createdAt: record && record.createdAt ? record.createdAt : now,
     createdBy: record && record.createdBy ? record.createdBy : "",
   };
@@ -1564,6 +1961,84 @@ function loadSstInspections() {
 
 function saveSstInspections(list) {
   writeJson(SST_INSPECTIONS_FILE, list);
+}
+
+function normalizeVehiclePlate(rawPlate) {
+  return String(rawPlate || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+function normalizeVehicleStatusValue(status) {
+  const normalized = String(status || "ATIVO").toUpperCase();
+  if (normalized === "MANUTENCAO" || normalized === "MANUTEN\u00c7\u00c3O") {
+    return "MANUTENCAO";
+  }
+  if (normalized === "INATIVO" || normalized === "INACTIVE") {
+    return "INATIVO";
+  }
+  return "ATIVO";
+}
+
+function normalizeVehicleType(type) {
+  const normalized = String(type || "OUTRO").toUpperCase();
+  if (normalized === "CARRO") {
+    return "Carro";
+  }
+  if (normalized === "CAMINHONETE") {
+    return "Caminhonete";
+  }
+  if (normalized === "CAMINHAO" || normalized === "CAMINH\u00c3O") {
+    return "Caminh\u00e3o";
+  }
+  if (normalized === "VAN") {
+    return "Van";
+  }
+  if (normalized === "ONIBUS" || normalized === "\u00d4NIBUS") {
+    return "\u00d4nibus";
+  }
+  if (normalized === "MOTO") {
+    return "Moto";
+  }
+  return "Outro";
+}
+
+function normalizeSstVehicle(record) {
+  if (!record || typeof record !== "object") {
+    return null;
+  }
+  const projectId = String(record.projectId || "").trim();
+  const plate = normalizeVehiclePlate(record.plate || record.placa || "");
+  if (!projectId || !plate) {
+    return null;
+  }
+  const now = new Date().toISOString();
+  const createdAt = record.createdAt || now;
+  return {
+    id: record.id ? String(record.id) : crypto.randomUUID(),
+    projectId,
+    plate,
+    plateNormalized: normalizeVehiclePlate(plate),
+    model: record.model ? String(record.model) : "",
+    type: normalizeVehicleType(record.type),
+    status: normalizeVehicleStatusValue(record.status || "ATIVO"),
+    notes: record.notes ? String(record.notes) : "",
+    createdBy: record.createdBy || "",
+    createdAt,
+    updatedAt: record.updatedAt || createdAt,
+  };
+}
+
+function loadSstVehicles() {
+  const data = readJson(SST_VEHICLES_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.map(normalizeSstVehicle).filter(Boolean);
+}
+
+function saveSstVehicles(list) {
+  writeJson(SST_VEHICLES_FILE, list);
 }
 
 function normalizeSstNonconformity(record) {
@@ -2484,6 +2959,18 @@ function normalizeCargo(value) {
     .trim();
 }
 
+function normalizeSearchValue(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function normalizeMatricula(value) {
+  return normalizeSearchValue(value).replace(/\s+/g, "");
+}
+
 function getCargoLevel(cargo) {
   const normalized = normalizeCargo(cargo);
   if (!normalized) {
@@ -3366,6 +3853,15 @@ function getProfileKeyForUser(user) {
 }
 
 function getGranularPermissionsForUser(user) {
+  const accessPermissions = getAccessPermissionsForUser(user);
+  if (accessPermissions && accessPermissions.length) {
+    const expanded = expandAccessPermissions(accessPermissions);
+    const output = {};
+    GRANULAR_PERMISSION_CATALOG.forEach((perm) => {
+      output[perm.key] = expanded.has(perm.key);
+    });
+    return output;
+  }
   const profileKey = getProfileKeyForUser(user);
   const base =
     granularPermissions && granularPermissions[profileKey]
@@ -3383,6 +3879,12 @@ function getGranularPermissionsForUser(user) {
 }
 
 function hasGranularPermission(user, permissionKey) {
+  if (!user) {
+    return false;
+  }
+  if (isMasterUser(user) || isFullAccessRole(user.rbacRole || user.role)) {
+    return true;
+  }
   const permissions = getGranularPermissionsForUser(user);
   return Boolean(permissions && permissions[permissionKey]);
 }
@@ -3411,6 +3913,22 @@ function sanitizeUser(user) {
   const role = normalizeRole(user.role, rbacRole);
   const email = getUserEmail(user);
   const emailVerified = user.emailVerified !== false;
+  const status =
+    String(user.status || (user.active === false ? "INATIVO" : "ATIVO")).toUpperCase() ===
+    "INATIVO"
+      ? "INATIVO"
+      : "ATIVO";
+  const roleRecord =
+    (user.roleId && getAccessRoleById(user.roleId)) ||
+    getAccessRoleByName(user.roleName || user.cargo || user.role);
+  const roleId = user.roleId || (roleRecord ? roleRecord.id : "");
+  const roleName = user.roleName || (roleRecord ? roleRecord.name : user.cargo || "");
+  const rolePermissions = roleRecord
+    ? normalizeAccessPermissionList(roleRecord.permissions)
+    : normalizeAccessPermissionList(user.rolePermissions || user.accessPermissions || []);
+  const accessPermissions = normalizeAccessPermissionList(
+    user.accessPermissions || user.rolePermissions || rolePermissions || []
+  );
   return {
     id: user.id,
     username: user.username,
@@ -3418,6 +3936,8 @@ function sanitizeUser(user) {
     name: user.name,
     role,
     rbacRole,
+    roleId,
+    roleName,
     cargo: user.cargo || "",
     email,
     emailVerified,
@@ -3425,8 +3945,11 @@ function sanitizeUser(user) {
     uen: user.uen || "",
     localizacao: user.localizacao || "",
     projectId: user.projectId || "",
-    active: user.active !== false,
+    status,
+    active: status !== "INATIVO",
     permissions: buildPermissions(rbacRole, user.permissions),
+    rolePermissions,
+    accessPermissions,
     granularPermissions: getGranularPermissionsForUser(user),
     sections: buildSections(rbacRole, user.sections),
     avatarUrl: user.avatarUrl || "",
@@ -3435,20 +3958,118 @@ function sanitizeUser(user) {
   };
 }
 
+function serializeAccessUser(user) {
+  if (!user) {
+    return null;
+  }
+  const normalized = normalizeUserRecord(user);
+  const roleRecord =
+    (normalized.roleId && getAccessRoleById(normalized.roleId)) ||
+    getAccessRoleByName(normalized.roleName || normalized.cargo || normalized.role);
+  const rolePermissions = roleRecord
+    ? normalizeAccessPermissionList(roleRecord.permissions)
+    : normalizeAccessPermissionList(
+        normalized.rolePermissions || normalized.accessPermissions || []
+      );
+  const accessPermissions = normalizeAccessPermissionList(
+    normalized.accessPermissions || normalized.rolePermissions || rolePermissions || []
+  );
+  return {
+    id: normalized.id,
+    name: normalized.name,
+    matricula: normalized.matricula,
+    matriculaNormalized: normalizeMatricula(normalized.matricula || ""),
+    username: normalized.username || "",
+    email: normalized.email || "",
+    roleId: normalized.roleId || "",
+    roleName: normalized.roleName || normalized.cargo || "",
+    cargo: normalized.cargo || "",
+    role: normalized.role,
+    rbacRole: normalized.rbacRole,
+    rolePermissions,
+    accessPermissions,
+    permissions: normalized.permissions,
+    sections: normalized.sections,
+    projectId:
+      normalized.projectId === null || normalized.projectId === undefined
+        ? null
+        : String(normalized.projectId || ""),
+    status: normalized.status || "ATIVO",
+    passwordHash: normalized.passwordHash || "",
+    passwordUpdatedAt: normalized.passwordUpdatedAt || "",
+    createdAt: normalized.createdAt || "",
+    updatedAt: normalized.updatedAt || normalized.createdAt || "",
+    uen: normalized.uen || "",
+    atribuicoes: normalized.atribuicoes || "",
+    avatarUrl: normalized.avatarUrl || "",
+    avatarUpdatedAt: normalized.avatarUpdatedAt || "",
+  };
+}
+
 function normalizeUserRecord(user) {
-  const rbacRole = normalizeRbacRole(user.rbacRole || user.role);
-  const role = normalizeRole(user.role, rbacRole);
+  const roleNameInput = String(user.roleName || user.cargo || user.role || "").trim();
+  const roleRecord = user.roleId
+    ? getAccessRoleById(user.roleId)
+    : roleNameInput
+      ? getAccessRoleByName(roleNameInput)
+      : null;
+  const roleName = roleRecord ? roleRecord.name : String(user.roleName || user.cargo || "").trim();
+  const roleId = roleRecord ? roleRecord.id : user.roleId || "";
+  const accessPermissions = normalizeAccessPermissionList(
+    Array.isArray(user.accessPermissions)
+      ? user.accessPermissions
+      : Array.isArray(user.rolePermissions)
+        ? user.rolePermissions
+        : roleRecord
+          ? roleRecord.permissions
+          : []
+  );
+  const derivedRbacRole = normalizeRbacRole(
+    user.rbacRole || user.role || deriveRbacRoleFromRoleName(roleName || roleNameInput)
+  );
+  const role = normalizeRole(user.role, derivedRbacRole);
+  const status =
+    String(user.status || (user.active === false ? "INATIVO" : "ATIVO")).toUpperCase() ===
+    "INATIVO"
+      ? "INATIVO"
+      : "ATIVO";
   const email = getUserEmail(user);
   return {
     ...user,
     role,
-    rbacRole,
+    rbacRole: derivedRbacRole,
+    roleId,
+    roleName,
+    accessPermissions,
+    status,
     email,
     emailVerified: user.emailVerified !== false,
-    active: user.active !== false,
-    permissions: buildPermissions(rbacRole, user.permissions),
-    sections: buildSections(rbacRole, user.sections),
+    active: status !== "INATIVO",
+    permissions: buildPermissions(derivedRbacRole, user.permissions),
+    sections: buildSections(derivedRbacRole, user.sections),
   };
+}
+
+function normalizeUserStatus(value) {
+  return String(value || "").toUpperCase() === "INATIVO" ? "INATIVO" : "ATIVO";
+}
+
+function findUserByMatriculaNormalized(value, excludeUserId = "") {
+  const normalized = normalizeMatricula(value);
+  if (!normalized) {
+    return null;
+  }
+  return (
+    users.find((user) => {
+      if (!user || !user.matricula) {
+        return false;
+      }
+      if (excludeUserId && String(user.id) === String(excludeUserId)) {
+        return false;
+      }
+      return normalizeMatricula(user.matricula) === normalized;
+    }) || null
+  );
 }
 
 function ensureMasterAccount() {
@@ -3456,6 +4077,13 @@ function ensureMasterAccount() {
   const matricula = String(MASTER_MATRICULA || "").trim().toUpperCase();
   const rbacRole = normalizeRbacRole(MASTER_ROLE);
   const legacyRole = normalizeRole("admin", rbacRole);
+  const accessRole =
+    getAccessRoleByName("PCM") ||
+    getAccessRoleByName(MASTER_ROLE) ||
+    getAccessRoleByName(MASTER_CARGO);
+  const accessRoleId = accessRole ? accessRole.id : "";
+  const accessRoleName = accessRole ? accessRole.name : "PCM";
+  const accessPermissions = accessRole ? accessRole.permissions : [];
   let index = users.findIndex((user) => String(user.username || "").toLowerCase() === username);
   if (index === -1 && matricula) {
     index = users.findIndex((user) => String(user.matricula || "").toUpperCase() === matricula);
@@ -3470,7 +4098,11 @@ function ensureMasterAccount() {
       name: MASTER_NAME,
       role: legacyRole,
       rbacRole,
+      roleId: accessRoleId,
+      roleName: accessRoleName,
+      accessPermissions,
       cargo: MASTER_CARGO,
+      status: "ATIVO",
       active: true,
       permissions: buildPermissions(rbacRole, current.permissions),
       sections: buildSections(rbacRole, current.sections),
@@ -3497,7 +4129,11 @@ function ensureMasterAccount() {
     name: MASTER_NAME,
     role: legacyRole,
     rbacRole,
+    roleId: accessRoleId,
+    roleName: accessRoleName,
+    accessPermissions,
     cargo: MASTER_CARGO,
+    status: "ATIVO",
     active: true,
     passwordHash,
     permissions: buildPermissions(rbacRole),
@@ -3516,6 +4152,13 @@ function seedAdmin() {
     return;
   }
   const passwordHash = bcrypt.hashSync(ADMIN_PASSWORD, 12);
+  const accessRole =
+    getAccessRoleByName("Administrador") ||
+    getAccessRoleByName("Admin") ||
+    getAccessRoleByName("PCM");
+  const accessRoleId = accessRole ? accessRole.id : "";
+  const accessRoleName = accessRole ? accessRole.name : "Administrador";
+  const accessPermissions = accessRole ? accessRole.permissions : [];
   const admin = normalizeUserRecord({
     id: crypto.randomUUID(),
     username: "admin",
@@ -3523,7 +4166,11 @@ function seedAdmin() {
     name: "Administrador",
     role: "admin",
     rbacRole: "pcm",
+    roleId: accessRoleId,
+    roleName: accessRoleName,
+    accessPermissions,
     active: true,
+    status: "ATIVO",
     passwordHash,
     permissions: buildPermissions("pcm"),
     sections: buildSections("pcm"),
@@ -3556,6 +4203,63 @@ function validatePassword(password) {
   };
   const ok = Object.values(rules).every(Boolean);
   return { ok, rules };
+}
+
+function generateRandomPassword(length = 12) {
+  const safeLength = Math.max(8, Number(length) || 12);
+  const lower = "abcdefghijkmnopqrstuvwxyz";
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const digits = "23456789";
+  const symbols = "!@#$%*?-_";
+  const all = `${lower}${upper}${digits}${symbols}`;
+  const pick = (chars) => chars[crypto.randomInt(chars.length)];
+  const result = [pick(lower), pick(upper), pick(digits), pick(symbols)];
+  while (result.length < safeLength) {
+    result.push(pick(all));
+  }
+  for (let i = result.length - 1; i > 0; i -= 1) {
+    const j = crypto.randomInt(i + 1);
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result.join("");
+}
+
+function hashPasswordSha256(password, saltHex = "") {
+  const plain = String(password || "");
+  if (!plain) {
+    return "";
+  }
+  const salt = saltHex || crypto.randomBytes(16).toString("hex");
+  const digest = crypto.createHash("sha256").update(`${salt}:${plain}`).digest("hex");
+  return `sha256:${salt}:${digest}`;
+}
+
+function verifySha256Password(password, storedHash) {
+  const raw = String(storedHash || "");
+  if (!raw.startsWith("sha256:")) {
+    return false;
+  }
+  const parts = raw.split(":");
+  if (parts.length !== 3) {
+    return false;
+  }
+  const recomputed = hashPasswordSha256(password, parts[1]);
+  return recomputed === raw;
+}
+
+async function verifyPasswordAgainstHash(password, storedHash) {
+  const raw = String(storedHash || "");
+  if (!raw) {
+    return false;
+  }
+  if (raw.startsWith("sha256:")) {
+    return verifySha256Password(password, raw);
+  }
+  try {
+    return await bcrypt.compare(password, raw);
+  } catch (error) {
+    return false;
+  }
 }
 
 function isValidEmail(email) {
@@ -3838,7 +4542,7 @@ function getSessionUser(req) {
     return null;
   }
   const user = users.find((item) => item.id === req.session.userId);
-  if (!user || user.active === false) {
+  if (!user || user.active === false || String(user.status || "").toUpperCase() === "INATIVO") {
     return null;
   }
   return user;
@@ -3853,6 +4557,20 @@ function hasPermission(user, permissionKey) {
   }
   if (isFullAccessRole(user.rbacRole || user.role)) {
     return true;
+  }
+  const accessPermissions = getAccessPermissionsForUser(user);
+  if (accessPermissions && accessPermissions.length) {
+    const accessSet = new Set(accessPermissions);
+    if (accessSet.has("ADMIN")) {
+      return true;
+    }
+    if (accessSet.has(permissionKey)) {
+      return true;
+    }
+    const mapped = ACCESS_MAINTENANCE_PERMISSION_MAP[permissionKey];
+    if (mapped && accessSet.has(mapped)) {
+      return true;
+    }
   }
   const permissions = buildPermissions(user.rbacRole || user.role, user.permissions);
   return Boolean(permissions && permissions[permissionKey]);
@@ -3887,6 +4605,22 @@ function requirePermission(permissionKey) {
 function requireAdmin(req, res, next) {
   const user = req.currentUser || getSessionUser(req);
   if (!user || (!isMasterUser(user) && !isFullAccessRole(user.rbacRole || user.role))) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  return next();
+}
+
+function requireAccessView(req, res, next) {
+  const user = req.currentUser || getSessionUser(req);
+  if (!user || !canViewAccessForUser(user)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  return next();
+}
+
+function requireAccessManage(req, res, next) {
+  const user = req.currentUser || getSessionUser(req);
+  if (!user || !canManageAccessForUser(user)) {
     return res.status(403).json({ message: "Nao autorizado." });
   }
   return next();
@@ -4173,6 +4907,8 @@ let sstNonconformities = [];
 let sstIncidents = [];
 let sstAprs = [];
 let sstPermits = [];
+let sstVehicles = [];
+let accessRoles = [];
 let users = [];
 let invites = [];
 let auditLog = [];
@@ -4223,6 +4959,8 @@ async function bootstrap() {
   if (!fs.existsSync(PERMISSOES_FILE)) {
     writeJson(PERMISSOES_FILE, granularPermissions);
   }
+  accessRoles = loadAccessRoles();
+  seedDefaultAccessRolesIfEmpty();
   filesMeta = readJson(FILES_META_FILE, []);
   if (!Array.isArray(filesMeta)) {
     filesMeta = [];
@@ -4284,6 +5022,10 @@ async function bootstrap() {
   if (!fs.existsSync(SST_PERMITS_FILE)) {
     saveSstPermits(sstPermits);
   }
+  sstVehicles = loadSstVehicles();
+  if (!fs.existsSync(SST_VEHICLES_FILE)) {
+    saveSstVehicles(sstVehicles);
+  }
   pmpActivities = loadPmpActivities().map(normalizePmpActivity);
   if (!fs.existsSync(PMP_ACTIVITIES_FILE)) {
     savePmpActivities(pmpActivities);
@@ -4296,6 +5038,7 @@ async function bootstrap() {
 }
 
 app.use(express.json({ limit: "20mb" }));
+app.set("trust proxy", 1);
 app.use(
   session({
     name: "opscope.sid",
@@ -4306,6 +5049,7 @@ app.use(
     cookie: {
       httpOnly: true,
       sameSite: "lax",
+      secure: !IS_DEV,
       maxAge: 8 * 60 * 60 * 1000,
     },
   })
@@ -4447,11 +5191,11 @@ app.post("/api/auth/login", async (req, res) => {
     appendAudit("login_fail", null, { login }, ip);
     return res.status(401).json({ message: "Credenciais inválidas." });
   }
-  if (user.active === false) {
+  if (user.active === false || String(user.status || "").toUpperCase() === "INATIVO") {
     appendAudit("login_inactive", user.id, { login }, ip);
     return res.status(403).json({ message: "Conta inativa." });
   }
-  const ok = await bcrypt.compare(senha, user.passwordHash);
+  const ok = await verifyPasswordAgainstHash(senha, user.passwordHash);
   if (!ok) {
     recordIpFailure(ip);
     recordUserFailure(login);
@@ -6135,6 +6879,176 @@ app.delete("/api/sst/permits/:id", requireAuth, requirePermission("gerenciarSST"
   return res.json({ ok: true });
 });
 
+app.get("/api/sst/vehicles", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const projectId = String(req.query.projectId || "").trim();
+  let list = sstVehicles.slice();
+  if (projectId) {
+    if (!userHasProjectAccess(user, projectId)) {
+      return res.status(403).json({ message: "Nao autorizado." });
+    }
+    list = list.filter((item) => String(item.projectId) === projectId);
+  } else {
+    const allowed = new Set(getUserProjectIds(user));
+    list = list.filter((item) => allowed.has(String(item.projectId)));
+  }
+  if (req.query.status && req.query.status !== "ALL") {
+    const status = normalizeVehicleStatusValue(req.query.status);
+    list = list.filter(
+      (item) => normalizeVehicleStatusValue(item.status || "") === status
+    );
+  }
+  if (req.query.q) {
+    const term = normalizeSearchValue(req.query.q);
+    list = list.filter(
+      (item) =>
+        normalizeSearchValue(item.plate || "").includes(term) ||
+        normalizeSearchValue(item.model || "").includes(term)
+    );
+  }
+  return res.json({ vehicles: list });
+});
+
+app.get("/api/sst/vehicles/:id", requireAuth, (req, res) => {
+  const vehicleId = String(req.params.id || "").trim();
+  const vehicle = sstVehicles.find((item) => item && String(item.id) === vehicleId);
+  if (!vehicle) {
+    return res.status(404).json({ message: "Veiculo nao encontrado." });
+  }
+  const user = req.currentUser || getSessionUser(req);
+  if (vehicle.projectId && !userHasProjectAccess(user, vehicle.projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  return res.json({ vehicle });
+});
+
+app.post("/api/sst/vehicles", requireAuth, requirePermission("gerenciarProjetos"), (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const projectId = String(payload.projectId || "").trim();
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto obrigatorio." });
+  }
+  if (!userHasProjectAccess(user, projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  const plate = normalizeVehiclePlate(payload.plate || payload.placa || "");
+  if (!plate) {
+    return res.status(400).json({ message: "Placa obrigatoria." });
+  }
+  const duplicate = sstVehicles.find(
+    (item) =>
+      item &&
+      String(item.projectId) === projectId &&
+      normalizeVehiclePlate(item.plate || "") === plate
+  );
+  if (duplicate) {
+    return res.status(409).json({ message: "Ja existe veiculo com essa placa neste projeto." });
+  }
+  const now = new Date().toISOString();
+  const record = normalizeSstVehicle({
+    ...payload,
+    projectId,
+    plate,
+    createdAt: now,
+    updatedAt: now,
+    createdBy: user ? user.id : "",
+  });
+  if (!record) {
+    return res.status(400).json({ message: "Veiculo invalido." });
+  }
+  sstVehicles = sstVehicles.concat(record);
+  saveSstVehicles(sstVehicles);
+  appendAudit(
+    "sst_vehicle_create",
+    user ? user.id : null,
+    { vehicleId: record.id, projectId },
+    getClientIp(req),
+    projectId
+  );
+  return res.json({ vehicle: record });
+});
+
+app.put("/api/sst/vehicles/:id", requireAuth, requirePermission("gerenciarProjetos"), (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const vehicleId = String(req.params.id || "").trim();
+  const index = sstVehicles.findIndex((item) => item && String(item.id) === vehicleId);
+  if (index === -1) {
+    return res.status(404).json({ message: "Veiculo nao encontrado." });
+  }
+  const current = sstVehicles[index];
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const projectId = String(payload.projectId || current.projectId || "").trim();
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto obrigatorio." });
+  }
+  if (!userHasProjectAccess(user, projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  const plate = normalizeVehiclePlate(payload.plate || payload.placa || current.plate || "");
+  if (!plate) {
+    return res.status(400).json({ message: "Placa obrigatoria." });
+  }
+  const duplicate = sstVehicles.find(
+    (item) =>
+      item &&
+      String(item.id) !== vehicleId &&
+      String(item.projectId) === projectId &&
+      normalizeVehiclePlate(item.plate || "") === plate
+  );
+  if (duplicate) {
+    return res.status(409).json({ message: "Ja existe veiculo com essa placa neste projeto." });
+  }
+  const updated = normalizeSstVehicle({
+    ...current,
+    ...payload,
+    id: current.id,
+    projectId,
+    plate,
+    createdAt: current.createdAt,
+    createdBy: current.createdBy,
+    updatedAt: new Date().toISOString(),
+  });
+  sstVehicles[index] = updated;
+  saveSstVehicles(sstVehicles);
+  appendAudit(
+    "sst_vehicle_update",
+    user ? user.id : null,
+    { vehicleId: updated.id, projectId },
+    getClientIp(req),
+    projectId
+  );
+  return res.json({ vehicle: updated });
+});
+
+app.delete("/api/sst/vehicles/:id", requireAuth, requirePermission("gerenciarProjetos"), (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const vehicleId = String(req.params.id || "").trim();
+  const index = sstVehicles.findIndex((item) => item && String(item.id) === vehicleId);
+  if (index === -1) {
+    return res.status(404).json({ message: "Veiculo nao encontrado." });
+  }
+  const current = sstVehicles[index];
+  if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  const updated = normalizeSstVehicle({
+    ...current,
+    status: "INATIVO",
+    updatedAt: new Date().toISOString(),
+  });
+  sstVehicles[index] = updated;
+  saveSstVehicles(sstVehicles);
+  appendAudit(
+    "sst_vehicle_delete",
+    user ? user.id : null,
+    { vehicleId, projectId: current.projectId },
+    getClientIp(req),
+    current.projectId
+  );
+  return res.json({ ok: true, vehicle: updated });
+});
+
 app.patch("/api/profile", requireAuth, (req, res) => {
   const actor = req.currentUser || getSessionUser(req);
   if (!actor) {
@@ -6318,6 +7232,486 @@ app.get("/api/admin/users", requireAuth, requirePermission("verUsuarios"), (req,
 
 app.get("/api/admin/permissions", requireAuth, requirePermission("verUsuarios"), (req, res) => {
   return res.json({ permissions: PERMISSION_CATALOG });
+});
+
+app.get("/api/admin/access/roles", requireAuth, requireAccessView, (req, res) => {
+  const term = normalizeSearchValue(req.query.q || "");
+  let list = accessRoles.slice();
+  if (term) {
+    list = list.filter((role) => {
+      const name = normalizeSearchValue(role.name || "");
+      const normalized = role.nameNormalized || normalizeAccessRoleName(role.name || "");
+      return name.includes(term) || normalized.includes(term);
+    });
+  }
+  list.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+  return res.json({ roles: list });
+});
+
+app.get("/api/admin/access/roles/:id", requireAuth, requireAccessView, (req, res) => {
+  const role = getAccessRoleById(req.params.id);
+  if (!role) {
+    return res.status(404).json({ message: "Cargo nao encontrado." });
+  }
+  return res.json({ role });
+});
+
+app.post("/api/admin/access/roles", requireAuth, requireAccessManage, (req, res) => {
+  const name = String(req.body.name || "").trim();
+  if (!name) {
+    return res.status(400).json({ message: "Informe o nome do cargo." });
+  }
+  const normalizedName = normalizeAccessRoleName(name);
+  const conflict = accessRoles.find((role) => role.nameNormalized === normalizedName);
+  if (conflict) {
+    return res.status(409).json({ message: "Ja existe um cargo com esse nome." });
+  }
+  const now = new Date().toISOString();
+  const role = normalizeAccessRoleRecord({
+    id: crypto.randomUUID(),
+    name,
+    permissions: normalizeAccessPermissionList(req.body.permissions || []),
+    isSystem: false,
+    createdAt: now,
+    updatedAt: now,
+  });
+  if (!role) {
+    return res.status(400).json({ message: "Cargo invalido." });
+  }
+  accessRoles = [role, ...accessRoles];
+  saveAccessRoles(accessRoles);
+  appendAudit("access_role_create", req.session.userId, { roleId: role.id }, getClientIp(req));
+  return res.json({ role });
+});
+
+app.put("/api/admin/access/roles/:id", requireAuth, requireAccessManage, (req, res) => {
+  const roleId = String(req.params.id || "").trim();
+  const index = accessRoles.findIndex((role) => String(role.id) === roleId);
+  if (index === -1) {
+    return res.status(404).json({ message: "Cargo nao encontrado." });
+  }
+  const current = accessRoles[index];
+  const name = req.body.name !== undefined ? String(req.body.name || "").trim() : current.name;
+  if (!name) {
+    return res.status(400).json({ message: "Informe o nome do cargo." });
+  }
+  const normalizedName = normalizeAccessRoleName(name);
+  const conflict = accessRoles.find(
+    (role) => role.id !== current.id && role.nameNormalized === normalizedName
+  );
+  if (conflict) {
+    return res.status(409).json({ message: "Ja existe um cargo com esse nome." });
+  }
+  const permissions =
+    req.body.permissions !== undefined
+      ? normalizeAccessPermissionList(req.body.permissions || [])
+      : current.permissions;
+  const updated = normalizeAccessRoleRecord({
+    ...current,
+    name,
+    permissions,
+    updatedAt: new Date().toISOString(),
+  });
+  accessRoles[index] = updated;
+  saveAccessRoles(accessRoles);
+  appendAudit("access_role_update", req.session.userId, { roleId: updated.id }, getClientIp(req));
+  return res.json({ role: updated });
+});
+
+app.delete("/api/admin/access/roles/:id", requireAuth, requireAccessManage, (req, res) => {
+  const roleId = String(req.params.id || "").trim();
+  const role = getAccessRoleById(roleId);
+  if (!role) {
+    return res.status(404).json({ message: "Cargo nao encontrado." });
+  }
+  if (role.isSystem) {
+    return res.status(403).json({ message: "Cargo de sistema nao pode ser excluido." });
+  }
+  const inUse = users.some((user) => {
+    if (!user) {
+      return false;
+    }
+    if (String(user.roleId || "") === String(role.id)) {
+      return true;
+    }
+    const name = normalizeAccessRoleName(user.roleName || user.cargo || user.role || "");
+    return name && name === role.nameNormalized;
+  });
+  if (inUse) {
+    return res.status(409).json({ message: "Cargo em uso por usuarios." });
+  }
+  accessRoles = accessRoles.filter((item) => String(item.id) !== roleId);
+  saveAccessRoles(accessRoles);
+  appendAudit("access_role_delete", req.session.userId, { roleId }, getClientIp(req));
+  return res.json({ ok: true });
+});
+
+app.post("/api/admin/access/roles/seed", requireAuth, requireAccessManage, (req, res) => {
+  const result = seedDefaultAccessRolesIfEmpty();
+  return res.json({ ...result, roles: accessRoles });
+});
+
+app.get("/api/admin/access/users", requireAuth, requireAccessView, (req, res) => {
+  const term = normalizeSearchValue(req.query.q || "");
+  const roleId = String(req.query.roleId || "").trim();
+  const statusFilter = normalizeUserStatus(req.query.status || "");
+  const projectId = String(req.query.projectId || "").trim();
+  let list = users.slice();
+  if (term) {
+    list = list.filter((user) => {
+      const name = normalizeSearchValue(user.name || "");
+      const matricula = normalizeSearchValue(user.matricula || "");
+      const email = normalizeSearchValue(user.email || user.username || "");
+      return name.includes(term) || matricula.includes(term) || email.includes(term);
+    });
+  }
+  if (roleId) {
+    list = list.filter((user) => String(user.roleId || "") === roleId);
+  }
+  if (req.query.status) {
+    list = list.filter((user) => normalizeUserStatus(user.status || "") === statusFilter);
+  }
+  if (projectId) {
+    list = list.filter((user) => String(user.projectId || "") === projectId);
+  }
+  list.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+  return res.json({ users: list.map((user) => serializeAccessUser(user)) });
+});
+
+app.get("/api/admin/access/users/:id", requireAuth, requireAccessView, (req, res) => {
+  const user = users.find((item) => item && String(item.id) === String(req.params.id));
+  if (!user) {
+    return res.status(404).json({ message: "Usuario nao encontrado." });
+  }
+  return res.json({ user: serializeAccessUser(user) });
+});
+
+app.post("/api/admin/access/users", requireAuth, requireAccessManage, (req, res) => {
+  const payload = req.body || {};
+  const name = String(payload.name || "").trim();
+  const matricula = String(payload.matricula || "").trim();
+  if (!name) {
+    return res.status(400).json({ message: "Informe o nome do usuario." });
+  }
+  if (!matricula) {
+    return res.status(400).json({ message: "Informe a matricula." });
+  }
+  if (findUserByMatriculaNormalized(matricula)) {
+    return res.status(409).json({ message: "Matricula ja cadastrada." });
+  }
+  const roleId = String(payload.roleId || "").trim();
+  const role = roleId ? getAccessRoleById(roleId) : null;
+  if (!role) {
+    return res.status(400).json({ message: "Cargo invalido." });
+  }
+  const projectId = payload.projectId ? String(payload.projectId).trim() : "";
+  if (projectId && !getProjectById(projectId)) {
+    return res.status(400).json({ message: "Projeto invalido." });
+  }
+  const status = normalizeUserStatus(payload.status || "ATIVO");
+  const mode = String(payload.passwordMode || "MANUAL").toUpperCase();
+  let password = String(payload.password || "");
+  let generatedPassword = "";
+  if (mode === "GERADA") {
+    generatedPassword = generateRandomPassword(12);
+    password = generatedPassword;
+  }
+  if (!password) {
+    return res.status(400).json({ message: "Informe a senha." });
+  }
+  const now = new Date().toISOString();
+  const passwordHash = hashPasswordSha256(password);
+  const username = payload.email ? String(payload.email || "").trim() : matricula;
+  const created = normalizeUserRecord({
+    id: crypto.randomUUID(),
+    username,
+    matricula,
+    name,
+    email: String(payload.email || "").trim().toLowerCase(),
+    roleId: role.id,
+    roleName: role.name,
+    cargo: role.name,
+    accessPermissions: role.permissions,
+    rolePermissions: role.permissions,
+    rbacRole: deriveRbacRoleFromRoleName(role.name),
+    role: normalizeRole(role.name, deriveRbacRoleFromRoleName(role.name)),
+    projectId: projectId || null,
+    status,
+    active: status !== "INATIVO",
+    passwordHash,
+    passwordUpdatedAt: now,
+    emailVerified: true,
+    createdAt: now,
+    updatedAt: now,
+  });
+  users.push(created);
+  writeJson(USERS_FILE, users);
+  if (created.projectId) {
+    setUserProjectAssignment(created, created.projectId);
+  }
+  appendAudit("access_user_create", req.session.userId, { alvo: created.id }, getClientIp(req));
+  return res.json({
+    user: serializeAccessUser(created),
+    generatedPassword: generatedPassword || undefined,
+  });
+});
+
+app.put("/api/admin/access/users/:id", requireAuth, requireAccessManage, (req, res) => {
+  const id = String(req.params.id || "").trim();
+  const index = users.findIndex((item) => item && String(item.id) === id);
+  if (index === -1) {
+    return res.status(404).json({ message: "Usuario nao encontrado." });
+  }
+  const current = users[index];
+  const payload = req.body || {};
+  if (payload.name !== undefined && !String(payload.name || "").trim()) {
+    return res.status(400).json({ message: "Informe o nome do usuario." });
+  }
+  let roleId = current.roleId || "";
+  let roleName = current.roleName || current.cargo || "";
+  let rolePermissions = current.accessPermissions || current.rolePermissions || [];
+  if (payload.roleId !== undefined) {
+    const nextRoleId = String(payload.roleId || "").trim();
+    if (!nextRoleId) {
+      return res.status(400).json({ message: "Cargo invalido." });
+    }
+    const role = getAccessRoleById(nextRoleId);
+    if (!role) {
+      return res.status(400).json({ message: "Cargo invalido." });
+    }
+    roleId = role.id;
+    roleName = role.name;
+    rolePermissions = role.permissions;
+  }
+  const projectId =
+    payload.projectId !== undefined ? String(payload.projectId || "").trim() : null;
+  if (projectId && !getProjectById(projectId)) {
+    return res.status(400).json({ message: "Projeto invalido." });
+  }
+  const status =
+    payload.status !== undefined
+      ? normalizeUserStatus(payload.status)
+      : normalizeUserStatus(current.status || "");
+  const updated = normalizeUserRecord({
+    ...current,
+    name: payload.name !== undefined ? String(payload.name || "").trim() : current.name,
+    email:
+      payload.email !== undefined
+        ? String(payload.email || "").trim().toLowerCase()
+        : current.email || "",
+    roleId,
+    roleName,
+    cargo: roleName || current.cargo || "",
+    accessPermissions: rolePermissions,
+    rolePermissions,
+    projectId: payload.projectId !== undefined ? (projectId || null) : current.projectId || null,
+    status,
+    active: status !== "INATIVO",
+    updatedAt: new Date().toISOString(),
+  });
+  users[index] = updated;
+  writeJson(USERS_FILE, users);
+  if (payload.projectId !== undefined) {
+    setUserProjectAssignment(updated, updated.projectId || "");
+  }
+  appendAudit("access_user_update", req.session.userId, { alvo: updated.id }, getClientIp(req));
+  return res.json({ user: serializeAccessUser(updated) });
+});
+
+app.post(
+  "/api/admin/access/users/:id/reset-password",
+  requireAuth,
+  requireAccessManage,
+  (req, res) => {
+    const id = String(req.params.id || "").trim();
+    const index = users.findIndex((item) => item && String(item.id) === id);
+    if (index === -1) {
+      return res.status(404).json({ message: "Usuario nao encontrado." });
+    }
+    const mode = String(req.body.mode || "MANUAL").toUpperCase();
+    let password = String(req.body.password || "");
+    let generatedPassword = "";
+    if (mode === "GERADA") {
+      generatedPassword = generateRandomPassword(12);
+      password = generatedPassword;
+    }
+    if (!password) {
+      return res.status(400).json({ message: "Informe a senha." });
+    }
+    const now = new Date().toISOString();
+    const current = users[index];
+    const updated = normalizeUserRecord({
+      ...current,
+      passwordHash: hashPasswordSha256(password),
+      passwordUpdatedAt: now,
+      updatedAt: now,
+    });
+    users[index] = updated;
+    writeJson(USERS_FILE, users);
+    appendAudit("access_user_reset_password", req.session.userId, { alvo: updated.id }, getClientIp(req));
+    return res.json({
+      user: serializeAccessUser(updated),
+      generatedPassword: generatedPassword || undefined,
+    });
+  }
+);
+
+app.patch("/api/admin/access/users/:id/status", requireAuth, requireAccessManage, (req, res) => {
+  const id = String(req.params.id || "").trim();
+  const index = users.findIndex((item) => item && String(item.id) === id);
+  if (index === -1) {
+    return res.status(404).json({ message: "Usuario nao encontrado." });
+  }
+  const status = normalizeUserStatus(req.body.status || "");
+  const now = new Date().toISOString();
+  const current = users[index];
+  const updated = normalizeUserRecord({
+    ...current,
+    status,
+    active: status !== "INATIVO",
+    updatedAt: now,
+  });
+  users[index] = updated;
+  writeJson(USERS_FILE, users);
+  appendAudit("access_user_status", req.session.userId, { alvo: updated.id, status }, getClientIp(req));
+  return res.json({ user: serializeAccessUser(updated) });
+});
+
+app.post("/api/admin/access/import", requireAuth, requireAccessManage, (req, res) => {
+  const payload = req.body || {};
+  const rolesPayload = Array.isArray(payload.roles)
+    ? payload.roles.map(normalizeAccessRoleRecord).filter(Boolean)
+    : [];
+  const usersPayload = Array.isArray(payload.users) ? payload.users : [];
+  const projectsPayload = Array.isArray(payload.projects)
+    ? payload.projects.map(normalizeProject).filter(Boolean)
+    : [];
+  if (!rolesPayload.length) {
+    return res.status(400).json({ message: "Arquivo sem cargos validos." });
+  }
+  if (!usersPayload.length) {
+    return res.status(400).json({ message: "Arquivo sem contas validas." });
+  }
+
+  const rolesById = new Map(accessRoles.map((role) => [String(role.id), role]));
+  rolesPayload.forEach((role) => {
+    const id = String(role.id);
+    const existing = rolesById.get(id);
+    if (existing) {
+      rolesById.set(id, {
+        ...existing,
+        ...role,
+        isSystem: existing.isSystem || role.isSystem,
+      });
+    } else {
+      rolesById.set(id, role);
+    }
+  });
+  accessRoles = Array.from(rolesById.values());
+  saveAccessRoles(accessRoles);
+
+  if (projectsPayload.length) {
+    const projectById = new Map(projects.map((project) => [String(project.id), project]));
+    projectsPayload.forEach((project) => {
+      const id = String(project.id);
+      const existing = projectById.get(id);
+      projectById.set(id, existing ? { ...existing, ...project } : project);
+    });
+    projects = Array.from(projectById.values());
+    saveProjects(projects);
+  } else {
+    ensureDefaultProject();
+  }
+
+  let createdCount = 0;
+  let updatedCount = 0;
+  const now = new Date().toISOString();
+  usersPayload.forEach((entry) => {
+    if (!entry || typeof entry !== "object") {
+      return;
+    }
+    const name = String(entry.name || "").trim();
+    const matricula = String(entry.matricula || "").trim();
+    if (!name || !matricula) {
+      return;
+    }
+    const incomingId = String(entry.id || "").trim() || crypto.randomUUID();
+    const existing =
+      users.find((user) => String(user.id) === incomingId) ||
+      findUserByMatriculaNormalized(matricula);
+    const base = existing ? { ...existing } : { id: incomingId, createdAt: now };
+    const roleId = String(entry.roleId || "").trim();
+    const roleName = String(entry.roleName || entry.cargo || entry.role || "").trim();
+    const role = roleId ? getAccessRoleById(roleId) : getAccessRoleByName(roleName);
+    const accessPermissions = Array.isArray(entry.accessPermissions)
+      ? entry.accessPermissions
+      : Array.isArray(entry.rolePermissions)
+        ? entry.rolePermissions
+        : role
+          ? role.permissions
+          : base.accessPermissions || [];
+    const projectIdRaw = entry.projectId ? String(entry.projectId).trim() : "";
+    const projectId = projectIdRaw && getProjectById(projectIdRaw) ? projectIdRaw : "";
+    const status = normalizeUserStatus(entry.status || base.status || "ATIVO");
+    const merged = normalizeUserRecord({
+      ...base,
+      id: existing ? base.id : incomingId,
+      username:
+        entry.username || entry.email || base.username || String(entry.matricula || "").trim(),
+      name,
+      matricula,
+      email: String(entry.email || base.email || "").trim().toLowerCase(),
+      roleId: role ? role.id : roleId || base.roleId || "",
+      roleName: role ? role.name : roleName || base.roleName || "",
+      cargo: entry.cargo || roleName || base.cargo || "",
+      accessPermissions,
+      rolePermissions: accessPermissions,
+      projectId: projectId || null,
+      status,
+      active: status !== "INATIVO",
+      passwordHash: String(entry.passwordHash || base.passwordHash || "").trim(),
+      passwordUpdatedAt: entry.passwordUpdatedAt || base.passwordUpdatedAt || now,
+      emailVerified: entry.emailVerified !== undefined ? entry.emailVerified : true,
+      uen: entry.uen || base.uen || "",
+      atribuicoes: entry.atribuicoes || base.atribuicoes || "",
+      avatarUrl: entry.avatarUrl || base.avatarUrl || "",
+      avatarUpdatedAt: entry.avatarUpdatedAt || base.avatarUpdatedAt || "",
+      createdAt: base.createdAt || entry.createdAt || now,
+      updatedAt: now,
+    });
+    if (existing) {
+      const index = users.findIndex((user) => user && user.id === base.id);
+      if (index >= 0) {
+        users[index] = merged;
+      } else {
+        users.push(merged);
+      }
+      updatedCount += 1;
+    } else {
+      users.push(merged);
+      createdCount += 1;
+    }
+    if (entry.projectId !== undefined) {
+      setUserProjectAssignment(merged, merged.projectId || "");
+    }
+  });
+  writeJson(USERS_FILE, users);
+  appendAudit(
+    "access_import",
+    req.session.userId,
+    { roles: rolesPayload.length, users: createdCount + updatedCount, created: createdCount, updated: updatedCount },
+    getClientIp(req)
+  );
+  return res.json({
+    ok: true,
+    counts: {
+      roles: accessRoles.length,
+      users: users.length,
+      created: createdCount,
+      updated: updatedCount,
+      projects: projects.length,
+    },
+  });
 });
 
 app.get("/api/admin/permissoes", requireAuth, requirePermission("verPainelGerencial"), (req, res) => {

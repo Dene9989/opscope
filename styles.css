@@ -10006,6 +10006,8 @@ textarea:focus {
 .access-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .access-filters.form-grid {
