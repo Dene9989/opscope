@@ -609,6 +609,12 @@ const loginForm = document.getElementById("loginForm");
 const loginUsuario = document.getElementById("loginUsuario");
 const loginSenha = document.getElementById("loginSenha");
 const btnLoginSubmit = document.getElementById("btnLoginSubmit");
+const btnAuthHelp = document.getElementById("btnAuthHelp");
+const modalAccessHelp = document.getElementById("modalAccessHelp");
+const btnAccessHelpClose = document.getElementById("btnAccessHelpClose");
+const btnAccessHelpRequest = document.getElementById("btnAccessHelpRequest");
+const btnAccessHelpReset = document.getElementById("btnAccessHelpReset");
+const authToast = document.getElementById("authToast");
 const btnToggleLoginSenha = document.getElementById("btnToggleLoginSenha");
 const capsLockLogin = document.getElementById("capsLockLogin");
 const reqForm = document.getElementById("reqForm");
@@ -1070,6 +1076,12 @@ const ACCESS_BOOTSTRAP_USER = {
   name: "Denisson Silva Alves",
   password: "20082000",
   roleName: "Administrador",
+};
+const ACCESS_HELP_MESSAGES = {
+  request:
+    "Olá, preciso de acesso ao OPSCOPE.\nNome: \nMatrícula: \nProjeto: \nObrigado!",
+  reset:
+    "Olá, preciso de reset de senha no OPSCOPE.\nNome: \nMatrícula: \nObrigado!",
 };
 const MAX_REAGENDAMENTOS = 3;
 const OUTROS_ALERT_THRESHOLD = 3;
@@ -3641,6 +3653,7 @@ let requests = [];
 let auditLog = [];
 let currentUser = null;
 let profileViewingUserId = "";
+let authToastTimeout = null;
 let activeProjectId = "";
 let availableProjects = [];
 let projectEquipamentos = [];
@@ -22409,6 +22422,66 @@ function openConfirmModal(options = {}) {
   });
 }
 
+function showAuthToast(message) {
+  if (!authToast) {
+    return;
+  }
+  authToast.textContent = message || "";
+  authToast.classList.add("is-visible");
+  if (authToastTimeout) {
+    window.clearTimeout(authToastTimeout);
+  }
+  authToastTimeout = window.setTimeout(() => {
+    authToast.classList.remove("is-visible");
+    authToastTimeout = null;
+  }, 2000);
+}
+
+function openAccessHelpModal() {
+  if (!modalAccessHelp) {
+    return;
+  }
+  modalAccessHelp.hidden = false;
+}
+
+function closeAccessHelpModal() {
+  if (!modalAccessHelp) {
+    return;
+  }
+  modalAccessHelp.hidden = true;
+}
+
+function copyTextToClipboard(text) {
+  if (!text) {
+    return Promise.resolve(false);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard
+      .writeText(text)
+      .then(() => true)
+      .catch(() => false);
+  }
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    document.body.append(textarea);
+    textarea.select();
+    const ok = document.execCommand("copy");
+    textarea.remove();
+    return Promise.resolve(Boolean(ok));
+  } catch (error) {
+    return Promise.resolve(false);
+  }
+}
+
+async function handleAccessHelpCopy(kind) {
+  const message = ACCESS_HELP_MESSAGES[kind] || "";
+  const copied = await copyTextToClipboard(message);
+  showAuthToast(copied ? "Copiado!" : "N\u00e3o foi poss\u00edvel copiar.");
+}
+
 function expandAccessPermissions(list = []) {
   const normalized = normalizeAccessPermissionList(list);
   const expanded = new Set(normalized);
@@ -35001,6 +35074,10 @@ document.addEventListener("keydown", (event) => {
       closeConfirmModal(false);
       return;
     }
+    if (modalAccessHelp && !modalAccessHelp.hidden) {
+      closeAccessHelpModal();
+      return;
+    }
     fecharPainelLembretes();
     fecharUserMenu();
     closeHelpModal();
@@ -36901,6 +36978,29 @@ if (modalConfirm) {
     if (event.target === modalConfirm) {
       closeConfirmModal(false);
     }
+  });
+}
+if (btnAuthHelp) {
+  btnAuthHelp.addEventListener("click", openAccessHelpModal);
+}
+if (btnAccessHelpClose) {
+  btnAccessHelpClose.addEventListener("click", closeAccessHelpModal);
+}
+if (modalAccessHelp) {
+  modalAccessHelp.addEventListener("click", (event) => {
+    if (event.target === modalAccessHelp) {
+      closeAccessHelpModal();
+    }
+  });
+}
+if (btnAccessHelpRequest) {
+  btnAccessHelpRequest.addEventListener("click", () => {
+    handleAccessHelpCopy("request");
+  });
+}
+if (btnAccessHelpReset) {
+  btnAccessHelpReset.addEventListener("click", () => {
+    handleAccessHelpCopy("reset");
   });
 }
 
