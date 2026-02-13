@@ -857,6 +857,12 @@ const accessRoleModalSubtitle = document.getElementById("accessRoleModalSubtitle
 const accessRoleFormMsg = document.getElementById("accessRoleFormMsg");
 const btnCloseAccessRoleModal = document.getElementById("btnCloseAccessRoleModal");
 const btnAccessRoleCancel = document.getElementById("btnAccessRoleCancel");
+const modalConfirm = document.getElementById("modalConfirm");
+const modalConfirmTitle = document.getElementById("modalConfirmTitle");
+const modalConfirmMessage = document.getElementById("modalConfirmMessage");
+const btnConfirmOk = document.getElementById("btnConfirmOk");
+const btnConfirmCancel = document.getElementById("btnConfirmCancel");
+const btnConfirmClose = document.getElementById("btnConfirmClose");
 const modalInicioExecucao = document.getElementById("modalInicioExecucao");
 const inicioExecucaoId = document.getElementById("inicioExecucaoId");
 const btnConfirmarInicioExecucao = document.getElementById("btnConfirmarInicioExecucao");
@@ -1014,6 +1020,8 @@ const USER_KEY = "denemanu.users";
 const ACCESS_USERS_KEY = "opscope.access.users";
 const ACCESS_ROLES_KEY = "opscope.access.roles";
 const ACCESS_SYNC_KEY = "opscope.access.sync";
+const TEMPLATE_SEED_DISABLED_KEY = "opscope.templates.seed.disabled";
+const RECURRENCE_SUPPRESS_KEY = "opscope.maintenance.recurring.suppressed";
 const GERENCIAL_PERMISSOES_KEY = "opscope.gerencial.permissoes";
 const GERENCIAL_AUTOMATIONS_KEY = "opscope.gerencial.automations";
 const GERENCIAL_FILES_KEY = "opscope.gerencial.files";
@@ -2143,7 +2151,13 @@ function canDeleteMaintenance(user) {
   if (!user) {
     return false;
   }
-  if (isMasterUser(user)) {
+  if (isMasterUser(user) || isFullAccessUser(user)) {
+    return true;
+  }
+  if (user.permissions && user.permissions.remove) {
+    return true;
+  }
+  if (hasAccessPermission(user, "MAINT_REMOVE")) {
     return true;
   }
   const rbacRole = String(user.rbacRole || "").trim().toLowerCase();
@@ -2154,10 +2168,13 @@ function canEditConcludedMaintenance(user) {
   if (!user) {
     return false;
   }
-  if (isMasterUser(user)) {
+  if (isMasterUser(user) || isFullAccessUser(user)) {
     return true;
   }
-  if (user.role === "admin") {
+  if (user.permissions && user.permissions.edit) {
+    return true;
+  }
+  if (hasAccessPermission(user, "MAINT_EDIT")) {
     return true;
   }
   const rbacRole = String(user.rbacRole || "").trim().toLowerCase();
@@ -3023,6 +3040,73 @@ function writeJson(key, value) {
   } catch (error) {
     console.error(`Falha ao salvar ${key} no storage.`, error);
     return false;
+  }
+}
+
+function setProjectFlag(key, value) {
+  const storageKey = getProjectStorageKey(key);
+  if (!value) {
+    localStorage.removeItem(storageKey);
+    return;
+  }
+  writeJson(storageKey, true);
+}
+
+function readProjectFlag(key) {
+  return Boolean(readJson(getProjectStorageKey(key), false));
+}
+
+function readRecurrenceSuppressions() {
+  const stored = readJson(getProjectStorageKey(RECURRENCE_SUPPRESS_KEY), {});
+  if (Array.isArray(stored)) {
+    return stored.reduce((acc, entry) => {
+      const key = String(entry || "").trim();
+      if (key) {
+        acc[key] = true;
+      }
+      return acc;
+    }, {});
+  }
+  if (stored && typeof stored === "object") {
+    return stored;
+  }
+  return {};
+}
+
+function writeRecurrenceSuppressions(map) {
+  const payload = map && typeof map === "object" ? map : {};
+  writeJson(getProjectStorageKey(RECURRENCE_SUPPRESS_KEY), payload);
+}
+
+function addRecurrenceSuppression(templateId, dateStr) {
+  const template = String(templateId || "").trim();
+  const date = String(dateStr || "").trim();
+  if (!template || !date) {
+    return;
+  }
+  const key = `${template}|${date}`;
+  const map = readRecurrenceSuppressions();
+  if (!map[key]) {
+    map[key] = true;
+    writeRecurrenceSuppressions(map);
+  }
+}
+
+function removeRecurrenceSuppressionsByTemplate(templateId) {
+  const template = String(templateId || "").trim();
+  if (!template) {
+    return;
+  }
+  const map = readRecurrenceSuppressions();
+  let changed = false;
+  Object.keys(map).forEach((key) => {
+    if (key.startsWith(`${template}|`)) {
+      delete map[key];
+      changed = true;
+    }
+  });
+  if (changed) {
+    writeRecurrenceSuppressions(map);
   }
 }
 
@@ -6493,6 +6577,7 @@ function carregarTemplates() {
 
 function salvarTemplates(lista) {
   writeJson(getProjectStorageKey(TEMPLATE_KEY), lista);
+  setProjectFlag(TEMPLATE_SEED_DISABLED_KEY, Array.isArray(lista) && lista.length === 0);
 }
 
 function carregarRdoSnapshots() {
@@ -6509,6 +6594,9 @@ function salvarRdoSnapshots(lista) {
 
 function garantirTemplatesPadrao() {
   if (templates.length > 0) {
+    return;
+  }
+  if (readProjectFlag(TEMPLATE_SEED_DISABLED_KEY)) {
     return;
   }
   if (!isDefaultProjectActive()) {
@@ -17689,7 +17777,7 @@ function salvarModelo(event) {
   mostrarMensagemTemplate("Modelo salvo.");
 }
 
-function removerModelo(item) {
+async function removerModelo(item) {
   if (!isAdmin()) {
     return;
   }
@@ -17698,14 +17786,18 @@ function removerModelo(item) {
   if (!template) {
     return;
   }
-  const confirmar = window.confirm(
-    `Remover o modelo \"${template.nome}\"? As ocorrencias ja geradas permanecem.`
-  );
+  const confirmar = await openConfirmModal({
+    title: "Remover modelo",
+    message: `Remover o modelo \"${template.nome}\"? As ocorrencias ja geradas permanecem.`,
+    confirmText: "Remover",
+    cancelText: "Cancelar",
+  });
   if (!confirmar) {
     return;
   }
   templates = templates.filter((registro) => registro.id !== templateId);
   salvarTemplates(templates);
+  removeRecurrenceSuppressionsByTemplate(templateId);
   renderTudo();
   mostrarMensagemTemplate("Modelo removido.");
 }
@@ -20754,6 +20846,7 @@ function gerarManutencoesRecorrentes() {
       .filter((item) => item.templateId && item.data)
       .map((item) => `${item.templateId}|${item.data}`)
   );
+  const suppressions = readRecurrenceSuppressions();
 
   let mudou = false;
   let mudouTemplates = false;
@@ -20785,6 +20878,9 @@ function gerarManutencoesRecorrentes() {
       }
       const dataStr = formatDateISO(atual);
       const key = `${modelo.id}|${dataStr}`;
+      if (suppressions[key]) {
+        continue;
+      }
       if (existentes.has(key)) {
         continue;
       }
@@ -21431,6 +21527,48 @@ function closeGeneratedPasswordModal() {
     return;
   }
   modalGeneratedPassword.hidden = true;
+}
+
+let confirmModalResolve = null;
+
+function closeConfirmModal(result) {
+  if (modalConfirm) {
+    modalConfirm.hidden = true;
+  }
+  if (confirmModalResolve) {
+    confirmModalResolve(Boolean(result));
+    confirmModalResolve = null;
+  }
+}
+
+function openConfirmModal(options = {}) {
+  const title = options.title || "Confirmar acao";
+  const message = options.message || "";
+  const confirmText = options.confirmText || "Confirmar";
+  const cancelText = options.cancelText || "Cancelar";
+  if (!modalConfirm) {
+    return Promise.resolve(window.confirm(message || title));
+  }
+  if (confirmModalResolve) {
+    confirmModalResolve(false);
+    confirmModalResolve = null;
+  }
+  if (modalConfirmTitle) {
+    modalConfirmTitle.textContent = title;
+  }
+  if (modalConfirmMessage) {
+    modalConfirmMessage.textContent = message;
+  }
+  if (btnConfirmOk) {
+    btnConfirmOk.textContent = confirmText;
+  }
+  if (btnConfirmCancel) {
+    btnConfirmCancel.textContent = cancelText;
+  }
+  modalConfirm.hidden = false;
+  return new Promise((resolve) => {
+    confirmModalResolve = resolve;
+  });
 }
 
 function renderAccessRolePermissions(selected = []) {
@@ -28495,7 +28633,7 @@ async function abrirEdicaoManutencao(item) {
     return;
   }
   if (item.status === "concluida" && !canEditConcludedMaintenance(currentUser)) {
-    mostrarMensagemManutencao("Apenas PCM pode editar manutenções concluídas.", true);
+    mostrarMensagemManutencao("Sem permissao para editar manutencoes concluidas.", true);
     return;
   }
   if (item.projectId && item.projectId !== activeProjectId) {
@@ -28527,7 +28665,7 @@ async function salvarEdicaoManutencao() {
   const item = manutencoes[index];
   const isConcluida = item.status === "concluida";
   if (isConcluida && !canEditConcludedMaintenance(currentUser)) {
-    mostrarMensagemManutencao("Apenas PCM pode editar manutenções concluídas.", true);
+    mostrarMensagemManutencao("Sem permissao para editar manutencoes concluidas.", true);
     return;
   }
 
@@ -28921,7 +29059,7 @@ async function editarManutencao(index) {
     return;
   }
   if (item.status === "concluida" && !canEditConcludedMaintenance(currentUser)) {
-    mostrarMensagemManutencao("Apenas PCM pode editar manutenções concluídas.", true);
+    mostrarMensagemManutencao("Sem permissao para editar manutencoes concluidas.", true);
     return;
   }
   await abrirEdicaoManutencao(item);
@@ -31614,28 +31752,35 @@ function imprimirRelatorio() {
   window.print();
 }
 
-function removerManutencao(index) {
+async function removerManutencao(index) {
   if (!canDeleteMaintenance(currentUser)) {
-    mostrarMensagemManutencao("Apenas PCM pode excluir manutenções.", true);
+    mostrarMensagemManutencao("Sem permissao para excluir manutencoes.", true);
     return;
   }
   const item = manutencoes[index];
-  const confirmar = window.confirm("Excluir esta manutenção?");
+  const confirmar = await openConfirmModal({
+    title: "Excluir manutencao",
+    message: "Excluir esta manutencao?",
+    confirmText: "Excluir",
+    cancelText: "Cancelar",
+  });
   if (!confirmar) {
     return;
   }
-  apiMaintenanceDelete(item.id, activeProjectId)
-    .then(() => {
-      manutencoes = manutencoes.filter((entry) => entry && entry.id !== item.id);
-      salvarManutencoes(manutencoes);
-      logAction("remove", item, { resumo: "Excluída" });
-      renderTudo();
-      mostrarMensagemManutencao("Manutenção excluída.");
-    })
-    .catch((error) => {
-      const message = error && error.message ? error.message : "Falha ao excluir manutenção.";
-      mostrarMensagemManutencao(message, true);
-    });
+  try {
+    await apiMaintenanceDelete(item.id, activeProjectId);
+    if (item && item.templateId && item.data) {
+      addRecurrenceSuppression(item.templateId, item.data);
+    }
+    manutencoes = manutencoes.filter((entry) => entry && entry.id !== item.id);
+    salvarManutencoes(manutencoes);
+    logAction("remove", item, { resumo: "Excluida" });
+    renderTudo();
+    mostrarMensagemManutencao("Manutencao excluida.");
+  } catch (error) {
+    const message = error && error.message ? error.message : "Falha ao excluir manutencao.";
+    mostrarMensagemManutencao(message, true);
+  }
 }
 
 function agirNaManutencao(event) {
@@ -32117,6 +32262,9 @@ async function apiMaintenanceList(projectId) {
 }
 
 async function apiMaintenanceDelete(maintenanceId, projectId) {
+  if (!USE_AUTH_API) {
+    return { ok: true };
+  }
   const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
   return apiRequest(`/api/maintenance/${encodeURIComponent(maintenanceId)}${query}`, {
     method: "DELETE",
@@ -33491,6 +33639,10 @@ document.addEventListener("click", (event) => {
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
+    if (modalConfirm && !modalConfirm.hidden) {
+      closeConfirmModal(false);
+      return;
+    }
     fecharPainelLembretes();
     fecharUserMenu();
     closeHelpModal();
@@ -35249,6 +35401,23 @@ if (modalAccessRole) {
   modalAccessRole.addEventListener("click", (event) => {
     if (event.target === modalAccessRole) {
       closeAccessRoleModal();
+    }
+  });
+}
+
+if (btnConfirmOk) {
+  btnConfirmOk.addEventListener("click", () => closeConfirmModal(true));
+}
+if (btnConfirmCancel) {
+  btnConfirmCancel.addEventListener("click", () => closeConfirmModal(false));
+}
+if (btnConfirmClose) {
+  btnConfirmClose.addEventListener("click", () => closeConfirmModal(false));
+}
+if (modalConfirm) {
+  modalConfirm.addEventListener("click", (event) => {
+    if (event.target === modalConfirm) {
+      closeConfirmModal(false);
     }
   });
 }
