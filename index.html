@@ -4484,7 +4484,75 @@
           </div>
           <div class="field" data-full>
             <label>Permiss&otilde;es</label>
-            <div id="accessRolePermissions" class="perm-groups"></div>
+            <div class="access-role-editor" id="accessRoleEditor">
+              <div class="access-role-editor__header">
+                <div>
+                  <p class="hint">Controle detalhado por m&oacute;dulo, grupo e n&iacute;vel.</p>
+                </div>
+                <div class="access-role-editor__summary">
+                  <span id="accessRoleSelectedCount" class="access-role-pill">0 selecionadas</span>
+                  <label class="access-role-toggle">
+                    <input id="accessRoleAdminToggle" type="checkbox" />
+                    <span>Admin total</span>
+                  </label>
+                </div>
+              </div>
+              <div class="access-role-editor__tools">
+                <div class="field" data-full>
+                  <label for="accessRolePermissionSearch">Buscar permiss&atilde;o</label>
+                  <input
+                    id="accessRolePermissionSearch"
+                    type="search"
+                    placeholder="Buscar por m&oacute;dulo, a&ccedil;&atilde;o ou chave"
+                  />
+                </div>
+                <div class="access-role-editor__filters">
+                  <button id="accessRoleFilterSelected" class="btn btn--ghost btn--small" type="button">
+                    Mostrar s&oacute; selecionadas
+                  </button>
+                  <button id="accessRoleFilterCritical" class="btn btn--ghost btn--small" type="button">
+                    Mostrar s&oacute; cr&iacute;ticas
+                  </button>
+                </div>
+                <div class="access-role-editor__actions">
+                  <button id="accessRoleSelectAll" class="btn btn--ghost btn--small" type="button">
+                    Selecionar tudo
+                  </button>
+                  <button id="accessRoleClearAll" class="btn btn--ghost btn--small" type="button">
+                    Limpar
+                  </button>
+                  <button id="accessRoleReadOnly" class="btn btn--ghost btn--small" type="button">
+                    Somente leitura
+                  </button>
+                </div>
+              </div>
+              <div id="accessRoleAdminNotice" class="access-role-admin-note" hidden>
+                Admin total ativo. Permiss&otilde;es granulares ficam em modo leitura.
+              </div>
+              <div class="access-role-editor__layout">
+                <div class="access-role-modules access-role-modules--desktop" id="accessRoleModules"></div>
+                <div class="access-role-content" id="accessRoleContent">
+                  <div class="access-role-module-header">
+                    <div>
+                      <span class="access-role-module-label">M&oacute;dulo</span>
+                      <h4 id="accessRoleModuleTitle">-</h4>
+                      <span id="accessRoleModuleCount" class="access-role-count">0/0</span>
+                    </div>
+                    <div class="access-role-module-actions">
+                      <button id="accessRoleModuleToggle" class="btn btn--ghost btn--small" type="button">
+                        Habilitar tudo
+                      </button>
+                      <button id="accessRoleModuleReadOnly" class="btn btn--ghost btn--small" type="button">
+                        Somente leitura do m&oacute;dulo
+                      </button>
+                    </div>
+                  </div>
+                  <div id="accessRolePermissions" class="access-role-groups"></div>
+                </div>
+              </div>
+              <div class="access-role-modules access-role-modules--mobile" id="accessRoleModulesMobile"></div>
+              <p id="accessRolePermissionsSummary" class="hint"></p>
+            </div>
           </div>
         </div>
         <div class="modal__actions">
