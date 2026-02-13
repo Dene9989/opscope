@@ -1014,6 +1014,9 @@ const USER_KEY = "denemanu.users";
 const ACCESS_USERS_KEY = "opscope.access.users";
 const ACCESS_ROLES_KEY = "opscope.access.roles";
 const ACCESS_SYNC_KEY = "opscope.access.sync";
+const GERENCIAL_PERMISSOES_KEY = "opscope.gerencial.permissoes";
+const GERENCIAL_AUTOMATIONS_KEY = "opscope.gerencial.automations";
+const GERENCIAL_FILES_KEY = "opscope.gerencial.files";
 const REQUEST_KEY = "denemanu.requests";
 const AUDIT_KEY = "denemanu.audit";
 const RDO_KEY = "denemanu.rdo";
@@ -1875,6 +1878,36 @@ function normalizeCargo(value) {
     .trim();
 }
 
+async function resolveRoleFromDb(account) {
+  if (!account) {
+    return null;
+  }
+  const byId = account.roleId ? await getRoleFromDb(account.roleId) : null;
+  if (byId) {
+    return byId;
+  }
+  const fallbackName = String(account.roleName || account.cargo || account.role || "").trim();
+  if (!fallbackName) {
+    return null;
+  }
+  return getRoleByNameNormalized(normalizeRoleName(fallbackName));
+}
+
+function resolveRoleFromAccessMap(account) {
+  if (!account) {
+    return null;
+  }
+  if (account.roleId && accessRoleMap && accessRoleMap.has(account.roleId)) {
+    return accessRoleMap.get(account.roleId);
+  }
+  const fallbackName = String(account.roleName || account.cargo || account.role || "").trim();
+  if (!fallbackName || !Array.isArray(accessRoles)) {
+    return null;
+  }
+  const normalized = normalizeRoleName(fallbackName);
+  return accessRoles.find((role) => role && role.nameNormalized === normalized) || null;
+}
+
 function getCryptoProvider() {
   if (typeof crypto !== "undefined") {
     return crypto;
@@ -2011,6 +2044,9 @@ function hasGranularPermission(user, permissionKey) {
   if (!user || !permissionKey) {
     return false;
   }
+  if (isFullAccessUser(user)) {
+    return true;
+  }
   if (user.granularPermissions && user.granularPermissions[permissionKey]) {
     return true;
   }
@@ -2066,11 +2102,30 @@ function isFullAccessUser(user) {
   if (isMasterUser(user)) {
     return true;
   }
+  if (
+    ACCESS_BOOTSTRAP_USER &&
+    normalizeMatricula(user.matricula) === normalizeMatricula(ACCESS_BOOTSTRAP_USER.matricula)
+  ) {
+    return true;
+  }
   if (hasAccessPermission(user, "ADMIN")) {
     return true;
   }
   const rbacRole = String(user.rbacRole || "").trim().toLowerCase();
-  return user.role === "admin" || FULL_ACCESS_RBAC.has(rbacRole);
+  if (user.role === "admin" || FULL_ACCESS_RBAC.has(rbacRole)) {
+    return true;
+  }
+  const cargo = normalizeCargo(user.cargo || user.roleName || user.role || "");
+  if (
+    cargo.includes("administrador") ||
+    cargo === "admin" ||
+    cargo.includes("pcm") ||
+    cargo.includes("diretor o m") ||
+    cargo.includes("gerente de contrato")
+  ) {
+    return true;
+  }
+  return false;
 }
 
 function canOverrideRelease(user) {
@@ -2207,6 +2262,12 @@ function canExportRelatorios(user) {
 }
 
 function canViewGerencial(user) {
+  if (!user) {
+    return false;
+  }
+  if (isFullAccessUser(user)) {
+    return true;
+  }
   return hasGranularPermission(user, "verPainelGerencial");
 }
 
@@ -5946,6 +6007,28 @@ function parseDate(value) {
   return data;
 }
 
+function isUnauthorizedError(error) {
+  if (!error) {
+    return false;
+  }
+  const status = Number(error.status || error.statusCode || 0);
+  if (status === 401 || status === 403) {
+    return true;
+  }
+  const message = String(error.message || "").toLowerCase();
+  return message.includes("nao autorizado") || message.includes("não autorizado") || message.includes("unauthorized");
+}
+
+function shouldFallbackAdminRequest(error) {
+  if (!USE_AUTH_API) {
+    return true;
+  }
+  if (!isUnauthorizedError(error)) {
+    return false;
+  }
+  return Boolean(currentUser && isFullAccessUser(currentUser));
+}
+
 function parseDateOnly(value) {
   if (!value) {
     return null;
@@ -6046,6 +6129,65 @@ function stableStringify(value) {
       .join(",")}}`;
   }
   return String(value);
+}
+
+function readGerencialPermissoesStorage() {
+  const stored = readJson(GERENCIAL_PERMISSOES_KEY, {});
+  return stored && typeof stored === "object" ? stored : {};
+}
+
+function writeGerencialPermissoesStorage(values) {
+  writeJson(GERENCIAL_PERMISSOES_KEY, values && typeof values === "object" ? values : {});
+}
+
+function readGerencialAutomationsStorage() {
+  const stored = readJson(GERENCIAL_AUTOMATIONS_KEY, []);
+  return Array.isArray(stored) ? stored : [];
+}
+
+function writeGerencialAutomationsStorage(list) {
+  writeJson(GERENCIAL_AUTOMATIONS_KEY, Array.isArray(list) ? list : []);
+}
+
+function readGerencialFilesStorage() {
+  const stored = readJson(GERENCIAL_FILES_KEY, []);
+  return Array.isArray(stored) ? stored : [];
+}
+
+function writeGerencialFilesStorage(list) {
+  writeJson(GERENCIAL_FILES_KEY, Array.isArray(list) ? list : []);
+}
+
+function buildLocalHealthSnapshot() {
+  const now = new Date().toISOString();
+  const manutCount = Array.isArray(manutencoes) ? manutencoes.length : 0;
+  const templatesCount = Array.isArray(templates) ? templates.length : 0;
+  const usersCount = Array.isArray(users) ? users.length : 0;
+  return {
+    generatedAt: now,
+    modules: {
+      database: {
+        status: "ok",
+        files: [
+          { label: "Manutenções", count: manutCount, ok: true },
+          { label: "Modelos", count: templatesCount, ok: true },
+          { label: "Usuários", count: usersCount, ok: true },
+        ],
+      },
+      backups: {
+        status: "warn",
+        lastRun: "",
+      },
+      queue: {
+        status: "ok",
+        tasks: [],
+      },
+      integrity: {
+        status: "ok",
+        issues: [],
+      },
+    },
+  };
 }
 
 async function hashSha256(text) {
@@ -6634,7 +6776,8 @@ async function carregarSessaoServidor() {
     if (session && session.userId) {
       const account = await dataProvider.authAdmin.getUser(session.userId);
       if (account && String(account.status || "").toUpperCase() !== "INATIVO") {
-        currentUser = buildSessionUser(account, accessRoleMap.get(account.roleId));
+        const role = await resolveRoleFromDb(account);
+        currentUser = buildSessionUser(account, role);
       } else {
         salvarSessao(null);
       }
@@ -7990,6 +8133,24 @@ function normalizeAccessUserRecord(user) {
     return null;
   }
   const status = String(user.status || "ATIVO").toUpperCase() === "INATIVO" ? "INATIVO" : "ATIVO";
+  const roleName = String(user.roleName || user.cargo || user.role || "").trim();
+  const cargo = String(user.cargo || user.roleName || user.role || "").trim();
+  const rolePermissions = Array.isArray(user.rolePermissions)
+    ? normalizeAccessPermissionList(user.rolePermissions)
+    : undefined;
+  const accessPermissions = Array.isArray(user.accessPermissions)
+    ? normalizeAccessPermissionList(user.accessPermissions)
+    : undefined;
+  const permissions =
+    user.permissions && typeof user.permissions === "object" && !Array.isArray(user.permissions)
+      ? user.permissions
+      : null;
+  const sections =
+    user.sections && typeof user.sections === "object" && !Array.isArray(user.sections)
+      ? user.sections
+      : null;
+  const rbacRole = String(user.rbacRole || "").trim();
+  const legacyRole = String(user.role || "").trim();
   return {
     id,
     name,
@@ -7997,6 +8158,14 @@ function normalizeAccessUserRecord(user) {
     matriculaNormalized: normalizeMatricula(matricula),
     email: normalizeEmail(user.email || ""),
     roleId: user.roleId || "",
+    roleName,
+    cargo,
+    rbacRole,
+    role: legacyRole,
+    rolePermissions,
+    accessPermissions,
+    permissions,
+    sections,
     projectId: user.projectId || null,
     uen: user.uen || "",
     atribuicoes: user.atribuicoes || "",
@@ -8506,6 +8675,7 @@ async function createUserToDb(input) {
   if (!role) {
     throw new Error("Cargo invalido.");
   }
+  const roleName = String(role.name || "").trim();
   const status = String(payload.status || "ATIVO").toUpperCase() === "INATIVO" ? "INATIVO" : "ATIVO";
   const mode = String(payload.passwordMode || "MANUAL").toUpperCase();
   let generatedPassword = "";
@@ -8526,6 +8696,7 @@ async function createUserToDb(input) {
     matriculaNormalized: normalizedMatricula,
     email: normalizeEmail(payload.email || ""),
     roleId,
+    roleName,
     projectId: payload.projectId ? String(payload.projectId) : null,
     status,
     passwordHash,
@@ -8565,10 +8736,22 @@ async function updateUserToDb(input) {
   if (payload.name !== undefined && !String(payload.name || "").trim()) {
     throw new Error("Informe o nome do usuario.");
   }
-  if (payload.roleId) {
-    const role = await getRoleFromDb(payload.roleId);
-    if (!role) {
-      throw new Error("Cargo invalido.");
+  let resolvedRoleName = existing.roleName || "";
+  if (payload.roleId !== undefined) {
+    const nextRoleId = String(payload.roleId || "").trim();
+    if (nextRoleId) {
+      const role = await getRoleFromDb(nextRoleId);
+      if (!role) {
+        throw new Error("Cargo invalido.");
+      }
+      resolvedRoleName = String(role.name || "").trim();
+    } else {
+      resolvedRoleName = "";
+    }
+  } else if (!resolvedRoleName && existing.roleId) {
+    const role = await getRoleFromDb(existing.roleId);
+    if (role) {
+      resolvedRoleName = String(role.name || "").trim();
     }
   }
   const status =
@@ -8583,6 +8766,7 @@ async function updateUserToDb(input) {
     email:
       payload.email !== undefined ? normalizeEmail(payload.email || "") : existing.email || "",
     roleId: payload.roleId !== undefined ? String(payload.roleId || "").trim() : existing.roleId,
+    roleName: resolvedRoleName,
     projectId:
       payload.projectId !== undefined
         ? payload.projectId
@@ -21050,7 +21234,7 @@ async function refreshAccessUsers() {
   try {
     const list = await dataProvider.authAdmin.listUsers();
     accessUsers = list
-      .map((account) => buildSessionUser(account, accessRoleMap.get(account.roleId)))
+      .map((account) => buildSessionUser(account, resolveRoleFromAccessMap(account)))
       .filter(Boolean);
   } catch (error) {
     accessUsers = [];
@@ -31545,7 +31729,7 @@ async function authLoginLocal(login, senha) {
   if (!ok) {
     throw new Error("Usuario ou senha invalidos.");
   }
-  const role = await getRoleFromDb(account.roleId);
+  const role = await resolveRoleFromDb(account);
   const user = buildSessionUser(account, role);
   salvarSessao({ userId: user.id, createdAt: toIsoUtc(new Date()) });
   return { user };
@@ -31614,24 +31798,125 @@ async function apiAdminUsers() {
 }
 
 async function apiAdminAutomations() {
-  return apiRequest("/api/admin/automations");
+  if (!USE_AUTH_API) {
+    return { automations: readGerencialAutomationsStorage() };
+  }
+  try {
+    return await apiRequest("/api/admin/automations");
+  } catch (error) {
+    if (shouldFallbackAdminRequest(error)) {
+      return { automations: readGerencialAutomationsStorage() };
+    }
+    throw error;
+  }
 }
 
 async function apiUpdateAutomation(automationId, payload) {
+  const updateLocal = () => {
+    const id = String(automationId || "").trim();
+    if (!id) {
+      throw new Error("Automacao invalida.");
+    }
+    const list = readGerencialAutomationsStorage();
+    const index = list.findIndex((item) => String(item.id) === id);
+    if (index < 0) {
+      throw new Error("Automacao nao encontrada.");
+    }
+    const updated = {
+      ...list[index],
+      ...(payload || {}),
+      id,
+      updatedAt: new Date().toISOString(),
+    };
+    list[index] = updated;
+    writeGerencialAutomationsStorage(list);
+    return { automations: list };
+  };
+  if (!USE_AUTH_API) {
+    return updateLocal();
+  }
   const safeId = encodeURIComponent(String(automationId || ""));
-  return apiRequest(`/api/admin/automations/${safeId}`, {
-    method: "PATCH",
-    body: JSON.stringify(payload || {}),
-  });
+  try {
+    return await apiRequest(`/api/admin/automations/${safeId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload || {}),
+    });
+  } catch (error) {
+    if (shouldFallbackAdminRequest(error)) {
+      return updateLocal();
+    }
+    throw error;
+  }
 }
 
 async function apiAdminFiles(params = {}) {
+  const readLocal = () => {
+    const typeFilter = String(params.type || "").trim();
+    const search = normalizeSearchValue(String(params.search || "").trim());
+    const list = readGerencialFilesStorage();
+    const filtered = list.filter((file) => {
+      if (typeFilter && String(file.type || "") !== typeFilter) {
+        return false;
+      }
+      if (!search) {
+        return true;
+      }
+      const haystack = normalizeSearchValue(
+        `${file.originalName || ""} ${file.name || ""} ${file.type || ""}`
+      );
+      return haystack.includes(search);
+    });
+    return { files: filtered, total: filtered.length };
+  };
+  if (!USE_AUTH_API) {
+    return readLocal();
+  }
   const query = new URLSearchParams(params);
   const suffix = query.toString();
-  return apiRequest(`/api/admin/files${suffix ? `?${suffix}` : ""}`);
+  try {
+    return await apiRequest(`/api/admin/files${suffix ? `?${suffix}` : ""}`);
+  } catch (error) {
+    if (shouldFallbackAdminRequest(error)) {
+      return readLocal();
+    }
+    throw error;
+  }
 }
 
 async function apiUploadFile(formData) {
+  const uploadLocal = async () => {
+    const type = String(formData.get("type") || "").trim();
+    const file = formData.get("file");
+    if (!type) {
+      throw new Error("Tipo do arquivo invalido.");
+    }
+    if (!file) {
+      throw new Error("Arquivo invalido.");
+    }
+    const doc = await lerDocumentoFile(file);
+    if (!doc || !doc.dataUrl) {
+      throw new Error("Falha ao ler arquivo.");
+    }
+    const now = new Date().toISOString();
+    const entry = {
+      id: criarId(),
+      type,
+      name: file.name || doc.nome || "arquivo",
+      originalName: file.name || doc.nome || "arquivo",
+      mime: file.type || doc.type || "",
+      size: file.size || 0,
+      url: doc.dataUrl,
+      createdAt: now,
+      createdBy: currentUser ? currentUser.id : "",
+    };
+    const list = readGerencialFilesStorage();
+    list.unshift(entry);
+    writeGerencialFilesStorage(list);
+    return { file: entry, files: list };
+  };
+  if (!USE_AUTH_API) {
+    return uploadLocal();
+  }
   const response = await fetch(`${API_BASE}/api/admin/files`, {
     method: "POST",
     credentials: "include",
@@ -31643,6 +31928,9 @@ async function apiUploadFile(formData) {
     const error = new Error(message);
     error.status = response.status;
     error.data = data;
+    if (shouldFallbackAdminRequest(error)) {
+      return uploadLocal();
+    }
     throw error;
   }
   return data;
@@ -31666,29 +31954,78 @@ async function apiUploadLiberacaoDoc(formData) {
 }
 
 async function apiDeleteFile(fileId) {
+  const deleteLocal = () => {
+    const id = String(fileId || "").trim();
+    if (!id) {
+      return { ok: true };
+    }
+    const list = readGerencialFilesStorage().filter((file) => String(file.id) !== id);
+    writeGerencialFilesStorage(list);
+    return { ok: true };
+  };
+  if (!USE_AUTH_API) {
+    return deleteLocal();
+  }
   const safeId = encodeURIComponent(String(fileId || ""));
-  return apiRequest(`/api/admin/files/${safeId}`, {
-    method: "DELETE",
-    body: "{}",
-  });
+  try {
+    return await apiRequest(`/api/admin/files/${safeId}`, {
+      method: "DELETE",
+      body: "{}",
+    });
+  } catch (error) {
+    if (shouldFallbackAdminRequest(error)) {
+      return deleteLocal();
+    }
+    throw error;
+  }
 }
 
 async function apiAdminHealth() {
-  return apiRequest("/api/admin/health");
+  if (!USE_AUTH_API) {
+    return buildLocalHealthSnapshot();
+  }
+  try {
+    return await apiRequest("/api/admin/health");
+  } catch (error) {
+    if (shouldFallbackAdminRequest(error)) {
+      return buildLocalHealthSnapshot();
+    }
+    throw error;
+  }
 }
 
 async function apiAdminLogs(params = {}) {
+  if (!USE_AUTH_API) {
+    return { logs: [], total: 0, filteredTotal: 0 };
+  }
   const query = new URLSearchParams(params);
   const suffix = query.toString();
-  return apiRequest(`/api/admin/logs${suffix ? `?${suffix}` : ""}`);
+  try {
+    return await apiRequest(`/api/admin/logs${suffix ? `?${suffix}` : ""}`);
+  } catch (error) {
+    if (shouldFallbackAdminRequest(error)) {
+      return { logs: [], total: 0, filteredTotal: 0 };
+    }
+    throw error;
+  }
 }
 
 async function apiRunHealthTask(taskId) {
+  if (!USE_AUTH_API) {
+    return { ok: true, snapshot: buildLocalHealthSnapshot() };
+  }
   const safeId = encodeURIComponent(String(taskId || ""));
-  return apiRequest(`/api/admin/health/tasks/${safeId}/run`, {
-    method: "POST",
-    body: "{}",
-  });
+  try {
+    return await apiRequest(`/api/admin/health/tasks/${safeId}/run`, {
+      method: "POST",
+      body: "{}",
+    });
+  } catch (error) {
+    if (shouldFallbackAdminRequest(error)) {
+      return { ok: true, snapshot: buildLocalHealthSnapshot() };
+    }
+    throw error;
+  }
 }
 
 async function apiAdminPermissions() {
@@ -31696,14 +32033,39 @@ async function apiAdminPermissions() {
 }
 
 async function apiAdminPermissoes() {
-  return apiRequest("/api/admin/permissoes");
+  if (!USE_AUTH_API) {
+    return { values: readGerencialPermissoesStorage(), profiles: [], permissions: [] };
+  }
+  try {
+    return await apiRequest("/api/admin/permissoes");
+  } catch (error) {
+    if (shouldFallbackAdminRequest(error)) {
+      return { values: readGerencialPermissoesStorage(), profiles: [], permissions: [] };
+    }
+    throw error;
+  }
 }
 
 async function apiSalvarPermissoes(payload) {
-  return apiRequest("/api/admin/permissoes", {
-    method: "PUT",
-    body: JSON.stringify(payload),
-  });
+  const saveLocal = () => {
+    const values = payload && payload.values ? payload.values : {};
+    writeGerencialPermissoesStorage(values);
+    return { values, profiles: [], permissions: [] };
+  };
+  if (!USE_AUTH_API) {
+    return saveLocal();
+  }
+  try {
+    return await apiRequest("/api/admin/permissoes", {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    if (shouldFallbackAdminRequest(error)) {
+      return saveLocal();
+    }
+    throw error;
+  }
 }
 
 async function apiAdminUpdateUser(userId, payload) {
@@ -31719,7 +32081,7 @@ async function apiUpdateProfile(payload) {
       throw new Error("Nao autorizado.");
     }
     const updated = await updateUserToDb({ id: currentUser.id, ...(payload || {}) });
-    const user = buildSessionUser(updated, accessRoleMap.get(updated.roleId));
+    const user = buildSessionUser(updated, resolveRoleFromAccessMap(updated));
     return { user };
   }
   return apiRequest("/api/profile", {
