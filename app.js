@@ -1050,6 +1050,8 @@ const USER_KEY = "denemanu.users";
 const ACCESS_USERS_KEY = "opscope.access.users";
 const ACCESS_ROLES_KEY = "opscope.access.roles";
 const ACCESS_SYNC_KEY = "opscope.access.sync";
+const ACCESS_USERS_BACKUP_KEY = "opscope.access.users.backup";
+const ACCESS_ROLES_BACKUP_KEY = "opscope.access.roles.backup";
 const TEMPLATE_SEED_DISABLED_KEY = "opscope.templates.seed.disabled";
 const RECURRENCE_SUPPRESS_KEY = "opscope.maintenance.recurring.suppressed";
 const GERENCIAL_PERMISSOES_KEY = "opscope.gerencial.permissoes";
@@ -1066,6 +1068,7 @@ const SST_NCS_KEY = "opscope.sst.ncs.local";
 const SST_EVIDENCES_KEY = "opscope.sst.evidences";
 const SST_VEHICLES_KEY = "opscope.sst.vehicles";
 const PROJECTS_KEY = "opscope.projects";
+const PROJECTS_BACKUP_KEY = "opscope.projects.backup";
 const PROJECTS_SYNC_KEY = "opscope.projects.sync";
 const OPSCOPE_DB_VERSION = 4;
 const SESSION_KEY = "denemanu.session";
@@ -6522,14 +6525,26 @@ function mostrarAuthPanel(nome) {
   atualizarTituloAuth(nome);
   authPanels.hidden = false;
   if (authPanels.classList.contains("auth-panels--dual")) {
-    authPanelLogin.hidden = false;
-    authPanelRegistro.hidden = false;
+    if (authPanelLogin) {
+      authPanelLogin.hidden = false;
+    }
+    if (authPanelRegistro) {
+      authPanelRegistro.hidden = false;
+    }
     return;
   }
-  authPanelLogin.hidden = nome !== "login";
-  authPanelRegistro.hidden = nome !== "registro";
-  btnTabLogin.classList.toggle("is-active", nome === "login");
-  btnTabRegistro.classList.toggle("is-active", nome === "registro");
+  if (authPanelLogin) {
+    authPanelLogin.hidden = nome !== "login";
+  }
+  if (authPanelRegistro) {
+    authPanelRegistro.hidden = nome !== "registro";
+  }
+  if (btnTabLogin) {
+    btnTabLogin.classList.toggle("is-active", nome === "login");
+  }
+  if (btnTabRegistro) {
+    btnTabRegistro.classList.toggle("is-active", nome === "registro");
+  }
 }
 
 function esconderAuthPanels() {
@@ -6537,10 +6552,18 @@ function esconderAuthPanels() {
     return;
   }
   authPanels.hidden = true;
-  authPanelLogin.hidden = true;
-  authPanelRegistro.hidden = true;
-  btnTabLogin.classList.remove("is-active");
-  btnTabRegistro.classList.remove("is-active");
+  if (authPanelLogin) {
+    authPanelLogin.hidden = true;
+  }
+  if (authPanelRegistro) {
+    authPanelRegistro.hidden = true;
+  }
+  if (btnTabLogin) {
+    btnTabLogin.classList.remove("is-active");
+  }
+  if (btnTabRegistro) {
+    btnTabRegistro.classList.remove("is-active");
+  }
 }
 
 function getTabLabel(tabName) {
@@ -9097,13 +9120,44 @@ function readRolesStorage() {
   if (!Array.isArray(list)) {
     return [];
   }
-  return list.map(normalizeAccessRoleRecord).filter(Boolean);
+  const normalized = list.map(normalizeAccessRoleRecord).filter(Boolean);
+  if (normalized.length) {
+    return normalized;
+  }
+  const backup = readJson(ACCESS_ROLES_BACKUP_KEY, []);
+  if (!Array.isArray(backup)) {
+    return [];
+  }
+  return backup.map(normalizeAccessRoleRecord).filter(Boolean);
 }
 
 function writeRolesStorage(list) {
   writeJson(ACCESS_ROLES_KEY, list);
+  writeJson(ACCESS_ROLES_BACKUP_KEY, list);
   touchAccessSync();
   return list;
+}
+
+function upsertRoleBackup(role) {
+  if (!role || !role.id) {
+    return;
+  }
+  const list = readRolesStorage();
+  const index = list.findIndex((item) => String(item.id) === String(role.id));
+  if (index >= 0) {
+    list[index] = role;
+  } else {
+    list.unshift(role);
+  }
+  writeRolesStorage(list);
+}
+
+function deleteRoleBackup(roleId) {
+  if (!roleId) {
+    return;
+  }
+  const list = readRolesStorage().filter((item) => String(item.id) !== String(roleId));
+  writeRolesStorage(list);
 }
 
 function readUsersStorage() {
@@ -9111,17 +9165,48 @@ function readUsersStorage() {
   if (!Array.isArray(list)) {
     return [];
   }
-  return list.map(normalizeAccessUserRecord).filter(Boolean);
+  const normalized = list.map(normalizeAccessUserRecord).filter(Boolean);
+  if (normalized.length) {
+    return normalized;
+  }
+  const backup = readJson(ACCESS_USERS_BACKUP_KEY, []);
+  if (!Array.isArray(backup)) {
+    return [];
+  }
+  return backup.map(normalizeAccessUserRecord).filter(Boolean);
 }
 
 function writeUsersStorage(list) {
   writeJson(ACCESS_USERS_KEY, list);
+  writeJson(ACCESS_USERS_BACKUP_KEY, list);
   touchAccessSync();
   return list;
 }
 
+function upsertUserBackup(user) {
+  if (!user || !user.id) {
+    return;
+  }
+  const list = readUsersStorage();
+  const index = list.findIndex((item) => String(item.id) === String(user.id));
+  if (index >= 0) {
+    list[index] = user;
+  } else {
+    list.unshift(user);
+  }
+  writeUsersStorage(list);
+}
+
 function touchProjectsSync() {
   writeJson(PROJECTS_SYNC_KEY, Date.now());
+}
+
+function readProjectsBackup() {
+  const list = readJson(PROJECTS_BACKUP_KEY, []);
+  if (!Array.isArray(list)) {
+    return [];
+  }
+  return list.map(normalizeProjectRecord).filter(Boolean);
 }
 
 function normalizeProjectRecord(project) {
@@ -9159,11 +9244,16 @@ function readProjectsStorage() {
   if (!Array.isArray(list)) {
     return [];
   }
-  return list.map(normalizeProjectRecord).filter(Boolean);
+  const normalized = list.map(normalizeProjectRecord).filter(Boolean);
+  if (!normalized.length) {
+    return readProjectsBackup();
+  }
+  return normalized;
 }
 
 function writeProjectsStorage(list) {
   writeJson(PROJECTS_KEY, list);
+  writeJson(PROJECTS_BACKUP_KEY, list);
   touchProjectsSync();
   return list;
 }
@@ -9196,7 +9286,34 @@ async function listRolesFromDb(q = "") {
       const store = tx.objectStore("roles");
       const request = store.getAll();
       request.onsuccess = () => {
-        const list = (request.result || []).map(normalizeAccessRoleRecord).filter(Boolean);
+        let list = (request.result || []).map(normalizeAccessRoleRecord).filter(Boolean);
+        if (!list.length) {
+          const fallback = readRolesStorage();
+          if (fallback.length) {
+            const writeTx = db.transaction("roles", "readwrite");
+            const writeStore = writeTx.objectStore("roles");
+            fallback.forEach((role) => writeStore.put(role));
+            writeTx.oncomplete = () => {
+              list = fallback.slice();
+              writeRolesStorage(list);
+              resolve(
+                query
+                  ? list.filter((role) => normalizeSearchValue(role.name).includes(query))
+                  : list
+              );
+            };
+            writeTx.onerror = () => {
+              writeRolesStorage(fallback);
+              resolve(
+                query
+                  ? fallback.filter((role) => normalizeSearchValue(role.name).includes(query))
+                  : fallback
+              );
+            };
+            return;
+          }
+        }
+        writeRolesStorage(list);
         resolve(
           query
             ? list.filter((role) => normalizeSearchValue(role.name).includes(query))
@@ -9295,6 +9412,7 @@ async function upsertRoleToDb(input) {
     const request = store.put(role);
     request.onsuccess = () => {
       touchAccessSync();
+      upsertRoleBackup(role);
       resolve(role);
     };
     request.onerror = () => reject(request.error || new Error("Falha ao salvar cargo."));
@@ -9327,6 +9445,7 @@ async function deleteRoleFromDb(id) {
     request.onerror = () => reject(request.error || new Error("Falha ao remover cargo."));
   });
   touchAccessSync();
+  deleteRoleBackup(id);
 }
 
 function buildDefaultAccessRoles() {
@@ -9425,7 +9544,7 @@ async function seedDefaultRolesIfEmpty() {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error || new Error("Falha ao criar cargos."));
   });
-  touchAccessSync();
+  writeRolesStorage(defaults);
   return { seeded: true, count: defaults.length };
 }
 
@@ -9511,7 +9630,26 @@ async function listUsersFromDb(filters = {}) {
       const store = tx.objectStore("users");
       const request = store.getAll();
       request.onsuccess = () => {
-        const list = (request.result || []).map(normalizeAccessUserRecord).filter(Boolean);
+        let list = (request.result || []).map(normalizeAccessUserRecord).filter(Boolean);
+        if (!list.length) {
+          const fallback = readUsersStorage();
+          if (fallback.length) {
+            const writeTx = db.transaction("users", "readwrite");
+            const writeStore = writeTx.objectStore("users");
+            fallback.forEach((user) => writeStore.put(user));
+            writeTx.oncomplete = () => {
+              list = fallback.slice();
+              writeUsersStorage(list);
+              resolve(applyFilters(list));
+            };
+            writeTx.onerror = () => {
+              writeUsersStorage(fallback);
+              resolve(applyFilters(fallback));
+            };
+            return;
+          }
+        }
+        writeUsersStorage(list);
         resolve(applyFilters(list));
       };
       request.onerror = () => resolve(applyFilters(readUsersStorage()));
@@ -9632,6 +9770,7 @@ async function createUserToDb(input) {
     request.onerror = () => reject(request.error || new Error("Falha ao salvar usuario."));
   });
   touchAccessSync();
+  upsertUserBackup(user);
   return { user, generatedPassword: generatedPassword || undefined };
 }
 
@@ -9718,6 +9857,7 @@ async function updateUserToDb(input) {
     request.onerror = () => reject(request.error || new Error("Falha ao salvar usuario."));
   });
   touchAccessSync();
+  upsertUserBackup(updated);
   return updated;
 }
 
@@ -9767,6 +9907,7 @@ async function resetPasswordForUser(input) {
     request.onerror = () => reject(request.error || new Error("Falha ao salvar senha."));
   });
   touchAccessSync();
+  upsertUserBackup(updated);
   return { user: updated, generatedPassword: generatedPassword || undefined };
 }
 
@@ -22163,6 +22304,14 @@ async function refreshAccessRoles() {
   } catch (error) {
     accessRoles = [];
   }
+  if (!accessRoles.length) {
+    try {
+      await dataProvider.roles.seedDefaultRolesIfEmpty();
+      accessRoles = await dataProvider.roles.listRoles();
+    } catch (error) {
+      // noop
+    }
+  }
   accessRoleMap = new Map(accessRoles.map((role) => [role.id, role]));
   renderAccessRoleSelectOptions();
   renderAccessRoleNameOptions(accessRoleId ? accessRoleId.value : "");
@@ -23418,6 +23567,9 @@ async function refreshProjects() {
       availableProjects = readProjectsStorage();
     } catch (error) {
       availableProjects = [];
+    }
+    if (availableProjects.length) {
+      writeProjectsStorage(availableProjects);
     }
   } else {
     try {
@@ -35240,7 +35392,6 @@ loginForm.addEventListener("submit", async (event) => {
     currentUser = data.user;
     mostrarMensagemConta(`Bem-vindo, ${currentUser.name}.`);
     loginSenha.value = "";
-    esconderAuthPanels();
     await carregarSessaoServidor();
   } catch (error) {
     const message = error && error.message ? error.message : "Usuário ou senha inválidos.";
