@@ -861,9 +861,12 @@ const accessRoleAdminToggle = document.getElementById("accessRoleAdminToggle");
 const accessRolePermissionSearch = document.getElementById("accessRolePermissionSearch");
 const accessRoleFilterSelected = document.getElementById("accessRoleFilterSelected");
 const accessRoleFilterCritical = document.getElementById("accessRoleFilterCritical");
+const accessRoleFilterRead = document.getElementById("accessRoleFilterRead");
+const accessRoleFilterWrite = document.getElementById("accessRoleFilterWrite");
 const accessRoleSelectAll = document.getElementById("accessRoleSelectAll");
 const accessRoleClearAll = document.getElementById("accessRoleClearAll");
 const accessRoleReadOnly = document.getElementById("accessRoleReadOnly");
+const accessRoleReadWrite = document.getElementById("accessRoleReadWrite");
 const accessRoleAdminNotice = document.getElementById("accessRoleAdminNotice");
 const accessRoleModules = document.getElementById("accessRoleModules");
 const accessRoleModulesMobile = document.getElementById("accessRoleModulesMobile");
@@ -871,6 +874,7 @@ const accessRoleModuleTitle = document.getElementById("accessRoleModuleTitle");
 const accessRoleModuleCount = document.getElementById("accessRoleModuleCount");
 const accessRoleModuleToggle = document.getElementById("accessRoleModuleToggle");
 const accessRoleModuleReadOnly = document.getElementById("accessRoleModuleReadOnly");
+const accessRoleModuleReadWrite = document.getElementById("accessRoleModuleReadWrite");
 const accessRolePermissionsSummary = document.getElementById("accessRolePermissionsSummary");
 const accessRoleModalTitle = document.getElementById("accessRoleModalTitle");
 const accessRoleModalSubtitle = document.getElementById("accessRoleModalSubtitle");
@@ -1958,6 +1962,105 @@ const ACCESS_PERMISSION_DANGEROUS = new Set(
   )
 );
 
+const ACCESS_MODULE_LABELS = {
+  Administracao: "Administra\u00e7\u00e3o",
+  Navegacao: "Navega\u00e7\u00e3o",
+  Manutencao: "Manuten\u00e7\u00e3o",
+  "Contas e equipe": "Contas e equipe",
+  Cargos: "Cargos",
+  Projetos: "Projetos",
+  "PMP / Cronograma": "PMP / Cronograma",
+  SST: "SST",
+  Almoxarifado: "Almoxarifado",
+  Arquivos: "Arquivos",
+  RDOs: "RDOs",
+  "Relatorios & KPIs": "Relat\u00f3rios & KPIs",
+  Automacoes: "Automa\u00e7\u00f5es",
+  Diagnostico: "Diagn\u00f3stico",
+  "Logs & Rastreabilidade": "Logs & Rastreabilidade",
+  "Painel gerencial": "Painel gerencial",
+};
+
+const ACCESS_GROUP_LABELS = {
+  Acesso: "Acesso",
+  Perfis: "Perfis",
+  Secoes: "Se\u00e7\u00f5es",
+  Acoes: "A\u00e7\u00f5es",
+  "Compatibilidade (legado)": "Compatibilidade (legado)",
+  "Admin total": "Admin total",
+};
+
+const ACCESS_LEVEL_LABELS = {
+  READ: "Leitura",
+  WRITE: "Edi\u00e7\u00e3o",
+  ADMIN: "Admin",
+};
+
+const ACCESS_TEXT_REPLACEMENTS = [
+  ["Administracao", "Administra\u00e7\u00e3o"],
+  ["administracao", "administra\u00e7\u00e3o"],
+  ["Navegacao", "Navega\u00e7\u00e3o"],
+  ["navegacao", "navega\u00e7\u00e3o"],
+  ["Manutencao", "Manuten\u00e7\u00e3o"],
+  ["manutencao", "manuten\u00e7\u00e3o"],
+  ["manutencoes", "manuten\u00e7\u00f5es"],
+  ["Programacao", "Programa\u00e7\u00e3o"],
+  ["programacao", "programa\u00e7\u00e3o"],
+  ["Execucao", "Execu\u00e7\u00e3o"],
+  ["execucao", "execu\u00e7\u00e3o"],
+  ["Permissoes", "Permiss\u00f5es"],
+  ["permissoes", "permiss\u00f5es"],
+  ["Secoes", "Se\u00e7\u00f5es"],
+  ["secoes", "se\u00e7\u00f5es"],
+  ["Acoes", "A\u00e7\u00f5es"],
+  ["acoes", "a\u00e7\u00f5es"],
+  ["Relatorios", "Relat\u00f3rios"],
+  ["relatorios", "relat\u00f3rios"],
+  ["Usuarios", "Usu\u00e1rios"],
+  ["usuarios", "usu\u00e1rios"],
+  ["Tecnico", "T\u00e9cnico"],
+  ["tecnico", "t\u00e9cnico"],
+  ["Automacoes", "Automa\u00e7\u00f5es"],
+  ["automacoes", "automa\u00e7\u00f5es"],
+  ["Diagnostico", "Diagn\u00f3stico"],
+  ["diagnostico", "diagn\u00f3stico"],
+  ["Recorrencias", "Recorr\u00eancias"],
+  ["recorrencias", "recorr\u00eancias"],
+  ["Formulario", "Formul\u00e1rio"],
+  ["formulario", "formul\u00e1rio"],
+  ["Conclusao", "Conclus\u00e3o"],
+  ["conclusao", "conclus\u00e3o"],
+  ["Integracao", "Integra\u00e7\u00e3o"],
+  ["integracao", "integra\u00e7\u00e3o"],
+  ["Proprio", "Pr\u00f3prio"],
+  ["proprio", "pr\u00f3prio"],
+  ["Nao", "N\u00e3o"],
+  ["nao", "n\u00e3o"],
+  ["Modulo", "M\u00f3dulo"],
+  ["modulo", "m\u00f3dulo"],
+  ["Critico", "Cr\u00edtico"],
+  ["critico", "cr\u00edtico"],
+];
+
+function formatAccessText(text) {
+  if (!text) {
+    return "";
+  }
+  let result = text;
+  ACCESS_TEXT_REPLACEMENTS.forEach(([from, to]) => {
+    result = result.replaceAll(from, to);
+  });
+  return result;
+}
+
+function getAccessModuleLabel(name) {
+  return ACCESS_MODULE_LABELS[name] || formatAccessText(name);
+}
+
+function getAccessGroupLabel(name) {
+  return ACCESS_GROUP_LABELS[name] || formatAccessText(name);
+}
+
 function buildAccessPermissionModules(catalog = []) {
   const byModule = new Map();
   catalog.forEach((permission) => {
@@ -2005,6 +2108,40 @@ function getAccessReadPermissionKeys(catalog = ACCESS_PERMISSION_CATALOG, module
         return false;
       }
       if (permission.level !== "READ") {
+        return false;
+      }
+      if (moduleName && permission.module !== moduleName) {
+        return false;
+      }
+      return true;
+    })
+    .map((permission) => permission.key);
+}
+
+function getAccessWritePermissionKeys(catalog = ACCESS_PERMISSION_CATALOG, moduleName) {
+  return catalog
+    .filter((permission) => {
+      if (permission.hidden) {
+        return false;
+      }
+      if (permission.level !== "WRITE" && permission.level !== "ADMIN") {
+        return false;
+      }
+      if (moduleName && permission.module !== moduleName) {
+        return false;
+      }
+      return true;
+    })
+    .map((permission) => permission.key);
+}
+
+function getAccessReadWritePermissionKeys(catalog = ACCESS_PERMISSION_CATALOG, moduleName) {
+  return catalog
+    .filter((permission) => {
+      if (permission.hidden) {
+        return false;
+      }
+      if (permission.level !== "READ" && permission.level !== "WRITE") {
         return false;
       }
       if (moduleName && permission.module !== moduleName) {
@@ -3497,6 +3634,8 @@ let accessRoleEditorState = {
   onlySelected: false,
   onlyCritical: false,
   renameMode: false,
+  onlyRead: false,
+  onlyWrite: false,
 };
 let requests = [];
 let auditLog = [];
@@ -21932,9 +22071,10 @@ function renderAccessRoles() {
       const tr = document.createElement("tr");
       const inUse = accessUsers.some((user) => String(user.roleId || "") === String(role.id));
       const statusLabel = role.isSystem ? "Sistema" : inUse ? "Em uso" : "Customizado";
+      const permCount = (role.permissions || []).length;
       const permLabel = role.permissions && role.permissions.includes("ADMIN")
         ? "Admin total"
-        : `${(role.permissions || []).length} permissao(oes)`;
+        : `${permCount} permiss${permCount === 1 ? "\u00e3o" : "\u00f5es"}`;
       const actions = [];
       if (canWrite) {
         actions.push(
@@ -22192,7 +22332,7 @@ function closeConfirmModal(result) {
 }
 
 function openConfirmModal(options = {}) {
-  const title = options.title || "Confirmar acao";
+  const title = options.title || "Confirmar a\u00e7\u00e3o";
   const message = options.message || "";
   const confirmText = options.confirmText || "Confirmar";
   const cancelText = options.cancelText || "Cancelar";
@@ -22252,6 +22392,8 @@ function initAccessRoleEditorState(selected = [], roleId = "") {
     query: "",
     onlySelected: false,
     onlyCritical: false,
+    onlyRead: false,
+    onlyWrite: false,
     renameMode: false,
   };
   if (accessRolePermissionSearch) {
@@ -22299,6 +22441,13 @@ function filterAccessRolePermissions(list, effectiveSelected) {
     if (accessRoleEditorState.onlyCritical && !permission.dangerous) {
       return false;
     }
+    const level = permission.level || "READ";
+    if (accessRoleEditorState.onlyRead && level !== "READ") {
+      return false;
+    }
+    if (accessRoleEditorState.onlyWrite && level === "READ") {
+      return false;
+    }
     return true;
   });
 }
@@ -22315,16 +22464,17 @@ function buildAccessRolePermissionItem(permission, checked, disabled) {
   const title = document.createElement("div");
   title.className = "access-role-permission__title";
   const name = document.createElement("span");
-  name.textContent = permission.label || permission.key;
+  name.textContent = formatAccessText(permission.label || permission.key);
   const level = document.createElement("span");
-  const levelClass = String(permission.level || "READ").toLowerCase();
+  const levelValue = permission.level || "READ";
+  const levelClass = String(levelValue).toLowerCase();
   level.className = `perm-badge perm-badge--${levelClass}`;
-  level.textContent = permission.level || "READ";
+  level.textContent = ACCESS_LEVEL_LABELS[levelValue] || levelValue;
   title.append(name, level);
   if (permission.dangerous) {
     const danger = document.createElement("span");
     danger.className = "perm-badge perm-badge--danger";
-    danger.textContent = "CRITICO";
+    danger.textContent = "CR\u00cdTICO";
     title.append(danger);
   }
   if (permission.legacy) {
@@ -22337,7 +22487,7 @@ function buildAccessRolePermissionItem(permission, checked, disabled) {
   if (permission.description) {
     const desc = document.createElement("p");
     desc.className = "access-role-permission__desc";
-    desc.textContent = permission.description;
+    desc.textContent = formatAccessText(permission.description);
     content.append(desc);
   }
   label.append(checkbox, content);
@@ -22361,7 +22511,7 @@ function renderAccessRoleGroups(container, module, effectiveSelected) {
     details.open = true;
     const summary = document.createElement("summary");
     const title = document.createElement("span");
-    title.textContent = groupName;
+    title.textContent = getAccessGroupLabel(groupName);
     const count = document.createElement("span");
     count.className = "access-role-count";
     const selectedCount = filtered.filter((permission) =>
@@ -22382,7 +22532,7 @@ function renderAccessRoleGroups(container, module, effectiveSelected) {
   if (!rendered) {
     const empty = document.createElement("div");
     empty.className = "access-role-empty";
-    empty.textContent = "Nenhuma permissao encontrada com esses filtros.";
+    empty.textContent = "Nenhuma permiss\u00e3o encontrada com esses filtros.";
     container.append(empty);
   }
 }
@@ -22398,7 +22548,7 @@ function renderAccessRolePermissions() {
     accessRoleSelectedCount.textContent = `${selectedCount} selecionadas`;
   }
   if (accessRolePermissionsSummary) {
-    accessRolePermissionsSummary.textContent = `Total: ${selectedCount}/${totalCount} permissoes selecionadas.`;
+    accessRolePermissionsSummary.textContent = `Total: ${selectedCount}/${totalCount} permiss\u00f5es selecionadas.`;
   }
   if (accessRoleAdminToggle) {
     accessRoleAdminToggle.checked = accessRoleEditorState.adminEnabled;
@@ -22408,12 +22558,16 @@ function renderAccessRolePermissions() {
   }
   setAccessRoleToggleState(accessRoleFilterSelected, accessRoleEditorState.onlySelected);
   setAccessRoleToggleState(accessRoleFilterCritical, accessRoleEditorState.onlyCritical);
+  setAccessRoleToggleState(accessRoleFilterRead, accessRoleEditorState.onlyRead);
+  setAccessRoleToggleState(accessRoleFilterWrite, accessRoleEditorState.onlyWrite);
   const disableActions = accessRoleEditorState.adminEnabled;
   setAccessRoleButtonDisabled(accessRoleSelectAll, disableActions);
   setAccessRoleButtonDisabled(accessRoleClearAll, disableActions);
   setAccessRoleButtonDisabled(accessRoleReadOnly, disableActions);
+  setAccessRoleButtonDisabled(accessRoleReadWrite, disableActions);
   setAccessRoleButtonDisabled(accessRoleModuleToggle, disableActions);
   setAccessRoleButtonDisabled(accessRoleModuleReadOnly, disableActions);
+  setAccessRoleButtonDisabled(accessRoleModuleReadWrite, disableActions);
 
   if (accessRoleModules) {
     accessRoleModules.innerHTML = "";
@@ -22429,7 +22583,7 @@ function renderAccessRolePermissions() {
       }`;
       button.dataset.roleModule = module.name;
       const name = document.createElement("span");
-      name.textContent = module.name;
+      name.textContent = getAccessModuleLabel(module.name);
       const count = document.createElement("span");
       count.className = "access-role-count";
       count.textContent = `${selected}/${total}`;
@@ -22450,7 +22604,7 @@ function renderAccessRolePermissions() {
     effectiveSelected.has(permission.key)
   ).length;
   if (accessRoleModuleTitle) {
-    accessRoleModuleTitle.textContent = activeModule.name;
+    accessRoleModuleTitle.textContent = getAccessModuleLabel(activeModule.name);
   }
   if (accessRoleModuleCount) {
     accessRoleModuleCount.textContent = `${moduleSelected}/${moduleTotal}`;
@@ -22469,6 +22623,18 @@ function renderAccessRolePermissions() {
     const readKeys = getAccessReadPermissionKeys(ACCESS_PERMISSION_CATALOG, activeModule.name);
     setAccessRoleButtonDisabled(accessRoleModuleReadOnly, disableActions || readKeys.length === 0);
   }
+  if (accessRoleModuleReadWrite) {
+    accessRoleModuleReadWrite.dataset.moduleAction = "read-write";
+    accessRoleModuleReadWrite.dataset.moduleName = activeModule.name;
+    const readWriteKeys = getAccessReadWritePermissionKeys(
+      ACCESS_PERMISSION_CATALOG,
+      activeModule.name
+    );
+    setAccessRoleButtonDisabled(
+      accessRoleModuleReadWrite,
+      disableActions || readWriteKeys.length === 0
+    );
+  }
   renderAccessRoleGroups(accessRolePermissions, activeModule, effectiveSelected);
 
   if (accessRoleModulesMobile) {
@@ -22478,13 +22644,14 @@ function renderAccessRolePermissions() {
       const selected = module.permissions.filter((permission) =>
         effectiveSelected.has(permission.key)
       ).length;
+      const moduleLabel = getAccessModuleLabel(module.name);
       const details = document.createElement("details");
       details.className = "access-role-module";
       details.open = module.name === accessRoleEditorState.activeModule;
       details.dataset.roleModule = module.name;
       const summary = document.createElement("summary");
       const title = document.createElement("span");
-      title.textContent = module.name;
+      title.textContent = moduleLabel;
       const count = document.createElement("span");
       count.className = "access-role-count";
       count.textContent = `${selected}/${total}`;
@@ -22495,7 +22662,7 @@ function renderAccessRolePermissions() {
       header.className = "access-role-module__header";
       const headerInfo = document.createElement("div");
       const headerTitle = document.createElement("h4");
-      headerTitle.textContent = module.name;
+      headerTitle.textContent = moduleLabel;
       const headerCount = document.createElement("span");
       headerCount.className = "access-role-count";
       headerCount.textContent = `${selected}/${total} selecionadas`;
@@ -22514,10 +22681,21 @@ function renderAccessRolePermissions() {
       btnRead.className = "btn btn--ghost btn--small";
       btnRead.dataset.moduleAction = "read-only";
       btnRead.dataset.moduleName = module.name;
-      btnRead.textContent = "Somente leitura do modulo";
+      btnRead.textContent = "Somente leitura do m\u00f3dulo";
       const moduleReadKeys = getAccessReadPermissionKeys(ACCESS_PERMISSION_CATALOG, module.name);
       btnRead.disabled = disableActions || moduleReadKeys.length === 0;
-      actions.append(btnAll, btnRead);
+      const btnReadWrite = document.createElement("button");
+      btnReadWrite.type = "button";
+      btnReadWrite.className = "btn btn--ghost btn--small";
+      btnReadWrite.dataset.moduleAction = "read-write";
+      btnReadWrite.dataset.moduleName = module.name;
+      btnReadWrite.textContent = "Leitura e edi\u00e7\u00e3o do m\u00f3dulo";
+      const moduleReadWriteKeys = getAccessReadWritePermissionKeys(
+        ACCESS_PERMISSION_CATALOG,
+        module.name
+      );
+      btnReadWrite.disabled = disableActions || moduleReadWriteKeys.length === 0;
+      actions.append(btnAll, btnRead, btnReadWrite);
       header.append(headerInfo, actions);
       body.append(header);
       const groups = document.createElement("div");
@@ -22555,7 +22733,7 @@ function setAccessRoleNameMode(enabled) {
     accessRoleName.required = enabled;
   }
   if (btnAccessRoleRename) {
-    btnAccessRoleRename.textContent = enabled ? "Usar selecao" : "Editar nome";
+    btnAccessRoleRename.textContent = enabled ? "Usar sele\u00e7\u00e3o" : "Editar nome";
   }
 }
 
@@ -22593,7 +22771,7 @@ function resetAccessRoleToNew() {
     accessRoleModalTitle.textContent = "Novo cargo";
   }
   if (accessRoleModalSubtitle) {
-    accessRoleModalSubtitle.textContent = "Defina o nome e permissoes do cargo.";
+    accessRoleModalSubtitle.textContent = "Defina o nome e permiss\u00f5es do cargo.";
   }
   setAccessRoleNameMode(true);
   updateAccessRoleRenameVisibility();
@@ -22655,6 +22833,14 @@ function applyAccessRoleReadOnly() {
   setAccessRoleSelection(readKeys);
 }
 
+function applyAccessRoleReadWrite() {
+  if (accessRoleEditorState.adminEnabled) {
+    return;
+  }
+  const readWriteKeys = getAccessReadWritePermissionKeys(ACCESS_PERMISSION_CATALOG);
+  setAccessRoleSelection(readWriteKeys);
+}
+
 function applyAccessRoleModuleAll(moduleName) {
   if (accessRoleEditorState.adminEnabled) {
     return;
@@ -22691,6 +22877,22 @@ function applyAccessRoleModuleReadOnly(moduleName) {
   setAccessRoleSelection(Array.from(next));
 }
 
+function applyAccessRoleModuleReadWrite(moduleName) {
+  if (accessRoleEditorState.adminEnabled) {
+    return;
+  }
+  const module = ACCESS_PERMISSION_MODULES.find((item) => item.name === moduleName);
+  if (!module) {
+    return;
+  }
+  const readWriteKeys = getAccessReadWritePermissionKeys(ACCESS_PERMISSION_CATALOG, module.name);
+  const keys = module.permissions.map((permission) => permission.key);
+  const next = new Set(accessRoleEditorState.selected || []);
+  keys.forEach((key) => next.delete(key));
+  readWriteKeys.forEach((key) => next.add(key));
+  setAccessRoleSelection(Array.from(next));
+}
+
 function setAccessRoleActiveModule(moduleName) {
   if (!moduleName) {
     return;
@@ -22718,8 +22920,8 @@ function openAccessRoleModal(role = null) {
   }
   if (accessRoleModalSubtitle) {
     accessRoleModalSubtitle.textContent = editing
-      ? "Atualize as permissoes do cargo."
-      : "Defina o nome e permissoes do cargo.";
+      ? "Atualize as permiss\u00f5es do cargo."
+      : "Defina o nome e permiss\u00f5es do cargo.";
   }
   setAccessRoleFormMessage("");
   if (accessRoleId) {
@@ -24186,7 +24388,7 @@ function renderSstVehicles() {
 async function handleSstVehicleSubmit(event) {
   event.preventDefault();
   if (!currentUser || !canManageProjetos(currentUser)) {
-    setInlineMessage(sstVehicleMsg, "Sem permissao para salvar veiculo.", true);
+    setInlineMessage(sstVehicleMsg, "Sem permiss\u00e3o para salvar veiculo.", true);
     return;
   }
   const payload = {
@@ -24223,7 +24425,7 @@ async function handleSstVehicleTableClick(event) {
     return;
   }
   if (!currentUser || !canManageProjetos(currentUser)) {
-    setInlineMessage(sstVehicleMsg, "Sem permissao para alterar veiculo.", true);
+    setInlineMessage(sstVehicleMsg, "Sem permiss\u00e3o para alterar veiculo.", true);
     return;
   }
   const id = button.dataset.id;
@@ -26314,7 +26516,7 @@ function getSstTemplateFormData() {
 async function handleSstTemplateSubmit(event) {
   event.preventDefault();
   if (!currentUser || !canManageSst(currentUser)) {
-    setInlineMessage(sstTemplateMsg, "Sem permissao para salvar template.", true);
+    setInlineMessage(sstTemplateMsg, "Sem permiss\u00e3o para salvar template.", true);
     return;
   }
   const payload = getSstTemplateFormData();
@@ -26339,7 +26541,7 @@ async function handleSstTemplateSubmit(event) {
 
 async function handleSstTemplateSeed() {
   if (!currentUser || !canManageSst(currentUser)) {
-    setInlineMessage(sstInspectionMsg, "Sem permissao para carregar templates.", true);
+    setInlineMessage(sstInspectionMsg, "Sem permiss\u00e3o para carregar templates.", true);
     return;
   }
   try {
@@ -26425,7 +26627,7 @@ function handleSstTemplateQuestionsClick(event) {
 
 async function handleSstInspectionStart() {
   if (!currentUser || !canManageSst(currentUser)) {
-    setInlineMessage(sstInspectionMsg, "Sem permissao para iniciar inspecao.", true);
+    setInlineMessage(sstInspectionMsg, "Sem permiss\u00e3o para iniciar inspecao.", true);
     return;
   }
   const projectId = sstInspectionProject ? sstInspectionProject.value : "";
@@ -27373,7 +27575,7 @@ async function handleSstNcDetailsSave() {
     return;
   }
   if (!currentUser || !canManageSst(currentUser)) {
-    setInlineMessage(sstNcDetailsMsg, "Sem permissao para atualizar NC.", true);
+    setInlineMessage(sstNcDetailsMsg, "Sem permiss\u00e3o para atualizar NC.", true);
     return;
   }
   const patch = {
@@ -27482,7 +27684,7 @@ async function handleSstNcActionAdd() {
     return;
   }
   if (!currentUser || !canManageSst(currentUser)) {
-    setInlineMessage(sstNcDetailsMsg, "Sem permissao para adicionar acao.", true);
+    setInlineMessage(sstNcDetailsMsg, "Sem permiss\u00e3o para adicionar acao.", true);
     return;
   }
   const title = sstNcActionTitle ? sstNcActionTitle.value.trim() : "";
@@ -27525,7 +27727,7 @@ async function handleSstNcActionsClick(event) {
     return;
   }
   if (!currentUser || !canManageSst(currentUser)) {
-    setInlineMessage(sstNcDetailsMsg, "Sem permissao para atualizar acao.", true);
+    setInlineMessage(sstNcDetailsMsg, "Sem permiss\u00e3o para atualizar acao.", true);
     return;
   }
   const card = button.closest("[data-action-id]");
@@ -27564,7 +27766,7 @@ async function handleSstNcNotify() {
     return;
   }
   if (!currentUser || !canManageSst(currentUser)) {
-    setInlineMessage(sstNcDetailsMsg, "Sem permissao para notificar.", true);
+    setInlineMessage(sstNcDetailsMsg, "Sem permiss\u00e3o para notificar.", true);
     return;
   }
   const responsavel = getUserLabel(sstNcDetailsData.responsibleId);
@@ -27624,7 +27826,7 @@ function handleSstNcTableClick(event) {
 async function handleSstNcSubmit(event) {
   event.preventDefault();
   if (!currentUser || !canManageSst(currentUser)) {
-    setInlineMessage(sstNcMsg, "Sem permissao para registrar NC.", true);
+    setInlineMessage(sstNcMsg, "Sem permiss\u00e3o para registrar NC.", true);
     return;
   }
   const payload = {
@@ -29709,7 +29911,7 @@ async function abrirEdicaoManutencao(item) {
     return;
   }
   if (item.status === "concluida" && !canEditConcludedMaintenance(currentUser)) {
-    mostrarMensagemManutencao("Sem permissao para editar manutencoes concluidas.", true);
+    mostrarMensagemManutencao("Sem permiss\u00e3o para editar manutencoes concluidas.", true);
     return;
   }
   if (item.projectId && item.projectId !== activeProjectId) {
@@ -29741,7 +29943,7 @@ async function salvarEdicaoManutencao() {
   const item = manutencoes[index];
   const isConcluida = item.status === "concluida";
   if (isConcluida && !canEditConcludedMaintenance(currentUser)) {
-    mostrarMensagemManutencao("Sem permissao para editar manutencoes concluidas.", true);
+    mostrarMensagemManutencao("Sem permiss\u00e3o para editar manutencoes concluidas.", true);
     return;
   }
 
@@ -30135,7 +30337,7 @@ async function editarManutencao(index) {
     return;
   }
   if (item.status === "concluida" && !canEditConcludedMaintenance(currentUser)) {
-    mostrarMensagemManutencao("Sem permissao para editar manutencoes concluidas.", true);
+    mostrarMensagemManutencao("Sem permiss\u00e3o para editar manutencoes concluidas.", true);
     return;
   }
   await abrirEdicaoManutencao(item);
@@ -32830,7 +33032,7 @@ function imprimirRelatorio() {
 
 async function removerManutencao(index) {
   if (!canDeleteMaintenance(currentUser)) {
-    mostrarMensagemManutencao("Sem permissao para excluir manutencoes.", true);
+    mostrarMensagemManutencao("Sem permiss\u00e3o para excluir manutencoes.", true);
     return;
   }
   const item = manutencoes[index];
@@ -36161,7 +36363,7 @@ if (accessTabs.length) {
 if (btnAccessNewUser) {
   btnAccessNewUser.addEventListener("click", () => {
     if (!currentUser || !canManageAccess(currentUser)) {
-      setAccessMessage("Sem permissao para criar contas.", true);
+      setAccessMessage("Sem permiss\u00e3o para criar contas.", true);
       return;
     }
     openAccessUserModal();
@@ -36171,7 +36373,7 @@ if (btnAccessNewUser) {
 if (btnAccessNewRole) {
   btnAccessNewRole.addEventListener("click", () => {
     if (!currentUser || !canManageAccess(currentUser)) {
-      setAccessMessage("Sem permissao para criar cargos.", true);
+      setAccessMessage("Sem permiss\u00e3o para criar cargos.", true);
       return;
     }
     openAccessRoleModal();
@@ -36224,7 +36426,7 @@ if (accessRoleSelect) {
         accessRoleModalTitle.textContent = "Editar cargo";
       }
       if (accessRoleModalSubtitle) {
-        accessRoleModalSubtitle.textContent = "Atualize as permissoes do cargo.";
+        accessRoleModalSubtitle.textContent = "Atualize as permiss\u00f5es do cargo.";
       }
       selectAccessRole(role);
     }
@@ -36254,6 +36456,24 @@ if (accessRoleFilterCritical) {
     renderAccessRolePermissions();
   });
 }
+if (accessRoleFilterRead) {
+  accessRoleFilterRead.addEventListener("click", () => {
+    accessRoleEditorState.onlyRead = !accessRoleEditorState.onlyRead;
+    if (accessRoleEditorState.onlyRead) {
+      accessRoleEditorState.onlyWrite = false;
+    }
+    renderAccessRolePermissions();
+  });
+}
+if (accessRoleFilterWrite) {
+  accessRoleFilterWrite.addEventListener("click", () => {
+    accessRoleEditorState.onlyWrite = !accessRoleEditorState.onlyWrite;
+    if (accessRoleEditorState.onlyWrite) {
+      accessRoleEditorState.onlyRead = false;
+    }
+    renderAccessRolePermissions();
+  });
+}
 if (accessRoleSelectAll) {
   accessRoleSelectAll.addEventListener("click", applyAccessRoleSelectAll);
 }
@@ -36262,6 +36482,9 @@ if (accessRoleClearAll) {
 }
 if (accessRoleReadOnly) {
   accessRoleReadOnly.addEventListener("click", applyAccessRoleReadOnly);
+}
+if (accessRoleReadWrite) {
+  accessRoleReadWrite.addEventListener("click", applyAccessRoleReadWrite);
 }
 if (accessRoleAdminToggle) {
   accessRoleAdminToggle.addEventListener("change", () => {
@@ -36284,6 +36507,10 @@ if (accessRoleEditor) {
       }
       if (moduleAction.dataset.moduleAction === "read-only") {
         applyAccessRoleModuleReadOnly(moduleName);
+        return;
+      }
+      if (moduleAction.dataset.moduleAction === "read-write") {
+        applyAccessRoleModuleReadWrite(moduleName);
         return;
       }
     }
@@ -36320,7 +36547,7 @@ if (accessUsersTableBody) {
       return;
     }
     if (!currentUser || !canManageAccess(currentUser)) {
-      setAccessMessage("Sem permissao para esta acao.", true);
+      setAccessMessage("Sem permiss\u00e3o para esta acao.", true);
       return;
     }
     if (button.dataset.action === "edit-user") {
@@ -36368,7 +36595,7 @@ if (accessRolesTableBody) {
       return;
     }
     if (!currentUser || !canManageAccess(currentUser)) {
-      setAccessMessage("Sem permissao para esta acao.", true);
+      setAccessMessage("Sem permiss\u00e3o para esta acao.", true);
       return;
     }
     if (button.dataset.action === "edit-role") {
@@ -36433,7 +36660,7 @@ if (accessUserForm) {
   accessUserForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!currentUser || !canManageAccess(currentUser)) {
-      setAccessUserFormMessage("Sem permissao para salvar.", true);
+      setAccessUserFormMessage("Sem permiss\u00e3o para salvar.", true);
       return;
     }
     const id = accessUserId ? accessUserId.value.trim() : "";
@@ -36510,7 +36737,7 @@ if (resetPasswordForm) {
   resetPasswordForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!currentUser || !canManageAccess(currentUser)) {
-      setResetPasswordMessage("Sem permissao para salvar.", true);
+      setResetPasswordMessage("Sem permiss\u00e3o para salvar.", true);
       return;
     }
     const id = resetPasswordUserId ? resetPasswordUserId.value.trim() : "";
@@ -36598,7 +36825,7 @@ if (accessRoleForm) {
   accessRoleForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!currentUser || !canManageAccess(currentUser)) {
-      setAccessRoleFormMessage("Sem permissao para salvar.", true);
+      setAccessRoleFormMessage("Sem permiss\u00e3o para salvar.", true);
       return;
     }
     const id = accessRoleId ? accessRoleId.value.trim() : "";
@@ -36618,11 +36845,15 @@ if (accessRoleForm) {
     );
     if (newlyDangerous.length) {
       const labels = newlyDangerous
-        .map((key) => (ACCESS_PERMISSION_INDEX.get(key) || {}).label || key)
+        .map((key) =>
+          formatAccessText((ACCESS_PERMISSION_INDEX.get(key) || {}).label || key)
+        )
         .join(", ");
+      const quantidade = newlyDangerous.length;
+      const permLabel = quantidade === 1 ? "permiss\u00e3o cr\u00edtica" : "permiss\u00f5es cr\u00edticas";
       const confirm = await openConfirmModal({
-        title: "Permissoes criticas habilitadas",
-        message: `Voce habilitou ${newlyDangerous.length} permissao(oes) critica(s): ${labels}. Deseja continuar?`,
+        title: "Permiss\u00f5es cr\u00edticas habilitadas",
+        message: `Voc\u00ea habilitou ${quantidade} ${permLabel}: ${labels}. Deseja continuar?`,
         confirmText: "Confirmar e salvar",
         cancelText: "Cancelar",
       });
@@ -36637,7 +36868,9 @@ if (accessRoleForm) {
       await refreshAccessRoles();
       await refreshAccessUsers();
       setAccessMessage(
-        `Cargo salvo. Voce alterou ${changedCount} permiss${changedCount === 1 ? "ao" : "oes"}.`
+        `Cargo salvo. Voc\u00ea alterou ${changedCount} permiss${
+          changedCount === 1 ? "\u00e3o" : "\u00f5es"
+        }.`
       );
     } catch (error) {
       setAccessRoleFormMessage(error.message || "Falha ao salvar cargo.", true);
