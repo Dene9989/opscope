@@ -4479,8 +4479,17 @@
         <input id="accessRoleId" type="hidden" />
         <div class="form-grid">
           <div class="field" data-full>
+            <label for="accessRoleSelect">Cargo</label>
+            <div class="input-wrap access-role-select">
+              <select id="accessRoleSelect"></select>
+              <button id="btnAccessRoleRename" class="btn btn--ghost btn--small" type="button">
+                Editar nome
+              </button>
+            </div>
+          </div>
+          <div class="field" data-full id="accessRoleNameField" hidden>
             <label for="accessRoleName">Nome do cargo</label>
-            <input id="accessRoleName" type="text" required />
+            <input id="accessRoleName" type="text" />
           </div>
           <div class="field" data-full>
             <label>Permiss&otilde;es</label>

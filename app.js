@@ -850,6 +850,9 @@ const btnGeneratedPasswordDone = document.getElementById("btnGeneratedPasswordDo
 const modalAccessRole = document.getElementById("modalAccessRole");
 const accessRoleForm = document.getElementById("accessRoleForm");
 const accessRoleId = document.getElementById("accessRoleId");
+const accessRoleSelect = document.getElementById("accessRoleSelect");
+const btnAccessRoleRename = document.getElementById("btnAccessRoleRename");
+const accessRoleNameField = document.getElementById("accessRoleNameField");
 const accessRoleName = document.getElementById("accessRoleName");
 const accessRolePermissions = document.getElementById("accessRolePermissions");
 const accessRoleEditor = document.getElementById("accessRoleEditor");
@@ -3493,6 +3496,7 @@ let accessRoleEditorState = {
   query: "",
   onlySelected: false,
   onlyCritical: false,
+  renameMode: false,
 };
 let requests = [];
 let auditLog = [];
@@ -21783,6 +21787,27 @@ function renderAccessRoleSelectOptions() {
   }
 }
 
+function renderAccessRoleNameOptions(selectedId = "") {
+  if (!accessRoleSelect) {
+    return;
+  }
+  const sorted = accessRoles.slice().sort((a, b) =>
+    String(a.name || "").localeCompare(String(b.name || ""), "pt-BR")
+  );
+  accessRoleSelect.innerHTML = "";
+  const optionNew = document.createElement("option");
+  optionNew.value = "__new__";
+  optionNew.textContent = "Novo cargo...";
+  accessRoleSelect.append(optionNew);
+  sorted.forEach((role) => {
+    const opt = document.createElement("option");
+    opt.value = role.id;
+    opt.textContent = role.name || "-";
+    accessRoleSelect.append(opt);
+  });
+  accessRoleSelect.value = selectedId || "__new__";
+}
+
 function renderAccessProjectSelectOptions() {
   const projects = Array.isArray(availableProjects) ? availableProjects : [];
   if (accessUserProject) {
@@ -21939,6 +21964,8 @@ async function refreshAccessRoles() {
   }
   accessRoleMap = new Map(accessRoles.map((role) => [role.id, role]));
   renderAccessRoleSelectOptions();
+  renderAccessRoleNameOptions(accessRoleId ? accessRoleId.value : "");
+  updateAccessRoleRenameVisibility();
   renderAccessRoles();
 }
 
@@ -22225,6 +22252,7 @@ function initAccessRoleEditorState(selected = [], roleId = "") {
     query: "",
     onlySelected: false,
     onlyCritical: false,
+    renameMode: false,
   };
   if (accessRolePermissionSearch) {
     accessRolePermissionSearch.value = "";
@@ -22517,6 +22545,61 @@ function setAccessRoleSelection(list) {
   renderAccessRolePermissions();
 }
 
+function setAccessRoleNameMode(enabled) {
+  accessRoleEditorState.renameMode = enabled;
+  if (accessRoleNameField) {
+    accessRoleNameField.hidden = !enabled;
+  }
+  if (accessRoleName) {
+    accessRoleName.disabled = !enabled;
+    accessRoleName.required = enabled;
+  }
+  if (btnAccessRoleRename) {
+    btnAccessRoleRename.textContent = enabled ? "Usar selecao" : "Editar nome";
+  }
+}
+
+function updateAccessRoleRenameVisibility() {
+  if (!btnAccessRoleRename || !accessRoleSelect) {
+    return;
+  }
+  const isNew = accessRoleSelect.value === "__new__";
+  btnAccessRoleRename.hidden = isNew;
+}
+
+function selectAccessRole(role) {
+  if (!role) {
+    return;
+  }
+  if (accessRoleId) {
+    accessRoleId.value = role.id;
+  }
+  if (accessRoleName) {
+    accessRoleName.value = role.name || "";
+  }
+  setAccessRoleNameMode(false);
+  updateAccessRoleRenameVisibility();
+  initAccessRoleEditorState(role.permissions || [], role.id);
+}
+
+function resetAccessRoleToNew() {
+  if (accessRoleId) {
+    accessRoleId.value = "";
+  }
+  if (accessRoleName) {
+    accessRoleName.value = "";
+  }
+  if (accessRoleModalTitle) {
+    accessRoleModalTitle.textContent = "Novo cargo";
+  }
+  if (accessRoleModalSubtitle) {
+    accessRoleModalSubtitle.textContent = "Defina o nome e permissoes do cargo.";
+  }
+  setAccessRoleNameMode(true);
+  updateAccessRoleRenameVisibility();
+  initAccessRoleEditorState([], "");
+}
+
 function toggleAccessRoleAdmin(enabled) {
   if (enabled) {
     accessRoleEditorState.adminSnapshot = Array.from(accessRoleEditorState.selected || []).filter(
@@ -22642,9 +22725,15 @@ function openAccessRoleModal(role = null) {
   if (accessRoleId) {
     accessRoleId.value = editing ? role.id : "";
   }
+  renderAccessRoleNameOptions(editing ? role.id : "");
+  updateAccessRoleRenameVisibility();
   if (accessRoleName) {
     accessRoleName.value = editing ? role.name || "" : "";
-    accessRoleName.disabled = false;
+  }
+  if (editing) {
+    setAccessRoleNameMode(false);
+  } else {
+    setAccessRoleNameMode(true);
   }
   initAccessRoleEditorState(editing ? role.permissions || [] : [], editing ? role.id : "");
   modalAccessRole.hidden = false;
@@ -36122,6 +36211,31 @@ if (accessUserProjectFilter) {
 if (accessRoleSearch) {
   accessRoleSearch.addEventListener("input", renderAccessRoles);
 }
+if (accessRoleSelect) {
+  accessRoleSelect.addEventListener("change", () => {
+    const selectedId = accessRoleSelect.value;
+    if (!selectedId || selectedId === "__new__") {
+      resetAccessRoleToNew();
+      return;
+    }
+    const role = accessRoles.find((item) => String(item.id) === String(selectedId));
+    if (role) {
+      if (accessRoleModalTitle) {
+        accessRoleModalTitle.textContent = "Editar cargo";
+      }
+      if (accessRoleModalSubtitle) {
+        accessRoleModalSubtitle.textContent = "Atualize as permissoes do cargo.";
+      }
+      selectAccessRole(role);
+    }
+  });
+}
+if (btnAccessRoleRename) {
+  btnAccessRoleRename.addEventListener("click", () => {
+    const enabled = !accessRoleEditorState.renameMode;
+    setAccessRoleNameMode(enabled);
+  });
+}
 if (accessRolePermissionSearch) {
   accessRolePermissionSearch.addEventListener("input", () => {
     accessRoleEditorState.query = accessRolePermissionSearch.value || "";
@@ -36489,6 +36603,10 @@ if (accessRoleForm) {
     }
     const id = accessRoleId ? accessRoleId.value.trim() : "";
     const name = accessRoleName ? accessRoleName.value.trim() : "";
+    if (!id && !name) {
+      setAccessRoleFormMessage("Selecione ou informe o nome do cargo.", true);
+      return;
+    }
     const permissions = collectAccessRolePermissions();
     const baselineExpanded = expandAccessPermissions(accessRoleEditorState.baseline || []);
     const currentExpanded = expandAccessPermissions(permissions);
