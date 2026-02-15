@@ -4681,92 +4681,95 @@
           </div>
           <div class="field" data-full>
             <label>Permiss&otilde;es</label>
-            <div class="access-role-editor" id="accessRoleEditor">
+            <div class="access-role-editor access-role-matrix" id="accessRoleEditor">
               <div class="access-role-editor__header">
                 <div>
-                  <p class="hint">Controle detalhado por m&oacute;dulo, grupo e n&iacute;vel.</p>
+                  <p class="hint">Controle detalhado por m&oacute;dulo e n&iacute;vel.</p>
                 </div>
                 <div class="access-role-editor__summary">
-                  <span id="accessRoleSelectedCount" class="access-role-pill">0 selecionadas</span>
+                  <span id="accessRoleConfiguredCount" class="access-role-pill">0 itens configurados</span>
                   <label class="access-role-toggle">
                     <input id="accessRoleAdminToggle" type="checkbox" />
                     <span>Admin total</span>
                   </label>
                 </div>
               </div>
-              <div class="access-role-editor__tools">
+              <div id="accessRoleAdminNotice" class="access-role-admin-note" hidden>
+                Admin total ativo. Permiss&otilde;es granulares ficam em modo leitura.
+              </div>
+              <div class="access-role-editor__tools access-role-matrix__toolbar">
                 <div class="field" data-full>
                   <label for="accessRolePermissionSearch">Buscar permiss&atilde;o</label>
                   <input
                     id="accessRolePermissionSearch"
                     type="search"
-                    placeholder="Buscar por m&oacute;dulo, a&ccedil;&atilde;o ou chave"
+                    placeholder="Buscar por m&oacute;dulo, item ou chave"
                   />
                 </div>
-                <div class="access-role-editor__filters">
-                  <button id="accessRoleFilterSelected" class="btn btn--ghost btn--small" type="button">
-                    Mostrar s&oacute; selecionadas
+                <div class="access-role-matrix__filters">
+                  <button id="accessRoleFilterConfigured" class="btn btn--ghost btn--small" type="button">
+                    Mostrar apenas configuradas
                   </button>
                   <button id="accessRoleFilterCritical" class="btn btn--ghost btn--small" type="button">
-                    Mostrar s&oacute; cr&iacute;ticas
-                  </button>
-                  <button id="accessRoleFilterRead" class="btn btn--ghost btn--small" type="button">
-                    Mostrar s&oacute; leitura
-                  </button>
-                  <button id="accessRoleFilterWrite" class="btn btn--ghost btn--small" type="button">
-                    Mostrar s&oacute; edi&ccedil;&atilde;o
+                    Mostrar apenas cr&iacute;ticas
                   </button>
                 </div>
-                <div class="access-role-editor__actions">
-                  <button id="accessRoleSelectAll" class="btn btn--ghost btn--small" type="button">
-                    Selecionar tudo
+                <div class="access-role-matrix__actions">
+                  <button id="accessRoleAllNone" class="btn btn--ghost btn--small" type="button">
+                    Tudo NONE
                   </button>
-                  <button id="accessRoleClearAll" class="btn btn--ghost btn--small" type="button">
-                    Limpar
+                  <button id="accessRoleAllView" class="btn btn--ghost btn--small" type="button">
+                    Tudo VIEW
                   </button>
-                  <button id="accessRoleReadOnly" class="btn btn--ghost btn--small" type="button">
-                    Ver
-                  </button>
-                  <button id="accessRoleWriteOnly" class="btn btn--ghost btn--small" type="button">
-                    Editar
-                  </button>
-                  <button id="accessRoleReadWrite" class="btn btn--ghost btn--small" type="button">
-                    Ver e editar
+                  <button id="accessRoleAllEdit" class="btn btn--ghost btn--small" type="button">
+                    Tudo EDIT
                   </button>
                 </div>
+                <div class="access-role-matrix__legend">
+                  <span class="perm-badge perm-badge--none">NONE</span>
+                  <span class="perm-badge perm-badge--read">VIEW</span>
+                  <span class="perm-badge perm-badge--write">EDIT</span>
+                  <span class="perm-badge perm-badge--danger">CR&Iacute;TICO</span>
+                </div>
               </div>
-              <div id="accessRoleAdminNotice" class="access-role-admin-note" hidden>
-                Admin total ativo. Permiss&otilde;es granulares ficam em modo leitura.
-              </div>
-              <div class="access-role-editor__layout">
-                <div class="access-role-modules access-role-modules--desktop" id="accessRoleModules"></div>
-                <div class="access-role-content" id="accessRoleContent">
-                  <div class="access-role-module-header">
+              <div class="access-role-matrix__layout">
+                <div class="access-role-matrix__modules">
+                  <span class="access-role-module-label">M&oacute;dulos</span>
+                  <div id="accessRoleModulesList" class="access-role-modules-list"></div>
+                </div>
+                <div class="access-role-matrix__content">
+                  <div class="access-role-matrix__module-header">
                     <div>
                       <span class="access-role-module-label">M&oacute;dulo</span>
                       <h4 id="accessRoleModuleTitle">-</h4>
-                      <span id="accessRoleModuleCount" class="access-role-count">0/0</span>
+                      <span id="accessRoleModuleStats" class="access-role-count">0/0 em VIEW/EDIT</span>
                     </div>
-                    <div class="access-role-module-actions">
-                      <button id="accessRoleModuleToggle" class="btn btn--ghost btn--small" type="button">
-                        Habilitar tudo
-                      </button>
-                      <button id="accessRoleModuleReadOnly" class="btn btn--ghost btn--small" type="button">
-                        Ver do m&oacute;dulo
-                      </button>
-                      <button id="accessRoleModuleWriteOnly" class="btn btn--ghost btn--small" type="button">
-                        Editar do m&oacute;dulo
-                      </button>
-                      <button id="accessRoleModuleReadWrite" class="btn btn--ghost btn--small" type="button">
-                        Ver e editar do m&oacute;dulo
-                      </button>
+                    <div class="access-role-matrix__module-level" id="accessRoleModuleLevel">
+                      <span class="access-role-module-label">M&oacute;dulo todo</span>
+                      <div class="access-role-levels" role="group" aria-label="N&iacute;vel do m&oacute;dulo">
+                        <button type="button" class="access-role-level" data-level="NONE">NONE</button>
+                        <button type="button" class="access-role-level" data-level="VIEW">VIEW</button>
+                        <button type="button" class="access-role-level" data-level="EDIT">EDIT</button>
+                      </div>
                     </div>
                   </div>
-                  <div id="accessRolePermissions" class="access-role-groups"></div>
+                  <div id="accessRoleItemsList" class="access-role-matrix__items"></div>
                 </div>
               </div>
-              <div class="access-role-modules access-role-modules--mobile" id="accessRoleModulesMobile"></div>
-              <p id="accessRolePermissionsSummary" class="hint"></p>
+              <div id="accessRoleUnknownBlock" class="access-role-matrix__unknown" hidden>
+                <h5>Outras permiss&otilde;es</h5>
+                <p class="hint">
+                  Chaves encontradas no cargo que n&atilde;o est&atilde;o no cat&aacute;logo atual.
+                </p>
+                <div id="accessRoleUnknownList" class="access-role-matrix__unknown-list"></div>
+              </div>
+              <div class="access-role-matrix__summary">
+                <span id="accessRoleChangesCount" class="access-role-pill">Nenhuma altera&ccedil;&atilde;o</span>
+                <button id="accessRoleChangesDetails" class="btn btn--ghost btn--small" type="button" hidden>
+                  Ver altera&ccedil;&otilde;es
+                </button>
+              </div>
+              <div id="accessRoleChangesList" class="access-role-matrix__changes" hidden></div>
             </div>
           </div>
         </div>

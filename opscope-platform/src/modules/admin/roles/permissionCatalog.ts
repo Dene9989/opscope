@@ -17,8 +17,8 @@ export const PERMISSION_ITEMS: PermissionItemDef[] = [
   {
     key: "admin_access",
     module: "Administracao",
-    label: "Gerenciar acessos",
-    description: "Criar e editar cargos e permissoes.",
+    label: "Gestao de acessos",
+    description: "Criar cargos, definir permissoes e administrar perfis de acesso.",
     dangerous: true,
     viewKeys: ["gerenciarAcessos"],
     editKeys: []
@@ -26,8 +26,8 @@ export const PERMISSION_ITEMS: PermissionItemDef[] = [
   {
     key: "profile_edit_own",
     module: "Administracao",
-    label: "Editar perfil (UEN/Projeto)",
-    description: "Permite editar UEN e projeto do proprio perfil.",
+    label: "Editar perfil (proprio)",
+    description: "Editar UEN e projeto do proprio perfil.",
     viewKeys: ["editarPerfil"],
     editKeys: []
   },
@@ -35,7 +35,7 @@ export const PERMISSION_ITEMS: PermissionItemDef[] = [
     key: "profile_edit_others",
     module: "Administracao",
     label: "Editar perfil de outros",
-    description: "Permite alterar dados de outros colaboradores.",
+    description: "Alterar dados de outros colaboradores.",
     dangerous: true,
     viewKeys: ["editarPerfilOutros"],
     editKeys: []
@@ -44,7 +44,7 @@ export const PERMISSION_ITEMS: PermissionItemDef[] = [
     key: "role_access",
     module: "Cargos",
     label: "Cargos e permissoes",
-    description: "Gerenciar cargos e permissoes dos usuarios.",
+    description: "Visualizar e editar cargos (roles) e permissoes.",
     dangerous: true,
     viewKeys: ["ROLE_READ"],
     editKeys: ["ROLE_WRITE"]

@@ -7050,6 +7050,200 @@ textarea:focus {
   gap: 16px;
 }
 
+.access-role-matrix__toolbar {
+  display: grid;
+  gap: 10px;
+}
+
+.access-role-matrix__filters,
+.access-role-matrix__actions,
+.access-role-matrix__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.access-role-matrix__legend {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.access-role-matrix__layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.access-role-matrix__modules {
+  display: grid;
+  gap: 8px;
+}
+
+.access-role-modules-list {
+  display: grid;
+  gap: 8px;
+}
+
+.access-role-matrix__content {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  background: var(--surface2);
+  display: grid;
+  gap: 12px;
+}
+
+.access-role-matrix__module-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.access-role-matrix__module-level {
+  display: grid;
+  gap: 6px;
+  align-items: start;
+}
+
+.access-role-levels {
+  display: inline-flex;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.access-role-level {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.access-role-level + .access-role-level {
+  border-left: 1px solid var(--border);
+}
+
+.access-role-level.is-active {
+  color: #ffe9c0;
+  background: rgba(200, 146, 61, 0.25);
+}
+
+.access-role-level.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.access-role-matrix__items {
+  display: grid;
+  gap: 10px;
+}
+
+.access-role-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.access-role-item.is-view,
+.access-role-item.is-edit {
+  border-color: rgba(200, 146, 61, 0.35);
+  background: rgba(200, 146, 61, 0.12);
+}
+
+.access-role-item__title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.access-role-item__desc {
+  margin-top: 4px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.access-role-item__controls {
+  justify-self: end;
+}
+
+.access-role-matrix__unknown {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px dashed var(--border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.access-role-matrix__unknown h5 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.access-role-matrix__unknown-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.access-role-matrix__summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.access-role-matrix__changes {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.access-role-change {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.access-role-change__levels {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (max-width: 720px) {
+  .access-role-item {
+    grid-template-columns: 1fr;
+  }
+
+  .access-role-item__controls {
+    justify-self: start;
+  }
+}
+
 .access-role-editor__header {
   display: flex;
   flex-wrap: wrap;
@@ -7296,6 +7490,12 @@ textarea:focus {
   border: 1px solid;
 }
 
+.perm-badge--none {
+  border-color: rgba(159, 176, 192, 0.4);
+  color: var(--muted);
+  background: rgba(159, 176, 192, 0.12);
+}
+
 .perm-badge--read {
   border-color: rgba(159, 176, 192, 0.5);
   color: #c5d3e1;
@@ -7382,18 +7582,8 @@ textarea:focus {
 }
 
 @media (max-width: 980px) {
-  .access-role-editor__layout {
+  .access-role-matrix__layout {
     grid-template-columns: 1fr;
-  }
-
-  .access-role-modules--desktop,
-  .access-role-content {
-    display: none;
-  }
-
-  .access-role-modules--mobile {
-    display: grid;
-    gap: 12px;
   }
 }
 

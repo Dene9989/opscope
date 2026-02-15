@@ -880,30 +880,26 @@ const accessRoleSelect = document.getElementById("accessRoleSelect");
 const btnAccessRoleRename = document.getElementById("btnAccessRoleRename");
 const accessRoleNameField = document.getElementById("accessRoleNameField");
 const accessRoleName = document.getElementById("accessRoleName");
-const accessRolePermissions = document.getElementById("accessRolePermissions");
+const accessRoleItemsList = document.getElementById("accessRoleItemsList");
 const accessRoleEditor = document.getElementById("accessRoleEditor");
-const accessRoleSelectedCount = document.getElementById("accessRoleSelectedCount");
+const accessRoleConfiguredCount = document.getElementById("accessRoleConfiguredCount");
 const accessRoleAdminToggle = document.getElementById("accessRoleAdminToggle");
 const accessRolePermissionSearch = document.getElementById("accessRolePermissionSearch");
-const accessRoleFilterSelected = document.getElementById("accessRoleFilterSelected");
+const accessRoleFilterConfigured = document.getElementById("accessRoleFilterConfigured");
 const accessRoleFilterCritical = document.getElementById("accessRoleFilterCritical");
-const accessRoleFilterRead = document.getElementById("accessRoleFilterRead");
-const accessRoleFilterWrite = document.getElementById("accessRoleFilterWrite");
-const accessRoleSelectAll = document.getElementById("accessRoleSelectAll");
-const accessRoleClearAll = document.getElementById("accessRoleClearAll");
-const accessRoleReadOnly = document.getElementById("accessRoleReadOnly");
-const accessRoleWriteOnly = document.getElementById("accessRoleWriteOnly");
-const accessRoleReadWrite = document.getElementById("accessRoleReadWrite");
+const accessRoleAllNone = document.getElementById("accessRoleAllNone");
+const accessRoleAllView = document.getElementById("accessRoleAllView");
+const accessRoleAllEdit = document.getElementById("accessRoleAllEdit");
 const accessRoleAdminNotice = document.getElementById("accessRoleAdminNotice");
-const accessRoleModules = document.getElementById("accessRoleModules");
-const accessRoleModulesMobile = document.getElementById("accessRoleModulesMobile");
+const accessRoleModulesList = document.getElementById("accessRoleModulesList");
 const accessRoleModuleTitle = document.getElementById("accessRoleModuleTitle");
-const accessRoleModuleCount = document.getElementById("accessRoleModuleCount");
-const accessRoleModuleToggle = document.getElementById("accessRoleModuleToggle");
-const accessRoleModuleReadOnly = document.getElementById("accessRoleModuleReadOnly");
-const accessRoleModuleWriteOnly = document.getElementById("accessRoleModuleWriteOnly");
-const accessRoleModuleReadWrite = document.getElementById("accessRoleModuleReadWrite");
-const accessRolePermissionsSummary = document.getElementById("accessRolePermissionsSummary");
+const accessRoleModuleStats = document.getElementById("accessRoleModuleStats");
+const accessRoleModuleLevel = document.getElementById("accessRoleModuleLevel");
+const accessRoleUnknownBlock = document.getElementById("accessRoleUnknownBlock");
+const accessRoleUnknownList = document.getElementById("accessRoleUnknownList");
+const accessRoleChangesCount = document.getElementById("accessRoleChangesCount");
+const accessRoleChangesDetails = document.getElementById("accessRoleChangesDetails");
+const accessRoleChangesList = document.getElementById("accessRoleChangesList");
 const accessRoleModalTitle = document.getElementById("accessRoleModalTitle");
 const accessRoleModalSubtitle = document.getElementById("accessRoleModalSubtitle");
 const accessRoleFormMsg = document.getElementById("accessRoleFormMsg");
@@ -2004,6 +2000,272 @@ const ACCESS_PERMISSION_DANGEROUS = new Set(
   )
 );
 
+const ACCESS_ROLE_ADMIN_KEYS = ["ADMIN", "ADMIN_TOTAL"];
+
+const ACCESS_ROLE_ITEMS = [
+  {
+    key: "admin_acessos",
+    module: "Administracao",
+    label: "Gerenciar acessos",
+    description: "Criar e editar cargos e permissoes.",
+    dangerous: true,
+    viewKeys: ["gerenciarAcessos"],
+    editKeys: [],
+  },
+  {
+    key: "admin_perfil",
+    module: "Administracao",
+    label: "Editar perfil (UEN/Projeto)",
+    description: "Editar UEN e projeto do proprio perfil.",
+    viewKeys: ["editarPerfil"],
+    editKeys: [],
+  },
+  {
+    key: "admin_perfil_outros",
+    module: "Administracao",
+    label: "Editar perfil de outros",
+    description: "Alterar dados de outros colaboradores.",
+    dangerous: true,
+    viewKeys: ["editarPerfilOutros"],
+    editKeys: [],
+  },
+  {
+    key: "cargos",
+    module: "Cargos",
+    label: "Cargos",
+    description: "Visualizar e gerenciar cargos.",
+    dangerous: true,
+    viewKeys: ["ROLE_READ"],
+    editKeys: ["ROLE_WRITE"],
+  },
+  {
+    key: "usuarios",
+    module: "Contas e equipe",
+    label: "Usuarios",
+    description: "Visualizar e gerenciar contas de colaboradores.",
+    dangerous: true,
+    viewKeys: ["verUsuarios", "USER_READ"],
+    editKeys: ["convidarUsuarios", "desativarUsuarios", "USER_WRITE"],
+  },
+  {
+    key: "nav_inicio",
+    module: "Navegacao",
+    label: "Inicio",
+    description: "Acesso ao painel inicial.",
+    viewKeys: ["inicio"],
+    editKeys: [],
+  },
+  {
+    key: "nav_programacao",
+    module: "Navegacao",
+    label: "Programacao",
+    description: "Acesso a programacao.",
+    viewKeys: ["programacao"],
+    editKeys: [],
+  },
+  {
+    key: "nav_nova",
+    module: "Navegacao",
+    label: "Nova manutencao",
+    description: "Acesso ao formulario de manutencao.",
+    viewKeys: ["nova"],
+    editKeys: [],
+  },
+  {
+    key: "nav_modelos",
+    module: "Navegacao",
+    label: "Modelos e recorrencias",
+    description: "Acesso a modelos e recorrencias.",
+    viewKeys: ["modelos"],
+    editKeys: [],
+  },
+  {
+    key: "nav_execucao",
+    module: "Navegacao",
+    label: "Execucao do dia",
+    description: "Acesso ao painel de execucao.",
+    viewKeys: ["execucao"],
+    editKeys: [],
+  },
+  {
+    key: "nav_backlog",
+    module: "Navegacao",
+    label: "Backlog",
+    description: "Acesso a manutencoes em backlog.",
+    viewKeys: ["backlog"],
+    editKeys: [],
+  },
+  {
+    key: "nav_feedbacks",
+    module: "Navegacao",
+    label: "Feedbacks",
+    description: "Acesso a feedbacks e comunicados.",
+    viewKeys: ["feedbacks"],
+    editKeys: [],
+  },
+  {
+    key: "nav_perfil",
+    module: "Navegacao",
+    label: "Meu perfil",
+    description: "Acesso a tela de perfil.",
+    viewKeys: ["perfil"],
+    editKeys: [],
+  },
+  {
+    key: "manut_criar",
+    module: "Manutencao",
+    label: "Criar manutencoes",
+    description: "Criar novas manutencoes.",
+    viewKeys: ["MAINT_CREATE"],
+    editKeys: [],
+  },
+  {
+    key: "manut_editar",
+    module: "Manutencao",
+    label: "Editar manutencoes",
+    description: "Editar manutencoes existentes.",
+    viewKeys: ["MAINT_EDIT"],
+    editKeys: [],
+  },
+  {
+    key: "manut_reagendar",
+    module: "Manutencao",
+    label: "Reagendar manutencoes",
+    description: "Reagendar manutencoes.",
+    viewKeys: ["MAINT_RESCHEDULE"],
+    editKeys: [],
+  },
+  {
+    key: "manut_executar",
+    module: "Manutencao",
+    label: "Executar manutencoes",
+    description: "Registrar execucao e conclusao.",
+    viewKeys: ["MAINT_COMPLETE"],
+    editKeys: [],
+  },
+  {
+    key: "manut_excluir",
+    module: "Manutencao",
+    label: "Excluir manutencoes",
+    description: "Excluir manutencoes do sistema.",
+    dangerous: true,
+    viewKeys: ["MAINT_REMOVE"],
+    editKeys: [],
+  },
+  {
+    key: "projetos",
+    module: "Projetos",
+    label: "Projetos",
+    description: "Visualizar e gerenciar projetos, equipes e equipamentos.",
+    viewKeys: ["verProjetos", "PROJECT_READ"],
+    editKeys: [
+      "gerenciarProjetos",
+      "gerenciarEquipamentos",
+      "gerenciarEquipeProjeto",
+      "PROJECT_WRITE",
+    ],
+  },
+  {
+    key: "pmp",
+    module: "PMP / Cronograma",
+    label: "PMP / Cronograma",
+    description: "Editar planos e cronogramas de manutencao.",
+    viewKeys: ["gerenciarPMP"],
+    editKeys: [],
+  },
+  {
+    key: "sst",
+    module: "SST",
+    label: "SST",
+    description: "Visualizar e gerenciar dados de SST.",
+    viewKeys: ["verSST", "SST_READ"],
+    editKeys: ["gerenciarSST", "SST_WRITE"],
+  },
+  {
+    key: "almox",
+    module: "Almoxarifado",
+    label: "Almoxarifado",
+    description: "Visualizar e gerenciar itens e estoque.",
+    viewKeys: ["verAlmoxarifado", "ALMOX_READ"],
+    editKeys: ["gerenciarAlmoxarifado", "ALMOX_WRITE"],
+  },
+  {
+    key: "arquivos",
+    module: "Arquivos",
+    label: "Arquivos",
+    description: "Visualizar e gerenciar arquivos.",
+    dangerous: true,
+    viewKeys: ["verArquivos"],
+    editKeys: ["uploadArquivos", "vincularArquivo", "excluirArquivos"],
+  },
+  {
+    key: "rdos",
+    module: "RDOs",
+    label: "RDOs",
+    description: "Visualizar e gerenciar RDOs.",
+    dangerous: true,
+    viewKeys: ["verRDOs"],
+    editKeys: ["gerarRDOs", "excluirRDOs"],
+  },
+  {
+    key: "relatorios",
+    module: "Relatorios & KPIs",
+    label: "Relatorios & KPIs",
+    description: "Visualizar e exportar relatorios e indicadores.",
+    viewKeys: ["verRelatorios", "REPORTS_READ", "KPIS_READ"],
+    editKeys: ["exportarRelatorios"],
+  },
+  {
+    key: "automacoes",
+    module: "Automacoes",
+    label: "Automacoes",
+    description: "Visualizar e gerenciar automacoes.",
+    viewKeys: ["verAutomacoes"],
+    editKeys: ["gerenciarAutomacoes"],
+  },
+  {
+    key: "diagnostico",
+    module: "Diagnostico",
+    label: "Diagnostico",
+    description: "Visualizar diagnostico e reexecutar tarefas.",
+    dangerous: true,
+    viewKeys: ["verDiagnostico"],
+    editKeys: ["reexecutarTarefas"],
+  },
+  {
+    key: "logs",
+    module: "Logs & Rastreabilidade",
+    label: "Logs & Rastreabilidade",
+    description: "Visualizar e limpar logs de API.",
+    dangerous: true,
+    viewKeys: ["verLogsAPI"],
+    editKeys: ["limparLogsAPI"],
+  },
+  {
+    key: "gerencial",
+    module: "Painel gerencial",
+    label: "Painel gerencial",
+    description: "Acesso ao painel gerencial.",
+    viewKeys: ["verPainelGerencial"],
+    editKeys: [],
+  },
+];
+
+ACCESS_ROLE_ITEMS.forEach((item) => {
+  item.viewKeys = Array.from(new Set(item.viewKeys || []));
+  item.editKeys = Array.from(new Set(item.editKeys || []));
+  item.dangerous = Boolean(item.dangerous);
+});
+
+const ACCESS_ROLE_ITEM_INDEX = new Map(ACCESS_ROLE_ITEMS.map((item) => [item.key, item]));
+
+const ACCESS_ROLE_MODULES = buildAccessRoleModules(ACCESS_ROLE_ITEMS);
+
+const ACCESS_ROLE_KNOWN_KEYS = new Set(
+  ACCESS_ROLE_ITEMS.flatMap((item) => [...item.viewKeys, ...item.editKeys])
+);
+ACCESS_ROLE_ADMIN_KEYS.forEach((key) => ACCESS_ROLE_KNOWN_KEYS.add(key));
+
 const ACCESS_MODULE_LABELS = {
   Administracao: "Administra\u00e7\u00e3o",
   Navegacao: "Navega\u00e7\u00e3o",
@@ -2127,6 +2389,24 @@ function buildAccessPermissionModules(catalog = []) {
   return [...ordered, ...extras];
 }
 
+function buildAccessRoleModules(items = []) {
+  const byModule = new Map();
+  items.forEach((item) => {
+    const moduleName = item.module || "Outros";
+    if (!byModule.has(moduleName)) {
+      byModule.set(moduleName, { name: moduleName, items: [] });
+    }
+    byModule.get(moduleName).items.push(item);
+  });
+  const ordered = ACCESS_PERMISSION_MODULE_ORDER.filter((name) => byModule.has(name)).map((name) =>
+    byModule.get(name)
+  );
+  const extras = Array.from(byModule.values()).filter(
+    (module) => !ACCESS_PERMISSION_MODULE_ORDER.includes(module.name)
+  );
+  return [...ordered, ...extras];
+}
+
 function getAccessPermissionKeys(catalog = ACCESS_PERMISSION_CATALOG, options = {}) {
   const includeHidden = options.includeHidden ?? false;
   const includeAdmin = options.includeAdmin ?? true;
@@ -2201,6 +2481,20 @@ function getAccessPermissionSearchText(permission) {
     permission.description,
     permission.group,
     permission.module,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function getAccessRoleItemSearchText(item) {
+  return [
+    item.key,
+    item.label,
+    item.description,
+    item.module,
+    ...(item.viewKeys || []),
+    ...(item.editKeys || []),
   ]
     .filter(Boolean)
     .join(" ")
@@ -2438,6 +2732,49 @@ function normalizeAccessPermissionList(list) {
     }
   });
   return Array.from(result);
+}
+
+function normalizeAccessRoleKeys(list) {
+  const allowed = new Map();
+  const allowedLower = new Map();
+  ACCESS_PERMISSIONS.forEach((perm) => {
+    const key = String(perm || "").trim();
+    if (!key) {
+      return;
+    }
+    allowed.set(key, key);
+    allowedLower.set(key.toLowerCase(), key);
+  });
+  ACCESS_ROLE_ADMIN_KEYS.forEach((perm) => {
+    const key = String(perm || "").trim();
+    if (!key) {
+      return;
+    }
+    allowed.set(key, key);
+    allowedLower.set(key.toLowerCase(), key);
+  });
+  const result = [];
+  const seen = new Set();
+  (Array.isArray(list) ? list : []).forEach((perm) => {
+    const raw = String(perm || "").trim();
+    if (!raw) {
+      return;
+    }
+    let key = raw;
+    if (allowed.has(raw)) {
+      key = allowed.get(raw);
+    } else {
+      const lower = raw.toLowerCase();
+      if (allowedLower.has(lower)) {
+        key = allowedLower.get(lower);
+      }
+    }
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(key);
+    }
+  });
+  return result;
 }
 
 function mapAccessPermissionsToGranular(permissionList = []) {
@@ -3682,13 +4019,12 @@ let accessRoleEditorState = {
   selected: new Set(),
   adminSnapshot: null,
   adminEnabled: false,
-  activeModule: ACCESS_PERMISSION_MODULES.length ? ACCESS_PERMISSION_MODULES[0].name : "",
+  activeModule: ACCESS_ROLE_MODULES.length ? ACCESS_ROLE_MODULES[0].name : "",
   query: "",
-  onlySelected: false,
+  onlyConfigured: false,
   onlyCritical: false,
   renameMode: false,
-  onlyRead: false,
-  onlyWrite: false,
+  showChanges: false,
 };
 let requests = [];
 let auditLog = [];
@@ -23680,6 +24016,478 @@ function setAccessRoleActiveModule(moduleName) {
   renderAccessRolePermissions();
 }
 
+function isAccessRoleAdminKey(key) {
+  return ACCESS_ROLE_ADMIN_KEYS.includes(key);
+}
+
+function hasAccessRoleAdmin(list = []) {
+  const normalized = normalizeAccessRoleKeys(list);
+  return ACCESS_ROLE_ADMIN_KEYS.some((key) => normalized.includes(key));
+}
+
+function getAccessRoleAdminKey(list = []) {
+  const normalized = normalizeAccessRoleKeys(list);
+  if (normalized.includes("ADMIN_TOTAL")) {
+    return "ADMIN_TOTAL";
+  }
+  if (normalized.includes("ADMIN")) {
+    return "ADMIN";
+  }
+  return "ADMIN";
+}
+
+function getAccessRoleItemLevel(keysSet, item) {
+  const keys = keysSet instanceof Set ? keysSet : new Set(keysSet || []);
+  const editKeys = item.editKeys || [];
+  const viewKeys = item.viewKeys || [];
+  if (editKeys.length && editKeys.some((key) => keys.has(key))) {
+    return "EDIT";
+  }
+  if (viewKeys.some((key) => keys.has(key))) {
+    return "VIEW";
+  }
+  return "NONE";
+}
+
+function setAccessRoleItemLevel(keysSet, item, level) {
+  const next = new Set(keysSet instanceof Set ? keysSet : new Set(keysSet || []));
+  const viewKeys = item.viewKeys || [];
+  const editKeys = item.editKeys || [];
+  [...viewKeys, ...editKeys].forEach((key) => next.delete(key));
+  if (level === "VIEW") {
+    viewKeys.forEach((key) => next.add(key));
+  }
+  if (level === "EDIT") {
+    viewKeys.forEach((key) => next.add(key));
+    editKeys.forEach((key) => next.add(key));
+  }
+  return next;
+}
+
+function getAccessRoleUnknownKeys(list = []) {
+  const normalized = normalizeAccessRoleKeys(list);
+  return normalized.filter((key) => !ACCESS_ROLE_KNOWN_KEYS.has(key));
+}
+
+function diffAccessRoleKeys(before = [], after = []) {
+  const beforeSet = new Set(normalizeAccessRoleKeys(before));
+  const afterSet = new Set(normalizeAccessRoleKeys(after));
+  const changedItems = [];
+  ACCESS_ROLE_ITEMS.forEach((item) => {
+    const beforeLevel = getAccessRoleItemLevel(beforeSet, item);
+    const afterLevel = getAccessRoleItemLevel(afterSet, item);
+    if (beforeLevel !== afterLevel) {
+      changedItems.push({ item, from: beforeLevel, to: afterLevel });
+    }
+  });
+  const addedKeys = Array.from(afterSet).filter((key) => !beforeSet.has(key));
+  const removedKeys = Array.from(beforeSet).filter((key) => !afterSet.has(key));
+  return { changedItems, addedKeys, removedKeys };
+}
+
+function filterAccessRoleItems(items, effectiveSelected) {
+  const query = normalizeSearchValue(accessRoleEditorState.query || "");
+  return (items || []).filter((item) => {
+    const searchText = normalizeSearchValue(getAccessRoleItemSearchText(item));
+    if (query && !searchText.includes(query)) {
+      return false;
+    }
+    const level = getAccessRoleItemLevel(effectiveSelected, item);
+    if (accessRoleEditorState.onlyConfigured && level === "NONE") {
+      return false;
+    }
+    if (accessRoleEditorState.onlyCritical && !item.dangerous) {
+      return false;
+    }
+    return true;
+  });
+}
+
+function getAccessRoleModuleLevel(items, effectiveSelected) {
+  if (!items.length) {
+    return "NONE";
+  }
+  const levels = items.map((item) => getAccessRoleItemLevel(effectiveSelected, item));
+  const allNone = levels.every((level) => level === "NONE");
+  if (allNone) {
+    return "NONE";
+  }
+  const allMax = items.every((item) => {
+    const level = getAccessRoleItemLevel(effectiveSelected, item);
+    if (!item.editKeys || item.editKeys.length === 0) {
+      return level === "VIEW";
+    }
+    return level === "EDIT";
+  });
+  if (allMax) {
+    return "EDIT";
+  }
+  const allConfigured = levels.every((level) => level !== "NONE");
+  if (allConfigured) {
+    return "VIEW";
+  }
+  return "MIXED";
+}
+
+function getAccessRoleLevelBadgeClass(level) {
+  if (level === "VIEW") {
+    return "perm-badge--read";
+  }
+  if (level === "EDIT") {
+    return "perm-badge--write";
+  }
+  return "perm-badge--none";
+}
+
+function initAccessRoleEditorState(selected = [], roleId = "") {
+  const normalized = normalizeAccessRoleKeys(selected);
+  const adminEnabled = hasAccessRoleAdmin(normalized);
+  const adminKey = getAccessRoleAdminKey(normalized);
+  let expanded = new Set(normalized);
+  let snapshot = null;
+  if (adminEnabled) {
+    snapshot = normalized.filter((key) => !isAccessRoleAdminKey(key));
+    expanded = new Set(snapshot);
+    ACCESS_ROLE_KNOWN_KEYS.forEach((key) => expanded.add(key));
+    expanded.add(adminKey);
+  }
+  accessRoleEditorState = {
+    ...accessRoleEditorState,
+    roleId: roleId || "",
+    baseline: normalized,
+    selected: expanded,
+    adminSnapshot: adminEnabled ? snapshot : null,
+    adminEnabled,
+    activeModule: ACCESS_ROLE_MODULES.length ? ACCESS_ROLE_MODULES[0].name : "",
+    query: "",
+    onlyConfigured: false,
+    onlyCritical: false,
+    renameMode: false,
+    showChanges: false,
+  };
+  if (accessRolePermissionSearch) {
+    accessRolePermissionSearch.value = "";
+  }
+  renderAccessRolePermissions();
+}
+
+function getAccessRoleEffectiveSelected() {
+  const effective = new Set(accessRoleEditorState.selected || []);
+  if (accessRoleEditorState.adminEnabled) {
+    ACCESS_ROLE_KNOWN_KEYS.forEach((key) => effective.add(key));
+  }
+  return effective;
+}
+
+function collectAccessRolePermissions() {
+  const normalized = normalizeAccessRoleKeys(accessRoleEditorState.selected || []);
+  const adminKey = getAccessRoleAdminKey(normalized);
+  if (accessRoleEditorState.adminEnabled) {
+    const unknown = normalized.filter(
+      (key) => !ACCESS_ROLE_KNOWN_KEYS.has(key) && !isAccessRoleAdminKey(key)
+    );
+    return Array.from(new Set([adminKey, ...unknown]));
+  }
+  return normalized;
+}
+
+function setAccessRoleSelection(list) {
+  const normalized = normalizeAccessRoleKeys(list);
+  const adminEnabled = hasAccessRoleAdmin(normalized);
+  const selected = new Set(normalized);
+  if (adminEnabled) {
+    ACCESS_ROLE_KNOWN_KEYS.forEach((key) => selected.add(key));
+  }
+  accessRoleEditorState.selected = selected;
+  accessRoleEditorState.adminEnabled = adminEnabled;
+  renderAccessRolePermissions();
+}
+
+async function confirmAccessRoleCriticalChanges(items, level, currentKeys) {
+  const currentSet = currentKeys instanceof Set ? currentKeys : new Set(currentKeys || []);
+  const criticalItems = (items || []).filter((item) => {
+    if (!item.dangerous) {
+      return false;
+    }
+    const currentLevel = getAccessRoleItemLevel(currentSet, item);
+    if (!item.editKeys || item.editKeys.length === 0) {
+      return level !== "NONE" && currentLevel === "NONE";
+    }
+    return level === "EDIT" && currentLevel !== "EDIT";
+  });
+  if (!criticalItems.length) {
+    return true;
+  }
+  const labels = criticalItems
+    .map((item) => formatAccessText(item.label || item.key))
+    .join(", ");
+  const quantidade = criticalItems.length;
+  const permLabel = quantidade === 1 ? "permiss\u00e3o cr\u00edtica" : "permiss\u00f5es cr\u00edticas";
+  const confirm = await openConfirmModal({
+    title: "Permiss\u00e3o cr\u00edtica",
+    message: `Voc\u00ea est\u00e1 habilitando ${quantidade} ${permLabel}: ${labels}. Deseja continuar?`,
+    confirmText: "Confirmar",
+    cancelText: "Cancelar",
+  });
+  return confirm;
+}
+
+async function applyAccessRoleGlobalLevel(level) {
+  if (accessRoleEditorState.adminEnabled) {
+    return;
+  }
+  const currentKeys = new Set(accessRoleEditorState.selected || []);
+  const confirm = await confirmAccessRoleCriticalChanges(ACCESS_ROLE_ITEMS, level, currentKeys);
+  if (!confirm) {
+    return;
+  }
+  let next = new Set(currentKeys);
+  ACCESS_ROLE_ITEMS.forEach((item) => {
+    next = setAccessRoleItemLevel(next, item, level);
+  });
+  setAccessRoleSelection(Array.from(next));
+}
+
+async function applyAccessRoleModuleLevel(moduleName, level) {
+  if (accessRoleEditorState.adminEnabled) {
+    return;
+  }
+  const module = ACCESS_ROLE_MODULES.find((item) => item.name === moduleName);
+  if (!module) {
+    return;
+  }
+  const currentKeys = new Set(accessRoleEditorState.selected || []);
+  const confirm = await confirmAccessRoleCriticalChanges(module.items, level, currentKeys);
+  if (!confirm) {
+    return;
+  }
+  let next = new Set(currentKeys);
+  module.items.forEach((item) => {
+    next = setAccessRoleItemLevel(next, item, level);
+  });
+  setAccessRoleSelection(Array.from(next));
+}
+
+async function applyAccessRoleItemLevel(itemKey, level) {
+  if (accessRoleEditorState.adminEnabled) {
+    return;
+  }
+  const item = ACCESS_ROLE_ITEM_INDEX.get(itemKey);
+  if (!item) {
+    return;
+  }
+  const currentKeys = new Set(accessRoleEditorState.selected || []);
+  const currentLevel = getAccessRoleItemLevel(currentKeys, item);
+  if (currentLevel === level) {
+    return;
+  }
+  const confirm = await confirmAccessRoleCriticalChanges([item], level, currentKeys);
+  if (!confirm) {
+    return;
+  }
+  const next = setAccessRoleItemLevel(currentKeys, item, level);
+  setAccessRoleSelection(Array.from(next));
+}
+
+function renderAccessRolePermissions() {
+  if (!accessRoleEditor || !accessRoleItemsList) {
+    return;
+  }
+  const effectiveSelected = getAccessRoleEffectiveSelected();
+  const configuredCount = ACCESS_ROLE_ITEMS.filter(
+    (item) => getAccessRoleItemLevel(effectiveSelected, item) !== "NONE"
+  ).length;
+  if (accessRoleConfiguredCount) {
+    accessRoleConfiguredCount.textContent = `${configuredCount} item${
+      configuredCount === 1 ? "" : "s"
+    } configurado${configuredCount === 1 ? "" : "s"}`;
+  }
+  if (accessRoleAdminToggle) {
+    accessRoleAdminToggle.checked = accessRoleEditorState.adminEnabled;
+  }
+  if (accessRoleAdminNotice) {
+    accessRoleAdminNotice.hidden = !accessRoleEditorState.adminEnabled;
+  }
+  setAccessRoleToggleState(accessRoleFilterConfigured, accessRoleEditorState.onlyConfigured);
+  setAccessRoleToggleState(accessRoleFilterCritical, accessRoleEditorState.onlyCritical);
+  const disableActions = accessRoleEditorState.adminEnabled;
+  setAccessRoleButtonDisabled(accessRoleAllNone, disableActions);
+  setAccessRoleButtonDisabled(accessRoleAllView, disableActions);
+  setAccessRoleButtonDisabled(accessRoleAllEdit, disableActions);
+
+  if (accessRoleModulesList) {
+    accessRoleModulesList.innerHTML = "";
+    ACCESS_ROLE_MODULES.forEach((module) => {
+      const total = module.items.length;
+      const selected = module.items.filter(
+        (item) => getAccessRoleItemLevel(effectiveSelected, item) !== "NONE"
+      ).length;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `access-role-module-btn${
+        accessRoleEditorState.activeModule === module.name ? " is-active" : ""
+      }`;
+      button.dataset.roleModule = module.name;
+      const name = document.createElement("span");
+      name.textContent = getAccessModuleLabel(module.name);
+      const count = document.createElement("span");
+      count.className = "access-role-count";
+      count.textContent = `${selected}/${total}`;
+      button.append(name, count);
+      accessRoleModulesList.append(button);
+    });
+  }
+
+  const activeModule =
+    ACCESS_ROLE_MODULES.find((module) => module.name === accessRoleEditorState.activeModule) ||
+    ACCESS_ROLE_MODULES[0];
+  if (!activeModule) {
+    return;
+  }
+  accessRoleEditorState.activeModule = activeModule.name;
+  const moduleTotal = activeModule.items.length;
+  const moduleConfigured = activeModule.items.filter(
+    (item) => getAccessRoleItemLevel(effectiveSelected, item) !== "NONE"
+  ).length;
+  if (accessRoleModuleTitle) {
+    accessRoleModuleTitle.textContent = getAccessModuleLabel(activeModule.name);
+  }
+  if (accessRoleModuleStats) {
+    accessRoleModuleStats.textContent = `${moduleConfigured}/${moduleTotal} em VIEW/EDIT`;
+  }
+  if (accessRoleModuleLevel) {
+    const level = getAccessRoleModuleLevel(activeModule.items, effectiveSelected);
+    const buttons = Array.from(accessRoleModuleLevel.querySelectorAll("button[data-level]"));
+    buttons.forEach((button) => {
+      const isActive = level !== "MIXED" && button.dataset.level === level;
+      button.classList.toggle("is-active", isActive);
+      button.disabled = disableActions;
+      button.classList.toggle("is-disabled", disableActions);
+    });
+  }
+
+  const items = filterAccessRoleItems(activeModule.items, effectiveSelected);
+  if (!items.length) {
+    accessRoleItemsList.innerHTML = `<div class="access-role-empty">Nenhuma permiss\u00e3o encontrada com esses filtros.</div>`;
+  } else {
+    accessRoleItemsList.innerHTML = items
+      .map((item) => {
+        const level = getAccessRoleItemLevel(effectiveSelected, item);
+        const viewOnly = !item.editKeys || item.editKeys.length === 0;
+        const rowClass = `access-role-item is-${level.toLowerCase()}`;
+        const label = escapeHtml(formatAccessText(item.label || item.key));
+        const description = item.description
+          ? `<p class="access-role-item__desc">${escapeHtml(formatAccessText(item.description))}</p>`
+          : "";
+        const criticalBadge = item.dangerous
+          ? `<span class="perm-badge perm-badge--danger" title="Permiss\u00e3o cr\u00edtica">CR\u00cdTICO</span>`
+          : "";
+        const viewOnlyBadge = viewOnly
+          ? `<span class="perm-badge perm-badge--legacy" title="EDIT = VIEW">EDIT = VIEW</span>`
+          : "";
+        const controls = ["NONE", "VIEW", "EDIT"]
+          .map((option) => {
+            const active = option === level;
+            const disabled = disableActions || (viewOnly && option === "EDIT");
+            return `<button type="button" class="access-role-level${
+              active ? " is-active" : ""
+            }${disabled ? " is-disabled" : ""}" data-item-key="${escapeHtml(
+              item.key
+            )}" data-level="${option}" aria-pressed="${
+              active ? "true" : "false"
+            }"${disabled ? " disabled" : ""}>${option}</button>`;
+          })
+          .join("");
+        return `<div class="${rowClass}">
+          <div class="access-role-item__info">
+            <div class="access-role-item__title">
+              <span>${label}</span>
+              ${criticalBadge}
+              ${viewOnlyBadge}
+            </div>
+            ${description}
+          </div>
+          <div class="access-role-item__controls">
+            <div class="access-role-levels" role="group" aria-label="N\u00edvel de acesso para ${label}">
+              ${controls}
+            </div>
+          </div>
+        </div>`;
+      })
+      .join("");
+  }
+
+  const unknownKeys = getAccessRoleUnknownKeys(accessRoleEditorState.selected || []);
+  if (accessRoleUnknownBlock) {
+    accessRoleUnknownBlock.hidden = unknownKeys.length === 0;
+  }
+  if (accessRoleUnknownList) {
+    accessRoleUnknownList.innerHTML = unknownKeys
+      .map((key) => `<span class="perm-badge perm-badge--legacy">${escapeHtml(key)}</span>`)
+      .join("");
+  }
+
+  const diff = diffAccessRoleKeys(
+    accessRoleEditorState.baseline || [],
+    Array.from(accessRoleEditorState.selected || [])
+  );
+  const changeCount = diff.changedItems.length;
+  if (accessRoleChangesCount) {
+    accessRoleChangesCount.textContent = changeCount
+      ? `Voc\u00ea alterou ${changeCount} item${changeCount === 1 ? "" : "s"}`
+      : "Nenhuma altera\u00e7\u00e3o";
+  }
+  if (accessRoleChangesDetails) {
+    accessRoleChangesDetails.hidden = changeCount === 0;
+    accessRoleChangesDetails.textContent = accessRoleEditorState.showChanges
+      ? "Ocultar altera\u00e7\u00f5es"
+      : "Ver altera\u00e7\u00f5es";
+  }
+  if (accessRoleChangesList) {
+    if (!changeCount || !accessRoleEditorState.showChanges) {
+      accessRoleChangesList.hidden = true;
+      accessRoleChangesList.innerHTML = "";
+    } else {
+      accessRoleChangesList.hidden = false;
+      accessRoleChangesList.innerHTML = diff.changedItems
+        .map((entry) => {
+          const label = escapeHtml(formatAccessText(entry.item.label || entry.item.key));
+          const fromClass = getAccessRoleLevelBadgeClass(entry.from);
+          const toClass = getAccessRoleLevelBadgeClass(entry.to);
+          return `<div class="access-role-change">
+            <span>${label}</span>
+            <span class="access-role-change__levels">
+              <span class="perm-badge ${fromClass}">${entry.from}</span>
+              <span>&rarr;</span>
+              <span class="perm-badge ${toClass}">${entry.to}</span>
+            </span>
+          </div>`;
+        })
+        .join("");
+    }
+  }
+}
+
+function toggleAccessRoleAdmin(enabled) {
+  if (enabled) {
+    accessRoleEditorState.adminSnapshot = Array.from(accessRoleEditorState.selected || []).filter(
+      (key) => !isAccessRoleAdminKey(key)
+    );
+    const adminKey = getAccessRoleAdminKey(accessRoleEditorState.adminSnapshot || []);
+    const next = new Set(accessRoleEditorState.adminSnapshot || []);
+    ACCESS_ROLE_KNOWN_KEYS.forEach((key) => next.add(key));
+    next.add(adminKey);
+    accessRoleEditorState.selected = next;
+    accessRoleEditorState.adminEnabled = true;
+  } else {
+    const restore = accessRoleEditorState.adminSnapshot || [];
+    accessRoleEditorState.selected = new Set(normalizeAccessRoleKeys(restore));
+    accessRoleEditorState.adminSnapshot = null;
+    accessRoleEditorState.adminEnabled = false;
+  }
+  renderAccessRolePermissions();
+}
+
 function setAccessRoleFormMessage(texto, erro = false) {
   if (!accessRoleFormMsg) {
     return;
@@ -37706,9 +38514,9 @@ if (accessRolePermissionSearch) {
     renderAccessRolePermissions();
   });
 }
-if (accessRoleFilterSelected) {
-  accessRoleFilterSelected.addEventListener("click", () => {
-    accessRoleEditorState.onlySelected = !accessRoleEditorState.onlySelected;
+if (accessRoleFilterConfigured) {
+  accessRoleFilterConfigured.addEventListener("click", () => {
+    accessRoleEditorState.onlyConfigured = !accessRoleEditorState.onlyConfigured;
     renderAccessRolePermissions();
   });
 }
@@ -37718,38 +38526,26 @@ if (accessRoleFilterCritical) {
     renderAccessRolePermissions();
   });
 }
-if (accessRoleFilterRead) {
-  accessRoleFilterRead.addEventListener("click", () => {
-    accessRoleEditorState.onlyRead = !accessRoleEditorState.onlyRead;
-    if (accessRoleEditorState.onlyRead) {
-      accessRoleEditorState.onlyWrite = false;
-    }
-    renderAccessRolePermissions();
+if (accessRoleAllNone) {
+  accessRoleAllNone.addEventListener("click", () => {
+    applyAccessRoleGlobalLevel("NONE");
   });
 }
-if (accessRoleFilterWrite) {
-  accessRoleFilterWrite.addEventListener("click", () => {
-    accessRoleEditorState.onlyWrite = !accessRoleEditorState.onlyWrite;
-    if (accessRoleEditorState.onlyWrite) {
-      accessRoleEditorState.onlyRead = false;
-    }
-    renderAccessRolePermissions();
+if (accessRoleAllView) {
+  accessRoleAllView.addEventListener("click", () => {
+    applyAccessRoleGlobalLevel("VIEW");
   });
 }
-if (accessRoleSelectAll) {
-  accessRoleSelectAll.addEventListener("click", applyAccessRoleSelectAll);
+if (accessRoleAllEdit) {
+  accessRoleAllEdit.addEventListener("click", () => {
+    applyAccessRoleGlobalLevel("EDIT");
+  });
 }
-if (accessRoleClearAll) {
-  accessRoleClearAll.addEventListener("click", applyAccessRoleClearAll);
-}
-if (accessRoleReadOnly) {
-  accessRoleReadOnly.addEventListener("click", applyAccessRoleReadOnly);
-}
-if (accessRoleWriteOnly) {
-  accessRoleWriteOnly.addEventListener("click", applyAccessRoleWriteOnly);
-}
-if (accessRoleReadWrite) {
-  accessRoleReadWrite.addEventListener("click", applyAccessRoleReadWrite);
+if (accessRoleChangesDetails) {
+  accessRoleChangesDetails.addEventListener("click", () => {
+    accessRoleEditorState.showChanges = !accessRoleEditorState.showChanges;
+    renderAccessRolePermissions();
+  });
 }
 if (accessRoleAdminToggle) {
   accessRoleAdminToggle.addEventListener("change", () => {
@@ -37763,43 +38559,18 @@ if (accessRoleEditor) {
       setAccessRoleActiveModule(moduleButton.dataset.roleModule);
       return;
     }
-    const moduleAction = event.target.closest("button[data-module-action]");
-    if (moduleAction) {
-      const moduleName = moduleAction.dataset.moduleName;
-      if (moduleAction.dataset.moduleAction === "toggle-all") {
-        applyAccessRoleModuleAll(moduleName);
+    const levelButton = event.target.closest("button[data-level]");
+    if (levelButton) {
+      const level = levelButton.dataset.level;
+      const itemKey = levelButton.dataset.itemKey;
+      if (itemKey) {
+        applyAccessRoleItemLevel(itemKey, level);
         return;
       }
-      if (moduleAction.dataset.moduleAction === "read-only") {
-        applyAccessRoleModuleReadOnly(moduleName);
+      if (accessRoleModuleLevel && accessRoleModuleLevel.contains(levelButton)) {
+        applyAccessRoleModuleLevel(accessRoleEditorState.activeModule, level);
         return;
       }
-      if (moduleAction.dataset.moduleAction === "write-only") {
-        applyAccessRoleModuleWriteOnly(moduleName);
-        return;
-      }
-      if (moduleAction.dataset.moduleAction === "read-write") {
-        applyAccessRoleModuleReadWrite(moduleName);
-        return;
-      }
-    }
-  });
-  accessRoleEditor.addEventListener("change", (event) => {
-    const input = event.target;
-    if (input && input.matches("input[data-permission-key]")) {
-      setAccessRolePermissionState(input.dataset.permissionKey, input.checked);
-    }
-  });
-}
-if (accessRoleModulesMobile) {
-  accessRoleModulesMobile.addEventListener("click", (event) => {
-    const summary = event.target.closest("summary");
-    if (!summary) {
-      return;
-    }
-    const details = summary.closest("details[data-role-module]");
-    if (details && details.dataset.roleModule) {
-      setAccessRoleActiveModule(details.dataset.roleModule);
     }
   });
 }
@@ -38220,9 +38991,8 @@ if (accessRoleForm) {
     const permissions = collectAccessRolePermissions();
     const baselineExpanded = expandAccessPermissions(accessRoleEditorState.baseline || []);
     const currentExpanded = expandAccessPermissions(permissions);
-    const changedCount = Array.from(
-      new Set([...baselineExpanded, ...currentExpanded])
-    ).filter((key) => baselineExpanded.has(key) !== currentExpanded.has(key)).length;
+    const diff = diffAccessRoleKeys(accessRoleEditorState.baseline || [], permissions);
+    const changedCount = diff.changedItems.length;
     const newlyDangerous = Array.from(currentExpanded).filter(
       (key) => ACCESS_PERMISSION_DANGEROUS.has(key) && !baselineExpanded.has(key)
     );
@@ -38251,9 +39021,7 @@ if (accessRoleForm) {
       await refreshAccessRoles();
       await refreshAccessUsers();
       setAccessMessage(
-        `Cargo salvo. Voc\u00ea alterou ${changedCount} permiss${
-          changedCount === 1 ? "\u00e3o" : "\u00f5es"
-        }.`
+        `Cargo salvo. Voc\u00ea alterou ${changedCount} item${changedCount === 1 ? "" : "s"}.`
       );
     } catch (error) {
       setAccessRoleFormMessage(error.message || "Falha ao salvar cargo.", true);
