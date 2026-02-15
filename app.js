@@ -892,6 +892,7 @@ const accessRoleFilterWrite = document.getElementById("accessRoleFilterWrite");
 const accessRoleSelectAll = document.getElementById("accessRoleSelectAll");
 const accessRoleClearAll = document.getElementById("accessRoleClearAll");
 const accessRoleReadOnly = document.getElementById("accessRoleReadOnly");
+const accessRoleWriteOnly = document.getElementById("accessRoleWriteOnly");
 const accessRoleReadWrite = document.getElementById("accessRoleReadWrite");
 const accessRoleAdminNotice = document.getElementById("accessRoleAdminNotice");
 const accessRoleModules = document.getElementById("accessRoleModules");
@@ -900,6 +901,7 @@ const accessRoleModuleTitle = document.getElementById("accessRoleModuleTitle");
 const accessRoleModuleCount = document.getElementById("accessRoleModuleCount");
 const accessRoleModuleToggle = document.getElementById("accessRoleModuleToggle");
 const accessRoleModuleReadOnly = document.getElementById("accessRoleModuleReadOnly");
+const accessRoleModuleWriteOnly = document.getElementById("accessRoleModuleWriteOnly");
 const accessRoleModuleReadWrite = document.getElementById("accessRoleModuleReadWrite");
 const accessRolePermissionsSummary = document.getElementById("accessRolePermissionsSummary");
 const accessRoleModalTitle = document.getElementById("accessRoleModalTitle");
@@ -2164,7 +2166,7 @@ function getAccessWritePermissionKeys(catalog = ACCESS_PERMISSION_CATALOG, modul
       if (permission.hidden) {
         return false;
       }
-      if (permission.level !== "WRITE" && permission.level !== "ADMIN") {
+      if (permission.level !== "WRITE") {
         return false;
       }
       if (moduleName && permission.module !== moduleName) {
@@ -2518,14 +2520,7 @@ function mapAccessPermissionsToGranular(permissionList = []) {
   return result;
 }
 
-function deriveMaintenancePermissions(rolePermissions, accountPermissions) {
-  if (
-    accountPermissions &&
-    typeof accountPermissions === "object" &&
-    !Array.isArray(accountPermissions)
-  ) {
-    return accountPermissions;
-  }
+function deriveMaintenancePermissions(rolePermissions, accountPermissions, accessRoleActive) {
   const normalized = normalizeAccessPermissionList(rolePermissions);
   if (normalized.includes("ADMIN")) {
     return getDefaultPermissions();
@@ -2533,16 +2528,26 @@ function deriveMaintenancePermissions(rolePermissions, accountPermissions) {
   const hasMaintenanceKeys = MAINTENANCE_ACCESS_PERMISSIONS.some((key) =>
     normalized.includes(key)
   );
-  if (!hasMaintenanceKeys) {
-    return getDefaultPermissions();
+  if (hasMaintenanceKeys) {
+    return {
+      create: normalized.includes("MAINT_CREATE"),
+      edit: normalized.includes("MAINT_EDIT"),
+      remove: normalized.includes("MAINT_REMOVE"),
+      reschedule: normalized.includes("MAINT_RESCHEDULE"),
+      complete: normalized.includes("MAINT_COMPLETE"),
+    };
   }
-  return {
-    create: normalized.includes("MAINT_CREATE"),
-    edit: normalized.includes("MAINT_EDIT"),
-    remove: normalized.includes("MAINT_REMOVE"),
-    reschedule: normalized.includes("MAINT_RESCHEDULE"),
-    complete: normalized.includes("MAINT_COMPLETE"),
-  };
+  if (accessRoleActive) {
+    return getEmptyPermissions();
+  }
+  if (
+    accountPermissions &&
+    typeof accountPermissions === "object" &&
+    !Array.isArray(accountPermissions)
+  ) {
+    return accountPermissions;
+  }
+  return getDefaultPermissions();
 }
 
 function deriveSectionsFromAccessPermissions(rolePermissions) {
@@ -2556,7 +2561,7 @@ function deriveSectionsFromAccessPermissions(rolePermissions) {
   if (!hasSectionControl) {
     return null;
   }
-  const sections = { ...DEFAULT_SECTIONS };
+  const sections = {};
   ACCESS_SECTION_PERMISSIONS.forEach((key) => {
     sections[key] = normalized.includes(key);
   });
@@ -2622,8 +2627,16 @@ function buildSessionUser(account, role) {
   );
   const roleName = role ? role.name : account.roleName || "";
   const status = String(account.status || "ATIVO").toUpperCase() === "INATIVO" ? "INATIVO" : "ATIVO";
+  const accessRoleActive =
+    Boolean(role || account.roleId) ||
+    Array.isArray(account.rolePermissions) ||
+    Array.isArray(account.accessPermissions);
   let granularPermissions = mapAccessPermissionsToGranular(rolePermissions);
-  const permissions = deriveMaintenancePermissions(rolePermissions, account.permissions);
+  const permissions = deriveMaintenancePermissions(
+    rolePermissions,
+    account.permissions,
+    accessRoleActive
+  );
   let sections = { ...DEFAULT_SECTIONS };
   if (account.sections && typeof account.sections === "object") {
     Object.keys(DEFAULT_SECTIONS).forEach((key) => {
@@ -2631,11 +2644,10 @@ function buildSessionUser(account, role) {
         sections[key] = Boolean(account.sections[key]);
       }
     });
-  } else {
-    const derivedSections = deriveSectionsFromAccessPermissions(rolePermissions);
-    if (derivedSections) {
-      sections = { ...sections, ...derivedSections };
-    }
+  }
+  const derivedSections = deriveSectionsFromAccessPermissions(rolePermissions);
+  if (derivedSections) {
+    sections = { ...sections, ...derivedSections };
   }
   if (rolePermissions.includes("ADMIN")) {
     ADMIN_SECTIONS.forEach((key) => {
@@ -7768,19 +7780,28 @@ function getSectionConfig(user) {
   if (!user) {
     return {};
   }
-  if (user.role === "admin") {
-    const config = { ...DEFAULT_SECTIONS };
-    ADMIN_SECTIONS.forEach((key) => {
-      config[key] = true;
-    });
-    return config;
-  }
   const config = { ...DEFAULT_SECTIONS };
-  if (user.sections) {
+  if (user.sections && typeof user.sections === "object") {
     Object.keys(DEFAULT_SECTIONS).forEach((key) => {
       if (key in user.sections) {
         config[key] = Boolean(user.sections[key]);
       }
+    });
+  }
+  const rolePermissions = Array.isArray(user.rolePermissions)
+    ? user.rolePermissions
+    : Array.isArray(user.accessPermissions)
+      ? user.accessPermissions
+      : [];
+  const derivedSections = deriveSectionsFromAccessPermissions(rolePermissions);
+  if (derivedSections) {
+    Object.keys(derivedSections).forEach((key) => {
+      config[key] = derivedSections[key];
+    });
+  }
+  if (user.role === "admin" || rolePermissions.includes("ADMIN")) {
+    ADMIN_SECTIONS.forEach((key) => {
+      config[key] = true;
     });
   }
   return config;
@@ -7817,6 +7838,13 @@ function isDailySubstationInspection(item) {
 function getDefaultPermissions() {
   return Object.keys(PERMISSIONS).reduce((acc, key) => {
     acc[key] = true;
+    return acc;
+  }, {});
+}
+
+function getEmptyPermissions() {
+  return Object.keys(PERMISSIONS).reduce((acc, key) => {
+    acc[key] = false;
     return acc;
   }, {});
 }
@@ -23266,12 +23294,17 @@ function renderAccessRolePermissions() {
   setAccessRoleToggleState(accessRoleFilterRead, accessRoleEditorState.onlyRead);
   setAccessRoleToggleState(accessRoleFilterWrite, accessRoleEditorState.onlyWrite);
   const disableActions = accessRoleEditorState.adminEnabled;
+  const readKeys = getAccessReadPermissionKeys(ACCESS_PERMISSION_CATALOG);
+  const writeKeys = getAccessWritePermissionKeys(ACCESS_PERMISSION_CATALOG);
+  const readWriteKeys = getAccessReadWritePermissionKeys(ACCESS_PERMISSION_CATALOG);
   setAccessRoleButtonDisabled(accessRoleSelectAll, disableActions);
   setAccessRoleButtonDisabled(accessRoleClearAll, disableActions);
-  setAccessRoleButtonDisabled(accessRoleReadOnly, disableActions);
-  setAccessRoleButtonDisabled(accessRoleReadWrite, disableActions);
+  setAccessRoleButtonDisabled(accessRoleReadOnly, disableActions || readKeys.length === 0);
+  setAccessRoleButtonDisabled(accessRoleWriteOnly, disableActions || writeKeys.length === 0);
+  setAccessRoleButtonDisabled(accessRoleReadWrite, disableActions || readWriteKeys.length === 0);
   setAccessRoleButtonDisabled(accessRoleModuleToggle, disableActions);
   setAccessRoleButtonDisabled(accessRoleModuleReadOnly, disableActions);
+  setAccessRoleButtonDisabled(accessRoleModuleWriteOnly, disableActions);
   setAccessRoleButtonDisabled(accessRoleModuleReadWrite, disableActions);
 
   if (accessRoleModules) {
@@ -23327,6 +23360,15 @@ function renderAccessRolePermissions() {
     accessRoleModuleReadOnly.dataset.moduleName = activeModule.name;
     const readKeys = getAccessReadPermissionKeys(ACCESS_PERMISSION_CATALOG, activeModule.name);
     setAccessRoleButtonDisabled(accessRoleModuleReadOnly, disableActions || readKeys.length === 0);
+  }
+  if (accessRoleModuleWriteOnly) {
+    accessRoleModuleWriteOnly.dataset.moduleAction = "write-only";
+    accessRoleModuleWriteOnly.dataset.moduleName = activeModule.name;
+    const writeKeys = getAccessWritePermissionKeys(ACCESS_PERMISSION_CATALOG, activeModule.name);
+    setAccessRoleButtonDisabled(
+      accessRoleModuleWriteOnly,
+      disableActions || writeKeys.length === 0
+    );
   }
   if (accessRoleModuleReadWrite) {
     accessRoleModuleReadWrite.dataset.moduleAction = "read-write";
@@ -23386,21 +23428,29 @@ function renderAccessRolePermissions() {
       btnRead.className = "btn btn--ghost btn--small";
       btnRead.dataset.moduleAction = "read-only";
       btnRead.dataset.moduleName = module.name;
-      btnRead.textContent = "Somente leitura do m\u00f3dulo";
+      btnRead.textContent = "Ver do m\u00f3dulo";
       const moduleReadKeys = getAccessReadPermissionKeys(ACCESS_PERMISSION_CATALOG, module.name);
       btnRead.disabled = disableActions || moduleReadKeys.length === 0;
+      const btnWrite = document.createElement("button");
+      btnWrite.type = "button";
+      btnWrite.className = "btn btn--ghost btn--small";
+      btnWrite.dataset.moduleAction = "write-only";
+      btnWrite.dataset.moduleName = module.name;
+      btnWrite.textContent = "Editar do m\u00f3dulo";
+      const moduleWriteKeys = getAccessWritePermissionKeys(ACCESS_PERMISSION_CATALOG, module.name);
+      btnWrite.disabled = disableActions || moduleWriteKeys.length === 0;
       const btnReadWrite = document.createElement("button");
       btnReadWrite.type = "button";
       btnReadWrite.className = "btn btn--ghost btn--small";
       btnReadWrite.dataset.moduleAction = "read-write";
       btnReadWrite.dataset.moduleName = module.name;
-      btnReadWrite.textContent = "Leitura e edi\u00e7\u00e3o do m\u00f3dulo";
+      btnReadWrite.textContent = "Ver e editar do m\u00f3dulo";
       const moduleReadWriteKeys = getAccessReadWritePermissionKeys(
         ACCESS_PERMISSION_CATALOG,
         module.name
       );
       btnReadWrite.disabled = disableActions || moduleReadWriteKeys.length === 0;
-      actions.append(btnAll, btnRead, btnReadWrite);
+      actions.append(btnAll, btnRead, btnWrite, btnReadWrite);
       header.append(headerInfo, actions);
       body.append(header);
       const groups = document.createElement("div");
@@ -23538,6 +23588,14 @@ function applyAccessRoleReadOnly() {
   setAccessRoleSelection(readKeys);
 }
 
+function applyAccessRoleWriteOnly() {
+  if (accessRoleEditorState.adminEnabled) {
+    return;
+  }
+  const writeKeys = getAccessWritePermissionKeys(ACCESS_PERMISSION_CATALOG);
+  setAccessRoleSelection(writeKeys);
+}
+
 function applyAccessRoleReadWrite() {
   if (accessRoleEditorState.adminEnabled) {
     return;
@@ -23579,6 +23637,22 @@ function applyAccessRoleModuleReadOnly(moduleName) {
   const next = new Set(accessRoleEditorState.selected || []);
   keys.forEach((key) => next.delete(key));
   readKeys.forEach((key) => next.add(key));
+  setAccessRoleSelection(Array.from(next));
+}
+
+function applyAccessRoleModuleWriteOnly(moduleName) {
+  if (accessRoleEditorState.adminEnabled) {
+    return;
+  }
+  const module = ACCESS_PERMISSION_MODULES.find((item) => item.name === moduleName);
+  if (!module) {
+    return;
+  }
+  const writeKeys = getAccessWritePermissionKeys(ACCESS_PERMISSION_CATALOG, module.name);
+  const keys = module.permissions.map((permission) => permission.key);
+  const next = new Set(accessRoleEditorState.selected || []);
+  keys.forEach((key) => next.delete(key));
+  writeKeys.forEach((key) => next.add(key));
   setAccessRoleSelection(Array.from(next));
 }
 
@@ -37671,6 +37745,9 @@ if (accessRoleClearAll) {
 if (accessRoleReadOnly) {
   accessRoleReadOnly.addEventListener("click", applyAccessRoleReadOnly);
 }
+if (accessRoleWriteOnly) {
+  accessRoleWriteOnly.addEventListener("click", applyAccessRoleWriteOnly);
+}
 if (accessRoleReadWrite) {
   accessRoleReadWrite.addEventListener("click", applyAccessRoleReadWrite);
 }
@@ -37695,6 +37772,10 @@ if (accessRoleEditor) {
       }
       if (moduleAction.dataset.moduleAction === "read-only") {
         applyAccessRoleModuleReadOnly(moduleName);
+        return;
+      }
+      if (moduleAction.dataset.moduleAction === "write-only") {
+        applyAccessRoleModuleWriteOnly(moduleName);
         return;
       }
       if (moduleAction.dataset.moduleAction === "read-write") {

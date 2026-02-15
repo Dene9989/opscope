@@ -562,6 +562,16 @@ const ACCESS_PERMISSION_KEYS = new Set([
   "verSST",
   "gerenciarSST",
 ]);
+const ACCESS_SECTION_PERMISSIONS = [
+  "inicio",
+  "programacao",
+  "nova",
+  "modelos",
+  "execucao",
+  "backlog",
+  "feedbacks",
+  "perfil",
+];
 const ACCESS_MAINTENANCE_PERMISSION_MAP = {
   create: "MAINT_CREATE",
   edit: "MAINT_EDIT",
@@ -3140,10 +3150,20 @@ function canDeleteMaintenance(user) {
   if (!user) {
     return false;
   }
-  if (isMasterUser(user)) {
-    return true;
+  return hasPermission(user, "remove");
+}
+
+function canSyncMaintenance(user) {
+  if (!user) {
+    return false;
   }
-  return normalizeRbacRole(user.rbacRole || user.role) === "pcm";
+  return (
+    hasPermission(user, "create") ||
+    hasPermission(user, "edit") ||
+    hasPermission(user, "reschedule") ||
+    hasPermission(user, "complete") ||
+    hasPermission(user, "remove")
+  );
 }
 
 function canManagePmpActivities(user) {
@@ -3808,7 +3828,23 @@ function mergePermissions(role, currentPermissions, patchPermissions) {
   return permissions;
 }
 
-function buildSections(role, explicitSections) {
+function deriveSectionsFromAccessPermissions(accessPermissions) {
+  const normalized = normalizeAccessPermissionList(accessPermissions);
+  if (!normalized.length || normalized.includes("ADMIN")) {
+    return null;
+  }
+  const hasSectionControl = ACCESS_SECTION_PERMISSIONS.some((key) => normalized.includes(key));
+  if (!hasSectionControl) {
+    return null;
+  }
+  const sections = {};
+  ACCESS_SECTION_PERMISSIONS.forEach((key) => {
+    sections[key] = normalized.includes(key);
+  });
+  return sections;
+}
+
+function buildSections(role, explicitSections, accessPermissions) {
   const config = { ...DEFAULT_SECTIONS };
   if (explicitSections && typeof explicitSections === "object") {
     Object.keys(DEFAULT_SECTIONS).forEach((key) => {
@@ -3817,7 +3853,14 @@ function buildSections(role, explicitSections) {
       }
     });
   }
-  if (isFullAccessRole(role)) {
+  const derivedSections = deriveSectionsFromAccessPermissions(accessPermissions);
+  if (derivedSections) {
+    Object.keys(derivedSections).forEach((key) => {
+      config[key] = derivedSections[key];
+    });
+  }
+  const accessList = normalizeAccessPermissionList(accessPermissions);
+  if (isFullAccessRole(role) || accessList.includes("ADMIN")) {
     ADMIN_SECTIONS.forEach((key) => {
       config[key] = true;
     });
@@ -3967,7 +4010,7 @@ function sanitizeUser(user) {
     rolePermissions,
     accessPermissions,
     granularPermissions: getGranularPermissionsForUser(user),
-    sections: buildSections(rbacRole, user.sections),
+    sections: buildSections(rbacRole, user.sections, accessPermissions),
     avatarUrl: user.avatarUrl || "",
     avatarUpdatedAt: user.avatarUpdatedAt || "",
     createdAt: user.createdAt,
@@ -4062,7 +4105,7 @@ function normalizeUserRecord(user) {
     emailVerified: user.emailVerified !== false,
     active: status !== "INATIVO",
     permissions: buildPermissions(derivedRbacRole, user.permissions),
-    sections: buildSections(derivedRbacRole, user.sections),
+    sections: buildSections(derivedRbacRole, user.sections, accessPermissions),
   };
 }
 
@@ -4121,7 +4164,7 @@ function ensureMasterAccount() {
       status: "ATIVO",
       active: true,
       permissions: buildPermissions(rbacRole, current.permissions),
-      sections: buildSections(rbacRole, current.sections),
+      sections: buildSections(rbacRole, current.sections, accessPermissions),
     });
     if (!updated.matricula) {
       updated.matricula = MASTER_USERNAME.toUpperCase();
@@ -4153,7 +4196,7 @@ function ensureMasterAccount() {
     active: true,
     passwordHash,
     permissions: buildPermissions(rbacRole),
-    sections: buildSections(rbacRole),
+    sections: buildSections(rbacRole, undefined, accessPermissions),
     createdAt: new Date().toISOString(),
   });
   users.push(master);
@@ -4189,7 +4232,7 @@ function seedAdmin() {
     status: "ATIVO",
     passwordHash,
     permissions: buildPermissions("pcm"),
-    sections: buildSections("pcm"),
+    sections: buildSections("pcm", undefined, accessPermissions),
     createdAt: new Date().toISOString(),
   });
   users.push(admin);
@@ -4638,6 +4681,7 @@ function hasPermission(user, permissionKey) {
     if (mapped && accessSet.has(mapped)) {
       return true;
     }
+    return false;
   }
   const permissions = buildPermissions(user.rbacRole || user.role, user.permissions);
   return Boolean(permissions && permissions[permissionKey]);
@@ -8270,6 +8314,9 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
   if (!projectId) {
     return res.status(400).json({ message: "Projeto ativo obrigatório." });
   }
+  if (!canSyncMaintenance(user)) {
+    return res.status(403).json({ message: "Sem permissão para editar manutenções." });
+  }
   const incoming = Array.isArray(req.body.items) ? req.body.items : [];
   const sanitized = incoming
     .filter((item) => item && typeof item === "object")
@@ -8332,7 +8379,7 @@ app.delete("/api/maintenance/:id", requireAuth, (req, res) => {
     return res.status(403).json({ message: "Nao autorizado." });
   }
   if (!canDeleteMaintenance(user)) {
-    return res.status(403).json({ message: "Apenas PCM pode remover manutencoes." });
+    return res.status(403).json({ message: "Sem permissão para remover manutenções." });
   }
   const dataset = loadMaintenanceData();
   const index = dataset.findIndex(
@@ -8359,6 +8406,9 @@ app.post("/api/maintenance/release", requireAuth, (req, res) => {
   const projectId = getActiveProjectId(req, user);
   if (!projectId) {
     return res.status(400).json({ message: "Projeto ativo obrigatório." });
+  }
+  if (!canSyncMaintenance(user)) {
+    return res.status(403).json({ message: "Sem permissão para editar manutenções." });
   }
   const maintenanceId = String(req.body.id || "").trim();
   const justificativa = String(req.body.justificativa || "").trim();
@@ -8513,7 +8563,11 @@ app.patch("/api/admin/users/:id", requireAuth, requirePermission("verUsuarios"),
     updates.permissions = mergePermissions(nextRbacRole, current.permissions, req.body.permissions);
   }
   if (roleChanged) {
-    updates.sections = buildSections(nextRbacRole, current.sections);
+    updates.sections = buildSections(
+      nextRbacRole,
+      current.sections,
+      current.accessPermissions || current.rolePermissions
+    );
   }
 
   if (!Object.keys(updates).length) {
