@@ -3856,7 +3856,10 @@
       <section class="card profile-card" id="perfilCard">
         <div class="profile-actions">
           <div class="profile-actions__title">
-            <h2 id="perfilTitle">Meu perfil</h2>
+            <div class="profile-hub__title">
+              <span class="profile-hub__eyebrow">Profile Hub</span>
+              <h2 id="perfilTitle">Meu perfil</h2>
+            </div>
             <span class="profile-mode" id="perfilModeBadge" hidden>Modo edi&ccedil;&atilde;o</span>
           </div>
           <div class="profile-actions__buttons" id="perfilViewActions">
@@ -3877,53 +3880,391 @@
           </div>
         </div>
         <div class="profile-layout">
-          <div class="profile-header" id="perfilHeader">
-            <div class="profile-avatar__preview" id="perfilAvatarPreview" aria-hidden="true"></div>
-            <div class="profile-identity">
-              <span class="profile-eyebrow">Perfil do colaborador</span>
-              <strong id="perfilNome">-</strong>
-              <div class="profile-subinfo">
-                <span id="perfilCargo">-</span>
-                <span class="dot-sep" aria-hidden="true"></span>
-                <span id="perfilRole">-</span>
+          <div class="profile-hub__header" id="perfilHeader">
+            <div class="profile-header__identity">
+              <div class="profile-avatar__preview" id="perfilAvatarPreview" aria-hidden="true"></div>
+              <div class="profile-identity">
+                <span class="profile-eyebrow">Perfil do colaborador</span>
+                <strong id="perfilNome">-</strong>
+                <div class="profile-subinfo">
+                  <span id="perfilCargo">-</span>
+                  <span class="dot-sep" aria-hidden="true"></span>
+                  <span id="perfilRole">-</span>
+                </div>
+                <div class="profile-chips">
+                  <span class="profile-chip">
+                    <span class="chip-label">Matr&iacute;cula</span>
+                    <strong id="perfilMatricula">-</strong>
+                  </span>
+                  <span class="profile-chip">
+                    <span class="chip-label">UEN</span>
+                    <strong id="perfilUen">-</strong>
+                  </span>
+                  <span class="profile-chip">
+                    <span class="chip-label">Projeto(s)</span>
+                    <strong id="perfilProjeto">-</strong>
+                  </span>
+                </div>
+                <div class="profile-status">
+                  <span id="perfilStatus" class="status-pill status-pill--active">Dispon&iacute;vel</span>
+                  <span id="perfilStatusUpdated" class="status-updated">Atualizado agora</span>
+                </div>
+                <div class="profile-avatar__mount" id="perfilAvatarActionsMount"></div>
+                <p id="perfilAvatarErro" class="field-error" hidden></p>
               </div>
-              <div class="profile-chips">
-                <span class="profile-chip">
-                  <span class="chip-label">Matricula</span>
-                  <strong id="perfilMatricula">-</strong>
-                </span>
-                <span class="profile-chip">
-                  <span class="chip-label">UEN</span>
-                  <strong id="perfilUen">-</strong>
-                </span>
-                <span class="profile-chip">
-                  <span class="chip-label">Projeto(s)</span>
-                  <strong id="perfilProjeto">-</strong>
-                </span>
+            </div>
+            <div class="profile-header__actions">
+              <div class="profile-quick-actions">
+                <button
+                  id="btnPerfilMinhasOs"
+                  class="btn btn--primary btn--small"
+                  type="button"
+                  data-profile-action="minhas-os"
+                >
+                  Minhas OS
+                </button>
+                <button
+                  id="btnPerfilCriarSolicitacao"
+                  class="btn btn--ghost btn--small"
+                  type="button"
+                  data-profile-action="criar-solicitacao"
+                >
+                  Criar solicita&ccedil;&atilde;o
+                </button>
+                <button
+                  id="btnPerfilEscala"
+                  class="btn btn--ghost btn--small"
+                  type="button"
+                  data-profile-action="ver-escala"
+                >
+                  Ver escala
+                </button>
+                <button
+                  id="btnPerfilExportar"
+                  class="btn btn--ghost btn--small"
+                  type="button"
+                  data-profile-action="exportar"
+                >
+                  Exportar
+                </button>
+                <button
+                  id="btnPerfilTrocarContexto"
+                  class="btn btn--ghost btn--small"
+                  type="button"
+                  data-profile-action="trocar-contexto"
+                >
+                  Trocar contexto (UEN/Projeto)
+                </button>
               </div>
-              <div class="profile-avatar__mount" id="perfilAvatarActionsMount"></div>
-              <p id="perfilAvatarErro" class="field-error" hidden></p>
+              <div class="profile-kpis">
+                <div class="profile-kpi">
+                  <span class="kpi-label">OS abertas</span>
+                  <strong id="perfilKpiAbertas" data-kpi="open">-</strong>
+                </div>
+                <div class="profile-kpi">
+                  <span class="kpi-label">OS atrasadas</span>
+                  <strong id="perfilKpiAtrasadas" data-kpi="overdue">-</strong>
+                </div>
+                <div class="profile-kpi">
+                  <span class="kpi-label">Pend&ecirc;ncias apontamento</span>
+                  <strong id="perfilKpiPendencias" data-kpi="pending">-</strong>
+                </div>
+                <div class="profile-kpi">
+                  <span class="kpi-label">SLA m&eacute;dio 30d</span>
+                  <strong id="perfilKpiSla" data-kpi="sla">-</strong>
+                </div>
+                <div class="profile-kpi">
+                  <span class="kpi-label">Checklists pendentes</span>
+                  <strong id="perfilKpiChecklists" data-kpi="checklists">-</strong>
+                </div>
+              </div>
             </div>
           </div>
           <div id="perfilEditMount"></div>
         </div>
         <div class="profile-view" id="perfilView">
-          <div class="profile-section">
-            <h3>Dados operacionais</h3>
-            <div class="profile-grid">
-              <div class="profile-item" data-full>
-                <span class="account-label">Atribuições</span>
-                <p id="perfilAtribuicoes" class="profile-text">-</p>
+          <div class="profile-tabs" role="tablist" aria-label="Se&ccedil;&otilde;es do perfil">
+            <button
+              class="profile-tab is-active"
+              type="button"
+              role="tab"
+              data-profile-tab="overview"
+              aria-selected="true"
+            >
+              Vis&atilde;o geral
+            </button>
+            <button class="profile-tab" type="button" role="tab" data-profile-tab="operacional">
+              Operacional
+            </button>
+            <button class="profile-tab" type="button" role="tab" data-profile-tab="preferencias">
+              Prefer&ecirc;ncias
+            </button>
+            <button class="profile-tab" type="button" role="tab" data-profile-tab="seguranca">
+              Seguran&ccedil;a
+            </button>
+            <button class="profile-tab" type="button" role="tab" data-profile-tab="auditoria">
+              Auditoria
+            </button>
+          </div>
+          <div class="profile-panels">
+            <section class="profile-panel is-active" data-profile-panel="overview" role="tabpanel">
+              <div class="profile-panel-grid">
+                <div class="profile-card-block">
+                  <div class="profile-card-block__header">
+                    <h3>KPIs do dia</h3>
+                    <p class="hint">Indicadores que afetam o seu ritmo operacional.</p>
+                  </div>
+                  <div class="profile-kpis profile-kpis--grid">
+                    <div class="profile-kpi">
+                      <span class="kpi-label">OS abertas</span>
+                      <strong data-kpi="open">-</strong>
+                    </div>
+                    <div class="profile-kpi">
+                      <span class="kpi-label">OS atrasadas</span>
+                      <strong data-kpi="overdue">-</strong>
+                    </div>
+                    <div class="profile-kpi">
+                      <span class="kpi-label">Pend&ecirc;ncias apontamento</span>
+                      <strong data-kpi="pending">-</strong>
+                    </div>
+                    <div class="profile-kpi">
+                      <span class="kpi-label">SLA m&eacute;dio 30d</span>
+                      <strong data-kpi="sla">-</strong>
+                    </div>
+                    <div class="profile-kpi">
+                      <span class="kpi-label">Checklists pendentes</span>
+                      <strong data-kpi="checklists">-</strong>
+                    </div>
+                  </div>
+                </div>
+                <div class="profile-card-block">
+                  <div class="profile-card-block__header">
+                    <h3>Pend&ecirc;ncias cr&iacute;ticas</h3>
+                    <p class="hint">Atividades atrasadas ou aguardando apontamento.</p>
+                  </div>
+                  <ul id="perfilPendenciasList" class="profile-list"></ul>
+                  <p id="perfilPendenciasEmpty" class="profile-empty" hidden>
+                    Sem pend&ecirc;ncias cr&iacute;ticas agora.
+                  </p>
+                  <div class="profile-card-block__actions">
+                    <button
+                      id="btnPerfilVerPendencias"
+                      class="btn btn--ghost btn--small"
+                      type="button"
+                      data-profile-action="ver-pendencias"
+                    >
+                      Ver OS
+                    </button>
+                  </div>
+                </div>
+                <div class="profile-card-block">
+                  <div class="profile-card-block__header">
+                    <h3>A&ccedil;&otilde;es r&aacute;pidas</h3>
+                    <p class="hint">Atalhos para o que voc&ecirc; faz todos os dias.</p>
+                  </div>
+                  <div class="profile-shortcuts">
+                    <button class="btn btn--ghost btn--small" type="button" data-profile-action="minhas-os">
+                      Minhas OS
+                    </button>
+                    <button
+                      class="btn btn--ghost btn--small"
+                      type="button"
+                      data-profile-action="criar-solicitacao"
+                    >
+                      Criar solicita&ccedil;&atilde;o
+                    </button>
+                    <button class="btn btn--ghost btn--small" type="button" data-profile-action="ver-escala">
+                      Ver escala
+                    </button>
+                    <button class="btn btn--ghost btn--small" type="button" data-profile-action="exportar">
+                      Exportar
+                    </button>
+                    <button
+                      class="btn btn--ghost btn--small"
+                      type="button"
+                      data-profile-action="trocar-contexto"
+                    >
+                      Trocar contexto
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div class="profile-item" data-full>
-                <span class="account-label">Permissões</span>
-                <p id="perfilPermissoes" class="profile-text">-</p>
+            </section>
+            <section class="profile-panel" data-profile-panel="operacional" role="tabpanel" hidden>
+              <div class="profile-panel-grid">
+                <div class="profile-card-block">
+                  <div class="profile-card-block__header">
+                    <h3>Atribui&ccedil;&otilde;es</h3>
+                    <p class="hint">Carteira de ativos, &aacute;reas, rotas e tipos de servi&ccedil;o.</p>
+                  </div>
+                  <div id="perfilAtribuicoesTags" class="profile-tags"></div>
+                  <p id="perfilAtribuicoes" class="profile-text" hidden>-</p>
+                  <div id="perfilAtribuicoesEmpty" class="profile-empty" hidden>
+                    <p>Sem atribui&ccedil;&otilde;es definidas.</p>
+                    <button
+                      id="btnPerfilDefinirAtribuicoes"
+                      class="btn btn--primary btn--small"
+                      type="button"
+                      data-profile-action="definir-atribuicoes"
+                    >
+                      Definir atribui&ccedil;&otilde;es
+                    </button>
+                  </div>
+                </div>
+                <div class="profile-card-block">
+                  <div class="profile-card-block__header">
+                    <h3>Permiss&otilde;es</h3>
+                    <p class="hint">RBAC + escopo por UEN/projeto.</p>
+                  </div>
+                  <p id="perfilPermissoesResumo" class="profile-text">-</p>
+                  <p id="perfilPermissoes" class="profile-text" hidden>-</p>
+                  <button
+                    id="btnPerfilPermissoesDetalhes"
+                    class="btn btn--ghost btn--small"
+                    type="button"
+                  >
+                    Ver detalhes
+                  </button>
+                </div>
+                <div class="profile-card-block">
+                  <div class="profile-card-block__header">
+                    <h3>M&oacute;dulos habilitados</h3>
+                    <p class="hint">Visibilidade por se&ccedil;&atilde;o do OPSCOPE.</p>
+                  </div>
+                  <div id="perfilSecoesBadges" class="profile-tags"></div>
+                  <p id="perfilSecoes" class="profile-text" hidden>-</p>
+                </div>
               </div>
-              <div class="profile-item" data-full>
-                <span class="account-label">Secoes</span>
-                <p id="perfilSecoes" class="profile-text">-</p>
+            </section>
+            <section class="profile-panel" data-profile-panel="preferencias" role="tabpanel" hidden>
+              <div class="profile-panel-grid">
+                <div class="profile-card-block">
+                  <div class="profile-card-block__header">
+                    <h3>Prefer&ecirc;ncias de interface</h3>
+                    <p class="hint">Ajustes pessoais para o seu dia a dia.</p>
+                  </div>
+                  <div class="profile-form">
+                    <div class="field">
+                      <label for="profileThemeSelect">Tema</label>
+                      <select id="profileThemeSelect">
+                        <option value="dark" selected>Dark (padr&atilde;o)</option>
+                        <option value="dark-contrast">Dark alto contraste</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="profileDensitySelect">Densidade da UI</label>
+                      <select id="profileDensitySelect">
+                        <option value="comfortable" selected>Confort&aacute;vel</option>
+                        <option value="compact">Compacta</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="profileLanguageSelect">Idioma</label>
+                      <select id="profileLanguageSelect">
+                        <option value="pt-br" selected>Portugu&ecirc;s (BR)</option>
+                        <option value="en">English</option>
+                        <option value="es">Espa&ntilde;ol</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="profileTimezoneSelect">Timezone</label>
+                      <select id="profileTimezoneSelect">
+                        <option value="America/Sao_Paulo" selected>Am&eacute;rica / S&atilde;o Paulo</option>
+                        <option value="America/Manaus">Am&eacute;rica / Manaus</option>
+                        <option value="America/Fortaleza">Am&eacute;rica / Fortaleza</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="profileDashboardSelect">Dashboard default</label>
+                      <select id="profileDashboardSelect">
+                        <option value="inicio" selected>Centro de controle</option>
+                        <option value="programacao">Programa&ccedil;&atilde;o</option>
+                        <option value="desempenho">Desempenho</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div class="profile-card-block">
+                  <div class="profile-card-block__header">
+                    <h3>Notifica&ccedil;&otilde;es</h3>
+                    <p class="hint">Escolha quando deseja ser avisado.</p>
+                  </div>
+                  <div class="profile-switches">
+                    <label class="profile-switch">
+                      <input type="checkbox" checked />
+                      <span>OS atribu&iacute;das a voc&ecirc;</span>
+                    </label>
+                    <label class="profile-switch">
+                      <input type="checkbox" checked />
+                      <span>Prazos pr&oacute;ximos</span>
+                    </label>
+                    <label class="profile-switch">
+                      <input type="checkbox" />
+                      <span>Alertas de criticidade</span>
+                    </label>
+                    <label class="profile-switch">
+                      <input type="checkbox" checked />
+                      <span>Relat&oacute;rios semanais</span>
+                    </label>
+                  </div>
+                  <p class="hint">Prefer&ecirc;ncias locais (neste dispositivo).</p>
+                </div>
               </div>
-            </div>
+            </section>
+            <section class="profile-panel" data-profile-panel="seguranca" role="tabpanel" hidden>
+              <div class="profile-panel-grid">
+                <div class="profile-card-block">
+                  <div class="profile-card-block__header">
+                    <h3>Seguran&ccedil;a da conta</h3>
+                    <p class="hint">Reforce o acesso com camadas adicionais.</p>
+                  </div>
+                  <div class="profile-switches">
+                    <label class="profile-switch">
+                      <input type="checkbox" />
+                      <span>2FA via app autenticador</span>
+                    </label>
+                    <label class="profile-switch">
+                      <input type="checkbox" checked />
+                      <span>Bloquear login em dispositivos n&atilde;o reconhecidos</span>
+                    </label>
+                  </div>
+                  <div class="profile-card-block__actions">
+                    <button class="btn btn--ghost btn--small" type="button">Alterar senha</button>
+                    <button class="btn btn--ghost btn--small" type="button">Sair de todos dispositivos</button>
+                  </div>
+                </div>
+                <div class="profile-card-block">
+                  <div class="profile-card-block__header">
+                    <h3>Sess&otilde;es ativas</h3>
+                    <p class="hint">Dispositivos com acesso autorizado.</p>
+                  </div>
+                  <ul class="profile-list">
+                    <li class="profile-list__item">
+                      <span class="profile-list__title">Desktop - Windows</span>
+                      <span class="profile-list__meta">Ativo agora &middot; IP interno</span>
+                    </li>
+                    <li class="profile-list__item">
+                      <span class="profile-list__title">Mobile - iOS</span>
+                      <span class="profile-list__meta">Ultimo acesso h&aacute; 2 dias</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+            <section class="profile-panel" data-profile-panel="auditoria" role="tabpanel" hidden>
+              <div class="profile-panel-grid">
+                <div class="profile-card-block">
+                  <div class="profile-card-block__header">
+                    <h3>Auditoria &amp; atividade</h3>
+                    <p class="hint">Mudancas relevantes do seu perfil.</p>
+                  </div>
+                  <div id="perfilAuditoriaList" class="profile-timeline"></div>
+                  <p id="perfilAuditoriaEmpty" class="profile-empty" hidden>
+                    Nenhum evento registrado recentemente.
+                  </p>
+                </div>
+              </div>
+            </section>
           </div>
         </div>
         <template id="perfilAvatarTemplate">
@@ -3957,6 +4298,14 @@
               <select id="perfilProjetoInput">
                 <option value="">Selecione</option>
               </select>
+            </div>
+            <div class="field" data-full>
+              <label for="perfilAtribuicoesInput">Atribui&ccedil;&otilde;es</label>
+              <textarea
+                id="perfilAtribuicoesInput"
+                rows="3"
+                placeholder="Carteira de ativos, &aacute;reas, rotas"
+              ></textarea>
             </div>
             <p id="perfilSaveMsg" class="field-error" hidden></p>
           </div>
@@ -6227,6 +6576,40 @@
             <button id="pmpCellMarkCancel" class="btn btn--ghost btn--danger" type="button">Marcar cancelada</button>
             <button id="pmpCellClose" class="btn btn--ghost" type="button">Fechar</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="modalProfilePermissions" class="modal" hidden>
+      <div class="modal__content modal__content--wide">
+        <div class="modal__header">
+          <div>
+            <h3>Permiss&otilde;es do perfil</h3>
+            <p class="hint">Resumo por m&oacute;dulo e escopo.</p>
+          </div>
+          <button
+            id="btnCloseProfilePermissions"
+            class="btn btn--ghost btn--icon"
+            type="button"
+            aria-label="Fechar"
+          >
+            <span aria-hidden="true">x</span>
+          </button>
+        </div>
+        <div class="modal__form profile-modal__body">
+          <div class="profile-modal__section">
+            <h4>Permiss&otilde;es ativas</h4>
+            <ul id="perfilPermissoesDetalhesList" class="profile-list"></ul>
+          </div>
+          <div class="profile-modal__section">
+            <h4>M&oacute;dulos habilitados</h4>
+            <ul id="perfilSecoesDetalhesList" class="profile-list"></ul>
+          </div>
+        </div>
+        <div class="modal__actions">
+          <button id="btnCloseProfilePermissionsFooter" class="btn btn--ghost" type="button">
+            Fechar
+          </button>
         </div>
       </div>
     </div>

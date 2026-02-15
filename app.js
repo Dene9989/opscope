@@ -589,6 +589,38 @@ const perfilEditMount = document.getElementById("perfilEditMount");
 const perfilAvatarActionsMount = document.getElementById("perfilAvatarActionsMount");
 const perfilAvatarTemplate = document.getElementById("perfilAvatarTemplate");
 const perfilEditTemplate = document.getElementById("perfilEditTemplate");
+const perfilStatus = document.getElementById("perfilStatus");
+const perfilStatusUpdated = document.getElementById("perfilStatusUpdated");
+const perfilKpiAbertas = document.getElementById("perfilKpiAbertas");
+const perfilKpiAtrasadas = document.getElementById("perfilKpiAtrasadas");
+const perfilKpiPendencias = document.getElementById("perfilKpiPendencias");
+const perfilKpiSla = document.getElementById("perfilKpiSla");
+const perfilKpiChecklists = document.getElementById("perfilKpiChecklists");
+const perfilPendenciasList = document.getElementById("perfilPendenciasList");
+const perfilPendenciasEmpty = document.getElementById("perfilPendenciasEmpty");
+const perfilAtribuicoesTags = document.getElementById("perfilAtribuicoesTags");
+const perfilAtribuicoesEmpty = document.getElementById("perfilAtribuicoesEmpty");
+const btnPerfilDefinirAtribuicoes = document.getElementById("btnPerfilDefinirAtribuicoes");
+const perfilPermissoesResumo = document.getElementById("perfilPermissoesResumo");
+const btnPerfilPermissoesDetalhes = document.getElementById("btnPerfilPermissoesDetalhes");
+const perfilSecoesBadges = document.getElementById("perfilSecoesBadges");
+const perfilAuditoriaList = document.getElementById("perfilAuditoriaList");
+const perfilAuditoriaEmpty = document.getElementById("perfilAuditoriaEmpty");
+const btnPerfilMinhasOs = document.getElementById("btnPerfilMinhasOs");
+const btnPerfilCriarSolicitacao = document.getElementById("btnPerfilCriarSolicitacao");
+const btnPerfilEscala = document.getElementById("btnPerfilEscala");
+const btnPerfilExportar = document.getElementById("btnPerfilExportar");
+const btnPerfilTrocarContexto = document.getElementById("btnPerfilTrocarContexto");
+const btnPerfilVerPendencias = document.getElementById("btnPerfilVerPendencias");
+const modalProfilePermissions = document.getElementById("modalProfilePermissions");
+const btnCloseProfilePermissions = document.getElementById("btnCloseProfilePermissions");
+const btnCloseProfilePermissionsFooter = document.getElementById(
+  "btnCloseProfilePermissionsFooter"
+);
+const perfilPermissoesDetalhesList = document.getElementById("perfilPermissoesDetalhesList");
+const perfilSecoesDetalhesList = document.getElementById("perfilSecoesDetalhesList");
+const profileTabs = Array.from(document.querySelectorAll("[data-profile-tab]"));
+const profilePanels = Array.from(document.querySelectorAll("[data-profile-panel]"));
 const btnPerfilEditar = document.getElementById("btnPerfilEditar");
 const btnPerfilCancelar = document.getElementById("btnPerfilCancelar");
 
@@ -5602,6 +5634,490 @@ function unmountProfileAvatarActions() {
 function formatProfileValue(value) {
   const texto = String(value || "").trim();
   return texto ? texto : "N\u00e3o informado";
+}
+
+let activeProfileTab = "overview";
+
+function setProfileTab(tabId) {
+  if (!tabId) {
+    return;
+  }
+  activeProfileTab = tabId;
+  profileTabs.forEach((tab) => {
+    const isActive = tab.dataset.profileTab === tabId;
+    tab.classList.toggle("is-active", isActive);
+    tab.setAttribute("aria-selected", isActive ? "true" : "false");
+  });
+  profilePanels.forEach((panel) => {
+    const isActive = panel.dataset.profilePanel === tabId;
+    panel.classList.toggle("is-active", isActive);
+    panel.hidden = !isActive;
+  });
+}
+
+function openProfilePermissionsModal() {
+  if (!modalProfilePermissions) {
+    return;
+  }
+  modalProfilePermissions.hidden = false;
+}
+
+function closeProfilePermissionsModal() {
+  if (!modalProfilePermissions) {
+    return;
+  }
+  modalProfilePermissions.hidden = true;
+}
+
+function getProfileStatusInfo(user) {
+  const raw = normalizeSearchValue(
+    user &&
+      (user.statusOperacional ||
+        user.operationalStatus ||
+        user.statusLabel ||
+        user.status ||
+        "")
+  );
+  let label = "Dispon\u00edvel";
+  let className = "status-pill--active";
+
+  if (raw) {
+    if (raw.includes("campo")) {
+      label = "Em campo";
+      className = "status-pill--info";
+    } else if (raw.includes("trein")) {
+      label = "Treinamento";
+      className = "status-pill--warning";
+    } else if (raw.includes("ferias") || raw.includes("licenca") || raw.includes("ausen")) {
+      label = "F\u00e9rias";
+      className = "status-pill--inactive";
+    } else if (raw.includes("dispon")) {
+      label = "Dispon\u00edvel";
+      className = "status-pill--active";
+    }
+  }
+
+  if (
+    user &&
+    (String(user.status || "").toUpperCase() === "INATIVO" || user.active === false)
+  ) {
+    label = "F\u00e9rias";
+    className = "status-pill--inactive";
+  }
+
+  const updatedAt = parseTimestamp(
+    user && (user.statusUpdatedAt || user.updatedAt || user.lastLoginAt || user.lastLogin)
+  );
+  const updatedLabel = updatedAt
+    ? `Atualizado em ${formatDateTime(updatedAt)}`
+    : "Atualizado agora";
+  return { label, className, updatedLabel };
+}
+
+function setProfileKpiValue(key, value) {
+  const elements = document.querySelectorAll(`[data-kpi=\"${key}\"]`);
+  if (!elements.length) {
+    return;
+  }
+  const display =
+    value === null || value === undefined || value === "" ? "-" : String(value);
+  elements.forEach((element) => {
+    element.textContent = display;
+  });
+}
+
+function getProfileMaintenanceItems(user) {
+  const list = Array.isArray(manutencoes) ? manutencoes : [];
+  if (!user) {
+    return [];
+  }
+  const userId = String(user.id || "").trim();
+  const matriculaNormalized = normalizeMatricula(user.matricula || user.username || "");
+  const nameNormalized = normalizeSearchValue(user.name || "");
+
+  return list.filter((item) => {
+    if (!item) {
+      return false;
+    }
+    const executadoId = String(
+      getExecutadoPorId(item) || item.executadaPor || item.doneBy || item.createdBy || ""
+    ).trim();
+    if (userId && executadoId && executadoId === userId) {
+      return true;
+    }
+    const ownerName = normalizeSearchValue(getMaintenanceOwner(item));
+    if (nameNormalized && ownerName && ownerName === nameNormalized) {
+      return true;
+    }
+    const ownerMatricula = normalizeMatricula(
+      item.matricula || item.matriculaResponsavel || item.responsavelMatricula || ""
+    );
+    if (matriculaNormalized && ownerMatricula && ownerMatricula === matriculaNormalized) {
+      return true;
+    }
+    return false;
+  });
+}
+
+function calculateProfileSla(items, today) {
+  const base = Array.isArray(items) ? items : [];
+  const endDay = startOfDay(today || new Date());
+  const startDay = addDays(endDay, -29);
+  let total = 0;
+  let onTime = 0;
+
+  base.forEach((item) => {
+    const status = normalizeMaintenanceStatus(item && item.status);
+    if (status !== "concluida") {
+      return;
+    }
+    const doneAt = getMaintenanceCompletedAt(item) || getItemConclusaoDate(item);
+    if (!doneAt) {
+      return;
+    }
+    const doneDay = startOfDay(doneAt);
+    if (doneDay < startDay || doneDay > endDay) {
+      return;
+    }
+    const due = getMaintenanceDueDate(item);
+    if (!due) {
+      return;
+    }
+    total += 1;
+    if (doneDay <= startOfDay(due)) {
+      onTime += 1;
+    }
+  });
+
+  if (!total) {
+    return null;
+  }
+  return Math.round((onTime / total) * 100);
+}
+
+function updateProfileKpis(user) {
+  const items = getProfileMaintenanceItems(user);
+  const today = startOfDay(new Date());
+  const openItems = items.filter((item) => {
+    const status = normalizeMaintenanceStatus(item && item.status);
+    return status !== "concluida" && status !== "cancelada";
+  });
+  const overdueItems = openItems.filter((item) => {
+    const due = getMaintenanceDueDate(item);
+    return due && startOfDay(due) < today;
+  });
+  const pendingItems = items.filter(
+    (item) => normalizeMaintenanceStatus(item && item.status) === "encerramento"
+  );
+  const sla = calculateProfileSla(items, today);
+
+  setProfileKpiValue("open", openItems.length);
+  setProfileKpiValue("overdue", overdueItems.length);
+  setProfileKpiValue("pending", pendingItems.length);
+  setProfileKpiValue("sla", sla === null ? "-" : `${sla}%`);
+  setProfileKpiValue("checklists", "-");
+
+  return { items, openItems, overdueItems, pendingItems };
+}
+
+function updateProfilePendencias(overdueItems, pendingItems) {
+  if (!perfilPendenciasList) {
+    return;
+  }
+  perfilPendenciasList.innerHTML = "";
+  const overdueSet = new Set(overdueItems || []);
+  const combined = [];
+  const seen = new Set();
+  const pushItem = (item) => {
+    const key = String(item.id || item._id || item.uuid || item.key || "");
+    if (key && seen.has(key)) {
+      return;
+    }
+    if (key) {
+      seen.add(key);
+    }
+    combined.push(item);
+  };
+  (overdueItems || []).forEach(pushItem);
+  (pendingItems || []).forEach(pushItem);
+  const items = combined.slice(0, 3);
+
+  if (!items.length) {
+    if (perfilPendenciasEmpty) {
+      perfilPendenciasEmpty.hidden = false;
+    }
+    return;
+  }
+
+  if (perfilPendenciasEmpty) {
+    perfilPendenciasEmpty.hidden = true;
+  }
+
+  items.forEach((item) => {
+    const listItem = document.createElement("li");
+    listItem.className = "profile-list__item";
+    if (overdueSet.has(item) || isMaintenanceCritical(item)) {
+      listItem.classList.add("profile-list__item--danger");
+    }
+    const title = document.createElement("span");
+    title.className = "profile-list__title";
+    title.textContent = getMaintenanceTitle(item);
+    const meta = document.createElement("span");
+    meta.className = "profile-list__meta";
+    const due = getMaintenanceDueDate(item);
+    const status = normalizeMaintenanceStatus(item && item.status);
+    const statusLabel = status === "encerramento" ? "Aguardando apontamento" : "Atrasada";
+    meta.textContent = due ? `${statusLabel} \u00b7 Prazo ${formatDate(due)}` : statusLabel;
+    listItem.append(title, meta);
+    perfilPendenciasList.append(listItem);
+  });
+}
+
+function parseProfileTags(raw) {
+  return String(raw || "")
+    .split(/[,;\\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function renderProfileTags(container, tags) {
+  if (!container) {
+    return;
+  }
+  container.innerHTML = "";
+  (tags || []).forEach((tag) => {
+    const chip = document.createElement("span");
+    chip.className = "profile-tag";
+    chip.textContent = tag;
+    container.append(chip);
+  });
+}
+
+function renderProfileSimpleList(container, values, emptyLabel) {
+  if (!container) {
+    return;
+  }
+  const list = Array.isArray(values) ? values.filter(Boolean) : [];
+  container.innerHTML = "";
+  if (!list.length) {
+    if (emptyLabel) {
+      const li = document.createElement("li");
+      li.className = "profile-list__item";
+      const title = document.createElement("span");
+      title.className = "profile-list__title";
+      title.textContent = emptyLabel;
+      li.append(title);
+      container.append(li);
+    }
+    return;
+  }
+  list.forEach((value) => {
+    const li = document.createElement("li");
+    li.className = "profile-list__item";
+    const title = document.createElement("span");
+    title.className = "profile-list__title";
+    title.textContent = value;
+    li.append(title);
+    container.append(li);
+  });
+}
+
+function updateProfileAudit(user) {
+  if (!perfilAuditoriaList) {
+    return;
+  }
+  const events = [];
+  if (user && user.createdAt) {
+    events.push({
+      title: "Conta criada",
+      detail: "Registro inicial do colaborador.",
+      when: parseTimestamp(user.createdAt),
+    });
+  }
+  if (user && user.updatedAt) {
+    events.push({
+      title: "Perfil atualizado",
+      detail: "Dados operacionais revisados.",
+      when: parseTimestamp(user.updatedAt),
+    });
+  }
+  if (user && (user.lastLoginAt || user.lastLogin)) {
+    events.push({
+      title: "Login registrado",
+      detail: "Acesso autenticado com sucesso.",
+      when: parseTimestamp(user.lastLoginAt || user.lastLogin),
+    });
+  }
+
+  const ordered = events
+    .filter((event) => event.when)
+    .sort((a, b) => b.when - a.when)
+    .slice(0, 6);
+
+  perfilAuditoriaList.innerHTML = "";
+
+  if (!ordered.length) {
+    if (perfilAuditoriaEmpty) {
+      perfilAuditoriaEmpty.hidden = false;
+    }
+    return;
+  }
+
+  if (perfilAuditoriaEmpty) {
+    perfilAuditoriaEmpty.hidden = true;
+  }
+
+  ordered.forEach((event) => {
+    const item = document.createElement("div");
+    item.className = "profile-timeline__item";
+    const title = document.createElement("strong");
+    title.textContent = event.title;
+    const meta = document.createElement("span");
+    meta.className = "profile-list__meta";
+    meta.textContent = event.when ? formatDateTime(event.when) : "-";
+    item.append(title, meta);
+    if (event.detail) {
+      const detail = document.createElement("span");
+      detail.className = "profile-list__meta";
+      detail.textContent = event.detail;
+      item.append(detail);
+    }
+    perfilAuditoriaList.append(item);
+  });
+}
+
+function updateProfileHub(perfilUsuario, context) {
+  if (!perfilUsuario) {
+    return;
+  }
+
+  const statusInfo = getProfileStatusInfo(perfilUsuario);
+  if (perfilStatus) {
+    perfilStatus.textContent = statusInfo.label;
+    perfilStatus.className = `status-pill ${statusInfo.className}`;
+  }
+  if (perfilStatusUpdated) {
+    perfilStatusUpdated.textContent = statusInfo.updatedLabel;
+  }
+
+  const { overdueItems, pendingItems } = updateProfileKpis(perfilUsuario);
+  updateProfilePendencias(overdueItems, pendingItems);
+
+  const atribTags = parseProfileTags(perfilUsuario.atribuicoes || "");
+  renderProfileTags(perfilAtribuicoesTags, atribTags);
+  if (perfilAtribuicoesEmpty) {
+    perfilAtribuicoesEmpty.hidden = atribTags.length > 0;
+  }
+
+  const isAdminUser = Boolean(context && context.isAdminUser);
+  const permissoesAtivas = (context && context.permissoesAtivas) || [];
+  const secoesAtivas = (context && context.secoesAtivas) || [];
+
+  if (perfilPermissoesResumo) {
+    const roleLabel = formatProfileValue(getRoleLabel(perfilUsuario));
+    const uenLabel = formatProfileValue(perfilUsuario.uen);
+    const nivel = isAdminUser ? "Administrativo" : "Operacional";
+    perfilPermissoesResumo.textContent = `Perfil: ${roleLabel} | Escopo: ${uenLabel} | N\u00edvel: ${nivel}`;
+  }
+
+  renderProfileSimpleList(
+    perfilPermissoesDetalhesList,
+    isAdminUser ? ["Total"] : permissoesAtivas,
+    "Sem permiss\u00f5es."
+  );
+  renderProfileSimpleList(
+    perfilSecoesDetalhesList,
+    isAdminUser ? ["Todas"] : secoesAtivas,
+    "Nenhum m\u00f3dulo habilitado."
+  );
+
+  const tags = isAdminUser ? ["Todas"] : secoesAtivas.length ? secoesAtivas : ["Nenhum"];
+  renderProfileTags(perfilSecoesBadges, tags);
+
+  updateProfileAudit(perfilUsuario);
+  setProfileTab(activeProfileTab);
+}
+
+function clearProfileHub() {
+  if (perfilStatus) {
+    perfilStatus.textContent = "-";
+    perfilStatus.className = "status-pill";
+  }
+  if (perfilStatusUpdated) {
+    perfilStatusUpdated.textContent = "";
+  }
+  ["open", "overdue", "pending", "sla", "checklists"].forEach((key) =>
+    setProfileKpiValue(key, null)
+  );
+  if (perfilPendenciasList) {
+    perfilPendenciasList.innerHTML = "";
+  }
+  if (perfilPendenciasEmpty) {
+    perfilPendenciasEmpty.hidden = false;
+  }
+  if (perfilAtribuicoesTags) {
+    perfilAtribuicoesTags.innerHTML = "";
+  }
+  if (perfilAtribuicoesEmpty) {
+    perfilAtribuicoesEmpty.hidden = true;
+  }
+  if (perfilPermissoesResumo) {
+    perfilPermissoesResumo.textContent = "-";
+  }
+  renderProfileSimpleList(perfilPermissoesDetalhesList, [], "Sem permiss\u00f5es.");
+  renderProfileSimpleList(perfilSecoesDetalhesList, [], "Nenhum m\u00f3dulo habilitado.");
+  if (perfilSecoesBadges) {
+    perfilSecoesBadges.innerHTML = "";
+  }
+  if (perfilAuditoriaList) {
+    perfilAuditoriaList.innerHTML = "";
+  }
+  if (perfilAuditoriaEmpty) {
+    perfilAuditoriaEmpty.hidden = false;
+  }
+}
+
+function handleProfileAction(action) {
+  if (!action) {
+    return;
+  }
+  if (action === "minhas-os") {
+    abrirPainelComCarregamento("programacao");
+    return;
+  }
+  if (action === "criar-solicitacao") {
+    abrirPainelComCarregamento("nova");
+    return;
+  }
+  if (action === "ver-escala") {
+    abrirPainelComCarregamento("pmp");
+    return;
+  }
+  if (action === "exportar") {
+    if (typeof exportarDados === "function") {
+      exportarDados();
+    } else {
+      abrirPainelComCarregamento("relatorios");
+    }
+    return;
+  }
+  if (action === "trocar-contexto") {
+    ativarModoEdicaoPerfil();
+    return;
+  }
+  if (action === "ver-pendencias") {
+    abrirPainelComCarregamento("programacao");
+    return;
+  }
+  if (action === "definir-atribuicoes") {
+    ativarModoEdicaoPerfil();
+    setTimeout(() => {
+      const input = document.getElementById("perfilAtribuicoesInput");
+      if (input) {
+        input.focus();
+      }
+    }, 0);
+  }
 }
 
 function ativarModoEdicaoPerfil() {
@@ -29997,6 +30513,12 @@ function renderPerfil() {
   if (btnPerfilEditar) {
     btnPerfilEditar.hidden = !podeEditarPerfil;
   }
+  if (btnPerfilTrocarContexto) {
+    btnPerfilTrocarContexto.disabled = !podeEditarPerfil;
+  }
+  if (btnPerfilDefinirAtribuicoes) {
+    btnPerfilDefinirAtribuicoes.disabled = !podeEditarPerfil;
+  }
 
   if (isEdit) {
     if (isSelfProfile) {
@@ -30047,6 +30569,7 @@ function renderPerfil() {
     if (btnPerfilEditar) {
       btnPerfilEditar.hidden = true;
     }
+    clearProfileHub();
     setAvatarError("");
     applyAvatarToElement(perfilAvatarPreview, "");
     applyAvatarToElement(userAvatar, "");
@@ -30099,6 +30622,7 @@ function renderPerfil() {
         ? secoesAtivas.join(", ")
         : "Nenhuma.";
   }
+  updateProfileHub(perfilUsuario, { isAdminUser, permissoesAtivas, secoesAtivas });
   const perfilUenInputAtual = document.getElementById("perfilUenInput");
   if (perfilUenInputAtual) {
     perfilUenInputAtual.value = perfilUsuario.uen || "";
@@ -30106,6 +30630,10 @@ function renderPerfil() {
   const perfilProjetoInputAtual = document.getElementById("perfilProjetoInput");
   if (perfilProjetoInputAtual) {
     renderProjectSelectOptions(perfilProjetoInputAtual, perfilUsuario.projectId || "");
+  }
+  const perfilAtribuicoesInputAtual = document.getElementById("perfilAtribuicoesInput");
+  if (perfilAtribuicoesInputAtual) {
+    perfilAtribuicoesInputAtual.value = perfilUsuario.atribuicoes || "";
   }
   const btnSalvarAtual = document.getElementById("btnPerfilSalvar");
   if (btnSalvarAtual) {
@@ -30126,6 +30654,15 @@ function renderPerfil() {
     : getAvatarUrl(perfilUsuario);
   applyAvatarToElement(perfilAvatarPreview, avatarUrl);
   applyAvatarToElement(userAvatar, getAvatarUrl(currentUser));
+}
+
+profileTabs.forEach((tab) => {
+  tab.addEventListener("click", () => {
+    setProfileTab(tab.dataset.profileTab);
+  });
+});
+if (profileTabs.length) {
+  setProfileTab(activeProfileTab);
 }
 
 function renderAuthUI() {
@@ -36847,14 +37384,19 @@ document.addEventListener("click", (event) => {
   }
   const uenInput = document.getElementById("perfilUenInput");
   const projetoInput = document.getElementById("perfilProjetoInput");
+  const atribuicoesInput = document.getElementById("perfilAtribuicoesInput");
   const payload = {};
   const uenValue = uenInput ? uenInput.value.trim() : "";
   const projetoValue = projetoInput ? projetoInput.value.trim() : "";
+  const atribuicoesValue = atribuicoesInput ? atribuicoesInput.value.trim() : "";
   if (uenInput && uenValue !== (perfilUsuario.uen || "")) {
     payload.uen = uenValue;
   }
   if (projetoInput && projetoValue !== (perfilUsuario.projectId || "")) {
     payload.projectId = projetoValue;
+  }
+  if (atribuicoesInput && atribuicoesValue !== (perfilUsuario.atribuicoes || "")) {
+    payload.atribuicoes = atribuicoesValue;
   }
   if (!Object.keys(payload).length) {
     setPerfilSaveMessage("Nenhuma altera\u00e7\u00e3o para salvar.");
@@ -36879,6 +37421,25 @@ document.addEventListener("click", (event) => {
     .finally(() => {
       salvar.disabled = false;
     });
+});
+
+document.addEventListener("click", (event) => {
+  const actionButton = event.target.closest("[data-profile-action]");
+  if (actionButton) {
+    handleProfileAction(actionButton.dataset.profileAction);
+    return;
+  }
+  const openPermissoes = event.target.closest("#btnPerfilPermissoesDetalhes");
+  if (openPermissoes) {
+    openProfilePermissionsModal();
+    return;
+  }
+  const closePermissoes = event.target.closest(
+    "#btnCloseProfilePermissions, #btnCloseProfilePermissionsFooter"
+  );
+  if (closePermissoes) {
+    closeProfilePermissionsModal();
+  }
 });
 
 if (btnSalvarConfig) {
@@ -38689,6 +39250,20 @@ if (modalAccessUser) {
   modalAccessUser.addEventListener("click", (event) => {
     if (event.target === modalAccessUser) {
       closeAccessUserModal();
+    }
+  });
+}
+
+if (btnCloseProfilePermissions) {
+  btnCloseProfilePermissions.addEventListener("click", closeProfilePermissionsModal);
+}
+if (btnCloseProfilePermissionsFooter) {
+  btnCloseProfilePermissionsFooter.addEventListener("click", closeProfilePermissionsModal);
+}
+if (modalProfilePermissions) {
+  modalProfilePermissions.addEventListener("click", (event) => {
+    if (event.target === modalProfilePermissions) {
+      closeProfilePermissionsModal();
     }
   });
 }
