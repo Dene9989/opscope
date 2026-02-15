@@ -567,6 +567,7 @@ const btnToggleSidebar = document.querySelectorAll(
   "#btnSidebar, #btnSidebarToggle, #btnToggleSidebar, #btnMenu, #topbarMenuToggle, .header-toggle"
 );
 const appShell = document.querySelector(".app") || document.querySelector(".app-shell");
+const btnLogoHome = document.getElementById("btnLogoHome");
 const sidebarBackdrop = document.getElementById("sidebarBackdrop");
 const dashboardHome = document.getElementById("dashboardHome");
 const perfilNome = document.getElementById("perfilNome");
@@ -38367,6 +38368,12 @@ if (drawerRole) {
     const userId = drawerUserId ? drawerUserId.value : "";
     const user = users.find((item) => item.id === userId);
     renderDrawerPermissions(user || {}, collectDrawerPermissions());
+  });
+}
+
+if (btnLogoHome) {
+  btnLogoHome.addEventListener("click", () => {
+    abrirPainelComCarregamento("inicio");
   });
 }
 

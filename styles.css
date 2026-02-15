@@ -702,6 +702,18 @@ h1 {
   white-space: nowrap;
 }
 
+.topbar-logo--button {
+  background: transparent;
+  cursor: pointer;
+  border: none;
+  border-right: 1px solid var(--sb-border);
+}
+
+.topbar-logo--button:focus-visible {
+  outline: 2px solid rgba(200, 146, 61, 0.55);
+  outline-offset: 4px;
+}
+
 .topbar-logo__img {
   height: 100px;
   width: auto;
