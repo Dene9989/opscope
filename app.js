@@ -809,6 +809,7 @@ const btnIrAcessos = document.getElementById("btnIrAcessos");
 const accessTabs = Array.from(document.querySelectorAll("[data-access-tab]"));
 const accessPanels = Array.from(document.querySelectorAll("[data-access-panel]"));
 const accessMsg = document.getElementById("accessMsg");
+const accessStorageWarning = document.getElementById("accessStorageWarning");
 const btnAccessNewUser = document.getElementById("btnAccessNewUser");
 const btnAccessNewRole = document.getElementById("btnAccessNewRole");
 const btnAccessExport = document.getElementById("btnAccessExport");
@@ -840,6 +841,7 @@ const accessUserModalTitle = document.getElementById("accessUserModalTitle");
 const accessUserModalSubtitle = document.getElementById("accessUserModalSubtitle");
 const accessUserFormMsg = document.getElementById("accessUserFormMsg");
 const btnCloseAccessUserModal = document.getElementById("btnCloseAccessUserModal");
+const btnAccessUserSave = document.getElementById("btnAccessUserSave");
 const btnAccessUserCancel = document.getElementById("btnAccessUserCancel");
 const btnAccessGeneratePassword = document.getElementById("btnAccessGeneratePassword");
 const modalResetPassword = document.getElementById("modalResetPassword");
@@ -851,6 +853,7 @@ const resetPasswordValue = document.getElementById("resetPasswordValue");
 const resetPasswordMsg = document.getElementById("resetPasswordMsg");
 const btnCloseResetPassword = document.getElementById("btnCloseResetPassword");
 const btnResetPasswordCancel = document.getElementById("btnResetPasswordCancel");
+const btnResetPasswordConfirm = document.getElementById("btnResetPasswordConfirm");
 const btnResetGeneratePassword = document.getElementById("btnResetGeneratePassword");
 const modalGeneratedPassword = document.getElementById("modalGeneratedPassword");
 const generatedPasswordValue = document.getElementById("generatedPasswordValue");
@@ -890,6 +893,7 @@ const accessRoleModalTitle = document.getElementById("accessRoleModalTitle");
 const accessRoleModalSubtitle = document.getElementById("accessRoleModalSubtitle");
 const accessRoleFormMsg = document.getElementById("accessRoleFormMsg");
 const btnCloseAccessRoleModal = document.getElementById("btnCloseAccessRoleModal");
+const btnAccessRoleSave = document.getElementById("btnAccessRoleSave");
 const btnAccessRoleCancel = document.getElementById("btnAccessRoleCancel");
 const modalConfirm = document.getElementById("modalConfirm");
 const modalConfirmTitle = document.getElementById("modalConfirmTitle");
@@ -1091,6 +1095,8 @@ const ACCESS_HELP_MESSAGES = {
   reset:
     "Olá, preciso de reset de senha no OPSCOPE.\nNome: \nMatrícula: \nObrigado!",
 };
+const ACCESS_STORAGE_READONLY_MESSAGE =
+  "Armazenamento indisponivel. O sistema esta em modo somente leitura para evitar perda de dados.";
 const MAX_REAGENDAMENTOS = 3;
 const OUTROS_ALERT_THRESHOLD = 3;
 const MIN_EVIDENCIAS = 4;
@@ -3643,6 +3649,7 @@ let users = [];
 let accessUsers = [];
 let accessRoles = [];
 let accessRoleMap = new Map();
+let accessWriteEnabled = true;
 let accessRoleEditorState = {
   roleId: "",
   baseline: [],
@@ -22295,6 +22302,70 @@ function setAccessMessage(texto, erro = false) {
   accessMsg.classList.toggle("mensagem--erro", erro);
 }
 
+function setAccessStorageWarning(texto = "") {
+  if (!accessStorageWarning) {
+    return;
+  }
+  accessStorageWarning.textContent = texto || "";
+  accessStorageWarning.hidden = !texto;
+}
+
+function applyAccessWriteState() {
+  const disabled = !accessWriteEnabled;
+  if (btnAccessNewUser) {
+    btnAccessNewUser.disabled = disabled;
+  }
+  if (btnAccessNewRole) {
+    btnAccessNewRole.disabled = disabled;
+  }
+  if (btnAccessImport) {
+    btnAccessImport.disabled = disabled;
+  }
+  if (accessImportInput) {
+    accessImportInput.disabled = disabled;
+  }
+  if (btnAccessUserSave) {
+    btnAccessUserSave.disabled = disabled;
+  }
+  if (btnAccessRoleSave) {
+    btnAccessRoleSave.disabled = disabled;
+  }
+  if (btnResetPasswordConfirm) {
+    btnResetPasswordConfirm.disabled = disabled;
+  }
+  renderAccessUsers();
+  renderAccessRoles();
+}
+
+async function refreshAccessStorageState() {
+  if (!currentUser || !canManageAccess(currentUser)) {
+    accessWriteEnabled = true;
+    setAccessStorageWarning("");
+    applyAccessWriteState();
+    return;
+  }
+  if (!USE_AUTH_API) {
+    accessWriteEnabled = true;
+    setAccessStorageWarning("");
+    applyAccessWriteState();
+    return;
+  }
+  try {
+    const status = await apiRequest("/api/admin/access/storage");
+    const writeBlocked = Boolean(status && status.writeBlocked);
+    accessWriteEnabled = !writeBlocked;
+    if (writeBlocked) {
+      setAccessStorageWarning(ACCESS_STORAGE_READONLY_MESSAGE);
+    } else {
+      setAccessStorageWarning("");
+    }
+  } catch (error) {
+    accessWriteEnabled = true;
+    setAccessStorageWarning("");
+  }
+  applyAccessWriteState();
+}
+
 function setAccessTab(tab) {
   if (!accessTabs.length || !accessPanels.length) {
     return;
@@ -22414,7 +22485,7 @@ function renderAccessUsers() {
     return;
   }
   accessUsersEmpty.hidden = true;
-  const canWrite = Boolean(currentUser && canManageAccess(currentUser));
+  const canWrite = Boolean(currentUser && canManageAccess(currentUser) && accessWriteEnabled);
   filtered.forEach((user) => {
     const tr = document.createElement("tr");
     const statusText = user.status === "INATIVO" ? "Inativo" : "Ativo";
@@ -22470,7 +22541,7 @@ function renderAccessRoles() {
     return;
   }
   accessRolesEmpty.hidden = true;
-  const canWrite = Boolean(currentUser && canManageAccess(currentUser));
+  const canWrite = Boolean(currentUser && canManageAccess(currentUser) && accessWriteEnabled);
   filtered
     .slice()
     .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR"))
@@ -22573,6 +22644,7 @@ async function refreshAccessData() {
   }
   await refreshAccessRoles();
   await refreshAccessUsers();
+  await refreshAccessStorageState();
 }
 
 function setAccessUserFormMessage(texto, erro = false) {
@@ -35209,6 +35281,9 @@ tabButtons.forEach((botao) => {
     const tab = botao.dataset.tab;
     const scrollTarget = botao.dataset.scrollTarget;
     abrirPainelComCarregamento(tab, scrollTarget);
+    if (tab === "acessos") {
+      refreshAccessData();
+    }
   });
 });
 
@@ -37050,6 +37125,7 @@ if (btnIrAcessos) {
   btnIrAcessos.addEventListener("click", () => {
     abrirPainelComCarregamento("acessos");
     setAccessTab("contas");
+    refreshAccessData();
   });
 }
 
@@ -37067,6 +37143,10 @@ if (btnAccessNewUser) {
       setAccessMessage("Sem permiss\u00e3o para criar contas.", true);
       return;
     }
+    if (!accessWriteEnabled) {
+      setAccessMessage(ACCESS_STORAGE_READONLY_MESSAGE, true);
+      return;
+    }
     openAccessUserModal();
   });
 }
@@ -37075,6 +37155,10 @@ if (btnAccessNewRole) {
   btnAccessNewRole.addEventListener("click", () => {
     if (!currentUser || !canManageAccess(currentUser)) {
       setAccessMessage("Sem permiss\u00e3o para criar cargos.", true);
+      return;
+    }
+    if (!accessWriteEnabled) {
+      setAccessMessage(ACCESS_STORAGE_READONLY_MESSAGE, true);
       return;
     }
     openAccessRoleModal();
@@ -37091,6 +37175,10 @@ if (btnAccessImport) {
       setAccessMessage("Sem permiss\u00e3o para importar acessos.", true);
       return;
     }
+    if (!accessWriteEnabled) {
+      setAccessMessage(ACCESS_STORAGE_READONLY_MESSAGE, true);
+      return;
+    }
     openAccessImportDialog();
   });
 }
@@ -37103,6 +37191,10 @@ if (accessImportInput) {
     }
     if (currentUser && !canManageAccess(currentUser)) {
       showAccessImportMessage("Sem permiss\u00e3o para importar acessos.", true);
+      return;
+    }
+    if (!accessWriteEnabled) {
+      showAccessImportMessage(ACCESS_STORAGE_READONLY_MESSAGE, true);
       return;
     }
     importAccessPackageFromFile(file);
@@ -37279,6 +37371,10 @@ if (accessUsersTableBody) {
       setAccessMessage("Sem permiss\u00e3o para esta acao.", true);
       return;
     }
+    if (!accessWriteEnabled && button.dataset.action !== "view-profile") {
+      setAccessMessage(ACCESS_STORAGE_READONLY_MESSAGE, true);
+      return;
+    }
     if (button.dataset.action === "view-profile") {
       openProfileForUser(user.id, { edit: false });
       return;
@@ -37329,6 +37425,10 @@ if (accessRolesTableBody) {
     }
     if (!currentUser || !canManageAccess(currentUser)) {
       setAccessMessage("Sem permiss\u00e3o para esta acao.", true);
+      return;
+    }
+    if (!accessWriteEnabled) {
+      setAccessMessage(ACCESS_STORAGE_READONLY_MESSAGE, true);
       return;
     }
     if (button.dataset.action === "edit-role") {
@@ -37394,6 +37494,10 @@ if (accessUserForm) {
     event.preventDefault();
     if (!currentUser || !canManageAccess(currentUser)) {
       setAccessUserFormMessage("Sem permiss\u00e3o para salvar.", true);
+      return;
+    }
+    if (!accessWriteEnabled) {
+      setAccessUserFormMessage(ACCESS_STORAGE_READONLY_MESSAGE, true);
       return;
     }
     const id = accessUserId ? accessUserId.value.trim() : "";
@@ -37471,6 +37575,10 @@ if (resetPasswordForm) {
     event.preventDefault();
     if (!currentUser || !canManageAccess(currentUser)) {
       setResetPasswordMessage("Sem permiss\u00e3o para salvar.", true);
+      return;
+    }
+    if (!accessWriteEnabled) {
+      setResetPasswordMessage(ACCESS_STORAGE_READONLY_MESSAGE, true);
       return;
     }
     const id = resetPasswordUserId ? resetPasswordUserId.value.trim() : "";
@@ -37587,6 +37695,10 @@ if (accessRoleForm) {
     event.preventDefault();
     if (!currentUser || !canManageAccess(currentUser)) {
       setAccessRoleFormMessage("Sem permiss\u00e3o para salvar.", true);
+      return;
+    }
+    if (!accessWriteEnabled) {
+      setAccessRoleFormMessage(ACCESS_STORAGE_READONLY_MESSAGE, true);
       return;
     }
     const id = accessRoleId ? accessRoleId.value.trim() : "";

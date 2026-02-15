@@ -188,7 +188,6 @@
         <div class="modal__actions auth-modal__actions">
           <button id="btnAccessHelpRequest" class="btn btn--primary" type="button">Solicitar acesso</button>
           <button id="btnAccessHelpReset" class="btn btn--ghost" type="button">Reset de senha</button>
-          <button id="btnAccessHelpImport" class="btn btn--ghost" type="button">Importar acesso</button>
         </div>
       </div>
     </div>
@@ -1146,7 +1145,7 @@
           </div>
           <div class="stat">
             <span id="countEncerramento">0</span>
-            <small>encerramento</small>
+            <small>encerradas</small>
           </div>
           <div class="stat">
             <span id="countConcluidas">0</span>
@@ -1172,7 +1171,7 @@
               <option value="agendada">Agendada</option>
               <option value="liberada">Liberada</option>
               <option value="em_execucao">Em execução</option>
-              <option value="encerramento">Encerramento</option>
+              <option value="encerramento">Encerrada</option>
               <option value="concluida">Executadas</option>
               <option value="hoje">Vence hoje</option>
               <option value="backlog">Backlog</option>
@@ -4243,6 +4242,7 @@
             <button class="tab-btn" type="button" data-access-tab="cargos">Cargos</button>
           </div>
         </div>
+        <p id="accessStorageWarning" class="mensagem mensagem--erro" hidden></p>
         <div class="access-panel" data-access-panel="contas">
           <div class="access-toolbar">
             <div class="access-actions">
@@ -4329,7 +4329,6 @@
           <p id="accessRolesEmpty" class="empty-state">Nenhum cargo cadastrado.</p>
         </div>
         <p id="accessMsg" class="mensagem" aria-live="polite"></p>
-        <input id="accessImportInput" type="file" accept="application/json" hidden />
       </section>
     </section>
 

@@ -85,6 +85,8 @@ const STORAGE_DIR = process.env.OPSCOPE_STORAGE_DIR
 const STORAGE_DATA_DIR = path.join(STORAGE_DIR, "data");
 const DATABASE_URL = process.env.OPSCOPE_DATABASE_URL || process.env.DATABASE_URL || "";
 const DB_ENABLED = Boolean(DATABASE_URL);
+const STORAGE_READONLY_MESSAGE =
+  "Armazenamento indisponivel. O sistema esta em modo somente leitura para evitar perda de dados.";
 const DB_STORE_TABLE = "opscope_store";
 const DB_UPLOADS_TABLE = "opscope_uploads";
 let dbPool = null;
@@ -4626,6 +4628,18 @@ function requireAccessManage(req, res, next) {
   return next();
 }
 
+function isStorageWriteBlocked() {
+  return DB_ENABLED && !dbReady;
+}
+
+function requireStorageWritable(req, res, next) {
+  if (!isStorageWriteBlocked()) {
+    return next();
+  }
+  res.setHeader("Retry-After", "60");
+  return res.status(503).json({ message: STORAGE_READONLY_MESSAGE });
+}
+
 function requireProjectAccess(req, res, next) {
   const user = req.currentUser || getSessionUser(req);
   const projectId =
@@ -7234,6 +7248,14 @@ app.get("/api/admin/permissions", requireAuth, requirePermission("verUsuarios"),
   return res.json({ permissions: PERMISSION_CATALOG });
 });
 
+app.get("/api/admin/access/storage", requireAuth, requireAccessView, (req, res) => {
+  return res.json({
+    dbEnabled: DB_ENABLED,
+    dbReady,
+    writeBlocked: isStorageWriteBlocked(),
+  });
+});
+
 app.get("/api/admin/access/roles", requireAuth, requireAccessView, (req, res) => {
   const term = normalizeSearchValue(req.query.q || "");
   let list = accessRoles.slice();
@@ -7256,100 +7278,124 @@ app.get("/api/admin/access/roles/:id", requireAuth, requireAccessView, (req, res
   return res.json({ role });
 });
 
-app.post("/api/admin/access/roles", requireAuth, requireAccessManage, (req, res) => {
-  const name = String(req.body.name || "").trim();
-  if (!name) {
-    return res.status(400).json({ message: "Informe o nome do cargo." });
-  }
-  const normalizedName = normalizeAccessRoleName(name);
-  const conflict = accessRoles.find((role) => role.nameNormalized === normalizedName);
-  if (conflict) {
-    return res.status(409).json({ message: "Ja existe um cargo com esse nome." });
-  }
-  const now = new Date().toISOString();
-  const role = normalizeAccessRoleRecord({
-    id: crypto.randomUUID(),
-    name,
-    permissions: normalizeAccessPermissionList(req.body.permissions || []),
-    isSystem: false,
-    createdAt: now,
-    updatedAt: now,
-  });
-  if (!role) {
-    return res.status(400).json({ message: "Cargo invalido." });
-  }
-  accessRoles = [role, ...accessRoles];
-  saveAccessRoles(accessRoles);
-  appendAudit("access_role_create", req.session.userId, { roleId: role.id }, getClientIp(req));
-  return res.json({ role });
-});
-
-app.put("/api/admin/access/roles/:id", requireAuth, requireAccessManage, (req, res) => {
-  const roleId = String(req.params.id || "").trim();
-  const index = accessRoles.findIndex((role) => String(role.id) === roleId);
-  if (index === -1) {
-    return res.status(404).json({ message: "Cargo nao encontrado." });
-  }
-  const current = accessRoles[index];
-  const name = req.body.name !== undefined ? String(req.body.name || "").trim() : current.name;
-  if (!name) {
-    return res.status(400).json({ message: "Informe o nome do cargo." });
-  }
-  const normalizedName = normalizeAccessRoleName(name);
-  const conflict = accessRoles.find(
-    (role) => role.id !== current.id && role.nameNormalized === normalizedName
-  );
-  if (conflict) {
-    return res.status(409).json({ message: "Ja existe um cargo com esse nome." });
-  }
-  const permissions =
-    req.body.permissions !== undefined
-      ? normalizeAccessPermissionList(req.body.permissions || [])
-      : current.permissions;
-  const updated = normalizeAccessRoleRecord({
-    ...current,
-    name,
-    permissions,
-    updatedAt: new Date().toISOString(),
-  });
-  accessRoles[index] = updated;
-  saveAccessRoles(accessRoles);
-  appendAudit("access_role_update", req.session.userId, { roleId: updated.id }, getClientIp(req));
-  return res.json({ role: updated });
-});
-
-app.delete("/api/admin/access/roles/:id", requireAuth, requireAccessManage, (req, res) => {
-  const roleId = String(req.params.id || "").trim();
-  const role = getAccessRoleById(roleId);
-  if (!role) {
-    return res.status(404).json({ message: "Cargo nao encontrado." });
-  }
-  if (role.isSystem) {
-    return res.status(403).json({ message: "Cargo de sistema nao pode ser excluido." });
-  }
-  const inUse = users.some((user) => {
-    if (!user) {
-      return false;
+app.post(
+  "/api/admin/access/roles",
+  requireAuth,
+  requireAccessManage,
+  requireStorageWritable,
+  (req, res) => {
+    const name = String(req.body.name || "").trim();
+    if (!name) {
+      return res.status(400).json({ message: "Informe o nome do cargo." });
     }
-    if (String(user.roleId || "") === String(role.id)) {
-      return true;
+    const normalizedName = normalizeAccessRoleName(name);
+    const conflict = accessRoles.find((role) => role.nameNormalized === normalizedName);
+    if (conflict) {
+      return res.status(409).json({ message: "Ja existe um cargo com esse nome." });
     }
-    const name = normalizeAccessRoleName(user.roleName || user.cargo || user.role || "");
-    return name && name === role.nameNormalized;
-  });
-  if (inUse) {
-    return res.status(409).json({ message: "Cargo em uso por usuarios." });
+    const now = new Date().toISOString();
+    const role = normalizeAccessRoleRecord({
+      id: crypto.randomUUID(),
+      name,
+      permissions: normalizeAccessPermissionList(req.body.permissions || []),
+      isSystem: false,
+      createdAt: now,
+      updatedAt: now,
+    });
+    if (!role) {
+      return res.status(400).json({ message: "Cargo invalido." });
+    }
+    accessRoles = [role, ...accessRoles];
+    saveAccessRoles(accessRoles);
+    appendAudit("access_role_create", req.session.userId, { roleId: role.id }, getClientIp(req));
+    return res.json({ role });
   }
-  accessRoles = accessRoles.filter((item) => String(item.id) !== roleId);
-  saveAccessRoles(accessRoles);
-  appendAudit("access_role_delete", req.session.userId, { roleId }, getClientIp(req));
-  return res.json({ ok: true });
-});
+);
 
-app.post("/api/admin/access/roles/seed", requireAuth, requireAccessManage, (req, res) => {
-  const result = seedDefaultAccessRolesIfEmpty();
-  return res.json({ ...result, roles: accessRoles });
-});
+app.put(
+  "/api/admin/access/roles/:id",
+  requireAuth,
+  requireAccessManage,
+  requireStorageWritable,
+  (req, res) => {
+    const roleId = String(req.params.id || "").trim();
+    const index = accessRoles.findIndex((role) => String(role.id) === roleId);
+    if (index === -1) {
+      return res.status(404).json({ message: "Cargo nao encontrado." });
+    }
+    const current = accessRoles[index];
+    const name = req.body.name !== undefined ? String(req.body.name || "").trim() : current.name;
+    if (!name) {
+      return res.status(400).json({ message: "Informe o nome do cargo." });
+    }
+    const normalizedName = normalizeAccessRoleName(name);
+    const conflict = accessRoles.find(
+      (role) => role.id !== current.id && role.nameNormalized === normalizedName
+    );
+    if (conflict) {
+      return res.status(409).json({ message: "Ja existe um cargo com esse nome." });
+    }
+    const permissions =
+      req.body.permissions !== undefined
+        ? normalizeAccessPermissionList(req.body.permissions || [])
+        : current.permissions;
+    const updated = normalizeAccessRoleRecord({
+      ...current,
+      name,
+      permissions,
+      updatedAt: new Date().toISOString(),
+    });
+    accessRoles[index] = updated;
+    saveAccessRoles(accessRoles);
+    appendAudit("access_role_update", req.session.userId, { roleId: updated.id }, getClientIp(req));
+    return res.json({ role: updated });
+  }
+);
+
+app.delete(
+  "/api/admin/access/roles/:id",
+  requireAuth,
+  requireAccessManage,
+  requireStorageWritable,
+  (req, res) => {
+    const roleId = String(req.params.id || "").trim();
+    const role = getAccessRoleById(roleId);
+    if (!role) {
+      return res.status(404).json({ message: "Cargo nao encontrado." });
+    }
+    if (role.isSystem) {
+      return res.status(403).json({ message: "Cargo de sistema nao pode ser excluido." });
+    }
+    const inUse = users.some((user) => {
+      if (!user) {
+        return false;
+      }
+      if (String(user.roleId || "") === String(role.id)) {
+        return true;
+      }
+      const name = normalizeAccessRoleName(user.roleName || user.cargo || user.role || "");
+      return name && name === role.nameNormalized;
+    });
+    if (inUse) {
+      return res.status(409).json({ message: "Cargo em uso por usuarios." });
+    }
+    accessRoles = accessRoles.filter((item) => String(item.id) !== roleId);
+    saveAccessRoles(accessRoles);
+    appendAudit("access_role_delete", req.session.userId, { roleId }, getClientIp(req));
+    return res.json({ ok: true });
+  }
+);
+
+app.post(
+  "/api/admin/access/roles/seed",
+  requireAuth,
+  requireAccessManage,
+  requireStorageWritable,
+  (req, res) => {
+    const result = seedDefaultAccessRolesIfEmpty();
+    return res.json({ ...result, roles: accessRoles });
+  }
+);
 
 app.get("/api/admin/access/users", requireAuth, requireAccessView, (req, res) => {
   const term = normalizeSearchValue(req.query.q || "");
@@ -7386,142 +7432,155 @@ app.get("/api/admin/access/users/:id", requireAuth, requireAccessView, (req, res
   return res.json({ user: serializeAccessUser(user) });
 });
 
-app.post("/api/admin/access/users", requireAuth, requireAccessManage, (req, res) => {
-  const payload = req.body || {};
-  const name = String(payload.name || "").trim();
-  const matricula = String(payload.matricula || "").trim();
-  if (!name) {
-    return res.status(400).json({ message: "Informe o nome do usuario." });
-  }
-  if (!matricula) {
-    return res.status(400).json({ message: "Informe a matricula." });
-  }
-  if (findUserByMatriculaNormalized(matricula)) {
-    return res.status(409).json({ message: "Matricula ja cadastrada." });
-  }
-  const roleId = String(payload.roleId || "").trim();
-  const role = roleId ? getAccessRoleById(roleId) : null;
-  if (!role) {
-    return res.status(400).json({ message: "Cargo invalido." });
-  }
-  const projectId = payload.projectId ? String(payload.projectId).trim() : "";
-  if (projectId && !getProjectById(projectId)) {
-    return res.status(400).json({ message: "Projeto invalido." });
-  }
-  const status = normalizeUserStatus(payload.status || "ATIVO");
-  const mode = String(payload.passwordMode || "MANUAL").toUpperCase();
-  let password = String(payload.password || "");
-  let generatedPassword = "";
-  if (mode === "GERADA") {
-    generatedPassword = generateRandomPassword(12);
-    password = generatedPassword;
-  }
-  if (!password) {
-    return res.status(400).json({ message: "Informe a senha." });
-  }
-  const now = new Date().toISOString();
-  const passwordHash = hashPasswordSha256(password);
-  const username = payload.email ? String(payload.email || "").trim() : matricula;
-  const created = normalizeUserRecord({
-    id: crypto.randomUUID(),
-    username,
-    matricula,
-    name,
-    email: String(payload.email || "").trim().toLowerCase(),
-    roleId: role.id,
-    roleName: role.name,
-    cargo: role.name,
-    accessPermissions: role.permissions,
-    rolePermissions: role.permissions,
-    rbacRole: deriveRbacRoleFromRoleName(role.name),
-    role: normalizeRole(role.name, deriveRbacRoleFromRoleName(role.name)),
-    projectId: projectId || null,
-    status,
-    active: status !== "INATIVO",
-    passwordHash,
-    passwordUpdatedAt: now,
-    emailVerified: true,
-    createdAt: now,
-    updatedAt: now,
-  });
-  users.push(created);
-  writeJson(USERS_FILE, users);
-  if (created.projectId) {
-    setUserProjectAssignment(created, created.projectId);
-  }
-  appendAudit("access_user_create", req.session.userId, { alvo: created.id }, getClientIp(req));
-  return res.json({
-    user: serializeAccessUser(created),
-    generatedPassword: generatedPassword || undefined,
-  });
-});
-
-app.put("/api/admin/access/users/:id", requireAuth, requireAccessManage, (req, res) => {
-  const id = String(req.params.id || "").trim();
-  const index = users.findIndex((item) => item && String(item.id) === id);
-  if (index === -1) {
-    return res.status(404).json({ message: "Usuario nao encontrado." });
-  }
-  const current = users[index];
-  const payload = req.body || {};
-  if (payload.name !== undefined && !String(payload.name || "").trim()) {
-    return res.status(400).json({ message: "Informe o nome do usuario." });
-  }
-  let roleId = current.roleId || "";
-  let roleName = current.roleName || current.cargo || "";
-  let rolePermissions = current.accessPermissions || current.rolePermissions || [];
-  if (payload.roleId !== undefined) {
-    const nextRoleId = String(payload.roleId || "").trim();
-    if (!nextRoleId) {
-      return res.status(400).json({ message: "Cargo invalido." });
+app.post(
+  "/api/admin/access/users",
+  requireAuth,
+  requireAccessManage,
+  requireStorageWritable,
+  (req, res) => {
+    const payload = req.body || {};
+    const name = String(payload.name || "").trim();
+    const matricula = String(payload.matricula || "").trim();
+    if (!name) {
+      return res.status(400).json({ message: "Informe o nome do usuario." });
     }
-    const role = getAccessRoleById(nextRoleId);
+    if (!matricula) {
+      return res.status(400).json({ message: "Informe a matricula." });
+    }
+    if (findUserByMatriculaNormalized(matricula)) {
+      return res.status(409).json({ message: "Matricula ja cadastrada." });
+    }
+    const roleId = String(payload.roleId || "").trim();
+    const role = roleId ? getAccessRoleById(roleId) : null;
     if (!role) {
       return res.status(400).json({ message: "Cargo invalido." });
     }
-    roleId = role.id;
-    roleName = role.name;
-    rolePermissions = role.permissions;
+    const projectId = payload.projectId ? String(payload.projectId).trim() : "";
+    if (projectId && !getProjectById(projectId)) {
+      return res.status(400).json({ message: "Projeto invalido." });
+    }
+    const status = normalizeUserStatus(payload.status || "ATIVO");
+    const mode = String(payload.passwordMode || "MANUAL").toUpperCase();
+    let password = String(payload.password || "");
+    let generatedPassword = "";
+    if (mode === "GERADA") {
+      generatedPassword = generateRandomPassword(12);
+      password = generatedPassword;
+    }
+    if (!password) {
+      return res.status(400).json({ message: "Informe a senha." });
+    }
+    const now = new Date().toISOString();
+    const passwordHash = hashPasswordSha256(password);
+    const username = payload.email ? String(payload.email || "").trim() : matricula;
+    const created = normalizeUserRecord({
+      id: crypto.randomUUID(),
+      username,
+      matricula,
+      name,
+      email: String(payload.email || "").trim().toLowerCase(),
+      roleId: role.id,
+      roleName: role.name,
+      cargo: role.name,
+      accessPermissions: role.permissions,
+      rolePermissions: role.permissions,
+      rbacRole: deriveRbacRoleFromRoleName(role.name),
+      role: normalizeRole(role.name, deriveRbacRoleFromRoleName(role.name)),
+      projectId: projectId || null,
+      status,
+      active: status !== "INATIVO",
+      passwordHash,
+      passwordUpdatedAt: now,
+      emailVerified: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+    users.push(created);
+    writeJson(USERS_FILE, users);
+    if (created.projectId) {
+      setUserProjectAssignment(created, created.projectId);
+    }
+    appendAudit("access_user_create", req.session.userId, { alvo: created.id }, getClientIp(req));
+    return res.json({
+      user: serializeAccessUser(created),
+      generatedPassword: generatedPassword || undefined,
+    });
   }
-  const projectId =
-    payload.projectId !== undefined ? String(payload.projectId || "").trim() : null;
-  if (projectId && !getProjectById(projectId)) {
-    return res.status(400).json({ message: "Projeto invalido." });
+);
+
+app.put(
+  "/api/admin/access/users/:id",
+  requireAuth,
+  requireAccessManage,
+  requireStorageWritable,
+  (req, res) => {
+    const id = String(req.params.id || "").trim();
+    const index = users.findIndex((item) => item && String(item.id) === id);
+    if (index === -1) {
+      return res.status(404).json({ message: "Usuario nao encontrado." });
+    }
+    const current = users[index];
+    const payload = req.body || {};
+    if (payload.name !== undefined && !String(payload.name || "").trim()) {
+      return res.status(400).json({ message: "Informe o nome do usuario." });
+    }
+    let roleId = current.roleId || "";
+    let roleName = current.roleName || current.cargo || "";
+    let rolePermissions = current.accessPermissions || current.rolePermissions || [];
+    if (payload.roleId !== undefined) {
+      const nextRoleId = String(payload.roleId || "").trim();
+      if (!nextRoleId) {
+        return res.status(400).json({ message: "Cargo invalido." });
+      }
+      const role = getAccessRoleById(nextRoleId);
+      if (!role) {
+        return res.status(400).json({ message: "Cargo invalido." });
+      }
+      roleId = role.id;
+      roleName = role.name;
+      rolePermissions = role.permissions;
+    }
+    const projectId =
+      payload.projectId !== undefined ? String(payload.projectId || "").trim() : null;
+    if (projectId && !getProjectById(projectId)) {
+      return res.status(400).json({ message: "Projeto invalido." });
+    }
+    const status =
+      payload.status !== undefined
+        ? normalizeUserStatus(payload.status)
+        : normalizeUserStatus(current.status || "");
+    const updated = normalizeUserRecord({
+      ...current,
+      name: payload.name !== undefined ? String(payload.name || "").trim() : current.name,
+      email:
+        payload.email !== undefined
+          ? String(payload.email || "").trim().toLowerCase()
+          : current.email || "",
+      roleId,
+      roleName,
+      cargo: roleName || current.cargo || "",
+      accessPermissions: rolePermissions,
+      rolePermissions,
+      projectId: payload.projectId !== undefined ? (projectId || null) : current.projectId || null,
+      status,
+      active: status !== "INATIVO",
+      updatedAt: new Date().toISOString(),
+    });
+    users[index] = updated;
+    writeJson(USERS_FILE, users);
+    if (payload.projectId !== undefined) {
+      setUserProjectAssignment(updated, updated.projectId || "");
+    }
+    appendAudit("access_user_update", req.session.userId, { alvo: updated.id }, getClientIp(req));
+    return res.json({ user: serializeAccessUser(updated) });
   }
-  const status =
-    payload.status !== undefined
-      ? normalizeUserStatus(payload.status)
-      : normalizeUserStatus(current.status || "");
-  const updated = normalizeUserRecord({
-    ...current,
-    name: payload.name !== undefined ? String(payload.name || "").trim() : current.name,
-    email:
-      payload.email !== undefined
-        ? String(payload.email || "").trim().toLowerCase()
-        : current.email || "",
-    roleId,
-    roleName,
-    cargo: roleName || current.cargo || "",
-    accessPermissions: rolePermissions,
-    rolePermissions,
-    projectId: payload.projectId !== undefined ? (projectId || null) : current.projectId || null,
-    status,
-    active: status !== "INATIVO",
-    updatedAt: new Date().toISOString(),
-  });
-  users[index] = updated;
-  writeJson(USERS_FILE, users);
-  if (payload.projectId !== undefined) {
-    setUserProjectAssignment(updated, updated.projectId || "");
-  }
-  appendAudit("access_user_update", req.session.userId, { alvo: updated.id }, getClientIp(req));
-  return res.json({ user: serializeAccessUser(updated) });
-});
+);
 
 app.post(
   "/api/admin/access/users/:id/reset-password",
   requireAuth,
   requireAccessManage,
+  requireStorageWritable,
   (req, res) => {
     const id = String(req.params.id || "").trim();
     const index = users.findIndex((item) => item && String(item.id) === id);
@@ -7556,163 +7615,185 @@ app.post(
   }
 );
 
-app.patch("/api/admin/access/users/:id/status", requireAuth, requireAccessManage, (req, res) => {
-  const id = String(req.params.id || "").trim();
-  const index = users.findIndex((item) => item && String(item.id) === id);
-  if (index === -1) {
-    return res.status(404).json({ message: "Usuario nao encontrado." });
-  }
-  const status = normalizeUserStatus(req.body.status || "");
-  const now = new Date().toISOString();
-  const current = users[index];
-  const updated = normalizeUserRecord({
-    ...current,
-    status,
-    active: status !== "INATIVO",
-    updatedAt: now,
-  });
-  users[index] = updated;
-  writeJson(USERS_FILE, users);
-  appendAudit("access_user_status", req.session.userId, { alvo: updated.id, status }, getClientIp(req));
-  return res.json({ user: serializeAccessUser(updated) });
-});
-
-app.post("/api/admin/access/import", requireAuth, requireAccessManage, (req, res) => {
-  const payload = req.body || {};
-  const rolesPayload = Array.isArray(payload.roles)
-    ? payload.roles.map(normalizeAccessRoleRecord).filter(Boolean)
-    : [];
-  const usersPayload = Array.isArray(payload.users) ? payload.users : [];
-  const projectsPayload = Array.isArray(payload.projects)
-    ? payload.projects.map(normalizeProject).filter(Boolean)
-    : [];
-  if (!rolesPayload.length) {
-    return res.status(400).json({ message: "Arquivo sem cargos validos." });
-  }
-  if (!usersPayload.length) {
-    return res.status(400).json({ message: "Arquivo sem contas validas." });
-  }
-
-  const rolesById = new Map(accessRoles.map((role) => [String(role.id), role]));
-  rolesPayload.forEach((role) => {
-    const id = String(role.id);
-    const existing = rolesById.get(id);
-    if (existing) {
-      rolesById.set(id, {
-        ...existing,
-        ...role,
-        isSystem: existing.isSystem || role.isSystem,
-      });
-    } else {
-      rolesById.set(id, role);
+app.patch(
+  "/api/admin/access/users/:id/status",
+  requireAuth,
+  requireAccessManage,
+  requireStorageWritable,
+  (req, res) => {
+    const id = String(req.params.id || "").trim();
+    const index = users.findIndex((item) => item && String(item.id) === id);
+    if (index === -1) {
+      return res.status(404).json({ message: "Usuario nao encontrado." });
     }
-  });
-  accessRoles = Array.from(rolesById.values());
-  saveAccessRoles(accessRoles);
-
-  if (projectsPayload.length) {
-    const projectById = new Map(projects.map((project) => [String(project.id), project]));
-    projectsPayload.forEach((project) => {
-      const id = String(project.id);
-      const existing = projectById.get(id);
-      projectById.set(id, existing ? { ...existing, ...project } : project);
-    });
-    projects = Array.from(projectById.values());
-    saveProjects(projects);
-  } else {
-    ensureDefaultProject();
-  }
-
-  let createdCount = 0;
-  let updatedCount = 0;
-  const now = new Date().toISOString();
-  usersPayload.forEach((entry) => {
-    if (!entry || typeof entry !== "object") {
-      return;
-    }
-    const name = String(entry.name || "").trim();
-    const matricula = String(entry.matricula || "").trim();
-    if (!name || !matricula) {
-      return;
-    }
-    const incomingId = String(entry.id || "").trim() || crypto.randomUUID();
-    const existing =
-      users.find((user) => String(user.id) === incomingId) ||
-      findUserByMatriculaNormalized(matricula);
-    const base = existing ? { ...existing } : { id: incomingId, createdAt: now };
-    const roleId = String(entry.roleId || "").trim();
-    const roleName = String(entry.roleName || entry.cargo || entry.role || "").trim();
-    const role = roleId ? getAccessRoleById(roleId) : getAccessRoleByName(roleName);
-    const accessPermissions = Array.isArray(entry.accessPermissions)
-      ? entry.accessPermissions
-      : Array.isArray(entry.rolePermissions)
-        ? entry.rolePermissions
-        : role
-          ? role.permissions
-          : base.accessPermissions || [];
-    const projectIdRaw = entry.projectId ? String(entry.projectId).trim() : "";
-    const projectId = projectIdRaw && getProjectById(projectIdRaw) ? projectIdRaw : "";
-    const status = normalizeUserStatus(entry.status || base.status || "ATIVO");
-    const merged = normalizeUserRecord({
-      ...base,
-      id: existing ? base.id : incomingId,
-      username:
-        entry.username || entry.email || base.username || String(entry.matricula || "").trim(),
-      name,
-      matricula,
-      email: String(entry.email || base.email || "").trim().toLowerCase(),
-      roleId: role ? role.id : roleId || base.roleId || "",
-      roleName: role ? role.name : roleName || base.roleName || "",
-      cargo: entry.cargo || roleName || base.cargo || "",
-      accessPermissions,
-      rolePermissions: accessPermissions,
-      projectId: projectId || null,
+    const status = normalizeUserStatus(req.body.status || "");
+    const now = new Date().toISOString();
+    const current = users[index];
+    const updated = normalizeUserRecord({
+      ...current,
       status,
       active: status !== "INATIVO",
-      passwordHash: String(entry.passwordHash || base.passwordHash || "").trim(),
-      passwordUpdatedAt: entry.passwordUpdatedAt || base.passwordUpdatedAt || now,
-      emailVerified: entry.emailVerified !== undefined ? entry.emailVerified : true,
-      uen: entry.uen || base.uen || "",
-      atribuicoes: entry.atribuicoes || base.atribuicoes || "",
-      avatarUrl: entry.avatarUrl || base.avatarUrl || "",
-      avatarUpdatedAt: entry.avatarUpdatedAt || base.avatarUpdatedAt || "",
-      createdAt: base.createdAt || entry.createdAt || now,
       updatedAt: now,
     });
-    if (existing) {
-      const index = users.findIndex((user) => user && user.id === base.id);
-      if (index >= 0) {
-        users[index] = merged;
+    users[index] = updated;
+    writeJson(USERS_FILE, users);
+    appendAudit(
+      "access_user_status",
+      req.session.userId,
+      { alvo: updated.id, status },
+      getClientIp(req)
+    );
+    return res.json({ user: serializeAccessUser(updated) });
+  }
+);
+
+app.post(
+  "/api/admin/access/import",
+  requireAuth,
+  requireAccessManage,
+  requireStorageWritable,
+  (req, res) => {
+    const payload = req.body || {};
+    const rolesPayload = Array.isArray(payload.roles)
+      ? payload.roles.map(normalizeAccessRoleRecord).filter(Boolean)
+      : [];
+    const usersPayload = Array.isArray(payload.users) ? payload.users : [];
+    const projectsPayload = Array.isArray(payload.projects)
+      ? payload.projects.map(normalizeProject).filter(Boolean)
+      : [];
+    if (!rolesPayload.length) {
+      return res.status(400).json({ message: "Arquivo sem cargos validos." });
+    }
+    if (!usersPayload.length) {
+      return res.status(400).json({ message: "Arquivo sem contas validas." });
+    }
+
+    const rolesById = new Map(accessRoles.map((role) => [String(role.id), role]));
+    rolesPayload.forEach((role) => {
+      const id = String(role.id);
+      const existing = rolesById.get(id);
+      if (existing) {
+        rolesById.set(id, {
+          ...existing,
+          ...role,
+          isSystem: existing.isSystem || role.isSystem,
+        });
+      } else {
+        rolesById.set(id, role);
+      }
+    });
+    accessRoles = Array.from(rolesById.values());
+    saveAccessRoles(accessRoles);
+
+    if (projectsPayload.length) {
+      const projectById = new Map(projects.map((project) => [String(project.id), project]));
+      projectsPayload.forEach((project) => {
+        const id = String(project.id);
+        const existing = projectById.get(id);
+        projectById.set(id, existing ? { ...existing, ...project } : project);
+      });
+      projects = Array.from(projectById.values());
+      saveProjects(projects);
+    } else {
+      ensureDefaultProject();
+    }
+
+    let createdCount = 0;
+    let updatedCount = 0;
+    const now = new Date().toISOString();
+    usersPayload.forEach((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return;
+      }
+      const name = String(entry.name || "").trim();
+      const matricula = String(entry.matricula || "").trim();
+      if (!name || !matricula) {
+        return;
+      }
+      const incomingId = String(entry.id || "").trim() || crypto.randomUUID();
+      const existing =
+        users.find((user) => String(user.id) === incomingId) ||
+        findUserByMatriculaNormalized(matricula);
+      const base = existing ? { ...existing } : { id: incomingId, createdAt: now };
+      const roleId = String(entry.roleId || "").trim();
+      const roleName = String(entry.roleName || entry.cargo || entry.role || "").trim();
+      const role = roleId ? getAccessRoleById(roleId) : getAccessRoleByName(roleName);
+      const accessPermissions = Array.isArray(entry.accessPermissions)
+        ? entry.accessPermissions
+        : Array.isArray(entry.rolePermissions)
+          ? entry.rolePermissions
+          : role
+            ? role.permissions
+            : base.accessPermissions || [];
+      const projectIdRaw = entry.projectId ? String(entry.projectId).trim() : "";
+      const projectId = projectIdRaw && getProjectById(projectIdRaw) ? projectIdRaw : "";
+      const status = normalizeUserStatus(entry.status || base.status || "ATIVO");
+      const merged = normalizeUserRecord({
+        ...base,
+        id: existing ? base.id : incomingId,
+        username:
+          entry.username || entry.email || base.username || String(entry.matricula || "").trim(),
+        name,
+        matricula,
+        email: String(entry.email || base.email || "").trim().toLowerCase(),
+        roleId: role ? role.id : roleId || base.roleId || "",
+        roleName: role ? role.name : roleName || base.roleName || "",
+        cargo: entry.cargo || roleName || base.cargo || "",
+        accessPermissions,
+        rolePermissions: accessPermissions,
+        projectId: projectId || null,
+        status,
+        active: status !== "INATIVO",
+        passwordHash: String(entry.passwordHash || base.passwordHash || "").trim(),
+        passwordUpdatedAt: entry.passwordUpdatedAt || base.passwordUpdatedAt || now,
+        emailVerified: entry.emailVerified !== undefined ? entry.emailVerified : true,
+        uen: entry.uen || base.uen || "",
+        atribuicoes: entry.atribuicoes || base.atribuicoes || "",
+        avatarUrl: entry.avatarUrl || base.avatarUrl || "",
+        avatarUpdatedAt: entry.avatarUpdatedAt || base.avatarUpdatedAt || "",
+        createdAt: base.createdAt || entry.createdAt || now,
+        updatedAt: now,
+      });
+      if (existing) {
+        const index = users.findIndex((user) => user && user.id === base.id);
+        if (index >= 0) {
+          users[index] = merged;
+        } else {
+          users.push(merged);
+        }
+        updatedCount += 1;
       } else {
         users.push(merged);
+        createdCount += 1;
       }
-      updatedCount += 1;
-    } else {
-      users.push(merged);
-      createdCount += 1;
-    }
-    if (entry.projectId !== undefined) {
-      setUserProjectAssignment(merged, merged.projectId || "");
-    }
-  });
-  writeJson(USERS_FILE, users);
-  appendAudit(
-    "access_import",
-    req.session.userId,
-    { roles: rolesPayload.length, users: createdCount + updatedCount, created: createdCount, updated: updatedCount },
-    getClientIp(req)
-  );
-  return res.json({
-    ok: true,
-    counts: {
-      roles: accessRoles.length,
-      users: users.length,
-      created: createdCount,
-      updated: updatedCount,
-      projects: projects.length,
-    },
-  });
-});
+      if (entry.projectId !== undefined) {
+        setUserProjectAssignment(merged, merged.projectId || "");
+      }
+    });
+    writeJson(USERS_FILE, users);
+    appendAudit(
+      "access_import",
+      req.session.userId,
+      {
+        roles: rolesPayload.length,
+        users: createdCount + updatedCount,
+        created: createdCount,
+        updated: updatedCount,
+      },
+      getClientIp(req)
+    );
+    return res.json({
+      ok: true,
+      counts: {
+        roles: accessRoles.length,
+        users: users.length,
+        created: createdCount,
+        updated: updatedCount,
+        projects: projects.length,
+      },
+    });
+  }
+);
 
 app.get("/api/admin/permissoes", requireAuth, requirePermission("verPainelGerencial"), (req, res) => {
   return res.json({
