@@ -229,7 +229,12 @@
               </span>
               <input id="passwordResetEmail" type="email" placeholder="seu@email.com" required />
             </div>
-            <small class="hint">Informe o e-mail cadastrado e clique em Enviar codigo.</small>
+            <div class="auth-reset-actions">
+              <button id="btnPasswordResetSendCode" class="btn btn--primary" type="button">
+                Enviar c&oacute;digo
+              </button>
+            </div>
+            <small class="hint">Informe o e-mail cadastrado e clique em Enviar c&oacute;digo.</small>
           </div>
           <div class="field">
             <label for="passwordResetCode">C&oacute;digo</label>
@@ -242,12 +247,15 @@
                 autocomplete="one-time-code"
                 disabled
               />
+            </div>
+            <div class="auth-reset-actions">
               <button
-                id="btnPasswordResetSendCode"
-                class="btn btn--ghost btn--small"
+                id="btnPasswordResetValidate"
+                class="btn btn--ghost"
                 type="button"
+                disabled
               >
-                Enviar c&oacute;digo
+                Pronto
               </button>
             </div>
             <small class="hint">O c&oacute;digo expira em poucos minutos.</small>

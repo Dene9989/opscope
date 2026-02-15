@@ -8846,6 +8846,52 @@ app.post("/api/auth/password-reset/request", async (req, res) => {
   return res.json({ ok: true });
 });
 
+app.post("/api/auth/password-reset/validate", (req, res) => {
+  const email = normalizeVerificationEmail(req.body.email);
+  const code = String(req.body.code || "").replace(/\D/g, "");
+  if (!email || !isValidEmail(email)) {
+    return res.status(400).json({ message: "Informe um email valido." });
+  }
+  if (!code) {
+    return res.status(400).json({ message: "Informe o codigo." });
+  }
+  if (isStorageWriteBlocked()) {
+    res.setHeader("Retry-After", "60");
+    return res.status(503).json({ message: STORAGE_READONLY_MESSAGE });
+  }
+  cleanupPasswordResets();
+  const recordIndex = findPasswordResetIndexByEmail(email);
+  if (recordIndex === -1) {
+    return res.status(400).json({ message: "Codigo invalido ou expirado." });
+  }
+  const record = passwordResets[recordIndex];
+  if (isPasswordResetExpired(record)) {
+    passwordResets.splice(recordIndex, 1);
+    writeJson(PASSWORD_RESETS_FILE, passwordResets);
+    return res.status(410).json({ message: "Codigo expirado." });
+  }
+  if (!record.codeHash) {
+    return res.status(400).json({ message: "Codigo invalido ou expirado." });
+  }
+  const attempts = Number(record.attempts || 0);
+  if (attempts >= PASSWORD_RESET_MAX_ATTEMPTS) {
+    return res.status(429).json({ message: "Tentativas esgotadas. Solicite novo codigo." });
+  }
+  if (hashToken(code) !== record.codeHash) {
+    const nextAttempts = attempts + 1;
+    passwordResets[recordIndex] = { ...record, attempts: nextAttempts };
+    writeJson(PASSWORD_RESETS_FILE, passwordResets);
+    const remaining = Math.max(0, PASSWORD_RESET_MAX_ATTEMPTS - nextAttempts);
+    const message = remaining
+      ? `Codigo invalido. Tentativas restantes: ${remaining}.`
+      : "Tentativas esgotadas. Solicite novo codigo.";
+    return res.status(400).json({ message, remainingAttempts: remaining });
+  }
+  passwordResets[recordIndex] = { ...record, validatedAt: new Date().toISOString() };
+  writeJson(PASSWORD_RESETS_FILE, passwordResets);
+  return res.json({ ok: true });
+});
+
 app.post("/api/auth/password-reset/confirm", async (req, res) => {
   const email = normalizeVerificationEmail(req.body.email);
   const code = String(req.body.code || "").replace(/\D/g, "");

@@ -1967,6 +1967,64 @@ body.is-visitor .notify.auth-only {
   font-size: 1.1rem;
 }
 
+.auth-modal .modal__content {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.auth-modal .modal__header h3 {
+  color: var(--text);
+}
+
+.auth-modal label {
+  color: var(--text);
+}
+
+.auth-modal .hint {
+  color: var(--muted);
+}
+
+.auth-modal input,
+.auth-modal select,
+.auth-modal textarea {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text);
+}
+
+.auth-modal input::placeholder,
+.auth-modal textarea::placeholder {
+  color: rgba(234, 240, 246, 0.55);
+}
+
+.auth-modal .btn--ghost {
+  border-color: rgba(255, 255, 255, 0.35);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.auth-modal .btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 12px 18px rgba(11, 30, 45, 0.2);
+}
+
+.auth-modal .btn--icon {
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.auth-reset-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.auth-reset-actions .btn {
+  min-width: 160px;
+}
+
 .field--password .input-group {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

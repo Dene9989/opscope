@@ -624,6 +624,7 @@ const passwordResetNew = document.getElementById("passwordResetNew");
 const passwordResetConfirm = document.getElementById("passwordResetConfirm");
 const passwordResetMsg = document.getElementById("passwordResetMsg");
 const btnPasswordResetSendCode = document.getElementById("btnPasswordResetSendCode");
+const btnPasswordResetValidate = document.getElementById("btnPasswordResetValidate");
 const btnPasswordResetSubmit = document.getElementById("btnPasswordResetSubmit");
 const btnPasswordResetCancel = document.getElementById("btnPasswordResetCancel");
 const btnPasswordResetClose = document.getElementById("btnPasswordResetClose");
@@ -5055,6 +5056,7 @@ let pendingVerificationEmail = "";
 let passwordResetCooldownTimer = null;
 let passwordResetCooldownUntil = 0;
 let passwordResetCodeSent = false;
+let passwordResetCodeValidated = false;
 
 async function apiRequest(path, options = {}) {
   const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
@@ -22934,12 +22936,9 @@ function startPasswordResetCooldown(seconds) {
   passwordResetCooldownTimer = window.setInterval(updatePasswordResetCooldown, 1000);
 }
 
-function setPasswordResetStep(sent) {
-  passwordResetCodeSent = Boolean(sent);
-  const enabled = passwordResetCodeSent;
-  if (passwordResetCode) {
-    passwordResetCode.disabled = !enabled;
-  }
+function setPasswordResetCodeValidated(validated) {
+  passwordResetCodeValidated = Boolean(validated);
+  const enabled = passwordResetCodeValidated;
   if (passwordResetNew) {
     passwordResetNew.disabled = !enabled;
   }
@@ -22948,6 +22947,21 @@ function setPasswordResetStep(sent) {
   }
   if (btnPasswordResetSubmit) {
     btnPasswordResetSubmit.disabled = !enabled;
+  }
+}
+
+function setPasswordResetCodeSent(sent) {
+  passwordResetCodeSent = Boolean(sent);
+  if (!passwordResetCodeSent) {
+    setPasswordResetCodeValidated(false);
+  }
+  const enabled = passwordResetCodeSent;
+  if (passwordResetCode) {
+    passwordResetCode.disabled = !enabled;
+  }
+  if (btnPasswordResetValidate) {
+    const codeValue = passwordResetCode ? passwordResetCode.value.trim() : "";
+    btnPasswordResetValidate.disabled = !enabled || !codeValue;
   }
 }
 
@@ -22974,7 +22988,7 @@ function openPasswordResetModal(prefillEmail = "") {
   if (passwordResetEmail && !currentEmail && candidate && isValidEmail(candidate)) {
     passwordResetEmail.value = candidate;
   }
-  setPasswordResetStep(false);
+  setPasswordResetCodeSent(false);
   updatePasswordResetCooldown();
   if (passwordResetEmail) {
     passwordResetEmail.focus();
@@ -23003,7 +23017,7 @@ function closePasswordResetModal() {
   if (passwordResetConfirm) {
     passwordResetConfirm.value = "";
   }
-  setPasswordResetStep(false);
+  setPasswordResetCodeSent(false);
   setPasswordResetMessage("");
 }
 
@@ -34120,6 +34134,13 @@ async function apiPasswordResetConfirm(payload) {
   });
 }
 
+async function apiPasswordResetValidate(email, code) {
+  return apiRequest("/api/auth/password-reset/validate", {
+    method: "POST",
+    body: JSON.stringify({ email, code }),
+  });
+}
+
 async function apiInvite(role) {
   return apiRequest("/api/auth/invite", {
     method: "POST",
@@ -36027,7 +36048,11 @@ if (btnPasswordResetSendCode) {
         "Codigo enviado. Verifique seu email e cole o codigo abaixo.",
         false
       );
-      setPasswordResetStep(true);
+      if (passwordResetCode) {
+        passwordResetCode.value = "";
+      }
+      setPasswordResetCodeValidated(false);
+      setPasswordResetCodeSent(true);
       startPasswordResetCooldown(PASSWORD_RESET_RESEND_SECONDS);
       if (passwordResetCode) {
         passwordResetCode.focus();
@@ -36045,12 +36070,65 @@ if (btnPasswordResetSendCode) {
   });
 }
 
+if (btnPasswordResetValidate) {
+  btnPasswordResetValidate.addEventListener("click", async () => {
+    const email = normalizeVerificationEmail(
+      (passwordResetEmail && passwordResetEmail.value) || ""
+    );
+    const code = String((passwordResetCode && passwordResetCode.value) || "").replace(
+      /\D/g,
+      ""
+    );
+    if (!email || !isValidEmail(email)) {
+      setPasswordResetMessage("Informe um email valido.", true);
+      if (passwordResetEmail) {
+        passwordResetEmail.focus();
+      }
+      return;
+    }
+    if (!code) {
+      setPasswordResetMessage("Informe o codigo.", true);
+      if (passwordResetCode) {
+        passwordResetCode.focus();
+      }
+      return;
+    }
+    setPasswordResetMessage("");
+    btnPasswordResetValidate.disabled = true;
+    btnPasswordResetValidate.textContent = "Validando...";
+    try {
+      await apiPasswordResetValidate(email, code);
+      setPasswordResetCodeValidated(true);
+      setPasswordResetMessage("Codigo confirmado. Agora defina a nova senha.", false);
+      if (passwordResetNew) {
+        passwordResetNew.focus();
+      }
+    } catch (error) {
+      const message =
+        error && error.message ? error.message : "Nao foi possivel validar o codigo.";
+      setPasswordResetCodeValidated(false);
+      setPasswordResetMessage(message, true);
+      if (passwordResetCode) {
+        passwordResetCode.focus();
+      }
+    } finally {
+      btnPasswordResetValidate.textContent = "Pronto";
+      const codeValue = passwordResetCode ? passwordResetCode.value.trim() : "";
+      btnPasswordResetValidate.disabled = !passwordResetCodeSent || !codeValue;
+    }
+  });
+}
+
 if (passwordResetForm) {
   passwordResetForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     setPasswordResetMessage("");
     if (!passwordResetCodeSent) {
       setPasswordResetMessage("Envie o codigo primeiro.", true);
+      return;
+    }
+    if (!passwordResetCodeValidated) {
+      setPasswordResetMessage("Clique em Pronto para validar o codigo.", true);
       return;
     }
     const email = normalizeVerificationEmail(
@@ -38023,7 +38101,19 @@ if (passwordResetEmail) {
       if (passwordResetConfirm) {
         passwordResetConfirm.value = "";
       }
-      setPasswordResetStep(false);
+      setPasswordResetCodeSent(false);
+    }
+    setPasswordResetMessage("");
+  });
+}
+if (passwordResetCode) {
+  passwordResetCode.addEventListener("input", () => {
+    if (passwordResetCodeValidated) {
+      setPasswordResetCodeValidated(false);
+    }
+    if (btnPasswordResetValidate) {
+      const codeValue = passwordResetCode.value.trim();
+      btnPasswordResetValidate.disabled = !passwordResetCodeSent || !codeValue;
     }
     setPasswordResetMessage("");
   });
