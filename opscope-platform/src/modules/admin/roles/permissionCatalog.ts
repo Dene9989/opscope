@@ -1,496 +1,259 @@
-export type PermissionLevel = "READ" | "WRITE" | "ADMIN";
+﻿export type AccessLevel = "NONE" | "VIEW" | "EDIT";
 
-export type PermissionDef = {
+export type PermissionItemDef = {
   key: string;
   module: string;
-  group: string;
   label: string;
   description?: string;
-  level: PermissionLevel;
   dangerous?: boolean;
-  legacy?: boolean;
-  hidden?: boolean;
+  viewKeys: string[];
+  editKeys: string[];
 };
 
 export const ADMIN_PERMISSION_KEY = "ADMIN";
+export const ADMIN_PERMISSION_ALIASES = ["ADMIN_TOTAL"];
 
-export const PERMISSION_CATALOG: PermissionDef[] = [
+export const PERMISSION_ITEMS: PermissionItemDef[] = [
   {
-    key: ADMIN_PERMISSION_KEY,
+    key: "admin_access",
     module: "Administracao",
-    group: "Admin total",
-    label: "Admin total",
-    description: "Acesso total ao sistema.",
-    level: "ADMIN",
-    dangerous: true,
-    hidden: true
-  },
-  {
-    key: "gerenciarAcessos",
-    module: "Administracao",
-    group: "Acesso",
     label: "Gerenciar acessos",
     description: "Criar e editar cargos e permissoes.",
-    level: "ADMIN",
-    dangerous: true
+    dangerous: true,
+    viewKeys: ["gerenciarAcessos"],
+    editKeys: []
   },
   {
-    key: "editarPerfil",
+    key: "profile_edit_own",
     module: "Administracao",
-    group: "Perfis",
     label: "Editar perfil (UEN/Projeto)",
     description: "Permite editar UEN e projeto do proprio perfil.",
-    level: "WRITE"
+    viewKeys: ["editarPerfil"],
+    editKeys: []
   },
   {
-    key: "editarPerfilOutros",
+    key: "profile_edit_others",
     module: "Administracao",
-    group: "Perfis",
     label: "Editar perfil de outros",
     description: "Permite alterar dados de outros colaboradores.",
-    level: "ADMIN",
-    dangerous: true
+    dangerous: true,
+    viewKeys: ["editarPerfilOutros"],
+    editKeys: []
   },
   {
-    key: "verUsuarios",
-    module: "Contas e equipe",
-    group: "Acesso",
-    label: "Ver usuarios",
-    description: "Visualizar lista de usuarios e perfis.",
-    level: "READ"
-  },
-  {
-    key: "convidarUsuarios",
-    module: "Contas e equipe",
-    group: "Acoes",
-    label: "Convidar usuarios",
-    description: "Criar novas contas e enviar convites.",
-    level: "WRITE"
-  },
-  {
-    key: "desativarUsuarios",
-    module: "Contas e equipe",
-    group: "Acoes",
-    label: "Desativar usuarios",
-    description: "Ativar ou inativar contas existentes.",
-    level: "ADMIN",
-    dangerous: true
-  },
-  {
-    key: "ROLE_READ",
+    key: "role_access",
     module: "Cargos",
-    group: "Acesso",
-    label: "Visualizar cargos",
-    description: "Acesso de leitura aos cargos.",
-    level: "READ"
+    label: "Cargos e permissoes",
+    description: "Gerenciar cargos e permissoes dos usuarios.",
+    dangerous: true,
+    viewKeys: ["ROLE_READ"],
+    editKeys: ["ROLE_WRITE"]
   },
   {
-    key: "ROLE_WRITE",
-    module: "Cargos",
-    group: "Acoes",
-    label: "Gerenciar cargos",
-    description: "Criar, editar e remover cargos.",
-    level: "ADMIN",
-    dangerous: true
+    key: "users",
+    module: "Contas e equipe",
+    label: "Usuarios",
+    description: "Visualizar, criar e desativar contas.",
+    dangerous: true,
+    viewKeys: ["verUsuarios", "USER_READ"],
+    editKeys: ["convidarUsuarios", "desativarUsuarios", "USER_WRITE"]
   },
   {
-    key: "inicio",
+    key: "nav_inicio",
     module: "Navegacao",
-    group: "Secoes",
     label: "Inicio",
     description: "Acesso ao painel inicial.",
-    level: "READ"
+    viewKeys: ["inicio"],
+    editKeys: []
   },
   {
-    key: "programacao",
+    key: "nav_programacao",
     module: "Navegacao",
-    group: "Secoes",
     label: "Programacao",
     description: "Acesso a programacao de manutencoes.",
-    level: "READ"
+    viewKeys: ["programacao"],
+    editKeys: []
   },
   {
-    key: "nova",
+    key: "nav_nova",
     module: "Navegacao",
-    group: "Secoes",
     label: "Nova manutencao",
     description: "Acesso ao formulario de manutencao.",
-    level: "READ"
+    viewKeys: ["nova"],
+    editKeys: []
   },
   {
-    key: "modelos",
+    key: "nav_modelos",
     module: "Navegacao",
-    group: "Secoes",
     label: "Modelos e recorrencias",
     description: "Acesso a modelos e recorrencias.",
-    level: "READ"
+    viewKeys: ["modelos"],
+    editKeys: []
   },
   {
-    key: "execucao",
+    key: "nav_execucao",
     module: "Navegacao",
-    group: "Secoes",
     label: "Execucao do dia",
     description: "Acesso ao painel de execucao.",
-    level: "READ"
+    viewKeys: ["execucao"],
+    editKeys: []
   },
   {
-    key: "backlog",
+    key: "nav_backlog",
     module: "Navegacao",
-    group: "Secoes",
     label: "Backlog",
     description: "Acesso a manutencoes em backlog.",
-    level: "READ"
+    viewKeys: ["backlog"],
+    editKeys: []
   },
   {
-    key: "feedbacks",
+    key: "nav_feedbacks",
     module: "Navegacao",
-    group: "Secoes",
     label: "Feedbacks",
     description: "Acesso a feedbacks e comunicados.",
-    level: "READ"
+    viewKeys: ["feedbacks"],
+    editKeys: []
   },
   {
-    key: "perfil",
+    key: "nav_perfil",
     module: "Navegacao",
-    group: "Secoes",
     label: "Meu perfil",
     description: "Acesso a tela de perfil.",
-    level: "READ"
+    viewKeys: ["perfil"],
+    editKeys: []
   },
   {
-    key: "MAINT_CREATE",
+    key: "maintenance_create",
     module: "Manutencao",
-    group: "Acoes",
-    label: "Manutencao - criar",
+    label: "Criar manutencoes",
     description: "Criar novas manutencoes.",
-    level: "WRITE"
+    viewKeys: ["MAINT_CREATE"],
+    editKeys: []
   },
   {
-    key: "MAINT_EDIT",
+    key: "maintenance_edit",
     module: "Manutencao",
-    group: "Acoes",
-    label: "Manutencao - editar",
+    label: "Editar manutencoes",
     description: "Editar manutencoes existentes.",
-    level: "WRITE"
+    viewKeys: ["MAINT_EDIT"],
+    editKeys: []
   },
   {
-    key: "MAINT_REMOVE",
+    key: "maintenance_reschedule",
     module: "Manutencao",
-    group: "Acoes",
-    label: "Manutencao - excluir",
-    description: "Excluir manutencoes do sistema.",
-    level: "ADMIN",
-    dangerous: true
-  },
-  {
-    key: "MAINT_RESCHEDULE",
-    module: "Manutencao",
-    group: "Acoes",
-    label: "Manutencao - reagendar",
+    label: "Reagendar manutencoes",
     description: "Reagendar manutencoes.",
-    level: "WRITE"
+    viewKeys: ["MAINT_RESCHEDULE"],
+    editKeys: []
   },
   {
-    key: "MAINT_COMPLETE",
+    key: "maintenance_complete",
     module: "Manutencao",
-    group: "Acoes",
-    label: "Manutencao - executar",
+    label: "Executar manutencoes",
     description: "Registrar execucao e conclusao.",
-    level: "WRITE"
+    viewKeys: ["MAINT_COMPLETE"],
+    editKeys: []
   },
   {
-    key: "verProjetos",
-    module: "Projetos",
-    group: "Acesso",
-    label: "Ver projetos",
-    description: "Visualizar projetos e dados associados.",
-    level: "READ"
-  },
-  {
-    key: "gerenciarProjetos",
-    module: "Projetos",
-    group: "Acoes",
-    label: "Gerenciar projetos",
-    description: "Criar e editar projetos.",
-    level: "WRITE"
-  },
-  {
-    key: "gerenciarEquipamentos",
-    module: "Projetos",
-    group: "Acoes",
-    label: "Gerenciar equipamentos",
-    description: "Cadastrar e ajustar equipamentos.",
-    level: "WRITE"
-  },
-  {
-    key: "gerenciarEquipeProjeto",
-    module: "Projetos",
-    group: "Acoes",
-    label: "Gerenciar equipe do projeto",
-    description: "Adicionar ou remover membros do projeto.",
-    level: "WRITE"
-  },
-  {
-    key: "gerenciarPMP",
-    module: "PMP / Cronograma",
-    group: "Acoes",
-    label: "Gerenciar PMP/Cronograma",
-    description: "Editar planos e cronogramas de manutencao.",
-    level: "WRITE"
-  },
-  {
-    key: "verSST",
-    module: "SST",
-    group: "Acesso",
-    label: "Ver SST",
-    description: "Visualizar modulos de SST.",
-    level: "READ"
-  },
-  {
-    key: "gerenciarSST",
-    module: "SST",
-    group: "Acoes",
-    label: "Gerenciar SST",
-    description: "Criar e editar dados de SST.",
-    level: "WRITE"
-  },
-  {
-    key: "verAlmoxarifado",
-    module: "Almoxarifado",
-    group: "Acesso",
-    label: "Ver almoxarifado",
-    description: "Visualizar itens e estoque.",
-    level: "READ"
-  },
-  {
-    key: "gerenciarAlmoxarifado",
-    module: "Almoxarifado",
-    group: "Acoes",
-    label: "Gerenciar almoxarifado",
-    description: "Criar e editar registros do almoxarifado.",
-    level: "WRITE"
-  },
-  {
-    key: "verArquivos",
-    module: "Arquivos",
-    group: "Acesso",
-    label: "Ver arquivos",
-    description: "Visualizar arquivos enviados.",
-    level: "READ"
-  },
-  {
-    key: "uploadArquivos",
-    module: "Arquivos",
-    group: "Acoes",
-    label: "Enviar arquivos",
-    description: "Enviar novos arquivos para o sistema.",
-    level: "WRITE"
-  },
-  {
-    key: "excluirArquivos",
-    module: "Arquivos",
-    group: "Acoes",
-    label: "Excluir arquivos",
-    description: "Remover arquivos do sistema.",
-    level: "ADMIN",
-    dangerous: true
-  },
-  {
-    key: "vincularArquivo",
-    module: "Arquivos",
-    group: "Acoes",
-    label: "Vincular arquivo",
-    description: "Relacionar arquivos a registros.",
-    level: "WRITE"
-  },
-  {
-    key: "verRDOs",
-    module: "RDOs",
-    group: "Acesso",
-    label: "Ver RDOs",
-    description: "Visualizar RDOs existentes.",
-    level: "READ"
-  },
-  {
-    key: "gerarRDOs",
-    module: "RDOs",
-    group: "Acoes",
-    label: "Gerar RDOs",
-    description: "Gerar novos RDOs.",
-    level: "WRITE"
-  },
-  {
-    key: "excluirRDOs",
-    module: "RDOs",
-    group: "Acoes",
-    label: "Excluir RDOs",
-    description: "Remover RDOs do sistema.",
-    level: "ADMIN",
-    dangerous: true
-  },
-  {
-    key: "verRelatorios",
-    module: "Relatorios & KPIs",
-    group: "Acesso",
-    label: "Ver relatorios",
-    description: "Visualizar relatorios e KPIs.",
-    level: "READ"
-  },
-  {
-    key: "exportarRelatorios",
-    module: "Relatorios & KPIs",
-    group: "Acoes",
-    label: "Exportar relatorios",
-    description: "Exportar relatorios e indicadores.",
-    level: "WRITE"
-  },
-  {
-    key: "verAutomacoes",
-    module: "Automacoes",
-    group: "Acesso",
-    label: "Ver automacoes",
-    description: "Visualizar automacoes configuradas.",
-    level: "READ"
-  },
-  {
-    key: "gerenciarAutomacoes",
-    module: "Automacoes",
-    group: "Acoes",
-    label: "Gerenciar automacoes",
-    description: "Criar e ajustar automacoes.",
-    level: "ADMIN"
-  },
-  {
-    key: "verDiagnostico",
-    module: "Diagnostico",
-    group: "Acesso",
-    label: "Ver diagnostico",
-    description: "Visualizar status do sistema.",
-    level: "READ"
-  },
-  {
-    key: "reexecutarTarefas",
-    module: "Diagnostico",
-    group: "Acoes",
-    label: "Reexecutar tarefas",
-    description: "Executar tarefas de diagnostico.",
-    level: "ADMIN"
-  },
-  {
-    key: "verLogsAPI",
-    module: "Logs & Rastreabilidade",
-    group: "Acesso",
-    label: "Ver logs de API",
-    description: "Visualizar registros de integracao.",
-    level: "READ"
-  },
-  {
-    key: "limparLogsAPI",
-    module: "Logs & Rastreabilidade",
-    group: "Acoes",
-    label: "Limpar logs de API",
-    description: "Remover registros de log.",
-    level: "ADMIN",
-    dangerous: true
-  },
-  {
-    key: "verPainelGerencial",
-    module: "Painel gerencial",
-    group: "Acesso",
-    label: "Ver painel gerencial",
-    description: "Acesso ao painel gerencial.",
-    level: "READ"
-  },
-  {
-    key: "USER_READ",
-    module: "Contas e equipe",
-    group: "Compatibilidade (legado)",
-    label: "Visualizar usuarios (legado)",
-    description: "Permissao antiga de leitura de usuarios.",
-    level: "READ",
-    legacy: true
-  },
-  {
-    key: "USER_WRITE",
-    module: "Contas e equipe",
-    group: "Compatibilidade (legado)",
-    label: "Gerenciar usuarios (legado)",
-    description: "Permissao antiga de escrita de usuarios.",
-    level: "ADMIN",
+    key: "maintenance_remove",
+    module: "Manutencao",
+    label: "Excluir manutencoes",
+    description: "Excluir manutencoes do sistema.",
     dangerous: true,
-    legacy: true
+    viewKeys: ["MAINT_REMOVE"],
+    editKeys: []
   },
   {
-    key: "PROJECT_READ",
+    key: "projects",
     module: "Projetos",
-    group: "Compatibilidade (legado)",
-    label: "Projetos - leitura (legado)",
-    description: "Permissao antiga de leitura de projetos.",
-    level: "READ",
-    legacy: true
+    label: "Projetos",
+    description: "Visualizar e gerenciar projetos.",
+    viewKeys: ["verProjetos", "PROJECT_READ"],
+    editKeys: ["gerenciarProjetos", "gerenciarEquipamentos", "gerenciarEquipeProjeto", "PROJECT_WRITE"]
   },
   {
-    key: "PROJECT_WRITE",
-    module: "Projetos",
-    group: "Compatibilidade (legado)",
-    label: "Projetos - escrita (legado)",
-    description: "Permissao antiga de escrita de projetos.",
-    level: "WRITE",
-    legacy: true
+    key: "pmp",
+    module: "PMP / Cronograma",
+    label: "PMP/Cronograma",
+    description: "Editar planos e cronogramas de manutencao.",
+    viewKeys: ["gerenciarPMP"],
+    editKeys: []
   },
   {
-    key: "SST_READ",
+    key: "sst",
     module: "SST",
-    group: "Compatibilidade (legado)",
-    label: "SST - leitura (legado)",
-    description: "Permissao antiga de leitura de SST.",
-    level: "READ",
-    legacy: true
+    label: "SST",
+    description: "Visualizar e gerenciar SST.",
+    viewKeys: ["verSST", "SST_READ"],
+    editKeys: ["gerenciarSST", "SST_WRITE"]
   },
   {
-    key: "SST_WRITE",
-    module: "SST",
-    group: "Compatibilidade (legado)",
-    label: "SST - escrita (legado)",
-    description: "Permissao antiga de escrita de SST.",
-    level: "WRITE",
-    legacy: true
-  },
-  {
-    key: "ALMOX_READ",
+    key: "almox",
     module: "Almoxarifado",
-    group: "Compatibilidade (legado)",
-    label: "Almoxarifado - leitura (legado)",
-    description: "Permissao antiga de leitura de almoxarifado.",
-    level: "READ",
-    legacy: true
+    label: "Almoxarifado",
+    description: "Visualizar e gerenciar almoxarifado.",
+    viewKeys: ["verAlmoxarifado", "ALMOX_READ"],
+    editKeys: ["gerenciarAlmoxarifado", "ALMOX_WRITE"]
   },
   {
-    key: "ALMOX_WRITE",
-    module: "Almoxarifado",
-    group: "Compatibilidade (legado)",
-    label: "Almoxarifado - escrita (legado)",
-    description: "Permissao antiga de escrita de almoxarifado.",
-    level: "WRITE",
-    legacy: true
+    key: "files",
+    module: "Arquivos",
+    label: "Arquivos",
+    description: "Visualizar, enviar e excluir arquivos.",
+    dangerous: true,
+    viewKeys: ["verArquivos"],
+    editKeys: ["uploadArquivos", "vincularArquivo", "excluirArquivos"]
   },
   {
-    key: "REPORTS_READ",
+    key: "rdos",
+    module: "RDOs",
+    label: "RDOs",
+    description: "Visualizar e gerenciar RDOs.",
+    dangerous: true,
+    viewKeys: ["verRDOs"],
+    editKeys: ["gerarRDOs", "excluirRDOs"]
+  },
+  {
+    key: "reports",
     module: "Relatorios & KPIs",
-    group: "Compatibilidade (legado)",
-    label: "Relatorios - leitura (legado)",
-    description: "Permissao antiga de leitura de relatorios.",
-    level: "READ",
-    legacy: true
+    label: "Relatorios e KPIs",
+    description: "Visualizar e exportar relatorios e KPIs.",
+    viewKeys: ["verRelatorios", "REPORTS_READ", "KPIS_READ"],
+    editKeys: ["exportarRelatorios"]
   },
   {
-    key: "KPIS_READ",
-    module: "Relatorios & KPIs",
-    group: "Compatibilidade (legado)",
-    label: "KPIs - leitura (legado)",
-    description: "Permissao antiga de leitura de KPIs.",
-    level: "READ",
-    legacy: true
+    key: "automations",
+    module: "Automacoes",
+    label: "Automacoes",
+    description: "Visualizar e gerenciar automacoes.",
+    viewKeys: ["verAutomacoes"],
+    editKeys: ["gerenciarAutomacoes"]
+  },
+  {
+    key: "diagnostics",
+    module: "Diagnostico",
+    label: "Diagnostico",
+    description: "Monitorar status e reexecutar tarefas.",
+    dangerous: true,
+    viewKeys: ["verDiagnostico"],
+    editKeys: ["reexecutarTarefas"]
+  },
+  {
+    key: "logs",
+    module: "Logs & Rastreabilidade",
+    label: "Logs de API",
+    description: "Visualizar e limpar logs de integracao.",
+    dangerous: true,
+    viewKeys: ["verLogsAPI"],
+    editKeys: ["limparLogsAPI"]
+  },
+  {
+    key: "gerencial",
+    module: "Painel gerencial",
+    label: "Painel gerencial",
+    description: "Acesso ao painel gerencial.",
+    viewKeys: ["verPainelGerencial"],
+    editKeys: []
   }
 ];
 
@@ -513,74 +276,34 @@ export const PERMISSION_MODULE_ORDER = [
   "Painel gerencial"
 ];
 
-export type CatalogModule = {
+export type PermissionModule = {
   name: string;
-  groups: Record<string, PermissionDef[]>;
-  permissions: PermissionDef[];
+  items: PermissionItemDef[];
 };
 
-export function buildCatalogModules(catalog: PermissionDef[] = PERMISSION_CATALOG) {
-  const byModule = new Map<string, CatalogModule>();
-  catalog.forEach((permission) => {
-    const moduleName = permission.module || "Outros";
+export function buildPermissionModules(items: PermissionItemDef[] = PERMISSION_ITEMS) {
+  const byModule = new Map<string, PermissionModule>();
+  items.forEach((item) => {
+    const moduleName = item.module || "Outros";
     if (!byModule.has(moduleName)) {
-      byModule.set(moduleName, { name: moduleName, groups: {}, permissions: [] });
+      byModule.set(moduleName, { name: moduleName, items: [] });
     }
-    const entry = byModule.get(moduleName)!;
-    entry.permissions.push(permission);
-    const groupName = permission.group || "Geral";
-    if (!entry.groups[groupName]) {
-      entry.groups[groupName] = [];
-    }
-    entry.groups[groupName].push(permission);
+    byModule.get(moduleName)!.items.push(item);
   });
   const ordered = PERMISSION_MODULE_ORDER.filter((name) => byModule.has(name)).map((name) => byModule.get(name)!);
-  const extras = Array.from(byModule.values()).filter((mod) => !PERMISSION_MODULE_ORDER.includes(mod.name));
+  const extras = Array.from(byModule.values()).filter((module) => !PERMISSION_MODULE_ORDER.includes(module.name));
   return [...ordered, ...extras];
 }
 
-export function getAllPermissionKeys(
-  catalog: PermissionDef[] = PERMISSION_CATALOG,
-  options: { includeHidden?: boolean; includeAdmin?: boolean } = {}
-) {
-  const includeHidden = options.includeHidden ?? false;
-  const includeAdmin = options.includeAdmin ?? true;
-  return catalog
-    .filter((permission) => {
-      if (!includeHidden && permission.hidden && permission.key !== ADMIN_PERMISSION_KEY) {
-        return false;
-      }
-      if (!includeAdmin && permission.key === ADMIN_PERMISSION_KEY) {
-        return false;
-      }
-      return true;
-    })
-    .map((permission) => permission.key);
+export function getPermissionSearchText(item: PermissionItemDef) {
+  return [item.key, item.label, item.description, item.module].filter(Boolean).join(" ").toLowerCase();
 }
 
-export function getReadPermissionKeys(
-  catalog: PermissionDef[] = PERMISSION_CATALOG,
-  moduleName?: string
-) {
-  return catalog
-    .filter((permission) => {
-      if (permission.hidden) {
-        return false;
-      }
-      if (permission.level !== "READ") {
-        return false;
-      }
-      if (moduleName && permission.module !== moduleName) {
-        return false;
-      }
-      return true;
-    })
-    .map((permission) => permission.key);
-}
-
-export function getPermissionSearchText(permission: PermissionDef) {
-  return [permission.key, permission.label, permission.description, permission.group, permission.module]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
+export function getKnownPermissionKeys(items: PermissionItemDef[] = PERMISSION_ITEMS) {
+  const keys = new Set<string>();
+  items.forEach((item) => {
+    item.viewKeys.forEach((key) => keys.add(key));
+    item.editKeys.forEach((key) => keys.add(key));
+  });
+  return keys;
 }
