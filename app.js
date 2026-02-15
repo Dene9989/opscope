@@ -610,11 +610,23 @@ const loginUsuario = document.getElementById("loginUsuario");
 const loginSenha = document.getElementById("loginSenha");
 const btnLoginSubmit = document.getElementById("btnLoginSubmit");
 const btnAuthHelp = document.getElementById("btnAuthHelp");
+const btnForgotPassword = document.getElementById("btnForgotPassword");
 const modalAccessHelp = document.getElementById("modalAccessHelp");
+const modalPasswordReset = document.getElementById("modalPasswordReset");
 const btnAccessHelpClose = document.getElementById("btnAccessHelpClose");
 const btnAccessHelpRequest = document.getElementById("btnAccessHelpRequest");
 const btnAccessHelpReset = document.getElementById("btnAccessHelpReset");
 const btnAccessHelpImport = document.getElementById("btnAccessHelpImport");
+const passwordResetForm = document.getElementById("passwordResetForm");
+const passwordResetEmail = document.getElementById("passwordResetEmail");
+const passwordResetCode = document.getElementById("passwordResetCode");
+const passwordResetNew = document.getElementById("passwordResetNew");
+const passwordResetConfirm = document.getElementById("passwordResetConfirm");
+const passwordResetMsg = document.getElementById("passwordResetMsg");
+const btnPasswordResetSendCode = document.getElementById("btnPasswordResetSendCode");
+const btnPasswordResetSubmit = document.getElementById("btnPasswordResetSubmit");
+const btnPasswordResetCancel = document.getElementById("btnPasswordResetCancel");
+const btnPasswordResetClose = document.getElementById("btnPasswordResetClose");
 const authToast = document.getElementById("authToast");
 const btnToggleLoginSenha = document.getElementById("btnToggleLoginSenha");
 const capsLockLogin = document.getElementById("capsLockLogin");
@@ -1095,6 +1107,7 @@ const ACCESS_HELP_MESSAGES = {
   reset:
     "Olá, preciso de reset de senha no OPSCOPE.\nNome: \nMatrícula: \nObrigado!",
 };
+const PASSWORD_RESET_RESEND_SECONDS = 60;
 const ACCESS_STORAGE_READONLY_MESSAGE =
   "Armazenamento indisponivel. O sistema esta em modo somente leitura para evitar perda de dados.";
 const MAX_REAGENDAMENTOS = 3;
@@ -5039,6 +5052,8 @@ let pendingAvatarDataUrl = "";
 let avatarUploadBound = false;
 let lastFocusMaintenanceId = "";
 let pendingVerificationEmail = "";
+let passwordResetCooldownTimer = null;
+let passwordResetCooldownUntil = 0;
 
 async function apiRequest(path, options = {}) {
   const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
@@ -5466,6 +5481,22 @@ function mostrarMensagemConta(texto, erro = false) {
   }
   mensagemConta.textContent = texto;
   mensagemConta.classList.toggle("mensagem--erro", erro);
+}
+
+function setPasswordResetMessage(texto, erro = false) {
+  if (!passwordResetMsg) {
+    return;
+  }
+  passwordResetMsg.textContent = texto || "";
+  passwordResetMsg.classList.toggle("mensagem--erro", erro);
+}
+
+function isValidEmail(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return false;
+  }
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw);
 }
 
 function normalizeVerificationEmail(value) {
@@ -22863,6 +22894,94 @@ function showAuthToast(message) {
   }, 2000);
 }
 
+function updatePasswordResetCooldown() {
+  if (!btnPasswordResetSendCode) {
+    return;
+  }
+  const remaining = Math.max(
+    0,
+    Math.ceil((passwordResetCooldownUntil - Date.now()) / 1000)
+  );
+  if (!remaining) {
+    if (passwordResetCooldownTimer) {
+      window.clearInterval(passwordResetCooldownTimer);
+      passwordResetCooldownTimer = null;
+    }
+    btnPasswordResetSendCode.disabled = false;
+    btnPasswordResetSendCode.textContent = "Enviar codigo";
+    return;
+  }
+  btnPasswordResetSendCode.disabled = true;
+  btnPasswordResetSendCode.textContent = `Reenviar (${remaining}s)`;
+}
+
+function startPasswordResetCooldown(seconds) {
+  if (!btnPasswordResetSendCode) {
+    return;
+  }
+  const safeSeconds = Math.max(0, Number(seconds) || 0);
+  if (!safeSeconds) {
+    passwordResetCooldownUntil = 0;
+    updatePasswordResetCooldown();
+    return;
+  }
+  passwordResetCooldownUntil = Date.now() + safeSeconds * 1000;
+  updatePasswordResetCooldown();
+  if (passwordResetCooldownTimer) {
+    window.clearInterval(passwordResetCooldownTimer);
+  }
+  passwordResetCooldownTimer = window.setInterval(updatePasswordResetCooldown, 1000);
+}
+
+function openPasswordResetModal(prefillEmail = "") {
+  if (!modalPasswordReset) {
+    return;
+  }
+  if (modalAccessHelp && !modalAccessHelp.hidden) {
+    closeAccessHelpModal();
+  }
+  modalPasswordReset.hidden = false;
+  setPasswordResetMessage("");
+  if (passwordResetCode) {
+    passwordResetCode.value = "";
+  }
+  if (passwordResetNew) {
+    passwordResetNew.value = "";
+  }
+  if (passwordResetConfirm) {
+    passwordResetConfirm.value = "";
+  }
+  const currentEmail = passwordResetEmail ? passwordResetEmail.value.trim() : "";
+  const candidate = normalizeVerificationEmail(prefillEmail);
+  if (passwordResetEmail && !currentEmail && candidate && isValidEmail(candidate)) {
+    passwordResetEmail.value = candidate;
+  }
+  updatePasswordResetCooldown();
+  if (passwordResetEmail) {
+    passwordResetEmail.focus();
+  }
+  if (passwordResetEmail && passwordResetEmail.value && passwordResetCode) {
+    passwordResetCode.focus();
+  }
+}
+
+function closePasswordResetModal() {
+  if (!modalPasswordReset) {
+    return;
+  }
+  modalPasswordReset.hidden = true;
+  if (passwordResetCode) {
+    passwordResetCode.value = "";
+  }
+  if (passwordResetNew) {
+    passwordResetNew.value = "";
+  }
+  if (passwordResetConfirm) {
+    passwordResetConfirm.value = "";
+  }
+  setPasswordResetMessage("");
+}
+
 function openAccessHelpModal() {
   if (!modalAccessHelp) {
     return;
@@ -33962,6 +34081,20 @@ async function apiResendVerificationCode(email) {
   });
 }
 
+async function apiPasswordResetRequest(email) {
+  return apiRequest("/api/auth/password-reset/request", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+async function apiPasswordResetConfirm(payload) {
+  return apiRequest("/api/auth/password-reset/confirm", {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
 async function apiInvite(role) {
   return apiRequest("/api/auth/invite", {
     method: "POST",
@@ -35699,6 +35832,10 @@ document.addEventListener("keydown", (event) => {
       closeAccessHelpModal();
       return;
     }
+    if (modalPasswordReset && !modalPasswordReset.hidden) {
+      closePasswordResetModal();
+      return;
+    }
     fecharPainelLembretes();
     fecharUserMenu();
     closeHelpModal();
@@ -35843,6 +35980,128 @@ if (btnGerarRelatorio) {
   btnGerarRelatorio.addEventListener("click", gerarRelatorio);
 }
 // Convites removidos: gestao de acessos e feita via administracao.
+
+if (btnPasswordResetSendCode) {
+  btnPasswordResetSendCode.addEventListener("click", async () => {
+    const email = normalizeVerificationEmail(
+      (passwordResetEmail && passwordResetEmail.value) || ""
+    );
+    if (!email || !isValidEmail(email)) {
+      setPasswordResetMessage("Informe um email valido.", true);
+      if (passwordResetEmail) {
+        passwordResetEmail.focus();
+      }
+      return;
+    }
+    setPasswordResetMessage("");
+    btnPasswordResetSendCode.disabled = true;
+    btnPasswordResetSendCode.textContent = "Enviando...";
+    try {
+      await apiPasswordResetRequest(email);
+      setPasswordResetMessage(
+        "Se o email existir, enviaremos um codigo. Verifique sua caixa de entrada.",
+        false
+      );
+      startPasswordResetCooldown(PASSWORD_RESET_RESEND_SECONDS);
+      if (passwordResetCode) {
+        passwordResetCode.focus();
+      }
+    } catch (error) {
+      const message =
+        error && error.message ? error.message : "Nao foi possivel enviar o codigo.";
+      setPasswordResetMessage(message, true);
+      if (error && error.data && error.data.retryAfter) {
+        startPasswordResetCooldown(error.data.retryAfter);
+      }
+    } finally {
+      updatePasswordResetCooldown();
+    }
+  });
+}
+
+if (passwordResetForm) {
+  passwordResetForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    setPasswordResetMessage("");
+    const email = normalizeVerificationEmail(
+      (passwordResetEmail && passwordResetEmail.value) || ""
+    );
+    const code = String((passwordResetCode && passwordResetCode.value) || "").replace(
+      /\D/g,
+      ""
+    );
+    const password = String((passwordResetNew && passwordResetNew.value) || "").trim();
+    const passwordConfirm = String(
+      (passwordResetConfirm && passwordResetConfirm.value) || ""
+    ).trim();
+    if (!email || !isValidEmail(email)) {
+      setPasswordResetMessage("Informe um email valido.", true);
+      if (passwordResetEmail) {
+        passwordResetEmail.focus();
+      }
+      return;
+    }
+    if (!code) {
+      setPasswordResetMessage("Informe o codigo.", true);
+      if (passwordResetCode) {
+        passwordResetCode.focus();
+      }
+      return;
+    }
+    if (!password || !passwordConfirm) {
+      setPasswordResetMessage("Informe e confirme a nova senha.", true);
+      if (passwordResetNew) {
+        passwordResetNew.focus();
+      }
+      return;
+    }
+    if (password !== passwordConfirm) {
+      setPasswordResetMessage("As senhas nao conferem.", true);
+      if (passwordResetConfirm) {
+        passwordResetConfirm.focus();
+      }
+      return;
+    }
+    const rules = checkPasswordPolicy(password);
+    const ok = Object.values(rules).every(Boolean);
+    if (!ok) {
+      setPasswordResetMessage("Senha fora da politica.", true);
+      if (passwordResetNew) {
+        passwordResetNew.focus();
+      }
+      return;
+    }
+    if (btnPasswordResetSubmit) {
+      btnPasswordResetSubmit.disabled = true;
+      btnPasswordResetSubmit.textContent = "Salvando...";
+    }
+    try {
+      await apiPasswordResetConfirm({
+        email,
+        code,
+        password,
+        passwordConfirm,
+      });
+      closePasswordResetModal();
+      if (loginUsuario) {
+        loginUsuario.value = email;
+      }
+      if (loginSenha) {
+        loginSenha.focus();
+      }
+      mostrarMensagemConta("Senha atualizada. Faca login.", false);
+    } catch (error) {
+      const message =
+        error && error.message ? error.message : "Nao foi possivel atualizar a senha.";
+      setPasswordResetMessage(message, true);
+    } finally {
+      if (btnPasswordResetSubmit) {
+        btnPasswordResetSubmit.disabled = false;
+        btnPasswordResetSubmit.textContent = "Salvar nova senha";
+      }
+    }
+  });
+}
 
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -37664,6 +37923,12 @@ if (modalConfirm) {
 if (btnAuthHelp) {
   btnAuthHelp.addEventListener("click", openAccessHelpModal);
 }
+if (btnForgotPassword) {
+  btnForgotPassword.addEventListener("click", (event) => {
+    event.preventDefault();
+    openPasswordResetModal(loginUsuario ? loginUsuario.value : "");
+  });
+}
 if (btnAccessHelpClose) {
   btnAccessHelpClose.addEventListener("click", closeAccessHelpModal);
 }
@@ -37681,12 +37946,25 @@ if (btnAccessHelpRequest) {
 }
 if (btnAccessHelpReset) {
   btnAccessHelpReset.addEventListener("click", () => {
-    handleAccessHelpCopy("reset");
+    openPasswordResetModal(loginUsuario ? loginUsuario.value : "");
   });
 }
 if (btnAccessHelpImport) {
   btnAccessHelpImport.addEventListener("click", () => {
     openAccessImportDialog();
+  });
+}
+if (btnPasswordResetClose) {
+  btnPasswordResetClose.addEventListener("click", closePasswordResetModal);
+}
+if (btnPasswordResetCancel) {
+  btnPasswordResetCancel.addEventListener("click", closePasswordResetModal);
+}
+if (modalPasswordReset) {
+  modalPasswordReset.addEventListener("click", (event) => {
+    if (event.target === modalPasswordReset) {
+      closePasswordResetModal();
+    }
   });
 }
 

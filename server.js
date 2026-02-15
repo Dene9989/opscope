@@ -69,6 +69,18 @@ const VERIFICATION_RESEND_COOLDOWN_MS = Math.max(
   0,
   Number(process.env.VERIFICATION_RESEND_COOLDOWN_MS) || 60 * 1000
 );
+const PASSWORD_RESET_TTL_MINUTES = Math.max(
+  5,
+  Number(process.env.PASSWORD_RESET_TTL_MINUTES) || 30
+);
+const PASSWORD_RESET_MAX_ATTEMPTS = Math.max(
+  1,
+  Number(process.env.PASSWORD_RESET_MAX_ATTEMPTS) || 5
+);
+const PASSWORD_RESET_RESEND_COOLDOWN_MS = Math.max(
+  0,
+  Number(process.env.PASSWORD_RESET_RESEND_COOLDOWN_MS) || 60 * 1000
+);
 
 const LEGACY_DATA_DIR = path.join(__dirname, "data");
 const LEGACY_STORAGE_DIR = path.join(__dirname, "storage");
@@ -140,6 +152,7 @@ const AVATARS_DIR = path.join(UPLOADS_DIR, "avatars");
 const LEGACY_UPLOADS_DIR = path.join(__dirname, "uploads");
 const LEGACY_AVATARS_DIR = path.join(LEGACY_UPLOADS_DIR, "avatars");
 const VERIFICATIONS_FILE = path.join(STORAGE_DIR, "email_verifications.json");
+const PASSWORD_RESETS_FILE = path.join(STORAGE_DIR, "password_resets.json");
 const API_LOG_FILE = path.join(DATA_DIR, "api_logs.json");
 const HEALTH_TASKS_FILE = path.join(DATA_DIR, "health_tasks.json");
 const BACKUP_DIR = path.join(DATA_DIR, "backups");
@@ -167,6 +180,7 @@ const PMP_EXECUTIONS_FILE = path.join(DATA_DIR, "pmp_executions.json");
 const STORE_FILES = [
   USERS_FILE,
   VERIFICATIONS_FILE,
+  PASSWORD_RESETS_FILE,
   INVITES_FILE,
   AUDIT_FILE,
   MAINTENANCE_FILE,
@@ -4465,6 +4479,57 @@ async function sendVerificationEmail(email, name, token, code) {
   return sendEmailViaSmtp({ to: email, subject, text, html });
 }
 
+async function sendPasswordResetEmail(email, name, code) {
+  const safeName = String(name || "").trim() || "colaborador";
+  const safeCode = String(code || "").trim();
+  const subject = "Redefinicao de senha - OPSCOPE";
+  const text = `Ola, ${safeName}!\n\nCodigo para redefinir sua senha: ${safeCode}\n\nSe voce nao solicitou, ignore este e-mail.`;
+  const html = `
+    <p>Ola, <strong>${safeName}</strong>!</p>
+    <p>Codigo para redefinir sua senha: <strong style="font-size: 20px; letter-spacing: 2px;">${safeCode}</strong></p>
+    <p>Se voce nao solicitou, ignore este e-mail.</p>
+  `;
+  const resendOk = await sendEmailViaResend({ to: email, subject, text, html });
+  if (resendOk) {
+    return true;
+  }
+  return sendEmailViaSmtp({ to: email, subject, text, html });
+}
+
+function findPasswordResetIndexByEmail(email) {
+  const normalized = normalizeVerificationEmail(email);
+  if (!normalized) {
+    return -1;
+  }
+  for (let i = passwordResets.length - 1; i >= 0; i -= 1) {
+    const item = passwordResets[i];
+    if (normalizeVerificationEmail(item && item.email) === normalized) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+function isPasswordResetExpired(record) {
+  if (!record || !record.expiresAt) {
+    return true;
+  }
+  return new Date(record.expiresAt).getTime() <= Date.now();
+}
+
+function cleanupPasswordResets() {
+  const now = Date.now();
+  passwordResets = passwordResets
+    .filter((item) => item && typeof item === "object")
+    .map((item) => ({
+      ...item,
+      email: normalizeVerificationEmail(item.email),
+      attempts: Number(item.attempts || 0),
+    }))
+    .filter((item) => !item.expiresAt || new Date(item.expiresAt).getTime() > now);
+  writeJson(PASSWORD_RESETS_FILE, passwordResets);
+}
+
 function cleanupVerifications() {
   const now = Date.now();
   verifications = verifications
@@ -4927,6 +4992,7 @@ let users = [];
 let invites = [];
 let auditLog = [];
 let verifications = [];
+let passwordResets = [];
 let apiLogs = [];
 let healthTasks = [];
 let automations = [];
@@ -4964,6 +5030,7 @@ async function bootstrap() {
   invites = readJson(INVITES_FILE, []);
   auditLog = readJson(AUDIT_FILE, []);
   verifications = readJson(VERIFICATIONS_FILE, []);
+  passwordResets = readJson(PASSWORD_RESETS_FILE, []);
   apiLogs = readJson(API_LOG_FILE, []);
   healthTasks = normalizeHealthTasks(readJson(HEALTH_TASKS_FILE, []));
   saveHealthTasks(healthTasks);
@@ -4981,6 +5048,7 @@ async function bootstrap() {
   }
   await backfillUploadsToDb();
   cleanupVerifications();
+  cleanupPasswordResets();
   users = users.map(normalizeUserRecord);
   writeJson(USERS_FILE, users);
   ensureMasterAccount();
@@ -8689,6 +8757,148 @@ app.post("/api/auth/verify/resend", async (req, res) => {
   writeJson(VERIFICATIONS_FILE, verifications);
   appendAudit("email_verify_resend", user.id, { email }, getClientIp(req));
   return res.json({ ok: true, verificationRequired: true, pendingEmail: email });
+});
+
+app.post("/api/auth/password-reset/request", async (req, res) => {
+  const email = normalizeVerificationEmail(req.body.email);
+  if (!email || !isValidEmail(email)) {
+    return res.status(400).json({ message: "Informe um email valido." });
+  }
+  if (isStorageWriteBlocked()) {
+    res.setHeader("Retry-After", "60");
+    return res.status(503).json({ message: STORAGE_READONLY_MESSAGE });
+  }
+  cleanupPasswordResets();
+  const user = users.find(
+    (item) => normalizeVerificationEmail(item.email || item.username || "") === email
+  );
+  if (!user) {
+    return res.json({ ok: true });
+  }
+  if (user.active === false || String(user.status || "").toUpperCase() === "INATIVO") {
+    return res.json({ ok: true });
+  }
+  const existingIndex = findPasswordResetIndexByEmail(email);
+  const existingRecord = existingIndex >= 0 ? passwordResets[existingIndex] : null;
+  if (existingRecord && existingRecord.lastSentAt && !isPasswordResetExpired(existingRecord)) {
+    const elapsed = Date.now() - new Date(existingRecord.lastSentAt).getTime();
+    if (elapsed < PASSWORD_RESET_RESEND_COOLDOWN_MS) {
+      return res.json({ ok: true });
+    }
+  }
+  const code = createVerificationCode();
+  let emailSent = false;
+  try {
+    emailSent = await sendPasswordResetEmail(email, user.name, code);
+  } catch (error) {
+    emailSent = false;
+  }
+  if (!emailSent) {
+    return res.status(503).json({ message: "Envio de email indisponivel." });
+  }
+  const now = new Date().toISOString();
+  const nextRecord = {
+    email,
+    userId: user.id,
+    codeHash: hashToken(code),
+    createdAt: now,
+    lastSentAt: now,
+    expiresAt: new Date(Date.now() + PASSWORD_RESET_TTL_MINUTES * 60 * 1000).toISOString(),
+    attempts: 0,
+  };
+  if (existingIndex >= 0) {
+    passwordResets[existingIndex] = nextRecord;
+  } else {
+    passwordResets.push(nextRecord);
+  }
+  writeJson(PASSWORD_RESETS_FILE, passwordResets);
+  appendAudit("password_reset_request", user.id, { email }, getClientIp(req));
+  return res.json({ ok: true });
+});
+
+app.post("/api/auth/password-reset/confirm", async (req, res) => {
+  const email = normalizeVerificationEmail(req.body.email);
+  const code = String(req.body.code || "").replace(/\D/g, "");
+  const password = String(req.body.password || req.body.senha || "").trim();
+  const passwordConfirm = String(req.body.passwordConfirm || req.body.senhaConfirm || "").trim();
+  if (!email || !isValidEmail(email)) {
+    return res.status(400).json({ message: "Informe um email valido." });
+  }
+  if (!code) {
+    return res.status(400).json({ message: "Informe o codigo." });
+  }
+  if (isStorageWriteBlocked()) {
+    res.setHeader("Retry-After", "60");
+    return res.status(503).json({ message: STORAGE_READONLY_MESSAGE });
+  }
+  const passwordCheck = validatePassword(password);
+  if (!password || !passwordCheck.ok) {
+    return res.status(400).json({ message: "Senha fora da politica.", rules: passwordCheck.rules });
+  }
+  if (!passwordConfirm || passwordConfirm !== password) {
+    return res.status(400).json({ message: "As senhas nao conferem." });
+  }
+  cleanupPasswordResets();
+  const recordIndex = findPasswordResetIndexByEmail(email);
+  if (recordIndex === -1) {
+    return res.status(400).json({ message: "Codigo invalido ou expirado." });
+  }
+  const record = passwordResets[recordIndex];
+  if (isPasswordResetExpired(record)) {
+    passwordResets.splice(recordIndex, 1);
+    writeJson(PASSWORD_RESETS_FILE, passwordResets);
+    return res.status(410).json({ message: "Codigo expirado." });
+  }
+  if (!record.codeHash) {
+    return res.status(400).json({ message: "Codigo invalido ou expirado." });
+  }
+  const attempts = Number(record.attempts || 0);
+  if (attempts >= PASSWORD_RESET_MAX_ATTEMPTS) {
+    return res.status(429).json({ message: "Tentativas esgotadas. Solicite novo codigo." });
+  }
+  if (hashToken(code) !== record.codeHash) {
+    const nextAttempts = attempts + 1;
+    passwordResets[recordIndex] = { ...record, attempts: nextAttempts };
+    writeJson(PASSWORD_RESETS_FILE, passwordResets);
+    const remaining = Math.max(0, PASSWORD_RESET_MAX_ATTEMPTS - nextAttempts);
+    const message = remaining
+      ? `Codigo invalido. Tentativas restantes: ${remaining}.`
+      : "Tentativas esgotadas. Solicite novo codigo.";
+    return res.status(400).json({ message, remainingAttempts: remaining });
+  }
+  const byIdIndex =
+    record.userId !== undefined && record.userId !== null
+      ? users.findIndex((item) => item && String(item.id) === String(record.userId))
+      : -1;
+  const userIndex =
+    byIdIndex >= 0
+      ? byIdIndex
+      : users.findIndex(
+          (item) => normalizeVerificationEmail(item.email || item.username || "") === email
+        );
+  if (userIndex === -1) {
+    passwordResets.splice(recordIndex, 1);
+    writeJson(PASSWORD_RESETS_FILE, passwordResets);
+    return res.status(404).json({ message: "Usuario nao encontrado." });
+  }
+  const user = users[userIndex];
+  if (user.active === false || String(user.status || "").toUpperCase() === "INATIVO") {
+    return res.status(403).json({ message: "Conta inativa." });
+  }
+  const passwordHash = await bcrypt.hash(password, 12);
+  const now = new Date().toISOString();
+  const updated = {
+    ...user,
+    passwordHash,
+    passwordUpdatedAt: now,
+    updatedAt: now,
+  };
+  users[userIndex] = updated;
+  passwordResets.splice(recordIndex, 1);
+  writeJson(USERS_FILE, users);
+  writeJson(PASSWORD_RESETS_FILE, passwordResets);
+  appendAudit("password_reset", updated.id, { email }, getClientIp(req));
+  return res.json({ ok: true });
 });
 
 app.get("/api/auth/verify", (req, res) => {

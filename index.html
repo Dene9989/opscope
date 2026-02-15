@@ -142,7 +142,7 @@
               </div>
               <div class="auth-actions">
                 <button id="btnLoginSubmit" class="btn btn--primary" type="submit">Entrar</button>
-                <a class="auth-link auth-link--light" href="#">Esqueceu sua senha?</a>
+                <a id="btnForgotPassword" class="auth-link auth-link--light" href="#">Esqueceu sua senha?</a>
               </div>
               <div class="auth-help">
                 <button id="btnAuthHelp" class="auth-link auth-link--help" type="button">
@@ -183,12 +183,164 @@
         <ul class="auth-help-list">
           <li>Solicite acesso ao PCM respons&aacute;vel.</li>
           <li>Use matr&iacute;cula e senha fornecida para entrar.</li>
-          <li>Para reset de senha, contate o PCM/Admin.</li>
+          <li>Para reset de senha, use o c&oacute;digo enviado por e-mail.</li>
         </ul>
         <div class="modal__actions auth-modal__actions">
           <button id="btnAccessHelpRequest" class="btn btn--primary" type="button">Solicitar acesso</button>
           <button id="btnAccessHelpReset" class="btn btn--ghost" type="button">Reset de senha</button>
         </div>
+      </div>
+    </div>
+    <div id="modalPasswordReset" class="modal auth-modal visitor-only" hidden>
+      <div class="modal__content auth-modal__content">
+        <div class="modal__header">
+          <div>
+            <h3>Redefinir senha</h3>
+            <p class="hint">Use o c&oacute;digo enviado por e-mail.</p>
+          </div>
+          <button
+            id="btnPasswordResetClose"
+            class="btn btn--ghost btn--icon"
+            type="button"
+            aria-label="Fechar"
+          >
+            <span aria-hidden="true">x</span>
+          </button>
+        </div>
+        <form id="passwordResetForm" class="modal__form">
+          <div class="field">
+            <label for="passwordResetEmail">E-mail</label>
+            <div class="input-wrap has-icon-left">
+              <span class="input-icon left" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <path
+                    d="M3 5h18v14H3z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                  />
+                  <path
+                    d="M3 6l9 7 9-7"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                  />
+                </svg>
+              </span>
+              <input id="passwordResetEmail" type="email" placeholder="seu@email.com" required />
+            </div>
+          </div>
+          <div class="field">
+            <label for="passwordResetCode">C&oacute;digo</label>
+            <div class="input-wrap">
+              <input
+                id="passwordResetCode"
+                type="text"
+                placeholder="Digite o c&oacute;digo"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+              />
+              <button
+                id="btnPasswordResetSendCode"
+                class="btn btn--ghost btn--small"
+                type="button"
+              >
+                Enviar c&oacute;digo
+              </button>
+            </div>
+            <small class="hint">O c&oacute;digo expira em poucos minutos.</small>
+          </div>
+          <div class="field field--password">
+            <label for="passwordResetNew">Nova senha</label>
+            <div class="input-wrap has-icon-right">
+              <input id="passwordResetNew" type="password" placeholder="Nova senha" />
+              <button
+                class="icon-btn toggle-password"
+                type="button"
+                aria-label="Mostrar senha"
+                aria-pressed="false"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    class="eye-open"
+                    d="M1.5 12s4.5-7 10.5-7 10.5 7 10.5 7-4.5 7-10.5 7S1.5 12 1.5 12Z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <circle
+                    class="eye-open"
+                    cx="12"
+                    cy="12"
+                    r="3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                  />
+                  <path
+                    class="eye-closed"
+                    d="M4 5.5 20 19.5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="field field--password">
+            <label for="passwordResetConfirm">Confirmar senha</label>
+            <div class="input-wrap has-icon-right">
+              <input id="passwordResetConfirm" type="password" placeholder="Confirmar senha" />
+              <button
+                class="icon-btn toggle-password"
+                type="button"
+                aria-label="Mostrar senha"
+                aria-pressed="false"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    class="eye-open"
+                    d="M1.5 12s4.5-7 10.5-7 10.5 7 10.5 7-4.5 7-10.5 7S1.5 12 1.5 12Z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <circle
+                    class="eye-open"
+                    cx="12"
+                    cy="12"
+                    r="3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                  />
+                  <path
+                    class="eye-closed"
+                    d="M4 5.5 20 19.5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </button>
+            </div>
+            <small class="hint">M&iacute;nimo 12 caracteres, com mai&uacute;scula, min&uacute;scula, n&uacute;mero e s&iacute;mbolo.</small>
+          </div>
+          <div class="modal__actions auth-modal__actions">
+            <button id="btnPasswordResetSubmit" class="btn btn--primary" type="submit">
+              Salvar nova senha
+            </button>
+            <button id="btnPasswordResetCancel" class="btn btn--ghost" type="button">Cancelar</button>
+          </div>
+          <p id="passwordResetMsg" class="mensagem" aria-live="polite"></p>
+        </form>
       </div>
     </div>
     <div class="app app-shell auth-only">
