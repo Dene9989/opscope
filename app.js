@@ -5054,6 +5054,7 @@ let lastFocusMaintenanceId = "";
 let pendingVerificationEmail = "";
 let passwordResetCooldownTimer = null;
 let passwordResetCooldownUntil = 0;
+let passwordResetCodeSent = false;
 
 async function apiRequest(path, options = {}) {
   const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
@@ -22933,6 +22934,23 @@ function startPasswordResetCooldown(seconds) {
   passwordResetCooldownTimer = window.setInterval(updatePasswordResetCooldown, 1000);
 }
 
+function setPasswordResetStep(sent) {
+  passwordResetCodeSent = Boolean(sent);
+  const enabled = passwordResetCodeSent;
+  if (passwordResetCode) {
+    passwordResetCode.disabled = !enabled;
+  }
+  if (passwordResetNew) {
+    passwordResetNew.disabled = !enabled;
+  }
+  if (passwordResetConfirm) {
+    passwordResetConfirm.disabled = !enabled;
+  }
+  if (btnPasswordResetSubmit) {
+    btnPasswordResetSubmit.disabled = !enabled;
+  }
+}
+
 function openPasswordResetModal(prefillEmail = "") {
   if (!modalPasswordReset) {
     return;
@@ -22956,11 +22974,17 @@ function openPasswordResetModal(prefillEmail = "") {
   if (passwordResetEmail && !currentEmail && candidate && isValidEmail(candidate)) {
     passwordResetEmail.value = candidate;
   }
+  setPasswordResetStep(false);
   updatePasswordResetCooldown();
   if (passwordResetEmail) {
     passwordResetEmail.focus();
   }
-  if (passwordResetEmail && passwordResetEmail.value && passwordResetCode) {
+  if (
+    passwordResetEmail &&
+    passwordResetEmail.value &&
+    passwordResetCode &&
+    !passwordResetCode.disabled
+  ) {
     passwordResetCode.focus();
   }
 }
@@ -22979,6 +23003,7 @@ function closePasswordResetModal() {
   if (passwordResetConfirm) {
     passwordResetConfirm.value = "";
   }
+  setPasswordResetStep(false);
   setPasswordResetMessage("");
 }
 
@@ -35999,9 +36024,10 @@ if (btnPasswordResetSendCode) {
     try {
       await apiPasswordResetRequest(email);
       setPasswordResetMessage(
-        "Se o email existir, enviaremos um codigo. Verifique sua caixa de entrada.",
+        "Codigo enviado. Verifique seu email e cole o codigo abaixo.",
         false
       );
+      setPasswordResetStep(true);
       startPasswordResetCooldown(PASSWORD_RESET_RESEND_SECONDS);
       if (passwordResetCode) {
         passwordResetCode.focus();
@@ -36023,6 +36049,10 @@ if (passwordResetForm) {
   passwordResetForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     setPasswordResetMessage("");
+    if (!passwordResetCodeSent) {
+      setPasswordResetMessage("Envie o codigo primeiro.", true);
+      return;
+    }
     const email = normalizeVerificationEmail(
       (passwordResetEmail && passwordResetEmail.value) || ""
     );
@@ -37763,12 +37793,26 @@ if (accessUserForm) {
     const payload = {
       name: accessUserName ? accessUserName.value.trim() : "",
       matricula: accessUserMatricula ? accessUserMatricula.value.trim() : "",
-      email: accessUserEmail ? accessUserEmail.value.trim() : "",
+      email: accessUserEmail ? accessUserEmail.value.trim().toLowerCase() : "",
       roleId: accessUserRole ? accessUserRole.value : "",
       projectId: accessUserProject ? accessUserProject.value : null,
       status: accessUserStatus ? accessUserStatus.value : "ATIVO",
     };
     setAccessUserFormMessage("");
+    if (!payload.email) {
+      setAccessUserFormMessage("Informe o email do usuario.", true);
+      if (accessUserEmail) {
+        accessUserEmail.focus();
+      }
+      return;
+    }
+    if (!isValidEmail(payload.email)) {
+      setAccessUserFormMessage("Informe um email valido.", true);
+      if (accessUserEmail) {
+        accessUserEmail.focus();
+      }
+      return;
+    }
     try {
       if (id) {
         await dataProvider.authAdmin.updateUser({ ...payload, id });
@@ -37965,6 +38009,23 @@ if (modalPasswordReset) {
     if (event.target === modalPasswordReset) {
       closePasswordResetModal();
     }
+  });
+}
+if (passwordResetEmail) {
+  passwordResetEmail.addEventListener("input", () => {
+    if (passwordResetCodeSent) {
+      if (passwordResetCode) {
+        passwordResetCode.value = "";
+      }
+      if (passwordResetNew) {
+        passwordResetNew.value = "";
+      }
+      if (passwordResetConfirm) {
+        passwordResetConfirm.value = "";
+      }
+      setPasswordResetStep(false);
+    }
+    setPasswordResetMessage("");
   });
 }
 

@@ -7509,14 +7509,27 @@ app.post(
     const payload = req.body || {};
     const name = String(payload.name || "").trim();
     const matricula = String(payload.matricula || "").trim();
+    const email = String(payload.email || "").trim().toLowerCase();
     if (!name) {
       return res.status(400).json({ message: "Informe o nome do usuario." });
     }
     if (!matricula) {
       return res.status(400).json({ message: "Informe a matricula." });
     }
+    if (!email) {
+      return res.status(400).json({ message: "Informe o email do usuario." });
+    }
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ message: "Informe um email valido." });
+    }
     if (findUserByMatriculaNormalized(matricula)) {
       return res.status(409).json({ message: "Matricula ja cadastrada." });
+    }
+    const emailDuplicado = users.some(
+      (user) => normalizeVerificationEmail(user.email || user.username || "") === email
+    );
+    if (emailDuplicado) {
+      return res.status(409).json({ message: "Email ja cadastrado." });
     }
     const roleId = String(payload.roleId || "").trim();
     const role = roleId ? getAccessRoleById(roleId) : null;
@@ -7540,13 +7553,13 @@ app.post(
     }
     const now = new Date().toISOString();
     const passwordHash = hashPasswordSha256(password);
-    const username = payload.email ? String(payload.email || "").trim() : matricula;
+    const username = email;
     const created = normalizeUserRecord({
       id: crypto.randomUUID(),
       username,
       matricula,
       name,
-      email: String(payload.email || "").trim().toLowerCase(),
+      email,
       roleId: role.id,
       roleName: role.name,
       cargo: role.name,
@@ -7592,6 +7605,24 @@ app.put(
     if (payload.name !== undefined && !String(payload.name || "").trim()) {
       return res.status(400).json({ message: "Informe o nome do usuario." });
     }
+    let nextEmail = null;
+    if (payload.email !== undefined) {
+      nextEmail = String(payload.email || "").trim().toLowerCase();
+      if (!nextEmail) {
+        return res.status(400).json({ message: "Informe o email do usuario." });
+      }
+      if (!isValidEmail(nextEmail)) {
+        return res.status(400).json({ message: "Informe um email valido." });
+      }
+      const emailDuplicado = users.some(
+        (user) =>
+          String(user.id) !== String(id) &&
+          normalizeVerificationEmail(user.email || user.username || "") === nextEmail
+      );
+      if (emailDuplicado) {
+        return res.status(409).json({ message: "Email ja cadastrado." });
+      }
+    }
     let roleId = current.roleId || "";
     let roleName = current.roleName || current.cargo || "";
     let rolePermissions = current.accessPermissions || current.rolePermissions || [];
@@ -7621,9 +7652,8 @@ app.put(
       ...current,
       name: payload.name !== undefined ? String(payload.name || "").trim() : current.name,
       email:
-        payload.email !== undefined
-          ? String(payload.email || "").trim().toLowerCase()
-          : current.email || "",
+        payload.email !== undefined ? nextEmail : current.email || "",
+      username: payload.email !== undefined ? nextEmail : current.username || "",
       roleId,
       roleName,
       cargo: roleName || current.cargo || "",

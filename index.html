@@ -229,6 +229,7 @@
               </span>
               <input id="passwordResetEmail" type="email" placeholder="seu@email.com" required />
             </div>
+            <small class="hint">Informe o e-mail cadastrado e clique em Enviar codigo.</small>
           </div>
           <div class="field">
             <label for="passwordResetCode">C&oacute;digo</label>
@@ -239,6 +240,7 @@
                 placeholder="Digite o c&oacute;digo"
                 inputmode="numeric"
                 autocomplete="one-time-code"
+                disabled
               />
               <button
                 id="btnPasswordResetSendCode"
@@ -253,7 +255,7 @@
           <div class="field field--password">
             <label for="passwordResetNew">Nova senha</label>
             <div class="input-wrap has-icon-right">
-              <input id="passwordResetNew" type="password" placeholder="Nova senha" />
+              <input id="passwordResetNew" type="password" placeholder="Nova senha" disabled />
               <button
                 class="icon-btn toggle-password"
                 type="button"
@@ -294,7 +296,12 @@
           <div class="field field--password">
             <label for="passwordResetConfirm">Confirmar senha</label>
             <div class="input-wrap has-icon-right">
-              <input id="passwordResetConfirm" type="password" placeholder="Confirmar senha" />
+              <input
+                id="passwordResetConfirm"
+                type="password"
+                placeholder="Confirmar senha"
+                disabled
+              />
               <button
                 class="icon-btn toggle-password"
                 type="button"
@@ -334,7 +341,7 @@
             <small class="hint">M&iacute;nimo 12 caracteres, com mai&uacute;scula, min&uacute;scula, n&uacute;mero e s&iacute;mbolo.</small>
           </div>
           <div class="modal__actions auth-modal__actions">
-            <button id="btnPasswordResetSubmit" class="btn btn--primary" type="submit">
+            <button id="btnPasswordResetSubmit" class="btn btn--primary" type="submit" disabled>
               Salvar nova senha
             </button>
             <button id="btnPasswordResetCancel" class="btn btn--ghost" type="button">Cancelar</button>
@@ -4521,8 +4528,9 @@
             <input id="accessUserMatricula" type="text" required />
           </div>
           <div class="field">
-            <label for="accessUserEmail">E-mail (opcional)</label>
-            <input id="accessUserEmail" type="email" />
+            <label for="accessUserEmail">E-mail</label>
+            <input id="accessUserEmail" type="email" required />
+            <small class="hint">Obrigatorio para reset de senha por e-mail.</small>
           </div>
           <div class="field">
             <label for="accessUserRole">Cargo</label>
