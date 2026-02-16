@@ -1112,6 +1112,7 @@ const REMINDER_KEY = "denemanu.reminderDays";
 const SIDEBAR_KEY = "opscope.sidebarCollapsed";
 const SIDEBAR_STATE_KEY = "sb_state";
 const NOTIFICATION_READ_KEY = "opscope.notifications.read";
+const TEAM_NOTIFICATION_WINDOW_DAYS = 14;
 const STORAGE_KEY = "denemanu.manutencoes";
 const TEMPLATE_KEY = "denemanu.templates";
 const USER_KEY = "denemanu.users";
@@ -6468,6 +6469,84 @@ function markNotificationRead(id) {
     readSet.add(key);
     saveReadNotificationIds(readSet);
   }
+}
+
+function getMaintenanceTeamNameFromItem(item) {
+  if (!item) {
+    return "";
+  }
+  const raw = String(
+    item.executadaPor || item.responsavel || item.responsavelManutencao || ""
+  ).trim();
+  if (!raw) {
+    return "";
+  }
+  return normalizeTeamName(raw);
+}
+
+function buildTeamMaintenanceNotifications() {
+  if (!currentUser || !activeProjectId) {
+    return [];
+  }
+  if (!isUserFromActiveProject(currentUser)) {
+    return [];
+  }
+  const prefs = normalizeProfilePreferences(currentUser.preferences);
+  if (prefs && prefs.notifications && prefs.notifications.assignedOs === false) {
+    return [];
+  }
+  const teamName = getProjectTeamName(activeProjectId);
+  if (!teamName) {
+    return [];
+  }
+  const teamKey = normalizeSearchValue(teamName);
+  const now = Date.now();
+  const windowMs = TEAM_NOTIFICATION_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  return manutencoes
+    .filter((item) => item && item.projectId === activeProjectId)
+    .map((item) => {
+      const assignedTeam = getMaintenanceTeamNameFromItem(item);
+      if (!assignedTeam) {
+        return null;
+      }
+      if (normalizeSearchValue(assignedTeam) !== teamKey) {
+        return null;
+      }
+      const timestamp =
+        getTimeValue(item.executionStartedAt) ||
+        getTimeValue(item.abertaEm) ||
+        getTimeValue(item.createdAt) ||
+        0;
+      if (timestamp && now - timestamp > windowMs) {
+        return null;
+      }
+      return {
+        id: `maintenance:${item.id}:team:${teamKey}`,
+        message: `Nova manutenção para ${assignedTeam}: ${getMaintenanceTitle(item)}`,
+        timestamp,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+}
+
+function showTeamMaintenanceNotifications() {
+  if (!authToast) {
+    return;
+  }
+  const readSet = getReadNotificationIds();
+  const notifications = buildTeamMaintenanceNotifications().filter(
+    (notice) => !readSet.has(String(notice.id))
+  );
+  if (!notifications.length) {
+    return;
+  }
+  notifications.slice(0, 3).forEach((notice, index) => {
+    window.setTimeout(() => {
+      showAuthToast(notice.message);
+      markNotificationRead(notice.id);
+    }, index * 2200);
+  });
 }
 
 function setFocusParam(id) {
@@ -25452,12 +25531,47 @@ function normalizeTeamName(value) {
 }
 
 function getMaintenanceParticipantCandidates() {
-  const colaboradores = getOperationalUsers()
-    .filter((user) => user && (user.name || user.username))
-    .filter(isUserFromActiveProject)
-    .map((user) => normalizeParticipantName(user.name || user.username || ""))
-    .filter(Boolean);
-  return Array.from(new Set(colaboradores)).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const equipeIds = getActiveProjectEquipeIds();
+  const list = [];
+  const isActiveRecord = (user) => {
+    if (!user || !user.id) {
+      return false;
+    }
+    if (isSystemUserId(user.id)) {
+      return false;
+    }
+    const status = normalizeAccessUserStatus(user.status, user.active);
+    return status !== "INATIVO";
+  };
+  const isProjectMember = (user) => {
+    if (!user) {
+      return false;
+    }
+    if (activeProjectId && user.projectId && user.projectId === activeProjectId) {
+      return true;
+    }
+    if (equipeIds.size && equipeIds.has(user.id)) {
+      return true;
+    }
+    return false;
+  };
+  const source = users.slice();
+  if (currentUser && !source.some((item) => String(item.id) === String(currentUser.id))) {
+    source.push(currentUser);
+  }
+  source.forEach((user) => {
+    if (!isActiveRecord(user)) {
+      return;
+    }
+    if (!isProjectMember(user)) {
+      return;
+    }
+    const label = normalizeParticipantName(user.name || user.username || "");
+    if (label) {
+      list.push(label);
+    }
+  });
+  return Array.from(new Set(list)).sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 
 function renderManutencaoEquipeOptions(selectedName = "") {
@@ -31015,6 +31129,7 @@ async function carregarManutencoesServidor(force = false) {
       pmpMaintenanceCache.set(activeProjectId, manutencoes);
       maintenanceLoadedProjects.add(activeProjectId);
       renderTudo();
+      showTeamMaintenanceNotifications();
     }
   } catch (error) {
     // fallback silencioso
@@ -32363,6 +32478,7 @@ async function adicionarManutencao() {
   });
   await registrarSstDocumentacao(nova, liberacao);
   renderTudo();
+  showTeamMaintenanceNotifications();
   limparFormularioManutencao();
 
   const criada = manutencoes.find((item) => item.id === nova.id);
@@ -33165,6 +33281,7 @@ async function salvarEdicaoManutencao() {
   salvarManutencoes(manutencoes);
   logAction("edit", atualizado, { resumo: "Edição via painel" });
   renderTudo();
+  showTeamMaintenanceNotifications();
   limparEdicaoManutencao();
   mostrarMensagemManutencao("Manutenção atualizada.");
 }
