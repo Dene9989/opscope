@@ -4314,8 +4314,8 @@ async function generateRdoTextWithAI(payload) {
   const body = {
     model: OPENAI_MODEL,
     input: [
-      { role: "system", content: [{ type: "text", text: systemPrompt }] },
-      { role: "user", content: [{ type: "text", text: userPrompt }] },
+      { role: "system", content: [{ type: "input_text", text: systemPrompt }] },
+      { role: "user", content: [{ type: "input_text", text: userPrompt }] },
     ],
     text: {
       format: {

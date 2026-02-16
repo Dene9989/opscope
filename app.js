@@ -4306,6 +4306,60 @@ function writeJson(key, value) {
   }
 }
 
+function compactEvidencias(list) {
+  let changed = false;
+  const sanitizeList = (items) => {
+    if (!Array.isArray(items)) {
+      return items;
+    }
+    return items.map((evidencia) => {
+      if (!evidencia || typeof evidencia !== "object") {
+        return evidencia;
+      }
+      if (!USE_AUTH_API) {
+        return evidencia;
+      }
+      const cleaned = { ...evidencia };
+      const dataUrl = typeof cleaned.dataUrl === "string" ? cleaned.dataUrl : "";
+      const url = typeof cleaned.url === "string" ? cleaned.url : "";
+      if (dataUrl && (url || dataUrl.length > 200000)) {
+        delete cleaned.dataUrl;
+        changed = true;
+      }
+      return cleaned;
+    });
+  };
+  const output = Array.isArray(list)
+    ? list.map((item) => {
+        if (!item || typeof item !== "object") {
+          return item;
+        }
+        let changedItem = false;
+        const updated = { ...item };
+        if (Array.isArray(item.evidencias)) {
+          updated.evidencias = sanitizeList(item.evidencias);
+          changedItem = true;
+        }
+        if (item.registroExecucao && Array.isArray(item.registroExecucao.evidencias)) {
+          updated.registroExecucao = {
+            ...item.registroExecucao,
+            evidencias: sanitizeList(item.registroExecucao.evidencias),
+          };
+          changedItem = true;
+        }
+        if (item.conclusao && Array.isArray(item.conclusao.evidencias)) {
+          updated.conclusao = {
+            ...item.conclusao,
+            evidencias: sanitizeList(item.conclusao.evidencias),
+          };
+          changedItem = true;
+        }
+        return changedItem ? updated : item;
+      })
+    : list;
+  return { list: output, changed };
+}
+
 function getBuildId() {
   const meta = document.querySelector('meta[name="opscope-build"]');
   return meta ? String(meta.content || "").trim() : "";
@@ -9031,11 +9085,22 @@ function criarId() {
 }
 
 function carregarManutencoes() {
-  const data = readJson(getProjectStorageKey(STORAGE_KEY), []);
+  const storageKey = getProjectStorageKey(STORAGE_KEY);
+  const data = readJson(storageKey, []);
   if (!Array.isArray(data)) {
     return [];
   }
-  return data.filter((item) => item && typeof item === "object");
+  const filtered = data.filter((item) => item && typeof item === "object");
+  const compacted = compactEvidencias(filtered);
+  if (compacted.changed) {
+    try {
+      localStorage.removeItem(storageKey);
+    } catch (error) {
+      // noop
+    }
+    writeJson(storageKey, compacted.list);
+  }
+  return compacted.list;
 }
 
 function salvarManutencoes(lista, options = {}) {
@@ -9046,7 +9111,17 @@ function salvarManutencoes(lista, options = {}) {
           : item
       )
     : [];
-  writeJson(getProjectStorageKey(STORAGE_KEY), sanitized);
+  const compacted = compactEvidencias(sanitized);
+  const storageKey = getProjectStorageKey(STORAGE_KEY);
+  let ok = writeJson(storageKey, compacted.list);
+  if (!ok) {
+    try {
+      localStorage.removeItem(storageKey);
+    } catch (error) {
+      // noop
+    }
+    ok = writeJson(storageKey, compacted.list);
+  }
   if (!options.skipSync) {
     scheduleMaintenanceSync(lista);
   }
