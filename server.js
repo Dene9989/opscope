@@ -3997,6 +3997,8 @@ const RDO_AI_SCHEMA = {
   },
 };
 
+const RDO_AI_PROMPT_VERSION = String(process.env.OPSCOPE_RDO_AI_PROMPT_VERSION || "v2");
+
 const RDO_STATUS_LABELS = {
   concluida: "Concluída",
   em_execucao: "Em execução",
@@ -4017,7 +4019,7 @@ function formatDurationMin(totalMin) {
 }
 
 function getRdoCacheKey(projectId, dateStr) {
-  return `${projectId || ""}:${dateStr || ""}`;
+  return `${RDO_AI_PROMPT_VERSION}:${projectId || ""}:${dateStr || ""}`;
 }
 
 function getRdoCache(projectId, dateStr) {
@@ -4108,6 +4110,27 @@ function isMaintenanceInRange(item, inicio, fim) {
   return candidates.some((date) => date >= inicio && date < fim);
 }
 
+function normalizePersonLabel(label) {
+  return String(label || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function dedupeLabels(list) {
+  const seen = new Set();
+  const output = [];
+  list.forEach((label) => {
+    const normalized = normalizePersonLabel(label);
+    if (!normalized || seen.has(normalized)) {
+      return;
+    }
+    seen.add(normalized);
+    output.push(label);
+  });
+  return output;
+}
+
 function buildRdoPayload(dateStr, projectId) {
   const base = parseDateOnly(dateStr) || startOfDay(new Date());
   const inicio = startOfDay(base);
@@ -4160,22 +4183,26 @@ function buildRdoPayload(dateStr, projectId) {
     return 0;
   });
   const tempoTotalMin = duracoes.reduce((acc, val) => acc + (Number.isFinite(val) ? val : 0), 0);
-  const responsaveis = list
-    .map((item) => item && (item.doneBy || item.createdBy || item.executedBy || ""))
-    .filter(Boolean)
-    .map((id) => getUserLabel(id));
-  const participantes = list
-    .flatMap((item) => {
-      if (item && Array.isArray(item.participantes)) {
-        return item.participantes;
-      }
-      if (item && item.conclusao && Array.isArray(item.conclusao.participantes)) {
-        return item.conclusao.participantes;
-      }
-      return [];
-    })
-    .filter(Boolean)
-    .map((id) => getUserLabel(id));
+  const responsaveis = dedupeLabels(
+    list
+      .map((item) => item && (item.doneBy || item.createdBy || item.executedBy || ""))
+      .filter(Boolean)
+      .map((id) => getUserLabel(id))
+  );
+  const participantes = dedupeLabels(
+    list
+      .flatMap((item) => {
+        if (item && Array.isArray(item.participantes)) {
+          return item.participantes;
+        }
+        if (item && item.conclusao && Array.isArray(item.conclusao.participantes)) {
+          return item.conclusao.participantes;
+        }
+        return [];
+      })
+      .filter(Boolean)
+      .map((id) => getUserLabel(id))
+  );
   const subestacoes = list
     .map((item) => item.local || item.subestacao || item.substation || "")
     .filter(Boolean);
@@ -4196,10 +4223,8 @@ function buildRdoPayload(dateStr, projectId) {
       pendentes,
       tempo_total: formatDurationMin(tempoTotalMin),
     },
-    responsavel: responsaveis.length ? Array.from(new Set(responsaveis)).join("; ") : "não informado",
-    participantes: participantes.length
-      ? Array.from(new Set(participantes)).join("; ")
-      : "não informado",
+    responsavel: responsaveis.length ? responsaveis.join("; ") : "n?o informado",
+    participantes: participantes.length ? participantes.join("; ") : "n?o informado",
     atividades,
   };
 }
@@ -4307,8 +4332,13 @@ async function generateRdoTextWithAI(payload) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
   const systemPrompt =
-    "Voce e um redator tecnico de RDO. Use APENAS os dados do JSON informado. " +
-    "Nao invente numeros, locais, datas ou tempos. Se algo faltar, escreva 'nao informado'. " +
+    "Voce e um redator tecnico de RDO (PT-BR). Escreva com tom formal, direto e com autoridade. " +
+    "Use APENAS os dados do JSON informado. Nao invente numeros, locais, datas ou tempos. " +
+    "Se algo faltar, escreva 'nao informado'. Evite repeticoes e frases genericas. " +
+    "Nao inicie com 'Relatorio Diario' ou 'RDO'. Nao repita cabecalhos. " +
+    "descricao_consolidada: 2 a 4 frases curtas, sem listar equipamentos; foque em contexto, volume, status e observacoes. " +
+    "atividades_consolidado.atividade_do_dia: uma frase objetiva (ate 16 palavras) resumindo as acoes principais. " +
+    "status_geral: use Concluida / Em execucao / Pendentes / Em andamento. " +
     "Responda estritamente no formato do schema.";
   const userPrompt = `Dados do RDO (JSON): ${JSON.stringify(payload)}`;
   const body = {

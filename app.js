@@ -17535,7 +17535,19 @@ function buildAtividadesConsolidadoFallback(itensRdo) {
   const titulos = Array.from(
     new Set(itensRdo.map((item) => item.titulo || "").filter(Boolean))
   );
-  const atividadeDoDia = titulos.length === 1 ? titulos[0] : "Atividades do dia";
+  let atividadeDoDia = "Atividades de manutenção";
+  if (titulos.length === 1) {
+    atividadeDoDia = titulos[0];
+  } else if (titulos.length > 1 && titulos.length <= 3) {
+    atividadeDoDia = titulos.join(" / ");
+  } else {
+    const categorias = Array.from(
+      new Set(itensRdo.map((item) => item.categoria || "").filter(Boolean))
+    );
+    if (categorias.length === 1) {
+      atividadeDoDia = `Manutenção ${categorias[0]}`;
+    }
+  }
   const statusGeral = getStatusGeralConsolidado(itensRdo);
   const equipamentos = itensRdo.map((item) => ({
     nome: item.equipamento && item.equipamento !== "-" ? item.equipamento : "não informado",
@@ -17567,16 +17579,33 @@ function buildAtividadesConsolidadoHtml(data) {
   const atividade = data && data.atividade_do_dia ? data.atividade_do_dia : "não informado";
   const status = data && data.status_geral ? data.status_geral : "não informado";
   const equipamentos = data && Array.isArray(data.equipamentos) ? data.equipamentos : [];
+  const tiposUnicos = Array.from(
+    new Set(equipamentos.map((equip) => (equip.tipo || "").trim()).filter(Boolean))
+  );
+  const statusUnicos = Array.from(
+    new Set(equipamentos.map((equip) => (equip.status || "").trim()).filter(Boolean))
+  );
+  const tipoResumo = tiposUnicos.length === 1 ? tiposUnicos[0] : "";
+  const statusResumo = statusUnicos.length === 1 ? statusUnicos[0] : status;
   const equipamentosHtml = equipamentos.length
     ? equipamentos
         .map((equip) => {
           const nome = equip.nome || "não informado";
           const tipo = equip.tipo || "não informado";
           const statusItem = equip.status || "não informado";
-          return `<li>${escapeHtml(nome)} — ${escapeHtml(tipo)} — ${escapeHtml(statusItem)}</li>`;
+          const tipoLabel = tiposUnicos.length === 1 ? "" : ` — ${escapeHtml(tipo)}`;
+          const statusLabel = statusUnicos.length === 1 ? "" : ` — ${escapeHtml(statusItem)}`;
+          return `<li>${escapeHtml(nome)}${tipoLabel}${statusLabel}</li>`;
         })
         .join("")
     : `<li>não informado</li>`;
+  const resumoEquipamentos = `
+    <div class="rdo-mini">
+      <span>${equipamentos.length || 0} equipamento(s)</span>
+      ${tipoResumo ? `<span>Tipo: ${escapeHtml(tipoResumo)}</span>` : ""}
+      ${statusResumo ? `<span>Status: ${escapeHtml(statusResumo)}</span>` : ""}
+    </div>
+  `;
   return `
     <div class="rdo-info-grid rdo-info-grid--wide">
       <div><span>Local</span><strong>${escapeHtml(local)}</strong></div>
@@ -17584,6 +17613,7 @@ function buildAtividadesConsolidadoHtml(data) {
       <div><span>Atividade do dia</span><strong>${escapeHtml(atividade)}</strong></div>
       <div><span>Status geral</span><strong>${escapeHtml(status)}</strong></div>
     </div>
+    ${resumoEquipamentos}
     <div class="rdo-item__section">
       <h4>Equipamentos atendidos</h4>
       <ul class="rdo-lista">${equipamentosHtml}</ul>
@@ -18279,7 +18309,7 @@ function buildRdoHtml(snapshot, options = {}) {
               <th>Atividade / Contexto</th>
               <th>Status</th>
               <th>Janela</th>
-              <th>Responsavel</th>
+              <th>Respons\u00e1vel</th>
             </tr>
           </thead>
           <tbody>
@@ -18289,7 +18319,7 @@ function buildRdoHtml(snapshot, options = {}) {
       </section>
 
       <section class="rdo-section">
-        <h3>Descricao Consolidada do Dia</h3>
+        <h3>Descri\u00e7\u00e3o Consolidada do Dia</h3>
         <p class="rdo-paragraph">${escapeHtml(descricaoConsolidada || "")}</p>
       </section>
 
