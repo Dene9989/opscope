@@ -4270,6 +4270,13 @@ let rdoUI = {
 let kpiRankingSort = { key: "concluidas", dir: "desc" };
 let homeTipsTimer = null;
 let homeTipIndex = 0;
+const SYNC_POLL_MS = 30000;
+const SYNC_DEBUG_KEY = "opscope.debugSync";
+let syncEventSource = null;
+let syncEventProject = "";
+let syncPollTimer = null;
+let syncDebugEnabled = false;
+let syncLastEventAt = 0;
 
 function readJson(key, fallback) {
   const raw = localStorage.getItem(key);
@@ -4291,6 +4298,154 @@ function writeJson(key, value) {
     console.error(`Falha ao salvar ${key} no storage.`, error);
     return false;
   }
+}
+
+function getBuildId() {
+  const meta = document.querySelector('meta[name="opscope-build"]');
+  return meta ? String(meta.content || "").trim() : "";
+}
+
+function initSyncDebug() {
+  const params = new URLSearchParams(window.location.search);
+  syncDebugEnabled =
+    params.get("debugSync") === "1" || localStorage.getItem(SYNC_DEBUG_KEY) === "1";
+  if (syncDebugEnabled) {
+    logSyncDebug("debug.enabled", { buildId: getBuildId() });
+  }
+}
+
+function logSyncDebug(event, payload = {}) {
+  if (!syncDebugEnabled) {
+    return;
+  }
+  const data = {
+    event,
+    buildId: getBuildId(),
+    projectId: activeProjectId || "",
+    userId: currentUser ? currentUser.id : "",
+    role: currentUser ? currentUser.role || currentUser.cargo || "" : "",
+    timestamp: new Date().toISOString(),
+    ...payload,
+  };
+  console.info("[opscope-sync]", data);
+}
+
+function stopSyncPolling() {
+  if (syncPollTimer) {
+    clearInterval(syncPollTimer);
+    syncPollTimer = null;
+  }
+}
+
+function startSyncPolling() {
+  if (syncPollTimer || !USE_AUTH_API) {
+    return;
+  }
+  syncPollTimer = setInterval(() => {
+    if (!currentUser || !activeProjectId) {
+      return;
+    }
+    if (document.hidden) {
+      return;
+    }
+    logSyncDebug("poll.tick");
+    carregarManutencoesServidor(true);
+    loadDashboardSummary(true);
+    refreshProjects();
+    refreshAccessData();
+  }, SYNC_POLL_MS);
+}
+
+function stopSyncEvents() {
+  if (syncEventSource) {
+    syncEventSource.close();
+    syncEventSource = null;
+    syncEventProject = "";
+  }
+}
+
+function handleSyncEvent(eventName, payload = {}) {
+  syncLastEventAt = Date.now();
+  if (payload.projectId && activeProjectId && payload.projectId !== activeProjectId) {
+    return;
+  }
+  logSyncDebug("event", { name: eventName, payload });
+  if (eventName === "maintenance.updated") {
+    carregarManutencoesServidor(true);
+    loadDashboardSummary(true);
+    return;
+  }
+  if (eventName === "projects.updated") {
+    refreshProjects();
+    return;
+  }
+  if (eventName === "project.team.updated") {
+    carregarEquipeProjeto();
+    return;
+  }
+  if (eventName === "project.equipamentos.updated") {
+    carregarEquipamentosProjeto();
+    return;
+  }
+  if (eventName === "access.updated") {
+    refreshAccessData();
+  }
+}
+
+function startSyncEvents() {
+  if (!USE_AUTH_API || !currentUser) {
+    return;
+  }
+  const projectId = activeProjectId || "";
+  if (syncEventSource && syncEventProject === projectId) {
+    return;
+  }
+  stopSyncEvents();
+  const url = projectId
+    ? `/api/events?projectId=${encodeURIComponent(projectId)}`
+    : "/api/events";
+  syncEventProject = projectId;
+  const source = new EventSource(url);
+  syncEventSource = source;
+  source.addEventListener("hello", (event) => {
+    let payload = {};
+    try {
+      payload = JSON.parse(event.data || "{}");
+    } catch (error) {
+      payload = {};
+    }
+    logSyncDebug("sse.hello", payload);
+    stopSyncPolling();
+  });
+  source.addEventListener("ping", () => {
+    logSyncDebug("sse.ping");
+  });
+  ["maintenance.updated", "projects.updated", "project.team.updated", "project.equipamentos.updated", "access.updated"].forEach(
+    (name) => {
+      source.addEventListener(name, (event) => {
+        let payload = {};
+        try {
+          payload = JSON.parse(event.data || "{}");
+        } catch (error) {
+          payload = {};
+        }
+        handleSyncEvent(name, payload);
+      });
+    }
+  );
+  source.onerror = () => {
+    logSyncDebug("sse.error");
+    startSyncPolling();
+  };
+  source.onopen = () => {
+    logSyncDebug("sse.open", { projectId });
+    stopSyncPolling();
+  };
+}
+
+function restartSyncEvents() {
+  stopSyncEvents();
+  startSyncEvents();
 }
 
 function setProjectFlag(key, value) {
@@ -9206,6 +9361,7 @@ async function setActiveProjectId(nextId, options = {}) {
   await carregarEquipamentosProjeto();
   await carregarManutencoesServidor(true);
   await carregarPmpDados();
+  restartSyncEvents();
 }
 
 async function carregarSessaoServidor() {
@@ -9274,6 +9430,11 @@ async function carregarSessaoServidor() {
   handleFocusFromUrl();
   if (!currentUser) {
     mostrarAuthPanel("login");
+  }
+  if (currentUser) {
+    startSyncEvents();
+  } else {
+    stopSyncEvents();
   }
 }
 
@@ -24142,6 +24303,15 @@ async function refreshAccessData() {
   await refreshAccessRoles();
   await refreshAccessUsers();
   await refreshAccessStorageState();
+  const accessHash = syncDebugEnabled
+    ? hashString(JSON.stringify({ roles: accessRoles, users: accessUsers }))
+    : "";
+  logSyncDebug("access.fetch", {
+    roles: accessRoles.length,
+    users: accessUsers.length,
+    source: USE_AUTH_API ? "api" : "local",
+    hash: accessHash,
+  });
 }
 
 function setAccessUserFormMessage(texto, erro = false) {
@@ -26264,6 +26434,14 @@ async function refreshProjects() {
       // Mantem o que ja carregou de /api/auth/me caso a rota de projetos falhe.
     }
   }
+  const projectsHash = syncDebugEnabled
+    ? hashString(JSON.stringify(availableProjects))
+    : "";
+  logSyncDebug("projects.fetch", {
+    count: availableProjects.length,
+    source: USE_AUTH_API ? "api" : "local",
+    hash: projectsHash,
+  });
   if (!availableProjects.length) {
     renderProjectSelector();
     renderProjectPanel();
@@ -31289,6 +31467,15 @@ async function carregarManutencoesServidor(force = false) {
         mergeMaintenanceFallback(item, localMap.get(item.id))
       );
       manutencoes = merged;
+      const payloadHash = syncDebugEnabled
+        ? hashString(JSON.stringify(data.items))
+        : "";
+      logSyncDebug("maintenance.fetch", {
+        count: data.items.length,
+        source: "api",
+        projectId: activeProjectId || "",
+        hash: payloadHash,
+      });
       const resultado = normalizarManutencoes(manutencoes);
       manutencoes = resultado.normalizadas;
       salvarManutencoes(manutencoes);
@@ -41070,6 +41257,7 @@ initSidebarToggle();
 initAvatarUpload();
 initRichEditors();
 initFontGroups();
+initSyncDebug();
 carregarSessaoServidor();
 preencherInicioExecucaoNova();
 

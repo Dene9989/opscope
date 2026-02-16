@@ -81,6 +81,49 @@ const PASSWORD_RESET_RESEND_COOLDOWN_MS = Math.max(
   0,
   Number(process.env.PASSWORD_RESET_RESEND_COOLDOWN_MS) || 60 * 1000
 );
+const BUILD_ID = (() => {
+  if (process.env.BUILD_ID) {
+    return String(process.env.BUILD_ID);
+  }
+  try {
+    const stat = fs.statSync(path.join(__dirname, "index.html"));
+    return `build-${stat.mtime.toISOString()}`;
+  } catch (error) {
+    return `build-${new Date().toISOString()}`;
+  }
+})();
+const SSE_PING_INTERVAL_MS = 25000;
+const sseClients = new Map();
+
+function sendSse(res, event, payload) {
+  res.write(`event: ${event}\n`);
+  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
+function broadcastSse(event, payload = {}) {
+  const data = {
+    ...payload,
+    event,
+    buildId: BUILD_ID,
+    emittedAt: new Date().toISOString(),
+  };
+  const projectId = String(payload.projectId || "").trim();
+  for (const [clientId, client] of sseClients.entries()) {
+    if (projectId && client.projectId && client.projectId !== projectId) {
+      continue;
+    }
+    try {
+      sendSse(client.res, event, data);
+    } catch (error) {
+      try {
+        client.res.end();
+      } catch (err) {
+        // noop
+      }
+      sseClients.delete(clientId);
+    }
+  }
+}
 
 const LEGACY_DATA_DIR = path.join(__dirname, "data");
 const LEGACY_STORAGE_DIR = path.join(__dirname, "storage");
@@ -5351,8 +5394,70 @@ app.use((req, res, next) => {
   return next();
 });
 
-app.use("/uploads", express.static(UPLOADS_DIR));
-app.use(express.static(__dirname));
+app.use("/uploads", express.static(UPLOADS_DIR, { maxAge: "7d", immutable: true }));
+app.use(
+  express.static(__dirname, {
+    etag: true,
+    lastModified: true,
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith(".html")) {
+        res.setHeader("Cache-Control", "no-store");
+        return;
+      }
+      if (filePath.endsWith(".js") || filePath.endsWith(".css")) {
+        res.setHeader("Cache-Control", "no-cache");
+      }
+    },
+  })
+);
+
+app.use("/api", (req, res, next) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  return next();
+});
+
+app.get("/api/version", (req, res) => {
+  return res.json({ buildId: BUILD_ID, serverTime: new Date().toISOString() });
+});
+
+app.get("/api/events", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const projectId =
+    String(req.query.projectId || "").trim() || String(getActiveProjectId(req, user) || "").trim();
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  if (res.flushHeaders) {
+    res.flushHeaders();
+  }
+  const clientId = crypto.randomUUID();
+  const client = {
+    id: clientId,
+    res,
+    userId: user ? user.id : "",
+    projectId,
+  };
+  sseClients.set(clientId, client);
+  sendSse(res, "hello", {
+    ok: true,
+    buildId: BUILD_ID,
+    projectId,
+    serverTime: new Date().toISOString(),
+  });
+  const pingTimer = setInterval(() => {
+    try {
+      sendSse(res, "ping", { t: Date.now() });
+    } catch (error) {
+      clearInterval(pingTimer);
+    }
+  }, SSE_PING_INTERVAL_MS);
+  req.on("close", () => {
+    clearInterval(pingTimer);
+    sseClients.delete(clientId);
+  });
+});
 
 app.get("/uploads/files/:dir/:file", async (req, res) => {
   const dir = String(req.params.dir || "").trim();
@@ -5611,6 +5716,7 @@ app.post("/api/projetos", requireAuth, requirePermission("gerenciarProjetos"), (
       saveProjectUsers(projectUsers);
     }
   }
+  broadcastSse("projects.updated", { projectId: record.id, source: "create" });
   return res.json({ project: record });
 });
 
@@ -5650,6 +5756,7 @@ app.put("/api/projetos/:id", requireAuth, requirePermission("gerenciarProjetos")
   });
   projects[index] = updated;
   saveProjects(projects);
+  broadcastSse("projects.updated", { projectId: updated.id, source: "update" });
   return res.json({ project: updated });
 });
 
@@ -5677,6 +5784,7 @@ app.delete(
     savePmpActivities(pmpActivities);
     pmpExecutions = pmpExecutions.filter((exec) => exec.projectId !== projectId);
     savePmpExecutions(pmpExecutions);
+    broadcastSse("projects.updated", { projectId, source: "delete" });
     return res.json({ ok: true });
   }
 );
@@ -5735,6 +5843,7 @@ app.post(
     }
     projectUsers = projectUsers.concat(created);
     saveProjectUsers(projectUsers);
+    broadcastSse("project.team.updated", { projectId, count: created.length, source: "add" });
     return res.json({ entries: created });
   }
 );
@@ -5755,6 +5864,7 @@ app.delete(
       return res.status(404).json({ message: "Vínculo não encontrado." });
     }
     saveProjectUsers(projectUsers);
+    broadcastSse("project.team.updated", { projectId, removedId: userId, source: "remove" });
     return res.json({ ok: true });
   }
 );
@@ -5791,6 +5901,7 @@ app.post(
     };
     equipamentos = equipamentos.concat(record);
     saveEquipamentos(equipamentos);
+    broadcastSse("project.equipamentos.updated", { projectId, equipamentoId: record.id, source: "create" });
     return res.json({ equipamento: record });
   }
 );
@@ -5827,6 +5938,7 @@ app.put(
     };
     equipamentos[index] = updated;
     saveEquipamentos(equipamentos);
+    broadcastSse("project.equipamentos.updated", { projectId: updated.projectId, equipamentoId: updated.id, source: "update" });
     return res.json({ equipamento: updated });
   }
 );
@@ -5848,6 +5960,7 @@ app.delete(
     }
     equipamentos.splice(index, 1);
     saveEquipamentos(equipamentos);
+    broadcastSse("project.equipamentos.updated", { projectId: equipamento.projectId, equipamentoId, source: "delete" });
     return res.json({ ok: true });
   }
 );
@@ -7583,6 +7696,7 @@ app.post(
     accessRoles = [role, ...accessRoles];
     saveAccessRoles(accessRoles);
     appendAudit("access_role_create", req.session.userId, { roleId: role.id }, getClientIp(req));
+    broadcastSse("access.updated", { scope: "roles" });
     return res.json({ role });
   }
 );
@@ -7623,6 +7737,7 @@ app.put(
     accessRoles[index] = updated;
     saveAccessRoles(accessRoles);
     appendAudit("access_role_update", req.session.userId, { roleId: updated.id }, getClientIp(req));
+    broadcastSse("access.updated", { scope: "roles" });
     return res.json({ role: updated });
   }
 );
@@ -7657,6 +7772,7 @@ app.delete(
     accessRoles = accessRoles.filter((item) => String(item.id) !== roleId);
     saveAccessRoles(accessRoles);
     appendAudit("access_role_delete", req.session.userId, { roleId }, getClientIp(req));
+    broadcastSse("access.updated", { scope: "roles" });
     return res.json({ ok: true });
   }
 );
@@ -7668,6 +7784,7 @@ app.post(
   requireStorageWritable,
   (req, res) => {
     const result = seedDefaultAccessRolesIfEmpty();
+    broadcastSse("access.updated", { scope: "roles" });
     return res.json({ ...result, roles: accessRoles });
   }
 );
@@ -7811,6 +7928,7 @@ app.post(
         { alvo: updated.id },
         getClientIp(req)
       );
+      broadcastSse("access.updated", { scope: "users" });
       return res.json({
         user: serializeAccessUser(updated),
         generatedPassword: generatedPassword || undefined,
@@ -7846,6 +7964,7 @@ app.post(
       setUserProjectAssignment(created, created.projectId);
     }
     appendAudit("access_user_create", req.session.userId, { alvo: created.id }, getClientIp(req));
+    broadcastSse("access.updated", { scope: "users" });
     return res.json({
       user: serializeAccessUser(created),
       generatedPassword: generatedPassword || undefined,
@@ -7934,6 +8053,7 @@ app.put(
       setUserProjectAssignment(updated, updated.projectId || "");
     }
     appendAudit("access_user_update", req.session.userId, { alvo: updated.id }, getClientIp(req));
+    broadcastSse("access.updated", { scope: "users" });
     return res.json({ user: serializeAccessUser(updated) });
   }
 );
@@ -7970,6 +8090,7 @@ app.post(
     users[index] = updated;
     writeJson(USERS_FILE, users);
     appendAudit("access_user_reset_password", req.session.userId, { alvo: updated.id }, getClientIp(req));
+    broadcastSse("access.updated", { scope: "users" });
     return res.json({
       user: serializeAccessUser(updated),
       generatedPassword: generatedPassword || undefined,
@@ -8005,6 +8126,7 @@ app.patch(
       { alvo: updated.id, status },
       getClientIp(req)
     );
+    broadcastSse("access.updated", { scope: "users" });
     return res.json({ user: serializeAccessUser(updated) });
   }
 );
@@ -8036,6 +8158,7 @@ app.delete(
     projectUsers = projectUsers.filter((entry) => entry && String(entry.userId) !== id);
     saveProjectUsers(projectUsers);
     appendAudit("access_user_delete", req.session.userId, { alvo: id }, getClientIp(req));
+    broadcastSse("access.updated", { scope: "users" });
     return res.json({ ok: true, removedId: id });
   }
 );
@@ -8598,6 +8721,11 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
       );
     });
   }
+  broadcastSse("maintenance.updated", {
+    projectId,
+    count: sanitized.length,
+    source: "sync",
+  });
   return res.json({ ok: true, count: sanitized.length, project: projectId });
 });
 
@@ -8649,6 +8777,11 @@ app.delete("/api/maintenance/:id", requireAuth, (req, res) => {
     getClientIp(req),
     projectId
   );
+  broadcastSse("maintenance.updated", {
+    projectId,
+    removedId: maintenanceId,
+    source: "delete",
+  });
   return res.json({ ok: true, removedId: maintenanceId, projectId });
 });
 
