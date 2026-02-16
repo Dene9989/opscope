@@ -4067,6 +4067,7 @@ let accessRoleEditorState = {
   roleId: "",
   baseline: [],
   selected: new Set(),
+  manualLevels: {},
   adminSnapshot: null,
   adminEnabled: false,
   activeModule: ACCESS_ROLE_MODULES.length ? ACCESS_ROLE_MODULES[0].name : "",
@@ -25009,10 +25010,18 @@ function getAccessRoleItemLevel(keysSet, item) {
   const keys = keysSet instanceof Set ? keysSet : new Set(keysSet || []);
   const editKeys = item.editKeys || [];
   const viewKeys = item.viewKeys || [];
+  const viewOnly = editKeys.length === 0;
   if (editKeys.length && editKeys.some((key) => keys.has(key))) {
     return "EDIT";
   }
   if (viewKeys.some((key) => keys.has(key))) {
+    if (
+      viewOnly &&
+      accessRoleEditorState.manualLevels &&
+      accessRoleEditorState.manualLevels[item.key] === "EDIT"
+    ) {
+      return "EDIT";
+    }
     return "VIEW";
   }
   return "NONE";
@@ -25084,7 +25093,7 @@ function getAccessRoleModuleLevel(items, effectiveSelected) {
   const allMax = items.every((item) => {
     const level = getAccessRoleItemLevel(effectiveSelected, item);
     if (!item.editKeys || item.editKeys.length === 0) {
-      return level === "VIEW";
+      return level === "VIEW" || level === "EDIT";
     }
     return level === "EDIT";
   });
@@ -25125,6 +25134,7 @@ function initAccessRoleEditorState(selected = [], roleId = "") {
     roleId: roleId || "",
     baseline: normalized,
     selected: expanded,
+    manualLevels: {},
     adminSnapshot: adminEnabled ? snapshot : null,
     adminEnabled,
     activeModule: ACCESS_ROLE_MODULES.length ? ACCESS_ROLE_MODULES[0].name : "",
@@ -25205,6 +25215,7 @@ async function applyAccessRoleGlobalLevel(level) {
   if (accessRoleEditorState.adminEnabled) {
     return;
   }
+  const manualLevels = { ...(accessRoleEditorState.manualLevels || {}) };
   const currentKeys = new Set(accessRoleEditorState.selected || []);
   const confirm = await confirmAccessRoleCriticalChanges(ACCESS_ROLE_ITEMS, level, currentKeys);
   if (!confirm) {
@@ -25213,7 +25224,17 @@ async function applyAccessRoleGlobalLevel(level) {
   let next = new Set(currentKeys);
   ACCESS_ROLE_ITEMS.forEach((item) => {
     next = setAccessRoleItemLevel(next, item, level);
+    if (!item.editKeys || item.editKeys.length === 0) {
+      if (level === "EDIT") {
+        manualLevels[item.key] = "EDIT";
+      } else if (level === "VIEW") {
+        manualLevels[item.key] = "VIEW";
+      } else {
+        delete manualLevels[item.key];
+      }
+    }
   });
+  accessRoleEditorState.manualLevels = manualLevels;
   setAccessRoleSelection(Array.from(next));
 }
 
@@ -25225,6 +25246,7 @@ async function applyAccessRoleModuleLevel(moduleName, level) {
   if (!module) {
     return;
   }
+  const manualLevels = { ...(accessRoleEditorState.manualLevels || {}) };
   const currentKeys = new Set(accessRoleEditorState.selected || []);
   const confirm = await confirmAccessRoleCriticalChanges(module.items, level, currentKeys);
   if (!confirm) {
@@ -25233,7 +25255,17 @@ async function applyAccessRoleModuleLevel(moduleName, level) {
   let next = new Set(currentKeys);
   module.items.forEach((item) => {
     next = setAccessRoleItemLevel(next, item, level);
+    if (!item.editKeys || item.editKeys.length === 0) {
+      if (level === "EDIT") {
+        manualLevels[item.key] = "EDIT";
+      } else if (level === "VIEW") {
+        manualLevels[item.key] = "VIEW";
+      } else {
+        delete manualLevels[item.key];
+      }
+    }
   });
+  accessRoleEditorState.manualLevels = manualLevels;
   setAccessRoleSelection(Array.from(next));
 }
 
@@ -25253,6 +25285,18 @@ async function applyAccessRoleItemLevel(itemKey, level) {
   const confirm = await confirmAccessRoleCriticalChanges([item], level, currentKeys);
   if (!confirm) {
     return;
+  }
+  if (!item.editKeys || item.editKeys.length === 0) {
+    if (!accessRoleEditorState.manualLevels) {
+      accessRoleEditorState.manualLevels = {};
+    }
+    if (level === "EDIT") {
+      accessRoleEditorState.manualLevels[item.key] = "EDIT";
+    } else if (level === "VIEW") {
+      accessRoleEditorState.manualLevels[item.key] = "VIEW";
+    } else {
+      delete accessRoleEditorState.manualLevels[item.key];
+    }
   }
   const next = setAccessRoleItemLevel(currentKeys, item, level);
   setAccessRoleSelection(Array.from(next));
@@ -25357,7 +25401,7 @@ function renderAccessRolePermissions() {
         const controls = ["NONE", "VIEW", "EDIT"]
           .map((option) => {
             const active = option === level;
-            const disabled = disableActions || (viewOnly && option === "EDIT");
+            const disabled = disableActions;
             return `<button type="button" class="access-role-level${
               active ? " is-active" : ""
             }${disabled ? " is-disabled" : ""}" data-item-key="${escapeHtml(
