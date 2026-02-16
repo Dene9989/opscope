@@ -25531,7 +25531,6 @@ function normalizeTeamName(value) {
 }
 
 function getMaintenanceParticipantCandidates() {
-  const equipeIds = getActiveProjectEquipeIds();
   const list = [];
   const isActiveRecord = (user) => {
     if (!user || !user.id) {
@@ -25547,13 +25546,7 @@ function getMaintenanceParticipantCandidates() {
     if (!user) {
       return false;
     }
-    if (activeProjectId && user.projectId && user.projectId === activeProjectId) {
-      return true;
-    }
-    if (equipeIds.size && equipeIds.has(user.id)) {
-      return true;
-    }
-    return false;
+    return Boolean(activeProjectId && user.projectId && user.projectId === activeProjectId);
   };
   const source = users.slice();
   if (currentUser && !source.some((item) => String(item.id) === String(currentUser.id))) {
