@@ -8399,17 +8399,40 @@ textarea:focus {
 
 .manutencao-info h3 {
   margin-bottom: 4px;
-  font-size: 1.2rem;
+  font-size: 1.32rem;
+  letter-spacing: 0.2px;
 }
 
 .meta {
   color: var(--ink-soft);
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
 .submeta {
-  font-size: 0.9rem;
+  font-size: 0.98rem;
   color: #6c7884;
+}
+
+.manutencao-info .meta,
+.manutencao-info .submeta {
+  margin: 2px 0;
+  line-height: 1.45;
+}
+
+.submeta--equip {
+  font-weight: 600;
+}
+
+.app .manutencao-item .meta {
+  color: #d7e2ee;
+}
+
+.app .manutencao-item .submeta {
+  color: #c4d1df;
+}
+
+.app .manutencao-item .submeta--equip {
+  color: #eef6ff;
 }
 
 .submeta--alert {
@@ -8437,8 +8460,8 @@ textarea:focus {
 }
 
 .obs {
-  font-size: 0.9rem;
-  color: rgba(234, 240, 246, 0.82);
+  font-size: 0.98rem;
+  color: #e1edf7;
   margin-top: 6px;
   line-height: 1.5;
   white-space: pre-wrap;

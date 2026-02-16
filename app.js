@@ -12531,6 +12531,13 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const dataTexto = data ? formatDate(data) : "data indefinida";
   meta.textContent = `${item.local} - ${dataTexto}`;
 
+  const equipamentoLinha = document.createElement("p");
+  equipamentoLinha.className = "submeta submeta--equip";
+  const equipamentoLabel = getMaintenanceEquipamentoLabel(item);
+  equipamentoLinha.textContent = `Equipamento: ${
+    equipamentoLabel && equipamentoLabel !== "-" ? equipamentoLabel : "não informado"
+  }`;
+
   const statusInfo = document.createElement("p");
   statusInfo.className = "submeta";
   if (item.status === "agendada" || item.status === "liberada") {
@@ -12564,7 +12571,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
     autoria.textContent = `Criada por ${getUserLabel(item.createdBy)}`;
   }
 
-  info.append(titulo, meta);
+  info.append(titulo, meta, equipamentoLinha);
   if (statusInfo.textContent) {
     info.append(statusInfo);
   }
@@ -21470,6 +21477,30 @@ function getEquipamentoNomeById(projectId, equipamentoId) {
     }
   }
   return equipamentoId;
+}
+
+function getMaintenanceEquipamentoLabel(item) {
+  if (!item) {
+    return "-";
+  }
+  const projectId = item.projectId || activeProjectId;
+  if (item.equipamento && typeof item.equipamento === "object") {
+    const tag = item.equipamento.tag || "";
+    const nome = item.equipamento.nome || item.equipamento.name || "";
+    if (tag || nome) {
+      return `${tag ? `${tag} - ` : ""}${nome}`.trim() || "-";
+    }
+    if (item.equipamento.id) {
+      return getEquipamentoNomeById(projectId, item.equipamento.id);
+    }
+  }
+  if (typeof item.equipamento === "string" && item.equipamento.trim()) {
+    return item.equipamento.trim();
+  }
+  if (item.equipamentoId) {
+    return getEquipamentoNomeById(projectId, item.equipamentoId);
+  }
+  return "-";
 }
 
 async function ensurePmpEquipamentos(projectId) {
