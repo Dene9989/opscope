@@ -259,6 +259,8 @@ const AUTOMATION_DEFAULTS = [
     action: { type: "notify_email", to: "" },
   },
 ];
+const AUTOMATION_EMAIL_DEDUP_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const automationEmailDedup = new Map();
 
 const ALMOX_ITEM_TYPES = new Set(["FERRAMENTA", "EPI", "EPC", "CONSUMIVEL"]);
 const ALMOX_ITEM_UNITS = new Set(["UN", "PAR", "CX"]);
@@ -612,6 +614,18 @@ function normalizeAccessPermissionList(list) {
   return Array.from(result);
 }
 
+function ensureSectionPermissions(list) {
+  const normalized = Array.isArray(list) ? list.slice() : [];
+  if (!normalized.length) {
+    return normalized;
+  }
+  const hasSectionControl = ACCESS_SECTION_PERMISSIONS.some((key) => normalized.includes(key));
+  if (!hasSectionControl) {
+    return normalized.concat(ACCESS_SECTION_PERMISSIONS);
+  }
+  return normalized;
+}
+
 function expandAccessPermissions(list) {
   const base = new Set(normalizeAccessPermissionList(list));
   if (base.has("ADMIN")) {
@@ -624,13 +638,6 @@ function expandAccessPermissions(list) {
   if (base.has("USER_WRITE")) {
     base.add("convidarUsuarios");
     base.add("desativarUsuarios");
-    base.add("gerenciarAcessos");
-  }
-  if (base.has("ROLE_READ") || base.has("ROLE_WRITE")) {
-    base.add("gerenciarAcessos");
-  }
-  if (base.has("ROLE_WRITE")) {
-    base.add("gerenciarAcessos");
   }
   if (base.has("PROJECT_READ")) {
     base.add("verProjetos");
@@ -752,7 +759,7 @@ function normalizeAccessRoleRecord(role) {
     id,
     name,
     nameNormalized: normalizeAccessRoleName(name),
-    permissions: normalizeAccessPermissionList(role.permissions || []),
+    permissions: ensureSectionPermissions(normalizeAccessPermissionList(role.permissions || [])),
     isSystem: Boolean(role.isSystem),
     createdAt,
     updatedAt: role.updatedAt || createdAt,
@@ -846,13 +853,13 @@ function getAccessPermissionsForUser(user) {
       ? user.rolePermissions
       : [];
   if (direct.length) {
-    return normalizeAccessPermissionList(direct);
+    return ensureSectionPermissions(normalizeAccessPermissionList(direct));
   }
   const role =
     (user.roleId && getAccessRoleById(user.roleId)) ||
     getAccessRoleByName(user.roleName || user.cargo || user.role);
   if (role && Array.isArray(role.permissions)) {
-    return normalizeAccessPermissionList(role.permissions);
+    return ensureSectionPermissions(normalizeAccessPermissionList(role.permissions));
   }
   return [];
 }
@@ -866,12 +873,7 @@ function canViewAccessForUser(user) {
   }
   const access = new Set(getAccessPermissionsForUser(user));
   return (
-    access.has("ADMIN") ||
-    access.has("USER_READ") ||
-    access.has("USER_WRITE") ||
-    access.has("ROLE_READ") ||
-    access.has("ROLE_WRITE") ||
-    access.has("gerenciarAcessos")
+    access.has("ADMIN") || access.has("gerenciarAcessos")
   );
 }
 
@@ -884,10 +886,7 @@ function canManageAccessForUser(user) {
   }
   const access = new Set(getAccessPermissionsForUser(user));
   return (
-    access.has("ADMIN") ||
-    access.has("USER_WRITE") ||
-    access.has("ROLE_WRITE") ||
-    access.has("gerenciarAcessos")
+    access.has("ADMIN") || access.has("gerenciarAcessos")
   );
 }
 
@@ -3645,6 +3644,37 @@ function getItemOwner(item) {
   );
 }
 
+function getAutomationEmailKey(event, item) {
+  const id = item && item.id ? String(item.id) : "";
+  if (!id) {
+    return "";
+  }
+  return `${event}:${id}`;
+}
+
+function shouldSkipAutomationEmail(key) {
+  if (!key) {
+    return false;
+  }
+  const now = Date.now();
+  const last = automationEmailDedup.get(key);
+  if (!last) {
+    return false;
+  }
+  if (now - last < AUTOMATION_EMAIL_DEDUP_TTL_MS) {
+    return true;
+  }
+  automationEmailDedup.delete(key);
+  return false;
+}
+
+function markAutomationEmailSent(key) {
+  if (!key) {
+    return;
+  }
+  automationEmailDedup.set(key, Date.now());
+}
+
 function matchesAutomationCondition(automation, item) {
   if (!automation || !automation.condition) {
     return false;
@@ -3696,10 +3726,13 @@ async function runAutomationsForItems(event, items, actor, ip) {
     return;
   }
   let changed = false;
+  const emailSentInRun = new Set();
   for (const automation of automations) {
     if (!automation.enabled || automation.event !== event) {
       continue;
     }
+    const actionType =
+      automation && automation.action && automation.action.type ? automation.action.type : "";
     for (const item of items) {
       if (automation.projectId && item && item.projectId !== automation.projectId) {
         continue;
@@ -3707,7 +3740,23 @@ async function runAutomationsForItems(event, items, actor, ip) {
       if (!matchesAutomationCondition(automation, item)) {
         continue;
       }
+      if (actionType === "notify_email") {
+        const dedupKey = getAutomationEmailKey(event, item);
+        if (!dedupKey) {
+          continue;
+        }
+        if (emailSentInRun.has(dedupKey) || shouldSkipAutomationEmail(dedupKey)) {
+          continue;
+        }
+      }
       const result = await executeAutomationAction(automation, item, actor);
+      if (actionType === "notify_email") {
+        const dedupKey = getAutomationEmailKey(event, item);
+        if (result && result.status === "ok") {
+          emailSentInRun.add(dedupKey);
+          markAutomationEmailSent(dedupKey);
+        }
+      }
       const now = new Date().toISOString();
       automation.lastRunAt = now;
       automation.lastStatus = result.status;

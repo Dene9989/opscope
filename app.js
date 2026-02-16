@@ -2664,7 +2664,7 @@ const LEGACY_ROLE_LABELS = {
   leitura: "LEITURA",
 };
 
-const FULL_ACCESS_RBAC = new Set(["admin", "gestor", "pcm", "diretor_om", "gerente_contrato"]);
+const FULL_ACCESS_RBAC = new Set(["admin", "gestor", "diretor_om", "gerente_contrato"]);
 const RELEASE_OVERRIDE_RBAC = new Set([
   "admin",
   "gestor",
@@ -2784,6 +2784,18 @@ function normalizeAccessPermissionList(list) {
   return Array.from(result);
 }
 
+function ensureSectionPermissions(list) {
+  const normalized = Array.isArray(list) ? list.slice() : [];
+  if (!normalized.length) {
+    return normalized;
+  }
+  const hasSectionControl = ACCESS_SECTION_PERMISSIONS.some((key) => normalized.includes(key));
+  if (!hasSectionControl) {
+    return normalized.concat(ACCESS_SECTION_PERMISSIONS);
+  }
+  return normalized;
+}
+
 function normalizeAccessRoleKeys(list) {
   const allowed = new Map();
   const allowedLower = new Map();
@@ -2849,10 +2861,6 @@ function mapAccessPermissionsToGranular(permissionList = []) {
     result.convidarUsuarios = true;
     result.desativarUsuarios = true;
     result.editarPerfilOutros = true;
-    result.gerenciarAcessos = true;
-  }
-  if (allow.has("ROLE_WRITE")) {
-    result.gerenciarAcessos = true;
   }
   if (allow.has("PROJECT_READ") || allow.has("PROJECT_WRITE")) {
     result.verProjetos = true;
@@ -3009,9 +3017,10 @@ function buildSessionUser(account, role) {
   if (!account) {
     return null;
   }
-  const rolePermissions = normalizeAccessPermissionList(
+  let rolePermissions = normalizeAccessPermissionList(
     (role && role.permissions) || account.rolePermissions || account.accessPermissions || []
   );
+  rolePermissions = ensureSectionPermissions(rolePermissions);
   const roleName = role ? role.name : account.roleName || "";
   const status = normalizeAccessUserStatus(account.status, account.active);
   const accessRoleActive =
@@ -3318,7 +3327,6 @@ function isFullAccessUser(user) {
   if (
     cargo.includes("administrador") ||
     cargo === "admin" ||
-    cargo.includes("pcm") ||
     cargo.includes("diretor o m") ||
     cargo.includes("gerente de contrato")
   ) {
@@ -3971,8 +3979,6 @@ function canManageAccess(user) {
   }
   return (
     hasAccessPermission(user, "ADMIN") ||
-    hasAccessPermission(user, "USER_WRITE") ||
-    hasAccessPermission(user, "ROLE_WRITE") ||
     hasGranularPermission(user, "gerenciarAcessos")
   );
 }
@@ -3990,12 +3996,27 @@ function canViewPerformanceTab(user) {
   return getCargoLevel(user.cargo) >= getCargoLevel("SUPERVISOR O&M");
 }
 
+function hasSectionPermissionConfig(user) {
+  if (!user) {
+    return false;
+  }
+  const list = Array.isArray(user.rolePermissions)
+    ? user.rolePermissions
+    : Array.isArray(user.accessPermissions)
+      ? user.accessPermissions
+      : [];
+  return ACCESS_SECTION_PERMISSIONS.some((key) => list.includes(key));
+}
+
 function canViewSectionTab(tab, user) {
   if (!tab || !user) {
     return false;
   }
   if (isFullAccessUser(user)) {
     return true;
+  }
+  if (hasSectionPermissionConfig(user)) {
+    return hasAccessPermission(user, tab);
   }
   if (hasAccessPermission(user, tab)) {
     return true;
@@ -10567,7 +10588,7 @@ function normalizeAccessRoleRecord(role) {
     id,
     name,
     nameNormalized: normalizeRoleName(name),
-    permissions: normalizeAccessPermissionList(role.permissions || []),
+    permissions: ensureSectionPermissions(normalizeAccessPermissionList(role.permissions || [])),
     isSystem: Boolean(role.isSystem),
     createdAt: role.createdAt || "",
     updatedAt: role.updatedAt || "",
@@ -10602,10 +10623,10 @@ function normalizeAccessUserRecord(user) {
   const roleName = String(user.roleName || user.cargo || user.role || "").trim();
   const cargo = String(user.cargo || user.roleName || user.role || "").trim();
   const rolePermissions = Array.isArray(user.rolePermissions)
-    ? normalizeAccessPermissionList(user.rolePermissions)
+    ? ensureSectionPermissions(normalizeAccessPermissionList(user.rolePermissions))
     : undefined;
   const accessPermissions = Array.isArray(user.accessPermissions)
-    ? normalizeAccessPermissionList(user.accessPermissions)
+    ? ensureSectionPermissions(normalizeAccessPermissionList(user.accessPermissions))
     : undefined;
   const permissions =
     user.permissions && typeof user.permissions === "object" && !Array.isArray(user.permissions)
