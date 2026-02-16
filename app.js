@@ -4937,6 +4937,7 @@ function createLocalProvider() {
       getUser: async (id) => getUserFromDb(id),
       createUser: async (input) => createUserToDb(input || {}),
       updateUser: async (input) => updateUserToDb(input || {}),
+      deleteUser: async (id) => deleteUserFromDb(id),
       resetPassword: async (input) => resetPasswordForUser(input || {}),
       deactivateUser: async (id) => setUserStatus(id, "INATIVO"),
       activateUser: async (id) => setUserStatus(id, "ATIVO"),
@@ -5348,6 +5349,21 @@ function createApiProvider(fallback) {
       return normalizeAccessUserRecord(data.user || data.item || payload);
     } catch (error) {
       return fallbackProvider.authAdmin.updateUser(input);
+    }
+  };
+
+  provider.authAdmin.deleteUser = async (id) => {
+    if (!USE_AUTH_API) {
+      return fallbackProvider.authAdmin.deleteUser(id);
+    }
+    if (!id) {
+      return null;
+    }
+    try {
+      await apiRequest(`/api/admin/access/users/${encodeURIComponent(id)}`, { method: "DELETE" });
+      return true;
+    } catch (error) {
+      return fallbackProvider.authAdmin.deleteUser(id);
     }
   };
 
@@ -11256,6 +11272,36 @@ async function updateUserToDb(input) {
   touchAccessSync();
   upsertUserBackup(updated);
   return updated;
+}
+
+async function deleteUserFromDb(id) {
+  const targetId = String(id || "").trim();
+  if (!targetId) {
+    return;
+  }
+  const existing = await getUserFromDb(targetId);
+  if (!existing) {
+    return;
+  }
+  const status = String(existing.status || "").toUpperCase();
+  if (status !== "INATIVO") {
+    throw new Error("Apenas contas inativas podem ser excluidas.");
+  }
+  const filtered = readUsersStorage().filter((item) => String(item.id) !== targetId);
+  if (typeof indexedDB === "undefined") {
+    writeUsersStorage(filtered);
+    return;
+  }
+  const db = await openOpscopeDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction("users", "readwrite");
+    const store = tx.objectStore("users");
+    const request = store.delete(targetId);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error || new Error("Falha ao remover usuario."));
+  });
+  writeUsersStorage(filtered);
+  touchAccessSync();
 }
 
 async function resetPasswordForUser(input) {
@@ -23676,6 +23722,8 @@ function renderAccessUsers() {
     const statusText = user.status === "INATIVO" ? "Inativo" : "Ativo";
     const statusClass = user.status === "INATIVO" ? "status-pill--inactive" : "status-pill--active";
     const actions = [];
+    const isSelf = Boolean(currentUser && String(user.id) === String(currentUser.id));
+    const canDelete = user.status === "INATIVO" && !isSelf;
     if (canWrite) {
       actions.push(
         `<button class="btn btn--ghost btn--small" type="button" data-action="edit-user" data-user-id="${user.id}">Editar</button>`
@@ -23688,6 +23736,11 @@ function renderAccessUsers() {
           user.status === "INATIVO" ? "Ativar" : "Inativar"
         }</button>`
       );
+      if (canDelete) {
+        actions.push(
+          `<button class="btn btn--ghost btn--small btn--danger" type="button" data-action="delete-user" data-user-id="${user.id}">Excluir</button>`
+        );
+      }
     }
     const nameLabel = escapeHtml(user.name || "-");
     const nameButton = `<button class="access-user-link link" type="button" data-action="view-profile" data-user-id="${user.id}">${nameLabel}</button>`;
@@ -39476,6 +39529,9 @@ if (accessUsersTableBody) {
       try {
         if (nextStatus === "INATIVO") {
           await dataProvider.authAdmin.deactivateUser(user.id);
+          if (accessUserStatusFilter && accessUserStatusFilter.value === "ATIVO") {
+            accessUserStatusFilter.value = "";
+          }
         } else {
           await dataProvider.authAdmin.activateUser(user.id);
         }
@@ -39483,6 +39539,26 @@ if (accessUsersTableBody) {
         setAccessMessage("Status atualizado.");
       } catch (error) {
         setAccessMessage(error.message || "Falha ao atualizar status.", true);
+      }
+    }
+    if (button.dataset.action === "delete-user") {
+      if (user.status !== "INATIVO") {
+        setAccessMessage("Apenas contas inativas podem ser excluidas.", true);
+        return;
+      }
+      const confirmar = window.confirm(
+        "Excluir esta conta definitivamente? Esta acao nao pode ser desfeita."
+      );
+      if (!confirmar) {
+        return;
+      }
+      setAccessMessage("Excluindo conta...");
+      try {
+        await dataProvider.authAdmin.deleteUser(user.id);
+        await refreshAccessUsers();
+        setAccessMessage("Conta excluida.");
+      } catch (error) {
+        setAccessMessage(error.message || "Falha ao excluir conta.", true);
       }
     }
   });

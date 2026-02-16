@@ -7889,6 +7889,37 @@ app.patch(
   }
 );
 
+app.delete(
+  "/api/admin/access/users/:id",
+  requireAuth,
+  requireAccessManage,
+  requireStorageWritable,
+  (req, res) => {
+    const id = String(req.params.id || "").trim();
+    const index = users.findIndex((item) => item && String(item.id) === id);
+    if (index === -1) {
+      return res.status(404).json({ message: "Usuario nao encontrado." });
+    }
+    const actor = req.currentUser || getSessionUser(req);
+    const target = users[index];
+    if (actor && String(actor.id) === String(target.id)) {
+      return res.status(400).json({ message: "Nao e permitido excluir a propria conta." });
+    }
+    if (isMasterUser(target)) {
+      return res.status(403).json({ message: "Nao e permitido excluir a conta master." });
+    }
+    if (normalizeUserStatus(target.status || "") !== "INATIVO") {
+      return res.status(400).json({ message: "Apenas contas inativas podem ser excluidas." });
+    }
+    users = users.filter((item) => String(item.id) !== id);
+    writeJson(USERS_FILE, users);
+    projectUsers = projectUsers.filter((entry) => entry && String(entry.userId) !== id);
+    saveProjectUsers(projectUsers);
+    appendAudit("access_user_delete", req.session.userId, { alvo: id }, getClientIp(req));
+    return res.json({ ok: true, removedId: id });
+  }
+);
+
 app.post(
   "/api/admin/access/import",
   requireAuth,
