@@ -6074,6 +6074,26 @@
             <textarea id="conclusaoObsExecucao" rows="3" readonly></textarea>
           </div>
           <div class="field" data-full>
+            <label for="conclusaoModeloBreve">Modelo rapido</label>
+            <select id="conclusaoModeloBreve">
+              <option value="">Selecionar modelo</option>
+            </select>
+            <button id="btnAplicarModeloBreve" class="btn btn--ghost btn--small" type="button">
+              Aplicar modelo
+            </button>
+            <p class="hint">Escolha um modelo e ajuste se necessario.</p>
+          </div>
+          <div class="field" data-full>
+            <label for="conclusaoDescricaoBreve">Descricao tecnica (breve) *</label>
+            <textarea
+              id="conclusaoDescricaoBreve"
+              rows="3"
+              required
+              placeholder="Descreva rapidamente o que foi executado."
+            ></textarea>
+            <p class="hint">Obrigatorio. Seja objetivo (ex.: 60 a 300 caracteres).</p>
+          </div>
+          <div class="field" data-full>
             <label>Participantes</label>
             <input id="conclusaoParticipantes" type="text" readonly />
           </div>

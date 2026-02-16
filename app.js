@@ -1068,6 +1068,9 @@ const conclusaoDuracao = document.getElementById("conclusaoDuracao");
 const conclusaoResultado = document.getElementById("conclusaoResultado");
 const conclusaoComentario = document.getElementById("conclusaoComentario");
 const conclusaoObsExecucao = document.getElementById("conclusaoObsExecucao");
+const conclusaoModeloBreve = document.getElementById("conclusaoModeloBreve");
+const btnAplicarModeloBreve = document.getElementById("btnAplicarModeloBreve");
+const conclusaoDescricaoBreve = document.getElementById("conclusaoDescricaoBreve");
 const conclusaoParticipantes = document.getElementById("conclusaoParticipantes");
 const conclusaoDocs = document.getElementById("conclusaoDocs");
 const conclusaoReferencia = document.getElementById("conclusaoReferencia");
@@ -1162,6 +1165,7 @@ const ACCESS_STORAGE_READONLY_MESSAGE =
 const MAX_REAGENDAMENTOS = 3;
 const OUTROS_ALERT_THRESHOLD = 3;
 const MIN_EVIDENCIAS = 2;
+const MIN_DESCRICAO_BREVE = 60;
 const MIN_RESUMO_RDO_CHARS = 12;
 const ALMOCO_MIN = 60;
 const MAX_EXECUCAO_HORAS = 12;
@@ -16911,9 +16915,11 @@ function normalizarStatusRdo(valor) {
 }
 
 function getItemDescricaoRdo(item) {
+  const conclusaoBreve =
+    item && item.conclusao ? item.conclusao.descricaoBreve || "" : "";
   const registro = item && item.registroExecucao ? item.registroExecucao.comentario : "";
   const conclusao = item && item.conclusao ? item.conclusao.comentario : "";
-  return registro || conclusao || item.observacao || "";
+  return conclusaoBreve || registro || conclusao || item.observacao || "";
 }
 
 function getItemObsExecucaoRdo(item) {
@@ -33225,6 +33231,7 @@ async function adicionarManutencao() {
 }
 
 let manutencaoEmConclusao = null;
+let conclusaoItemAtual = null;
 let manutencaoEmRegistro = null;
 let manutencaoEmEdicao = null;
 let manutencaoEditSnapshot = null;
@@ -36427,6 +36434,148 @@ function lerEvidencias(files) {
   }, Promise.resolve([]));
 }
 
+const DESCRICAO_BREVE_MODELOS = [
+  {
+    id: "coleta_oleo",
+    label: "Coleta preventiva de oleo",
+    text:
+      "Realizada coleta preventiva de oleo em {equipamento} na {subestacao}, com drenagem/purga inicial, coleta em frascos limpos, identificacao e registro fotografico. Amostra acondicionada para analise laboratorial conforme rotina.",
+  },
+  {
+    id: "inspecao_visual",
+    label: "Inspecao visual",
+    text:
+      "Executada inspecao visual em {equipamento} na {subestacao}, verificando condicoes gerais, conexoes aparentes e ausencia de anomalias. Registro fotografico efetuado.",
+  },
+  {
+    id: "termografia",
+    label: "Termografia",
+    text:
+      "Realizado levantamento termografico em {equipamento} na {subestacao}, com varredura de pontos criticos e registros das temperaturas de referencia.",
+  },
+  {
+    id: "aperto_torque",
+    label: "Aperto / torque",
+    text:
+      "Executado reaperto/torqueamento em {equipamento} na {subestacao}, conforme especificacao tecnica. Verificada integridade dos terminais e conexoes.",
+  },
+  {
+    id: "limpeza_conservacao",
+    label: "Limpeza e conservacao",
+    text:
+      "Realizada limpeza tecnica em {equipamento} na {subestacao}, removendo poeira/contaminantes e organizando a area. Condicao final registrada.",
+  },
+  {
+    id: "teste_funcional",
+    label: "Teste funcional",
+    text:
+      "Efetuado teste funcional em {equipamento} na {subestacao}, validando comandos, intertravamentos e sinais. Operacao normalizada.",
+  },
+  {
+    id: "manobra_operacional",
+    label: "Manobra operacional",
+    text:
+      "Executada manobra operacional em {equipamento} na {subestacao} conforme procedimento e requisitos de seguranca. Sequencia registrada e equipamento estabilizado.",
+  },
+  {
+    id: "corretiva",
+    label: "Manutencao corretiva",
+    text:
+      "Realizada intervencao corretiva em {equipamento} na {subestacao} para restabelecimento operacional. Ajustes e testes finais executados.",
+  },
+  {
+    id: "substituicao_componente",
+    label: "Substituicao de componente",
+    text:
+      "Substituido componente em {equipamento} na {subestacao}, com verificacao de compatibilidade e testes pos-troca. Registro fotografico efetuado.",
+  },
+  {
+    id: "calibracao_ajuste",
+    label: "Calibracao / ajuste",
+    text:
+      "Calibrado/ajustado {equipamento} na {subestacao} conforme parametros de operacao. Leituras normalizadas e registro efetuado.",
+  },
+  {
+    id: "protecao_reles",
+    label: "Protecoes / reles",
+    text:
+      "Revisadas protecoes/reles do {equipamento} na {subestacao}, conferindo ajustes, sinais e comunicacao. Sem divergencias relevantes.",
+  },
+  {
+    id: "baterias_ups",
+    label: "Baterias / UPS",
+    text:
+      "Inspecionadas baterias/UPS na {subestacao}, verificando tensao, conexoes e condicoes fisicas. Registro fotografico e limpeza local realizados.",
+  },
+  {
+    id: "aterramento_spda",
+    label: "Aterramento / SPDA",
+    text:
+      "Verificado aterramento/SPDA na {subestacao}, conferindo conexoes aparentes e integridade. Condicoes dentro do esperado.",
+  },
+  {
+    id: "lubrificacao",
+    label: "Lubrificacao",
+    text:
+      "Realizada lubrificacao em {equipamento} na {subestacao}, conforme pontos previstos e especificacao do fabricante. Operacao normalizada.",
+  },
+];
+
+function formatTemplateText(texto, contexto) {
+  return String(texto || "").replace(/\{(\w+)\}/g, (_, key) => {
+    const value = contexto && contexto[key] ? contexto[key] : "";
+    return value || "nao informado";
+  });
+}
+
+function getConclusaoContext(item) {
+  const liberacao = getLiberacao(item) || {};
+  const subestacao =
+    item && (item.local || item.subestacao) ? item.local || item.subestacao : getItemSubestacao(item);
+  const equipamento = getMaintenanceEquipamentoLabel(item);
+  const osNumero = liberacao.osNumero || (conclusaoReferencia ? conclusaoReferencia.value : "");
+  const categoria = item && item.categoria ? item.categoria : "";
+  const prioridade = item && item.prioridade ? item.prioridade : "";
+  const projeto = getActiveProject() ? getProjectLabel(getActiveProject()) : "";
+  return {
+    subestacao: subestacao && subestacao !== "-" ? subestacao : projeto || "nao informado",
+    equipamento: equipamento && equipamento !== "-" ? equipamento : "nao informado",
+    categoria: categoria || "nao informado",
+    prioridade: prioridade || "nao informado",
+    os: osNumero || "nao informado",
+    projeto: projeto || "nao informado",
+  };
+}
+
+function initConclusaoModelos() {
+  if (!conclusaoModeloBreve) {
+    return;
+  }
+  conclusaoModeloBreve.innerHTML = '<option value=\"\">Selecionar modelo</option>';
+  DESCRICAO_BREVE_MODELOS.forEach((modelo) => {
+    const opt = document.createElement("option");
+    opt.value = modelo.id;
+    opt.textContent = modelo.label;
+    conclusaoModeloBreve.append(opt);
+  });
+}
+
+function aplicarModeloBreve() {
+  if (!conclusaoModeloBreve || !conclusaoDescricaoBreve) {
+    return;
+  }
+  const selecionado = conclusaoModeloBreve.value;
+  if (!selecionado) {
+    return;
+  }
+  const modelo = DESCRICAO_BREVE_MODELOS.find((item) => item.id === selecionado);
+  if (!modelo) {
+    return;
+  }
+  const contexto = getConclusaoContext(conclusaoItemAtual || {});
+  conclusaoDescricaoBreve.value = formatTemplateText(modelo.text, contexto);
+}
+
 function abrirConclusao(item) {
   if (!requirePermission("complete")) {
     return;
@@ -36448,6 +36597,7 @@ function abrirConclusao(item) {
     return;
   }
   manutencaoEmConclusao = item.id;
+  conclusaoItemAtual = item;
   mostrarMensagemConclusao("");
 
   if (conclusaoId) {
@@ -36484,6 +36634,13 @@ function abrirConclusao(item) {
   }
   if (conclusaoObsExecucao) {
     conclusaoObsExecucao.value = registro.observacaoExecucao || "";
+  }
+  if (conclusaoModeloBreve) {
+    conclusaoModeloBreve.value = "";
+  }
+  if (conclusaoDescricaoBreve) {
+    conclusaoDescricaoBreve.value =
+      (item.conclusao && item.conclusao.descricaoBreve) || "";
   }
   const liberacao = getLiberacao(item) || {};
   if (conclusaoReferencia) {
@@ -36540,6 +36697,7 @@ function fecharConclusao() {
   }
   modalConclusao.hidden = true;
   manutencaoEmConclusao = null;
+  conclusaoItemAtual = null;
 }
 
 async function salvarConclusao(event) {
@@ -36583,6 +36741,16 @@ async function salvarConclusao(event) {
   const comentarioMsg = getMensagemResumoRdo(comentario);
   if (comentarioMsg) {
     mostrarMensagemConclusao(comentarioMsg, true);
+    return;
+  }
+  const descricaoBreve = conclusaoDescricaoBreve
+    ? conclusaoDescricaoBreve.value.trim()
+    : "";
+  if (!descricaoBreve || descricaoBreve.length < MIN_DESCRICAO_BREVE) {
+    mostrarMensagemConclusao(
+      `Informe a descricao tecnica (minimo ${MIN_DESCRICAO_BREVE} caracteres).`,
+      true
+    );
     return;
   }
   const observacaoExecucao = registro.observacaoExecucao || "";
@@ -36679,6 +36847,7 @@ async function salvarConclusao(event) {
         ? item.equipamento.id || item.equipamento.nome || item.equipamento.name || ""
         : ""),
     observacaoExecucao,
+    descricaoBreve,
     evidencias,
   };
 
@@ -36717,6 +36886,7 @@ async function salvarConclusao(event) {
     critico: liberacao ? liberacao.critico : undefined,
     documentos: documentosLista,
     observacaoExecucao,
+    descricaoBreve: truncarTexto(descricaoBreve, 180),
     evidenciasCount: evidencias.length,
     inicioExecucao: inicioIso,
     fimExecucao: fimIso,
@@ -39971,6 +40141,9 @@ if (rdoMensalPreviewModal) {
 if (formConclusao) {
   formConclusao.addEventListener("submit", salvarConclusao);
 }
+if (btnAplicarModeloBreve) {
+  btnAplicarModeloBreve.addEventListener("click", aplicarModeloBreve);
+}
 if (conclusaoFim) {
   conclusaoFim.addEventListener("input", atualizarDuracaoConclusao);
 }
@@ -41721,6 +41894,7 @@ limparTemplateForm();
 initSidebarToggle();
 initAvatarUpload();
 initRichEditors();
+initConclusaoModelos();
 initFontGroups();
 initSyncDebug();
 carregarSessaoServidor();

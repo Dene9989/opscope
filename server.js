@@ -4245,6 +4245,10 @@ function buildRdoPayload(dateStr, projectId) {
       item.tipoManutencao ||
       item.tipo_atividade ||
       "nao informado";
+    const descricaoBreve =
+      (item.conclusao && item.conclusao.descricaoBreve) ||
+      (item.registroExecucao && item.registroExecucao.descricaoBreve) ||
+      "";
     const acao =
       item.titulo ||
       (item.registroExecucao && item.registroExecucao.comentario) ||
@@ -4255,6 +4259,7 @@ function buildRdoPayload(dateStr, projectId) {
       equipamento: equipamento || "nao informado",
       tipo: tipo || "nao informado",
       acao: acao || "nao informado",
+      descricao_breve: descricaoBreve || "",
       status: statusLabel || "nao informado",
     };
   });
@@ -4331,19 +4336,33 @@ function generateRdoTextDeterministic(payload) {
   const concluidas = Number.isFinite(kpis.concluidas) ? kpis.concluidas : "nao informado";
   const execucao = Number.isFinite(kpis.execucao) ? kpis.execucao : "nao informado";
   const pendentes = Number.isFinite(kpis.pendentes) ? kpis.pendentes : "nao informado";
-  const tempoTotal = kpis.tempo_total || "nao informado";
   const responsavel = payload.responsavel || "nao informado";
   const participantes = payload.participantes || "nao informado";
-  const descricao = `Foram registradas ${registradas} atividades no período, com ${concluidas} concluídas, ${execucao} em execução e ${pendentes} pendentes. Tempo total: ${tempoTotal}. Responsável: ${responsavel}. Participantes: ${participantes}.`;
+  const acaoPrincipal = payload.acao_principal || "Atividades de manutencao";
+  const subestacao = payload.subestacao || payload.local || "nao informado";
+  const equipamentosResumo = payload.equipamentos_resumo || {};
+  const grupos = Array.isArray(equipamentosResumo.grupos) ? equipamentosResumo.grupos : [];
+  const gruposLabel = grupos.length
+    ? grupos.map((grupo) => grupo.tipo).join(" e ")
+    : "equipamentos";
+  const quantidade = Number.isFinite(equipamentosResumo.total)
+    ? equipamentosResumo.total
+    : registradas;
+  const descricao =
+    `Foram registradas ${registradas} atividades no periodo, com ${concluidas} concluidas, ` +
+    `${execucao} em execucao e ${pendentes} pendentes. ` +
+    `${acaoPrincipal} em ${subestacao}, atendendo ${quantidade} ${gruposLabel}. ` +
+    `Responsavel: ${responsavel}. Participantes: ${participantes}.`;
 
   const atividades = Array.isArray(payload.atividades) ? payload.atividades : [];
   const atividadeDoDia =
-    atividades.length === 1 ? atividades[0].acao || "Atividade do dia" : "Atividades do dia";
+    payload.acao_principal ||
+    (atividades.length === 1 ? atividades[0].acao || "Atividade do dia" : "Atividades do dia");
   let statusGeral = "Em andamento";
   if (concluidas !== "nao informado" && registradas === concluidas) {
-    statusGeral = "Concluída";
+    statusGeral = "Concluida";
   } else if (execucao !== "nao informado" && Number(execucao) > 0) {
-    statusGeral = "Em execução";
+    statusGeral = "Em execucao";
   } else if (pendentes !== "nao informado" && Number(pendentes) > 0) {
     statusGeral = "Pendentes";
   }
@@ -4435,6 +4454,7 @@ async function generateRdoTextWithAI(payload) {
     "Use 'subestacao' como referencia de local. Ignore 'local' se estiver redundante. " +
     "Se houver grupos em 'equipamentos_resumo.grupos', cite todos os grupos presentes (ex: potencia e servicos auxiliares). " +
     "Se houver tags em 'equipamentos_resumo.tags', mencione os tags (T-01, T-02, TSA-01...) na descricao. " +
+    "Se houver 'atividades[].descricao_breve', use como base principal para a descricao consolidada. " +
     "Nao mencione tempo total. " +
     "descricao_consolidada: 2 a 4 frases curtas, sem listar equipamentos um a um; foque na atividade principal, escopo e status. " +
     "atividades_consolidado.atividade_do_dia: frase objetiva (ate 16 palavras) baseada em 'acao_principal' e grupos. " +
