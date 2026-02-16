@@ -3990,9 +3990,28 @@ function canViewPerformanceTab(user) {
   return getCargoLevel(user.cargo) >= getCargoLevel("SUPERVISOR O&M");
 }
 
+function canViewSectionTab(tab, user) {
+  if (!tab || !user) {
+    return false;
+  }
+  if (isFullAccessUser(user)) {
+    return true;
+  }
+  if (hasAccessPermission(user, tab)) {
+    return true;
+  }
+  if (user.sections && typeof user.sections === "object" && tab in user.sections) {
+    return Boolean(user.sections[tab]);
+  }
+  return false;
+}
+
 function canViewTab(tab, user, secConfig) {
   if (!tab) {
     return false;
+  }
+  if (ACCESS_SECTION_PERMISSIONS.includes(tab)) {
+    return canViewSectionTab(tab, user);
   }
   if (tab === "acessos") {
     return Boolean(user && canManageAccess(user));
