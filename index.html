@@ -1466,15 +1466,29 @@
           </div>
           <div class="form-grid">
             <div class="field" data-full>
-              <label for="participantesManutencao">Participantes (separe por ;)</label>
-              <textarea
-                id="participantesManutencao"
-                class="multi-select"
-                rows="2"
-                placeholder="Ex: Denisson; Leonardo; Manoel"
-                required
-              ></textarea>
-              <p class="hint">Informe ao menos 2 participantes.</p>
+              <label for="manutencaoEquipeResponsavel">Equipe/Time responsável</label>
+              <select id="manutencaoEquipeResponsavel"></select>
+              <p class="hint">Equipe vinculada ao projeto ativo.</p>
+            </div>
+            <div class="field" data-full>
+              <label>Participantes do projeto (clique para selecionar)</label>
+              <div id="participantesManutencaoList" class="participant-grid"></div>
+            </div>
+            <div class="field" data-full>
+              <label for="participanteExternoManutencao">Participante externo (outra empresa)</label>
+              <div class="participant-external">
+                <input
+                  id="participanteExternoManutencao"
+                  type="text"
+                  placeholder="Ex: Joao - Empresa XYZ"
+                />
+                <button id="btnAddParticipanteExterno" class="btn btn--ghost btn--small" type="button">
+                  Adicionar
+                </button>
+              </div>
+              <div id="participantesManutencaoSelected" class="participant-selected"></div>
+              <input id="participantesManutencao" type="hidden" />
+              <p class="hint">Selecione ao menos 2 participantes.</p>
               <p id="participantesManutencaoErro" class="field-error" hidden></p>
             </div>
             <div class="field">

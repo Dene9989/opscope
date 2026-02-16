@@ -22,6 +22,11 @@ const prioridadeManutencao = document.getElementById("prioridadeManutencao");
 const osReferenciaManutencao = document.getElementById("osReferenciaManutencao");
 const participantesManutencao = document.getElementById("participantesManutencao");
 const participantesManutencaoErro = document.getElementById("participantesManutencaoErro");
+const manutencaoEquipeResponsavel = document.getElementById("manutencaoEquipeResponsavel");
+const participantesManutencaoList = document.getElementById("participantesManutencaoList");
+const participantesManutencaoSelected = document.getElementById("participantesManutencaoSelected");
+const participanteExternoManutencao = document.getElementById("participanteExternoManutencao");
+const btnAddParticipanteExterno = document.getElementById("btnAddParticipanteExterno");
 const criticoManutencao = document.getElementById("criticoManutencao");
 const novaDocPt = document.getElementById("novaDocPt");
 const novaPtLabel = document.getElementById("novaPtLabel");
@@ -4079,6 +4084,7 @@ let activeProjectId = "";
 let availableProjects = [];
 let projectEquipamentos = [];
 let projectEquipe = [];
+let manutencaoParticipantesSelecionados = [];
 let pmpActivities = [];
 let pmpExecutions = [];
 let almoxItems = [];
@@ -9154,11 +9160,15 @@ async function carregarUsuariosServidor() {
   if (!currentUser) {
     users = [];
     accessUsers = [];
+    renderManutencaoParticipantesOptions();
+    renderManutencaoParticipantesSelected();
     return;
   }
   if (!USE_AUTH_API) {
     await refreshAccessData();
     renderEquipeSelectOptions();
+    renderManutencaoParticipantesOptions();
+    renderManutencaoParticipantesSelected();
     return;
   }
   try {
@@ -9170,6 +9180,8 @@ async function carregarUsuariosServidor() {
   await carregarPermissoesAdmin();
   renderUsuarios();
   renderEquipeSelectOptions();
+  renderManutencaoParticipantesOptions();
+  renderManutencaoParticipantesSelected();
 }
 
 async function carregarPermissoesAdmin() {
@@ -25425,6 +25437,202 @@ function getProjectTeamName(projectId) {
   return nomeTime || DEFAULT_TEAM_NAME;
 }
 
+function normalizeParticipantName(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeTeamName(value) {
+  const raw = String(value || "").trim();
+  if (raw.startsWith("team:") || raw.startsWith("time:")) {
+    return raw.slice(5).trim();
+  }
+  return raw;
+}
+
+function getMaintenanceParticipantCandidates() {
+  const colaboradores = getOperationalUsers()
+    .filter((user) => user && (user.name || user.username))
+    .filter(isUserFromActiveProject)
+    .map((user) => normalizeParticipantName(user.name || user.username || ""))
+    .filter(Boolean);
+  return Array.from(new Set(colaboradores)).sort((a, b) => a.localeCompare(b, "pt-BR"));
+}
+
+function renderManutencaoEquipeOptions(selectedName = "") {
+  if (!manutencaoEquipeResponsavel) {
+    return;
+  }
+  const teams = [];
+  const seen = new Set();
+  const activeTeam = getProjectTeamName(activeProjectId);
+  if (activeTeam && !seen.has(activeTeam)) {
+    teams.push(activeTeam);
+    seen.add(activeTeam);
+  }
+  const customSelected = normalizeTeamName(selectedName);
+  if (customSelected && !seen.has(customSelected)) {
+    teams.unshift(customSelected);
+    seen.add(customSelected);
+  }
+  availableProjects.forEach((project) => {
+    const nome = String(project.nomeTime || project.timeName || project.time || "").trim();
+    if (nome && !seen.has(nome)) {
+      teams.push(nome);
+      seen.add(nome);
+    }
+  });
+  manutencaoEquipeResponsavel.innerHTML = "";
+  if (!teams.length) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "Sem equipe definida";
+    manutencaoEquipeResponsavel.append(opt);
+    return;
+  }
+  teams.forEach((team) => {
+    const opt = document.createElement("option");
+    opt.value = team;
+    opt.textContent = team;
+    manutencaoEquipeResponsavel.append(opt);
+  });
+  const fallback = selectedName || activeTeam || teams[0];
+  manutencaoEquipeResponsavel.value = fallback;
+}
+
+function syncManutencaoParticipantesInput() {
+  if (!participantesManutencao) {
+    return;
+  }
+  participantesManutencao.value = manutencaoParticipantesSelecionados.join("; ");
+}
+
+function renderManutencaoParticipantesSelected() {
+  if (!participantesManutencaoSelected) {
+    return;
+  }
+  participantesManutencaoSelected.innerHTML = "";
+  if (!manutencaoParticipantesSelecionados.length) {
+    const vazio = document.createElement("span");
+    vazio.className = "participant-empty";
+    vazio.textContent = "Nenhum participante selecionado.";
+    participantesManutencaoSelected.append(vazio);
+    return;
+  }
+  const candidatos = new Set(getMaintenanceParticipantCandidates());
+  manutencaoParticipantesSelecionados.forEach((name) => {
+    const tag = document.createElement("span");
+    const isExternal = !candidatos.has(name);
+    tag.className = `participant-tag${isExternal ? " participant-tag--external" : ""}`;
+    const label = document.createElement("span");
+    label.textContent = name;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "participant-remove";
+    remove.textContent = "x";
+    remove.dataset.participantRemove = name;
+    tag.append(label, remove);
+    participantesManutencaoSelected.append(tag);
+  });
+}
+
+function renderManutencaoParticipantesOptions() {
+  if (!participantesManutencaoList) {
+    return;
+  }
+  participantesManutencaoList.innerHTML = "";
+  const list = getMaintenanceParticipantCandidates();
+  if (!list.length) {
+    const vazio = document.createElement("span");
+    vazio.className = "participant-empty";
+    vazio.textContent = "Sem colaboradores vinculados ao projeto.";
+    participantesManutencaoList.append(vazio);
+    return;
+  }
+  list.forEach((name) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "participant-pill";
+    if (manutencaoParticipantesSelecionados.includes(name)) {
+      button.classList.add("is-selected");
+    }
+    button.textContent = name;
+    button.dataset.participantName = name;
+    participantesManutencaoList.append(button);
+  });
+}
+
+function setManutencaoParticipantes(list = []) {
+  const next = [];
+  const seen = new Set();
+  list.forEach((entry) => {
+    const name = normalizeParticipantName(entry);
+    if (!name || seen.has(name)) {
+      return;
+    }
+    seen.add(name);
+    next.push(name);
+  });
+  manutencaoParticipantesSelecionados = next;
+  syncManutencaoParticipantesInput();
+  renderManutencaoParticipantesOptions();
+  renderManutencaoParticipantesSelected();
+}
+
+function toggleManutencaoParticipante(name) {
+  const normalized = normalizeParticipantName(name);
+  if (!normalized) {
+    return;
+  }
+  if (manutencaoParticipantesSelecionados.includes(normalized)) {
+    manutencaoParticipantesSelecionados = manutencaoParticipantesSelecionados.filter(
+      (item) => item !== normalized
+    );
+  } else {
+    manutencaoParticipantesSelecionados = manutencaoParticipantesSelecionados.concat(normalized);
+  }
+  syncManutencaoParticipantesInput();
+  renderManutencaoParticipantesOptions();
+  renderManutencaoParticipantesSelected();
+  setFieldError(participantesManutencaoErro, "");
+}
+
+function addManutencaoParticipantesExternos(raw) {
+  const entries = String(raw || "")
+    .split(/[;,]/)
+    .map((item) => normalizeParticipantName(item))
+    .filter(Boolean);
+  if (!entries.length) {
+    return;
+  }
+  const merged = manutencaoParticipantesSelecionados.slice();
+  entries.forEach((name) => {
+    if (!merged.includes(name)) {
+      merged.push(name);
+    }
+  });
+  setManutencaoParticipantes(merged);
+}
+
+function getManutencaoParticipantesFromForm() {
+  if (manutencaoParticipantesSelecionados.length) {
+    return manutencaoParticipantesSelecionados.slice();
+  }
+  const texto = participantesManutencao ? participantesManutencao.value : "";
+  return String(texto || "")
+    .split(";")
+    .map((item) => normalizeParticipantName(item))
+    .filter(Boolean);
+}
+
+function getManutencaoEquipeSelecionada() {
+  const selecionada = manutencaoEquipeResponsavel
+    ? normalizeTeamName(manutencaoEquipeResponsavel.value)
+    : "";
+  return selecionada || getProjectTeamName(activeProjectId);
+}
+
 function renderProjectSelector() {
   if (!projectSelect) {
     return;
@@ -30817,6 +31025,9 @@ async function carregarEquipeProjeto() {
   if (!currentUser || !activeProjectId) {
     projectEquipe = [];
     renderEquipeTable();
+    renderManutencaoEquipeOptions();
+    renderManutencaoParticipantesOptions();
+    renderManutencaoParticipantesSelected();
     return;
   }
   try {
@@ -30826,6 +31037,9 @@ async function carregarEquipeProjeto() {
     projectEquipe = [];
   }
   renderEquipeTable();
+  renderManutencaoEquipeOptions();
+  renderManutencaoParticipantesOptions();
+  renderManutencaoParticipantesSelected();
 }
 
 function renderPerfil() {
@@ -32021,13 +32235,7 @@ async function adicionarManutencao() {
   const categoria = categoriaManutencao ? categoriaManutencao.value.trim() : "";
   const prioridade = prioridadeManutencao ? prioridadeManutencao.value.trim() : "";
   const osReferencia = osReferenciaManutencao ? osReferenciaManutencao.value.trim() : "";
-  const participantesTexto = participantesManutencao ? participantesManutencao.value : "";
-  const participantes = participantesTexto
-    ? participantesTexto
-        .split(";")
-        .map((item) => item.trim())
-        .filter(Boolean)
-    : [];
+  const participantes = getManutencaoParticipantesFromForm();
   const criticoValor = criticoManutencao ? criticoManutencao.value : "nao";
   const critico = criticoValor === "sim";
 
@@ -32089,7 +32297,7 @@ async function adicionarManutencao() {
   const agora = new Date();
   const agoraIso = toIsoUtc(agora);
   const usuarioLabel = getUserLabel(currentUser.id);
-  const teamName = getProjectTeamName(activeProjectId);
+  const teamName = getManutencaoEquipeSelecionada();
   const executadoPorTime = teamName ? `team:${teamName}` : currentUser.id;
   const ultimaAcao = `Execução iniciada em ${formatDateTime(agora)} por ${usuarioLabel}`;
   const liberacao = {
@@ -32280,6 +32488,11 @@ function limparFormularioManutencao() {
   if (participantesManutencao) {
     participantesManutencao.value = "";
   }
+  if (participanteExternoManutencao) {
+    participanteExternoManutencao.value = "";
+  }
+  setManutencaoParticipantes([]);
+  renderManutencaoEquipeOptions();
   if (criticoManutencao) {
     criticoManutencao.value = "nao";
   }
@@ -32556,14 +32769,37 @@ function preencherFormularioManutencao(item) {
       return "";
     })
     .filter(Boolean);
-  if (participantesManutencao) {
-    const label = participantesNormalizados.length
-      ? getParticipantesLabel(participantesNormalizados)
-      : "";
-    participantesManutencao.value =
-      label && label !== "-" ? label.replace(/,\s*/g, "; ") : "";
-  }
+  const participantesLista = participantesNormalizados
+    .map((entry) => {
+      if (!entry) {
+        return "";
+      }
+      if (typeof entry === "string") {
+        const user = getUserById(entry);
+        return normalizeParticipantName(user && user.name ? user.name : entry);
+      }
+      if (typeof entry === "object") {
+        const raw =
+          entry.name ||
+          entry.nome ||
+          entry.label ||
+          entry.id ||
+          entry.userId ||
+          entry.matricula ||
+          "";
+        const user = raw ? getUserById(raw) : null;
+        return normalizeParticipantName(user && user.name ? user.name : raw);
+      }
+      return "";
+    })
+    .filter(Boolean);
+  setManutencaoParticipantes(participantesLista);
   setFieldError(participantesManutencaoErro, "");
+  const equipeBase = item.executadaPor || item.responsavel || item.responsavelManutencao || "";
+  const equipeSelecionada = isTeamUserId(equipeBase)
+    ? normalizeTeamName(equipeBase)
+    : "";
+  renderManutencaoEquipeOptions(equipeSelecionada);
 
   const critico =
     isCriticoValor(item.criticidade) ||
@@ -32732,13 +32968,7 @@ async function salvarEdicaoManutencao() {
     (getLiberacao(item) && getLiberacao(item).osNumero) ||
     (auditDetalhes && (auditDetalhes.osNumero || auditDetalhes.referencia)) ||
     "";
-  const participantesTexto = participantesManutencao ? participantesManutencao.value : "";
-  let participantes = participantesTexto
-    ? participantesTexto
-        .split(";")
-        .map((item) => item.trim())
-        .filter(Boolean)
-    : [];
+  let participantes = getManutencaoParticipantesFromForm();
   if (!participantes.length) {
     const base =
       Array.isArray(item.participantes) && item.participantes.length
@@ -32802,6 +33032,10 @@ async function salvarEdicaoManutencao() {
   const prioridadeFinal = prioridade || getItemPrioridade(item) || "";
   const osReferenciaFinal = osReferencia || "";
   const participantesFinal = participantes;
+  const equipeSelecionada = getManutencaoEquipeSelecionada();
+  const executadoPorTime = equipeSelecionada
+    ? `team:${equipeSelecionada}`
+    : item.executadaPor || item.doneBy || item.createdBy || "";
 
   if (!tituloFinal || !localFinal || !dataFinal) {
     mostrarMensagemManutencao("Preencha tipo, subestação e início da execução.", true);
@@ -32880,7 +33114,11 @@ async function salvarEdicaoManutencao() {
     (item.status !== "agendada" && item.status !== "backlog");
 
   const registroAtualizado = item.registroExecucao
-    ? { ...item.registroExecucao, comentario: observacaoFinal }
+    ? {
+        ...item.registroExecucao,
+        comentario: observacaoFinal,
+        executadoPor: executadoPorTime || item.registroExecucao.executadoPor,
+      }
     : item.registroExecucao;
   const conclusaoAtualizada = item.conclusao
     ? {
@@ -32911,6 +33149,7 @@ async function salvarEdicaoManutencao() {
     prioridade: prioridadeFinal,
     osReferencia: osReferenciaFinal,
     participantes: participantesFinal,
+    executadaPor: executadoPorTime || item.executadaPor,
     criticidade: critico ? "sim" : "nao",
     documentos: documentosAtualizados,
     liberacao: manterLiberacao ? liberacaoAtualizada : item.liberacao,
@@ -38901,6 +39140,51 @@ if (futuraManutencao) {
 if (participantesManutencao) {
   participantesManutencao.addEventListener("input", () => {
     setFieldError(participantesManutencaoErro, "");
+  });
+}
+if (participantesManutencaoList) {
+  participantesManutencaoList.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-participant-name]");
+    if (!button) {
+      return;
+    }
+    toggleManutencaoParticipante(button.dataset.participantName);
+  });
+}
+if (participantesManutencaoSelected) {
+  participantesManutencaoSelected.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-participant-remove]");
+    if (!button) {
+      return;
+    }
+    const name = button.dataset.participantRemove;
+    manutencaoParticipantesSelecionados = manutencaoParticipantesSelecionados.filter(
+      (item) => item !== name
+    );
+    syncManutencaoParticipantesInput();
+    renderManutencaoParticipantesOptions();
+    renderManutencaoParticipantesSelected();
+    setFieldError(participantesManutencaoErro, "");
+  });
+}
+if (btnAddParticipanteExterno) {
+  btnAddParticipanteExterno.addEventListener("click", () => {
+    addManutencaoParticipantesExternos(
+      participanteExternoManutencao ? participanteExternoManutencao.value : ""
+    );
+    if (participanteExternoManutencao) {
+      participanteExternoManutencao.value = "";
+      participanteExternoManutencao.focus();
+    }
+  });
+}
+if (participanteExternoManutencao) {
+  participanteExternoManutencao.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      addManutencaoParticipantesExternos(participanteExternoManutencao.value);
+      participanteExternoManutencao.value = "";
+    }
   });
 }
 if (btnFecharHistorico) {
