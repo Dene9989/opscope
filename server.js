@@ -4320,7 +4320,9 @@ async function generateRdoTextWithAI(payload) {
     text: {
       format: {
         type: "json_schema",
-        json_schema: RDO_AI_SCHEMA,
+        name: RDO_AI_SCHEMA.name,
+        strict: RDO_AI_SCHEMA.strict,
+        schema: RDO_AI_SCHEMA.schema,
       },
     },
     temperature: 0.2,
