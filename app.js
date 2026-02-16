@@ -621,6 +621,17 @@ const perfilPermissoesDetalhesList = document.getElementById("perfilPermissoesDe
 const perfilSecoesDetalhesList = document.getElementById("perfilSecoesDetalhesList");
 const profileTabs = Array.from(document.querySelectorAll("[data-profile-tab]"));
 const profilePanels = Array.from(document.querySelectorAll("[data-profile-panel]"));
+const profileThemeSelect = document.getElementById("profileThemeSelect");
+const profileDensitySelect = document.getElementById("profileDensitySelect");
+const profileLanguageSelect = document.getElementById("profileLanguageSelect");
+const profileTimezoneSelect = document.getElementById("profileTimezoneSelect");
+const profileDashboardSelect = document.getElementById("profileDashboardSelect");
+const profileNotifyAssigned = document.getElementById("profileNotifyAssigned");
+const profileNotifyDue = document.getElementById("profileNotifyDue");
+const profileNotifyCritical = document.getElementById("profileNotifyCritical");
+const profileNotifyWeekly = document.getElementById("profileNotifyWeekly");
+const profile2faToggle = document.getElementById("profile2faToggle");
+const profileBlockUnknown = document.getElementById("profileBlockUnknown");
 const btnPerfilEditar = document.getElementById("btnPerfilEditar");
 const btnPerfilCancelar = document.getElementById("btnPerfilCancelar");
 
@@ -5636,6 +5647,85 @@ function formatProfileValue(value) {
   return texto ? texto : "N\u00e3o informado";
 }
 
+const PROFILE_THEME_OPTIONS = new Set(["dark", "dark-contrast"]);
+const PROFILE_DENSITY_OPTIONS = new Set(["comfortable", "compact"]);
+const PROFILE_LANGUAGE_OPTIONS = new Set(["pt-br", "en", "es"]);
+const PROFILE_TIMEZONE_OPTIONS = new Set([
+  "America/Sao_Paulo",
+  "America/Manaus",
+  "America/Fortaleza",
+]);
+const PROFILE_DASHBOARD_OPTIONS = new Set(["inicio", "programacao", "desempenho"]);
+const DEFAULT_PROFILE_PREFERENCES = {
+  theme: "dark",
+  density: "comfortable",
+  language: "pt-br",
+  timezone: "America/Sao_Paulo",
+  dashboard: "inicio",
+  notifications: {
+    assignedOs: true,
+    dueSoon: true,
+    criticalAlerts: false,
+    weeklyReports: true,
+  },
+};
+const DEFAULT_PROFILE_SECURITY = {
+  twoFactorEnabled: false,
+  blockUnknownDevices: true,
+};
+
+function normalizeProfilePreferences(value) {
+  const input = value && typeof value === "object" ? value : {};
+  const notifications =
+    input.notifications && typeof input.notifications === "object" ? input.notifications : {};
+  return {
+    theme: PROFILE_THEME_OPTIONS.has(input.theme)
+      ? input.theme
+      : DEFAULT_PROFILE_PREFERENCES.theme,
+    density: PROFILE_DENSITY_OPTIONS.has(input.density)
+      ? input.density
+      : DEFAULT_PROFILE_PREFERENCES.density,
+    language: PROFILE_LANGUAGE_OPTIONS.has(input.language)
+      ? input.language
+      : DEFAULT_PROFILE_PREFERENCES.language,
+    timezone: PROFILE_TIMEZONE_OPTIONS.has(input.timezone)
+      ? input.timezone
+      : DEFAULT_PROFILE_PREFERENCES.timezone,
+    dashboard: PROFILE_DASHBOARD_OPTIONS.has(input.dashboard)
+      ? input.dashboard
+      : DEFAULT_PROFILE_PREFERENCES.dashboard,
+    notifications: {
+      assignedOs:
+        typeof notifications.assignedOs === "boolean"
+          ? notifications.assignedOs
+          : DEFAULT_PROFILE_PREFERENCES.notifications.assignedOs,
+      dueSoon:
+        typeof notifications.dueSoon === "boolean"
+          ? notifications.dueSoon
+          : DEFAULT_PROFILE_PREFERENCES.notifications.dueSoon,
+      criticalAlerts:
+        typeof notifications.criticalAlerts === "boolean"
+          ? notifications.criticalAlerts
+          : DEFAULT_PROFILE_PREFERENCES.notifications.criticalAlerts,
+      weeklyReports:
+        typeof notifications.weeklyReports === "boolean"
+          ? notifications.weeklyReports
+          : DEFAULT_PROFILE_PREFERENCES.notifications.weeklyReports,
+    },
+  };
+}
+
+function normalizeProfileSecurity(value) {
+  const input = value && typeof value === "object" ? value : {};
+  return {
+    twoFactorEnabled: Boolean(input.twoFactorEnabled),
+    blockUnknownDevices:
+      typeof input.blockUnknownDevices === "boolean"
+        ? input.blockUnknownDevices
+        : DEFAULT_PROFILE_SECURITY.blockUnknownDevices,
+  };
+}
+
 let activeProfileTab = "overview";
 
 function setProfileTab(tabId) {
@@ -6038,6 +6128,177 @@ function updateProfileHub(perfilUsuario, context) {
   setProfileTab(activeProfileTab);
 }
 
+function applyProfilePreferencesToUI(preferences, security) {
+  if (profileThemeSelect) {
+    profileThemeSelect.value = preferences.theme;
+  }
+  if (profileDensitySelect) {
+    profileDensitySelect.value = preferences.density;
+  }
+  if (profileLanguageSelect) {
+    profileLanguageSelect.value = preferences.language;
+  }
+  if (profileTimezoneSelect) {
+    profileTimezoneSelect.value = preferences.timezone;
+  }
+  if (profileDashboardSelect) {
+    profileDashboardSelect.value = preferences.dashboard;
+  }
+  if (profileNotifyAssigned) {
+    profileNotifyAssigned.checked = preferences.notifications.assignedOs;
+  }
+  if (profileNotifyDue) {
+    profileNotifyDue.checked = preferences.notifications.dueSoon;
+  }
+  if (profileNotifyCritical) {
+    profileNotifyCritical.checked = preferences.notifications.criticalAlerts;
+  }
+  if (profileNotifyWeekly) {
+    profileNotifyWeekly.checked = preferences.notifications.weeklyReports;
+  }
+  if (profile2faToggle) {
+    profile2faToggle.checked = security.twoFactorEnabled;
+  }
+  if (profileBlockUnknown) {
+    profileBlockUnknown.checked = security.blockUnknownDevices;
+  }
+}
+
+function setProfilePreferencesDisabled(disabled) {
+  [
+    profileThemeSelect,
+    profileDensitySelect,
+    profileLanguageSelect,
+    profileTimezoneSelect,
+    profileDashboardSelect,
+    profileNotifyAssigned,
+    profileNotifyDue,
+    profileNotifyCritical,
+    profileNotifyWeekly,
+    profile2faToggle,
+    profileBlockUnknown,
+  ]
+    .filter(Boolean)
+    .forEach((input) => {
+      input.disabled = Boolean(disabled);
+    });
+}
+
+function applyProfilePreferences(user, isSelfProfile) {
+  const preferences = normalizeProfilePreferences(user && user.preferences);
+  const security = normalizeProfileSecurity(user && (user.security || user.securitySettings));
+  applyProfilePreferencesToUI(preferences, security);
+  setProfilePreferencesDisabled(!isSelfProfile);
+  if (isSelfProfile) {
+    lastProfilePrefPayload = stableStringify({ preferences, security });
+  }
+}
+
+function resetProfilePreferencesUI() {
+  applyProfilePreferencesToUI(
+    normalizeProfilePreferences(null),
+    normalizeProfileSecurity(null)
+  );
+  setProfilePreferencesDisabled(true);
+}
+
+function collectProfilePreferencesFromUI() {
+  if (
+    !profileThemeSelect &&
+    !profileDensitySelect &&
+    !profileLanguageSelect &&
+    !profileTimezoneSelect &&
+    !profileDashboardSelect &&
+    !profileNotifyAssigned &&
+    !profileNotifyDue &&
+    !profileNotifyCritical &&
+    !profileNotifyWeekly &&
+    !profile2faToggle &&
+    !profileBlockUnknown
+  ) {
+    return null;
+  }
+  const preferences = normalizeProfilePreferences({
+    theme: profileThemeSelect ? profileThemeSelect.value : undefined,
+    density: profileDensitySelect ? profileDensitySelect.value : undefined,
+    language: profileLanguageSelect ? profileLanguageSelect.value : undefined,
+    timezone: profileTimezoneSelect ? profileTimezoneSelect.value : undefined,
+    dashboard: profileDashboardSelect ? profileDashboardSelect.value : undefined,
+    notifications: {
+      assignedOs: profileNotifyAssigned ? profileNotifyAssigned.checked : undefined,
+      dueSoon: profileNotifyDue ? profileNotifyDue.checked : undefined,
+      criticalAlerts: profileNotifyCritical ? profileNotifyCritical.checked : undefined,
+      weeklyReports: profileNotifyWeekly ? profileNotifyWeekly.checked : undefined,
+    },
+  });
+  const security = normalizeProfileSecurity({
+    twoFactorEnabled: profile2faToggle ? profile2faToggle.checked : undefined,
+    blockUnknownDevices: profileBlockUnknown ? profileBlockUnknown.checked : undefined,
+  });
+  return { preferences, security };
+}
+
+let profilePrefSaveTimer = null;
+let lastProfilePrefPayload = "";
+
+function updateUserCache(user) {
+  if (!user) {
+    return;
+  }
+  const updateList = (list) => {
+    if (!Array.isArray(list)) {
+      return;
+    }
+    const index = list.findIndex((item) => String(item.id) === String(user.id));
+    if (index >= 0) {
+      list[index] = { ...list[index], ...user };
+    }
+  };
+  updateList(users);
+  updateList(accessUsers);
+}
+
+function saveProfilePreferences() {
+  const perfilUsuario = getProfileTargetUser();
+  if (!currentUser || !perfilUsuario) {
+    return;
+  }
+  const isSelfProfile = String(currentUser.id) === String(perfilUsuario.id);
+  if (!isSelfProfile) {
+    return;
+  }
+  const payload = collectProfilePreferencesFromUI();
+  if (!payload) {
+    return;
+  }
+  const signature = stableStringify(payload);
+  if (signature && signature === lastProfilePrefPayload) {
+    return;
+  }
+  lastProfilePrefPayload = signature || "";
+  updateProfileForUser(perfilUsuario.id, payload)
+    .then((data) => {
+      if (data && data.user) {
+        currentUser = data.user;
+        updateUserCache(data.user);
+        applyProfilePreferences(data.user, true);
+      }
+    })
+    .catch(() => {
+      lastProfilePrefPayload = "";
+    });
+}
+
+function queueProfilePreferencesSave() {
+  if (profilePrefSaveTimer) {
+    clearTimeout(profilePrefSaveTimer);
+  }
+  profilePrefSaveTimer = setTimeout(() => {
+    profilePrefSaveTimer = null;
+    saveProfilePreferences();
+  }, 500);
+}
+
 function clearProfileHub() {
   if (perfilStatus) {
     perfilStatus.textContent = "-";
@@ -6075,6 +6336,7 @@ function clearProfileHub() {
   if (perfilAuditoriaEmpty) {
     perfilAuditoriaEmpty.hidden = false;
   }
+  resetProfilePreferencesUI();
 }
 
 function handleProfileAction(action) {
@@ -10957,6 +11219,14 @@ async function updateUserToDb(input) {
       payload.atribuicoes !== undefined
         ? String(payload.atribuicoes || "").trim()
         : existing.atribuicoes || "",
+    preferences:
+      payload.preferences !== undefined
+        ? normalizeProfilePreferences(payload.preferences)
+        : normalizeProfilePreferences(existing.preferences),
+    security:
+      payload.security !== undefined || payload.securitySettings !== undefined
+        ? normalizeProfileSecurity(payload.security || payload.securitySettings)
+        : normalizeProfileSecurity(existing.security || existing.securitySettings),
     avatarUrl:
       payload.avatarUrl !== undefined ? String(payload.avatarUrl || "").trim() : existing.avatarUrl || "",
     avatarUpdatedAt:
@@ -30622,6 +30892,7 @@ function renderPerfil() {
         ? secoesAtivas.join(", ")
         : "Nenhuma.";
   }
+  applyProfilePreferences(perfilUsuario, isSelfProfile);
   updateProfileHub(perfilUsuario, { isAdminUser, permissoesAtivas, secoesAtivas });
   const perfilUenInputAtual = document.getElementById("perfilUenInput");
   if (perfilUenInputAtual) {
@@ -30664,6 +30935,24 @@ profileTabs.forEach((tab) => {
 if (profileTabs.length) {
   setProfileTab(activeProfileTab);
 }
+
+[
+  profileThemeSelect,
+  profileDensitySelect,
+  profileLanguageSelect,
+  profileTimezoneSelect,
+  profileDashboardSelect,
+  profileNotifyAssigned,
+  profileNotifyDue,
+  profileNotifyCritical,
+  profileNotifyWeekly,
+  profile2faToggle,
+  profileBlockUnknown,
+]
+  .filter(Boolean)
+  .forEach((input) => {
+    input.addEventListener("change", queueProfilePreferencesSave);
+  });
 
 function renderAuthUI() {
   const autenticado = Boolean(currentUser);

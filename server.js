@@ -917,6 +917,85 @@ const DEFAULT_SECTIONS = {
   "sst-apr-pt": true,
 };
 
+const PROFILE_THEME_OPTIONS = new Set(["dark", "dark-contrast"]);
+const PROFILE_DENSITY_OPTIONS = new Set(["comfortable", "compact"]);
+const PROFILE_LANGUAGE_OPTIONS = new Set(["pt-br", "en", "es"]);
+const PROFILE_TIMEZONE_OPTIONS = new Set([
+  "America/Sao_Paulo",
+  "America/Manaus",
+  "America/Fortaleza",
+]);
+const PROFILE_DASHBOARD_OPTIONS = new Set(["inicio", "programacao", "desempenho"]);
+const DEFAULT_PROFILE_PREFERENCES = {
+  theme: "dark",
+  density: "comfortable",
+  language: "pt-br",
+  timezone: "America/Sao_Paulo",
+  dashboard: "inicio",
+  notifications: {
+    assignedOs: true,
+    dueSoon: true,
+    criticalAlerts: false,
+    weeklyReports: true,
+  },
+};
+const DEFAULT_PROFILE_SECURITY = {
+  twoFactorEnabled: false,
+  blockUnknownDevices: true,
+};
+
+function normalizeProfilePreferences(value) {
+  const input = value && typeof value === "object" ? value : {};
+  const notifications =
+    input.notifications && typeof input.notifications === "object" ? input.notifications : {};
+  return {
+    theme: PROFILE_THEME_OPTIONS.has(input.theme)
+      ? input.theme
+      : DEFAULT_PROFILE_PREFERENCES.theme,
+    density: PROFILE_DENSITY_OPTIONS.has(input.density)
+      ? input.density
+      : DEFAULT_PROFILE_PREFERENCES.density,
+    language: PROFILE_LANGUAGE_OPTIONS.has(input.language)
+      ? input.language
+      : DEFAULT_PROFILE_PREFERENCES.language,
+    timezone: PROFILE_TIMEZONE_OPTIONS.has(input.timezone)
+      ? input.timezone
+      : DEFAULT_PROFILE_PREFERENCES.timezone,
+    dashboard: PROFILE_DASHBOARD_OPTIONS.has(input.dashboard)
+      ? input.dashboard
+      : DEFAULT_PROFILE_PREFERENCES.dashboard,
+    notifications: {
+      assignedOs:
+        typeof notifications.assignedOs === "boolean"
+          ? notifications.assignedOs
+          : DEFAULT_PROFILE_PREFERENCES.notifications.assignedOs,
+      dueSoon:
+        typeof notifications.dueSoon === "boolean"
+          ? notifications.dueSoon
+          : DEFAULT_PROFILE_PREFERENCES.notifications.dueSoon,
+      criticalAlerts:
+        typeof notifications.criticalAlerts === "boolean"
+          ? notifications.criticalAlerts
+          : DEFAULT_PROFILE_PREFERENCES.notifications.criticalAlerts,
+      weeklyReports:
+        typeof notifications.weeklyReports === "boolean"
+          ? notifications.weeklyReports
+          : DEFAULT_PROFILE_PREFERENCES.notifications.weeklyReports,
+    },
+  };
+}
+
+function normalizeProfileSecurity(value) {
+  const input = value && typeof value === "object" ? value : {};
+  return {
+    twoFactorEnabled: Boolean(input.twoFactorEnabled),
+    blockUnknownDevices:
+      typeof input.blockUnknownDevices === "boolean"
+        ? input.blockUnknownDevices
+        : DEFAULT_PROFILE_SECURITY.blockUnknownDevices,
+  };
+}
+
 const ADMIN_SECTIONS = ["solicitacoes", "rastreabilidade", "gerencial", "contas"];
 const HEALTH_TASK_GRACE = 1.5;
 const HEALTH_TASK_DEFAULTS = [
@@ -4013,6 +4092,8 @@ function sanitizeUser(user) {
     sections: buildSections(rbacRole, user.sections, accessPermissions),
     avatarUrl: user.avatarUrl || "",
     avatarUpdatedAt: user.avatarUpdatedAt || "",
+    preferences: normalizeProfilePreferences(user.preferences),
+    security: normalizeProfileSecurity(user.security || user.securitySettings),
     createdAt: user.createdAt,
   };
 }
@@ -7188,7 +7269,17 @@ app.patch("/api/profile", requireAuth, (req, res) => {
   if (!targetUser) {
     return res.status(404).json({ message: "Usuário não encontrado." });
   }
-  if (!canEditProfile(actor, targetUser)) {
+  const isSelfProfile = actor.id === targetUser.id;
+  const wantsSensitiveUpdate =
+    "uen" in req.body ||
+    "projectId" in req.body ||
+    "projeto" in req.body ||
+    "project" in req.body ||
+    "atribuicoes" in req.body;
+  const wantsSettingsUpdate =
+    "preferences" in req.body || "security" in req.body || "securitySettings" in req.body;
+  const canEdit = canEditProfile(actor, targetUser);
+  if ((wantsSensitiveUpdate && !canEdit) || (wantsSettingsUpdate && !(isSelfProfile || canEdit))) {
     return res.status(403).json({ message: "Nao autorizado." });
   }
   const index = users.findIndex((item) => item.id === targetUser.id);
@@ -7198,6 +7289,9 @@ app.patch("/api/profile", requireAuth, (req, res) => {
   const updates = {};
   if ("uen" in req.body) {
     updates.uen = String(req.body.uen || "").trim();
+  }
+  if ("atribuicoes" in req.body) {
+    updates.atribuicoes = String(req.body.atribuicoes || "").trim();
   }
   if ("projectId" in req.body) {
     const projectId = String(req.body.projectId || "").trim();
@@ -7220,6 +7314,12 @@ app.patch("/api/profile", requireAuth, (req, res) => {
     updates.projeto = String(req.body.projeto || "").trim();
   } else if ("project" in req.body) {
     updates.projeto = String(req.body.project || "").trim();
+  }
+  if ("preferences" in req.body) {
+    updates.preferences = normalizeProfilePreferences(req.body.preferences);
+  }
+  if ("security" in req.body || "securitySettings" in req.body) {
+    updates.security = normalizeProfileSecurity(req.body.security || req.body.securitySettings);
   }
 
   if (!Object.keys(updates).length) {
@@ -8503,7 +8603,11 @@ app.patch("/api/admin/users/:id", requireAuth, requirePermission("verUsuarios"),
     "location" in req.body ||
     "rbacRole" in req.body ||
     "role" in req.body ||
-    "permissions" in req.body;
+    "permissions" in req.body ||
+    "atribuicoes" in req.body ||
+    "preferences" in req.body ||
+    "security" in req.body ||
+    "securitySettings" in req.body;
 
   if (wantsProfileUpdate && !canEditProfile(actor, current)) {
     return res.status(403).json({ message: "Nao autorizado." });
@@ -8544,6 +8648,9 @@ app.patch("/api/admin/users/:id", requireAuth, requirePermission("verUsuarios"),
   if ("uen" in req.body) {
     updates.uen = String(req.body.uen || "").trim();
   }
+  if ("atribuicoes" in req.body) {
+    updates.atribuicoes = String(req.body.atribuicoes || "").trim();
+  }
   if ("localizacao" in req.body) {
     updates.localizacao = String(req.body.localizacao || "").trim();
   } else if ("location" in req.body) {
@@ -8561,6 +8668,12 @@ app.patch("/api/admin/users/:id", requireAuth, requirePermission("verUsuarios"),
   }
   if ("permissions" in req.body || roleChanged) {
     updates.permissions = mergePermissions(nextRbacRole, current.permissions, req.body.permissions);
+  }
+  if ("preferences" in req.body) {
+    updates.preferences = normalizeProfilePreferences(req.body.preferences);
+  }
+  if ("security" in req.body || "securitySettings" in req.body) {
+    updates.security = normalizeProfileSecurity(req.body.security || req.body.securitySettings);
   }
   if (roleChanged) {
     updates.sections = buildSections(
