@@ -1161,7 +1161,7 @@ const ACCESS_STORAGE_READONLY_MESSAGE =
   "Armazenamento indisponivel. O sistema esta em modo somente leitura para evitar perda de dados.";
 const MAX_REAGENDAMENTOS = 3;
 const OUTROS_ALERT_THRESHOLD = 3;
-const MIN_EVIDENCIAS = 4;
+const MIN_EVIDENCIAS = 2;
 const ALMOCO_MIN = 60;
 const MAX_EXECUCAO_HORAS = 12;
 const DOC_KEYS = ["apr", "os", "pte", "pt"];
