@@ -6162,6 +6162,10 @@ textarea:focus {
   color: var(--ink);
 }
 
+.rdo-info-grid--wide {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
 .rdo-summary-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -6228,6 +6232,45 @@ textarea:focus {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.rdo-table--activities {
+  table-layout: auto;
+}
+
+.rdo-table--activities td {
+  white-space: normal;
+  vertical-align: top;
+}
+
+.rdo-activity {
+  display: grid;
+  gap: 4px;
+}
+
+.rdo-activity__title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.rdo-activity__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.rdo-activity__meta span {
+  white-space: normal;
+}
+
+.rdo-janela {
+  display: grid;
+  gap: 2px;
+  font-size: 0.75rem;
+  color: var(--ink);
 }
 
 .rdo-table__status {
@@ -6403,6 +6446,12 @@ textarea:focus {
   padding-left: 18px;
   font-size: 0.85rem;
   color: var(--ink-soft);
+}
+
+.rdo-paragraph {
+  margin: 0;
+  line-height: 1.55;
+  color: var(--ink);
 }
 
 .doc-chip {

@@ -1162,6 +1162,7 @@ const ACCESS_STORAGE_READONLY_MESSAGE =
 const MAX_REAGENDAMENTOS = 3;
 const OUTROS_ALERT_THRESHOLD = 3;
 const MIN_EVIDENCIAS = 2;
+const MIN_RESUMO_RDO_CHARS = 12;
 const ALMOCO_MIN = 60;
 const MAX_EXECUCAO_HORAS = 12;
 const DOC_KEYS = ["apr", "os", "pte", "pt"];
@@ -16741,6 +16742,8 @@ function mapItemRdo(item) {
   const inicio = getItemInicioExecucaoDate(item);
   const fim = getItemFimExecucaoDate(item) || getItemConclusaoDate(item);
   const liberacao = getLiberacao(item) || {};
+  const equipamento = getMaintenanceEquipamentoLabel(item);
+  const osReferencia = getMaintenanceOsReferencia(item);
   const participantes = Array.isArray(liberacao.participantes)
     ? liberacao.participantes
     : Array.isArray(item.participantes)
@@ -16766,6 +16769,8 @@ function mapItemRdo(item) {
     subestacao: getItemSubestacao(item) || "-",
     categoria: getItemCategoria(item) || "",
     prioridade: getItemPrioridade(item) || "",
+    equipamento,
+    osReferencia,
     statusKey: statusInfo.key,
     statusLabel: statusInfo.label,
     inicio: inicio ? toIsoUtc(inicio) : "",
@@ -17011,48 +17016,139 @@ function gerarNarrativaDiaRdo(itensRdo, metricas) {
   return parts.join(" ");
 }
 
+function normalizeResumoRdoTexto(texto) {
+  return String(texto || "").replace(/\s+/g, " ").trim();
+}
+
+function isResumoRdoValido(texto) {
+  return normalizeResumoRdoTexto(texto).length >= MIN_RESUMO_RDO_CHARS;
+}
+
+function getMensagemResumoRdo(texto) {
+  const normalizado = normalizeResumoRdoTexto(texto);
+  if (!normalizado) {
+    return `Descrição técnica obrigatória (mínimo ${MIN_RESUMO_RDO_CHARS} caracteres).`;
+  }
+  if (normalizado.length < MIN_RESUMO_RDO_CHARS) {
+    return `Descrição técnica muito curta. Use no mínimo ${MIN_RESUMO_RDO_CHARS} caracteres.`;
+  }
+  return "";
+}
+
+function ensureSentence(texto) {
+  const normalizado = normalizeResumoRdoTexto(texto);
+  if (!normalizado) {
+    return "";
+  }
+  return /[.!?]$/.test(normalizado) ? normalizado : `${normalizado}.`;
+}
+
+function formatListLimited(lista, limite = 3) {
+  const unicos = Array.from(new Set((lista || []).filter(Boolean)));
+  if (!unicos.length) {
+    return "";
+  }
+  const exibidos = unicos.slice(0, limite);
+  const restante = unicos.length - exibidos.length;
+  return restante > 0 ? `${exibidos.join(", ")} +${restante}` : exibidos.join(", ");
+}
+
+function parseParticipantesLabel(label) {
+  if (!label || label === "-") {
+    return [];
+  }
+  return String(label)
+    .split(/[;,|]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function buildResumoItemRdo(item) {
+  const resumoBase = normalizeResumoRdoTexto(item.descricao || item.observacaoExecucao || "");
+  if (!resumoBase) {
+    return "";
+  }
+  const titulo = item.titulo || "Atividade";
+  const local = item.subestacao && item.subestacao !== "-" ? item.subestacao : "";
+  const equipamento = item.equipamento && item.equipamento !== "-" ? item.equipamento : "";
+  const contexto = [local, equipamento].filter(Boolean).join(" • ");
+  const prefix = contexto ? `${titulo} (${contexto})` : titulo;
+  return `${prefix}: ${resumoBase}`;
+}
+
 function gerarDescricaoConsolidadaRdo(itensRdo, metricas) {
   if (!itensRdo.length) {
-    return {
-      resumo: "Sem registro de execuções no período.",
-      pontos: [],
-    };
+    return "Sem registro de execuções no período.";
   }
   const resumo = `Foram registradas ${metricas.total} atividades no período, com ${metricas.concluidas} concluídas, ${metricas.emExecucao} em execução e ${metricas.overdue} pendentes.`;
-  const pontos = [];
-  if (metricas.criticas) {
-    pontos.push(`Atividades críticas: ${metricas.criticas}.`);
-  }
-  const corretivas = itensRdo.filter(
-    (item) => (item.categoria || "").toLowerCase() === "corretiva"
-  ).length;
-  const preditivas = itensRdo.filter(
-    (item) => (item.categoria || "").toLowerCase() === "preditiva"
-  ).length;
-  if (corretivas || preditivas) {
-    pontos.push(`Corretivas: ${corretivas} | Preditivas: ${preditivas}.`);
-  }
-  const docsPendentes = itensRdo.filter((item) => item.docsCompliance === false).length;
-  if (docsPendentes) {
-    pontos.push(`Documentação pendente em ${docsPendentes} atividade(s).`);
-  }
-  const observacoes = itensRdo
-    .map((item) => {
-      const texto = item.observacaoExecucao || item.descricao || "";
-      if (!texto) {
-        return null;
-      }
-      return `${item.titulo}: ${texto}`;
-    })
+  const resumos = itensRdo
+    .map((item) => buildResumoItemRdo(item))
     .filter(Boolean)
-    .slice(0, 3);
-  observacoes.forEach((texto) => {
-    pontos.push(truncarTexto(texto, 140));
-  });
-  if (!pontos.length) {
-    pontos.push("Sem apontamentos adicionais no período.");
+    .map((texto) => ensureSentence(truncarTexto(texto, 220)))
+    .filter(Boolean);
+  let sintese = "Sem descrição técnica detalhada registrada.";
+  if (resumos.length) {
+    const limite = 4;
+    const frases = resumos.slice(0, limite);
+    const restante = resumos.length - limite;
+    if (restante > 0) {
+      frases.push(`Outras ${restante} atividade(s) seguiram o escopo programado.`);
+    }
+    sintese = `Síntese técnica: ${frases.join(" ")}`.trim();
   }
-  return { resumo, pontos };
+  return `${resumo} ${sintese}`.trim();
+}
+
+function gerarDetalhamentoConsolidadoRdo(itensRdo, metricas) {
+  if (!itensRdo.length) {
+    return { texto: "Sem itens no período.", cards: [] };
+  }
+  const subestacoes = itensRdo
+    .map((item) => (item.subestacao && item.subestacao !== "-" ? item.subestacao : ""))
+    .filter(Boolean);
+  const equipamentos = itensRdo
+    .map((item) => (item.equipamento && item.equipamento !== "-" ? item.equipamento : ""))
+    .filter(Boolean);
+  const responsaveis = itensRdo
+    .map((item) => item.responsavel || "")
+    .filter(Boolean);
+  const participantes = itensRdo
+    .flatMap((item) => parseParticipantesLabel(item.participantes))
+    .filter(Boolean);
+  const docsPendentes = itensRdo.filter((item) => item.docsCompliance === false).length;
+  const partes = [];
+  if (metricas.tempoTotalMin && metricas.tempoTotalMin > 0) {
+    partes.push(`Tempo total de execução: ${formatDuracaoMin(metricas.tempoTotalMin)}.`);
+  }
+  if (metricas.criticas) {
+    partes.push(`Atividades críticas: ${metricas.criticas}.`);
+  }
+  if (docsPendentes) {
+    partes.push(`Documentação pendente em ${docsPendentes} atividade(s).`);
+  } else if (metricas.docsTotal) {
+    partes.push("Documentação operacional dentro do esperado.");
+  }
+  if (!partes.length) {
+    partes.push("Sem detalhes adicionais no período.");
+  }
+  const cards = [];
+  const subestacoesLabel = formatListLimited(subestacoes);
+  if (subestacoesLabel) {
+    cards.push({ label: "Subestações", value: subestacoesLabel });
+  }
+  const equipamentosLabel = formatListLimited(equipamentos);
+  if (equipamentosLabel) {
+    cards.push({ label: "Equipamentos", value: equipamentosLabel });
+  }
+  const responsaveisLabel = formatListLimited(responsaveis);
+  if (responsaveisLabel) {
+    cards.push({ label: "Responsáveis", value: responsaveisLabel });
+  }
+  const participantesLabel = formatListLimited(participantes);
+  if (participantesLabel) {
+    cards.push({ label: "Participantes", value: participantesLabel });
+  }
+  return { texto: partes.join(" "), cards };
 }
 
 function truncarTexto(texto, limite) {
@@ -17394,6 +17490,10 @@ function buildRdoHtml(snapshot, options = {}) {
       ? calcDurationMinutes(manual.horaExtra.inicio, manual.horaExtra.fim)
       : 0;
   const descricaoConsolidada = gerarDescricaoConsolidadaRdo(snapshot.itens || [], snapshot.metricas);
+  const detalhamentoConsolidado = gerarDetalhamentoConsolidadoRdo(
+    snapshot.itens || [],
+    snapshot.metricas
+  );
   const rdoNumero = snapshot.id ? snapshot.id.slice(0, 6).toUpperCase() : "-";
   const resumoItensBase = [
     { label: "Atividades", value: snapshot.metricas.total },
@@ -17514,108 +17614,48 @@ function buildRdoHtml(snapshot, options = {}) {
       const fimDate = item.fim ? parseTimestamp(item.fim) : null;
       const inicio = inicioDate ? formatDateTime(inicioDate) : "-";
       const fim = fimDate ? formatDateTime(fimDate) : "-";
+      const osReferencia = item.osReferencia ? String(item.osReferencia).trim() : "";
+      const meta = [];
+      if (item.subestacao && item.subestacao !== "-") {
+        meta.push(`Subestacao: ${item.subestacao}`);
+      }
+      if (item.equipamento && item.equipamento !== "-") {
+        meta.push(`Equipamento: ${item.equipamento}`);
+      }
+      if (osReferencia) {
+        meta.push(`OS: ${osReferencia}`);
+      }
+      if (item.categoria) {
+        meta.push(`Categoria: ${item.categoria}`);
+      }
+      if (item.prioridade) {
+        meta.push(`Prioridade: ${item.prioridade}`);
+      }
+      const metaHtml = meta.length
+        ? `<div class="rdo-activity__meta">${meta
+            .map((texto) => `<span>${escapeHtml(texto)}</span>`)
+            .join("")}</div>`
+        : `<div class="rdo-activity__meta"><span>Sem detalhes adicionais.</span></div>`;
+      const janelaHtml = `
+        <div class="rdo-janela">
+          <span>Inicio: ${escapeHtml(inicio)}</span>
+          <span>Fim: ${escapeHtml(fim)}</span>
+        </div>
+      `;
       return `
         <tr>
-          <td title="${escapeHtml(item.titulo)}">${escapeHtml(item.titulo)}</td>
-          <td>${escapeHtml(item.subestacao)}</td>
+          <td>
+            <div class="rdo-activity">
+              <div class="rdo-activity__title">${escapeHtml(item.titulo)}</div>
+              ${metaHtml}
+            </div>
+          </td>
           <td class="rdo-table__status">
             <span class="status-badge status-badge--${statusClass}">${escapeHtml(item.statusLabel)}</span>
           </td>
-          <td>${escapeHtml(inicio)}</td>
-          <td>${escapeHtml(fim)}</td>
+          <td>${janelaHtml}</td>
           <td>${escapeHtml(item.responsavel || "-")}</td>
         </tr>
-      `;
-    })
-    .join("");
-
-  const detalhes = snapshot.itens
-    .map((item) => {
-      const inicioDate = item.inicio ? parseTimestamp(item.inicio) : null;
-      const fimDate = item.fim ? parseTimestamp(item.fim) : null;
-      const inicio = inicioDate ? formatDateTime(inicioDate) : "-";
-      const fim = fimDate ? formatDateTime(fimDate) : "-";
-      const duracao = Number.isFinite(item.duracaoMin) ? formatDuracaoMin(item.duracaoMin) : "-";
-      const descricaoTecnica = item.descricao
-        ? item.descricao
-        : "Sem descrição técnica registrada.";
-      const acaoExecutada = item.observacaoExecucao
-        ? item.observacaoExecucao
-        : "Sem ação detalhada registrada.";
-      const janelaExecucao = formatJanelaExecucaoRdo(item.inicio, item.fim);
-      const participantes =
-        item.participantes && item.participantes !== "-" ? item.participantes : "-";
-      const resultadoLabel = item.resultadoLabel || "-";
-      const statusFinal = item.statusLabel || "-";
-      const criticidade = item.critico ? "Crítica" : "Não crítica";
-      const evidenciasLabel = item.evidenciasCount ? `${item.evidenciasCount} foto(s)` : "0";
-      return `
-        <article class="rdo-item">
-          <div class="rdo-item__head">
-            <strong>${escapeHtml(item.titulo)}</strong>
-            <span class="rdo-item__status">${escapeHtml(item.statusLabel)}</span>
-          </div>
-          <div class="rdo-item__body">
-            <div class="rdo-item__section">
-              <h4>Contexto</h4>
-              <p>
-                Subestação: ${escapeHtml(item.subestacao || "-")} • Categoria: ${escapeHtml(
-                  item.categoria || "-"
-                )} • Prioridade: ${escapeHtml(item.prioridade || "-")}
-              </p>
-            </div>
-            <div class="rdo-item__section">
-              <h4>Descrição técnica</h4>
-              <p>${escapeHtml(descricaoTecnica)}</p>
-            </div>
-            <div class="rdo-item__section">
-              <h4>Ação executada</h4>
-              <p>${escapeHtml(acaoExecutada)}</p>
-            </div>
-            <div class="rdo-item__section">
-              <h4>Janela de execução</h4>
-              <p>${escapeHtml(janelaExecucao)}</p>
-            </div>
-            <div class="rdo-item__grid">
-              <div>
-                <span>Responsável</span>
-                <strong>${escapeHtml(item.responsavel || "-")}</strong>
-              </div>
-              <div>
-                <span>Participantes</span>
-                <strong>${escapeHtml(participantes)}</strong>
-              </div>
-              <div>
-                <span>Duração</span>
-                <strong>${escapeHtml(duracao)}</strong>
-              </div>
-              <div>
-                <span>Resultado</span>
-                <strong>${escapeHtml(resultadoLabel)}</strong>
-              </div>
-              <div>
-                <span>Status final</span>
-                <strong>${escapeHtml(statusFinal)}</strong>
-              </div>
-              <div>
-                <span>Criticidade</span>
-                <strong>${escapeHtml(criticidade)}</strong>
-              </div>
-              <div>
-                <span>Evidências</span>
-                <strong>${escapeHtml(evidenciasLabel)}</strong>
-              </div>
-            </div>
-          </div>
-          <div class="rdo-item__footer">
-            <div class="rdo-docs">
-              ${buildDocsChipsHtml(item.docsStatus)}
-            </div>
-            <p class="rdo-docs-note">Documentação registrada no sistema: ${escapeHtml(
-              item.docsResumo || "Sem registro"
-            )}</p>
-          </div>
-        </article>
       `;
     })
     .join("");
@@ -17761,31 +17801,24 @@ function buildRdoHtml(snapshot, options = {}) {
 
       <section class="rdo-section">
         <h3>Atividades do Dia</h3>
-        <table class="rdo-table">
+        <table class="rdo-table rdo-table--activities">
           <thead>
             <tr>
-              <th>Atividade</th>
-              <th>Subestação</th>
+              <th>Atividade / Contexto</th>
               <th>Status</th>
-              <th>Início</th>
-              <th>Fim</th>
-              <th>Responsável</th>
+              <th>Janela</th>
+              <th>Responsavel</th>
             </tr>
           </thead>
           <tbody>
-            ${rows || `<tr><td colspan="6">Sem itens no período.</td></tr>`}
+            ${rows || `<tr><td colspan="4">Sem itens no periodo.</td></tr>`}
           </tbody>
         </table>
       </section>
 
       <section class="rdo-section">
-        <h3>Descrição Consolidada do Dia</h3>
-        <p>${escapeHtml(descricaoConsolidada.resumo || "")}</p>
-        <ul class="rdo-lista">
-          ${descricaoConsolidada.pontos
-            .map((ponto) => `<li>${escapeHtml(ponto)}</li>`)
-            .join("")}
-        </ul>
+        <h3>Descricao Consolidada do Dia</h3>
+        <p class="rdo-paragraph">${escapeHtml(descricaoConsolidada || "")}</p>
       </section>
 
       ${
@@ -17799,11 +17832,27 @@ function buildRdoHtml(snapshot, options = {}) {
           : ""
       }
 
-      <section class="rdo-section">
-        <h3>Detalhamento por Atividade</h3>
-        <div class="rdo-items">
-          ${detalhes || `<p class="empty-state">Sem itens no período.</p>`}
-        </div>
+      <section class="rdo-section rdo-block">
+        <h3>Detalhamento Consolidado</h3>
+        <p class="rdo-paragraph">${escapeHtml(detalhamentoConsolidado.texto || "")}</p>
+        ${
+          detalhamentoConsolidado.cards && detalhamentoConsolidado.cards.length
+            ? `
+          <div class="rdo-info-grid rdo-info-grid--wide">
+            ${detalhamentoConsolidado.cards
+              .map(
+                (card) => `
+              <div>
+                <span>${escapeHtml(card.label)}</span>
+                <strong>${escapeHtml(card.value)}</strong>
+              </div>
+            `
+              )
+              .join("")}
+          </div>
+        `
+            : ""
+        }
       </section>
 
       <section class="rdo-section">
@@ -17851,6 +17900,13 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
     .rdo-table th, .rdo-table td { border-bottom: 1px solid #d6d1c6; padding: 6px 8px; }
     .rdo-table th { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; background: #f8f6f1; color: #425363; }
     .rdo-table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rdo-table--activities { table-layout: auto; }
+    .rdo-table--activities td { white-space: normal; vertical-align: top; }
+    .rdo-activity { display: grid; gap: 4px; }
+    .rdo-activity__title { font-size: 0.9rem; font-weight: 600; color: #1f2a33; }
+    .rdo-activity__meta { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 0.7rem; color: #425363; }
+    .rdo-activity__meta span { white-space: normal; }
+    .rdo-janela { display: grid; gap: 2px; font-size: 0.72rem; color: #1f2a33; }
     .rdo-table--compact th, .rdo-table--compact td { font-size: 0.7rem; }
     .rdo-table--center th, .rdo-table--center td { text-align: center; }
     .rdo-items { display: grid; gap: 10px; }
@@ -17870,7 +17926,9 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
     .rdo-info-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; font-size: 0.75rem; color: #425363; }
     .rdo-info-grid span { display: block; text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.55rem; }
     .rdo-info-grid strong { font-size: 0.8rem; color: #1f2a33; }
+    .rdo-info-grid--wide { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
     .rdo-lista { margin: 0; padding-left: 18px; font-size: 0.8rem; color: #425363; }
+    .rdo-paragraph { margin: 0; line-height: 1.55; color: #1f2a33; }
     .doc-chip { border-radius: 999px; padding: 3px 8px; font-size: 0.6rem; border: 1px solid #d6d1c6; text-transform: uppercase; letter-spacing: 0.1em; }
     .doc-chip--ok { background: rgba(43, 122, 120, 0.18); color: #1f5759; border-color: rgba(43, 122, 120, 0.35); }
     .doc-chip--pendente { background: rgba(192, 84, 47, 0.18); color: #7a2b1e; border-color: rgba(192, 84, 47, 0.35); }
@@ -33620,9 +33678,10 @@ function editarManutencaoConcluida(index) {
   if (comentarioInput === null) {
     return;
   }
-  const comentarioFinal = comentarioInput.trim();
-  if (!comentarioFinal) {
-    mostrarMensagemManutencao("Descrição técnica obrigatória.", true);
+  const comentarioFinal = normalizeResumoRdoTexto(comentarioInput);
+  const comentarioMsg = getMensagemResumoRdo(comentarioFinal);
+  if (comentarioMsg) {
+    mostrarMensagemManutencao(comentarioMsg, true);
     return;
   }
 
@@ -34483,9 +34542,11 @@ function salvarRegistroExecucao(event) {
     return;
   }
   const resultadoFinal = resultadoInformado || registroSalvo.resultado || "";
-  const comentario = registroComentario ? registroComentario.value.trim() : "";
-  if (!comentario) {
-    mostrarMensagemRegistroExecucao("Descrição técnica obrigatória.", true);
+  const comentarioRaw = registroComentario ? registroComentario.value : "";
+  const comentario = normalizeResumoRdoTexto(comentarioRaw);
+  const comentarioMsg = getMensagemResumoRdo(comentario);
+  if (comentarioMsg) {
+    mostrarMensagemRegistroExecucao(comentarioMsg, true);
     return;
   }
   const observacaoExecucao = registroObsExecucao ? registroObsExecucao.value.trim() : "";
@@ -35948,6 +36009,11 @@ async function salvarConclusao(event) {
   }
   const executadoPor = registro.executadoPor;
   const comentario = registro.comentario;
+  const comentarioMsg = getMensagemResumoRdo(comentario);
+  if (comentarioMsg) {
+    mostrarMensagemConclusao(comentarioMsg, true);
+    return;
+  }
   const observacaoExecucao = registro.observacaoExecucao || "";
   const registroAtualizado = resultado
     ? { ...registro, resultado }
