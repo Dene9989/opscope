@@ -3997,7 +3997,7 @@ const RDO_AI_SCHEMA = {
   },
 };
 
-const RDO_AI_PROMPT_VERSION = String(process.env.OPSCOPE_RDO_AI_PROMPT_VERSION || "v2");
+const RDO_AI_PROMPT_VERSION = String(process.env.OPSCOPE_RDO_AI_PROMPT_VERSION || "v3");
 
 const RDO_STATUS_LABELS = {
   concluida: "Concluída",
@@ -4011,7 +4011,7 @@ const RDO_STATUS_LABELS = {
 
 function formatDurationMin(totalMin) {
   if (!Number.isFinite(totalMin) || totalMin <= 0) {
-    return "não informado";
+    return "nao informado";
   }
   const horas = Math.floor(totalMin / 60);
   const minutos = Math.round(totalMin % 60);
@@ -4045,26 +4045,26 @@ function setRdoCache(projectId, dateStr, data) {
 
 function normalizeStatusLabel(status) {
   const key = normalizeStatus(status);
-  return RDO_STATUS_LABELS[key] || "não informado";
+  return RDO_STATUS_LABELS[key] || "nao informado";
 }
 
 function getEquipmentLabel(item, projectId) {
   if (!item || typeof item !== "object") {
-    return "não informado";
+    return "nao informado";
   }
   const equipmentObj = item.equipamento || null;
   if (equipmentObj && typeof equipmentObj === "object") {
     const tag = equipmentObj.tag || "";
     const nome = equipmentObj.nome || equipmentObj.name || "";
     if (tag || nome) {
-      return `${tag ? `${tag} - ` : ""}${nome}`.trim() || "não informado";
+      return `${tag ? `${tag} - ` : ""}${nome}`.trim() || "nao informado";
     }
     if (equipmentObj.id) {
       const match = equipamentos.find(
         (equip) => equip && equip.id === equipmentObj.id && equip.projectId === projectId
       );
       if (match) {
-        return `${match.tag ? `${match.tag} - ` : ""}${match.nome || ""}`.trim() || "não informado";
+        return `${match.tag ? `${match.tag} - ` : ""}${match.nome || ""}`.trim() || "nao informado";
       }
       return equipmentObj.id;
     }
@@ -4085,7 +4085,7 @@ function getEquipmentLabel(item, projectId) {
     }
     return equipamentoId;
   }
-  return "não informado";
+  return "nao informado";
 }
 
 function getMaintenanceDateCandidates(item) {
@@ -4131,12 +4131,108 @@ function dedupeLabels(list) {
   return output;
 }
 
+function normalizeForMatch(texto) {
+  if (!texto) {
+    return "";
+  }
+  return String(texto)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+}
+
+function classifyEquipmentGroup(name) {
+  const base = normalizeForMatch(name);
+  if (!base) {
+    return "";
+  }
+  if (base.includes("SERVICOS AUXILIARES") || /\bTSA-\d+\b/.test(base)) {
+    return "Transformadores de serviços auxiliares";
+  }
+  if (base.includes("POTENCIA") || /\bT-\d+\b/.test(base)) {
+    return "Transformadores de potência";
+  }
+  if (base.includes("TRANSFORMADOR")) {
+    return "Transformadores";
+  }
+  return "Equipamentos";
+}
+
+function extractEquipmentTag(name) {
+  const base = normalizeForMatch(name);
+  if (!base) {
+    return "";
+  }
+  const match =
+    base.match(/\bTSA-\d+\b/) ||
+    base.match(/\bT-\d+\b/) ||
+    base.match(/\bTR-\d+\b/) ||
+    base.match(/\bTRA-\d+\b/);
+  return match ? match[0] : "";
+}
+
+function buildEquipamentosResumo(atividades) {
+  const equipamentos = Array.from(
+    new Set(
+      (atividades || [])
+        .map((item) => (item && item.equipamento ? String(item.equipamento).trim() : ""))
+        .filter(Boolean)
+    )
+  );
+  const gruposMap = new Map();
+  const tags = new Set();
+  equipamentos.forEach((nome) => {
+    const tipo = classifyEquipmentGroup(nome) || "Equipamentos";
+    const tag = extractEquipmentTag(nome);
+    if (tag) {
+      tags.add(tag);
+    }
+    if (!gruposMap.has(tipo)) {
+      gruposMap.set(tipo, { tipo, quantidade: 0, tags: new Set(), nomes: [] });
+    }
+    const grupo = gruposMap.get(tipo);
+    grupo.quantidade += 1;
+    if (tag) {
+      grupo.tags.add(tag);
+    }
+    grupo.nomes.push(nome);
+  });
+  const grupos = Array.from(gruposMap.values()).map((grupo) => ({
+    tipo: grupo.tipo,
+    quantidade: grupo.quantidade,
+    tags: Array.from(grupo.tags),
+    nomes: grupo.nomes,
+  }));
+  return {
+    total: equipamentos.length,
+    tags: Array.from(tags),
+    grupos,
+  };
+}
+
+function getAcaoPrincipal(atividades) {
+  const acoes = Array.from(
+    new Set(
+      (atividades || [])
+        .map((item) => (item && item.acao ? String(item.acao).trim() : ""))
+        .filter(Boolean)
+    )
+  );
+  if (acoes.length === 1) {
+    return acoes[0];
+  }
+  if (acoes.length > 1 && acoes.length <= 2) {
+    return acoes.join(" / ");
+  }
+  return "Atividades de manutenção";
+}
+
 function buildRdoPayload(dateStr, projectId) {
   const base = parseDateOnly(dateStr) || startOfDay(new Date());
   const inicio = startOfDay(base);
   const fim = addDays(inicio, 1);
   const project = getProjectById(projectId);
-  const local = project ? getProjectLabel(project) : "não informado";
+  const local = project ? getProjectLabel(project) : "nao informado";
   const list = loadMaintenanceData().filter(
     (item) => item && item.projectId === projectId && isMaintenanceInRange(item, inicio, fim)
   );
@@ -4148,18 +4244,18 @@ function buildRdoPayload(dateStr, projectId) {
       item.tipo ||
       item.tipoManutencao ||
       item.tipo_atividade ||
-      "não informado";
+      "nao informado";
     const acao =
       item.titulo ||
       (item.registroExecucao && item.registroExecucao.comentario) ||
       (item.conclusao && item.conclusao.comentario) ||
       item.observacao ||
-      "não informado";
+      "nao informado";
     return {
-      equipamento: equipamento || "não informado",
-      tipo: tipo || "não informado",
-      acao: acao || "não informado",
-      status: statusLabel || "não informado",
+      equipamento: equipamento || "nao informado",
+      tipo: tipo || "nao informado",
+      acao: acao || "nao informado",
+      status: statusLabel || "nao informado",
     };
   });
   const statusKeys = list.map((item) => normalizeStatus(item.status));
@@ -4206,16 +4302,14 @@ function buildRdoPayload(dateStr, projectId) {
   const subestacoes = list
     .map((item) => item.local || item.subestacao || item.substation || "")
     .filter(Boolean);
-  const subestacao =
-    subestacoes.length === 0
-      ? "não informado"
-      : subestacoes.length === 1
-        ? subestacoes[0]
-        : "múltiplas";
+  const subestacao = local || (subestacoes[0] || "nao informado");
+  const equipamentosResumo = buildEquipamentosResumo(atividades);
+  const acaoPrincipal = getAcaoPrincipal(atividades);
   return {
     date: formatDateISO(inicio),
-    local: local || "não informado",
+    local: local || "nao informado",
     subestacao,
+    subestacoes_detalhe: Array.from(new Set(subestacoes)),
     kpis: {
       registradas: atividades.length,
       concluidas,
@@ -4223,38 +4317,40 @@ function buildRdoPayload(dateStr, projectId) {
       pendentes,
       tempo_total: formatDurationMin(tempoTotalMin),
     },
-    responsavel: responsaveis.length ? responsaveis.join("; ") : "n?o informado",
-    participantes: participantes.length ? participantes.join("; ") : "n?o informado",
+    responsavel: responsaveis.length ? responsaveis.join("; ") : "nao informado",
+    participantes: participantes.length ? participantes.join("; ") : "nao informado",
+    acao_principal: acaoPrincipal,
+    equipamentos_resumo: equipamentosResumo,
     atividades,
   };
 }
 
 function generateRdoTextDeterministic(payload) {
   const kpis = payload.kpis || {};
-  const registradas = Number.isFinite(kpis.registradas) ? kpis.registradas : "não informado";
-  const concluidas = Number.isFinite(kpis.concluidas) ? kpis.concluidas : "não informado";
-  const execucao = Number.isFinite(kpis.execucao) ? kpis.execucao : "não informado";
-  const pendentes = Number.isFinite(kpis.pendentes) ? kpis.pendentes : "não informado";
-  const tempoTotal = kpis.tempo_total || "não informado";
-  const responsavel = payload.responsavel || "não informado";
-  const participantes = payload.participantes || "não informado";
+  const registradas = Number.isFinite(kpis.registradas) ? kpis.registradas : "nao informado";
+  const concluidas = Number.isFinite(kpis.concluidas) ? kpis.concluidas : "nao informado";
+  const execucao = Number.isFinite(kpis.execucao) ? kpis.execucao : "nao informado";
+  const pendentes = Number.isFinite(kpis.pendentes) ? kpis.pendentes : "nao informado";
+  const tempoTotal = kpis.tempo_total || "nao informado";
+  const responsavel = payload.responsavel || "nao informado";
+  const participantes = payload.participantes || "nao informado";
   const descricao = `Foram registradas ${registradas} atividades no período, com ${concluidas} concluídas, ${execucao} em execução e ${pendentes} pendentes. Tempo total: ${tempoTotal}. Responsável: ${responsavel}. Participantes: ${participantes}.`;
 
   const atividades = Array.isArray(payload.atividades) ? payload.atividades : [];
   const atividadeDoDia =
     atividades.length === 1 ? atividades[0].acao || "Atividade do dia" : "Atividades do dia";
   let statusGeral = "Em andamento";
-  if (concluidas !== "não informado" && registradas === concluidas) {
+  if (concluidas !== "nao informado" && registradas === concluidas) {
     statusGeral = "Concluída";
-  } else if (execucao !== "não informado" && Number(execucao) > 0) {
+  } else if (execucao !== "nao informado" && Number(execucao) > 0) {
     statusGeral = "Em execução";
-  } else if (pendentes !== "não informado" && Number(pendentes) > 0) {
+  } else if (pendentes !== "nao informado" && Number(pendentes) > 0) {
     statusGeral = "Pendentes";
   }
   const equipamentos = atividades.map((item) => ({
-    nome: item.equipamento || "não informado",
-    tipo: item.tipo || "não informado",
-    status: item.status || "não informado",
+    nome: item.equipamento || "nao informado",
+    tipo: item.tipo || "nao informado",
+    status: item.status || "nao informado",
   }));
   const equipamentosUnicos = Array.from(
     new Map(
@@ -4267,13 +4363,13 @@ function generateRdoTextDeterministic(payload) {
   return {
     descricao_consolidada: descricao,
     atividades_consolidado: {
-      local: payload.local || "não informado",
-      subestacao: payload.subestacao || "não informado",
-      atividade_do_dia: atividadeDoDia || "não informado",
-      status_geral: statusGeral || "não informado",
+      local: payload.local || "nao informado",
+      subestacao: payload.subestacao || "nao informado",
+      atividade_do_dia: atividadeDoDia || "nao informado",
+      status_geral: statusGeral || "nao informado",
       equipamentos: equipamentosUnicos.length
         ? equipamentosUnicos
-        : [{ nome: "não informado", tipo: "não informado", status: "não informado" }],
+        : [{ nome: "nao informado", tipo: "nao informado", status: "nao informado" }],
     },
   };
 }
@@ -4336,8 +4432,12 @@ async function generateRdoTextWithAI(payload) {
     "Use APENAS os dados do JSON informado. Nao invente numeros, locais, datas ou tempos. " +
     "Se algo faltar, escreva 'nao informado'. Evite repeticoes e frases genericas. " +
     "Nao inicie com 'Relatorio Diario' ou 'RDO'. Nao repita cabecalhos. " +
-    "descricao_consolidada: 2 a 4 frases curtas, sem listar equipamentos; foque em contexto, volume, status e observacoes. " +
-    "atividades_consolidado.atividade_do_dia: uma frase objetiva (ate 16 palavras) resumindo as acoes principais. " +
+    "Use 'subestacao' como referencia de local. Ignore 'local' se estiver redundante. " +
+    "Se houver grupos em 'equipamentos_resumo.grupos', cite todos os grupos presentes (ex: potencia e servicos auxiliares). " +
+    "Se houver tags em 'equipamentos_resumo.tags', mencione os tags (T-01, T-02, TSA-01...) na descricao. " +
+    "Nao mencione tempo total. " +
+    "descricao_consolidada: 2 a 4 frases curtas, sem listar equipamentos um a um; foque na atividade principal, escopo e status. " +
+    "atividades_consolidado.atividade_do_dia: frase objetiva (ate 16 palavras) baseada em 'acao_principal' e grupos. " +
     "status_geral: use Concluida / Em execucao / Pendentes / Em andamento. " +
     "Responda estritamente no formato do schema.";
   const userPrompt = `Dados do RDO (JSON): ${JSON.stringify(payload)}`;

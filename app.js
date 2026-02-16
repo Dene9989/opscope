@@ -17516,9 +17516,36 @@ function getStatusGeralConsolidado(itensRdo) {
   return "Em andamento";
 }
 
+function normalizeForMatch(texto) {
+  if (!texto) {
+    return "";
+  }
+  return String(texto)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+}
+
+function getEquipmentGroupLabel(nome) {
+  const base = normalizeForMatch(nome);
+  if (!base) {
+    return "";
+  }
+  if (base.includes("SERVICOS AUXILIARES") || /\bTSA-\d+\b/.test(base)) {
+    return "transformadores de serviços auxiliares";
+  }
+  if (base.includes("POTENCIA") || /\bT-\d+\b/.test(base)) {
+    return "transformadores de potência";
+  }
+  if (base.includes("TRANSFORMADOR")) {
+    return "transformadores";
+  }
+  return "equipamentos";
+}
+
 function buildAtividadesConsolidadoFallback(itensRdo) {
   const projetoAtivo = getActiveProject();
-  const local = projetoAtivo ? getProjectLabel(projetoAtivo) : "não informado";
+  const projetoLabel = projetoAtivo ? getProjectLabel(projetoAtivo) : "não informado";
   const subestacoes = Array.from(
     new Set(
       itensRdo
@@ -17526,27 +17553,31 @@ function buildAtividadesConsolidadoFallback(itensRdo) {
         .filter(Boolean)
     )
   );
-  let subestacao = "não informado";
-  if (subestacoes.length === 1) {
-    subestacao = subestacoes[0];
-  } else if (subestacoes.length > 1) {
-    subestacao = "múltiplas";
-  }
+  const subestacao = projetoLabel || (subestacoes[0] || "não informado");
   const titulos = Array.from(
     new Set(itensRdo.map((item) => item.titulo || "").filter(Boolean))
+  );
+  const categorias = Array.from(
+    new Set(itensRdo.map((item) => item.categoria || "").filter(Boolean))
+  );
+  const equipamentosNomes = itensRdo
+    .map((item) => (item.equipamento && item.equipamento !== "-" ? item.equipamento : ""))
+    .filter(Boolean);
+  const gruposEquip = Array.from(
+    new Set(equipamentosNomes.map((nome) => getEquipmentGroupLabel(nome)).filter(Boolean))
   );
   let atividadeDoDia = "Atividades de manutenção";
   if (titulos.length === 1) {
     atividadeDoDia = titulos[0];
   } else if (titulos.length > 1 && titulos.length <= 3) {
     atividadeDoDia = titulos.join(" / ");
-  } else {
-    const categorias = Array.from(
-      new Set(itensRdo.map((item) => item.categoria || "").filter(Boolean))
-    );
-    if (categorias.length === 1) {
-      atividadeDoDia = `Manutenção ${categorias[0]}`;
-    }
+  } else if (categorias.length === 1) {
+    atividadeDoDia = `Manutenção ${categorias[0]}`;
+  }
+  if (gruposEquip.length === 1) {
+    atividadeDoDia = `${atividadeDoDia} em ${gruposEquip[0]}`;
+  } else if (gruposEquip.length > 1) {
+    atividadeDoDia = `${atividadeDoDia} em ${gruposEquip.join(" e ")}`;
   }
   const statusGeral = getStatusGeralConsolidado(itensRdo);
   const equipamentos = itensRdo.map((item) => ({
@@ -17563,7 +17594,7 @@ function buildAtividadesConsolidadoFallback(itensRdo) {
     ).values()
   );
   return {
-    local,
+    local: projetoLabel,
     subestacao,
     atividade_do_dia: atividadeDoDia,
     status_geral: statusGeral,
@@ -17574,7 +17605,6 @@ function buildAtividadesConsolidadoFallback(itensRdo) {
 }
 
 function buildAtividadesConsolidadoHtml(data) {
-  const local = data && data.local ? data.local : "não informado";
   const subestacao = data && data.subestacao ? data.subestacao : "não informado";
   const atividade = data && data.atividade_do_dia ? data.atividade_do_dia : "não informado";
   const status = data && data.status_geral ? data.status_geral : "não informado";
@@ -17608,7 +17638,6 @@ function buildAtividadesConsolidadoHtml(data) {
   `;
   return `
     <div class="rdo-info-grid rdo-info-grid--wide">
-      <div><span>Local</span><strong>${escapeHtml(local)}</strong></div>
       <div><span>Subestação</span><strong>${escapeHtml(subestacao)}</strong></div>
       <div><span>Atividade do dia</span><strong>${escapeHtml(atividade)}</strong></div>
       <div><span>Status geral</span><strong>${escapeHtml(status)}</strong></div>
@@ -17854,7 +17883,10 @@ async function gerarSnapshotRdo(persistir = false) {
     descricao_consolidada: gerarDescricaoConsolidadaRdo(itensRdo, metricas),
     atividades_consolidado: buildAtividadesConsolidadoFallback(itensRdo),
   };
-  const aiText = (await fetchRdoAiText(dataStr)) || aiFallback;
+  const aiTextRaw = await fetchRdoAiText(dataStr);
+  const aiText = aiTextRaw
+    ? { ...aiTextRaw, atividades_consolidado: aiFallback.atividades_consolidado }
+    : aiFallback;
   const agora = new Date();
   const snapshot = {
     id: criarId(),
