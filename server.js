@@ -3274,6 +3274,17 @@ function canDeleteMaintenance(user) {
   return hasPermission(user, "remove");
 }
 
+function canReopenMaintenance(user) {
+  if (!user) {
+    return false;
+  }
+  return (
+    hasPermission(user, "edit") ||
+    hasPermission(user, "complete") ||
+    hasPermission(user, "remove")
+  );
+}
+
 function canSyncMaintenance(user) {
   if (!user) {
     return false;
@@ -3683,14 +3694,20 @@ function pickMaintenanceMerge(existing, incoming) {
   }
   const existingStatus = normalizeStatus(existing.status);
   const incomingStatus = normalizeStatus(incoming.status);
+  const existingTime = getMaintenanceUpdatedAtValue(existing);
+  const incomingTime = getMaintenanceUpdatedAtValue(incoming);
   if (existingStatus === "concluida" && incomingStatus !== "concluida") {
+    if (incomingTime && incomingTime > existingTime) {
+      return { ...existing, ...incoming };
+    }
     return existing;
   }
   if (incomingStatus === "concluida" && existingStatus !== "concluida") {
-    return incoming;
+    if (existingTime && existingTime > incomingTime) {
+      return existing;
+    }
+    return { ...existing, ...incoming };
   }
-  const existingTime = getMaintenanceUpdatedAtValue(existing);
-  const incomingTime = getMaintenanceUpdatedAtValue(incoming);
   if (incomingTime && (!existingTime || incomingTime > existingTime)) {
     return { ...existing, ...incoming };
   }
@@ -8848,6 +8865,75 @@ app.delete("/api/maintenance/:id", requireAuth, (req, res) => {
     source: "delete",
   });
   return res.json({ ok: true, removedId: maintenanceId, projectId });
+});
+
+app.post("/api/maintenance/reopen", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const projectId = getActiveProjectId(req, user);
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto ativo obrigatório." });
+  }
+  if (!canReopenMaintenance(user)) {
+    return res.status(403).json({ message: "Sem permissão para reabrir manutenções." });
+  }
+  const maintenanceId = String(req.body.id || req.body.maintenanceId || "").trim();
+  if (!maintenanceId) {
+    return res.status(400).json({ message: "Manutenção inválida." });
+  }
+  const dataset = loadMaintenanceData();
+  const index = dataset.findIndex(
+    (item) => item && String(item.id || "") === maintenanceId && item.projectId === projectId
+  );
+  if (index === -1) {
+    return res.status(404).json({ message: "Manutenção não encontrada." });
+  }
+  const item = dataset[index];
+  if (normalizeStatus(item.status) !== "concluida") {
+    return res.status(409).json({ message: "Manutenção não está concluída." });
+  }
+  const now = new Date().toISOString();
+  const historico = Array.isArray(item.conclusoesAnteriores)
+    ? item.conclusoesAnteriores.slice()
+    : [];
+  if (item.conclusao) {
+    historico.push({
+      ...item.conclusao,
+      archivedAt: now,
+      archivedBy: user ? user.id : null,
+    });
+  }
+  const updated = {
+    ...item,
+    status: "em_execucao",
+    executionFinishedAt: "",
+    doneAt: "",
+    doneBy: "",
+    conclusao: null,
+    conclusoesAnteriores: historico,
+    reopenedAt: now,
+    reopenedBy: user ? user.id : null,
+    updatedAt: now,
+    updatedBy: user ? user.id : null,
+  };
+  if (!updated.executionStartedAt) {
+    updated.executionStartedAt = now;
+  }
+  dataset[index] = updated;
+  writeJson(MAINTENANCE_FILE, dataset);
+  DASHBOARD_CACHE.delete(projectId);
+  appendAudit(
+    "maintenance_reopen",
+    user ? user.id : null,
+    { manutencaoId: maintenanceId, projectId },
+    getClientIp(req),
+    projectId
+  );
+  broadcastSse("maintenance.updated", {
+    projectId,
+    id: maintenanceId,
+    source: "reopen",
+  });
+  return res.json({ ok: true, item: updated, projectId });
 });
 
 app.post("/api/maintenance/release", requireAuth, (req, res) => {

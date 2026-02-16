@@ -3381,6 +3381,10 @@ function canEditConcludedMaintenance(user) {
   return rbacRole === "pcm";
 }
 
+function canReopenMaintenance(user) {
+  return canEditConcludedMaintenance(user);
+}
+
 function canUploadPmpProcedimento(user) {
   if (!user) {
     return false;
@@ -4069,6 +4073,7 @@ const ACTION_LABELS = {
   cancel_start: "Início cancelado",
   execute_register: "Registro de execução",
   complete: "Concluir",
+  reopen: "Reaberta",
   note: "Observação",
   backlog_auto: "Backlog automático",
   backlog_reason: "Motivo não executada",
@@ -12974,6 +12979,10 @@ function criarCardManutencao(item, permissoes, options = {}) {
       actions.append(criarBotaoAcao("Registrar execução", "register"));
       actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
     }
+  } else if (item.status === "concluida") {
+    if (permite("reopen")) {
+      actions.append(criarBotaoAcao("Reabrir", "reopen"));
+    }
   }
 
   if (permite("history")) {
@@ -12983,7 +12992,6 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const podeExcluir = canDeleteMaintenance(currentUser);
   if (
     podeExcluir &&
-    item.status !== "concluida" &&
     item.status !== "em_execucao" &&
     item.status !== "encerramento"
   ) {
@@ -13009,6 +13017,7 @@ function renderListaStatus(status, container, emptyEl, options = {}) {
     reschedule: can("reschedule"),
     execute: can("complete"),
     backlog_reason: can("edit"),
+    reopen: canReopenMaintenance(currentUser),
     history: true,
   };
   const items = manutencoes
@@ -13216,6 +13225,7 @@ function renderProgramacao() {
     reschedule: can("reschedule"),
     execute: can("complete"),
     backlog_reason: can("edit"),
+    reopen: canReopenMaintenance(currentUser),
     history: true,
   };
 
@@ -36535,15 +36545,52 @@ function imprimirRelatorio() {
   window.print();
 }
 
+async function reabrirManutencao(index) {
+  if (!canReopenMaintenance(currentUser)) {
+    mostrarMensagemManutencao("Sem permissão para reabrir manutenções.", true);
+    return;
+  }
+  const item = manutencoes[index];
+  if (!item || item.status !== "concluida") {
+    mostrarMensagemManutencao("Apenas manutenções concluídas podem ser reabertas.", true);
+    return;
+  }
+  const confirmar = await openConfirmModal({
+    title: "Reabrir manutenção",
+    message:
+      "Reabrir esta manutenção? Ela volta para execução e poderá ser concluída novamente.",
+    confirmText: "Reabrir",
+    cancelText: "Cancelar",
+  });
+  if (!confirmar) {
+    return;
+  }
+  try {
+    const response = await apiMaintenanceReopen({ id: item.id, projectId: activeProjectId });
+    const atualizado = response && response.item ? response.item : { ...item, status: "em_execucao" };
+    manutencoes[index] = atualizado;
+    salvarManutencoes(manutencoes);
+    logAction("reopen", atualizado, { resumo: "Reaberta" });
+    renderTudo();
+    mostrarMensagemManutencao("Manutenção reaberta.");
+  } catch (error) {
+    const message = error && error.message ? error.message : "Falha ao reabrir manutenção.";
+    mostrarMensagemManutencao(message, true);
+  }
+}
+
 async function removerManutencao(index) {
   if (!canDeleteMaintenance(currentUser)) {
     mostrarMensagemManutencao("Sem permiss\u00e3o para excluir manutencoes.", true);
     return;
   }
   const item = manutencoes[index];
+  const isConcluida = item && item.status === "concluida";
   const confirmar = await openConfirmModal({
-    title: "Excluir manutencao",
-    message: "Excluir esta manutencao?",
+    title: isConcluida ? "Excluir manutenção concluída" : "Excluir manutenção",
+    message: isConcluida
+      ? "Excluir esta manutenção concluída? Esta ação remove histórico e evidências."
+      : "Excluir esta manutenção?",
     confirmText: "Excluir",
     cancelText: "Cancelar",
   });
@@ -36610,6 +36657,9 @@ function agirNaManutencao(event) {
   }
   if (acao === "finish") {
     abrirConclusao(manutencoes[index]);
+  }
+  if (acao === "reopen") {
+    reabrirManutencao(index);
   }
   if (acao === "history") {
     abrirHistorico(manutencoes[index]);
@@ -37098,6 +37148,13 @@ async function apiMaintenanceDelete(maintenanceId, projectId) {
 
 async function apiMaintenanceRelease(payload) {
   return apiRequest("/api/maintenance/release", {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiMaintenanceReopen(payload) {
+  return apiRequest("/api/maintenance/reopen", {
     method: "POST",
     body: JSON.stringify(payload || {}),
   });
