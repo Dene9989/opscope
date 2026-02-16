@@ -17381,6 +17381,99 @@ function gerarDetalhamentoConsolidadoRdo(itensRdo, metricas) {
   return { texto: partes.join(" "), cards };
 }
 
+function getStatusGeralConsolidado(itensRdo) {
+  if (!itensRdo.length) {
+    return "não informado";
+  }
+  const statusKeys = itensRdo.map((item) => item.statusKey || "");
+  const allConcluida = statusKeys.every((status) => status === "concluida");
+  if (allConcluida) {
+    return "Concluída";
+  }
+  if (statusKeys.some((status) => status === "em_execucao" || status === "encerramento")) {
+    return "Em execução";
+  }
+  if (statusKeys.some((status) => status === "backlog")) {
+    return "Pendentes";
+  }
+  return "Em andamento";
+}
+
+function buildAtividadesConsolidadoFallback(itensRdo) {
+  const projetoAtivo = getActiveProject();
+  const local = projetoAtivo ? getProjectLabel(projetoAtivo) : "não informado";
+  const subestacoes = Array.from(
+    new Set(
+      itensRdo
+        .map((item) => (item.subestacao && item.subestacao !== "-" ? item.subestacao : ""))
+        .filter(Boolean)
+    )
+  );
+  let subestacao = "não informado";
+  if (subestacoes.length === 1) {
+    subestacao = subestacoes[0];
+  } else if (subestacoes.length > 1) {
+    subestacao = "múltiplas";
+  }
+  const titulos = Array.from(
+    new Set(itensRdo.map((item) => item.titulo || "").filter(Boolean))
+  );
+  const atividadeDoDia = titulos.length === 1 ? titulos[0] : "Atividades do dia";
+  const statusGeral = getStatusGeralConsolidado(itensRdo);
+  const equipamentos = itensRdo.map((item) => ({
+    nome: item.equipamento && item.equipamento !== "-" ? item.equipamento : "não informado",
+    tipo: item.categoria || item.titulo || "não informado",
+    status: item.statusLabel || "não informado",
+  }));
+  const equipamentosUnicos = Array.from(
+    new Map(
+      equipamentos.map((equip) => [
+        `${equip.nome}|${equip.tipo}|${equip.status}`,
+        equip,
+      ])
+    ).values()
+  );
+  return {
+    local,
+    subestacao,
+    atividade_do_dia: atividadeDoDia,
+    status_geral: statusGeral,
+    equipamentos: equipamentosUnicos.length
+      ? equipamentosUnicos
+      : [{ nome: "não informado", tipo: "não informado", status: "não informado" }],
+  };
+}
+
+function buildAtividadesConsolidadoHtml(data) {
+  const local = data && data.local ? data.local : "não informado";
+  const subestacao = data && data.subestacao ? data.subestacao : "não informado";
+  const atividade = data && data.atividade_do_dia ? data.atividade_do_dia : "não informado";
+  const status = data && data.status_geral ? data.status_geral : "não informado";
+  const equipamentos = data && Array.isArray(data.equipamentos) ? data.equipamentos : [];
+  const equipamentosHtml = equipamentos.length
+    ? equipamentos
+        .map((equip) => {
+          const nome = equip.nome || "não informado";
+          const tipo = equip.tipo || "não informado";
+          const statusItem = equip.status || "não informado";
+          return `<li>${escapeHtml(nome)} — ${escapeHtml(tipo)} — ${escapeHtml(statusItem)}</li>`;
+        })
+        .join("")
+    : `<li>não informado</li>`;
+  return `
+    <div class="rdo-info-grid rdo-info-grid--wide">
+      <div><span>Local</span><strong>${escapeHtml(local)}</strong></div>
+      <div><span>Subestação</span><strong>${escapeHtml(subestacao)}</strong></div>
+      <div><span>Atividade do dia</span><strong>${escapeHtml(atividade)}</strong></div>
+      <div><span>Status geral</span><strong>${escapeHtml(status)}</strong></div>
+    </div>
+    <div class="rdo-item__section">
+      <h4>Equipamentos atendidos</h4>
+      <ul class="rdo-lista">${equipamentosHtml}</ul>
+    </div>
+  `;
+}
+
 function truncarTexto(texto, limite) {
   if (!texto || texto.length <= limite) {
     return texto || "";
@@ -17557,6 +17650,29 @@ function salvarSnapshotRdo(snapshot) {
   renderRdoList();
 }
 
+async function fetchRdoAiText(dateStr) {
+  if (!USE_AUTH_API || !currentUser || !canGerarRelatorio(currentUser)) {
+    return null;
+  }
+  try {
+    const response = await apiRdoGenerateText({
+      date: dateStr,
+      projectId: activeProjectId,
+    });
+    const result = response && (response.result || response.data || response);
+    if (
+      result &&
+      typeof result.descricao_consolidada === "string" &&
+      result.atividades_consolidado
+    ) {
+      return result;
+    }
+  } catch (error) {
+    // fallback handled by caller
+  }
+  return null;
+}
+
 async function gerarSnapshotRdo(persistir = false) {
   if (!rdoUI.data) {
     return null;
@@ -17587,6 +17703,11 @@ async function gerarSnapshotRdo(persistir = false) {
   const metricas = calcularMetricasRdo(itensOrdenados, itensRdo, dataStr);
   const resumoDia = gerarResumoDiaRdo(itensRdo, metricas);
   const narrativaDia = gerarNarrativaDiaRdo(itensRdo, metricas);
+  const aiFallback = {
+    descricao_consolidada: gerarDescricaoConsolidadaRdo(itensRdo, metricas),
+    atividades_consolidado: buildAtividadesConsolidadoFallback(itensRdo),
+  };
+  const aiText = (await fetchRdoAiText(dataStr)) || aiFallback;
   const agora = new Date();
   const snapshot = {
     id: criarId(),
@@ -17610,6 +17731,7 @@ async function gerarSnapshotRdo(persistir = false) {
     logoDataUrl,
     resumoDia,
     narrativaDia,
+    aiText,
   };
   snapshot.hash = hashString(
     `${snapshot.id}|${snapshot.rdoDate}|${snapshot.itens.length}|${snapshot.createdAt}`
@@ -17719,11 +17841,14 @@ function buildRdoHtml(snapshot, options = {}) {
     manual.horaExtra && manual.horaExtra.ativo
       ? calcDurationMinutes(manual.horaExtra.inicio, manual.horaExtra.fim)
       : 0;
-  const descricaoConsolidada = gerarDescricaoConsolidadaRdo(snapshot.itens || [], snapshot.metricas);
-  const detalhamentoConsolidado = gerarDetalhamentoConsolidadoRdo(
-    snapshot.itens || [],
-    snapshot.metricas
-  );
+  const aiText = snapshot.aiText || null;
+  const descricaoConsolidada =
+    (aiText && aiText.descricao_consolidada) ||
+    gerarDescricaoConsolidadaRdo(snapshot.itens || [], snapshot.metricas);
+  const atividadesConsolidado =
+    (aiText && aiText.atividades_consolidado) ||
+    buildAtividadesConsolidadoFallback(snapshot.itens || []);
+  const atividadesConsolidadoHtml = buildAtividadesConsolidadoHtml(atividadesConsolidado);
   const rdoNumero = snapshot.id ? snapshot.id.slice(0, 6).toUpperCase() : "-";
   const resumoItensBase = [
     { label: "Atividades", value: snapshot.metricas.total },
@@ -18063,26 +18188,8 @@ function buildRdoHtml(snapshot, options = {}) {
       }
 
       <section class="rdo-section rdo-block">
-        <h3>Detalhamento Consolidado</h3>
-        <p class="rdo-paragraph">${escapeHtml(detalhamentoConsolidado.texto || "")}</p>
-        ${
-          detalhamentoConsolidado.cards && detalhamentoConsolidado.cards.length
-            ? `
-          <div class="rdo-info-grid rdo-info-grid--wide">
-            ${detalhamentoConsolidado.cards
-              .map(
-                (card) => `
-              <div>
-                <span>${escapeHtml(card.label)}</span>
-                <strong>${escapeHtml(card.value)}</strong>
-              </div>
-            `
-              )
-              .join("")}
-          </div>
-        `
-            : ""
-        }
+        <h3>Atividades realizadas (consolidado)</h3>
+        ${atividadesConsolidadoHtml}
       </section>
 
       <section class="rdo-section">
@@ -37159,6 +37266,13 @@ async function apiMaintenanceDelete(maintenanceId, projectId) {
 
 async function apiMaintenanceRelease(payload) {
   return apiRequest("/api/maintenance/release", {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiRdoGenerateText(payload) {
+  return apiRequest("/api/rdo/generate-text", {
     method: "POST",
     body: JSON.stringify(payload || {}),
   });

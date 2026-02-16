@@ -140,6 +140,10 @@ const STORAGE_DIR = process.env.OPSCOPE_STORAGE_DIR
 const STORAGE_DATA_DIR = path.join(STORAGE_DIR, "data");
 const DATABASE_URL = process.env.OPSCOPE_DATABASE_URL || process.env.DATABASE_URL || "";
 const DB_ENABLED = Boolean(DATABASE_URL);
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
+const OPENAI_MODEL = process.env.OPSCOPE_OPENAI_MODEL || "gpt-4o-mini-2024-07-18";
+const OPENAI_TIMEOUT_MS = Number(process.env.OPSCOPE_OPENAI_TIMEOUT_MS) || 12000;
+const RDO_AI_CACHE_TTL_MS = Number(process.env.OPSCOPE_RDO_AI_CACHE_TTL_MS) || 30 * 60 * 1000;
 const STORAGE_READONLY_MESSAGE =
   "Armazenamento indisponivel. O sistema esta em modo somente leitura para evitar perda de dados.";
 const DB_STORE_TABLE = "opscope_store";
@@ -629,6 +633,8 @@ const ACCESS_MAINTENANCE_PERMISSION_MAP = {
   "admin:users:read": "verUsuarios",
   "admin:users:write": "convidarUsuarios",
 };
+
+const rdoAiCache = new Map();
 
 function normalizeAccessRoleName(value) {
   return String(value || "")
@@ -3951,6 +3957,401 @@ function addMaintenanceTombstone(projectId, maintenanceId, userId) {
   filtered.push(entry);
   saveMaintenanceTombstones(filtered);
   return entry;
+}
+
+const RDO_AI_SCHEMA = {
+  name: "rdo_text",
+  strict: true,
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      descricao_consolidada: { type: "string" },
+      atividades_consolidado: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          local: { type: "string" },
+          subestacao: { type: "string" },
+          atividade_do_dia: { type: "string" },
+          status_geral: { type: "string" },
+          equipamentos: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                nome: { type: "string" },
+                tipo: { type: "string" },
+                status: { type: "string" },
+              },
+              required: ["nome", "tipo", "status"],
+            },
+          },
+        },
+        required: ["local", "subestacao", "atividade_do_dia", "status_geral", "equipamentos"],
+      },
+    },
+    required: ["descricao_consolidada", "atividades_consolidado"],
+  },
+};
+
+const RDO_STATUS_LABELS = {
+  concluida: "Concluída",
+  em_execucao: "Em execução",
+  encerramento: "Encerramento",
+  backlog: "Backlog",
+  liberada: "Liberada",
+  agendada: "Planejada",
+  cancelada: "Cancelada",
+};
+
+function formatDurationMin(totalMin) {
+  if (!Number.isFinite(totalMin) || totalMin <= 0) {
+    return "não informado";
+  }
+  const horas = Math.floor(totalMin / 60);
+  const minutos = Math.round(totalMin % 60);
+  return `${String(horas).padStart(2, "0")}:${String(minutos).padStart(2, "0")}`;
+}
+
+function getRdoCacheKey(projectId, dateStr) {
+  return `${projectId || ""}:${dateStr || ""}`;
+}
+
+function getRdoCache(projectId, dateStr) {
+  const key = getRdoCacheKey(projectId, dateStr);
+  const entry = rdoAiCache.get(key);
+  if (!entry) {
+    return null;
+  }
+  if (entry.expiresAt && entry.expiresAt < Date.now()) {
+    rdoAiCache.delete(key);
+    return null;
+  }
+  return entry.data || null;
+}
+
+function setRdoCache(projectId, dateStr, data) {
+  const key = getRdoCacheKey(projectId, dateStr);
+  rdoAiCache.set(key, {
+    data,
+    expiresAt: Date.now() + RDO_AI_CACHE_TTL_MS,
+  });
+}
+
+function normalizeStatusLabel(status) {
+  const key = normalizeStatus(status);
+  return RDO_STATUS_LABELS[key] || "não informado";
+}
+
+function getEquipmentLabel(item, projectId) {
+  if (!item || typeof item !== "object") {
+    return "não informado";
+  }
+  const equipmentObj = item.equipamento || null;
+  if (equipmentObj && typeof equipmentObj === "object") {
+    const tag = equipmentObj.tag || "";
+    const nome = equipmentObj.nome || equipmentObj.name || "";
+    if (tag || nome) {
+      return `${tag ? `${tag} - ` : ""}${nome}`.trim() || "não informado";
+    }
+    if (equipmentObj.id) {
+      const match = equipamentos.find(
+        (equip) => equip && equip.id === equipmentObj.id && equip.projectId === projectId
+      );
+      if (match) {
+        return `${match.tag ? `${match.tag} - ` : ""}${match.nome || ""}`.trim() || "não informado";
+      }
+      return equipmentObj.id;
+    }
+  }
+  if (typeof item.equipamento === "string" && item.equipamento.trim()) {
+    return item.equipamento.trim();
+  }
+  const equipamentoId =
+    item.equipamentoId ||
+    (item.conclusao && item.conclusao.equipamentoId) ||
+    "";
+  if (equipamentoId) {
+    const match = equipamentos.find(
+      (equip) => equip && equip.id === equipamentoId && equip.projectId === projectId
+    );
+    if (match) {
+      return `${match.tag ? `${match.tag} - ` : ""}${match.nome || ""}`.trim() || equipamentoId;
+    }
+    return equipamentoId;
+  }
+  return "não informado";
+}
+
+function getMaintenanceDateCandidates(item) {
+  const candidates = [
+    item.executionStartedAt,
+    item.executionFinishedAt,
+    item.doneAt,
+    item.concluidaEm,
+    item.dataConclusao,
+    item.createdAt,
+  ];
+  if (item.conclusao) {
+    candidates.push(item.conclusao.inicio, item.conclusao.fim);
+  }
+  return candidates
+    .map((value) => parseDateTime(value))
+    .filter((date) => date && !Number.isNaN(date.getTime()));
+}
+
+function isMaintenanceInRange(item, inicio, fim) {
+  const candidates = getMaintenanceDateCandidates(item);
+  return candidates.some((date) => date >= inicio && date < fim);
+}
+
+function buildRdoPayload(dateStr, projectId) {
+  const base = parseDateOnly(dateStr) || startOfDay(new Date());
+  const inicio = startOfDay(base);
+  const fim = addDays(inicio, 1);
+  const project = getProjectById(projectId);
+  const local = project ? getProjectLabel(project) : "não informado";
+  const list = loadMaintenanceData().filter(
+    (item) => item && item.projectId === projectId && isMaintenanceInRange(item, inicio, fim)
+  );
+  const atividades = list.map((item) => {
+    const statusLabel = normalizeStatusLabel(item.status);
+    const equipamento = getEquipmentLabel(item, projectId);
+    const tipo =
+      item.categoria ||
+      item.tipo ||
+      item.tipoManutencao ||
+      item.tipo_atividade ||
+      "não informado";
+    const acao =
+      item.titulo ||
+      (item.registroExecucao && item.registroExecucao.comentario) ||
+      (item.conclusao && item.conclusao.comentario) ||
+      item.observacao ||
+      "não informado";
+    return {
+      equipamento: equipamento || "não informado",
+      tipo: tipo || "não informado",
+      acao: acao || "não informado",
+      status: statusLabel || "não informado",
+    };
+  });
+  const statusKeys = list.map((item) => normalizeStatus(item.status));
+  const concluidas = statusKeys.filter((status) => status === "concluida").length;
+  const execucao = statusKeys.filter(
+    (status) => status === "em_execucao" || status === "encerramento"
+  ).length;
+  const pendentes = statusKeys.filter(
+    (status) => status !== "concluida" && status !== "em_execucao" && status !== "encerramento"
+  ).length;
+  const duracoes = list.map((item) => {
+    if (item && item.conclusao && Number.isFinite(item.conclusao.duracaoMin)) {
+      return item.conclusao.duracaoMin;
+    }
+    const start = parseDateTime(item.executionStartedAt);
+    const end =
+      parseDateTime(item.executionFinishedAt) || parseDateTime(item.doneAt);
+    if (start && end) {
+      return Math.max(0, Math.round((end.getTime() - start.getTime()) / 60000));
+    }
+    return 0;
+  });
+  const tempoTotalMin = duracoes.reduce((acc, val) => acc + (Number.isFinite(val) ? val : 0), 0);
+  const responsaveis = list
+    .map((item) => item && (item.doneBy || item.createdBy || item.executedBy || ""))
+    .filter(Boolean)
+    .map((id) => getUserLabel(id));
+  const participantes = list
+    .flatMap((item) => {
+      if (item && Array.isArray(item.participantes)) {
+        return item.participantes;
+      }
+      if (item && item.conclusao && Array.isArray(item.conclusao.participantes)) {
+        return item.conclusao.participantes;
+      }
+      return [];
+    })
+    .filter(Boolean)
+    .map((id) => getUserLabel(id));
+  const subestacoes = list
+    .map((item) => item.local || item.subestacao || item.substation || "")
+    .filter(Boolean);
+  const subestacao =
+    subestacoes.length === 0
+      ? "não informado"
+      : subestacoes.length === 1
+        ? subestacoes[0]
+        : "múltiplas";
+  return {
+    date: formatDateISO(inicio),
+    local: local || "não informado",
+    subestacao,
+    kpis: {
+      registradas: atividades.length,
+      concluidas,
+      execucao,
+      pendentes,
+      tempo_total: formatDurationMin(tempoTotalMin),
+    },
+    responsavel: responsaveis.length ? Array.from(new Set(responsaveis)).join("; ") : "não informado",
+    participantes: participantes.length
+      ? Array.from(new Set(participantes)).join("; ")
+      : "não informado",
+    atividades,
+  };
+}
+
+function generateRdoTextDeterministic(payload) {
+  const kpis = payload.kpis || {};
+  const registradas = Number.isFinite(kpis.registradas) ? kpis.registradas : "não informado";
+  const concluidas = Number.isFinite(kpis.concluidas) ? kpis.concluidas : "não informado";
+  const execucao = Number.isFinite(kpis.execucao) ? kpis.execucao : "não informado";
+  const pendentes = Number.isFinite(kpis.pendentes) ? kpis.pendentes : "não informado";
+  const tempoTotal = kpis.tempo_total || "não informado";
+  const responsavel = payload.responsavel || "não informado";
+  const participantes = payload.participantes || "não informado";
+  const descricao = `Foram registradas ${registradas} atividades no período, com ${concluidas} concluídas, ${execucao} em execução e ${pendentes} pendentes. Tempo total: ${tempoTotal}. Responsável: ${responsavel}. Participantes: ${participantes}.`;
+
+  const atividades = Array.isArray(payload.atividades) ? payload.atividades : [];
+  const atividadeDoDia =
+    atividades.length === 1 ? atividades[0].acao || "Atividade do dia" : "Atividades do dia";
+  let statusGeral = "Em andamento";
+  if (concluidas !== "não informado" && registradas === concluidas) {
+    statusGeral = "Concluída";
+  } else if (execucao !== "não informado" && Number(execucao) > 0) {
+    statusGeral = "Em execução";
+  } else if (pendentes !== "não informado" && Number(pendentes) > 0) {
+    statusGeral = "Pendentes";
+  }
+  const equipamentos = atividades.map((item) => ({
+    nome: item.equipamento || "não informado",
+    tipo: item.tipo || "não informado",
+    status: item.status || "não informado",
+  }));
+  const equipamentosUnicos = Array.from(
+    new Map(
+      equipamentos.map((equip) => [
+        `${equip.nome}|${equip.tipo}|${equip.status}`,
+        equip,
+      ])
+    ).values()
+  );
+  return {
+    descricao_consolidada: descricao,
+    atividades_consolidado: {
+      local: payload.local || "não informado",
+      subestacao: payload.subestacao || "não informado",
+      atividade_do_dia: atividadeDoDia || "não informado",
+      status_geral: statusGeral || "não informado",
+      equipamentos: equipamentosUnicos.length
+        ? equipamentosUnicos
+        : [{ nome: "não informado", tipo: "não informado", status: "não informado" }],
+    },
+  };
+}
+
+function extractOpenAiOutputText(data) {
+  if (!data) {
+    return "";
+  }
+  if (typeof data.output_text === "string") {
+    return data.output_text;
+  }
+  const output = Array.isArray(data.output) ? data.output : [];
+  for (const item of output) {
+    const content = Array.isArray(item && item.content) ? item.content : [];
+    for (const part of content) {
+      if (part && (part.type === "output_text" || part.type === "text") && part.text) {
+        return part.text;
+      }
+    }
+  }
+  return "";
+}
+
+function isValidRdoAiResult(result) {
+  if (!result || typeof result !== "object") {
+    return false;
+  }
+  if (typeof result.descricao_consolidada !== "string") {
+    return false;
+  }
+  const atividades = result.atividades_consolidado;
+  if (!atividades || typeof atividades !== "object") {
+    return false;
+  }
+  if (
+    typeof atividades.local !== "string" ||
+    typeof atividades.subestacao !== "string" ||
+    typeof atividades.atividade_do_dia !== "string" ||
+    typeof atividades.status_geral !== "string"
+  ) {
+    return false;
+  }
+  if (!Array.isArray(atividades.equipamentos)) {
+    return false;
+  }
+  return true;
+}
+
+async function generateRdoTextWithAI(payload) {
+  if (!OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY nao configurada.");
+  }
+  if (typeof fetch !== "function") {
+    throw new Error("Fetch indisponivel no ambiente.");
+  }
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
+  const systemPrompt =
+    "Voce e um redator tecnico de RDO. Use APENAS os dados do JSON informado. " +
+    "Nao invente numeros, locais, datas ou tempos. Se algo faltar, escreva 'nao informado'. " +
+    "Responda estritamente no formato do schema.";
+  const userPrompt = `Dados do RDO (JSON): ${JSON.stringify(payload)}`;
+  const body = {
+    model: OPENAI_MODEL,
+    input: [
+      { role: "system", content: [{ type: "text", text: systemPrompt }] },
+      { role: "user", content: [{ type: "text", text: userPrompt }] },
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        json_schema: RDO_AI_SCHEMA,
+      },
+    },
+    temperature: 0.2,
+  };
+  try {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      const message =
+        data && data.error && data.error.message ? data.error.message : "Falha ao gerar RDO.";
+      throw new Error(message);
+    }
+    const text = extractOpenAiOutputText(data);
+    if (!text) {
+      throw new Error("Resposta da IA vazia.");
+    }
+    const parsed = JSON.parse(text);
+    if (!isValidRdoAiResult(parsed)) {
+      throw new Error("Resposta da IA invalida.");
+    }
+    return parsed;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 function sha256(input) {
@@ -8996,6 +9397,60 @@ app.post("/api/maintenance/reopen", requireAuth, (req, res) => {
   });
   return res.json({ ok: true, item: updated, projectId });
 });
+
+app.post(
+  "/api/rdo/generate-text",
+  requireAuth,
+  requirePermission("gerarRDOs"),
+  async (req, res) => {
+    const user = req.currentUser || getSessionUser(req);
+    const body = req.body || {};
+    const projectId =
+      String(body.projectId || "").trim() || getActiveProjectId(req, user);
+    if (!projectId) {
+      return res.status(400).json({ message: "Projeto ativo obrigatório." });
+    }
+    if (!userHasProjectAccess(user, projectId)) {
+      return res.status(403).json({ message: "Nao autorizado." });
+    }
+    const dateRaw = String(body.date || body.rdoDate || body.day || "").trim();
+    const date = parseDateOnly(dateRaw) || startOfDay(new Date());
+    const dateStr = formatDateISO(date);
+    const force = String(body.force || req.query.force || "").trim() === "1";
+    if (!force) {
+      const cached = getRdoCache(projectId, dateStr);
+      if (cached) {
+        return res.json({
+          ok: true,
+          result: cached.result || cached,
+          payload: cached.payload || null,
+          source: cached.source || "cache",
+          cached: true,
+        });
+      }
+    }
+
+    const payload = buildRdoPayload(dateStr, projectId);
+    let result = null;
+    let source = "fallback";
+    try {
+      result = await generateRdoTextWithAI(payload);
+      source = "ai";
+    } catch (error) {
+      result = null;
+      source = "fallback";
+    }
+    const finalResult = result || generateRdoTextDeterministic(payload);
+    setRdoCache(projectId, dateStr, { result: finalResult, payload, source });
+    return res.json({
+      ok: true,
+      result: finalResult,
+      payload,
+      source,
+      cached: false,
+    });
+  }
+);
 
 app.post("/api/maintenance/release", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
