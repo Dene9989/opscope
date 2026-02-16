@@ -1,4 +1,4 @@
-const btnAdicionarManutencao = document.getElementById("btnAdicionarManutencao");
+﻿const btnAdicionarManutencao = document.getElementById("btnAdicionarManutencao");
 const btnCancelarEdicaoManutencao = document.getElementById("btnCancelarEdicaoManutencao");
 const manutencaoEditBanner = document.getElementById("manutencaoEditBanner");
 const manutencaoEditInfo = document.getElementById("manutencaoEditInfo");

@@ -9405,6 +9405,7 @@ app.post(
   async (req, res) => {
     const user = req.currentUser || getSessionUser(req);
     const body = req.body || {};
+    const debugEnabled = String(body.debug || req.query.debug || "").trim() === "1";
     const projectId =
       String(body.projectId || "").trim() || getActiveProjectId(req, user);
     if (!projectId) {
@@ -9426,6 +9427,12 @@ app.post(
           payload: cached.payload || null,
           source: cached.source || "cache",
           cached: true,
+          debug: debugEnabled
+            ? {
+                model: OPENAI_MODEL,
+                note: "Resposta servida do cache.",
+              }
+            : undefined,
         });
       }
     }
@@ -9433,12 +9440,18 @@ app.post(
     const payload = buildRdoPayload(dateStr, projectId);
     let result = null;
     let source = "fallback";
+    let aiError = null;
     try {
       result = await generateRdoTextWithAI(payload);
       source = "ai";
     } catch (error) {
       result = null;
       source = "fallback";
+      aiError = error;
+      console.warn(
+        "[rdo-ai] falha ao gerar texto:",
+        error && error.message ? error.message : error
+      );
     }
     const finalResult = result || generateRdoTextDeterministic(payload);
     setRdoCache(projectId, dateStr, { result: finalResult, payload, source });
@@ -9448,6 +9461,12 @@ app.post(
       payload,
       source,
       cached: false,
+      debug: debugEnabled
+        ? {
+            model: OPENAI_MODEL,
+            error: aiError ? (aiError.message || String(aiError)) : null,
+          }
+        : undefined,
     });
   }
 );
