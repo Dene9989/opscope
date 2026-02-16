@@ -151,6 +151,7 @@ const DATA_FILE_NAMES = [
   "invites.json",
   "audit.json",
   "maintenance.json",
+  "maintenance_tombstones.json",
   "automations.json",
   "api_logs.json",
   "health_tasks.json",
@@ -187,6 +188,7 @@ const USERS_FILE = path.join(STORAGE_DIR, "users.json");
 const INVITES_FILE = path.join(DATA_DIR, "invites.json");
 const AUDIT_FILE = path.join(DATA_DIR, "audit.json");
 const MAINTENANCE_FILE = path.join(DATA_DIR, "maintenance.json");
+const MAINTENANCE_TOMBSTONES_FILE = path.join(DATA_DIR, "maintenance_tombstones.json");
 const AUTOMATIONS_FILE = path.join(DATA_DIR, "automations.json");
 const UPLOADS_DIR = process.env.OPSCOPE_UPLOADS_DIR
   ? path.resolve(process.env.OPSCOPE_UPLOADS_DIR)
@@ -227,6 +229,7 @@ const STORE_FILES = [
   INVITES_FILE,
   AUDIT_FILE,
   MAINTENANCE_FILE,
+  MAINTENANCE_TOMBSTONES_FILE,
   AUTOMATIONS_FILE,
   API_LOG_FILE,
   HEALTH_TASKS_FILE,
@@ -3901,6 +3904,53 @@ async function runAutomationsForItems(event, items, actor, ip) {
 function loadMaintenanceData() {
   const data = readJson(MAINTENANCE_FILE, []);
   return Array.isArray(data) ? data : [];
+}
+
+function loadMaintenanceTombstones() {
+  const data = readJson(MAINTENANCE_TOMBSTONES_FILE, []);
+  return Array.isArray(data) ? data : [];
+}
+
+function saveMaintenanceTombstones(list) {
+  writeJson(MAINTENANCE_TOMBSTONES_FILE, Array.isArray(list) ? list : []);
+}
+
+function getMaintenanceTombstonesMap(projectId) {
+  const map = new Map();
+  loadMaintenanceTombstones().forEach((entry) => {
+    if (!entry || !entry.id) {
+      return;
+    }
+    if (projectId && entry.projectId && entry.projectId !== projectId) {
+      return;
+    }
+    map.set(String(entry.id), entry);
+  });
+  return map;
+}
+
+function addMaintenanceTombstone(projectId, maintenanceId, userId) {
+  if (!maintenanceId || !projectId) {
+    return null;
+  }
+  const list = loadMaintenanceTombstones();
+  const filtered = list.filter(
+    (entry) =>
+      !(
+        entry &&
+        String(entry.id || "") === maintenanceId &&
+        String(entry.projectId || "") === projectId
+      )
+  );
+  const entry = {
+    id: maintenanceId,
+    projectId,
+    deletedAt: new Date().toISOString(),
+    deletedBy: userId || null,
+  };
+  filtered.push(entry);
+  saveMaintenanceTombstones(filtered);
+  return entry;
 }
 
 function sha256(input) {
@@ -8770,9 +8820,10 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
       projectId,
     }));
   const existing = loadMaintenanceData();
-  const existingProject = existing.filter((item) => {
-    return item && item.projectId === projectId;
-  });
+  const tombstones = getMaintenanceTombstonesMap(projectId);
+  const existingProject = existing
+    .filter((item) => item && item.projectId === projectId)
+    .filter((item) => !tombstones.has(String(item.id || "")));
   const existingMap = new Map(
     existingProject.map((item) => [String(item.id || ""), item]).filter(([id]) => id)
   );
@@ -8783,6 +8834,9 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
       return;
     }
     const key = String(item.id);
+    if (tombstones.has(key)) {
+      return;
+    }
     const current = mergedMap.get(key) || null;
     if (!current) {
       createdItems.push(item);
@@ -8821,7 +8875,13 @@ app.get("/api/maintenance", requireAuth, (req, res) => {
   if (!userHasProjectAccess(user, projectId)) {
     return res.status(403).json({ message: "Nao autorizado." });
   }
-  const list = loadMaintenanceData().filter((item) => item && item.projectId === projectId);
+  const tombstones = getMaintenanceTombstonesMap(projectId);
+  const list = loadMaintenanceData().filter((item) => {
+    if (!item || item.projectId !== projectId) {
+      return false;
+    }
+    return !tombstones.has(String(item.id || ""));
+  });
   return res.json({ items: list, projectId });
 });
 
@@ -8851,6 +8911,7 @@ app.delete("/api/maintenance/:id", requireAuth, (req, res) => {
   }
   dataset.splice(index, 1);
   writeJson(MAINTENANCE_FILE, dataset);
+  addMaintenanceTombstone(projectId, maintenanceId, user ? user.id : null);
   DASHBOARD_CACHE.delete(projectId);
   appendAudit(
     "maintenance_delete",

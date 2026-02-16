@@ -4198,6 +4198,7 @@ let maintenanceSyncTimer = null;
 let maintenanceSyncPromise = null;
 let maintenanceLastSync = 0;
 let maintenanceLastUserId = null;
+let maintenanceLastFetch = 0;
 const maintenanceLoadedProjects = new Set();
 let healthSnapshot = null;
 let healthLoading = false;
@@ -4355,7 +4356,7 @@ function startSyncPolling() {
     }
     logSyncDebug("poll.tick");
     carregarManutencoesServidor(true);
-    loadDashboardSummary(true);
+    loadDashboardSummary(true, { skipSync: true });
     refreshProjects();
     refreshAccessData();
   }, SYNC_POLL_MS);
@@ -4377,7 +4378,7 @@ function handleSyncEvent(eventName, payload = {}) {
   logSyncDebug("event", { name: eventName, payload });
   if (eventName === "maintenance.updated") {
     carregarManutencoesServidor(true);
-    loadDashboardSummary(true);
+    loadDashboardSummary(true, { skipSync: true });
     return;
   }
   if (eventName === "projects.updated") {
@@ -9037,7 +9038,7 @@ function carregarManutencoes() {
   return data.filter((item) => item && typeof item === "object");
 }
 
-function salvarManutencoes(lista) {
+function salvarManutencoes(lista, options = {}) {
   const sanitized = Array.isArray(lista)
     ? lista.map((item) =>
         item && typeof item === "object" && activeProjectId
@@ -9046,7 +9047,9 @@ function salvarManutencoes(lista) {
       )
     : [];
   writeJson(getProjectStorageKey(STORAGE_KEY), sanitized);
-  scheduleMaintenanceSync(lista);
+  if (!options.skipSync) {
+    scheduleMaintenanceSync(lista);
+  }
 }
 
 function carregarUsuarios() {
@@ -13240,6 +13243,8 @@ function renderProgramacao() {
           "reschedule",
           "register",
           "finish",
+          "reopen",
+          "remove",
           "history",
           "backlog_reason",
         ],
@@ -13263,6 +13268,7 @@ function renderListaCustom(items, container, emptyEl, allowedActions) {
     reschedule: can("reschedule"),
     execute: can("complete"),
     backlog_reason: can("edit"),
+    reopen: canReopenMaintenance(currentUser),
     history: true,
   };
   items.forEach((item) => {
@@ -31534,6 +31540,7 @@ async function carregarManutencoesServidor(force = false) {
         }
         return resolved.item;
       });
+      const lastFetchAt = maintenanceLastFetch;
       const remoteIds = new Set(
         data.items.map((item) => (item && item.id ? String(item.id) : "")).filter(Boolean)
       );
@@ -31544,8 +31551,11 @@ async function carregarManutencoesServidor(force = false) {
           }
           const id = String(item.id);
           if (!remoteIds.has(id)) {
-            merged.push(item);
-            needsSync = true;
+            const updatedAt = getMaintenanceUpdatedAtValue(item);
+            if (lastFetchAt > 0 && updatedAt > lastFetchAt) {
+              merged.push(item);
+              needsSync = true;
+            }
           }
         });
       }
@@ -31561,9 +31571,10 @@ async function carregarManutencoesServidor(force = false) {
       });
       const resultado = normalizarManutencoes(manutencoes);
       manutencoes = resultado.normalizadas;
-      salvarManutencoes(manutencoes);
+      salvarManutencoes(manutencoes, { skipSync: true });
       pmpMaintenanceCache.set(activeProjectId, manutencoes);
       maintenanceLoadedProjects.add(activeProjectId);
+      maintenanceLastFetch = Date.now();
       if (needsSync) {
         scheduleMaintenanceSync(manutencoes, true);
       }
@@ -32652,7 +32663,7 @@ function renderTudo() {
   });
   renderListaStatus("concluida", listaConcluidas, listaConcluidasVazia, {
     limit: 6,
-    allowedActions: ["history"],
+    allowedActions: ["history", "reopen", "remove"],
   });
   renderExecucao();
   renderKPIs();
@@ -37880,7 +37891,7 @@ function scheduleMaintenanceSync(items, force) {
       maintenanceSyncTimer = null;
     }
     syncMaintenanceNow(items, true).then(() => {
-      loadDashboardSummary(true);
+      loadDashboardSummary(true, { skipSync: true });
     });
     return;
   }
@@ -37890,12 +37901,12 @@ function scheduleMaintenanceSync(items, force) {
   maintenanceSyncTimer = setTimeout(() => {
     maintenanceSyncTimer = null;
     syncMaintenanceNow(items, false).then(() => {
-      loadDashboardSummary(true);
+      loadDashboardSummary(true, { skipSync: true });
     });
   }, 600);
 }
 
-async function loadDashboardSummary(force) {
+async function loadDashboardSummary(force, options = {}) {
   if (!currentUser) {
     return;
   }
@@ -37911,7 +37922,7 @@ async function loadDashboardSummary(force) {
   }
   dashboardError = "";
   dashboardRequest = (async () => {
-    if (USE_AUTH_API) {
+    if (USE_AUTH_API && !options.skipSync) {
       await syncMaintenanceNow(manutencoes, force || !dashboardSummary);
     }
     return apiDashboardSummary();
