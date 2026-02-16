@@ -3007,7 +3007,7 @@ function buildSessionUser(account, role) {
     (role && role.permissions) || account.rolePermissions || account.accessPermissions || []
   );
   const roleName = role ? role.name : account.roleName || "";
-  const status = String(account.status || "ATIVO").toUpperCase() === "INATIVO" ? "INATIVO" : "ATIVO";
+  const status = normalizeAccessUserStatus(account.status, account.active);
   const accessRoleActive =
     Boolean(role || account.roleId) ||
     Array.isArray(account.rolePermissions) ||
@@ -9116,7 +9116,7 @@ async function carregarSessaoServidor() {
     const session = carregarSessao();
     if (session && session.userId) {
       const account = await dataProvider.authAdmin.getUser(session.userId);
-      if (account && String(account.status || "").toUpperCase() !== "INATIVO") {
+      if (account && normalizeAccessUserStatus(account.status, account.active) !== "INATIVO") {
         const role = await resolveRoleFromDb(account);
         currentUser = buildSessionUser(account, role);
       } else {
@@ -10463,6 +10463,20 @@ function normalizeAccessRoleRecord(role) {
   };
 }
 
+function normalizeAccessUserStatus(value, active) {
+  const normalized = String(value || "").trim().toUpperCase();
+  if (normalized === "INATIVO" || normalized === "INACTIVE" || normalized === "DESATIVADO") {
+    return "INATIVO";
+  }
+  if (normalized === "ATIVO" || normalized === "ACTIVE") {
+    return "ATIVO";
+  }
+  if (active === false || String(active).toLowerCase() === "false") {
+    return "INATIVO";
+  }
+  return "ATIVO";
+}
+
 function normalizeAccessUserRecord(user) {
   if (!user || typeof user !== "object") {
     return null;
@@ -10473,7 +10487,7 @@ function normalizeAccessUserRecord(user) {
   if (!id || !name || !matricula) {
     return null;
   }
-  const status = String(user.status || "ATIVO").toUpperCase() === "INATIVO" ? "INATIVO" : "ATIVO";
+  const status = normalizeAccessUserStatus(user.status, user.active);
   const roleName = String(user.roleName || user.cargo || user.role || "").trim();
   const cargo = String(user.cargo || user.roleName || user.role || "").trim();
   const rolePermissions = Array.isArray(user.rolePermissions)
@@ -10513,6 +10527,7 @@ function normalizeAccessUserRecord(user) {
     avatarUrl: user.avatarUrl || "",
     avatarUpdatedAt: user.avatarUpdatedAt || "",
     status,
+    active: status !== "INATIVO",
     passwordHash: user.passwordHash || "",
     passwordUpdatedAt: user.passwordUpdatedAt || "",
     createdAt: user.createdAt || "",
@@ -11006,10 +11021,11 @@ async function listUsersFromDb(filters = {}) {
   const projectId = filters.projectId ? String(filters.projectId) : "";
   const applyFilters = (list) =>
     list.filter((user) => {
+      const userStatus = normalizeAccessUserStatus(user.status, user.active);
       if (roleId && String(user.roleId || "") !== roleId) {
         return false;
       }
-      if (status && String(user.status || "").toUpperCase() !== status) {
+      if (status && userStatus !== status) {
         return false;
       }
       if (projectId && String(user.projectId || "") !== projectId) {
@@ -11124,7 +11140,10 @@ async function createUserToDb(input) {
   }
   const normalizedMatricula = normalizeMatricula(matricula);
   const duplicate = await getUserByMatriculaNormalized(normalizedMatricula);
-  if (duplicate) {
+  const duplicateStatus = duplicate
+    ? normalizeAccessUserStatus(duplicate.status, duplicate.active)
+    : "";
+  if (duplicate && duplicateStatus !== "INATIVO") {
     throw new Error("Matricula ja cadastrada.");
   }
   const role = await getRoleFromDb(roleId);
@@ -11142,6 +11161,23 @@ async function createUserToDb(input) {
   }
   if (!password) {
     throw new Error("Informe a senha.");
+  }
+  if (duplicate && duplicateStatus === "INATIVO") {
+    await updateUserToDb({
+      id: duplicate.id,
+      name,
+      roleId,
+      status,
+      projectId: payload.projectId ? String(payload.projectId) : null,
+      email: payload.email !== undefined ? normalizeEmail(payload.email || "") : duplicate.email || "",
+    });
+    await resetPasswordForUser({ id: duplicate.id, mode, password });
+    const refreshed = await getUserFromDb(duplicate.id);
+    return {
+      user: refreshed || duplicate,
+      generatedPassword: generatedPassword || undefined,
+      reactivated: true,
+    };
   }
   const now = toIsoUtc(new Date());
   const passwordHash = await hashPasswordWithSalt(password);
@@ -11283,7 +11319,7 @@ async function deleteUserFromDb(id) {
   if (!existing) {
     return;
   }
-  const status = String(existing.status || "").toUpperCase();
+  const status = normalizeAccessUserStatus(existing.status, existing.active);
   if (status !== "INATIVO") {
     throw new Error("Apenas contas inativas podem ser excluidas.");
   }
@@ -23691,7 +23727,8 @@ function renderAccessUsers() {
   const roleId = accessUserRoleFilter ? accessUserRoleFilter.value : "";
   const projectId = accessUserProjectFilter ? accessUserProjectFilter.value : "";
   const filtered = accessUsers.filter((user) => {
-    if (status && String(user.status || "").toUpperCase() !== status) {
+    const userStatus = normalizeAccessUserStatus(user.status, user.active);
+    if (status && userStatus !== status) {
       return false;
     }
     if (roleId && String(user.roleId || "") !== roleId) {
@@ -23719,11 +23756,12 @@ function renderAccessUsers() {
   const canWrite = Boolean(currentUser && canManageAccess(currentUser) && accessWriteEnabled);
   filtered.forEach((user) => {
     const tr = document.createElement("tr");
-    const statusText = user.status === "INATIVO" ? "Inativo" : "Ativo";
-    const statusClass = user.status === "INATIVO" ? "status-pill--inactive" : "status-pill--active";
+    const userStatus = normalizeAccessUserStatus(user.status, user.active);
+    const statusText = userStatus === "INATIVO" ? "Inativo" : "Ativo";
+    const statusClass = userStatus === "INATIVO" ? "status-pill--inactive" : "status-pill--active";
     const actions = [];
     const isSelf = Boolean(currentUser && String(user.id) === String(currentUser.id));
-    const canDelete = user.status === "INATIVO" && !isSelf;
+    const canDelete = userStatus === "INATIVO" && !isSelf;
     if (canWrite) {
       actions.push(
         `<button class="btn btn--ghost btn--small" type="button" data-action="edit-user" data-user-id="${user.id}">Editar</button>`
@@ -23733,7 +23771,7 @@ function renderAccessUsers() {
       );
       actions.push(
         `<button class="btn btn--ghost btn--small" type="button" data-action="toggle-status" data-user-id="${user.id}">${
-          user.status === "INATIVO" ? "Ativar" : "Inativar"
+          userStatus === "INATIVO" ? "Ativar" : "Inativar"
         }</button>`
       );
       if (canDelete) {
@@ -23853,7 +23891,7 @@ async function refreshAccessUsers() {
   if (currentUser) {
     const updated = accessUsers.find((item) => String(item.id) === String(currentUser.id));
     if (updated) {
-      if (String(updated.status || "").toUpperCase() === "INATIVO") {
+      if (normalizeAccessUserStatus(updated.status, updated.active) === "INATIVO") {
         salvarSessao(null);
         currentUser = null;
       } else {
@@ -35818,7 +35856,7 @@ async function authLoginLocal(login, senha) {
   if (!account) {
     throw new Error("Usuario ou senha invalidos.");
   }
-  if (String(account.status || "").toUpperCase() === "INATIVO") {
+  if (normalizeAccessUserStatus(account.status, account.active) === "INATIVO") {
     throw new Error("Conta inativa.");
   }
   const ok = await verifyPasswordHash(password, account.passwordHash);
@@ -39517,7 +39555,8 @@ if (accessUsersTableBody) {
       return;
     }
     if (button.dataset.action === "toggle-status") {
-      const nextStatus = user.status === "INATIVO" ? "ATIVO" : "INATIVO";
+      const currentStatus = normalizeAccessUserStatus(user.status, user.active);
+      const nextStatus = currentStatus === "INATIVO" ? "ATIVO" : "INATIVO";
       const confirmar =
         nextStatus === "INATIVO"
           ? window.confirm("Inativar esta conta?")
@@ -39542,7 +39581,7 @@ if (accessUsersTableBody) {
       }
     }
     if (button.dataset.action === "delete-user") {
-      if (user.status !== "INATIVO") {
+      if (normalizeAccessUserStatus(user.status, user.active) !== "INATIVO") {
         setAccessMessage("Apenas contas inativas podem ser excluidas.", true);
         return;
       }

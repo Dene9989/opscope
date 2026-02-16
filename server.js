@@ -4135,6 +4135,7 @@ function serializeAccessUser(user) {
         ? null
         : String(normalized.projectId || ""),
     status: normalized.status || "ATIVO",
+    active: normalized.active !== false,
     passwordHash: normalized.passwordHash || "",
     passwordUpdatedAt: normalized.passwordUpdatedAt || "",
     createdAt: normalized.createdAt || "",
@@ -4192,6 +4193,19 @@ function normalizeUserRecord(user) {
 
 function normalizeUserStatus(value) {
   return String(value || "").toUpperCase() === "INATIVO" ? "INATIVO" : "ATIVO";
+}
+
+function getUserStatus(user) {
+  if (!user) {
+    return "ATIVO";
+  }
+  if (user.status) {
+    return normalizeUserStatus(user.status);
+  }
+  if (user.active === false) {
+    return "INATIVO";
+  }
+  return "ATIVO";
 }
 
 function findUserByMatriculaNormalized(value, excludeUserId = "") {
@@ -7666,14 +7680,26 @@ app.post(
     if (!isValidEmail(email)) {
       return res.status(400).json({ message: "Informe um email valido." });
     }
-    if (findUserByMatriculaNormalized(matricula)) {
-      return res.status(409).json({ message: "Matricula ja cadastrada." });
-    }
-    const emailDuplicado = users.some(
+    const existingByMatricula = findUserByMatriculaNormalized(matricula);
+    const existingByEmail = users.find(
       (user) => normalizeVerificationEmail(user.email || user.username || "") === email
     );
-    if (emailDuplicado) {
+    const matriculaStatus = getUserStatus(existingByMatricula);
+    const emailStatus = getUserStatus(existingByEmail);
+    if (existingByMatricula && matriculaStatus !== "INATIVO") {
+      return res.status(409).json({ message: "Matricula ja cadastrada." });
+    }
+    if (existingByEmail && emailStatus !== "INATIVO") {
       return res.status(409).json({ message: "Email ja cadastrado." });
+    }
+    if (
+      existingByMatricula &&
+      existingByEmail &&
+      String(existingByMatricula.id) !== String(existingByEmail.id)
+    ) {
+      return res
+        .status(409)
+        .json({ message: "Matricula e email pertencem a contas diferentes." });
     }
     const roleId = String(payload.roleId || "").trim();
     const role = roleId ? getAccessRoleById(roleId) : null;
@@ -7697,6 +7723,51 @@ app.post(
     }
     const now = new Date().toISOString();
     const passwordHash = hashPasswordSha256(password);
+    const reuseTarget = existingByMatricula || existingByEmail;
+    if (reuseTarget) {
+      const rbacRole = deriveRbacRoleFromRoleName(role.name);
+      const legacyRole = normalizeRole(role.name, rbacRole);
+      const updated = normalizeUserRecord({
+        ...reuseTarget,
+        username: email,
+        matricula,
+        name,
+        email,
+        roleId: role.id,
+        roleName: role.name,
+        cargo: role.name,
+        accessPermissions: role.permissions,
+        rolePermissions: role.permissions,
+        rbacRole,
+        role: legacyRole,
+        projectId: projectId || null,
+        status,
+        active: status !== "INATIVO",
+        passwordHash,
+        passwordUpdatedAt: now,
+        emailVerified: true,
+        updatedAt: now,
+      });
+      const index = users.findIndex((item) => item && String(item.id) === String(updated.id));
+      if (index >= 0) {
+        users[index] = updated;
+      } else {
+        users.push(updated);
+      }
+      writeJson(USERS_FILE, users);
+      setUserProjectAssignment(updated, updated.projectId || "");
+      appendAudit(
+        "access_user_reactivate",
+        req.session.userId,
+        { alvo: updated.id },
+        getClientIp(req)
+      );
+      return res.json({
+        user: serializeAccessUser(updated),
+        generatedPassword: generatedPassword || undefined,
+        reactivated: true,
+      });
+    }
     const username = email;
     const created = normalizeUserRecord({
       id: crypto.randomUUID(),
