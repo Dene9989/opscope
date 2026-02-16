@@ -11964,6 +11964,47 @@ async function uploadLiberacaoDoc(file, docType) {
   };
 }
 
+async function uploadEvidenceFile(file) {
+  if (!file) {
+    return null;
+  }
+  if (!USE_AUTH_API) {
+    const doc = await lerDocumentoFile(file);
+    if (!doc || !doc.dataUrl) {
+      throw new Error("Falha ao ler evidência.");
+    }
+    const name = file.name || doc.nome || "Evidência";
+    return {
+      id: criarId(),
+      url: doc.dataUrl,
+      dataUrl: doc.dataUrl,
+      name,
+      nome: name,
+      mime: file.type || doc.type || "",
+      type: file.type || doc.type || "",
+      size: file.size || 0,
+    };
+  }
+  const formData = new FormData();
+  formData.append("file", file);
+  const data = await apiUploadEvidence(formData);
+  const info = data && data.file ? data.file : null;
+  if (!info || !info.url) {
+    throw new Error("Falha ao enviar evidência.");
+  }
+  const name = info.originalName || info.name || file.name || "Evidência";
+  return {
+    id: info.id || "",
+    url: info.url,
+    name,
+    nome: name,
+    mime: info.mime || file.type || "",
+    type: info.mime || file.type || "",
+    size: info.size || file.size || 0,
+    uploadedAt: info.createdAt || new Date().toISOString(),
+  };
+}
+
 function base64ToBlob(base64, mimeType) {
   const byteChars = atob(base64 || "");
   const sliceSize = 1024;
@@ -16885,13 +16926,14 @@ async function getEvidenceDataUrl(evidencia) {
   if (!evidencia) {
     return "";
   }
-  const dataUrl = evidencia.dataUrl || evidencia.url || "";
-  if (dataUrl.startsWith("data:")) {
-    return dataUrl;
+  const rawUrl = evidencia.dataUrl || evidencia.url || "";
+  if (rawUrl.startsWith("data:")) {
+    return rawUrl;
   }
-  if (!dataUrl) {
+  if (!rawUrl) {
     return "";
   }
+  const dataUrl = resolvePublicUrl(rawUrl);
   try {
     const response = await fetch(dataUrl);
     const blob = await response.blob();
@@ -36233,19 +36275,19 @@ function lerDocumentoFile(file) {
 }
 
 function lerEvidencias(files) {
-  const lista = Array.from(files || []);
-  return Promise.all(
-    lista.map(
-      (file) =>
-        new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () =>
-            resolve({ nome: file.name, type: file.type || "", dataUrl: reader.result });
-          reader.onerror = () => resolve(null);
-          reader.readAsDataURL(file);
-        })
-    )
-  ).then((itens) => itens.filter(Boolean));
+  const lista = Array.from(files || []).filter(Boolean);
+  if (!lista.length) {
+    return Promise.resolve([]);
+  }
+  return lista.reduce((promise, file) => {
+    return promise.then(async (acc) => {
+      const evidencia = await uploadEvidenceFile(file);
+      if (evidencia) {
+        acc.push(evidencia);
+      }
+      return acc;
+    });
+  }, Promise.resolve([]));
 }
 
 function abrirConclusao(item) {
@@ -36457,11 +36499,20 @@ async function salvarConclusao(event) {
     }
   }
   if (fotosObrigatorias) {
-    mostrarMensagemConclusao("Processando evidências...");
+    mostrarMensagemConclusao("Enviando evidências...");
   }
-  const evidencias = fotosObrigatorias
-    ? await lerEvidencias(arquivosValidos)
-    : [];
+  let evidencias = [];
+  if (fotosObrigatorias) {
+    try {
+      evidencias = await lerEvidencias(arquivosValidos);
+    } catch (error) {
+      mostrarMensagemConclusao(
+        error && error.message ? error.message : "Falha ao enviar evidências.",
+        true
+      );
+      return;
+    }
+  }
   if (fotosObrigatorias && evidencias.length < MIN_EVIDENCIAS) {
     mostrarMensagemConclusao("Não foi possível ler as evidências.", true);
     return;
@@ -36629,15 +36680,16 @@ function abrirRelatorio(item) {
       relatorioEvidencias.append(vazio);
     } else {
       evidencias.forEach((evidencia) => {
+        const evidenceUrl = resolvePublicUrl(evidencia.dataUrl || evidencia.url || "");
         if (evidencia.type && evidencia.type.startsWith("image/")) {
           const img = document.createElement("img");
-          img.src = evidencia.dataUrl || evidencia.url || "";
+          img.src = evidenceUrl;
           img.alt = evidencia.nome || "Evidência";
           relatorioEvidencias.append(img);
           return;
         }
         const link = document.createElement("a");
-        link.href = evidencia.dataUrl || evidencia.url || "#";
+        link.href = evidenceUrl || "#";
         link.target = "_blank";
         link.rel = "noopener";
         link.textContent = evidencia.nome || "Arquivo";
@@ -37062,6 +37114,23 @@ async function apiUploadLiberacaoDoc(formData) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const message = data && data.message ? data.message : "Falha no envio do documento.";
+    const error = new Error(message);
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+  return data;
+}
+
+async function apiUploadEvidence(formData) {
+  const response = await fetch(`${API_BASE}/api/maintenance/evidence`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = data && data.message ? data.message : "Falha ao enviar evidência.";
     const error = new Error(message);
     error.status = response.status;
     error.data = data;

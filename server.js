@@ -293,6 +293,7 @@ const FILE_ALLOWED_MIME = new Map([
   ["application/pdf", "pdf"],
   ["image/png", "png"],
   ["image/jpeg", "jpg"],
+  ["image/jpg", "jpg"],
   ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "docx"],
 ]);
 const DEFAULT_PROJECT_CODE = "834";
@@ -9097,6 +9098,73 @@ app.post(
         docType,
       },
     });
+  }
+);
+
+app.post(
+  "/api/maintenance/evidence",
+  requireAuth,
+  requirePermission("complete"),
+  express.raw({ type: "multipart/form-data", limit: FILE_MAX_BYTES + 1024 * 1024 }),
+  async (req, res) => {
+    const user = req.currentUser || getSessionUser(req);
+    const projectId = getActiveProjectId(req, user);
+    if (!projectId) {
+      return res.status(400).json({ message: "Projeto ativo obrigatório." });
+    }
+    const parsed = parseMultipartForm(req);
+    if (!parsed || !parsed.file) {
+      return res.status(400).json({ message: "Arquivo não enviado." });
+    }
+    const mime = String(parsed.file.mime || "").toLowerCase();
+    if (!mime || !mime.startsWith("image/") || !FILE_ALLOWED_MIME.has(mime)) {
+      return res.status(415).json({ message: "Apenas imagens são permitidas." });
+    }
+    if (!parsed.file.buffer || parsed.file.buffer.length === 0) {
+      return res.status(400).json({ message: "Arquivo inválido." });
+    }
+    if (parsed.file.buffer.length > FILE_MAX_BYTES) {
+      return res.status(413).json({ message: "Arquivo acima de 10 MB." });
+    }
+    ensureUploadDirs();
+    const ext = FILE_ALLOWED_MIME.get(mime);
+    const baseName = sanitizeFileName(path.parse(parsed.file.originalName || "evidencia").name);
+    const unique = crypto.randomUUID().slice(0, 8);
+    const fileName = `${Date.now()}-${unique}-${baseName || "evidencia"}.${ext}`;
+    const typeConfig = FILE_TYPE_CONFIG.evidence;
+    const typeKey = "evidence";
+    const dirPath = path.join(FILES_DIR, typeConfig.dir);
+    const filePath = path.join(dirPath, fileName);
+    try {
+      fs.writeFileSync(filePath, parsed.file.buffer);
+    } catch (error) {
+      return res.status(500).json({ message: "Falha ao salvar arquivo." });
+    }
+    const actor = req.currentUser || getSessionUser(req);
+    const entry = {
+      id: crypto.randomUUID(),
+      name: fileName,
+      originalName: parsed.file.originalName || fileName,
+      type: typeKey,
+      size: parsed.file.buffer.length,
+      mime,
+      url: `/uploads/files/${typeConfig.dir}/${fileName}`,
+      createdAt: new Date().toISOString(),
+      createdBy: actor ? actor.id : "",
+      createdByName: actor ? actor.name : "",
+      projectId,
+    };
+    filesMeta = Array.isArray(filesMeta) ? filesMeta.concat(entry) : [entry];
+    writeJson(FILES_META_FILE, filesMeta);
+    await upsertUploadBlob(entry, parsed.file.buffer);
+    appendAudit(
+      "file_upload",
+      actor ? actor.id : null,
+      { fileId: entry.id, name: entry.originalName, type: entry.type, projectId },
+      getClientIp(req),
+      projectId
+    );
+    return res.json({ ok: true, file: entry });
   }
 );
 
