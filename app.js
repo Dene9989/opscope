@@ -10658,8 +10658,61 @@ function mergePreferLocal(remote, local) {
   return merged;
 }
 
+function getMaintenanceUpdatedAtValue(item) {
+  if (!item || typeof item !== "object") {
+    return 0;
+  }
+  const candidates = [
+    item.updatedAt,
+    item.doneAt,
+    item.executionFinishedAt,
+    item.executionStartedAt,
+    item.concluidaEm,
+    item.dataConclusao,
+    item.createdAt,
+  ];
+  const times = candidates
+    .map((value) => getTimeValue(value))
+    .filter((value) => Number.isFinite(value));
+  return times.length ? Math.max(...times) : 0;
+}
+
+function isMaintenanceConcluded(item) {
+  return normalizeMaintenanceStatus(item && item.status) === "concluida";
+}
+
+function pickMaintenanceMerge(remote, local) {
+  if (!remote && !local) {
+    return { item: null, source: "none" };
+  }
+  if (!remote) {
+    return { item: local, source: "local" };
+  }
+  if (!local) {
+    return { item: remote, source: "remote" };
+  }
+  const remoteTime = getMaintenanceUpdatedAtValue(remote);
+  const localTime = getMaintenanceUpdatedAtValue(local);
+  const remoteConcluida = isMaintenanceConcluded(remote);
+  const localConcluida = isMaintenanceConcluded(local);
+
+  if (localConcluida && !remoteConcluida && (!remoteTime || localTime >= remoteTime)) {
+    return { item: mergePreferLocal(local, remote), source: "local" };
+  }
+  if (remoteConcluida && !localConcluida && (!localTime || remoteTime >= localTime)) {
+    return { item: mergePreferLocal(remote, local), source: "remote" };
+  }
+  if (localTime && (!remoteTime || localTime > remoteTime + 1000)) {
+    return { item: mergePreferLocal(local, remote), source: "local" };
+  }
+  if (remoteTime && (!localTime || remoteTime > localTime + 1000)) {
+    return { item: mergePreferLocal(remote, local), source: "remote" };
+  }
+  return { item: mergePreferLocal(remote, local), source: "remote" };
+}
+
 function mergeMaintenanceFallback(remote, local) {
-  return mergePreferLocal(remote, local);
+  return pickMaintenanceMerge(remote, local).item;
 }
 
 function getParticipantesLabel(participantes) {
@@ -31463,9 +31516,29 @@ async function carregarManutencoesServidor(force = false) {
           ? localCache.filter((item) => item && item.id).map((item) => [item.id, item])
           : []
       );
-      const merged = data.items.map((item) =>
-        mergeMaintenanceFallback(item, localMap.get(item.id))
+      let needsSync = false;
+      const merged = data.items.map((item) => {
+        const resolved = pickMaintenanceMerge(item, localMap.get(item.id));
+        if (resolved.source === "local") {
+          needsSync = true;
+        }
+        return resolved.item;
+      });
+      const remoteIds = new Set(
+        data.items.map((item) => (item && item.id ? String(item.id) : "")).filter(Boolean)
       );
+      if (Array.isArray(localCache)) {
+        localCache.forEach((item) => {
+          if (!item || !item.id) {
+            return;
+          }
+          const id = String(item.id);
+          if (!remoteIds.has(id)) {
+            merged.push(item);
+            needsSync = true;
+          }
+        });
+      }
       manutencoes = merged;
       const payloadHash = syncDebugEnabled
         ? hashString(JSON.stringify(data.items))
@@ -31481,6 +31554,9 @@ async function carregarManutencoesServidor(force = false) {
       salvarManutencoes(manutencoes);
       pmpMaintenanceCache.set(activeProjectId, manutencoes);
       maintenanceLoadedProjects.add(activeProjectId);
+      if (needsSync) {
+        scheduleMaintenanceSync(manutencoes, true);
+      }
       renderTudo();
       showTeamMaintenanceNotifications();
     }
@@ -34458,6 +34534,7 @@ function confirmarInicioExecucao() {
   };
   manutencoes[index] = atualizado;
   salvarManutencoes(manutencoes);
+  scheduleMaintenanceSync(manutencoes, true);
   const liberacao = getLiberacao(item) || {};
   const documentosLista = DOC_KEYS.filter((key) => liberacao.documentos && liberacao.documentos[key]).map(
     (key) => DOC_LABELS[key] || key
@@ -37737,7 +37814,7 @@ function scheduleMaintenanceSync(items, force) {
   if (!activeProjectId) {
     return;
   }
-  if (!maintenanceLoadedProjects.has(activeProjectId)) {
+  if (!maintenanceLoadedProjects.has(activeProjectId) && !force) {
     return;
   }
   if (force) {

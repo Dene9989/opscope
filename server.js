@@ -3646,6 +3646,60 @@ function normalizeStatus(raw) {
   return "agendada";
 }
 
+function getMaintenanceUpdatedAtValue(item) {
+  if (!item || typeof item !== "object") {
+    return 0;
+  }
+  const candidates = [
+    item.updatedAt,
+    item.doneAt,
+    item.executionFinishedAt,
+    item.executionStartedAt,
+    item.concluidaEm,
+    item.dataConclusao,
+    item.createdAt,
+  ];
+  const times = candidates
+    .map((value) => {
+      if (!value) {
+        return null;
+      }
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
+    })
+    .filter((value) => Number.isFinite(value));
+  return times.length ? Math.max(...times) : 0;
+}
+
+function pickMaintenanceMerge(existing, incoming) {
+  if (!existing && !incoming) {
+    return null;
+  }
+  if (!existing) {
+    return incoming;
+  }
+  if (!incoming) {
+    return existing;
+  }
+  const existingStatus = normalizeStatus(existing.status);
+  const incomingStatus = normalizeStatus(incoming.status);
+  if (existingStatus === "concluida" && incomingStatus !== "concluida") {
+    return existing;
+  }
+  if (incomingStatus === "concluida" && existingStatus !== "concluida") {
+    return incoming;
+  }
+  const existingTime = getMaintenanceUpdatedAtValue(existing);
+  const incomingTime = getMaintenanceUpdatedAtValue(incoming);
+  if (incomingTime && (!existingTime || incomingTime > existingTime)) {
+    return { ...existing, ...incoming };
+  }
+  if (existingTime && (!incomingTime || existingTime > incomingTime)) {
+    return existing;
+  }
+  return { ...incoming, ...existing };
+}
+
 function getDueDate(item) {
   return parseDateOnly(item.prazo || item.data || item.dueDate || item.prazoManutencao);
 }
@@ -8702,14 +8756,25 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
   const existingProject = existing.filter((item) => {
     return item && item.projectId === projectId;
   });
-  const existingIds = new Set(existingProject.map((item) => item.id).filter(Boolean));
-  const createdItems = sanitized.filter(
-    (item) => item && item.id && !existingIds.has(item.id)
+  const existingMap = new Map(
+    existingProject.map((item) => [String(item.id || ""), item]).filter(([id]) => id)
   );
-  const filtered = existing.filter((item) => {
-    return !(item && item.projectId === projectId);
+  const createdItems = [];
+  const mergedMap = new Map(existingMap);
+  sanitized.forEach((item) => {
+    if (!item || !item.id) {
+      return;
+    }
+    const key = String(item.id);
+    const current = mergedMap.get(key) || null;
+    if (!current) {
+      createdItems.push(item);
+    }
+    mergedMap.set(key, pickMaintenanceMerge(current, item));
   });
-  const merged = [...filtered, ...sanitized];
+  const mergedProject = Array.from(mergedMap.values()).filter(Boolean);
+  const filtered = existing.filter((item) => !(item && item.projectId === projectId));
+  const merged = [...filtered, ...mergedProject];
   writeJson(MAINTENANCE_FILE, merged);
   DASHBOARD_CACHE.delete(projectId);
   if (createdItems.length) {
