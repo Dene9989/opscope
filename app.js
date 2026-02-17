@@ -2761,6 +2761,11 @@ function normalizeRoleName(value) {
 }
 
 function normalizeAccessPermissionList(list) {
+  const source = Array.isArray(list)
+    ? list
+    : list && typeof list[Symbol.iterator] === "function"
+      ? Array.from(list)
+      : [];
   const allowed = new Map();
   const allowedLower = new Map();
   ACCESS_PERMISSIONS.forEach((perm) => {
@@ -2772,7 +2777,7 @@ function normalizeAccessPermissionList(list) {
     allowedLower.set(key.toLowerCase(), key);
   });
   const result = new Set();
-  (Array.isArray(list) ? list : []).forEach((perm) => {
+  source.forEach((perm) => {
     const raw = String(perm || "").trim();
     if (!raw) {
       return;
@@ -2802,6 +2807,11 @@ function ensureSectionPermissions(list) {
 }
 
 function normalizeAccessRoleKeys(list) {
+  const source = Array.isArray(list)
+    ? list
+    : list && typeof list[Symbol.iterator] === "function"
+      ? Array.from(list)
+      : [];
   const allowed = new Map();
   const allowedLower = new Map();
   ACCESS_PERMISSIONS.forEach((perm) => {
@@ -2822,7 +2832,7 @@ function normalizeAccessRoleKeys(list) {
   });
   const result = [];
   const seen = new Set();
-  (Array.isArray(list) ? list : []).forEach((perm) => {
+  source.forEach((perm) => {
     const raw = String(perm || "").trim();
     if (!raw) {
       return;
@@ -4113,6 +4123,10 @@ let accessUsers = [];
 let accessRoles = [];
 let accessRoleMap = new Map();
 let accessWriteEnabled = true;
+let accessRefreshInFlight = false;
+let accessRefreshPromise = null;
+let accessRefreshLastAt = 0;
+const ACCESS_REFRESH_MIN_INTERVAL = 1500;
 let accessRoleEditorState = {
   roleId: "",
   baseline: [],
@@ -4419,7 +4433,7 @@ function startSyncPolling() {
       loadDashboardSummary(true, { skipSync: true });
       refreshProjects();
     }
-    refreshAccessData();
+    refreshAccessData({ reason: "poll" });
   }, SYNC_POLL_MS);
 }
 
@@ -4455,7 +4469,7 @@ function handleSyncEvent(eventName, payload = {}) {
     return;
   }
   if (eventName === "access.updated") {
-    refreshAccessData();
+    refreshAccessData({ reason: "sync" });
   }
 }
 
@@ -9537,7 +9551,7 @@ async function carregarUsuariosServidor() {
     return;
   }
   if (!USE_AUTH_API) {
-    await refreshAccessData();
+    await refreshAccessData({ force: true });
     renderEquipeSelectOptions();
     renderManutencaoParticipantesOptions();
     renderManutencaoParticipantesSelected();
@@ -25361,29 +25375,47 @@ async function refreshAccessUsers() {
   }
 }
 
-async function refreshAccessData() {
-  try {
-    await dataProvider.roles.seedDefaultRolesIfEmpty();
-  } catch (error) {
-    // noop
+async function refreshAccessData(options = {}) {
+  const force = Boolean(options.force);
+  const now = Date.now();
+  if (accessRefreshInFlight) {
+    return accessRefreshPromise || Promise.resolve();
   }
-  try {
-    await ensureBootstrapAccessAccount();
-  } catch (error) {
-    // noop
+  if (!force && now - accessRefreshLastAt < ACCESS_REFRESH_MIN_INTERVAL) {
+    return;
   }
-  await refreshAccessRoles({ skipEditor: isAccessRoleModalOpen() });
-  await refreshAccessUsers();
-  await refreshAccessStorageState();
-  const accessHash = syncDebugEnabled
-    ? hashString(JSON.stringify({ roles: accessRoles, users: accessUsers }))
-    : "";
-  logSyncDebug("access.fetch", {
-    roles: accessRoles.length,
-    users: accessUsers.length,
-    source: USE_AUTH_API ? "api" : "local",
-    hash: accessHash,
-  });
+  accessRefreshLastAt = now;
+  accessRefreshInFlight = true;
+  accessRefreshPromise = (async () => {
+    try {
+      await dataProvider.roles.seedDefaultRolesIfEmpty();
+    } catch (error) {
+      // noop
+    }
+    try {
+      await ensureBootstrapAccessAccount();
+    } catch (error) {
+      // noop
+    }
+    await refreshAccessRoles({ skipEditor: isAccessRoleModalOpen() });
+    await refreshAccessUsers();
+    await refreshAccessStorageState();
+    const accessHash = syncDebugEnabled
+      ? hashString(JSON.stringify({ roles: accessRoles, users: accessUsers }))
+      : "";
+    logSyncDebug("access.fetch", {
+      roles: accessRoles.length,
+      users: accessUsers.length,
+      source: USE_AUTH_API ? "api" : "local",
+      hash: accessHash,
+    });
+  })();
+  try {
+    await accessRefreshPromise;
+  } finally {
+    accessRefreshInFlight = false;
+    accessRefreshPromise = null;
+  }
 }
 
 function setAccessUserFormMessage(texto, erro = false) {
@@ -39294,7 +39326,7 @@ tabButtons.forEach((botao) => {
     const scrollTarget = botao.dataset.scrollTarget;
     abrirPainelComCarregamento(tab, scrollTarget);
     if (tab === "acessos") {
-      refreshAccessData();
+      refreshAccessData({ force: true });
     }
   });
 });
@@ -41403,7 +41435,7 @@ if (btnIrAcessos) {
   btnIrAcessos.addEventListener("click", () => {
     abrirPainelComCarregamento("acessos");
     setAccessTab("contas");
-    refreshAccessData();
+    refreshAccessData({ force: true });
   });
 }
 
@@ -42615,7 +42647,7 @@ window.addEventListener("storage", (event) => {
   const isProjectStorageUpdate = keysBase.some((base) => isProjectStorageKey(event.key, base));
   if (isAccessUpdate) {
     if (currentUser) {
-      refreshAccessData();
+      refreshAccessData({ reason: "storage" });
     }
     return;
   }
