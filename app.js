@@ -15893,7 +15893,7 @@ function montarRdoUI() {
           <div class="field">
             <label for="rdoIncidente">Incidente/Acidente</label>
             <select id="rdoIncidente">
-              <option value="NAO">NAO</option>
+              <option value="NÃO">NAO</option>
               <option value="SIM">SIM</option>
               <option value="N/A">N/A</option>
             </select>
