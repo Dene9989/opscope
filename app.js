@@ -16882,10 +16882,14 @@ function filtrarItensRdo(dataStr, filtros) {
     const inicio = getItemInicioExecucaoDate(item);
     const fim = getItemFimExecucaoDate(item);
     const conclusao = getItemConclusaoDate(item);
-    const entrou =
+    const agendada = parseAnyDate(item && item.data ? item.data : "") || getItemCriacaoDate(item);
+    const entrouExec =
       isDateInRange(inicio, range.inicio, range.fim) ||
       isDateInRange(fim, range.inicio, range.fim) ||
       isDateInRange(conclusao, range.inicio, range.fim);
+    const entrouAgenda =
+      !inicio && !fim && !conclusao && isDateInRange(agendada, range.inicio, range.fim);
+    const entrou = entrouExec || entrouAgenda;
     if (!entrou) {
       return false;
     }
