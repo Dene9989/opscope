@@ -16740,7 +16740,8 @@ function isUserFromActiveProject(user) {
   }
   const normalizedUserTokens = userTokens
     .map((value) => normalizeSearchValue(value))
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter((token) => /[a-z0-9]/i.test(token));
   if (!targetTokens.length || !normalizedUserTokens.length) {
     return false;
   }
