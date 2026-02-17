@@ -26443,13 +26443,6 @@ function getAccessRoleItemLevel(keysSet, item) {
     return "EDIT";
   }
   if (viewKeys.some((key) => keys.has(key))) {
-    if (
-      viewOnly &&
-      accessRoleEditorState.manualLevels &&
-      accessRoleEditorState.manualLevels[item.key] === "EDIT"
-    ) {
-      return "EDIT";
-    }
     return "VIEW";
   }
   return "NONE";
@@ -26616,14 +26609,7 @@ function collectAccessRolePermissions() {
     );
     return Array.from(new Set([adminKey, ...unknown]));
   }
-  if (accessRoleEditorState.manualLevels) {
-    Object.entries(accessRoleEditorState.manualLevels).forEach(([itemKey, level]) => {
-      if (level === "EDIT") {
-        normalized.push(buildAccessRoleLevelKey(itemKey));
-      }
-    });
-  }
-  return normalizeAccessRoleKeys(normalized);
+  return normalized;
 }
 
 function setAccessRoleSelection(list) {
