@@ -4127,6 +4127,7 @@ let accessRoleEditorState = {
   renameMode: false,
   showChanges: false,
 };
+let accessRoleSelectLocked = false;
 let requests = [];
 let auditLog = [];
 let currentUser = null;
@@ -4406,16 +4407,18 @@ function startSyncPolling() {
     return;
   }
   syncPollTimer = setInterval(() => {
-    if (!currentUser || !activeProjectId) {
+    if (!currentUser) {
       return;
     }
     if (document.hidden) {
       return;
     }
     logSyncDebug("poll.tick");
-    carregarManutencoesServidor(true);
-    loadDashboardSummary(true, { skipSync: true });
-    refreshProjects();
+    if (activeProjectId) {
+      carregarManutencoesServidor(true);
+      loadDashboardSummary(true, { skipSync: true });
+      refreshProjects();
+    }
     refreshAccessData();
   }, SYNC_POLL_MS);
 }
@@ -16602,23 +16605,144 @@ function getActiveProjectEquipeIds() {
   return new Set(ids);
 }
 
+function collectActiveProjectMembers(jornadas = []) {
+  const members = new Map();
+  const addUser = (user, labelOverride = "") => {
+    if (!user) {
+      return;
+    }
+    const id = String(user.id || "").trim();
+    if (!id || isSystemUserId(id)) {
+      return;
+    }
+    if (normalizeAccessUserStatus(user.status, user.active) === "INATIVO") {
+      return;
+    }
+    if (isAdminUser(user)) {
+      return;
+    }
+    if (members.has(id)) {
+      return;
+    }
+    const label = String(
+      labelOverride || user.name || user.username || user.matricula || ""
+    ).trim();
+    members.set(id, { ...user, id, label: label || user.name || id });
+  };
+
+  if (Array.isArray(projectEquipe) && projectEquipe.length) {
+    projectEquipe.forEach((entry) => {
+      if (!entry) {
+        return;
+      }
+      const entryUserId = entry.userId || (entry.user && entry.user.id) || "";
+      const entryUser =
+        entry.user || getUserById(entryUserId) || users.find((item) => item.id === entryUserId);
+      if (entryUser) {
+        addUser(entryUser);
+        return;
+      }
+      const fallbackLabel = String(entry.nome || entry.label || "").trim();
+      if (entryUserId) {
+        addUser({ id: entryUserId, name: fallbackLabel }, fallbackLabel);
+      }
+    });
+  }
+
+  getOperationalUsers()
+    .filter(isUserFromActiveProject)
+    .forEach((user) => addUser(user));
+
+  if (currentUser && isRealUser(currentUser) && isUserFromActiveProject(currentUser)) {
+    addUser(currentUser);
+  }
+
+  if (Array.isArray(jornadas) && jornadas.length) {
+    jornadas.forEach((item) => {
+      if (!item) {
+        return;
+      }
+      const entryId = String(item.userId || "").trim();
+      const entryLabel = String(item.nome || item.label || "").trim();
+      if (entryId && !members.has(entryId)) {
+        addUser({ id: entryId, name: entryLabel }, entryLabel);
+      } else if (!entryId && entryLabel) {
+        const syntheticId = `label:${normalizeSearchValue(entryLabel)}`;
+        if (!members.has(syntheticId)) {
+          addUser({ id: syntheticId, name: entryLabel }, entryLabel);
+        }
+      }
+    });
+  }
+
+  return Array.from(members.values()).sort((a, b) =>
+    String(a.label || a.name || "").localeCompare(String(b.label || b.name || ""), "pt-BR")
+  );
+}
+
 function isUserFromActiveProject(user) {
   if (!user) {
     return false;
   }
-  if (activeProjectId && user.projectId && user.projectId === activeProjectId) {
+  const activeProject = getActiveProject();
+  const activeId = String(activeProjectId || "").trim();
+  const userProjectId = String(
+    user.projectId || user.projetoId || user.project_id || ""
+  ).trim();
+  if (activeId && userProjectId && userProjectId === activeId) {
     return true;
   }
   const equipeIds = getActiveProjectEquipeIds();
-  if (equipeIds.size && equipeIds.has(user.id)) {
+  if (equipeIds.size && user.id && equipeIds.has(user.id)) {
     return true;
   }
-  const targetLabel = normalizeSearchValue(getProjectLabel(getActiveProject()));
-  const userLabel = normalizeSearchValue(getUserProjectLabel(user));
-  if (targetLabel && userLabel && userLabel.includes(targetLabel)) {
-    return true;
+  const targetTokens = [
+    activeId,
+    activeProject ? getProjectLabel(activeProject) : "",
+    activeProject ? activeProject.codigo || "" : "",
+    activeProject ? activeProject.nome || "" : "",
+  ]
+    .map((value) => normalizeSearchValue(value))
+    .filter(Boolean);
+  const userTokens = [
+    userProjectId,
+    user.project,
+    user.projectKey,
+    user.projectCode,
+    user.projectName,
+    user.projectLabel,
+    user.projeto,
+    user.localizacao,
+    getUserProjectLabel(user),
+  ];
+  if (user.project && typeof user.project === "object") {
+    userTokens.push(user.project.id, user.project.codigo, user.project.nome, user.project.label);
   }
-  return false;
+  if (Array.isArray(user.projects)) {
+    user.projects.forEach((entry) => {
+      if (!entry) {
+        return;
+      }
+      if (typeof entry === "string") {
+        userTokens.push(entry);
+        return;
+      }
+      if (typeof entry === "object") {
+        userTokens.push(entry.id, entry.codigo, entry.nome, entry.label);
+      }
+    });
+  }
+  const normalizedUserTokens = userTokens
+    .map((value) => normalizeSearchValue(value))
+    .filter(Boolean);
+  if (!targetTokens.length || !normalizedUserTokens.length) {
+    return false;
+  }
+  return targetTokens.some((target) =>
+    normalizedUserTokens.some(
+      (token) => token === target || token.includes(target) || target.includes(token)
+    )
+  );
 }
 
 function renderRdoJornadas(manual = {}) {
@@ -16642,10 +16766,7 @@ function renderRdoJornadas(manual = {}) {
   const jornadasMap = new Map(
     jornadasValidas.map((item) => [String(item.userId || item.nome || item.label || ""), item])
   );
-  const colaboradores = getOperationalUsers()
-    .filter((user) => user && (user.name || user.username))
-    .filter(isUserFromActiveProject)
-    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+  const colaboradores = collectActiveProjectMembers(jornadasValidas);
 
   if (!colaboradores.length && !jornadasValidas.length) {
     const label = getActiveProjectShortLabel();
@@ -16675,8 +16796,9 @@ function renderRdoJornadas(manual = {}) {
 
   rdoUI.jornadaList.innerHTML = colaboradores
     .map((user) => {
-      const label = getUserLabel(user.id);
-      const ref = jornadasMap.get(String(user.id)) || jornadasMap.get(label) || {};
+      const label = user.label || getUserLabel(user.id);
+      const ref =
+        jornadasMap.get(String(user.id)) || jornadasMap.get(label) || jornadasMap.get(user.label) || {};
       return `
         <div class="rdo-shift-row" data-user-id="${escapeHtml(user.id)}">
           <div class="rdo-shift-name">${escapeHtml(label)}</div>
@@ -24892,6 +25014,10 @@ async function refreshAccessStorageState() {
   applyAccessWriteState();
 }
 
+function isAccessRoleModalOpen() {
+  return Boolean(modalAccessRole && !modalAccessRole.hidden);
+}
+
 function setAccessTab(tab) {
   if (!accessTabs.length || !accessPanels.length) {
     return;
@@ -24935,6 +25061,7 @@ function renderAccessRoleNameOptions(selectedId = "") {
   const sorted = accessRoles.slice().sort((a, b) =>
     String(a.name || "").localeCompare(String(b.name || ""), "pt-BR")
   );
+  accessRoleSelectLocked = true;
   accessRoleSelect.innerHTML = "";
   const optionNew = document.createElement("option");
   optionNew.value = "__new__";
@@ -24947,6 +25074,7 @@ function renderAccessRoleNameOptions(selectedId = "") {
     accessRoleSelect.append(opt);
   });
   accessRoleSelect.value = selectedId || "__new__";
+  accessRoleSelectLocked = false;
 }
 
 function renderAccessProjectSelectOptions() {
@@ -25109,7 +25237,8 @@ function renderAccessRoles() {
     });
 }
 
-async function refreshAccessRoles() {
+async function refreshAccessRoles(options = {}) {
+  const skipEditor = Boolean(options.skipEditor);
   try {
     accessRoles = await dataProvider.roles.listRoles();
   } catch (error) {
@@ -25125,8 +25254,10 @@ async function refreshAccessRoles() {
   }
   accessRoleMap = new Map(accessRoles.map((role) => [role.id, role]));
   renderAccessRoleSelectOptions();
-  renderAccessRoleNameOptions(accessRoleId ? accessRoleId.value : "");
-  updateAccessRoleRenameVisibility();
+  if (!skipEditor) {
+    renderAccessRoleNameOptions(accessRoleId ? accessRoleId.value : "");
+    updateAccessRoleRenameVisibility();
+  }
   renderAccessRoles();
 }
 
@@ -25177,7 +25308,7 @@ async function refreshAccessData() {
   } catch (error) {
     // noop
   }
-  await refreshAccessRoles();
+  await refreshAccessRoles({ skipEditor: isAccessRoleModalOpen() });
   await refreshAccessUsers();
   await refreshAccessStorageState();
   const accessHash = syncDebugEnabled
@@ -26751,40 +26882,10 @@ function normalizeTeamName(value) {
 }
 
 function getMaintenanceParticipantCandidates() {
-  const list = [];
-  const isActiveRecord = (user) => {
-    if (!user || !user.id) {
-      return false;
-    }
-    if (isSystemUserId(user.id)) {
-      return false;
-    }
-    const status = normalizeAccessUserStatus(user.status, user.active);
-    return status !== "INATIVO";
-  };
-  const isProjectMember = (user) => {
-    if (!user) {
-      return false;
-    }
-    return Boolean(activeProjectId && user.projectId && user.projectId === activeProjectId);
-  };
-  const source = users.slice();
-  if (currentUser && !source.some((item) => String(item.id) === String(currentUser.id))) {
-    source.push(currentUser);
-  }
-  source.forEach((user) => {
-    if (!isActiveRecord(user)) {
-      return;
-    }
-    if (!isProjectMember(user)) {
-      return;
-    }
-    const label = normalizeParticipantName(user.name || user.username || "");
-    if (label) {
-      list.push(label);
-    }
-  });
-  return Array.from(new Set(list)).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const list = collectActiveProjectMembers().map((user) =>
+    normalizeParticipantName(user.name || user.username || user.label || "")
+  );
+  return Array.from(new Set(list.filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 
 function renderManutencaoEquipeOptions(selectedName = "") {
@@ -41349,6 +41450,9 @@ if (accessRoleSearch) {
 }
 if (accessRoleSelect) {
   accessRoleSelect.addEventListener("change", () => {
+    if (accessRoleSelectLocked) {
+      return;
+    }
     const selectedId = accessRoleSelect.value;
     if (!selectedId || selectedId === "__new__") {
       resetAccessRoleToNew();
