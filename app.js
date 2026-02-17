@@ -17615,14 +17615,24 @@ function buildAtividadesConsolidadoFallback(itensRdo) {
 }
 
 function buildAtividadesConsolidadoHtml(data, meta = {}) {
-  const local = meta.local || (data && data.local ? data.local : "não informado");
-  const subestacao =
-    meta.subestacao || (data && data.subestacao ? data.subestacao : "não informado");
-  const atividade = data && data.atividade_do_dia ? data.atividade_do_dia : "não informado";
-  const status = meta.status || (data && data.status_geral ? data.status_geral : "não informado");
-  const statusClass = meta.statusClass || "neutral";
+  const dash = "\u2014";
+  const normalizeValue = (value) => {
+    if (value === null || value === undefined) {
+      return dash;
+    }
+    const text = String(value).trim();
+    if (!text || text === "-" || /^(nao|n\u00e3o) informado$/i.test(text)) {
+      return dash;
+    }
+    return text;
+  };
+  const local = normalizeValue(meta.local || (data && data.local));
+  const subestacao = normalizeValue(meta.subestacao || (data && data.subestacao));
+  const atividadeRaw = normalizeValue(data && data.atividade_do_dia);
+  const status = normalizeValue(meta.status || (data && data.status_geral));
+  const statusClass = status === dash ? "neutral" : meta.statusClass || "neutral";
   const tempoLabel = meta.tempoTotal || "-";
-  const docsLabel = meta.docsBadge || "—";
+  const docsLabel = meta.docsBadge || dash;
   const equipamentos = data && Array.isArray(data.equipamentos) ? data.equipamentos : [];
   const tiposUnicos = Array.from(
     new Set(equipamentos.map((equip) => (equip.tipo || "").trim()).filter(Boolean))
@@ -17632,6 +17642,26 @@ function buildAtividadesConsolidadoHtml(data, meta = {}) {
   );
   const tipoResumo = tiposUnicos.length === 1 ? tiposUnicos[0] : "";
   const statusResumo = statusUnicos.length === 1 ? statusUnicos[0] : status;
+  let atividadeTitulo = atividadeRaw;
+  let atividadeSubtitulo = "";
+  if (atividadeRaw !== dash) {
+    const separadores = [" - ", " \u2014 ", " | ", ": "];
+    for (const sep of separadores) {
+      if (atividadeRaw.includes(sep)) {
+        const partes = atividadeRaw.split(sep);
+        atividadeTitulo = (partes.shift() || "").trim() || atividadeRaw;
+        atividadeSubtitulo = partes.join(sep).trim();
+        break;
+      }
+    }
+    if (!atividadeSubtitulo && atividadeRaw.includes(" em ")) {
+      const partes = atividadeRaw.split(" em ");
+      if (partes.length > 1) {
+        atividadeTitulo = (partes.shift() || "").trim() || atividadeRaw;
+        atividadeSubtitulo = `em ${partes.join(" em ").trim()}`;
+      }
+    }
+  }
   const grupos = equipamentos.reduce((acc, equip) => {
     const base = normalizeForMatch(`${equip.nome || ""} ${equip.tipo || ""}`);
     let grupo = "Outros";
@@ -17655,18 +17685,24 @@ function buildAtividadesConsolidadoHtml(data, meta = {}) {
           .map((grupo) => {
             const lista = grupos[grupo]
               .map((equip) => {
-                const nome = equip.nome && equip.nome !== "não informado" ? equip.nome : "—";
-                const tipo = equip.tipo || "—";
-                const statusItem = equip.status || "—";
-                const tipoLabel = tiposUnicos.length === 1 ? "" : ` — ${escapeHtml(tipo)}`;
+                const nome = normalizeValue(equip.nome);
+                const tipo = normalizeValue(equip.tipo);
+                const statusItem = normalizeValue(equip.status);
+                const tipoLabel = tiposUnicos.length === 1 ? "" : ` \u2014 ${escapeHtml(tipo)}`;
                 const statusLabel =
-                  statusUnicos.length === 1 ? "" : ` — ${escapeHtml(statusItem)}`;
+                  statusUnicos.length === 1 ? "" : ` \u2014 ${escapeHtml(statusItem)}`;
                 return `<li>${escapeHtml(nome)}${tipoLabel}${statusLabel}</li>`;
               })
               .join("");
+            const grupoLabel =
+              grupo === "Servicos auxiliares"
+                ? "Servi\u00e7os auxiliares"
+                : grupo === "Potencia"
+                  ? "Pot\u00eancia"
+                  : "Outros";
             return `
               <div class="rdo-equip-group">
-                <h5>${escapeHtml(grupo)}</h5>
+                <h5>${escapeHtml(grupoLabel)}</h5>
                 <ul class="rdo-lista">${lista}</ul>
               </div>
             `;
@@ -17677,29 +17713,29 @@ function buildAtividadesConsolidadoHtml(data, meta = {}) {
             ${gruposOrdenados
               .flatMap((grupo) =>
                 grupos[grupo].map((equip) => {
-                  const nome = equip.nome && equip.nome !== "não informado" ? equip.nome : "—";
-                  const tipo = equip.tipo || "—";
-                  const statusItem = equip.status || "—";
-                  const tipoLabel = tiposUnicos.length === 1 ? "" : ` — ${escapeHtml(tipo)}`;
+                  const nome = normalizeValue(equip.nome);
+                  const tipo = normalizeValue(equip.tipo);
+                  const statusItem = normalizeValue(equip.status);
+                  const tipoLabel = tiposUnicos.length === 1 ? "" : ` \u2014 ${escapeHtml(tipo)}`;
                   const statusLabel =
-                    statusUnicos.length === 1 ? "" : ` — ${escapeHtml(statusItem)}`;
+                    statusUnicos.length === 1 ? "" : ` \u2014 ${escapeHtml(statusItem)}`;
                   return `<li>${escapeHtml(nome)}${tipoLabel}${statusLabel}</li>`;
                 })
               )
               .join("")}
           </ul>
         `
-    : `<p class="rdo-muted">— (sem registros no período)</p>`;
-  const resumoEquipamentos = equipamentos.length
-    ? `Equipamentos: ${equipamentos.length} • Tipo: ${escapeHtml(
-        tipoResumo || "—"
-      )} • Status: ${escapeHtml(statusResumo || "—")}`
-    : "—";
+    : `<p class="rdo-muted">\u2014 (sem registros no per\u00edodo)</p>`;
+  const resumoChips = [
+    `Equipamentos: ${equipamentos.length ? equipamentos.length : dash}`,
+    `Tipo: ${tipoResumo ? tipoResumo : dash}`,
+    `Status: ${statusResumo ? statusResumo : dash}`,
+  ];
   const statusMetaParts = [
     tempoLabel && tempoLabel !== "-" ? `Tempo: ${tempoLabel}` : "",
     docsLabel ? `Docs: ${docsLabel}` : "",
   ].filter(Boolean);
-  const statusMeta = statusMetaParts.length ? statusMetaParts.join(" • ") : "—";
+  const statusMeta = statusMetaParts.length ? statusMetaParts.join(" \u2022 ") : dash;
   return `
     <div class="rdo-consolidado-grid">
       <div>
@@ -17710,21 +17746,23 @@ function buildAtividadesConsolidadoHtml(data, meta = {}) {
         <span>Subesta\u00e7\u00e3o</span>
         <strong>${escapeHtml(subestacao)}</strong>
       </div>
-      <div>
+      <div class="rdo-consolidado-activity">
         <span>Atividade do dia</span>
-        <strong>${escapeHtml(atividade)}</strong>
+        <strong>${escapeHtml(atividadeTitulo)}</strong>
+        ${atividadeSubtitulo ? `<small>${escapeHtml(atividadeSubtitulo)}</small>` : ""}
       </div>
       <div class="rdo-consolidado-status">
-        <span>Status geral + Docs</span>
+        <span>Status geral + Docs + Tempo</span>
         <strong class="rdo-status rdo-status--${escapeHtml(statusClass)}">${escapeHtml(
-          status || "—"
+          status || dash
         )}</strong>
         <small>${escapeHtml(statusMeta)}</small>
       </div>
     </div>
-    <div class="rdo-consolidado-line">
-      <span>Resumo</span>
-      <strong>${resumoEquipamentos}</strong>
+    <div class="rdo-consolidado-chips">
+      ${resumoChips
+        .map((chip) => `<span class="rdo-chip rdo-chip--plain">${escapeHtml(chip)}</span>`)
+        .join("")}
     </div>
     <div class="rdo-item__section rdo-consolidado-equip">
       <h4>Equipamentos atendidos</h4>
@@ -18065,6 +18103,7 @@ function buildRdoHtml(snapshot, options = {}) {
     return `<div class="rdo-doc"><p class="empty-state">RDO indisponível.</p></div>`;
   }
   snapshot = normalizeRdoSnapshot(snapshot);
+  const dash = "\u2014";
   const isCliente = Boolean(options.cliente);
   const dataParsed = snapshot.rdoDate ? parseDate(snapshot.rdoDate) : null;
   const dataLabel = dataParsed ? formatDate(dataParsed) : "-";
@@ -18079,10 +18118,10 @@ function buildRdoHtml(snapshot, options = {}) {
   const docsPercent =
     snapshot.metricas.docsTotal && snapshot.metricas.docsPercent !== null
       ? `${snapshot.metricas.docsPercent}%`
-      : "\u2014";
+      : dash;
   const docsMeta = snapshot.metricas.docsTotal
     ? `${snapshot.metricas.docsOk}/${snapshot.metricas.docsTotal}`
-    : "Sem base";
+    : dash;
   const evidenciasLimitadas =
     snapshot.evidenciasTotal > snapshot.evidencias.length
       ? `Evidências limitadas a ${snapshot.limiteEvidencias} no PDF.`
@@ -18153,7 +18192,6 @@ function buildRdoHtml(snapshot, options = {}) {
   const atividadesConsolidado =
     (aiText && aiText.atividades_consolidado) ||
     buildAtividadesConsolidadoFallback(snapshot.itens || []);
-  const dash = "—";
   const formatValue = (value) => {
     if (value === 0) {
       return { text: "0", muted: false };
@@ -18162,7 +18200,7 @@ function buildRdoHtml(snapshot, options = {}) {
       return { text: dash, muted: true };
     }
     const text = String(value).trim();
-    if (!text || text === "-") {
+    if (!text || text === "-" || text === dash) {
       return { text: dash, muted: true };
     }
     return { text, muted: false };
@@ -18413,23 +18451,25 @@ function buildRdoHtml(snapshot, options = {}) {
           `;
         })
         .join("")
-    : `<p class="empty-state">Sem evidências fotográficas no período.</p>`;
+    : `<p class="rdo-muted">— (sem registros no período)</p>`;
 
-  const naoImagemHtml = snapshot.evidenciasNaoImagem.length
-    ? `
+  const naoImagemHtml = `
       <div class="rdo-naoimagem">
         <strong>Evidências não-imagem</strong>
-        <ul>
+        ${
+          snapshot.evidenciasNaoImagem.length
+            ? `<ul>
           ${snapshot.evidenciasNaoImagem
             .map(
               (item) =>
                 `<li>${escapeHtml(item.itemTitulo)} - ${escapeHtml(item.nome)}</li>`
             )
             .join("")}
-        </ul>
+        </ul>`
+            : `<p class="rdo-muted">— (sem registros no período)</p>`
+        }
       </div>
-    `
-    : "";
+    `;
 
   const responsaveisHeader = formatListLimited(
     (snapshot.itens || []).map((item) => item.responsavel).filter(Boolean),
@@ -18481,7 +18521,7 @@ function buildRdoHtml(snapshot, options = {}) {
   )}${statusField.muted ? " rdo-badge--muted" : ""}">${escapeHtml(
     statusField.text
   )}</span>`;
-  const docsBadge = snapshot.metricas.docsTotal ? `${docsPercent} \u2022 ${docsMeta}` : "Sem base";
+  const docsBadge = snapshot.metricas.docsTotal ? `${docsPercent} \u2022 ${docsMeta}` : dash;
   const atividadesConsolidadoHtml = buildAtividadesConsolidadoHtml(atividadesConsolidado, {
     local: projeto,
     subestacao: subestacaoHeader,
@@ -18502,10 +18542,19 @@ function buildRdoHtml(snapshot, options = {}) {
   const descricaoText = descricaoValue.text;
   const descricaoMuted = descricaoValue.muted;
   const descricaoHtml = `
-    <p class="rdo-paragraph${descricaoMuted ? " rdo-muted" : ""}">${escapeHtml(
+    <p class="rdo-paragraph rdo-paragraph--narrow${descricaoMuted ? " rdo-muted" : ""}">${escapeHtml(
       descricaoText
     )}</p>
   `;
+  const registroVal = formatValue(snapshot.registroGerencial || "");
+  const registroHtml = `
+      <section class="rdo-section rdo-note">
+        <h3>Registro Gerencial do Dia</h3>
+        <p${registroVal.muted ? ' class="rdo-muted"' : ""}>${escapeHtml(
+          registroVal.text
+        )}</p>
+      </section>
+    `;
 
   const atividadesCardsHtml = (snapshot.itens || [])
     .map((item) => {
@@ -18590,7 +18639,7 @@ function buildRdoHtml(snapshot, options = {}) {
           `;
         })
         .join("")
-    : `<tr><td colspan="5" class="rdo-muted">— (sem evidências no período)</td></tr>`;
+    : `<tr><td colspan="5" class="rdo-muted">— (sem registros no período)</td></tr>`;
   const evidenciasIndexHtml = `
       <table class="rdo-table rdo-table--evidencias">
         <thead>
@@ -18608,18 +18657,50 @@ function buildRdoHtml(snapshot, options = {}) {
       </table>
     `;
 
-  const resumoValor = formatValue(snapshot.resumoDia || "");
+  const totalAtividades = snapshot.metricas.total ?? 0;
+  const totalConcluidas = snapshot.metricas.concluidas ?? 0;
+  const totalExecucao = snapshot.metricas.emExecucao ?? 0;
+  const totalPendentes = snapshot.metricas.overdue ?? 0;
+  const totalCriticas = snapshot.metricas.criticas ?? 0;
+  const panoramaDetail = totalAtividades
+    ? `${totalAtividades} atividades — ${totalConcluidas} conclu\u00eddas, ${totalExecucao} em andamento, ${totalPendentes} pendentes.`
+    : "—";
+  const subCounts = (snapshot.itens || []).reduce((acc, item) => {
+    const sub = item.subestacao && item.subestacao !== "-" ? item.subestacao : "";
+    if (!sub) {
+      return acc;
+    }
+    acc[sub] = (acc[sub] || 0) + 1;
+    return acc;
+  }, {});
+  const topSub = Object.keys(subCounts)
+    .map((key) => ({ key, total: subCounts[key] }))
+    .sort((a, b) => b.total - a.total)[0];
+  const volumeDetail = topSub
+    ? `${topSub.key}: ${topSub.total} atividade${topSub.total === 1 ? "" : "s"}.`
+    : totalAtividades
+      ? `${projeto || dash}: ${totalAtividades} atividade${totalAtividades === 1 ? "" : "s"}.`
+      : "—";
+  const destaquesDetail = totalAtividades
+    ? totalCriticas || totalPendentes
+      ? `${totalCriticas} cr\u00edticas; ${totalPendentes} pend\u00eancias.`
+      : "Sem pend\u00eancias cr\u00edticas."
+    : "—";
   const resumoTexto = `
-    <p class="rdo-paragraph rdo-paragraph--narrow${resumoValor.muted ? " rdo-muted" : ""}">${escapeHtml(
-      resumoValor.text
-    )}</p>
+    <ul class="rdo-summary-lines">
+      <li><strong>Panorama:</strong> ${escapeHtml(panoramaDetail)}</li>
+      <li><strong>Volume/Local:</strong> ${escapeHtml(volumeDetail)}</li>
+      <li><strong>Destaques/Pend\u00eancias:</strong> ${escapeHtml(destaquesDetail)}</li>
+    </ul>
   `;
+  const docsPercentLabel = snapshot.metricas.docsTotal ? `${docsPercent}` : dash;
+  const docsMetaLabel = snapshot.metricas.docsTotal ? docsMeta : dash;
   const kpiCards = [
-    { label: "Atividades", value: snapshot.metricas.total ?? 0 },
-    { label: "Conclu\u00eddas", value: snapshot.metricas.concluidas ?? 0 },
-    { label: "Cr\u00edticas", value: snapshot.metricas.criticas ?? 0 },
-    { label: "Docs", value: docsBadge },
-    { label: "Tempo total", value: tempoTotal !== "-" ? tempoTotal : "N\u00e3o informado" },
+    { label: "Atividades", value: totalAtividades },
+    { label: "Conclu\u00eddas", value: totalConcluidas },
+    { label: "Cr\u00edticas", value: totalCriticas },
+    { label: "Docs", value: docsPercentLabel, meta: docsMetaLabel },
+    { label: "Tempo total", value: tempoTotal !== "-" ? tempoTotal : dash },
   ];
   const kpiCardsHtml = kpiCards
     .map(
@@ -18627,6 +18708,7 @@ function buildRdoHtml(snapshot, options = {}) {
         <div class="rdo-kpi-card">
           <span>${escapeHtml(item.label)}</span>
           <strong>${escapeHtml(formatValue(item.value).text)}</strong>
+          ${item.meta ? `<small>${escapeHtml(formatValue(item.meta).text)}</small>` : ""}
         </div>
       `
     )
@@ -18732,16 +18814,7 @@ function buildRdoHtml(snapshot, options = {}) {
         ${jornadaRowsHtml}
       </section>
 
-      ${
-        snapshot.registroGerencial
-          ? `
-        <section class="rdo-section rdo-note">
-          <h3>Registro Gerencial do Dia</h3>
-          <p>${escapeHtml(snapshot.registroGerencial)}</p>
-        </section>
-      `
-          : ""
-      }
+      ${registroHtml}
 
       <section class="rdo-section">
         <div class="rdo-section-head">
@@ -18767,11 +18840,11 @@ function buildRdoHtml(snapshot, options = {}) {
 function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
   const baseHref = window.location.href.split("#")[0];
   const estilos = `
-    @page { size: A4; margin: 16mm; }
+    @page { size: A4; margin: 12mm; }
     * { box-sizing: border-box; }
     body { font-family: "Trebuchet MS", Arial, sans-serif; color: #1f2933; margin: 0; background: #fff; }
     h2, h3, h4 { font-family: "Trebuchet MS", Arial, sans-serif; margin: 0 0 6px; }
-    .rdo-doc { max-width: 860px; margin: 0 auto; display: grid; gap: 16px; }
+    .rdo-doc { max-width: 860px; margin: 0 auto; display: grid; gap: 12px; }
     .rdo-doc.rdo-template-a {
       --rdo-bg: #ffffff;
       --rdo-card: #ffffff;
@@ -18828,10 +18901,13 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
     .rdo-header-grid > div { border: 1px solid var(--rdo-line); border-radius: 10px; padding: 6px 8px; background: var(--rdo-card); }
     .rdo-header-grid span { display: block; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.55rem; color: var(--rdo-ink-soft); }
     .rdo-header-grid strong { font-size: 0.8rem; color: var(--rdo-ink); }
-    .rdo-section { display: grid; gap: 10px; break-inside: avoid; page-break-inside: avoid; }
+    .rdo-section { display: grid; gap: 10px; }
     .rdo-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .rdo-summary { border: 1px solid var(--rdo-line); border-radius: 12px; padding: 12px; background: var(--rdo-card); }
-    .rdo-kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+    .rdo-summary-lines { margin: 0 0 8px; padding-left: 18px; display: grid; gap: 4px; font-size: 0.82rem; line-height: 1.55; color: var(--rdo-ink); }
+    .rdo-summary-lines li { margin: 0; }
+    .rdo-summary-lines strong { font-weight: 600; color: var(--rdo-ink); }
+    .rdo-kpi-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
     .rdo-kpi-card { border: 1px solid var(--rdo-line); border-radius: 10px; padding: 8px; background: #fff; display: grid; gap: 4px; }
     .rdo-kpi-card span { font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--rdo-ink-soft); }
     .rdo-kpi-card strong { font-size: 1rem; color: var(--rdo-ink); }
@@ -18847,6 +18923,8 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
     .rdo-consolidado-activity { display: grid; gap: 4px; padding: 6px 0; }
     .rdo-consolidado-activity span { font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--rdo-ink-soft); }
     .rdo-consolidado-activity strong { font-size: 0.9rem; color: var(--rdo-ink); }
+    .rdo-consolidado-activity small { display: block; margin-top: 2px; font-size: 0.7rem; color: var(--rdo-ink-soft); }
+    .rdo-consolidado-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; }
     .rdo-equip-group { border: 1px solid var(--rdo-line); border-radius: 10px; padding: 8px; background: rgba(0, 0, 0, 0.02); }
     .rdo-equip-group h5 { margin: 0 0 6px; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--rdo-ink-soft); }
     .rdo-mini { display: flex; flex-wrap: wrap; gap: 6px; font-size: 0.72rem; color: var(--rdo-ink-soft); }
@@ -18855,6 +18933,15 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
     .rdo-info-grid strong { font-size: 0.8rem; color: var(--rdo-ink); }
     .rdo-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
     .rdo-block { border: 1px solid var(--rdo-line); border-radius: 12px; padding: 12px; background: var(--rdo-card); }
+    .rdo-summary,
+    .rdo-editorial,
+    .rdo-premium,
+    .rdo-block,
+    .rdo-tech-sheet,
+    .rdo-journey-card,
+    .rdo-activity-card,
+    .rdo-evidencia,
+    .rdo-note { break-inside: avoid; page-break-inside: avoid; }
     .rdo-paragraph { margin: 0; line-height: 1.55; font-size: 0.82rem; color: var(--rdo-ink); }
     .rdo-pill { border-radius: 999px; padding: 2px 8px; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; border: 1px solid var(--rdo-line); color: var(--rdo-ink-soft); }
     .rdo-pill--accent { border-color: var(--rdo-accent); color: var(--rdo-accent); }
@@ -18867,11 +18954,12 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
     .rdo-activity-card { border: 1px solid var(--rdo-line); border-radius: 12px; padding: 10px; background: var(--rdo-card); display: grid; gap: 8px; }
     .rdo-activity-card__head { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
     .rdo-activity-card__title { font-size: 0.9rem; font-weight: 600; color: var(--rdo-ink); }
-    .rdo-activity-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; font-size: 0.75rem; color: var(--rdo-ink-soft); }
+    .rdo-activity-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; font-size: 0.75rem; color: var(--rdo-ink-soft); }
     .rdo-activity-grid span { display: block; font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.1em; }
     .rdo-activity-grid strong { font-size: 0.78rem; color: var(--rdo-ink); }
     .rdo-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
     .rdo-chip { border-radius: 999px; padding: 2px 8px; background: var(--rdo-chip); color: var(--rdo-chip-ink); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; }
+    .rdo-chip--plain { text-transform: none; letter-spacing: 0.02em; font-size: 0.72rem; }
     .rdo-chip--priority { background: rgba(245, 158, 11, 0.18); color: #8a5302; }
     .rdo-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
     .rdo-table th, .rdo-table td { border-bottom: 1px solid var(--rdo-line); padding: 6px 8px; text-align: left; }

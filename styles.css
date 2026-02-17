@@ -6589,6 +6589,25 @@ textarea:focus {
   border-color: var(--rdo-line);
 }
 
+.rdo-template-a .rdo-summary-lines {
+  margin: 0 0 8px;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--rdo-ink);
+}
+
+.rdo-template-a .rdo-summary-lines li {
+  margin: 0;
+}
+
+.rdo-template-a .rdo-summary-lines strong {
+  font-weight: 600;
+  color: var(--rdo-ink);
+}
+
 .rdo-template-a .rdo-kpi-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -6682,6 +6701,20 @@ textarea:focus {
 .rdo-template-a .rdo-consolidado-activity strong {
   font-size: 0.95rem;
   color: var(--rdo-ink);
+}
+
+.rdo-template-a .rdo-consolidado-activity small {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.72rem;
+  color: var(--rdo-ink-soft);
+}
+
+.rdo-template-a .rdo-consolidado-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 2px;
 }
 
 .rdo-template-a .rdo-equip-group {
@@ -6815,6 +6848,12 @@ textarea:focus {
   font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+.rdo-template-a .rdo-chip--plain {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-size: 0.72rem;
 }
 
 .rdo-template-a .rdo-chip--priority {
