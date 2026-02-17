@@ -17621,12 +17621,8 @@ function buildAtividadesConsolidadoHtml(data, meta = {}) {
   const atividade = data && data.atividade_do_dia ? data.atividade_do_dia : "não informado";
   const status = meta.status || (data && data.status_geral ? data.status_geral : "não informado");
   const statusClass = meta.statusClass || "neutral";
-  const total = typeof meta.total === "number" ? meta.total : null;
-  const concluidas = typeof meta.concluidas === "number" ? meta.concluidas : null;
-  const totalLabel =
-    total !== null && concluidas !== null && total > 0 ? `${concluidas}/${total}` : "-";
   const tempoLabel = meta.tempoTotal || "-";
-  const docsLabel = meta.docsBadge || "Sem base";
+  const docsLabel = meta.docsBadge || "—";
   const equipamentos = data && Array.isArray(data.equipamentos) ? data.equipamentos : [];
   const tiposUnicos = Array.from(
     new Set(equipamentos.map((equip) => (equip.tipo || "").trim()).filter(Boolean))
@@ -17659,9 +17655,9 @@ function buildAtividadesConsolidadoHtml(data, meta = {}) {
           .map((grupo) => {
             const lista = grupos[grupo]
               .map((equip) => {
-                const nome = equip.nome || "não informado";
-                const tipo = equip.tipo || "não informado";
-                const statusItem = equip.status || "não informado";
+                const nome = equip.nome && equip.nome !== "não informado" ? equip.nome : "—";
+                const tipo = equip.tipo || "—";
+                const statusItem = equip.status || "—";
                 const tipoLabel = tiposUnicos.length === 1 ? "" : ` — ${escapeHtml(tipo)}`;
                 const statusLabel =
                   statusUnicos.length === 1 ? "" : ` — ${escapeHtml(statusItem)}`;
@@ -17681,9 +17677,9 @@ function buildAtividadesConsolidadoHtml(data, meta = {}) {
             ${gruposOrdenados
               .flatMap((grupo) =>
                 grupos[grupo].map((equip) => {
-                  const nome = equip.nome || "não informado";
-                  const tipo = equip.tipo || "não informado";
-                  const statusItem = equip.status || "não informado";
+                  const nome = equip.nome && equip.nome !== "não informado" ? equip.nome : "—";
+                  const tipo = equip.tipo || "—";
+                  const statusItem = equip.status || "—";
                   const tipoLabel = tiposUnicos.length === 1 ? "" : ` — ${escapeHtml(tipo)}`;
                   const statusLabel =
                     statusUnicos.length === 1 ? "" : ` — ${escapeHtml(statusItem)}`;
@@ -17693,20 +17689,17 @@ function buildAtividadesConsolidadoHtml(data, meta = {}) {
               .join("")}
           </ul>
         `
-    : `<p>não informado</p>`;
-  const resumoEquipamentos = `
-    <div class="rdo-mini">
-      <span>${equipamentos.length || 0} equipamento(s)</span>
-      ${tipoResumo ? `<span>Tipo: ${escapeHtml(tipoResumo)}</span>` : ""}
-      ${statusResumo ? `<span>Status: ${escapeHtml(statusResumo)}</span>` : ""}
-    </div>
-  `;
+    : `<p class="rdo-muted">— (sem registros no período)</p>`;
+  const resumoEquipamentos = equipamentos.length
+    ? `Equipamentos: ${equipamentos.length} • Tipo: ${escapeHtml(
+        tipoResumo || "—"
+      )} • Status: ${escapeHtml(statusResumo || "—")}`
+    : "—";
   const statusMetaParts = [
-    totalLabel !== "-" ? `Atividades: ${totalLabel}` : "",
     tempoLabel && tempoLabel !== "-" ? `Tempo: ${tempoLabel}` : "",
     docsLabel ? `Docs: ${docsLabel}` : "",
   ].filter(Boolean);
-  const statusMeta = statusMetaParts.length ? statusMetaParts.join(" • ") : "-";
+  const statusMeta = statusMetaParts.length ? statusMetaParts.join(" • ") : "—";
   return `
     <div class="rdo-consolidado-grid">
       <div>
@@ -17717,19 +17710,22 @@ function buildAtividadesConsolidadoHtml(data, meta = {}) {
         <span>Subesta\u00e7\u00e3o</span>
         <strong>${escapeHtml(subestacao)}</strong>
       </div>
+      <div>
+        <span>Atividade do dia</span>
+        <strong>${escapeHtml(atividade)}</strong>
+      </div>
       <div class="rdo-consolidado-status">
-        <span>Status geral</span>
+        <span>Status geral + Docs</span>
         <strong class="rdo-status rdo-status--${escapeHtml(statusClass)}">${escapeHtml(
-          status
+          status || "—"
         )}</strong>
         <small>${escapeHtml(statusMeta)}</small>
       </div>
     </div>
-    <div class="rdo-consolidado-activity">
-      <span>Atividade do dia</span>
-      <strong>${escapeHtml(atividade)}</strong>
+    <div class="rdo-consolidado-line">
+      <span>Resumo</span>
+      <strong>${resumoEquipamentos}</strong>
     </div>
-    ${resumoEquipamentos}
     <div class="rdo-item__section rdo-consolidado-equip">
       <h4>Equipamentos atendidos</h4>
       ${equipamentosHtml}
@@ -18198,8 +18194,7 @@ function buildRdoHtml(snapshot, options = {}) {
       </div>
     `
     : `<p class="empty-state">Sem indicadores relevantes no período.</p>`;
-  const jornadaRowsHtml = jornadasRows.length
-    ? `
+  const jornadaRowsHtml = `
       <table class="rdo-table rdo-table--compact rdo-table--center">
         <thead>
           <tr>
@@ -18212,24 +18207,32 @@ function buildRdoHtml(snapshot, options = {}) {
           </tr>
         </thead>
         <tbody>
-          ${jornadasRows
-            .map(
-              (row) => `
+          ${
+            jornadasRows.length
+              ? jornadasRows
+                  .map(
+                    (row) => `
               <tr>
                 <td>${escapeHtml(row.nome)}</td>
                 <td>${escapeHtml(row.entrada)}</td>
                 <td>${escapeHtml(row.saida)}</td>
-                <td>${row.duracaoMin ? escapeHtml(formatDuracaoMin(row.duracaoMin)) : "-"}</td>
-                <td>${row.expedienteMin ? escapeHtml(formatDuracaoMin(row.expedienteMin)) : "-"}</td>
-                <td>${row.extraMin ? escapeHtml(formatDuracaoMin(row.extraMin)) : "-"}</td>
+                <td>${row.duracaoMin ? escapeHtml(formatDuracaoMin(row.duracaoMin)) : "—"}</td>
+                <td>${row.expedienteMin ? escapeHtml(formatDuracaoMin(row.expedienteMin)) : "—"}</td>
+                <td>${row.extraMin ? escapeHtml(formatDuracaoMin(row.extraMin)) : "—"}</td>
               </tr>
             `
-            )
-            .join("")}
+                  )
+                  .join("")
+              : `<tr><td colspan="6" class="rdo-muted">— (sem apontamentos no período)</td></tr>`
+          }
         </tbody>
       </table>
-    `
-    : `<p class="empty-state">Sem apontamentos de jornada no período.</p>`;
+      ${
+        jornadasRows.length
+          ? ""
+          : `<p class="rdo-note-muted">Sem apontamentos de jornada no período.</p>`
+      }
+    `;
   const acionamentoLabel =
     manual.acionamento && manual.acionamento.ativo
       ? `${manual.acionamento.inicio || "-"} - ${manual.acionamento.fim || "-"}`
@@ -18265,6 +18268,52 @@ function buildRdoHtml(snapshot, options = {}) {
         <strong>${acionamentoMin ? formatDuracaoMin(acionamentoMin) : "-"}</strong>
         <small>${escapeHtml(acionamentoLabel)}</small>
       </div>
+    </div>
+  `;
+
+  const jornadaCards = [
+    {
+      label: "Jornada líquida",
+      value: totalJornadaMin ? formatDuracaoMin(totalJornadaMin) : dash,
+      meta: `${jornadasRows.length} colaboradores • -1h almoço`,
+    },
+    {
+      label: "Expediente líquido",
+      value: totalExpedienteMin ? formatDuracaoMin(totalExpedienteMin) : dash,
+      meta: `Base ${schedule.label} • -1h almoço`,
+    },
+    {
+      label: "Extra calculada",
+      value: totalExtraCalcMin ? formatDuracaoMin(totalExtraCalcMin) : dash,
+      meta: "Acima do expediente",
+    },
+    {
+      label: "Hora extra",
+      value: horaExtraMin ? formatDuracaoMin(horaExtraMin) : dash,
+      meta: horaExtraLabel,
+    },
+  ];
+  const jornadaCardsHtml = `
+    <div class="rdo-journey-grid">
+      ${jornadaCards
+        .map((card) => {
+          const val = formatValue(card.value);
+          return `
+          <div class="rdo-journey-card">
+            <span>${escapeHtml(card.label)}</span>
+            <strong${val.muted ? ' class="rdo-muted"' : ""}>${escapeHtml(val.text)}</strong>
+            <small>${escapeHtml(card.meta || dash)}</small>
+          </div>
+        `;
+        })
+        .join("")}
+    </div>
+  `;
+  const acionamentoDuracao = acionamentoMin ? formatDuracaoMin(acionamentoMin) : dash;
+  const acionamentoHtml = `
+    <div class="rdo-journey-row">
+      ${buildField("Acionamento", acionamentoDuracao)}
+      ${buildField("Janela acionamento", acionamentoLabel)}
     </div>
   `;
 
@@ -18394,47 +18443,70 @@ function buildRdoHtml(snapshot, options = {}) {
         : snapshot.metricas.overdue > 0
           ? "Pendente"
           : "Em andamento";
+  const statusDiaFinal = snapshot.metricas.total === 0 ? "—" : statusDiaLabel;
   const statusDiaClass =
-    statusDiaLabel === "Conclu\u00edda"
+    statusDiaFinal === "Conclu\u00edda"
       ? "ok"
-      : statusDiaLabel === "Em execu\u00e7\u00e3o"
+      : statusDiaFinal === "Em execu\u00e7\u00e3o"
         ? "warn"
-        : statusDiaLabel === "Pendente"
+        : statusDiaFinal === "Pendente"
           ? "danger"
           : "neutral";
   const docsBadge = snapshot.metricas.docsTotal ? `${docsPercent} \u2022 ${docsMeta}` : "Sem base";
   const atividadesConsolidadoHtml = buildAtividadesConsolidadoHtml(atividadesConsolidado, {
     local: projeto,
     subestacao: subestacaoHeader,
-    status: statusDiaLabel,
+    status: statusDiaFinal,
     statusClass: statusDiaClass,
     total: snapshot.metricas.total,
     concluidas: snapshot.metricas.concluidas,
     tempoTotal,
     docsBadge,
   });
-  const descricaoLonga = (descricaoConsolidada || "").length > 420;
-  const isPrint = Boolean(options.print);
   const themeRaw = options.theme || "enterprise";
   const theme = ["enterprise", "industrial", "minimal"].includes(themeRaw)
     ? themeRaw
     : "enterprise";
 
-  const descricaoHtml = descricaoLonga && !isPrint
-    ? `
-      <details class="rdo-collapsible rdo-collapsible--text">
-        <summary>
-          <span class="rdo-collapsible__more">Ver mais</span>
-          <span class="rdo-collapsible__less">Ver menos</span>
-        </summary>
-        <div class="rdo-collapsible__content">
-          <p class="rdo-paragraph">${escapeHtml(descricaoConsolidada || "")}</p>
-        </div>
-      </details>
-    `
-    : `<p class="rdo-paragraph">${escapeHtml(descricaoConsolidada || "")}</p>`;
+  const dash = "—";
+  const formatValue = (value) => {
+    if (value === 0) {
+      return { text: "0", muted: false };
+    }
+    if (value === null || value === undefined) {
+      return { text: dash, muted: true };
+    }
+    const text = String(value).trim();
+    if (!text || text === "-") {
+      return { text: dash, muted: true };
+    }
+    return { text, muted: false };
+  };
+  const buildField = (label, value) => {
+    const val = formatValue(value);
+    return `
+      <div class="rdo-field">
+        <span>${escapeHtml(label)}</span>
+        <strong${val.muted ? ' class="rdo-muted"' : ""}>${escapeHtml(val.text)}</strong>
+      </div>
+    `;
+  };
+  const statusField = formatValue(statusDiaFinal);
+  const statusBadge = `<span class="rdo-badge rdo-badge--${escapeHtml(
+    statusDiaClass
+  )}${statusField.muted ? " rdo-badge--muted" : ""}">${escapeHtml(
+    statusField.text
+  )}</span>`;
 
-  const showAtividadesToggle = !isPrint && (snapshot.itens || []).length > 4;
+  const descricaoValue = formatValue(descricaoConsolidada || "");
+  const descricaoText = descricaoValue.text;
+  const descricaoMuted = descricaoValue.muted;
+  const descricaoHtml = `
+    <p class="rdo-paragraph${descricaoMuted ? " rdo-muted" : ""}">${escapeHtml(
+      descricaoText
+    )}</p>
+  `;
+
   const atividadesCardsHtml = (snapshot.itens || [])
     .map((item) => {
       const statusKey = item.statusKey || "";
@@ -18449,12 +18521,12 @@ function buildRdoHtml(snapshot, options = {}) {
       const inicio = item.inicio ? formatDateTime(parseTimestamp(item.inicio)) : "-";
       const fim = item.fim ? formatDateTime(parseTimestamp(item.fim)) : "-";
       const gridItems = [
-        { label: "Local", value: projeto || "-" },
-        { label: "Subesta\u00e7\u00e3o", value: item.subestacao || "-" },
-        { label: "Equipamento", value: item.equipamento || "-" },
-        { label: "OS", value: item.osReferencia || "-" },
+        { label: "Local", value: projeto },
+        { label: "Subesta\u00e7\u00e3o", value: item.subestacao },
+        { label: "Equipamento", value: item.equipamento },
+        { label: "OS", value: item.osReferencia },
         { label: "Janela", value: `${inicio} - ${fim}` },
-        { label: "Respons\u00e1vel", value: item.responsavel || "-" },
+        { label: "Respons\u00e1vel", value: item.responsavel },
       ];
       const chips = [
         item.categoria ? `<span class="rdo-chip">${escapeHtml(item.categoria)}</span>` : "",
@@ -18474,14 +18546,17 @@ function buildRdoHtml(snapshot, options = {}) {
           </div>
           <div class="rdo-activity-grid">
             ${gridItems
-              .map(
-                (info) => `
-              <div>
-                <span>${escapeHtml(info.label)}</span>
-                <strong>${escapeHtml(info.value)}</strong>
-              </div>
-            `
-              )
+              .map((info) => {
+                const val = formatValue(info.value);
+                return `
+                  <div>
+                    <span>${escapeHtml(info.label)}</span>
+                    <strong${val.muted ? ' class="rdo-muted"' : ""}>${escapeHtml(
+                  val.text
+                )}</strong>
+                  </div>
+                `;
+              })
               .join("")}
           </div>
           ${chips ? `<div class="rdo-chip-row">${chips}</div>` : ""}
@@ -18490,40 +18565,33 @@ function buildRdoHtml(snapshot, options = {}) {
     })
     .join("");
   const atividadesHtml = atividadesCardsHtml
-    ? showAtividadesToggle
-      ? `
-        <details class="rdo-collapsible rdo-collapsible--list">
-          <summary>
-            <span class="rdo-collapsible__more">Ver ${snapshot.itens.length} atividades</span>
-            <span class="rdo-collapsible__less">Ocultar atividades</span>
-          </summary>
-          <div class="rdo-collapsible__content">
-            <div class="rdo-activities">${atividadesCardsHtml}</div>
-          </div>
-        </details>
-      `
-      : `<div class="rdo-activities">${atividadesCardsHtml}</div>`
-    : `<p class="empty-state">Sem itens no per\u00edodo.</p>`;
+    ? `<div class="rdo-activities">${atividadesCardsHtml}</div>`
+    : `
+      <div class="rdo-activities">
+        <div class="rdo-activity-card rdo-activity-card--empty">
+          <strong class="rdo-muted">— (sem registros no per\u00edodo)</strong>
+        </div>
+      </div>
+    `;
 
   const evidenciasIndexRows = snapshot.evidencias.length
     ? snapshot.evidencias
         .map((evidencia, index) => {
           const itemRef = itensById.get(evidencia.itemId) || {};
-          const equipamentoRef = itemRef.equipamento || "-";
+          const equipamentoRef = itemRef.equipamento || "—";
           return `
             <tr>
               <td>#${index + 1}</td>
-              <td>${escapeHtml(evidencia.itemTitulo || "-")}</td>
+              <td>${escapeHtml(evidencia.itemTitulo || "—")}</td>
               <td>${escapeHtml(equipamentoRef)}</td>
-              <td>${escapeHtml(evidencia.dataHora || "-")}</td>
-              <td>${escapeHtml(evidencia.responsavel || "-")}</td>
+              <td>${escapeHtml(evidencia.dataHora || "—")}</td>
+              <td>${escapeHtml(evidencia.responsavel || "—")}</td>
             </tr>
           `;
         })
         .join("")
-    : "";
-  const evidenciasIndexHtml = evidenciasIndexRows
-    ? `
+    : `<tr><td colspan="5" class="rdo-muted">— (sem evidências no período)</td></tr>`;
+  const evidenciasIndexHtml = `
       <table class="rdo-table rdo-table--evidencias">
         <thead>
           <tr>
@@ -18538,12 +18606,14 @@ function buildRdoHtml(snapshot, options = {}) {
           ${evidenciasIndexRows}
         </tbody>
       </table>
-    `
-    : "";
+    `;
 
-  const resumoTexto = snapshot.resumoDia
-    ? `<p class="rdo-paragraph">${escapeHtml(snapshot.resumoDia)}</p>`
-    : `<p class="empty-state">Sem resumo registrado.</p>`;
+  const resumoValor = formatValue(snapshot.resumoDia || "");
+  const resumoTexto = `
+    <p class="rdo-paragraph rdo-paragraph--narrow${resumoValor.muted ? " rdo-muted" : ""}">${escapeHtml(
+      resumoValor.text
+    )}</p>
+  `;
   const kpiCards = [
     { label: "Atividades", value: snapshot.metricas.total ?? 0 },
     { label: "Conclu\u00eddas", value: snapshot.metricas.concluidas ?? 0 },
@@ -18556,18 +18626,11 @@ function buildRdoHtml(snapshot, options = {}) {
       (item) => `
         <div class="rdo-kpi-card">
           <span>${escapeHtml(item.label)}</span>
-          <strong>${escapeHtml(item.value)}</strong>
+          <strong>${escapeHtml(formatValue(item.value).text)}</strong>
         </div>
       `
     )
     .join("");
-  const statusCardHtml = `
-    <div class="rdo-kpi-card rdo-kpi-card--primary">
-      <span>Status do dia</span>
-      <strong>${escapeHtml(statusDiaLabel)}</strong>
-      <small>Tempo total: ${escapeHtml(tempoTotal !== "-" ? tempoTotal : "N\u00e3o informado")}</small>
-    </div>
-  `;
   const itensCount = (snapshot.itens || []).length;
   const subtitleLabel = isCliente
     ? "Relat\u00f3rio Di\u00e1rio de Opera\u00e7\u00e3o - HV (Cliente)"
@@ -18575,71 +18638,53 @@ function buildRdoHtml(snapshot, options = {}) {
 
   return `
     <div class="rdo-doc rdo-template-a" data-theme="${escapeHtml(theme)}">
-      <header class="rdo-header rdo-header--hub">
-        <div class="rdo-header-main">
-          <div class="rdo-brand">
-            ${logoHtml}
+      <header class="rdo-header rdo-header--compact">
+        <div class="rdo-header-line">
+          <div class="rdo-logo-wrap">${logoHtml}</div>
+          <div class="rdo-header-title">
+            <span class="rdo-eyebrow">OPSCOPE</span>
+            <h2 class="rdo-title">RDO ${escapeHtml(dataLabel)}</h2>
+            <p class="rdo-subtitle">${escapeHtml(subtitleLabel)}</p>
+          </div>
+          <div class="rdo-header-meta">
             <div>
-              <span class="rdo-eyebrow">OPSCOPE</span>
-              <h2 class="rdo-title">RDO ${escapeHtml(dataLabel)}</h2>
-              <p class="rdo-subtitle">${escapeHtml(subtitleLabel)}</p>
+              <span>RDO/Hash</span>
+              <strong>${escapeHtml(rdoNumero)} • ${escapeHtml(hashShort)}</strong>
             </div>
-          </div>
-          <div class="rdo-meta">
-            <span>RDO: ${escapeHtml(rdoNumero)} | Hash: ${escapeHtml(hashShort)}</span>
-            <span>Data: ${escapeHtml(dataLabel)}</span>
-            <span>Emitido por: ${escapeHtml(emitidoPor)}</span>
-            <span>Emitido em: ${escapeHtml(emitidoEm)}</span>
-          </div>
-        </div>
-        <div class="rdo-header-grid">
-          <div>
-            <span>Local/Empreendimento</span>
-            <strong>${escapeHtml(projeto)}</strong>
-          </div>
-          <div>
-            <span>Subesta\u00e7\u00e3o</span>
-            <strong>${escapeHtml(subestacaoHeader)}</strong>
-          </div>
-          <div>
-            <span>OS/Ordem</span>
-            <strong>${escapeHtml(osLabel)}</strong>
-          </div>
-          <div>
-            <span>Respons\u00e1vel</span>
-            <strong>${escapeHtml(responsaveisHeader)}</strong>
-          </div>
-          <div>
-            <span>Equipe</span>
-            <strong>${escapeHtml(equipeHeader)}</strong>
-          </div>
-          <div>
-            <span>Cliente</span>
-            <strong>${escapeHtml(cliente)}</strong>
-          </div>
-          <div>
-            <span>Setor</span>
-            <strong>${escapeHtml(RDO_SETOR)}</strong>
-          </div>
-          <div>
-            <span>Status do dia</span>
-            <strong class="rdo-status rdo-status--${escapeHtml(statusDiaClass)}">${escapeHtml(
-              statusDiaLabel
-            )}</strong>
+            <div>
+              <span>Emitido por</span>
+              <strong>${escapeHtml(emitidoPor)}</strong>
+            </div>
+            <div>
+              <span>Emitido em</span>
+              <strong>${escapeHtml(emitidoEm)}</strong>
+            </div>
           </div>
         </div>
       </header>
 
+      <section class="rdo-section rdo-tech-sheet">
+        <div class="rdo-tech-grid">
+          ${buildField("Local/Empreendimento", projeto)}
+          ${buildField("Cliente", cliente)}
+          ${buildField("Setor", RDO_SETOR)}
+          <div class="rdo-field rdo-field--status">
+            <span>Status do dia</span>
+            ${statusBadge}
+          </div>
+          ${buildField("Subesta\u00e7\u00e3o", subestacaoHeader)}
+          ${buildField("OS/Ordem", osLabel)}
+          ${buildField("Respons\u00e1vel", responsaveisHeader)}
+          ${buildField("Equipe", equipeHeader)}
+        </div>
+      </section>
+
       <section class="rdo-section rdo-summary rdo-summary--executive">
         <div class="rdo-section-head">
           <h3>Resumo Executivo</h3>
-          <span class="rdo-status rdo-status--${escapeHtml(statusDiaClass)}">${escapeHtml(
-            statusDiaLabel
-          )}</span>
         </div>
         ${resumoTexto}
         <div class="rdo-kpi-row">
-          ${statusCardHtml}
           ${kpiCardsHtml}
         </div>
       </section>
@@ -18661,64 +18706,29 @@ function buildRdoHtml(snapshot, options = {}) {
         <div class="rdo-block">
           <h3>Seguran\u00e7a</h3>
           <div class="rdo-info-grid">
-            <div>
-              <span>Incidente/Acidente</span>
-              <strong>${escapeHtml(manual.incidente || "-")}</strong>
-            </div>
-            <div>
-              <span>Bloqueio El\u00e9trico</span>
-              <strong>${escapeHtml(manual.bloqueio || "-")}</strong>
-            </div>
-            <div>
-              <span>Clima</span>
-              <strong>${escapeHtml(climaValor)}</strong>
-            </div>
+            ${buildField("Incidente/Acidente", manual.incidente)}
+            ${buildField("Bloqueio el\u00e9trico", manual.bloqueio)}
+            ${buildField("Clima", climaValor)}
           </div>
         </div>
         <div class="rdo-block">
           <h3>Dados Operacionais</h3>
           <div class="rdo-info-grid">
-            ${
-              isCliente
-                ? ""
-                : `
-            <div>
-              <span>Condutor</span>
-              <strong>${escapeHtml(manual.condutor || "-")}</strong>
-            </div>
-            <div>
-              <span>KM inicial</span>
-              <strong>${escapeHtml(manual.kmInicial || "-")}</strong>
-            </div>
-            <div>
-              <span>KM final</span>
-              <strong>${escapeHtml(manual.kmFinal || "-")}</strong>
-            </div>
-            `
-            }
-            <div>
-              <span>Qt. pessoas</span>
-              <strong>${escapeHtml(manual.qtPessoas || "-")}</strong>
-            </div>
-            <div>
-              <span>Nº de SI</span>
-              <strong>${escapeHtml(manual.numeroSi || "-")}</strong>
-            </div>
-            <div>
-              <span>Nº de SGI</span>
-              <strong>${escapeHtml(manual.numeroSgi || "-")}</strong>
-            </div>
-            <div>
-              <span>Local (manual)</span>
-              <strong>${escapeHtml(local)}</strong>
-            </div>
+            ${buildField("Condutor", manual.condutor)}
+            ${buildField("KM inicial", manual.kmInicial)}
+            ${buildField("KM final", manual.kmFinal)}
+            ${buildField("Qt. pessoas", manual.qtPessoas)}
+            ${buildField("N\u00ba de SI", manual.numeroSi)}
+            ${buildField("N\u00ba de SGI", manual.numeroSgi)}
+            ${buildField("Local (manual)", local)}
           </div>
         </div>
       </section>
 
       <section class="rdo-section rdo-block rdo-header-shifts">
         <h3>Controle de jornada</h3>
-        ${jornadaResumoHtml}
+        ${jornadaCardsHtml}
+        ${acionamentoHtml}
         ${jornadaRowsHtml}
       </section>
 
@@ -18830,7 +18840,7 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
     .rdo-kpi-card--primary strong { font-size: 1.05rem; }
     .rdo-editorial { border-left: 4px solid var(--rdo-accent); border-radius: 12px; padding: 12px; border: 1px solid var(--rdo-line); background: var(--rdo-card); }
     .rdo-premium { border: 1px solid var(--rdo-line); border-radius: 12px; padding: 12px; background: var(--rdo-card); }
-    .rdo-consolidado-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+    .rdo-consolidado-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
     .rdo-consolidado-grid span { display: block; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.55rem; color: var(--rdo-ink-soft); }
     .rdo-consolidado-grid strong { font-size: 0.82rem; color: var(--rdo-ink); }
     .rdo-consolidado-status small { font-size: 0.7rem; color: var(--rdo-ink-soft); }
@@ -18875,6 +18885,36 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
     .empty-state { font-size: 0.75rem; color: var(--rdo-ink-soft); }
     .hint { font-size: 0.72rem; color: var(--rdo-ink-soft); }
     .rdo-lista { margin: 0; padding-left: 18px; font-size: 0.75rem; color: var(--rdo-ink-soft); }
+    .rdo-header-line { display: grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items: center; }
+    .rdo-logo-wrap { display: flex; align-items: center; }
+    .rdo-header-title { display: grid; gap: 2px; }
+    .rdo-header-meta { display: grid; gap: 6px; text-align: right; font-size: 0.78rem; color: var(--rdo-ink-soft); }
+    .rdo-header-meta span { display: block; font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.12em; }
+    .rdo-tech-sheet { border: 1px solid var(--rdo-line); border-radius: 12px; padding: 12px; background: var(--rdo-card); }
+    .rdo-tech-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .rdo-field { border: 1px solid var(--rdo-line); border-radius: 10px; padding: 8px 10px; background: var(--rdo-card); display: grid; gap: 4px; }
+    .rdo-field span { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--rdo-ink-soft); }
+    .rdo-field strong { font-size: 0.86rem; color: var(--rdo-ink); }
+    .rdo-badge { display: inline-flex; align-items: center; justify-content: center; padding: 6px 10px; border-radius: 999px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; border: 1px solid transparent; }
+    .rdo-badge--ok { color: var(--rdo-ok); background: rgba(21, 128, 61, 0.12); border-color: rgba(21, 128, 61, 0.25); }
+    .rdo-badge--warn { color: var(--rdo-warn); background: rgba(217, 119, 6, 0.12); border-color: rgba(217, 119, 6, 0.25); }
+    .rdo-badge--danger { color: var(--rdo-danger); background: rgba(185, 28, 28, 0.12); border-color: rgba(185, 28, 28, 0.25); }
+    .rdo-badge--neutral { color: var(--rdo-ink-soft); background: rgba(100, 116, 139, 0.12); border-color: rgba(100, 116, 139, 0.25); }
+    .rdo-badge--muted { color: var(--rdo-ink-soft); border-color: var(--rdo-line); background: rgba(120, 130, 145, 0.08); }
+    .rdo-paragraph--narrow { max-width: 720px; }
+    .rdo-kpi-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+    .rdo-kpi-card strong { font-size: 1.4rem; line-height: 1.2; }
+    .rdo-consolidado-line { margin: 6px 0 2px; display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.8rem; color: var(--rdo-ink-soft); }
+    .rdo-consolidado-line span { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; }
+    .rdo-journey-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .rdo-journey-card { border: 1px solid var(--rdo-line); border-radius: 12px; padding: 10px; background: var(--rdo-card); display: grid; gap: 4px; }
+    .rdo-journey-card span { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--rdo-ink-soft); }
+    .rdo-journey-card strong { font-size: 1rem; color: var(--rdo-ink); }
+    .rdo-journey-card small { font-size: 0.72rem; color: var(--rdo-ink-soft); }
+    .rdo-journey-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .rdo-note-muted { font-size: 0.75rem; color: var(--rdo-ink-soft); }
+    .rdo-activity-card--empty { text-align: center; }
+    .rdo-muted { color: var(--rdo-ink-soft); }
   `;
   let body = buildRdoHtml(snapshot, { ...options, print: true });
   if (logoDataUrl) {
