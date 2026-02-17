@@ -18157,16 +18157,6 @@ function buildRdoHtml(snapshot, options = {}) {
   const atividadesConsolidado =
     (aiText && aiText.atividades_consolidado) ||
     buildAtividadesConsolidadoFallback(snapshot.itens || []);
-  const atividadesConsolidadoHtml = buildAtividadesConsolidadoHtml(atividadesConsolidado, {
-    local: projeto,
-    subestacao: subestacaoHeader,
-    status: statusDiaLabel,
-    statusClass: statusDiaClass,
-    total: snapshot.metricas.total,
-    concluidas: snapshot.metricas.concluidas,
-    tempoTotal,
-    docsBadge,
-  });
   const rdoNumero = snapshot.id ? snapshot.id.slice(0, 6).toUpperCase() : "-";
   const resumoItensBase = [
     { label: "Atividades", value: snapshot.metricas.total },
@@ -18413,6 +18403,16 @@ function buildRdoHtml(snapshot, options = {}) {
           ? "danger"
           : "neutral";
   const docsBadge = snapshot.metricas.docsTotal ? `${docsPercent} \u2022 ${docsMeta}` : "Sem base";
+  const atividadesConsolidadoHtml = buildAtividadesConsolidadoHtml(atividadesConsolidado, {
+    local: projeto,
+    subestacao: subestacaoHeader,
+    status: statusDiaLabel,
+    statusClass: statusDiaClass,
+    total: snapshot.metricas.total,
+    concluidas: snapshot.metricas.concluidas,
+    tempoTotal,
+    docsBadge,
+  });
   const descricaoLonga = (descricaoConsolidada || "").length > 420;
   const isPrint = Boolean(options.print);
   const themeRaw = options.theme || "enterprise";
