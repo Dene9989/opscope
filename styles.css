@@ -6740,15 +6740,42 @@ textarea:focus {
   color: var(--rdo-ink);
 }
 
+.rdo-template-a .rdo-info-grid--compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.rdo-template-a .rdo-info-grid--compact .rdo-field {
+  padding: 6px 8px;
+  border-radius: 8px;
+  gap: 2px;
+}
+
+.rdo-template-a .rdo-info-grid--compact .rdo-field span {
+  font-size: 0.55rem;
+}
+
+.rdo-template-a .rdo-info-grid--compact .rdo-field strong {
+  font-size: 0.82rem;
+}
+
 .rdo-template-a .rdo-grid-2 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 12px;
 }
 
+.rdo-template-a .rdo-grid-2--compact {
+  gap: 8px;
+}
+
 .rdo-template-a .rdo-block {
   background: var(--rdo-card);
   border-color: var(--rdo-line);
+}
+
+.rdo-template-a .rdo-block--compact {
+  padding: 10px;
 }
 
 .rdo-template-a .rdo-pill {
@@ -7178,6 +7205,10 @@ textarea:focus {
 
   .rdo-template-a .rdo-consolidado-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rdo-template-a .rdo-info-grid--compact {
+    grid-template-columns: 1fr;
   }
 }
 

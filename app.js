@@ -18757,18 +18757,18 @@ function buildRdoHtml(snapshot, options = {}) {
         ${atividadesConsolidadoHtml}
       </section>
 
-      <section class="rdo-section rdo-grid-2">
-        <div class="rdo-block">
+      <section class="rdo-section rdo-grid-2 rdo-grid-2--compact">
+        <div class="rdo-block rdo-block--compact">
           <h3>Seguran\u00e7a</h3>
-          <div class="rdo-info-grid">
+          <div class="rdo-info-grid rdo-info-grid--compact">
             ${buildField("Incidente/Acidente", manual.incidente)}
             ${buildField("Bloqueio el\u00e9trico", manual.bloqueio)}
             ${buildField("Clima", climaValor)}
           </div>
         </div>
-        <div class="rdo-block">
+        <div class="rdo-block rdo-block--compact">
           <h3>Dados Operacionais</h3>
-          <div class="rdo-info-grid">
+          <div class="rdo-info-grid rdo-info-grid--compact">
             ${buildField("Condutor", manual.condutor)}
             ${buildField("KM inicial", manual.kmInicial)}
             ${buildField("KM final", manual.kmFinal)}
@@ -18903,8 +18903,14 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
     .rdo-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; font-size: 0.75rem; color: var(--rdo-ink-soft); }
     .rdo-info-grid span { display: block; text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.55rem; }
     .rdo-info-grid strong { font-size: 0.8rem; color: var(--rdo-ink); }
+    .rdo-info-grid--compact { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+    .rdo-info-grid--compact .rdo-field { padding: 6px 8px; border-radius: 8px; gap: 2px; }
+    .rdo-info-grid--compact .rdo-field span { font-size: 0.55rem; }
+    .rdo-info-grid--compact .rdo-field strong { font-size: 0.82rem; }
     .rdo-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+    .rdo-grid-2--compact { gap: 8px; }
     .rdo-block { border: 1px solid var(--rdo-line); border-radius: 12px; padding: 10px; background: var(--rdo-card); }
+    .rdo-block--compact { padding: 8px; }
     .rdo-summary,
     .rdo-editorial,
     .rdo-premium,
