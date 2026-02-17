@@ -16609,7 +16609,8 @@ function getActiveProjectEquipeIds() {
   return new Set(ids);
 }
 
-function collectActiveProjectMembers(jornadas = []) {
+function collectActiveProjectMembers(jornadas = [], options = {}) {
+  const includeAdmins = Boolean(options && options.includeAdmins);
   const members = new Map();
   const addUser = (user, labelOverride = "") => {
     if (!user) {
@@ -16622,7 +16623,7 @@ function collectActiveProjectMembers(jornadas = []) {
     if (normalizeAccessUserStatus(user.status, user.active) === "INATIVO") {
       return;
     }
-    if (isAdminUser(user)) {
+    if (!includeAdmins && isAdminUser(user)) {
       return;
     }
     if (members.has(id)) {
@@ -16653,12 +16654,13 @@ function collectActiveProjectMembers(jornadas = []) {
     });
   }
 
-  getOperationalUsers()
-    .filter(isUserFromActiveProject)
-    .forEach((user) => addUser(user));
+  const baseUsers = includeAdmins ? users : getOperationalUsers();
+  baseUsers.filter(isUserFromActiveProject).forEach((user) => addUser(user));
 
-  if (currentUser && isRealUser(currentUser) && isUserFromActiveProject(currentUser)) {
-    addUser(currentUser);
+  if (currentUser && isUserFromActiveProject(currentUser)) {
+    if (includeAdmins || isRealUser(currentUser)) {
+      addUser(currentUser);
+    }
   }
 
   if (Array.isArray(jornadas) && jornadas.length) {
@@ -16770,7 +16772,7 @@ function renderRdoJornadas(manual = {}) {
   const jornadasMap = new Map(
     jornadasValidas.map((item) => [String(item.userId || item.nome || item.label || ""), item])
   );
-  const colaboradores = collectActiveProjectMembers(jornadasValidas);
+  const colaboradores = collectActiveProjectMembers(jornadasValidas, { includeAdmins: true });
 
   if (!colaboradores.length && !jornadasValidas.length) {
     const label = getActiveProjectShortLabel();
