@@ -10614,11 +10614,37 @@ function normalizarManutencoes(lista) {
       mudouTempo = true;
     }
     const statusOriginal = statusValido(item.status) ? item.status : "agendada";
-    if (
-      statusOriginal === "concluida" ||
-      statusOriginal === "em_execucao" ||
-      statusOriginal === "encerramento"
-    ) {
+    if (statusOriginal === "concluida") {
+      return {
+        ...item,
+        status: statusOriginal,
+        createdAt,
+        updatedAt,
+        doneAt,
+        executionStartedAt,
+        executionFinishedAt,
+        conclusao,
+      };
+    }
+    if (hasExecucaoRegistrada(item)) {
+      const registro = item.registroExecucao || {};
+      const statusEsperado = registro.resultado ? "encerramento" : "em_execucao";
+      if (statusEsperado !== statusOriginal) {
+        changes.push({ id: item.id, from: statusOriginal, to: statusEsperado });
+      }
+      return {
+        ...item,
+        status: statusEsperado,
+        updatedAt: toIsoUtc(new Date()),
+        updatedBy: SYSTEM_USER_ID,
+        createdAt,
+        doneAt,
+        executionStartedAt,
+        executionFinishedAt,
+        conclusao,
+      };
+    }
+    if (statusOriginal === "em_execucao" || statusOriginal === "encerramento") {
       return {
         ...item,
         status: statusOriginal,
@@ -12533,7 +12559,14 @@ function atualizarResumo() {
     badgeBacklog.textContent = contagem.backlog;
   }
   if (countEmExecucao) {
-    countEmExecucao.textContent = contagem.em_execucao;
+    const emExecucaoAtivas = manutencoes.filter((item) => {
+      if (!item) {
+        return false;
+      }
+      const status = normalizeMaintenanceStatus(item.status);
+      return status === "em_execucao" && !hasExecucaoRegistrada(item);
+    }).length;
+    countEmExecucao.textContent = emExecucaoAtivas;
   }
   if (countEncerramento) {
     countEncerramento.textContent = execucoesRegistradas;
@@ -13460,7 +13493,7 @@ function renderProgramacao() {
         return false;
       }
     } else if (filtroStatus === "em_execucao") {
-      if (item.status !== "em_execucao") {
+      if (item.status !== "em_execucao" || hasExecucaoRegistrada(item)) {
         return false;
       }
     } else if (filtroStatus === "encerramento") {
