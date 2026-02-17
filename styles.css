@@ -5108,6 +5108,11 @@ body.is-visitor .container.auth-only {
   color: var(--ink-soft);
 }
 
+.hint--compact {
+  margin-top: 4px;
+  font-size: 0.82rem;
+}
+
 .field {
   display: grid;
   gap: 8px;
@@ -6379,6 +6384,29 @@ textarea:focus {
   padding: 12px 14px;
 }
 
+.rdo-guide {
+  border: 1px dashed rgba(19, 32, 42, 0.18);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: rgba(15, 36, 54, 0.04);
+  margin-bottom: 16px;
+}
+
+.rdo-guide strong {
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+
+.rdo-guide ul {
+  margin: 8px 0 0 18px;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.rdo-guide li {
+  margin-bottom: 4px;
+}
+
 .rdo-shift-block {
   display: grid;
   gap: 12px;
@@ -6745,6 +6773,10 @@ textarea:focus {
   gap: 6px;
 }
 
+.rdo-template-a .rdo-info-grid--safety {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .rdo-template-a .rdo-info-grid--compact .rdo-field {
   padding: 6px 8px;
   border-radius: 8px;
@@ -6767,6 +6799,7 @@ textarea:focus {
 
 .rdo-template-a .rdo-grid-2--compact {
   gap: 8px;
+  align-items: start;
 }
 
 .rdo-template-a .rdo-block {
@@ -7011,8 +7044,12 @@ textarea:focus {
 
 .rdo-template-a .rdo-tech-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 10px;
+}
+
+.rdo-template-a .rdo-tech-sheet .rdo-field {
+  padding: 7px 9px;
 }
 
 .rdo-template-a .rdo-field {
@@ -7034,6 +7071,30 @@ textarea:focus {
 .rdo-template-a .rdo-field strong {
   font-size: 0.86rem;
   color: var(--rdo-ink);
+}
+
+.rdo-template-a .rdo-field--status {
+  align-content: center;
+}
+
+.rdo-template-a .rdo-field--span-2 {
+  grid-column: span 2;
+}
+
+.rdo-template-a .rdo-field--span-3 {
+  grid-column: span 3;
+}
+
+.rdo-template-a .rdo-field--span-4 {
+  grid-column: span 4;
+}
+
+.rdo-template-a .rdo-field--span-5 {
+  grid-column: span 5;
+}
+
+.rdo-template-a .rdo-field--span-6 {
+  grid-column: span 6;
 }
 
 .rdo-template-a .rdo-badge {
@@ -7188,6 +7249,14 @@ textarea:focus {
 
   .rdo-template-a .rdo-tech-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rdo-template-a .rdo-field--span-2,
+  .rdo-template-a .rdo-field--span-3,
+  .rdo-template-a .rdo-field--span-4,
+  .rdo-template-a .rdo-field--span-5,
+  .rdo-template-a .rdo-field--span-6 {
+    grid-column: auto;
   }
 
   .rdo-template-a .rdo-kpi-row {

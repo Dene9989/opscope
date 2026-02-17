@@ -1227,7 +1227,7 @@ const SST_CHECKLIST_TYPE_LABELS = {
   HOUSEKEEPING: "Ordem e limpeza (5S)",
   FIRST_AID: "Primeiros socorros",
 };
-const WEEKDAYS = ["Domingo", "Segunda", "Terca", "Quarta", "Quinta", "Sexta", "Sabado"];
+const WEEKDAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 const WEEKDAYS_SHORT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
 const DEFAULT_DAILY_DAYS = [1, 2, 3, 4, 5];
 const PMP_TOLERANCE_DAYS = 3;
@@ -15938,10 +15938,20 @@ function montarRdoUI() {
         <button class="btn btn--ghost btn--small" type="button" data-rdo-close>Fechar</button>
       </div>
       <form class="modal__form">
+        <div class="rdo-guide">
+          <strong>Guia rápido de preenchimento</strong>
+          <ul>
+            <li>Use a data da execução e filtre subestação/categoria quando necessário.</li>
+            <li>Informe condutor, KM e quantidade de pessoas conforme diário do veículo/equipe.</li>
+            <li>Marque Acionamento/Hora extra apenas quando ocorreu e informe a janela correta.</li>
+            <li>Registro gerencial é opcional; use para decisões, desvios, riscos e pendências.</li>
+          </ul>
+        </div>
         <div class="form-grid">
           <div class="field">
             <label for="rdoData">Data do RDO</label>
             <input id="rdoData" type="date" />
+            <small class="hint hint--compact">Use a data da execução do serviço.</small>
           </div>
           <div class="field">
             <label for="rdoSubestacao">Subestação</label>
@@ -15974,22 +15984,27 @@ function montarRdoUI() {
               <option value="16" selected>16</option>
               <option value="32">32</option>
             </select>
+            <small class="hint hint--compact">Define o número máximo de fotos no PDF.</small>
           </div>
           <div class="field">
             <label for="rdoCondutor">Condutor do veículo</label>
             <input id="rdoCondutor" type="text" />
+            <small class="hint hint--compact">Nome de quem conduziu o veículo no dia.</small>
           </div>
           <div class="field">
             <label for="rdoKmInicial">KM inicial do dia</label>
             <input id="rdoKmInicial" type="number" min="0" step="0.1" />
+            <small class="hint hint--compact">Informe o odômetro no início do turno.</small>
           </div>
           <div class="field">
             <label for="rdoKmFinal">KM final do dia</label>
             <input id="rdoKmFinal" type="number" min="0" step="0.1" />
+            <small class="hint hint--compact">Informe o odômetro ao final do turno.</small>
           </div>
           <div class="field">
             <label for="rdoQtPessoas">Qt. pessoas na atividade</label>
             <input id="rdoQtPessoas" type="number" min="0" step="1" />
+            <small class="hint hint--compact">Quantidade total de pessoas no campo.</small>
           </div>
           <div class="field">
             <label for="rdoClima">Clima</label>
@@ -16019,6 +16034,7 @@ function montarRdoUI() {
               <option value="SIM">SIM</option>
               <option value="N/A">N/A</option>
             </select>
+            <small class="hint hint--compact">Use SIM apenas se houve ocorrência.</small>
           </div>
           <div class="field">
             <label for="rdoBloqueio">Bloqueio elétrico</label>
@@ -16027,14 +16043,17 @@ function montarRdoUI() {
               <option value="SIM">SIM</option>
               <option value="N/A">N/A</option>
             </select>
+            <small class="hint hint--compact">Use SIM apenas se houve bloqueio/LOTO.</small>
           </div>
           <div class="field">
             <label for="rdoSi">N de SI</label>
             <input id="rdoSi" type="text" />
+            <small class="hint hint--compact">Número do registro de SI, se houver.</small>
           </div>
           <div class="field">
             <label for="rdoSgi">N de SGI</label>
             <input id="rdoSgi" type="text" />
+            <small class="hint hint--compact">Número do registro de SGI, se houver.</small>
           </div>
         </div>
         <div class="field rdo-shift-block" data-full>
@@ -16058,14 +16077,21 @@ function montarRdoUI() {
             </div>
           </div>
           <div class="rdo-shift-list" id="rdoJornadaList"></div>
-          <small class="hint" id="rdoShiftHint">
-            Informe entrada e saida dos colaboradores do projeto. Expediente: 07:00-17:00
-            (seg-qui) e 07:00-16:00 (sex).
+          <small class="hint hint--compact" id="rdoShiftHint">
+            Preencha entrada e saída por colaborador. Marque acionamento/hora extra apenas quando
+            ocorrer e informe a janela. Expediente: 07:00-17:00 (seg-qui) e 07:00-16:00 (sex).
           </small>
         </div>
         <div class="field" data-full>
           <label for="rdoRegistro">Registro gerencial do dia</label>
-          <textarea id="rdoRegistro" rows="2" placeholder="Opcional"></textarea>
+          <textarea
+            id="rdoRegistro"
+            rows="2"
+            placeholder="Opcional. Ex.: decisões, desvios, riscos e pendências."
+          ></textarea>
+          <small class="hint hint--compact">
+            Use este espaço para decisões, desvios relevantes, riscos e pendências do dia.
+          </small>
         </div>
         <p id="rdoMensagem" class="mensagem" aria-live="polite"></p>
         <div class="modal__actions">
@@ -18481,14 +18507,14 @@ function buildRdoHtml(snapshot, options = {}) {
   const totalJornadaMin = jornadasRows.reduce((acc, row) => acc + (row.duracaoMin || 0), 0);
   const totalExpedienteMin = jornadasRows.reduce((acc, row) => acc + (row.expedienteMin || 0), 0);
   const totalExtraCalcMin = jornadasRows.reduce((acc, row) => acc + (row.extraMin || 0), 0);
-  const acionamentoMin =
-    manual.acionamento && manual.acionamento.ativo
-      ? calcDurationMinutes(manual.acionamento.inicio, manual.acionamento.fim)
-      : 0;
-  const horaExtraMin =
-    manual.horaExtra && manual.horaExtra.ativo
-      ? calcDurationMinutes(manual.horaExtra.inicio, manual.horaExtra.fim)
-      : 0;
+  const hasAcionamento = Boolean(manual.acionamento && manual.acionamento.ativo);
+  const acionamentoMin = hasAcionamento
+    ? calcDurationMinutes(manual.acionamento.inicio, manual.acionamento.fim)
+    : 0;
+  const hasHoraExtra = Boolean(manual.horaExtra && manual.horaExtra.ativo);
+  const horaExtraMin = hasHoraExtra
+    ? calcDurationMinutes(manual.horaExtra.inicio, manual.horaExtra.fim)
+    : 0;
   const aiText = snapshot.aiText || null;
   const descricaoConsolidada =
     (aiText && aiText.descricao_consolidada) ||
@@ -18509,10 +18535,11 @@ function buildRdoHtml(snapshot, options = {}) {
     }
     return { text, muted: false };
   };
-  const buildField = (label, value) => {
+  const buildField = (label, value, options = {}) => {
     const val = formatValue(value);
+    const extraClass = options.className ? ` ${options.className}` : "";
     return `
-      <div class="rdo-field">
+      <div class="rdo-field${extraClass}">
         <span>${escapeHtml(label)}</span>
         <strong${val.muted ? ' class="rdo-muted"' : ""}>${escapeHtml(val.text)}</strong>
       </div>
@@ -18598,14 +18625,12 @@ function buildRdoHtml(snapshot, options = {}) {
           : `<p class="rdo-note-muted">Sem apontamentos de jornada no período.</p>`
       }
     `;
-  const acionamentoLabel =
-    manual.acionamento && manual.acionamento.ativo
-      ? `${manual.acionamento.inicio || "-"} - ${manual.acionamento.fim || "-"}`
-      : "N\u00e3o informado";
-  const horaExtraLabel =
-    manual.horaExtra && manual.horaExtra.ativo
-      ? `${manual.horaExtra.inicio || "-"} - ${manual.horaExtra.fim || "-"}`
-      : "N\u00e3o informado";
+  const acionamentoLabel = hasAcionamento
+    ? `${manual.acionamento.inicio || "-"} - ${manual.acionamento.fim || "-"}`
+    : "N\u00e3o houve acionamento neste dia.";
+  const horaExtraLabel = hasHoraExtra
+    ? `${manual.horaExtra.inicio || "-"} - ${manual.horaExtra.fim || "-"}`
+    : "N\u00e3o houve horas extras neste dia.";
   const jornadaResumoHtml = `
     <div class="rdo-summary-grid rdo-summary-grid--cards rdo-summary-grid--tight">
       <div class="rdo-summary-item">
@@ -18848,15 +18873,17 @@ function buildRdoHtml(snapshot, options = {}) {
       descricaoText
     )}</p>
   `;
-  const registroVal = formatValue(snapshot.registroGerencial || "");
-  const registroHtml = `
+  const registroTexto = String(snapshot.registroGerencial || "").trim();
+  const registroNormalizado =
+    registroTexto && registroTexto !== "-" && registroTexto !== "\u2014" ? registroTexto : "";
+  const registroHtml = registroNormalizado
+    ? `
       <section class="rdo-section rdo-note">
         <h3>Registro Gerencial do Dia</h3>
-        <p${registroVal.muted ? ' class="rdo-muted"' : ""}>${escapeHtml(
-          registroVal.text
-        )}</p>
+        <p>${escapeHtml(registroNormalizado)}</p>
       </section>
-    `;
+    `
+    : "";
 
   const atividadesCardsHtml = (snapshot.itens || [])
     .map((item) => {
@@ -19028,17 +19055,17 @@ function buildRdoHtml(snapshot, options = {}) {
 
       <section class="rdo-section rdo-tech-sheet">
         <div class="rdo-tech-grid">
-          ${buildField("Local/Empreendimento", projeto)}
-          ${buildField("Cliente", cliente)}
-          ${buildField("Setor", RDO_SETOR)}
-          <div class="rdo-field rdo-field--status">
+          ${buildField("Local/Empreendimento", projeto, { className: "rdo-field--span-5" })}
+          ${buildField("Cliente", cliente, { className: "rdo-field--span-3" })}
+          ${buildField("Setor", RDO_SETOR, { className: "rdo-field--span-2" })}
+          <div class="rdo-field rdo-field--status rdo-field--span-2">
             <span>Status do dia</span>
             ${statusBadge}
           </div>
-          ${buildField("Subesta\u00e7\u00e3o", subestacaoHeader)}
-          ${buildField("OS/Ordem", osLabel)}
-          ${buildField("Respons\u00e1vel", responsaveisHeader)}
-          ${buildField("Equipe", equipeHeader)}
+          ${buildField("Subesta\u00e7\u00e3o", subestacaoHeader, { className: "rdo-field--span-4" })}
+          ${buildField("OS/Ordem", osLabel, { className: "rdo-field--span-2" })}
+          ${buildField("Respons\u00e1vel", responsaveisHeader, { className: "rdo-field--span-3" })}
+          ${buildField("Equipe", equipeHeader, { className: "rdo-field--span-3" })}
         </div>
       </section>
 
@@ -19054,8 +19081,7 @@ function buildRdoHtml(snapshot, options = {}) {
 
       <section class="rdo-section rdo-editorial">
         <div class="rdo-section-head">
-          <h3>Descri\u00e7\u00e3o Consolidada do Dia (IA)</h3>
-          <span class="rdo-pill rdo-pill--accent">IA</span>
+          <h3>Descri\u00e7\u00e3o Consolidada do Dia</h3>
         </div>
         ${descricaoHtml}
       </section>
@@ -19068,7 +19094,7 @@ function buildRdoHtml(snapshot, options = {}) {
       <section class="rdo-section rdo-grid-2 rdo-grid-2--compact">
         <div class="rdo-block rdo-block--compact">
           <h3>Seguran\u00e7a</h3>
-          <div class="rdo-info-grid rdo-info-grid--compact">
+          <div class="rdo-info-grid rdo-info-grid--compact rdo-info-grid--safety">
             ${buildField("Incidente/Acidente", manual.incidente)}
             ${buildField("Bloqueio el\u00e9trico", manual.bloqueio)}
             ${buildField("Clima", climaValor)}
@@ -19212,11 +19238,12 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
     .rdo-info-grid span { display: block; text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.55rem; }
     .rdo-info-grid strong { font-size: 0.8rem; color: var(--rdo-ink); }
     .rdo-info-grid--compact { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+    .rdo-info-grid--safety { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .rdo-info-grid--compact .rdo-field { padding: 6px 8px; border-radius: 8px; gap: 2px; }
     .rdo-info-grid--compact .rdo-field span { font-size: 0.55rem; }
     .rdo-info-grid--compact .rdo-field strong { font-size: 0.82rem; }
     .rdo-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
-    .rdo-grid-2--compact { gap: 8px; }
+    .rdo-grid-2--compact { gap: 8px; align-items: start; }
     .rdo-block { border: 1px solid var(--rdo-line); border-radius: 12px; padding: 10px; background: var(--rdo-card); }
     .rdo-block--compact { padding: 8px; }
     .rdo-summary,
@@ -19265,10 +19292,17 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
     .rdo-header-meta { display: grid; gap: 6px; text-align: right; font-size: 0.78rem; color: var(--rdo-ink-soft); }
     .rdo-header-meta span { display: block; font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.12em; }
     .rdo-tech-sheet { border: 1px solid var(--rdo-line); border-radius: 12px; padding: 12px; background: var(--rdo-card); }
-    .rdo-tech-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .rdo-tech-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 10px; }
+    .rdo-tech-sheet .rdo-field { padding: 7px 9px; }
     .rdo-field { border: 1px solid var(--rdo-line); border-radius: 10px; padding: 8px 10px; background: var(--rdo-card); display: grid; gap: 4px; }
     .rdo-field span { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--rdo-ink-soft); }
     .rdo-field strong { font-size: 0.86rem; color: var(--rdo-ink); }
+    .rdo-field--status { align-content: center; }
+    .rdo-field--span-2 { grid-column: span 2; }
+    .rdo-field--span-3 { grid-column: span 3; }
+    .rdo-field--span-4 { grid-column: span 4; }
+    .rdo-field--span-5 { grid-column: span 5; }
+    .rdo-field--span-6 { grid-column: span 6; }
     .rdo-badge { display: inline-flex; align-items: center; justify-content: center; padding: 6px 10px; border-radius: 999px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; border: 1px solid transparent; }
     .rdo-badge--ok { color: var(--rdo-ok); background: rgba(21, 128, 61, 0.12); border-color: rgba(21, 128, 61, 0.25); }
     .rdo-badge--warn { color: var(--rdo-warn); background: rgba(217, 119, 6, 0.12); border-color: rgba(217, 119, 6, 0.25); }
