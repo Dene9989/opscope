@@ -13210,7 +13210,11 @@ function criarCardManutencao(item, permissoes, options = {}) {
 
   const statusGroup = document.createElement("div");
   statusGroup.className = "status-group";
-  statusGroup.append(badge);
+  const esconderEmExecucao =
+    item.registroExecucao && statusBase === "em_execucao" && item.status !== "concluida";
+  if (!esconderEmExecucao) {
+    statusGroup.append(badge);
+  }
   if (item.registroExecucao && item.status !== "concluida") {
     const execBadge = document.createElement("span");
     execBadge.className = "status status--execucao-registrada";
@@ -13434,6 +13438,11 @@ function renderProgramacao() {
       }
     } else if (filtroStatus === "encerramento") {
       if (item.status !== "encerramento") {
+        return false;
+      }
+    } else if (filtroStatus === "execucao_registrada") {
+      const statusAtual = normalizeMaintenanceStatus(item.status);
+      if (!(item.registroExecucao && (statusAtual === "em_execucao" || statusAtual === "encerramento"))) {
         return false;
       }
     } else if (filtroStatus === "concluida") {
