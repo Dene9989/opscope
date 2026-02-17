@@ -18019,13 +18019,56 @@ function renderRdoPreview(snapshot) {
     rdoUI.preview.hidden = false;
     rdoUI.preview.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
+    console.error("[rdo] erro ao montar preview", error);
     mostrarMensagemRdo("Não foi possível montar o preview do RDO.", true);
     rdoUI.preview.hidden = false;
     rdoUI.previewBody.innerHTML = `<p class="empty-state">Preview indisponível.</p>`;
   }
 }
 
+function normalizeRdoSnapshot(snapshot) {
+  const metricasDefault = {
+    total: 0,
+    concluidas: 0,
+    abertas: 0,
+    emExecucao: 0,
+    overdue: 0,
+    criticas: 0,
+    docsOk: 0,
+    docsTotal: 0,
+    docsPercent: null,
+    tempoTotalMin: 0,
+  };
+  const metricasRaw = snapshot && snapshot.metricas ? snapshot.metricas : null;
+  const metricas =
+    metricasRaw && typeof metricasRaw === "object"
+      ? { ...metricasDefault, ...metricasRaw }
+      : metricasDefault;
+  const itens = Array.isArray(snapshot && snapshot.itens) ? snapshot.itens : [];
+  const evidencias = Array.isArray(snapshot && snapshot.evidencias)
+    ? snapshot.evidencias
+    : [];
+  const evidenciasNaoImagem = Array.isArray(snapshot && snapshot.evidenciasNaoImagem)
+    ? snapshot.evidenciasNaoImagem
+    : [];
+  const evidenciasTotal = Number.isFinite(snapshot && snapshot.evidenciasTotal)
+    ? snapshot.evidenciasTotal
+    : evidencias.length;
+  return {
+    ...snapshot,
+    metricas,
+    itens,
+    evidencias,
+    evidenciasNaoImagem,
+    evidenciasTotal,
+  };
+}
+
 function buildRdoHtml(snapshot, options = {}) {
+  if (!snapshot || typeof snapshot !== "object") {
+    return `<div class="rdo-doc"><p class="empty-state">RDO indisponível.</p></div>`;
+  }
+  snapshot = normalizeRdoSnapshot(snapshot);
   const isCliente = Boolean(options.cliente);
   const dataParsed = snapshot.rdoDate ? parseDate(snapshot.rdoDate) : null;
   const dataLabel = dataParsed ? formatDate(dataParsed) : "-";
