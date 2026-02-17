@@ -18153,6 +18153,29 @@ function buildRdoHtml(snapshot, options = {}) {
   const atividadesConsolidado =
     (aiText && aiText.atividades_consolidado) ||
     buildAtividadesConsolidadoFallback(snapshot.itens || []);
+  const dash = "—";
+  const formatValue = (value) => {
+    if (value === 0) {
+      return { text: "0", muted: false };
+    }
+    if (value === null || value === undefined) {
+      return { text: dash, muted: true };
+    }
+    const text = String(value).trim();
+    if (!text || text === "-") {
+      return { text: dash, muted: true };
+    }
+    return { text, muted: false };
+  };
+  const buildField = (label, value) => {
+    const val = formatValue(value);
+    return `
+      <div class="rdo-field">
+        <span>${escapeHtml(label)}</span>
+        <strong${val.muted ? ' class="rdo-muted"' : ""}>${escapeHtml(val.text)}</strong>
+      </div>
+    `;
+  };
   const rdoNumero = snapshot.id ? snapshot.id.slice(0, 6).toUpperCase() : "-";
   const resumoItensBase = [
     { label: "Atividades", value: snapshot.metricas.total },
@@ -18452,6 +18475,12 @@ function buildRdoHtml(snapshot, options = {}) {
         : statusDiaFinal === "Pendente"
           ? "danger"
           : "neutral";
+  const statusField = formatValue(statusDiaFinal);
+  const statusBadge = `<span class="rdo-badge rdo-badge--${escapeHtml(
+    statusDiaClass
+  )}${statusField.muted ? " rdo-badge--muted" : ""}">${escapeHtml(
+    statusField.text
+  )}</span>`;
   const docsBadge = snapshot.metricas.docsTotal ? `${docsPercent} \u2022 ${docsMeta}` : "Sem base";
   const atividadesConsolidadoHtml = buildAtividadesConsolidadoHtml(atividadesConsolidado, {
     local: projeto,
@@ -18468,36 +18497,7 @@ function buildRdoHtml(snapshot, options = {}) {
     ? themeRaw
     : "enterprise";
 
-  const dash = "—";
-  const formatValue = (value) => {
-    if (value === 0) {
-      return { text: "0", muted: false };
-    }
-    if (value === null || value === undefined) {
-      return { text: dash, muted: true };
-    }
-    const text = String(value).trim();
-    if (!text || text === "-") {
-      return { text: dash, muted: true };
-    }
-    return { text, muted: false };
-  };
-  const buildField = (label, value) => {
-    const val = formatValue(value);
-    return `
-      <div class="rdo-field">
-        <span>${escapeHtml(label)}</span>
-        <strong${val.muted ? ' class="rdo-muted"' : ""}>${escapeHtml(val.text)}</strong>
-      </div>
-    `;
-  };
-  const statusField = formatValue(statusDiaFinal);
-  const statusBadge = `<span class="rdo-badge rdo-badge--${escapeHtml(
-    statusDiaClass
-  )}${statusField.muted ? " rdo-badge--muted" : ""}">${escapeHtml(
-    statusField.text
-  )}</span>`;
-
+  
   const descricaoValue = formatValue(descricaoConsolidada || "");
   const descricaoText = descricaoValue.text;
   const descricaoMuted = descricaoValue.muted;
