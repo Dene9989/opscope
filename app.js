@@ -16609,8 +16609,59 @@ function getActiveProjectEquipeIds() {
   return new Set(ids);
 }
 
+function hasUserProjectInfo(user) {
+  if (!user) {
+    return false;
+  }
+  const tokens = [
+    user.projectId,
+    user.projetoId,
+    user.project_id,
+    user.project,
+    user.projectKey,
+    user.projectCode,
+    user.projectName,
+    user.projectLabel,
+    user.projeto,
+    user.localizacao,
+  ];
+  if (user.project && typeof user.project === "object") {
+    tokens.push(user.project.id, user.project.codigo, user.project.nome, user.project.label);
+  }
+  if (Array.isArray(user.projects)) {
+    user.projects.forEach((entry) => {
+      if (!entry) {
+        return;
+      }
+      if (typeof entry === "string") {
+        tokens.push(entry);
+        return;
+      }
+      if (typeof entry === "object") {
+        tokens.push(entry.id, entry.codigo, entry.nome, entry.label);
+      }
+    });
+  }
+  const hasToken = tokens.some((value) => {
+    if (!value) {
+      return false;
+    }
+    if (typeof value === "object") {
+      return Object.values(value).some((item) =>
+        /[a-z0-9]/i.test(normalizeSearchValue(item))
+      );
+    }
+    return /[a-z0-9]/i.test(normalizeSearchValue(value));
+  });
+  if (hasToken) {
+    return true;
+  }
+  return /[a-z0-9]/i.test(normalizeSearchValue(getUserProjectLabel(user)));
+}
+
 function collectActiveProjectMembers(jornadas = [], options = {}) {
   const includeAdmins = Boolean(options && options.includeAdmins);
+  const requireProjectInfo = Boolean(options && options.requireProjectInfo);
   const members = new Map();
   const addUser = (user, labelOverride = "") => {
     if (!user) {
@@ -16624,6 +16675,9 @@ function collectActiveProjectMembers(jornadas = [], options = {}) {
       return;
     }
     if (!includeAdmins && isAdminUser(user)) {
+      return;
+    }
+    if (requireProjectInfo && !hasUserProjectInfo(user)) {
       return;
     }
     if (members.has(id)) {
@@ -16773,7 +16827,10 @@ function renderRdoJornadas(manual = {}) {
   const jornadasMap = new Map(
     jornadasValidas.map((item) => [String(item.userId || item.nome || item.label || ""), item])
   );
-  const colaboradores = collectActiveProjectMembers(jornadasValidas, { includeAdmins: true });
+  const colaboradores = collectActiveProjectMembers(jornadasValidas, {
+    includeAdmins: true,
+    requireProjectInfo: true,
+  });
 
   if (!colaboradores.length && !jornadasValidas.length) {
     const label = getActiveProjectShortLabel();
