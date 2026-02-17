@@ -988,6 +988,7 @@ const mensagemCancelarInicio = document.getElementById("mensagemCancelarInicio")
 const modalRegistroExecucao = document.getElementById("modalRegistroExecucao");
 const formRegistroExecucao = document.getElementById("formRegistroExecucao");
 const registroId = document.getElementById("registroId");
+const registroResumo = document.getElementById("registroResumo");
 const registroTipo = document.getElementById("registroTipo");
 const registroSubestacao = document.getElementById("registroSubestacao");
 const registroCodigo = document.getElementById("registroCodigo");
@@ -1010,6 +1011,7 @@ const btnVoltarCancelarExecucao = document.getElementById("btnVoltarCancelarExec
 const mensagemCancelarExecucao = document.getElementById("mensagemCancelarExecucao");
 const mensagemRegistroExecucao = document.getElementById("mensagemRegistroExecucao");
 const modalConclusao = document.getElementById("modalConclusao");
+const conclusaoResumo = document.getElementById("conclusaoResumo");
 const modalReagendar = document.getElementById("modalReagendar");
 const formReagendar = document.getElementById("formReagendar");
 const reagendarId = document.getElementById("reagendarId");
@@ -10558,6 +10560,17 @@ function hasExecucaoRegistrada(item) {
     registro.resultado ||
     registro.observacaoExecucao
   );
+}
+
+function buildManutencaoResumoTexto(item) {
+  if (!item) {
+    return "-";
+  }
+  const titulo = item.titulo || "Manutenção";
+  const local = item.local || "-";
+  const dataParsed = item.data ? parseDate(item.data) : null;
+  const dataTexto = dataParsed ? formatDate(dataParsed) : "data indefinida";
+  return `${titulo} | ${local} | ${dataTexto}`;
 }
 
 function normalizeIso(value) {
@@ -36288,6 +36301,9 @@ function abrirRegistroExecucao(item) {
   manutencaoEmRegistro = item.id;
   mostrarMensagemRegistroExecucao("");
   mostrarMensagemCancelarExecucao("");
+  if (registroResumo) {
+    registroResumo.textContent = buildManutencaoResumoTexto(item);
+  }
   if (formRegistroExecucao) {
     formRegistroExecucao.hidden = false;
   }
@@ -37396,8 +37412,7 @@ function renderHistorico(item) {
   listaHistorico.innerHTML = "";
   const historico = getHistoricoManutencao(item.id);
   if (historicoResumo) {
-    const data = item.data ? formatDate(parseDate(item.data)) : "data indefinida";
-    historicoResumo.textContent = `${item.titulo} | ${item.local} | ${data}`;
+    historicoResumo.textContent = buildManutencaoResumoTexto(item);
   }
 
   if (!historico.length) {
@@ -38057,6 +38072,9 @@ function abrirConclusao(item) {
   manutencaoEmConclusao = item.id;
   conclusaoItemAtual = item;
   mostrarMensagemConclusao("");
+  if (conclusaoResumo) {
+    conclusaoResumo.textContent = buildManutencaoResumoTexto(item);
+  }
 
   if (conclusaoId) {
     conclusaoId.value = item.id;

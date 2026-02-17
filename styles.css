@@ -3317,6 +3317,10 @@ body.is-visitor .container.auth-only {
   color: var(--ink-soft);
 }
 
+.modal-summary {
+  margin: 8px 0 16px;
+}
+
 .history-list {
   display: grid;
   gap: 12px;
