@@ -5399,6 +5399,100 @@ label {
   font-size: 0.85rem;
 }
 
+#modalLiberacao .participant-grid,
+#templateForm .participant-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(11, 30, 45, 0.18);
+  min-height: 48px;
+}
+
+#modalLiberacao .participant-pill,
+#templateForm .participant-pill {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(15, 36, 54, 0.6);
+  color: var(--text);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+#modalLiberacao .participant-pill:hover,
+#templateForm .participant-pill:hover {
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+#modalLiberacao .participant-pill.is-selected,
+#templateForm .participant-pill.is-selected {
+  border-color: rgba(200, 146, 61, 0.7);
+  background: rgba(200, 146, 61, 0.18);
+  color: #f4d39b;
+}
+
+#modalLiberacao .participant-external,
+#templateForm .participant-external {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+#modalLiberacao .participant-selected,
+#templateForm .participant-selected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+#modalLiberacao .participant-tag,
+#templateForm .participant-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(15, 36, 54, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+#modalLiberacao .participant-tag--external,
+#templateForm .participant-tag--external {
+  border-color: rgba(200, 146, 61, 0.45);
+  background: rgba(200, 146, 61, 0.12);
+}
+
+#modalLiberacao .participant-remove,
+#templateForm .participant-remove {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+#modalLiberacao .participant-remove:hover,
+#templateForm .participant-remove:hover {
+  color: var(--text);
+}
+
+#modalLiberacao .participant-empty,
+#templateForm .participant-empty {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+
 .field--date-group .field__label-row {
   display: flex;
   align-items: center;

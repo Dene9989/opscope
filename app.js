@@ -805,6 +805,16 @@ const templateForm = document.getElementById("templateForm");
 const templateNome = document.getElementById("templateNome");
 const templateProjeto = document.getElementById("templateProjeto");
 const templateSubestacao = document.getElementById("templateSubestacao");
+const templateEquipamento = document.getElementById("templateEquipamento");
+const templateEquipeResponsavel = document.getElementById("templateEquipeResponsavel");
+const templateParticipantes = document.getElementById("templateParticipantes");
+const templateParticipantesList = document.getElementById("templateParticipantesList");
+const templateParticipantesSelected = document.getElementById("templateParticipantesSelected");
+const templateParticipantesErro = document.getElementById("templateParticipantesErro");
+const templateParticipanteExterno = document.getElementById("templateParticipanteExterno");
+const btnAddTemplateParticipanteExterno = document.getElementById(
+  "btnAddTemplateParticipanteExterno"
+);
 const templateFrequencia = document.getElementById("templateFrequencia");
 const templateNomeErro = document.getElementById("templateNomeErro");
 const templateInicioErro = document.getElementById("templateInicioErro");
@@ -1021,8 +1031,16 @@ const modalLiberacao = document.getElementById("modalLiberacao");
 const formLiberacao = document.getElementById("formLiberacao");
 const liberacaoId = document.getElementById("liberacaoId");
 const liberacaoOs = document.getElementById("liberacaoOs");
+const liberacaoEquipamento = document.getElementById("liberacaoEquipamento");
 const liberacaoCritico = document.getElementById("liberacaoCritico");
 const liberacaoParticipantes = document.getElementById("liberacaoParticipantes");
+const liberacaoEquipeResponsavel = document.getElementById("liberacaoEquipeResponsavel");
+const liberacaoParticipantesList = document.getElementById("liberacaoParticipantesList");
+const liberacaoParticipantesSelected = document.getElementById("liberacaoParticipantesSelected");
+const liberacaoParticipanteExterno = document.getElementById("liberacaoParticipanteExterno");
+const btnAddParticipanteExternoLiberacao = document.getElementById(
+  "btnAddParticipanteExternoLiberacao"
+);
 const liberacaoParticipantesErro = document.getElementById("liberacaoParticipantesErro");
 const liberacaoChecklist = document.getElementById("liberacaoChecklist");
 const mensagemLiberacao = document.getElementById("mensagemLiberacao");
@@ -1202,8 +1220,8 @@ const SST_SEVERITY_LABELS = {
 };
 const SST_STATUS_LABELS = {
   OK: "OK",
-  ATTENTION: "Atencao",
-  NON_CONFORMING: "Nao conforme",
+  ATTENTION: "Atenção",
+  NON_CONFORMING: "Não conforme",
 };
 const SST_CHECKLIST_TYPE_LABELS = {
   WORK_AT_HEIGHT: "NR-35 - Trabalho em Altura",
@@ -1333,10 +1351,10 @@ const PERMISSIONS = {
 
 const ACCESS_SECTION_PERMISSIONS = [
   "inicio",
-  "programacao",
+  "programação",
   "nova",
   "modelos",
-  "execucao",
+  "execução",
   "backlog",
   "feedbacks",
   "perfil",
@@ -1629,58 +1647,58 @@ const ACCESS_PERMISSION_CATALOG = [
   },
   {
     key: "nova",
-    module: "Navegacao",
-    group: "Secoes",
-    label: "Nova manutencao",
-    description: "Acesso ao formulario de manutencao.",
+    module: "Navegação",
+    group: "Seções",
+    label: "Nova manutenção",
+    description: "Acesso ao formulário de manutenção.",
     level: "READ",
   },
   {
     key: "modelos",
-    module: "Navegacao",
-    group: "Secoes",
-    label: "Modelos e recorrencias",
-    description: "Acesso a modelos e recorrencias.",
+    module: "Navegação",
+    group: "Seções",
+    label: "Modelos e recorrências",
+    description: "Acesso a modelos e recorrências.",
     level: "READ",
   },
   {
-    key: "execucao",
-    module: "Navegacao",
+    key: "execução",
+    module: "Navegação",
     group: "Secoes",
-    label: "Execucao do dia",
-    description: "Acesso ao painel de execucao.",
+    label: "Execução do dia",
+    description: "Acesso ao painel de execução.",
     level: "READ",
   },
   {
     key: "backlog",
     module: "Navegacao",
-    group: "Secoes",
+    group: "Seções",
     label: "Backlog",
-    description: "Acesso a manutencoes em backlog.",
+    description: "Acesso a manutenções em backlog.",
     level: "READ",
   },
   {
     key: "feedbacks",
-    module: "Navegacao",
-    group: "Secoes",
+    module: "Navegação",
+    group: "Seções",
     label: "Feedbacks",
     description: "Acesso a feedbacks e comunicados.",
     level: "READ",
   },
   {
     key: "perfil",
-    module: "Navegacao",
-    group: "Secoes",
+    module: "Navegação",
+    group: "Secções",
     label: "Meu perfil",
     description: "Acesso a tela de perfil.",
     level: "READ",
   },
   {
     key: "MAINT_CREATE",
-    module: "Manutencao",
-    group: "Acoes",
-    label: "Manutencao - criar",
-    description: "Criar novas manutencoes.",
+    module: "Manutenção",
+    group: "Ações",
+    label: "Manutenção - criar",
+    description: "Criar novas manutenções.",
     level: "WRITE",
   },
   {
@@ -4179,6 +4197,8 @@ let availableProjects = [];
 let projectEquipamentos = [];
 let projectEquipe = [];
 let manutencaoParticipantesSelecionados = [];
+let liberacaoParticipantesSelecionados = [];
+let templateParticipantesSelecionados = [];
 let pmpActivities = [];
 let pmpExecutions = [];
 let almoxItems = [];
@@ -8276,6 +8296,7 @@ function clearTemplateErrors() {
   setFieldError(templateWeeklyIntervalErro, "");
   setFieldError(templateMonthlyDayErro, "");
   setFieldError(templateMonthlyDaysErro, "");
+  setFieldError(templateParticipantesErro, "");
 }
 
 function clearTemplateFieldError(target) {
@@ -9109,6 +9130,23 @@ function atualizarTipoSelecionado() {
     const template = getTemplateById(valor);
     if (template && subestacaoManutencao) {
       subestacaoManutencao.value = template.subestacao || subestacaoManutencao.value;
+    }
+    if (template && template.equipamentoId && equipamentoManutencao) {
+      setEquipamentoSelectValue(equipamentoManutencao, template.equipamentoId);
+    }
+    if (template && template.equipeResponsavel) {
+      renderManutencaoEquipeOptions(template.equipeResponsavel);
+    }
+    if (template && template.participantes) {
+      const lista = Array.isArray(template.participantes)
+        ? template.participantes
+        : String(template.participantes || "")
+            .split(";")
+            .map((item) => normalizeParticipantName(item))
+            .filter(Boolean);
+      if (lista.length) {
+        setManutencaoParticipantes(lista);
+      }
     }
     if (
       template &&
@@ -21300,6 +21338,41 @@ function normalizarTemplate(template) {
     resultado.monthlyMode = resultado.monthlyMode || "fixed";
   }
 
+  const participantesRaw = Array.isArray(resultado.participantes)
+    ? resultado.participantes
+    : typeof resultado.participantes === "string"
+      ? resultado.participantes.split(/[;,]/)
+      : [];
+  const participantesNormalizados = participantesRaw
+    .map((item) => normalizeParticipantName(item))
+    .filter(Boolean);
+  const participantesAtuais = Array.isArray(resultado.participantes)
+    ? resultado.participantes
+    : [];
+  const participantesMudaram =
+    !Array.isArray(resultado.participantes) ||
+    participantesNormalizados.length !== participantesAtuais.length ||
+    participantesNormalizados.some((item, index) => item !== participantesAtuais[index]);
+  if (participantesMudaram) {
+    resultado.participantes = participantesNormalizados;
+    mudou = true;
+  }
+
+  const equipamentoId = resolveEquipamentoIdFromValue(
+    resultado.equipamentoId || resultado.equipamento
+  );
+  if (equipamentoId !== String(resultado.equipamentoId || "")) {
+    resultado.equipamentoId = equipamentoId;
+    mudou = true;
+  }
+
+  const equipeRaw = String(resultado.equipeResponsavel || "").trim();
+  const equipeNormalizada = equipeRaw ? normalizeTeamName(equipeRaw) : "";
+  if (equipeNormalizada !== equipeRaw) {
+    resultado.equipeResponsavel = equipeNormalizada;
+    mudou = true;
+  }
+
   return { template: resultado, mudou };
 }
 
@@ -21593,6 +21666,14 @@ function limparTemplateForm() {
   clearTemplateErrors();
   mostrarMensagemTemplate("");
   renderProjectSelectOptions(templateProjeto, activeProjectId);
+  if (templateEquipamento) {
+    templateEquipamento.value = "";
+  }
+  renderTemplateEquipeOptions();
+  setTemplateParticipantes([]);
+  if (templateParticipanteExterno) {
+    templateParticipanteExterno.value = "";
+  }
   if (templateInicio) {
     templateInicio.value = formatDateISO(new Date());
   }
@@ -21637,6 +21718,25 @@ function preencherTemplateForm(template) {
   }
   if (templateSubestacao && template.subestacao) {
     templateSubestacao.value = template.subestacao;
+  }
+  if (templateEquipamento) {
+    setEquipamentoSelectValue(
+      templateEquipamento,
+      template.equipamentoId || template.equipamento || ""
+    );
+  }
+  renderTemplateEquipeOptions(template.equipeResponsavel || "");
+  const participantesTemplate = Array.isArray(template.participantes)
+    ? template.participantes
+    : typeof template.participantes === "string"
+      ? template.participantes
+          .split(";")
+          .map((item) => normalizeParticipantName(item))
+          .filter(Boolean)
+      : [];
+  setTemplateParticipantes(participantesTemplate);
+  if (templateParticipanteExterno) {
+    templateParticipanteExterno.value = "";
   }
   if (templateFrequencia) {
     templateFrequencia.value = template.frequencia || "none";
@@ -21707,6 +21807,9 @@ function salvarModelo(event) {
     (templateSubestacao ? templateSubestacao.value.trim() : "") ||
     getSubestacoesBase()[0] ||
     "";
+  const equipamentoId = templateEquipamento ? templateEquipamento.value.trim() : "";
+  const equipeResponsavel = getTemplateEquipeSelecionada();
+  const participantes = getTemplateParticipantesFromForm();
   const frequencia = templateFrequencia ? templateFrequencia.value : "none";
   const inicio = templateInicio ? templateInicio.value : formatDateISO(new Date());
 
@@ -21778,6 +21881,9 @@ function salvarModelo(event) {
     id: templateId,
     nome,
     subestacao,
+    equipamentoId,
+    equipeResponsavel,
+    participantes,
     frequencia,
     dailyDays: frequencia === "daily" ? dailyDays : [],
     weeklyDay: frequencia === "weekly" ? weeklyDay : null,
@@ -24940,6 +25046,17 @@ function gerarManutencoesRecorrentes() {
         continue;
       }
       const agoraIso = toIsoUtc(new Date());
+      const participantesModelo = Array.isArray(modelo.participantes)
+        ? modelo.participantes
+        : typeof modelo.participantes === "string"
+          ? modelo.participantes
+              .split(";")
+              .map((item) => normalizeParticipantName(item))
+              .filter(Boolean)
+          : [];
+      const executadoPorTime = modelo.equipeResponsavel
+        ? `team:${modelo.equipeResponsavel}`
+        : "";
       const nova = {
         id: criarId(),
         titulo: modelo.nome,
@@ -24947,6 +25064,9 @@ function gerarManutencoesRecorrentes() {
         data: dataStr,
         observacao: modelo.observacao || "",
         templateId: modelo.id,
+        equipamentoId: modelo.equipamentoId || "",
+        participantes: participantesModelo,
+        executadaPor: executadoPorTime,
         status: "agendada",
         createdAt: agoraIso,
         createdBy: SYSTEM_USER_ID,
@@ -27150,14 +27270,14 @@ function normalizeTeamName(value) {
 }
 
 function getMaintenanceParticipantCandidates() {
-  const list = collectActiveProjectMembers().map((user) =>
+  const list = collectActiveProjectMembers([], { includeAdmins: true }).map((user) =>
     normalizeParticipantName(user.name || user.username || user.label || "")
   );
   return Array.from(new Set(list.filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 
-function renderManutencaoEquipeOptions(selectedName = "") {
-  if (!manutencaoEquipeResponsavel) {
+function renderEquipeOptions(select, selectedName = "") {
+  if (!select) {
     return;
   }
   const teams = [];
@@ -27179,22 +27299,34 @@ function renderManutencaoEquipeOptions(selectedName = "") {
       seen.add(nome);
     }
   });
-  manutencaoEquipeResponsavel.innerHTML = "";
+  select.innerHTML = "";
   if (!teams.length) {
     const opt = document.createElement("option");
     opt.value = "";
     opt.textContent = "Sem equipe definida";
-    manutencaoEquipeResponsavel.append(opt);
+    select.append(opt);
     return;
   }
   teams.forEach((team) => {
     const opt = document.createElement("option");
     opt.value = team;
     opt.textContent = team;
-    manutencaoEquipeResponsavel.append(opt);
+    select.append(opt);
   });
   const fallback = selectedName || activeTeam || teams[0];
-  manutencaoEquipeResponsavel.value = fallback;
+  select.value = fallback;
+}
+
+function renderManutencaoEquipeOptions(selectedName = "") {
+  renderEquipeOptions(manutencaoEquipeResponsavel, selectedName);
+}
+
+function renderLiberacaoEquipeOptions(selectedName = "") {
+  renderEquipeOptions(liberacaoEquipeResponsavel, selectedName);
+}
+
+function renderTemplateEquipeOptions(selectedName = "") {
+  renderEquipeOptions(templateEquipeResponsavel, selectedName);
 }
 
 function syncManutencaoParticipantesInput() {
@@ -27322,11 +27454,279 @@ function getManutencaoParticipantesFromForm() {
     .filter(Boolean);
 }
 
+function syncLiberacaoParticipantesInput() {
+  if (!liberacaoParticipantes) {
+    return;
+  }
+  liberacaoParticipantes.value = liberacaoParticipantesSelecionados.join("; ");
+}
+
+function renderLiberacaoParticipantesSelected() {
+  if (!liberacaoParticipantesSelected) {
+    return;
+  }
+  liberacaoParticipantesSelected.innerHTML = "";
+  if (!liberacaoParticipantesSelecionados.length) {
+    const vazio = document.createElement("span");
+    vazio.className = "participant-empty";
+    vazio.textContent = "Nenhum participante selecionado.";
+    liberacaoParticipantesSelected.append(vazio);
+    return;
+  }
+  const candidatos = new Set(getMaintenanceParticipantCandidates());
+  liberacaoParticipantesSelecionados.forEach((name) => {
+    const tag = document.createElement("span");
+    const isExternal = !candidatos.has(name);
+    tag.className = `participant-tag${isExternal ? " participant-tag--external" : ""}`;
+    const label = document.createElement("span");
+    label.textContent = name;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "participant-remove";
+    remove.textContent = "x";
+    remove.dataset.participantRemove = name;
+    tag.append(label, remove);
+    liberacaoParticipantesSelected.append(tag);
+  });
+}
+
+function renderLiberacaoParticipantesOptions() {
+  if (!liberacaoParticipantesList) {
+    return;
+  }
+  liberacaoParticipantesList.innerHTML = "";
+  const list = getMaintenanceParticipantCandidates();
+  if (!list.length) {
+    const vazio = document.createElement("span");
+    vazio.className = "participant-empty";
+    vazio.textContent = "Sem colaboradores vinculados ao projeto.";
+    liberacaoParticipantesList.append(vazio);
+    return;
+  }
+  list.forEach((name) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "participant-pill";
+    if (liberacaoParticipantesSelecionados.includes(name)) {
+      button.classList.add("is-selected");
+    }
+    button.textContent = name;
+    button.dataset.participantName = name;
+    liberacaoParticipantesList.append(button);
+  });
+}
+
+function setLiberacaoParticipantes(list = []) {
+  const next = [];
+  const seen = new Set();
+  list.forEach((entry) => {
+    const name = normalizeParticipantName(entry);
+    if (!name || seen.has(name)) {
+      return;
+    }
+    seen.add(name);
+    next.push(name);
+  });
+  liberacaoParticipantesSelecionados = next;
+  syncLiberacaoParticipantesInput();
+  renderLiberacaoParticipantesOptions();
+  renderLiberacaoParticipantesSelected();
+  atualizarLiberacaoChecklist();
+}
+
+function toggleLiberacaoParticipante(name) {
+  const normalized = normalizeParticipantName(name);
+  if (!normalized) {
+    return;
+  }
+  if (liberacaoParticipantesSelecionados.includes(normalized)) {
+    liberacaoParticipantesSelecionados = liberacaoParticipantesSelecionados.filter(
+      (item) => item !== normalized
+    );
+  } else {
+    liberacaoParticipantesSelecionados = liberacaoParticipantesSelecionados.concat(normalized);
+  }
+  syncLiberacaoParticipantesInput();
+  renderLiberacaoParticipantesOptions();
+  renderLiberacaoParticipantesSelected();
+  setFieldError(liberacaoParticipantesErro, "");
+  atualizarLiberacaoChecklist();
+}
+
+function addLiberacaoParticipantesExternos(raw) {
+  const entries = String(raw || "")
+    .split(/[;,]/)
+    .map((item) => normalizeParticipantName(item))
+    .filter(Boolean);
+  if (!entries.length) {
+    return;
+  }
+  const merged = liberacaoParticipantesSelecionados.slice();
+  entries.forEach((name) => {
+    if (!merged.includes(name)) {
+      merged.push(name);
+    }
+  });
+  setLiberacaoParticipantes(merged);
+}
+
+function getLiberacaoParticipantesFromForm() {
+  if (liberacaoParticipantesSelecionados.length) {
+    return liberacaoParticipantesSelecionados.slice();
+  }
+  const texto = liberacaoParticipantes ? liberacaoParticipantes.value : "";
+  const parsed = String(texto || "")
+    .split(";")
+    .map((item) => normalizeParticipantName(item))
+    .filter(Boolean);
+  return Array.from(new Set(parsed));
+}
+
+function syncTemplateParticipantesInput() {
+  if (!templateParticipantes) {
+    return;
+  }
+  templateParticipantes.value = templateParticipantesSelecionados.join("; ");
+}
+
+function renderTemplateParticipantesSelected() {
+  if (!templateParticipantesSelected) {
+    return;
+  }
+  templateParticipantesSelected.innerHTML = "";
+  if (!templateParticipantesSelecionados.length) {
+    const vazio = document.createElement("span");
+    vazio.className = "participant-empty";
+    vazio.textContent = "Nenhum participante selecionado.";
+    templateParticipantesSelected.append(vazio);
+    return;
+  }
+  const candidatos = new Set(getMaintenanceParticipantCandidates());
+  templateParticipantesSelecionados.forEach((name) => {
+    const tag = document.createElement("span");
+    const isExternal = !candidatos.has(name);
+    tag.className = `participant-tag${isExternal ? " participant-tag--external" : ""}`;
+    const label = document.createElement("span");
+    label.textContent = name;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "participant-remove";
+    remove.textContent = "x";
+    remove.dataset.participantRemove = name;
+    tag.append(label, remove);
+    templateParticipantesSelected.append(tag);
+  });
+}
+
+function renderTemplateParticipantesOptions() {
+  if (!templateParticipantesList) {
+    return;
+  }
+  templateParticipantesList.innerHTML = "";
+  const list = getMaintenanceParticipantCandidates();
+  if (!list.length) {
+    const vazio = document.createElement("span");
+    vazio.className = "participant-empty";
+    vazio.textContent = "Sem colaboradores vinculados ao projeto.";
+    templateParticipantesList.append(vazio);
+    return;
+  }
+  list.forEach((name) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "participant-pill";
+    if (templateParticipantesSelecionados.includes(name)) {
+      button.classList.add("is-selected");
+    }
+    button.textContent = name;
+    button.dataset.participantName = name;
+    templateParticipantesList.append(button);
+  });
+}
+
+function setTemplateParticipantes(list = []) {
+  const next = [];
+  const seen = new Set();
+  list.forEach((entry) => {
+    const name = normalizeParticipantName(entry);
+    if (!name || seen.has(name)) {
+      return;
+    }
+    seen.add(name);
+    next.push(name);
+  });
+  templateParticipantesSelecionados = next;
+  syncTemplateParticipantesInput();
+  renderTemplateParticipantesOptions();
+  renderTemplateParticipantesSelected();
+}
+
+function toggleTemplateParticipante(name) {
+  const normalized = normalizeParticipantName(name);
+  if (!normalized) {
+    return;
+  }
+  if (templateParticipantesSelecionados.includes(normalized)) {
+    templateParticipantesSelecionados = templateParticipantesSelecionados.filter(
+      (item) => item !== normalized
+    );
+  } else {
+    templateParticipantesSelecionados = templateParticipantesSelecionados.concat(normalized);
+  }
+  syncTemplateParticipantesInput();
+  renderTemplateParticipantesOptions();
+  renderTemplateParticipantesSelected();
+  setFieldError(templateParticipantesErro, "");
+}
+
+function addTemplateParticipantesExternos(raw) {
+  const entries = String(raw || "")
+    .split(/[;,]/)
+    .map((item) => normalizeParticipantName(item))
+    .filter(Boolean);
+  if (!entries.length) {
+    return;
+  }
+  const merged = templateParticipantesSelecionados.slice();
+  entries.forEach((name) => {
+    if (!merged.includes(name)) {
+      merged.push(name);
+    }
+  });
+  setTemplateParticipantes(merged);
+}
+
+function getTemplateParticipantesFromForm() {
+  if (templateParticipantesSelecionados.length) {
+    return templateParticipantesSelecionados.slice();
+  }
+  const texto = templateParticipantes ? templateParticipantes.value : "";
+  const parsed = String(texto || "")
+    .split(";")
+    .map((item) => normalizeParticipantName(item))
+    .filter(Boolean);
+  return Array.from(new Set(parsed));
+}
+
 function getManutencaoEquipeSelecionada() {
   const selecionada = manutencaoEquipeResponsavel
     ? normalizeTeamName(manutencaoEquipeResponsavel.value)
     : "";
   return selecionada || getProjectTeamName(activeProjectId);
+}
+
+function getLiberacaoEquipeSelecionada() {
+  const selecionada = liberacaoEquipeResponsavel
+    ? normalizeTeamName(liberacaoEquipeResponsavel.value)
+    : "";
+  return selecionada || getProjectTeamName(activeProjectId);
+}
+
+function getTemplateEquipeSelecionada() {
+  const selecionada = templateEquipeResponsavel
+    ? normalizeTeamName(templateEquipeResponsavel.value)
+    : "";
+  return selecionada || "";
 }
 
 function renderProjectSelector() {
@@ -27489,22 +27889,82 @@ function renderEquipamentosTable() {
   });
 }
 
-function renderEquipamentoOptions() {
-  if (!equipamentoManutencao) {
+function resolveEquipamentoIdFromValue(raw) {
+  if (!raw) {
+    return "";
+  }
+  if (typeof raw === "string") {
+    const texto = raw.trim();
+    if (!texto) {
+      return "";
+    }
+    const byId = projectEquipamentos.find((equip) => equip.id === texto);
+    if (byId) {
+      return byId.id;
+    }
+    const normalized = normalizeSearchValue(texto);
+    const byName = projectEquipamentos.find(
+      (equip) =>
+        normalizeSearchValue(equip.nome || "") === normalized ||
+        normalizeSearchValue(equip.tag || "") === normalized
+    );
+    return byName ? byName.id : texto;
+  }
+  if (typeof raw === "object") {
+    const id = String(raw.id || "").trim();
+    if (id) {
+      return id;
+    }
+    const nome = String(raw.nome || raw.name || raw.label || raw.tag || "").trim();
+    if (nome) {
+      const normalized = normalizeSearchValue(nome);
+      const byName = projectEquipamentos.find(
+        (equip) =>
+          normalizeSearchValue(equip.nome || "") === normalized ||
+          normalizeSearchValue(equip.tag || "") === normalized
+      );
+      return byName ? byName.id : nome;
+    }
+  }
+  return "";
+}
+
+function setEquipamentoSelectValue(select, rawValue) {
+  if (!select) {
     return;
   }
-  const atual = equipamentoManutencao.value;
-  equipamentoManutencao.innerHTML = `<option value="">Selecione um equipamento</option>`;
+  const equipamentoId = resolveEquipamentoIdFromValue(rawValue);
+  if (!equipamentoId) {
+    select.value = "";
+    return;
+  }
+  const existe = Array.from(select.options || []).some((opt) => opt.value === equipamentoId);
+  if (!existe) {
+    const equipamento = projectEquipamentos.find((equip) => equip.id === equipamentoId);
+    const option = document.createElement("option");
+    option.value = equipamentoId;
+    option.textContent = equipamento
+      ? `${equipamento.tag || "-"} - ${equipamento.nome || "-"}`
+      : "Equipamento removido";
+    select.append(option);
+  }
+  select.value = equipamentoId;
+}
+
+function renderEquipamentoSelectOptions(select, placeholder = "Selecione um equipamento") {
+  if (!select) {
+    return;
+  }
+  const atual = select.value;
+  select.innerHTML = `<option value="">${placeholder}</option>`;
   projectEquipamentos.forEach((equip) => {
     const option = document.createElement("option");
     option.value = equip.id;
     option.textContent = `${equip.tag || "-"} - ${equip.nome || "-"}`;
-    equipamentoManutencao.append(option);
+    select.append(option);
   });
   if (atual) {
-    const existe = Array.from(equipamentoManutencao.options || []).some(
-      (opt) => opt.value === atual
-    );
+    const existe = Array.from(select.options || []).some((opt) => opt.value === atual);
     if (!existe) {
       const equipamento = projectEquipamentos.find((equip) => equip.id === atual);
       const option = document.createElement("option");
@@ -27512,10 +27972,16 @@ function renderEquipamentoOptions() {
       option.textContent = equipamento
         ? `${equipamento.tag || "-"} - ${equipamento.nome || "-"}`
         : "Equipamento removido";
-      equipamentoManutencao.append(option);
+      select.append(option);
     }
-    equipamentoManutencao.value = atual;
+    select.value = atual;
   }
+}
+
+function renderEquipamentoOptions() {
+  renderEquipamentoSelectOptions(equipamentoManutencao);
+  renderEquipamentoSelectOptions(liberacaoEquipamento);
+  renderEquipamentoSelectOptions(templateEquipamento);
 }
 
 function renderEquipeSelectOptions() {
@@ -32770,6 +33236,12 @@ async function carregarEquipeProjeto() {
     renderManutencaoEquipeOptions();
     renderManutencaoParticipantesOptions();
     renderManutencaoParticipantesSelected();
+    renderLiberacaoEquipeOptions();
+    renderLiberacaoParticipantesOptions();
+    renderLiberacaoParticipantesSelected();
+    renderTemplateEquipeOptions();
+    renderTemplateParticipantesOptions();
+    renderTemplateParticipantesSelected();
     return;
   }
   try {
@@ -32782,6 +33254,12 @@ async function carregarEquipeProjeto() {
   renderManutencaoEquipeOptions();
   renderManutencaoParticipantesOptions();
   renderManutencaoParticipantesSelected();
+  renderLiberacaoEquipeOptions();
+  renderLiberacaoParticipantesOptions();
+  renderLiberacaoParticipantesSelected();
+  renderTemplateEquipeOptions();
+  renderTemplateParticipantesOptions();
+  renderTemplateParticipantesSelected();
 }
 
 function renderPerfil() {
@@ -36169,13 +36647,8 @@ function atualizarLiberacaoChecklist() {
     return;
   }
   const osNumero = liberacaoOs ? liberacaoOs.value.trim() : "";
-  const participantesTexto = liberacaoParticipantes ? liberacaoParticipantes.value : "";
-  const participantes = participantesTexto
-    ? participantesTexto
-        .split(";")
-        .map((item) => item.trim())
-        .filter(Boolean)
-    : [];
+  const participantes = getLiberacaoParticipantesFromForm();
+  const equipamentoValor = liberacaoEquipamento ? liberacaoEquipamento.value.trim() : "";
   const criticoSelecionado = liberacaoCritico ? liberacaoCritico.value : "";
   const critico = criticoSelecionado === "sim";
   const docApr = getLiberacaoDocAtual("apr");
@@ -36186,6 +36659,9 @@ function atualizarLiberacaoChecklist() {
     { label: "Trabalho crítico definido", ok: Boolean(criticoSelecionado) },
     { label: "OS / referência", ok: Boolean(osNumero) },
     { label: "Participantes", ok: participantes.length > 0 },
+    ...(liberacaoEquipamento
+      ? [{ label: "Equipamento", ok: Boolean(equipamentoValor) }]
+      : []),
     { label: "APR anexada", ok: Boolean(docApr) },
     { label: "OS anexada", ok: Boolean(docOs) },
     { label: "PTE anexada", ok: Boolean(docPte) },
@@ -36273,15 +36749,34 @@ function abrirLiberacao(item) {
       liberacaoCritico.value = isCriticoValor(criticoValor) ? "sim" : "nao";
     }
   }
-  if (liberacaoParticipantes) {
-    if (Array.isArray(liberacao.participantes)) {
-      liberacaoParticipantes.value = liberacao.participantes.join("; ");
-    } else if (typeof liberacao.participantes === "string") {
-      liberacaoParticipantes.value = liberacao.participantes;
-    } else {
-      liberacaoParticipantes.value = "";
-    }
-  }
+  const participantesBase = Array.isArray(liberacao.participantes)
+    ? liberacao.participantes
+    : typeof liberacao.participantes === "string"
+      ? liberacao.participantes
+          .split(";")
+          .map((item) => normalizeParticipantName(item))
+          .filter(Boolean)
+      : Array.isArray(item.participantes)
+        ? item.participantes
+        : typeof item.participantes === "string"
+          ? item.participantes
+              .split(";")
+              .map((item) => normalizeParticipantName(item))
+              .filter(Boolean)
+          : [];
+  setLiberacaoParticipantes(participantesBase);
+  const equipeBase =
+    liberacao.equipeResponsavel ||
+    (isTeamUserId(item.executadaPor) ? item.executadaPor : "") ||
+    item.responsavel ||
+    item.responsavelManutencao ||
+    "";
+  const equipeSelecionada = isTeamUserId(equipeBase)
+    ? normalizeTeamName(equipeBase)
+    : equipeBase;
+  renderLiberacaoEquipeOptions(equipeSelecionada);
+  const equipamentoBase = liberacao.equipamentoId || item.equipamentoId || item.equipamento || "";
+  setEquipamentoSelectValue(liberacaoEquipamento, equipamentoBase);
   liberacaoDocInputs.forEach((input) => {
     if (input) {
       input.value = "";
@@ -36340,10 +36835,29 @@ async function finalizarLiberacao(index, item, liberacaoBase, overrideJustificat
     liberacao.overrideRole = getRoleLabel(currentUser);
     liberacao.overrideAt = agoraIso;
   }
+  const participantesFinal =
+    Array.isArray(liberacao.participantes) && liberacao.participantes.length
+      ? liberacao.participantes
+      : Array.isArray(item.participantes)
+        ? item.participantes
+        : [];
+  const equipamentoFinal =
+    liberacao.equipamentoId ||
+    item.equipamentoId ||
+    resolveEquipamentoIdFromValue(item.equipamento);
+  const equipeResponsavel = liberacao.equipeResponsavel || "";
+  const executadoPorTime = equipeResponsavel ? `team:${equipeResponsavel}` : "";
+  const registroExecucaoAtual = executadoPorTime
+    ? { ...(item.registroExecucao || {}), executadoPor: executadoPorTime }
+    : item.registroExecucao;
   const atualizado = {
     ...item,
     liberacao,
     status: atrasada ? "backlog" : "liberada",
+    equipamentoId: equipamentoFinal || item.equipamentoId,
+    participantes: participantesFinal.length ? participantesFinal : item.participantes,
+    executadaPor: executadoPorTime || item.executadaPor,
+    registroExecucao: registroExecucaoAtual,
     updatedAt: agoraIso,
     updatedBy: currentUser.id,
   };
@@ -36422,19 +36936,24 @@ async function salvarLiberacao(event) {
     mostrarMensagemLiberacao("Informe o Nº OS / referência.", true);
     return;
   }
-  const participantesTexto = liberacaoParticipantes ? liberacaoParticipantes.value : "";
-  const participantes = participantesTexto
-    ? participantesTexto
-        .split(";")
-        .map((item) => item.trim())
-        .filter(Boolean)
-    : [];
+  const participantes = getLiberacaoParticipantesFromForm();
   setFieldError(liberacaoParticipantesErro, "");
   if (!participantes.length) {
     setFieldError(liberacaoParticipantesErro, "Informe ao menos 1 participante.");
     mostrarMensagemLiberacao("Informe ao menos 1 participante.", true);
     return;
   }
+  const equipamentoSelecionado = liberacaoEquipamento ? liberacaoEquipamento.value.trim() : "";
+  const equipamentoFallback =
+    item.equipamentoId || resolveEquipamentoIdFromValue(item.equipamento);
+  const equipamentoId = equipamentoSelecionado || equipamentoFallback || "";
+  if (liberacaoEquipamento && !equipamentoId) {
+    mostrarMensagemLiberacao("Informe o equipamento da manutenção.", true);
+    return;
+  }
+  const equipeResponsavel = liberacaoEquipeResponsavel
+    ? getLiberacaoEquipeSelecionada()
+    : "";
   const criticoValor = liberacaoCritico ? liberacaoCritico.value : "";
   if (!criticoValor) {
     mostrarMensagemLiberacao("Informe se o trabalho é crítico.", true);
@@ -36495,6 +37014,8 @@ async function salvarLiberacao(event) {
     participantes,
     critico,
     documentos,
+    equipamentoId,
+    equipeResponsavel,
   };
   if (liberacaoAntecipada) {
     pendingLiberacaoOverride = { id: item.id, liberacaoBase };
@@ -41122,6 +41643,52 @@ if (liberacaoOs) {
 if (liberacaoParticipantes) {
   liberacaoParticipantes.addEventListener("change", atualizarLiberacaoChecklist);
 }
+if (liberacaoParticipantesList) {
+  liberacaoParticipantesList.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-participant-name]");
+    if (!button) {
+      return;
+    }
+    toggleLiberacaoParticipante(button.dataset.participantName);
+  });
+}
+if (liberacaoParticipantesSelected) {
+  liberacaoParticipantesSelected.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-participant-remove]");
+    if (!button) {
+      return;
+    }
+    const name = button.dataset.participantRemove;
+    liberacaoParticipantesSelecionados = liberacaoParticipantesSelecionados.filter(
+      (item) => item !== name
+    );
+    syncLiberacaoParticipantesInput();
+    renderLiberacaoParticipantesOptions();
+    renderLiberacaoParticipantesSelected();
+    setFieldError(liberacaoParticipantesErro, "");
+    atualizarLiberacaoChecklist();
+  });
+}
+if (btnAddParticipanteExternoLiberacao) {
+  btnAddParticipanteExternoLiberacao.addEventListener("click", () => {
+    addLiberacaoParticipantesExternos(
+      liberacaoParticipanteExterno ? liberacaoParticipanteExterno.value : ""
+    );
+    if (liberacaoParticipanteExterno) {
+      liberacaoParticipanteExterno.value = "";
+      liberacaoParticipanteExterno.focus();
+    }
+  });
+}
+if (liberacaoParticipanteExterno) {
+  liberacaoParticipanteExterno.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      addLiberacaoParticipantesExternos(liberacaoParticipanteExterno.value);
+      liberacaoParticipanteExterno.value = "";
+    }
+  });
+}
 if (liberacaoCritico) {
   liberacaoCritico.addEventListener("change", atualizarLiberacaoCriticoUI);
 }
@@ -41185,6 +41752,51 @@ if (participanteExternoManutencao) {
       event.preventDefault();
       addManutencaoParticipantesExternos(participanteExternoManutencao.value);
       participanteExternoManutencao.value = "";
+    }
+  });
+}
+if (templateParticipantesList) {
+  templateParticipantesList.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-participant-name]");
+    if (!button) {
+      return;
+    }
+    toggleTemplateParticipante(button.dataset.participantName);
+  });
+}
+if (templateParticipantesSelected) {
+  templateParticipantesSelected.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-participant-remove]");
+    if (!button) {
+      return;
+    }
+    const name = button.dataset.participantRemove;
+    templateParticipantesSelecionados = templateParticipantesSelecionados.filter(
+      (item) => item !== name
+    );
+    syncTemplateParticipantesInput();
+    renderTemplateParticipantesOptions();
+    renderTemplateParticipantesSelected();
+    setFieldError(templateParticipantesErro, "");
+  });
+}
+if (btnAddTemplateParticipanteExterno) {
+  btnAddTemplateParticipanteExterno.addEventListener("click", () => {
+    addTemplateParticipantesExternos(
+      templateParticipanteExterno ? templateParticipanteExterno.value : ""
+    );
+    if (templateParticipanteExterno) {
+      templateParticipanteExterno.value = "";
+      templateParticipanteExterno.focus();
+    }
+  });
+}
+if (templateParticipanteExterno) {
+  templateParticipanteExterno.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      addTemplateParticipantesExternos(templateParticipanteExterno.value);
+      templateParticipanteExterno.value = "";
     }
   });
 }
