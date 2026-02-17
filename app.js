@@ -19565,16 +19565,25 @@ function parseAnyDate(value) {
   if (!value && value !== 0) {
     return null;
   }
-  const parsed = parseTimestamp(value);
-  if (parsed) {
-    return parsed;
+  if (value instanceof Date || typeof value === "number") {
+    return parseTimestamp(value);
   }
   if (typeof value === "string") {
-    const byDate = parseDate(value);
-    if (byDate) {
-      return byDate;
+    const text = value.trim();
+    if (!text) {
+      return null;
     }
-    const byDateTime = parseDateTimeInput(value);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+      const byDate = parseDate(text);
+      if (byDate) {
+        return byDate;
+      }
+    }
+    const parsed = parseTimestamp(text);
+    if (parsed) {
+      return parsed;
+    }
+    const byDateTime = parseDateTimeInput(text);
     if (byDateTime) {
       return byDateTime;
     }
