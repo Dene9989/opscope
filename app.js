@@ -1121,6 +1121,7 @@ const TEMPLATE_KEY = "denemanu.templates";
 const USER_KEY = "denemanu.users";
 const ACCESS_USERS_KEY = "opscope.access.users";
 const ACCESS_ROLES_KEY = "opscope.access.roles";
+const ACCESS_ROLE_LEVELS_KEY = "opscope.access.roles.levels";
 const ACCESS_SYNC_KEY = "opscope.access.sync";
 const ACCESS_PACKAGE_VERSION = 1;
 const ACCESS_USERS_BACKUP_KEY = "opscope.access.users.backup";
@@ -2326,6 +2327,12 @@ ACCESS_ROLE_ITEMS.forEach((item) => {
 });
 
 const ACCESS_ROLE_ITEM_INDEX = new Map(ACCESS_ROLE_ITEMS.map((item) => [item.key, item]));
+
+const ACCESS_ROLE_VIEWONLY_KEYS = new Set(
+  ACCESS_ROLE_ITEMS.filter((item) => !item.editKeys || item.editKeys.length === 0).map(
+    (item) => item.key
+  )
+);
 
 const ACCESS_ROLE_MODULES = buildAccessRoleModules(ACCESS_ROLE_ITEMS);
 
@@ -11053,6 +11060,87 @@ function deleteRoleBackup(roleId) {
   }
   const list = readRolesStorage().filter((item) => String(item.id) !== String(roleId));
   writeRolesStorage(list);
+}
+
+function collectAccessRoleLevelMarkers(list = []) {
+  const normalized = normalizeAccessRoleKeys(list);
+  return normalized.filter((key) => {
+    if (!isAccessRoleLevelKey(key)) {
+      return false;
+    }
+    const itemKey = getAccessRoleLevelItemKey(key);
+    return itemKey && ACCESS_ROLE_VIEWONLY_KEYS.has(itemKey);
+  });
+}
+
+function readAccessRoleLevelStorage() {
+  const raw = readJson(ACCESS_ROLE_LEVELS_KEY, {});
+  if (!raw || typeof raw !== "object") {
+    return {};
+  }
+  return raw;
+}
+
+function writeAccessRoleLevelStorage(payload) {
+  if (!payload || typeof payload !== "object") {
+    return false;
+  }
+  const ok = writeJson(ACCESS_ROLE_LEVELS_KEY, payload);
+  if (ok) {
+    touchAccessSync();
+  }
+  return ok;
+}
+
+function getStoredAccessRoleLevelMarkers(roleId) {
+  if (!roleId) {
+    return [];
+  }
+  const storage = readAccessRoleLevelStorage();
+  const markers = Array.isArray(storage[roleId]) ? storage[roleId] : [];
+  return collectAccessRoleLevelMarkers(markers);
+}
+
+function setStoredAccessRoleLevelMarkers(roleId, markers) {
+  if (!roleId) {
+    return;
+  }
+  const storage = readAccessRoleLevelStorage();
+  const next = collectAccessRoleLevelMarkers(markers);
+  if (next.length) {
+    storage[roleId] = next;
+  } else {
+    delete storage[roleId];
+  }
+  writeAccessRoleLevelStorage(storage);
+}
+
+function mergeAccessRoleLevelMarkers(role) {
+  if (!role || !role.id) {
+    return role;
+  }
+  const markers = getStoredAccessRoleLevelMarkers(role.id);
+  if (!markers.length) {
+    return role;
+  }
+  const merged = new Set(normalizeAccessRoleKeys(role.permissions || []));
+  markers.forEach((key) => merged.add(key));
+  return { ...role, permissions: Array.from(merged) };
+}
+
+function syncAccessRoleLevelStorage(roles = []) {
+  const storage = readAccessRoleLevelStorage();
+  const validIds = new Set((roles || []).map((role) => String(role.id)));
+  let changed = false;
+  Object.keys(storage).forEach((roleId) => {
+    if (!validIds.has(String(roleId))) {
+      delete storage[roleId];
+      changed = true;
+    }
+  });
+  if (changed) {
+    writeAccessRoleLevelStorage(storage);
+  }
 }
 
 function readUsersStorage() {
@@ -25350,6 +25438,8 @@ async function refreshAccessRoles(options = {}) {
       // noop
     }
   }
+  accessRoles = accessRoles.map((role) => mergeAccessRoleLevelMarkers(role));
+  syncAccessRoleLevelStorage(accessRoles);
   accessRoleMap = new Map(accessRoles.map((role) => [role.id, role]));
   renderAccessRoleSelectOptions();
   if (!skipEditor) {
@@ -41789,6 +41879,7 @@ if (accessRolesTableBody) {
       setAccessMessage("Removendo cargo...");
       try {
         await dataProvider.roles.deleteRole(role.id);
+        setStoredAccessRoleLevelMarkers(role.id, []);
         await refreshAccessRoles();
         await refreshAccessUsers();
         setAccessMessage("Cargo removido.");
@@ -42157,7 +42248,10 @@ if (accessRoleForm) {
     }
     setAccessRoleFormMessage("");
     try {
-      await dataProvider.roles.upsertRole({ id: id || undefined, name, permissions });
+      const savedRole = await dataProvider.roles.upsertRole({ id: id || undefined, name, permissions });
+      if (savedRole && savedRole.id) {
+        setStoredAccessRoleLevelMarkers(savedRole.id, permissions);
+      }
       closeAccessRoleModal();
       await refreshAccessRoles();
       await refreshAccessUsers();
