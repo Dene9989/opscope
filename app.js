@@ -37719,16 +37719,29 @@ function exportarHistoricoPdf(item) {
   popup.print();
 }
 
+function getConclusaoInicioDate() {
+  if (!conclusaoInicio) {
+    return null;
+  }
+  const valor = conclusaoInicio.value;
+  const parsed = parseDateTimeInput(valor);
+  if (parsed) {
+    return parsed;
+  }
+  const inicioIso = conclusaoInicio.dataset.iso || "";
+  return inicioIso ? parseTimestamp(inicioIso) : null;
+}
+
 function atualizarDuracaoConclusao() {
   if (!conclusaoInicio || !conclusaoFim || !conclusaoDuracao) {
     return;
   }
-  const inicioIso = conclusaoInicio.dataset.iso || "";
-  if (!inicioIso || !conclusaoFim.value) {
+  const inicio = getConclusaoInicioDate();
+  conclusaoFim.min = inicio ? formatDateTimeInput(inicio) : "";
+  if (!inicio || !conclusaoFim.value) {
     conclusaoDuracao.value = "";
     return;
   }
-  const inicio = parseTimestamp(inicioIso);
   const fim = parseDateTimeInput(conclusaoFim.value);
   if (Number.isNaN(inicio.getTime()) || Number.isNaN(fim.getTime()) || fim < inicio) {
     conclusaoDuracao.value = "00:00";
@@ -38069,13 +38082,12 @@ function abrirConclusao(item) {
 
   const inicio = parseTimestamp(item.executionStartedAt);
   if (conclusaoInicio) {
-    conclusaoInicio.value = inicio ? formatDateTime(inicio) : "-";
+    conclusaoInicio.value = inicio ? formatDateTimeInput(inicio) : "";
     conclusaoInicio.dataset.iso = item.executionStartedAt || "";
   }
   if (conclusaoFim) {
     const agora = new Date();
     conclusaoFim.value = formatDateTimeInput(agora);
-    conclusaoFim.min = inicio ? formatDateTimeInput(inicio) : "";
   }
   if (conclusaoDuracao) {
     const agora = new Date();
@@ -38169,9 +38181,12 @@ async function salvarConclusao(event) {
     mostrarMensagemConclusao("Informe o Nº OS / referência.", true);
     return;
   }
-  const inicioDate = parseTimestamp(item.executionStartedAt);
+  const inicioValor = conclusaoInicio ? conclusaoInicio.value : "";
+  const inicioDate =
+    parseDateTimeInput(inicioValor) ||
+    (item.executionStartedAt ? parseTimestamp(item.executionStartedAt) : null);
   if (!inicioDate) {
-    mostrarMensagemConclusao("Início da execução não encontrado.", true);
+    mostrarMensagemConclusao("Informe o horário de início da execução.", true);
     return;
   }
   const fimValor = conclusaoFim ? conclusaoFim.value : "";
@@ -41549,6 +41564,9 @@ if (formConclusao) {
 }
 if (btnAplicarModeloBreve) {
   btnAplicarModeloBreve.addEventListener("click", aplicarModeloBreve);
+}
+if (conclusaoInicio) {
+  conclusaoInicio.addEventListener("input", atualizarDuracaoConclusao);
 }
 if (conclusaoFim) {
   conclusaoFim.addEventListener("input", atualizarDuracaoConclusao);
