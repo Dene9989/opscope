@@ -10547,6 +10547,19 @@ function statusValido(status) {
   return Boolean(STATUS_LABELS[status]);
 }
 
+function hasExecucaoRegistrada(item) {
+  if (!item || !item.registroExecucao) {
+    return false;
+  }
+  const registro = item.registroExecucao;
+  return Boolean(
+    registro.registradoEm ||
+    registro.comentario ||
+    registro.resultado ||
+    registro.observacaoExecucao
+  );
+}
+
 function normalizeIso(value) {
   if (!value) {
     return value;
@@ -12491,7 +12504,7 @@ function atualizarResumo() {
     contagem[status] += 1;
   });
   const execucoesRegistradas = manutencoes.filter((item) => {
-    if (!item || !item.registroExecucao) {
+    if (!hasExecucaoRegistrada(item)) {
       return false;
     }
     const status = normalizeMaintenanceStatus(item.status);
@@ -13210,12 +13223,13 @@ function criarCardManutencao(item, permissoes, options = {}) {
 
   const statusGroup = document.createElement("div");
   statusGroup.className = "status-group";
+  const execucaoRegistrada = hasExecucaoRegistrada(item);
   const esconderEmExecucao =
-    item.registroExecucao && statusBase === "em_execucao" && item.status !== "concluida";
+    execucaoRegistrada && statusBase === "em_execucao" && item.status !== "concluida";
   if (!esconderEmExecucao) {
     statusGroup.append(badge);
   }
-  if (item.registroExecucao && item.status !== "concluida") {
+  if (execucaoRegistrada && item.status !== "concluida") {
     const execBadge = document.createElement("span");
     execBadge.className = "status status--execucao-registrada";
     execBadge.textContent = "Execução registrada";
@@ -13273,20 +13287,20 @@ function criarCardManutencao(item, permissoes, options = {}) {
       actions.append(criarBotaoAcao("Reagendar", "reschedule"));
     }
   } else if (item.status === "em_execucao") {
-    if (permite("execute") && !item.registroExecucao) {
+    if (permite("execute") && !hasExecucaoRegistrada(item)) {
       actions.append(criarBotaoAcao("Registrar execução", "register"));
     }
-    if (permite("execute") && !item.registroExecucao) {
+    if (permite("execute") && !hasExecucaoRegistrada(item)) {
       actions.append(criarBotaoAcao("Cancelar início", "cancel_start"));
     }
-    if (permite("execute") && item.registroExecucao) {
+    if (permite("execute") && hasExecucaoRegistrada(item)) {
       actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
     }
   } else if (item.status === "encerramento") {
-    if (permite("execute") && !item.registroExecucao) {
+    if (permite("execute") && !hasExecucaoRegistrada(item)) {
       actions.append(criarBotaoAcao("Registrar execução", "register"));
     }
-    if (permite("execute") && item.registroExecucao) {
+    if (permite("execute") && hasExecucaoRegistrada(item)) {
       actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
     }
   } else if (item.status === "concluida") {
@@ -13442,7 +13456,7 @@ function renderProgramacao() {
       }
     } else if (filtroStatus === "execucao_registrada") {
       const statusAtual = normalizeMaintenanceStatus(item.status);
-      if (!(item.registroExecucao && (statusAtual === "em_execucao" || statusAtual === "encerramento"))) {
+      if (!(hasExecucaoRegistrada(item) && (statusAtual === "em_execucao" || statusAtual === "encerramento"))) {
         return false;
       }
     } else if (filtroStatus === "concluida") {
