@@ -17610,10 +17610,19 @@ function buildAtividadesConsolidadoFallback(itensRdo) {
   };
 }
 
-function buildAtividadesConsolidadoHtml(data) {
-  const subestacao = data && data.subestacao ? data.subestacao : "não informado";
+function buildAtividadesConsolidadoHtml(data, meta = {}) {
+  const local = meta.local || (data && data.local ? data.local : "não informado");
+  const subestacao =
+    meta.subestacao || (data && data.subestacao ? data.subestacao : "não informado");
   const atividade = data && data.atividade_do_dia ? data.atividade_do_dia : "não informado";
-  const status = data && data.status_geral ? data.status_geral : "não informado";
+  const status = meta.status || (data && data.status_geral ? data.status_geral : "não informado");
+  const statusClass = meta.statusClass || "neutral";
+  const total = typeof meta.total === "number" ? meta.total : null;
+  const concluidas = typeof meta.concluidas === "number" ? meta.concluidas : null;
+  const totalLabel =
+    total !== null && concluidas !== null && total > 0 ? `${concluidas}/${total}` : "-";
+  const tempoLabel = meta.tempoTotal || "-";
+  const docsLabel = meta.docsBadge || "Sem base";
   const equipamentos = data && Array.isArray(data.equipamentos) ? data.equipamentos : [];
   const tiposUnicos = Array.from(
     new Set(equipamentos.map((equip) => (equip.tipo || "").trim()).filter(Boolean))
@@ -17623,18 +17632,64 @@ function buildAtividadesConsolidadoHtml(data) {
   );
   const tipoResumo = tiposUnicos.length === 1 ? tiposUnicos[0] : "";
   const statusResumo = statusUnicos.length === 1 ? statusUnicos[0] : status;
+  const grupos = equipamentos.reduce((acc, equip) => {
+    const base = normalizeForMatch(`${equip.nome || ""} ${equip.tipo || ""}`);
+    let grupo = "Outros";
+    if (base.includes("SERVICOS AUXILIARES") || /\bTSA-\d+\b/.test(base)) {
+      grupo = "Servicos auxiliares";
+    } else if (base.includes("POTENCIA") || /\bT-\d+\b/.test(base)) {
+      grupo = "Potencia";
+    }
+    if (!acc[grupo]) {
+      acc[grupo] = [];
+    }
+    acc[grupo].push(equip);
+    return acc;
+  }, {});
+  const gruposOrdenados = ["Servicos auxiliares", "Potencia", "Outros"].filter(
+    (key) => grupos[key] && grupos[key].length
+  );
   const equipamentosHtml = equipamentos.length
-    ? equipamentos
-        .map((equip) => {
-          const nome = equip.nome || "não informado";
-          const tipo = equip.tipo || "não informado";
-          const statusItem = equip.status || "não informado";
-          const tipoLabel = tiposUnicos.length === 1 ? "" : ` — ${escapeHtml(tipo)}`;
-          const statusLabel = statusUnicos.length === 1 ? "" : ` — ${escapeHtml(statusItem)}`;
-          return `<li>${escapeHtml(nome)}${tipoLabel}${statusLabel}</li>`;
-        })
-        .join("")
-    : `<li>não informado</li>`;
+    ? gruposOrdenados.length > 1
+      ? gruposOrdenados
+          .map((grupo) => {
+            const lista = grupos[grupo]
+              .map((equip) => {
+                const nome = equip.nome || "não informado";
+                const tipo = equip.tipo || "não informado";
+                const statusItem = equip.status || "não informado";
+                const tipoLabel = tiposUnicos.length === 1 ? "" : ` — ${escapeHtml(tipo)}`;
+                const statusLabel =
+                  statusUnicos.length === 1 ? "" : ` — ${escapeHtml(statusItem)}`;
+                return `<li>${escapeHtml(nome)}${tipoLabel}${statusLabel}</li>`;
+              })
+              .join("");
+            return `
+              <div class="rdo-equip-group">
+                <h5>${escapeHtml(grupo)}</h5>
+                <ul class="rdo-lista">${lista}</ul>
+              </div>
+            `;
+          })
+          .join("")
+      : `
+          <ul class="rdo-lista">
+            ${gruposOrdenados
+              .flatMap((grupo) =>
+                grupos[grupo].map((equip) => {
+                  const nome = equip.nome || "não informado";
+                  const tipo = equip.tipo || "não informado";
+                  const statusItem = equip.status || "não informado";
+                  const tipoLabel = tiposUnicos.length === 1 ? "" : ` — ${escapeHtml(tipo)}`;
+                  const statusLabel =
+                    statusUnicos.length === 1 ? "" : ` — ${escapeHtml(statusItem)}`;
+                  return `<li>${escapeHtml(nome)}${tipoLabel}${statusLabel}</li>`;
+                })
+              )
+              .join("")}
+          </ul>
+        `
+    : `<p>não informado</p>`;
   const resumoEquipamentos = `
     <div class="rdo-mini">
       <span>${equipamentos.length || 0} equipamento(s)</span>
@@ -17642,16 +17697,38 @@ function buildAtividadesConsolidadoHtml(data) {
       ${statusResumo ? `<span>Status: ${escapeHtml(statusResumo)}</span>` : ""}
     </div>
   `;
+  const statusMetaParts = [
+    totalLabel !== "-" ? `Atividades: ${totalLabel}` : "",
+    tempoLabel && tempoLabel !== "-" ? `Tempo: ${tempoLabel}` : "",
+    docsLabel ? `Docs: ${docsLabel}` : "",
+  ].filter(Boolean);
+  const statusMeta = statusMetaParts.length ? statusMetaParts.join(" • ") : "-";
   return `
-    <div class="rdo-info-grid rdo-info-grid--wide">
-      <div><span>Subestação</span><strong>${escapeHtml(subestacao)}</strong></div>
-      <div><span>Atividade do dia</span><strong>${escapeHtml(atividade)}</strong></div>
-      <div><span>Status geral</span><strong>${escapeHtml(status)}</strong></div>
+    <div class="rdo-consolidado-grid">
+      <div>
+        <span>Local/Empreendimento</span>
+        <strong>${escapeHtml(local)}</strong>
+      </div>
+      <div>
+        <span>Subesta\u00e7\u00e3o</span>
+        <strong>${escapeHtml(subestacao)}</strong>
+      </div>
+      <div class="rdo-consolidado-status">
+        <span>Status geral</span>
+        <strong class="rdo-status rdo-status--${escapeHtml(statusClass)}">${escapeHtml(
+          status
+        )}</strong>
+        <small>${escapeHtml(statusMeta)}</small>
+      </div>
+    </div>
+    <div class="rdo-consolidado-activity">
+      <span>Atividade do dia</span>
+      <strong>${escapeHtml(atividade)}</strong>
     </div>
     ${resumoEquipamentos}
-    <div class="rdo-item__section">
+    <div class="rdo-item__section rdo-consolidado-equip">
       <h4>Equipamentos atendidos</h4>
-      <ul class="rdo-lista">${equipamentosHtml}</ul>
+      ${equipamentosHtml}
     </div>
   `;
 }
@@ -18033,7 +18110,16 @@ function buildRdoHtml(snapshot, options = {}) {
   const atividadesConsolidado =
     (aiText && aiText.atividades_consolidado) ||
     buildAtividadesConsolidadoFallback(snapshot.itens || []);
-  const atividadesConsolidadoHtml = buildAtividadesConsolidadoHtml(atividadesConsolidado);
+  const atividadesConsolidadoHtml = buildAtividadesConsolidadoHtml(atividadesConsolidado, {
+    local: projeto,
+    subestacao: subestacaoHeader,
+    status: statusDiaLabel,
+    statusClass: statusDiaClass,
+    total: snapshot.metricas.total,
+    concluidas: snapshot.metricas.concluidas,
+    tempoTotal,
+    docsBadge,
+  });
   const rdoNumero = snapshot.id ? snapshot.id.slice(0, 6).toUpperCase() : "-";
   const resumoItensBase = [
     { label: "Atividades", value: snapshot.metricas.total },
@@ -18200,12 +18286,16 @@ function buildRdoHtml(snapshot, options = {}) {
     })
     .join("");
 
+  const itensById = new Map((snapshot.itens || []).map((item) => [item.id, item]));
   const evidenciasHtml = snapshot.evidencias.length
     ? snapshot.evidencias
         .map((evidencia) => {
           const dataHora = evidencia.dataHora || "-";
           const responsavel = evidencia.responsavel || "-";
-          const legenda = `${evidencia.itemTitulo} | ${dataHora} | ${responsavel}`;
+          const itemRef = itensById.get(evidencia.itemId) || {};
+          const equipamentoRef = itemRef.equipamento || "-";
+          const osRef = itemRef.osReferencia || "-";
+          const legenda = `${evidencia.itemTitulo} • ${equipamentoRef} • OS ${osRef} • ${dataHora} • ${responsavel}`;
           return `
             <figure class="rdo-evidencia">
               <img src="${evidencia.dataUrl}" alt="${escapeHtml(legenda)}" />
@@ -18232,133 +18322,357 @@ function buildRdoHtml(snapshot, options = {}) {
     `
     : "";
 
+  const responsaveisHeader = formatListLimited(
+    (snapshot.itens || []).map((item) => item.responsavel).filter(Boolean),
+    2
+  ) || "-";
+  const equipeHeader = formatListLimited(
+    (snapshot.itens || [])
+      .flatMap((item) => parseParticipantesLabel(item.participantes))
+      .filter(Boolean),
+    3
+  ) || "-";
+  const osList = Array.from(
+    new Set((snapshot.itens || []).map((item) => item.osReferencia).filter(Boolean))
+  );
+  const osLabel = osList.length ? formatListLimited(osList, 3) : "-";
+  const subestacoesHeader = Array.from(
+    new Set(
+      (snapshot.itens || [])
+        .map((item) => item.subestacao)
+        .filter((item) => item && item !== "-")
+    )
+  );
+  const subestacaoHeader =
+    subestacoesHeader.length === 1
+      ? subestacoesHeader[0]
+      : subestacoesHeader.length > 1
+        ? "M\u00faltiplas"
+        : "-";
+  const statusDiaLabel =
+    snapshot.metricas.total && snapshot.metricas.concluidas === snapshot.metricas.total
+      ? "Conclu\u00edda"
+      : snapshot.metricas.emExecucao > 0
+        ? "Em execu\u00e7\u00e3o"
+        : snapshot.metricas.overdue > 0
+          ? "Pendente"
+          : "Em andamento";
+  const statusDiaClass =
+    statusDiaLabel === "Conclu\u00edda"
+      ? "ok"
+      : statusDiaLabel === "Em execu\u00e7\u00e3o"
+        ? "warn"
+        : statusDiaLabel === "Pendente"
+          ? "danger"
+          : "neutral";
+  const docsBadge = snapshot.metricas.docsTotal ? `${docsPercent} \u2022 ${docsMeta}` : "Sem base";
+  const descricaoLonga = (descricaoConsolidada || "").length > 420;
+  const isPrint = Boolean(options.print);
+  const themeRaw = options.theme || "enterprise";
+  const theme = ["enterprise", "industrial", "minimal"].includes(themeRaw)
+    ? themeRaw
+    : "enterprise";
+
+  const descricaoHtml = descricaoLonga && !isPrint
+    ? `
+      <details class="rdo-collapsible rdo-collapsible--text">
+        <summary>
+          <span class="rdo-collapsible__more">Ver mais</span>
+          <span class="rdo-collapsible__less">Ver menos</span>
+        </summary>
+        <div class="rdo-collapsible__content">
+          <p class="rdo-paragraph">${escapeHtml(descricaoConsolidada || "")}</p>
+        </div>
+      </details>
+    `
+    : `<p class="rdo-paragraph">${escapeHtml(descricaoConsolidada || "")}</p>`;
+
+  const showAtividadesToggle = !isPrint && (snapshot.itens || []).length > 4;
+  const atividadesCardsHtml = (snapshot.itens || [])
+    .map((item) => {
+      const statusKey = item.statusKey || "";
+      const statusClass =
+        statusKey === "concluida"
+          ? "ok"
+          : statusKey === "em_execucao" || statusKey === "encerramento"
+            ? "warn"
+            : statusKey === "backlog"
+              ? "danger"
+              : "neutral";
+      const inicio = item.inicio ? formatDateTime(parseTimestamp(item.inicio)) : "-";
+      const fim = item.fim ? formatDateTime(parseTimestamp(item.fim)) : "-";
+      const gridItems = [
+        { label: "Local", value: projeto || "-" },
+        { label: "Subesta\u00e7\u00e3o", value: item.subestacao || "-" },
+        { label: "Equipamento", value: item.equipamento || "-" },
+        { label: "OS", value: item.osReferencia || "-" },
+        { label: "Janela", value: `${inicio} - ${fim}` },
+        { label: "Respons\u00e1vel", value: item.responsavel || "-" },
+      ];
+      const chips = [
+        item.categoria ? `<span class="rdo-chip">${escapeHtml(item.categoria)}</span>` : "",
+        item.prioridade
+          ? `<span class="rdo-chip rdo-chip--priority">${escapeHtml(item.prioridade)}</span>`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("");
+      return `
+        <article class="rdo-activity-card">
+          <div class="rdo-activity-card__head">
+            <div class="rdo-activity-card__title">${escapeHtml(item.titulo || "-")}</div>
+            <span class="rdo-status rdo-status--${statusClass}">${escapeHtml(
+              item.statusLabel || "-"
+            )}</span>
+          </div>
+          <div class="rdo-activity-grid">
+            ${gridItems
+              .map(
+                (info) => `
+              <div>
+                <span>${escapeHtml(info.label)}</span>
+                <strong>${escapeHtml(info.value)}</strong>
+              </div>
+            `
+              )
+              .join("")}
+          </div>
+          ${chips ? `<div class="rdo-chip-row">${chips}</div>` : ""}
+        </article>
+      `;
+    })
+    .join("");
+  const atividadesHtml = atividadesCardsHtml
+    ? showAtividadesToggle
+      ? `
+        <details class="rdo-collapsible rdo-collapsible--list">
+          <summary>
+            <span class="rdo-collapsible__more">Ver ${snapshot.itens.length} atividades</span>
+            <span class="rdo-collapsible__less">Ocultar atividades</span>
+          </summary>
+          <div class="rdo-collapsible__content">
+            <div class="rdo-activities">${atividadesCardsHtml}</div>
+          </div>
+        </details>
+      `
+      : `<div class="rdo-activities">${atividadesCardsHtml}</div>`
+    : `<p class="empty-state">Sem itens no per\u00edodo.</p>`;
+
+  const evidenciasIndexRows = snapshot.evidencias.length
+    ? snapshot.evidencias
+        .map((evidencia, index) => {
+          const itemRef = itensById.get(evidencia.itemId) || {};
+          const equipamentoRef = itemRef.equipamento || "-";
+          return `
+            <tr>
+              <td>#${index + 1}</td>
+              <td>${escapeHtml(evidencia.itemTitulo || "-")}</td>
+              <td>${escapeHtml(equipamentoRef)}</td>
+              <td>${escapeHtml(evidencia.dataHora || "-")}</td>
+              <td>${escapeHtml(evidencia.responsavel || "-")}</td>
+            </tr>
+          `;
+        })
+        .join("")
+    : "";
+  const evidenciasIndexHtml = evidenciasIndexRows
+    ? `
+      <table class="rdo-table rdo-table--evidencias">
+        <thead>
+          <tr>
+            <th>Evid\u00eancia</th>
+            <th>Atividade</th>
+            <th>Equipamento</th>
+            <th>Data/Hora</th>
+            <th>Respons\u00e1vel</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${evidenciasIndexRows}
+        </tbody>
+      </table>
+    `
+    : "";
+
+  const resumoTexto = snapshot.resumoDia
+    ? `<p class="rdo-paragraph">${escapeHtml(snapshot.resumoDia)}</p>`
+    : `<p class="empty-state">Sem resumo registrado.</p>`;
+  const kpiCards = [
+    { label: "Atividades", value: snapshot.metricas.total ?? 0 },
+    { label: "Conclu\u00eddas", value: snapshot.metricas.concluidas ?? 0 },
+    { label: "Cr\u00edticas", value: snapshot.metricas.criticas ?? 0 },
+    { label: "Docs", value: docsBadge },
+    { label: "Tempo total", value: tempoTotal !== "-" ? tempoTotal : "N\u00e3o informado" },
+  ];
+  const kpiCardsHtml = kpiCards
+    .map(
+      (item) => `
+        <div class="rdo-kpi-card">
+          <span>${escapeHtml(item.label)}</span>
+          <strong>${escapeHtml(item.value)}</strong>
+        </div>
+      `
+    )
+    .join("");
+  const statusCardHtml = `
+    <div class="rdo-kpi-card rdo-kpi-card--primary">
+      <span>Status do dia</span>
+      <strong>${escapeHtml(statusDiaLabel)}</strong>
+      <small>Tempo total: ${escapeHtml(tempoTotal !== "-" ? tempoTotal : "N\u00e3o informado")}</small>
+    </div>
+  `;
+  const itensCount = (snapshot.itens || []).length;
+  const subtitleLabel = isCliente
+    ? "Relat\u00f3rio Di\u00e1rio de Opera\u00e7\u00e3o - HV (Cliente)"
+    : "Relat\u00f3rio Di\u00e1rio de Opera\u00e7\u00e3o - HV";
+
   return `
-    <div class="rdo-doc">
-      <header class="rdo-header">
-        <div class="rdo-brand">
-          ${logoHtml}
-          <div>
-            <span class="rdo-eyebrow">OPSCOPE</span>
-            <h2 class="rdo-title">${
-              isCliente
-                ? "RELATÓRIO DE OPERAÇÃO DIÁRIA - HV (CLIENTE)"
-                : "RELATÓRIO DE OPERAÇÃO DIÁRIA - HV"
-            }</h2>
-            <p class="rdo-subtitle">Relatório Diário de Operação</p>
+    <div class="rdo-doc rdo-template-a" data-theme="${escapeHtml(theme)}">
+      <header class="rdo-header rdo-header--hub">
+        <div class="rdo-header-main">
+          <div class="rdo-brand">
+            ${logoHtml}
+            <div>
+              <span class="rdo-eyebrow">OPSCOPE</span>
+              <h2 class="rdo-title">RDO ${escapeHtml(dataLabel)}</h2>
+              <p class="rdo-subtitle">${escapeHtml(subtitleLabel)}</p>
+            </div>
+          </div>
+          <div class="rdo-meta">
+            <span>RDO: ${escapeHtml(rdoNumero)} | Hash: ${escapeHtml(hashShort)}</span>
+            <span>Data: ${escapeHtml(dataLabel)}</span>
+            <span>Emitido por: ${escapeHtml(emitidoPor)}</span>
+            <span>Emitido em: ${escapeHtml(emitidoEm)}</span>
           </div>
         </div>
-        <div class="rdo-meta">
-          <span>RDO: ${escapeHtml(rdoNumero)} | Hash: ${escapeHtml(hashShort)}</span>
-          <span>Data: ${escapeHtml(dataLabel)}</span>
-          <span>Emitido por: ${escapeHtml(emitidoPor)}</span>
-          <span>Emitido em: ${escapeHtml(emitidoEm)}</span>
+        <div class="rdo-header-grid">
+          <div>
+            <span>Local/Empreendimento</span>
+            <strong>${escapeHtml(projeto)}</strong>
+          </div>
+          <div>
+            <span>Subesta\u00e7\u00e3o</span>
+            <strong>${escapeHtml(subestacaoHeader)}</strong>
+          </div>
+          <div>
+            <span>OS/Ordem</span>
+            <strong>${escapeHtml(osLabel)}</strong>
+          </div>
+          <div>
+            <span>Respons\u00e1vel</span>
+            <strong>${escapeHtml(responsaveisHeader)}</strong>
+          </div>
+          <div>
+            <span>Equipe</span>
+            <strong>${escapeHtml(equipeHeader)}</strong>
+          </div>
+          <div>
+            <span>Cliente</span>
+            <strong>${escapeHtml(cliente)}</strong>
+          </div>
+          <div>
+            <span>Setor</span>
+            <strong>${escapeHtml(RDO_SETOR)}</strong>
+          </div>
+          <div>
+            <span>Status do dia</span>
+            <strong class="rdo-status rdo-status--${escapeHtml(statusDiaClass)}">${escapeHtml(
+              statusDiaLabel
+            )}</strong>
+          </div>
         </div>
       </header>
-      <div class="rdo-header-info">
-        <div>
-          <span>Projeto/Planta</span>
-          <strong>${escapeHtml(projeto)}</strong>
+
+      <section class="rdo-section rdo-summary rdo-summary--executive">
+        <div class="rdo-section-head">
+          <h3>Resumo Executivo</h3>
+          <span class="rdo-status rdo-status--${escapeHtml(statusDiaClass)}">${escapeHtml(
+            statusDiaLabel
+          )}</span>
         </div>
-        <div>
-          <span>Cliente</span>
-          <strong>${escapeHtml(cliente)}</strong>
+        ${resumoTexto}
+        <div class="rdo-kpi-row">
+          ${statusCardHtml}
+          ${kpiCardsHtml}
         </div>
-        <div>
-          <span>Setor</span>
-          <strong>${escapeHtml(RDO_SETOR)}</strong>
+      </section>
+
+      <section class="rdo-section rdo-editorial">
+        <div class="rdo-section-head">
+          <h3>Descri\u00e7\u00e3o Consolidada do Dia (IA)</h3>
+          <span class="rdo-pill rdo-pill--accent">IA</span>
         </div>
-        <div>
-          <span>Local</span>
-          <strong>${escapeHtml(local)}</strong>
+        ${descricaoHtml}
+      </section>
+
+      <section class="rdo-section rdo-premium">
+        <h3>Consolidado do Dia</h3>
+        ${atividadesConsolidadoHtml}
+      </section>
+
+      <section class="rdo-section rdo-grid-2">
+        <div class="rdo-block">
+          <h3>Seguran\u00e7a</h3>
+          <div class="rdo-info-grid">
+            <div>
+              <span>Incidente/Acidente</span>
+              <strong>${escapeHtml(manual.incidente || "-")}</strong>
+            </div>
+            <div>
+              <span>Bloqueio El\u00e9trico</span>
+              <strong>${escapeHtml(manual.bloqueio || "-")}</strong>
+            </div>
+            <div>
+              <span>Clima</span>
+              <strong>${escapeHtml(climaValor)}</strong>
+            </div>
+          </div>
         </div>
-      </div>
+        <div class="rdo-block">
+          <h3>Dados Operacionais</h3>
+          <div class="rdo-info-grid">
+            ${
+              isCliente
+                ? ""
+                : `
+            <div>
+              <span>Condutor</span>
+              <strong>${escapeHtml(manual.condutor || "-")}</strong>
+            </div>
+            <div>
+              <span>KM inicial</span>
+              <strong>${escapeHtml(manual.kmInicial || "-")}</strong>
+            </div>
+            <div>
+              <span>KM final</span>
+              <strong>${escapeHtml(manual.kmFinal || "-")}</strong>
+            </div>
+            `
+            }
+            <div>
+              <span>Qt. pessoas</span>
+              <strong>${escapeHtml(manual.qtPessoas || "-")}</strong>
+            </div>
+            <div>
+              <span>Nº de SI</span>
+              <strong>${escapeHtml(manual.numeroSi || "-")}</strong>
+            </div>
+            <div>
+              <span>Nº de SGI</span>
+              <strong>${escapeHtml(manual.numeroSgi || "-")}</strong>
+            </div>
+            <div>
+              <span>Local (manual)</span>
+              <strong>${escapeHtml(local)}</strong>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section class="rdo-section rdo-block rdo-header-shifts">
         <h3>Controle de jornada</h3>
         ${jornadaResumoHtml}
         ${jornadaRowsHtml}
-      </section>
-
-      <section class="rdo-section rdo-summary">
-        <h3>Resumo Executivo</h3>
-        <p>${escapeHtml(snapshot.resumoDia || "")}</p>
-        ${resumoOperacionalHtml}
-      </section>
-
-      <section class="rdo-section rdo-block">
-        <h3>Segurança</h3>
-        <div class="rdo-info-grid">
-          <div>
-            <span>Incidente/Acidente</span>
-            <strong>${escapeHtml(manual.incidente || "-")}</strong>
-          </div>
-          <div>
-            <span>Bloqueio Elétrico</span>
-            <strong>${escapeHtml(manual.bloqueio || "-")}</strong>
-          </div>
-          <div>
-            <span>Clima</span>
-            <strong>${escapeHtml(climaValor)}</strong>
-          </div>
-        </div>
-      </section>
-
-      <section class="rdo-section rdo-block">
-        <h3>Dados Operacionais</h3>
-        <div class="rdo-info-grid">
-          ${
-            isCliente
-              ? ""
-              : `
-          <div>
-            <span>Condutor</span>
-            <strong>${escapeHtml(manual.condutor || "-")}</strong>
-          </div>
-          <div>
-            <span>KM inicial</span>
-            <strong>${escapeHtml(manual.kmInicial || "-")}</strong>
-          </div>
-          <div>
-            <span>KM final</span>
-            <strong>${escapeHtml(manual.kmFinal || "-")}</strong>
-          </div>
-          `
-          }
-          <div>
-            <span>Qt. pessoas</span>
-            <strong>${escapeHtml(manual.qtPessoas || "-")}</strong>
-          </div>
-          <div>
-            <span>Nº de SI</span>
-            <strong>${escapeHtml(manual.numeroSi || "-")}</strong>
-          </div>
-          <div>
-            <span>Nº de SGI</span>
-            <strong>${escapeHtml(manual.numeroSgi || "-")}</strong>
-          </div>
-        </div>
-      </section>
-
-      <section class="rdo-section">
-        <h3>Atividades do Dia</h3>
-        <table class="rdo-table rdo-table--activities">
-          <thead>
-            <tr>
-              <th>Atividade / Contexto</th>
-              <th>Status</th>
-              <th>Janela</th>
-              <th>Respons\u00e1vel</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows || `<tr><td colspan="4">Sem itens no periodo.</td></tr>`}
-          </tbody>
-        </table>
-      </section>
-
-      <section class="rdo-section">
-        <h3>Descri\u00e7\u00e3o Consolidada do Dia</h3>
-        <p class="rdo-paragraph">${escapeHtml(descricaoConsolidada || "")}</p>
       </section>
 
       ${
@@ -18372,14 +18686,18 @@ function buildRdoHtml(snapshot, options = {}) {
           : ""
       }
 
-      <section class="rdo-section rdo-block">
-        <h3>Atividades realizadas (consolidado)</h3>
-        ${atividadesConsolidadoHtml}
+      <section class="rdo-section">
+        <div class="rdo-section-head">
+          <h3>Atividades do Dia</h3>
+          <span class="rdo-count">${escapeHtml(`${itensCount} itens`)}</span>
+        </div>
+        ${atividadesHtml}
       </section>
 
       <section class="rdo-section">
-        <h3>Evidências</h3>
+        <h3>Evid\u00eancias</h3>
         ${evidenciasLimitadas ? `<p class="hint">${escapeHtml(evidenciasLimitadas)}</p>` : ""}
+        ${evidenciasIndexHtml}
         <div class="rdo-evidencias-grid">
           ${evidenciasHtml}
         </div>
@@ -18394,79 +18712,124 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
   const estilos = `
     @page { size: A4; margin: 16mm; }
     * { box-sizing: border-box; }
-    body { font-family: "Trebuchet MS", Arial, sans-serif; color: #1f2a33; margin: 0; }
-    h2, h3 { font-family: "Trebuchet MS", Arial, sans-serif; margin: 0 0 8px; }
-    .rdo-doc { display: grid; gap: 18px; }
-    .rdo-header { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 10px; border-bottom: 2px solid #d6d1c6; }
+    body { font-family: "Trebuchet MS", Arial, sans-serif; color: #1f2933; margin: 0; background: #fff; }
+    h2, h3, h4 { font-family: "Trebuchet MS", Arial, sans-serif; margin: 0 0 6px; }
+    .rdo-doc { max-width: 860px; margin: 0 auto; display: grid; gap: 16px; }
+    .rdo-doc.rdo-template-a {
+      --rdo-bg: #ffffff;
+      --rdo-card: #ffffff;
+      --rdo-ink: #1f2933;
+      --rdo-ink-soft: #4b5b68;
+      --rdo-line: #d7dee5;
+      --rdo-accent: #1f5f74;
+      --rdo-accent-soft: rgba(31, 95, 116, 0.12);
+      --rdo-ok: #15803d;
+      --rdo-warn: #d97706;
+      --rdo-danger: #b91c1c;
+      --rdo-chip: #eef2f6;
+      --rdo-chip-ink: #2f3b46;
+    }
+    .rdo-doc.rdo-template-a[data-theme="industrial"] {
+      --rdo-bg: #0f1419;
+      --rdo-card: #1b242d;
+      --rdo-ink: #f2f5f9;
+      --rdo-ink-soft: #b2beca;
+      --rdo-line: #2b3540;
+      --rdo-accent: #f59e0b;
+      --rdo-accent-soft: rgba(245, 158, 11, 0.18);
+      --rdo-ok: #22c55e;
+      --rdo-warn: #f59e0b;
+      --rdo-danger: #ef4444;
+      --rdo-chip: rgba(255, 255, 255, 0.08);
+      --rdo-chip-ink: #e7edf4;
+    }
+    .rdo-doc.rdo-template-a[data-theme="minimal"] {
+      --rdo-bg: #f6f8fb;
+      --rdo-card: #ffffff;
+      --rdo-ink: #1e293b;
+      --rdo-ink-soft: #556275;
+      --rdo-line: #dbe2ea;
+      --rdo-accent: #2563eb;
+      --rdo-accent-soft: rgba(37, 99, 235, 0.12);
+      --rdo-ok: #16a34a;
+      --rdo-warn: #eab308;
+      --rdo-danger: #dc2626;
+      --rdo-chip: #edf2ff;
+      --rdo-chip-ink: #243b6b;
+    }
+    .rdo-template-a { background: var(--rdo-bg); color: var(--rdo-ink); }
+    .rdo-header { display: grid; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--rdo-line); }
+    .rdo-header-main { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; align-items: flex-start; }
     .rdo-brand { display: flex; align-items: center; gap: 12px; }
-    .rdo-logo { width: 72px; height: auto; object-fit: contain; }
+    .rdo-logo { width: 70px; height: auto; object-fit: contain; }
     .rdo-logo-fallback { font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; display: none; }
-    .rdo-header-info { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; font-size: 0.72rem; color: #425363; }
-    .rdo-header-info span { display: block; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.55rem; }
-    .rdo-header-info strong { font-size: 0.78rem; color: #1f2a33; }
-    .rdo-eyebrow { font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; }
-    .rdo-title { font-size: 1.5rem; letter-spacing: 0.08em; text-transform: uppercase; }
-    .rdo-subtitle { font-size: 0.9rem; color: #425363; margin-top: 4px; }
-    .rdo-meta { font-size: 0.8rem; display: grid; gap: 4px; color: #425363; }
+    .rdo-eyebrow { font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--rdo-ink-soft); }
+    .rdo-title { font-size: 1.3rem; letter-spacing: 0.08em; text-transform: uppercase; margin: 0; }
+    .rdo-subtitle { font-size: 0.85rem; color: var(--rdo-ink-soft); margin: 0; }
+    .rdo-meta { font-size: 0.78rem; display: grid; gap: 4px; color: var(--rdo-ink-soft); }
+    .rdo-header-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+    .rdo-header-grid > div { border: 1px solid var(--rdo-line); border-radius: 10px; padding: 6px 8px; background: var(--rdo-card); }
+    .rdo-header-grid span { display: block; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.55rem; color: var(--rdo-ink-soft); }
+    .rdo-header-grid strong { font-size: 0.8rem; color: var(--rdo-ink); }
     .rdo-section { display: grid; gap: 10px; break-inside: avoid; page-break-inside: avoid; }
-    .rdo-summary { background: #f8f6f1; border: 1px solid #d6d1c6; padding: 12px 14px; border-radius: 12px; }
-    .rdo-block { border: 1px solid #d6d1c6; border-radius: 12px; padding: 10px 12px; background: #fff; }
-    .rdo-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin-top: 8px; }
-    .rdo-summary-grid--tight { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
-    .rdo-summary-item { border: 1px solid #d6d1c6; border-radius: 10px; padding: 6px 8px; display: grid; gap: 2px; background: #fff; }
-    .rdo-summary-grid--cards .rdo-summary-item { background: #fff; box-shadow: 0 6px 10px rgba(0,0,0,0.06); }
-    .rdo-summary-item span { font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: #425363; }
-    .rdo-summary-item strong { font-size: 0.9rem; }
-    .rdo-summary-item small { font-size: 0.65rem; color: #425363; }
-    .rdo-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; table-layout: fixed; }
-    .rdo-table th, .rdo-table td { border-bottom: 1px solid #d6d1c6; padding: 6px 8px; }
-    .rdo-table th { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; background: #f8f6f1; color: #425363; }
-    .rdo-table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .rdo-table--activities { table-layout: auto; }
-    .rdo-table--activities td { white-space: normal; vertical-align: top; }
-    .rdo-activity { display: grid; gap: 4px; }
-    .rdo-activity__title { font-size: 0.9rem; font-weight: 600; color: #1f2a33; }
-    .rdo-activity__meta { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 0.7rem; color: #425363; }
-    .rdo-activity__meta span { white-space: normal; }
-    .rdo-janela { display: grid; gap: 2px; font-size: 0.72rem; color: #1f2a33; }
-    .rdo-table--compact th, .rdo-table--compact td { font-size: 0.7rem; }
-    .rdo-table--center th, .rdo-table--center td { text-align: center; }
-    .rdo-items { display: grid; gap: 10px; }
-    .rdo-item { border: 1px solid #d6d1c6; border-radius: 12px; padding: 10px 12px; display: grid; gap: 8px; break-inside: avoid; }
-    .rdo-item__head { display: flex; justify-content: space-between; gap: 12px; font-size: 0.8rem; color: #425363; }
-    .rdo-item__body { display: grid; gap: 10px; }
-    .rdo-item__section h4 { margin: 0 0 6px; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em; color: #425363; }
-    .rdo-item__section p { margin: 0; line-height: 1.45; color: #1f2a33; }
-    .rdo-item__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; font-size: 0.75rem; color: #425363; }
-    .rdo-item__grid span { display: block; font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.1em; color: #5c6772; }
-    .rdo-item__grid strong { font-size: 0.8rem; color: #1f2a33; }
-    .rdo-item__footer { display: grid; gap: 6px; }
-    .rdo-mini { display: flex; flex-wrap: wrap; gap: 6px; font-size: 0.72rem; color: #425363; }
-    .rdo-docs { display: flex; flex-wrap: wrap; gap: 6px; }
-    .rdo-docs-note { font-size: 0.72rem; color: #425363; }
-    .rdo-note { border: 1px dashed #d6d1c6; border-radius: 12px; padding: 10px 12px; background: #fff; }
-    .rdo-info-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; font-size: 0.75rem; color: #425363; }
+    .rdo-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .rdo-summary { border: 1px solid var(--rdo-line); border-radius: 12px; padding: 12px; background: var(--rdo-card); }
+    .rdo-kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+    .rdo-kpi-card { border: 1px solid var(--rdo-line); border-radius: 10px; padding: 8px; background: #fff; display: grid; gap: 4px; }
+    .rdo-kpi-card span { font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--rdo-ink-soft); }
+    .rdo-kpi-card strong { font-size: 1rem; color: var(--rdo-ink); }
+    .rdo-kpi-card small { font-size: 0.7rem; color: var(--rdo-ink-soft); }
+    .rdo-kpi-card--primary { border-color: var(--rdo-accent); background: var(--rdo-accent-soft); }
+    .rdo-kpi-card--primary strong { font-size: 1.05rem; }
+    .rdo-editorial { border-left: 4px solid var(--rdo-accent); border-radius: 12px; padding: 12px; border: 1px solid var(--rdo-line); background: var(--rdo-card); }
+    .rdo-premium { border: 1px solid var(--rdo-line); border-radius: 12px; padding: 12px; background: var(--rdo-card); }
+    .rdo-consolidado-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+    .rdo-consolidado-grid span { display: block; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.55rem; color: var(--rdo-ink-soft); }
+    .rdo-consolidado-grid strong { font-size: 0.82rem; color: var(--rdo-ink); }
+    .rdo-consolidado-status small { font-size: 0.7rem; color: var(--rdo-ink-soft); }
+    .rdo-consolidado-activity { display: grid; gap: 4px; padding: 6px 0; }
+    .rdo-consolidado-activity span { font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--rdo-ink-soft); }
+    .rdo-consolidado-activity strong { font-size: 0.9rem; color: var(--rdo-ink); }
+    .rdo-equip-group { border: 1px solid var(--rdo-line); border-radius: 10px; padding: 8px; background: rgba(0, 0, 0, 0.02); }
+    .rdo-equip-group h5 { margin: 0 0 6px; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--rdo-ink-soft); }
+    .rdo-mini { display: flex; flex-wrap: wrap; gap: 6px; font-size: 0.72rem; color: var(--rdo-ink-soft); }
+    .rdo-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; font-size: 0.75rem; color: var(--rdo-ink-soft); }
     .rdo-info-grid span { display: block; text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.55rem; }
-    .rdo-info-grid strong { font-size: 0.8rem; color: #1f2a33; }
-    .rdo-info-grid--wide { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
-    .rdo-lista { margin: 0; padding-left: 18px; font-size: 0.8rem; color: #425363; }
-    .rdo-paragraph { margin: 0; line-height: 1.55; color: #1f2a33; }
-    .doc-chip { border-radius: 999px; padding: 3px 8px; font-size: 0.6rem; border: 1px solid #d6d1c6; text-transform: uppercase; letter-spacing: 0.1em; }
-    .doc-chip--ok { background: rgba(43, 122, 120, 0.18); color: #1f5759; border-color: rgba(43, 122, 120, 0.35); }
-    .doc-chip--pendente { background: rgba(192, 84, 47, 0.18); color: #7a2b1e; border-color: rgba(192, 84, 47, 0.35); }
-    .doc-chip--na { background: rgba(118, 130, 145, 0.2); color: #4b5966; border-color: rgba(118, 130, 145, 0.35); }
-    .status-badge { display: inline-flex; align-items: center; justify-content: center; padding: 3px 6px; border-radius: 999px; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; }
-    .status-badge--concluida { background: rgba(43, 122, 120, 0.18); color: #1f5759; }
-    .status-badge--em_execucao { background: rgba(212, 106, 47, 0.18); color: #9f4b22; }
-    .status-badge--backlog { background: rgba(176, 74, 38, 0.18); color: #7a2b1e; }
-    .status-badge--cancelada { background: rgba(118, 130, 145, 0.2); color: #4b5966; }
+    .rdo-info-grid strong { font-size: 0.8rem; color: var(--rdo-ink); }
+    .rdo-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+    .rdo-block { border: 1px solid var(--rdo-line); border-radius: 12px; padding: 12px; background: var(--rdo-card); }
+    .rdo-paragraph { margin: 0; line-height: 1.55; font-size: 0.82rem; color: var(--rdo-ink); }
+    .rdo-pill { border-radius: 999px; padding: 2px 8px; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; border: 1px solid var(--rdo-line); color: var(--rdo-ink-soft); }
+    .rdo-pill--accent { border-color: var(--rdo-accent); color: var(--rdo-accent); }
+    .rdo-status { display: inline-flex; align-items: center; justify-content: center; padding: 3px 8px; border-radius: 999px; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; border: 1px solid transparent; }
+    .rdo-status--ok { color: var(--rdo-ok); background: rgba(21, 128, 61, 0.12); border-color: rgba(21, 128, 61, 0.25); }
+    .rdo-status--warn { color: var(--rdo-warn); background: rgba(217, 119, 6, 0.12); border-color: rgba(217, 119, 6, 0.25); }
+    .rdo-status--danger { color: var(--rdo-danger); background: rgba(185, 28, 28, 0.12); border-color: rgba(185, 28, 28, 0.25); }
+    .rdo-status--neutral { color: var(--rdo-ink-soft); background: rgba(100, 116, 139, 0.12); border-color: rgba(100, 116, 139, 0.25); }
+    .rdo-activities { display: grid; gap: 10px; }
+    .rdo-activity-card { border: 1px solid var(--rdo-line); border-radius: 12px; padding: 10px; background: var(--rdo-card); display: grid; gap: 8px; }
+    .rdo-activity-card__head { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+    .rdo-activity-card__title { font-size: 0.9rem; font-weight: 600; color: var(--rdo-ink); }
+    .rdo-activity-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; font-size: 0.75rem; color: var(--rdo-ink-soft); }
+    .rdo-activity-grid span { display: block; font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.1em; }
+    .rdo-activity-grid strong { font-size: 0.78rem; color: var(--rdo-ink); }
+    .rdo-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .rdo-chip { border-radius: 999px; padding: 2px 8px; background: var(--rdo-chip); color: var(--rdo-chip-ink); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; }
+    .rdo-chip--priority { background: rgba(245, 158, 11, 0.18); color: #8a5302; }
+    .rdo-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+    .rdo-table th, .rdo-table td { border-bottom: 1px solid var(--rdo-line); padding: 6px 8px; text-align: left; }
+    .rdo-table th { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--rdo-ink-soft); background: #f6f7f9; }
     .rdo-evidencias-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-    .rdo-evidencia { border: 1px solid #d6d1c6; border-radius: 10px; overflow: hidden; }
+    .rdo-evidencia { border: 1px solid var(--rdo-line); border-radius: 10px; overflow: hidden; }
     .rdo-evidencia img { width: 100%; height: auto; display: block; }
-    .rdo-evidencia figcaption { padding: 6px 8px; font-size: 0.7rem; color: #425363; background: #f8f6f1; }
-    .rdo-naoimagem ul { margin: 6px 0 0 18px; padding: 0; font-size: 0.75rem; color: #425363; }
+    .rdo-evidencia figcaption { padding: 6px 8px; font-size: 0.7rem; color: var(--rdo-ink-soft); background: #f6f7f9; }
+    .rdo-note { border: 1px dashed var(--rdo-line); border-radius: 12px; padding: 10px 12px; background: #fff; }
+    .rdo-count { font-size: 0.7rem; color: var(--rdo-ink-soft); }
+    .empty-state { font-size: 0.75rem; color: var(--rdo-ink-soft); }
+    .hint { font-size: 0.72rem; color: var(--rdo-ink-soft); }
+    .rdo-lista { margin: 0; padding-left: 18px; font-size: 0.75rem; color: var(--rdo-ink-soft); }
   `;
-  let body = buildRdoHtml(snapshot, options);
+  let body = buildRdoHtml(snapshot, { ...options, print: true });
   if (logoDataUrl) {
     body = body.replace('src="./assets/engelmig-logo.png"', `src="${logoDataUrl}"`);
   }
