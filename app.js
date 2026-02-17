@@ -2056,6 +2056,19 @@ const ACCESS_PERMISSION_DANGEROUS = new Set(
 );
 
 const ACCESS_ROLE_ADMIN_KEYS = ["ADMIN", "ADMIN_TOTAL"];
+const ACCESS_ROLE_LEVEL_PREFIX = "LEVEL:";
+
+function buildAccessRoleLevelKey(itemKey) {
+  return `${ACCESS_ROLE_LEVEL_PREFIX}${itemKey}`;
+}
+
+function isAccessRoleLevelKey(key) {
+  return typeof key === "string" && key.startsWith(ACCESS_ROLE_LEVEL_PREFIX);
+}
+
+function getAccessRoleLevelItemKey(key) {
+  return isAccessRoleLevelKey(key) ? key.slice(ACCESS_ROLE_LEVEL_PREFIX.length) : "";
+}
 
 const ACCESS_ROLE_ITEMS = [
   {
@@ -2835,6 +2848,13 @@ function normalizeAccessRoleKeys(list) {
   source.forEach((perm) => {
     const raw = String(perm || "").trim();
     if (!raw) {
+      return;
+    }
+    if (isAccessRoleLevelKey(raw)) {
+      if (!seen.has(raw)) {
+        seen.add(raw);
+        result.push(raw);
+      }
       return;
     }
     let key = raw;
@@ -10907,7 +10927,7 @@ function normalizeAccessRoleRecord(role) {
     id,
     name,
     nameNormalized: normalizeRoleName(name),
-    permissions: ensureSectionPermissions(normalizeAccessPermissionList(role.permissions || [])),
+    permissions: ensureSectionPermissions(normalizeAccessRoleKeys(role.permissions || [])),
     isSystem: Boolean(role.isSystem),
     createdAt: role.createdAt || "",
     updatedAt: role.updatedAt || "",
@@ -11264,7 +11284,7 @@ async function upsertRoleToDb(input) {
     id,
     name,
     nameNormalized,
-    permissions: normalizeAccessPermissionList(payload.permissions || existing?.permissions || []),
+    permissions: normalizeAccessRoleKeys(payload.permissions || existing?.permissions || []),
     isSystem: existing ? Boolean(existing.isSystem) : Boolean(payload.isSystem),
     createdAt: existing && existing.createdAt ? existing.createdAt : now,
     updatedAt: now,
@@ -26414,7 +26434,12 @@ function getAccessRoleItemLevel(keysSet, item) {
   const editKeys = item.editKeys || [];
   const viewKeys = item.viewKeys || [];
   const viewOnly = editKeys.length === 0;
+  const editMarker = viewOnly ? buildAccessRoleLevelKey(item.key) : "";
+  const hasEditMarker = editMarker ? keys.has(editMarker) : false;
   if (editKeys.length && editKeys.some((key) => keys.has(key))) {
+    return "EDIT";
+  }
+  if (viewOnly && hasEditMarker) {
     return "EDIT";
   }
   if (viewKeys.some((key) => keys.has(key))) {
@@ -26434,6 +26459,8 @@ function setAccessRoleItemLevel(keysSet, item, level) {
   const next = new Set(keysSet instanceof Set ? keysSet : new Set(keysSet || []));
   const viewKeys = item.viewKeys || [];
   const editKeys = item.editKeys || [];
+  const viewOnly = editKeys.length === 0;
+  const editMarker = viewOnly ? buildAccessRoleLevelKey(item.key) : "";
   [...viewKeys, ...editKeys].forEach((key) => next.delete(key));
   if (level === "VIEW") {
     viewKeys.forEach((key) => next.add(key));
@@ -26442,12 +26469,21 @@ function setAccessRoleItemLevel(keysSet, item, level) {
     viewKeys.forEach((key) => next.add(key));
     editKeys.forEach((key) => next.add(key));
   }
+  if (editMarker) {
+    if (level === "EDIT") {
+      next.add(editMarker);
+    } else {
+      next.delete(editMarker);
+    }
+  }
   return next;
 }
 
 function getAccessRoleUnknownKeys(list = []) {
   const normalized = normalizeAccessRoleKeys(list);
-  return normalized.filter((key) => !ACCESS_ROLE_KNOWN_KEYS.has(key));
+  return normalized.filter(
+    (key) => !ACCESS_ROLE_KNOWN_KEYS.has(key) && !isAccessRoleLevelKey(key)
+  );
 }
 
 function diffAccessRoleKeys(before = [], after = []) {
@@ -26522,6 +26558,13 @@ function getAccessRoleLevelBadgeClass(level) {
 
 function initAccessRoleEditorState(selected = [], roleId = "") {
   const normalized = normalizeAccessRoleKeys(selected);
+  const manualLevels = {};
+  normalized.forEach((key) => {
+    const itemKey = getAccessRoleLevelItemKey(key);
+    if (itemKey) {
+      manualLevels[itemKey] = "EDIT";
+    }
+  });
   const adminEnabled = hasAccessRoleAdmin(normalized);
   const adminKey = getAccessRoleAdminKey(normalized);
   let expanded = new Set(normalized);
@@ -26537,7 +26580,7 @@ function initAccessRoleEditorState(selected = [], roleId = "") {
     roleId: roleId || "",
     baseline: normalized,
     selected: expanded,
-    manualLevels: {},
+    manualLevels,
     adminSnapshot: adminEnabled ? snapshot : null,
     adminEnabled,
     activeModule: ACCESS_ROLE_MODULES.length ? ACCESS_ROLE_MODULES[0].name : "",
@@ -26566,11 +26609,21 @@ function collectAccessRolePermissions() {
   const adminKey = getAccessRoleAdminKey(normalized);
   if (accessRoleEditorState.adminEnabled) {
     const unknown = normalized.filter(
-      (key) => !ACCESS_ROLE_KNOWN_KEYS.has(key) && !isAccessRoleAdminKey(key)
+      (key) =>
+        !ACCESS_ROLE_KNOWN_KEYS.has(key) &&
+        !isAccessRoleAdminKey(key) &&
+        !isAccessRoleLevelKey(key)
     );
     return Array.from(new Set([adminKey, ...unknown]));
   }
-  return normalized;
+  if (accessRoleEditorState.manualLevels) {
+    Object.entries(accessRoleEditorState.manualLevels).forEach(([itemKey, level]) => {
+      if (level === "EDIT") {
+        normalized.push(buildAccessRoleLevelKey(itemKey));
+      }
+    });
+  }
+  return normalizeAccessRoleKeys(normalized);
 }
 
 function setAccessRoleSelection(list) {
