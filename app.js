@@ -12490,6 +12490,13 @@ function atualizarResumo() {
     const status = statusValido(item.status) ? item.status : "agendada";
     contagem[status] += 1;
   });
+  const execucoesRegistradas = manutencoes.filter((item) => {
+    if (!item || !item.registroExecucao) {
+      return false;
+    }
+    const status = normalizeMaintenanceStatus(item.status);
+    return status === "em_execucao" || status === "encerramento";
+  }).length;
 
   countAgendadas.textContent = contagem.agendada;
   if (countLiberadas) {
@@ -12503,7 +12510,7 @@ function atualizarResumo() {
     countEmExecucao.textContent = contagem.em_execucao;
   }
   if (countEncerramento) {
-    countEncerramento.textContent = contagem.encerramento;
+    countEncerramento.textContent = execucoesRegistradas;
   }
   countConcluidas.textContent = contagem.concluida;
   renderHome();
@@ -13203,7 +13210,14 @@ function criarCardManutencao(item, permissoes, options = {}) {
 
   const statusGroup = document.createElement("div");
   statusGroup.className = "status-group";
-  statusGroup.append(badge, stateBadge);
+  statusGroup.append(badge);
+  if (item.registroExecucao && item.status !== "concluida") {
+    const execBadge = document.createElement("span");
+    execBadge.className = "status status--execucao-registrada";
+    execBadge.textContent = "Execução registrada";
+    statusGroup.append(execBadge);
+  }
+  statusGroup.append(stateBadge);
 
   header.append(info, statusGroup);
 
@@ -13255,7 +13269,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
       actions.append(criarBotaoAcao("Reagendar", "reschedule"));
     }
   } else if (item.status === "em_execucao") {
-    if (permite("execute")) {
+    if (permite("execute") && !item.registroExecucao) {
       actions.append(criarBotaoAcao("Registrar execução", "register"));
     }
     if (permite("execute") && !item.registroExecucao) {
@@ -13265,8 +13279,10 @@ function criarCardManutencao(item, permissoes, options = {}) {
       actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
     }
   } else if (item.status === "encerramento") {
-    if (permite("execute")) {
+    if (permite("execute") && !item.registroExecucao) {
       actions.append(criarBotaoAcao("Registrar execução", "register"));
+    }
+    if (permite("execute") && item.registroExecucao) {
       actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
     }
   } else if (item.status === "concluida") {
