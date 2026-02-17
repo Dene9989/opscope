@@ -17729,12 +17729,8 @@ function buildAtividadesConsolidadoHtml(data, meta = {}) {
   const resumoChips = [
     `Equipamentos: ${equipamentos.length ? equipamentos.length : dash}`,
     `Tipo: ${tipoResumo ? tipoResumo : dash}`,
-    `Status: ${statusResumo ? statusResumo : dash}`,
   ];
-  const statusMetaParts = [
-    tempoLabel && tempoLabel !== "-" ? `Tempo: ${tempoLabel}` : "",
-    docsLabel ? `Docs: ${docsLabel}` : "",
-  ].filter(Boolean);
+  const statusMetaParts = [docsLabel ? `Docs: ${docsLabel}` : ""].filter(Boolean);
   const statusMeta = statusMetaParts.length ? statusMetaParts.join(" \u2022 ") : dash;
   return `
     <div class="rdo-consolidado-grid">
@@ -17752,7 +17748,7 @@ function buildAtividadesConsolidadoHtml(data, meta = {}) {
         ${atividadeSubtitulo ? `<small>${escapeHtml(atividadeSubtitulo)}</small>` : ""}
       </div>
       <div class="rdo-consolidado-status">
-        <span>Status geral + Docs + Tempo</span>
+        <span>Status geral + Docs</span>
         <strong class="rdo-status rdo-status--${escapeHtml(statusClass)}">${escapeHtml(
           status || dash
         )}</strong>
@@ -18453,23 +18449,21 @@ function buildRdoHtml(snapshot, options = {}) {
         .join("")
     : `<p class="rdo-muted">— (sem registros no período)</p>`;
 
-  const naoImagemHtml = `
+  const naoImagemHtml = snapshot.evidenciasNaoImagem.length
+    ? `
       <div class="rdo-naoimagem">
         <strong>Evidências não-imagem</strong>
-        ${
-          snapshot.evidenciasNaoImagem.length
-            ? `<ul>
+        <ul>
           ${snapshot.evidenciasNaoImagem
             .map(
               (item) =>
                 `<li>${escapeHtml(item.itemTitulo)} - ${escapeHtml(item.nome)}</li>`
             )
             .join("")}
-        </ul>`
-            : `<p class="rdo-muted">— (sem registros no período)</p>`
-        }
+        </ul>
       </div>
-    `;
+    `
+    : "";
 
   const responsaveisHeader = formatListLimited(
     (snapshot.itens || []).map((item) => item.responsavel).filter(Boolean),
@@ -18567,14 +18561,26 @@ function buildRdoHtml(snapshot, options = {}) {
             : statusKey === "backlog"
               ? "danger"
               : "neutral";
-      const inicio = item.inicio ? formatDateTime(parseTimestamp(item.inicio)) : "-";
-      const fim = item.fim ? formatDateTime(parseTimestamp(item.fim)) : "-";
+      const inicioDate = item.inicio ? parseTimestamp(item.inicio) : null;
+      const fimDate = item.fim ? parseTimestamp(item.fim) : null;
+      const inicio = inicioDate ? formatDateTime(inicioDate) : "-";
+      const fim = fimDate ? formatDateTime(fimDate) : "-";
+      const duracaoMin =
+        Number.isFinite(item.duracaoMin)
+          ? item.duracaoMin
+          : item.conclusao && Number.isFinite(item.conclusao.duracaoMin)
+            ? item.conclusao.duracaoMin
+            : inicioDate && fimDate
+              ? Math.max(0, Math.round((fimDate.getTime() - inicioDate.getTime()) / 60000))
+              : null;
+      const duracaoLabel =
+        Number.isFinite(duracaoMin) && duracaoMin > 0 ? formatDuracaoMin(duracaoMin) : dash;
       const gridItems = [
-        { label: "Local", value: projeto },
         { label: "Subesta\u00e7\u00e3o", value: item.subestacao },
         { label: "Equipamento", value: item.equipamento },
         { label: "OS", value: item.osReferencia },
         { label: "Janela", value: `${inicio} - ${fim}` },
+        { label: "Dura\u00e7\u00e3o", value: duracaoLabel },
         { label: "Respons\u00e1vel", value: item.responsavel },
       ];
       const chips = [
@@ -18623,39 +18629,6 @@ function buildRdoHtml(snapshot, options = {}) {
       </div>
     `;
 
-  const evidenciasIndexRows = snapshot.evidencias.length
-    ? snapshot.evidencias
-        .map((evidencia, index) => {
-          const itemRef = itensById.get(evidencia.itemId) || {};
-          const equipamentoRef = itemRef.equipamento || "—";
-          return `
-            <tr>
-              <td>#${index + 1}</td>
-              <td>${escapeHtml(evidencia.itemTitulo || "—")}</td>
-              <td>${escapeHtml(equipamentoRef)}</td>
-              <td>${escapeHtml(evidencia.dataHora || "—")}</td>
-              <td>${escapeHtml(evidencia.responsavel || "—")}</td>
-            </tr>
-          `;
-        })
-        .join("")
-    : `<tr><td colspan="5" class="rdo-muted">— (sem registros no período)</td></tr>`;
-  const evidenciasIndexHtml = `
-      <table class="rdo-table rdo-table--evidencias">
-        <thead>
-          <tr>
-            <th>Evid\u00eancia</th>
-            <th>Atividade</th>
-            <th>Equipamento</th>
-            <th>Data/Hora</th>
-            <th>Respons\u00e1vel</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${evidenciasIndexRows}
-        </tbody>
-      </table>
-    `;
 
   const totalAtividades = snapshot.metricas.total ?? 0;
   const totalConcluidas = snapshot.metricas.concluidas ?? 0;
@@ -18827,7 +18800,6 @@ function buildRdoHtml(snapshot, options = {}) {
       <section class="rdo-section">
         <h3>Evid\u00eancias</h3>
         ${evidenciasLimitadas ? `<p class="hint">${escapeHtml(evidenciasLimitadas)}</p>` : ""}
-        ${evidenciasIndexHtml}
         <div class="rdo-evidencias-grid">
           ${evidenciasHtml}
         </div>
@@ -18844,7 +18816,7 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
     * { box-sizing: border-box; }
     body { font-family: "Trebuchet MS", Arial, sans-serif; color: #1f2933; margin: 0; background: #fff; }
     h2, h3, h4 { font-family: "Trebuchet MS", Arial, sans-serif; margin: 0 0 6px; }
-    .rdo-doc { max-width: 860px; margin: 0 auto; display: grid; gap: 12px; }
+    .rdo-doc { max-width: 860px; margin: 0 auto; display: block; }
     .rdo-doc.rdo-template-a {
       --rdo-bg: #ffffff;
       --rdo-card: #ffffff;
@@ -18901,21 +18873,21 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
     .rdo-header-grid > div { border: 1px solid var(--rdo-line); border-radius: 10px; padding: 6px 8px; background: var(--rdo-card); }
     .rdo-header-grid span { display: block; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.55rem; color: var(--rdo-ink-soft); }
     .rdo-header-grid strong { font-size: 0.8rem; color: var(--rdo-ink); }
-    .rdo-section { display: grid; gap: 10px; }
+    .rdo-section { display: grid; gap: 8px; margin: 0 0 10px; }
     .rdo-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-    .rdo-summary { border: 1px solid var(--rdo-line); border-radius: 12px; padding: 12px; background: var(--rdo-card); }
+    .rdo-summary { border: 1px solid var(--rdo-line); border-radius: 12px; padding: 10px; background: var(--rdo-card); }
     .rdo-summary-lines { margin: 0 0 8px; padding-left: 18px; display: grid; gap: 4px; font-size: 0.82rem; line-height: 1.55; color: var(--rdo-ink); }
     .rdo-summary-lines li { margin: 0; }
     .rdo-summary-lines strong { font-weight: 600; color: var(--rdo-ink); }
     .rdo-kpi-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
-    .rdo-kpi-card { border: 1px solid var(--rdo-line); border-radius: 10px; padding: 8px; background: #fff; display: grid; gap: 4px; }
+    .rdo-kpi-card { border: 1px solid var(--rdo-line); border-radius: 10px; padding: 6px; background: #fff; display: grid; gap: 4px; }
     .rdo-kpi-card span { font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--rdo-ink-soft); }
-    .rdo-kpi-card strong { font-size: 1rem; color: var(--rdo-ink); }
+    .rdo-kpi-card strong { font-size: 0.95rem; color: var(--rdo-ink); }
     .rdo-kpi-card small { font-size: 0.7rem; color: var(--rdo-ink-soft); }
     .rdo-kpi-card--primary { border-color: var(--rdo-accent); background: var(--rdo-accent-soft); }
     .rdo-kpi-card--primary strong { font-size: 1.05rem; }
-    .rdo-editorial { border-left: 4px solid var(--rdo-accent); border-radius: 12px; padding: 12px; border: 1px solid var(--rdo-line); background: var(--rdo-card); }
-    .rdo-premium { border: 1px solid var(--rdo-line); border-radius: 12px; padding: 12px; background: var(--rdo-card); }
+    .rdo-editorial { border-left: 4px solid var(--rdo-accent); border-radius: 12px; padding: 10px; border: 1px solid var(--rdo-line); background: var(--rdo-card); }
+    .rdo-premium { border: 1px solid var(--rdo-line); border-radius: 12px; padding: 10px; background: var(--rdo-card); }
     .rdo-consolidado-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
     .rdo-consolidado-grid span { display: block; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.55rem; color: var(--rdo-ink-soft); }
     .rdo-consolidado-grid strong { font-size: 0.82rem; color: var(--rdo-ink); }
@@ -18932,7 +18904,7 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
     .rdo-info-grid span { display: block; text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.55rem; }
     .rdo-info-grid strong { font-size: 0.8rem; color: var(--rdo-ink); }
     .rdo-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
-    .rdo-block { border: 1px solid var(--rdo-line); border-radius: 12px; padding: 12px; background: var(--rdo-card); }
+    .rdo-block { border: 1px solid var(--rdo-line); border-radius: 12px; padding: 10px; background: var(--rdo-card); }
     .rdo-summary,
     .rdo-editorial,
     .rdo-premium,
@@ -18950,11 +18922,11 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
     .rdo-status--warn { color: var(--rdo-warn); background: rgba(217, 119, 6, 0.12); border-color: rgba(217, 119, 6, 0.25); }
     .rdo-status--danger { color: var(--rdo-danger); background: rgba(185, 28, 28, 0.12); border-color: rgba(185, 28, 28, 0.25); }
     .rdo-status--neutral { color: var(--rdo-ink-soft); background: rgba(100, 116, 139, 0.12); border-color: rgba(100, 116, 139, 0.25); }
-    .rdo-activities { display: grid; gap: 10px; }
-    .rdo-activity-card { border: 1px solid var(--rdo-line); border-radius: 12px; padding: 10px; background: var(--rdo-card); display: grid; gap: 8px; }
-    .rdo-activity-card__head { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
-    .rdo-activity-card__title { font-size: 0.9rem; font-weight: 600; color: var(--rdo-ink); }
-    .rdo-activity-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; font-size: 0.75rem; color: var(--rdo-ink-soft); }
+    .rdo-activities { display: grid; gap: 8px; }
+    .rdo-activity-card { border: 1px solid var(--rdo-line); border-radius: 12px; padding: 8px; background: var(--rdo-card); display: grid; gap: 6px; }
+    .rdo-activity-card__head { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+    .rdo-activity-card__title { font-size: 0.82rem; font-weight: 600; color: var(--rdo-ink); }
+    .rdo-activity-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; font-size: 0.72rem; color: var(--rdo-ink-soft); }
     .rdo-activity-grid span { display: block; font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.1em; }
     .rdo-activity-grid strong { font-size: 0.78rem; color: var(--rdo-ink); }
     .rdo-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -18991,7 +18963,7 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
     .rdo-badge--muted { color: var(--rdo-ink-soft); border-color: var(--rdo-line); background: rgba(120, 130, 145, 0.08); }
     .rdo-paragraph--narrow { max-width: 720px; }
     .rdo-kpi-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
-    .rdo-kpi-card strong { font-size: 1.4rem; line-height: 1.2; }
+    .rdo-kpi-card strong { font-size: 1.1rem; line-height: 1.2; }
     .rdo-consolidado-line { margin: 6px 0 2px; display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.8rem; color: var(--rdo-ink-soft); }
     .rdo-consolidado-line span { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; }
     .rdo-journey-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
