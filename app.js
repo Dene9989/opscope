@@ -1135,6 +1135,7 @@ const REMINDER_KEY = "denemanu.reminderDays";
 const SIDEBAR_KEY = "opscope.sidebarCollapsed";
 const SIDEBAR_STATE_KEY = "sb_state";
 const NOTIFICATION_READ_KEY = "opscope.notifications.read";
+const EXECUCAO_REG_ALERT_KEY = "opscope.execucaoRegistrada.alerts";
 const TEAM_NOTIFICATION_WINDOW_DAYS = 14;
 const STORAGE_KEY = "denemanu.manutencoes";
 const TEMPLATE_KEY = "denemanu.templates";
@@ -4194,6 +4195,7 @@ let auditLog = [];
 let currentUser = null;
 let profileViewingUserId = "";
 let authToastTimeout = null;
+let execucaoRegistradaAlertTimer = null;
 let activeProjectId = "";
 let availableProjects = [];
 let projectEquipamentos = [];
@@ -6876,6 +6878,122 @@ function showTeamMaintenanceNotifications() {
   });
 }
 
+function getExecucaoRegistradaPendentes(projectId = activeProjectId) {
+  if (!projectId) {
+    return [];
+  }
+  return manutencoes.filter((item) => {
+    if (!item || !hasExecucaoRegistrada(item)) {
+      return false;
+    }
+    if (item.projectId && String(item.projectId) !== String(projectId)) {
+      return false;
+    }
+    const status = normalizeMaintenanceStatus(item.status);
+    return status === "em_execucao" || status === "encerramento";
+  });
+}
+
+function isExecucaoRegistradaResponsavel(item, user) {
+  if (!user) {
+    return false;
+  }
+  const responsavelId =
+    getExecutadoPorId(item) || item.responsavel || item.responsavelManutencao || item.createdBy || "";
+  if (!responsavelId) {
+    return isUserFromActiveProject(user);
+  }
+  if (isTeamUserId(responsavelId)) {
+    return isUserFromActiveProject(user);
+  }
+  if (String(user.id) === String(responsavelId)) {
+    return true;
+  }
+  const resolved = getUserById(responsavelId);
+  if (!resolved) {
+    return isUserFromActiveProject(user);
+  }
+  return false;
+}
+
+function getExecucaoRegistradaAlertState() {
+  const stored = readJson(EXECUCAO_REG_ALERT_KEY, {});
+  return stored && typeof stored === "object" ? stored : {};
+}
+
+function setExecucaoRegistradaAlertState(state) {
+  writeJson(EXECUCAO_REG_ALERT_KEY, state && typeof state === "object" ? state : {});
+}
+
+function hasExecucaoRegistradaAlertSent(projectId, dateKey) {
+  if (!projectId || !dateKey) {
+    return false;
+  }
+  const state = getExecucaoRegistradaAlertState();
+  return Boolean(state[projectId] === dateKey);
+}
+
+function markExecucaoRegistradaAlertSent(projectId, dateKey) {
+  if (!projectId || !dateKey) {
+    return;
+  }
+  const state = getExecucaoRegistradaAlertState();
+  state[projectId] = dateKey;
+  setExecucaoRegistradaAlertState(state);
+}
+
+function showExecucaoRegistradaAlert(force = false) {
+  if (!currentUser || !activeProjectId) {
+    return;
+  }
+  if (!isUserFromActiveProject(currentUser)) {
+    return;
+  }
+  const pendentes = getExecucaoRegistradaPendentes(activeProjectId).filter((item) =>
+    isExecucaoRegistradaResponsavel(item, currentUser)
+  );
+  if (!pendentes.length) {
+    return;
+  }
+  const hojeKey = formatDateISO(new Date());
+  if (!force && hasExecucaoRegistradaAlertSent(activeProjectId, hojeKey)) {
+    return;
+  }
+  const total = pendentes.length;
+  let mensagem =
+    total === 1
+      ? `Execução registrada aguardando encerramento: ${pendentes[0].titulo || "Manutenção"}.`
+      : `${total} manutenções com execução registrada aguardando encerramento.`;
+  if (total > 1 && total <= 3) {
+    const exemplos = pendentes
+      .slice(0, 3)
+      .map((item) => item.titulo || "Manutenção")
+      .join("; ");
+    mensagem += ` Ex.: ${exemplos}.`;
+  }
+  showAuthToast(mensagem);
+  markExecucaoRegistradaAlertSent(activeProjectId, hojeKey);
+}
+
+function scheduleExecucaoRegistradaAlerts() {
+  if (execucaoRegistradaAlertTimer) {
+    window.clearTimeout(execucaoRegistradaAlertTimer);
+    execucaoRegistradaAlertTimer = null;
+  }
+  const now = new Date();
+  const next = new Date();
+  next.setHours(7, 0, 0, 0);
+  if (now >= next) {
+    showExecucaoRegistradaAlert();
+    next.setDate(next.getDate() + 1);
+  }
+  const delay = Math.max(0, next.getTime() - now.getTime());
+  execucaoRegistradaAlertTimer = window.setTimeout(() => {
+    showExecucaoRegistradaAlert();
+    scheduleExecucaoRegistradaAlerts();
+  }, delay);
+}
+
 function setFocusParam(id) {
   const url = new URL(window.location.href);
   url.searchParams.set("focus", id);
@@ -9533,6 +9651,7 @@ async function setActiveProjectId(nextId, options = {}) {
   await carregarManutencoesServidor(true);
   await carregarPmpDados();
   restartSyncEvents();
+  scheduleExecucaoRegistradaAlerts();
 }
 
 async function carregarSessaoServidor() {
@@ -10635,8 +10754,8 @@ function normalizarManutencoes(lista) {
       return {
         ...item,
         status: statusEsperado,
-        updatedAt: toIsoUtc(new Date()),
-        updatedBy: SYSTEM_USER_ID,
+        updatedAt: statusEsperado !== statusOriginal ? toIsoUtc(new Date()) : updatedAt,
+        updatedBy: statusEsperado !== statusOriginal ? SYSTEM_USER_ID : item.updatedBy,
         createdAt,
         doneAt,
         executionStartedAt,
@@ -25990,6 +26109,10 @@ function showAuthToast(message) {
     authToast.classList.remove("is-visible");
     authToastTimeout = null;
   }, 2000);
+}
+
+if (authToast) {
+  scheduleExecucaoRegistradaAlerts();
 }
 
 function updatePasswordResetCooldown() {
