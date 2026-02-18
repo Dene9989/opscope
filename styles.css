@@ -1469,6 +1469,38 @@ body.is-visitor .notify.auth-only {
   color: #eaf0f6;
 }
 
+.notify-section {
+  display: grid;
+  gap: 10px;
+}
+
+.notify-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.notify-section__header span {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: rgba(233, 239, 247, 0.82);
+}
+
+.notify-section__header .btn {
+  padding: 4px 10px;
+  font-size: 0.68rem;
+  border-radius: 999px;
+}
+
+.notify-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 2px 0;
+}
+
 .notify-panel .empty-state {
   color: #f0f5fb;
   font-weight: 600;
@@ -9399,6 +9431,87 @@ textarea:focus {
   font-size: 0.78rem;
   color: #495665;
   line-height: 1.4;
+}
+
+.announcement-item {
+  --announcement-accent: var(--teal);
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px 12px 18px;
+  border-radius: 12px;
+  background: rgba(8, 18, 28, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 18px rgba(7, 15, 23, 0.25);
+  color: #eaf0f6;
+  position: relative;
+  overflow: hidden;
+}
+
+.announcement-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--announcement-accent);
+  opacity: 0.9;
+}
+
+.announcement-item--info {
+  --announcement-accent: var(--teal);
+}
+
+.announcement-item--aviso {
+  --announcement-accent: var(--color-warning);
+}
+
+.announcement-item--alerta {
+  --announcement-accent: var(--color-danger);
+}
+
+.announcement-item.is-unread {
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 12px 22px rgba(7, 15, 23, 0.32), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  background: rgba(10, 22, 33, 0.72);
+}
+
+.announcement-item__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.announcement-item__head strong {
+  font-size: 0.85rem;
+  letter-spacing: 0.01em;
+}
+
+.announcement-item > span {
+  font-size: 0.78rem;
+  color: rgba(233, 239, 247, 0.84);
+  line-height: 1.45;
+}
+
+.announcement-item small {
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: rgba(233, 239, 247, 0.6);
+}
+
+.announcement-tag {
+  font-size: 0.6rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  border: 1px solid currentColor;
+  color: var(--announcement-accent);
+  background: rgba(255, 255, 255, 0.08);
+  font-weight: 600;
 }
 
 .manutencoes {

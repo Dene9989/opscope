@@ -135,6 +135,20 @@ const feedbackInboxPanel = document.getElementById("feedbackInboxPanel");
 const feedbackInboxList = document.getElementById("feedbackInboxList");
 const feedbackInboxEmpty = document.getElementById("feedbackInboxEmpty");
 const feedbackInboxLink = document.getElementById("feedbackInboxLink");
+const listaAnuncios = document.getElementById("listaAnuncios");
+const anunciosVazio = document.getElementById("anunciosVazio");
+const btnNovoAnuncio = document.getElementById("btnNovoAnuncio");
+const modalAnuncio = document.getElementById("modalAnuncio");
+const formAnuncio = document.getElementById("formAnuncio");
+const anuncioTitulo = document.getElementById("anuncioTitulo");
+const anuncioTipo = document.getElementById("anuncioTipo");
+const anuncioEscopo = document.getElementById("anuncioEscopo");
+const anuncioProjeto = document.getElementById("anuncioProjeto");
+const anuncioProjetoField = document.getElementById("anuncioProjetoField");
+const anuncioMensagem = document.getElementById("anuncioMensagem");
+const btnCancelarAnuncio = document.getElementById("btnCancelarAnuncio");
+const btnFecharAnuncio = document.getElementById("btnFecharAnuncio");
+const mensagemAnuncio = document.getElementById("mensagemAnuncio");
 const countAgendadas = document.getElementById("countAgendadas");
 const countLiberadas = document.getElementById("countLiberadas");
 const countBacklog = document.getElementById("countBacklog");
@@ -1139,6 +1153,8 @@ const SIDEBAR_STATE_KEY = "sb_state";
 const NOTIFICATION_READ_KEY = "opscope.notifications.read";
 const EXECUCAO_REG_ALERT_KEY = "opscope.execucaoRegistrada.alerts";
 const SYNC_LAST_AT_KEY = "opscope.sync.lastAt";
+const ANNOUNCEMENTS_KEY = "opscope.announcements";
+const ANNOUNCEMENTS_READ_KEY = "opscope.announcements.read";
 const TEAM_NOTIFICATION_WINDOW_DAYS = 14;
 const STORAGE_KEY = "denemanu.manutencoes";
 const TEMPLATE_KEY = "denemanu.templates";
@@ -1337,6 +1353,7 @@ const DEFAULT_SECTIONS = Object.keys(SECTION_LABELS).reduce((acc, key) => {
   return acc;
 }, {});
 const DASHBOARD_CLIENT_TTL_MS = 30 * 1000;
+const ANNOUNCEMENTS_TTL_MS = 20 * 1000;
 
 const STATUS_LABELS = {
   agendada: "Agendada",
@@ -1407,6 +1424,7 @@ const ACCESS_PERMISSIONS = [
   "reexecutarTarefas",
   "verLogsAPI",
   "limparLogsAPI",
+  "criarAnuncios",
   "gerenciarAutomacoes",
   "verAutomacoes",
   "verDiagnostico",
@@ -1554,6 +1572,7 @@ const GRANULAR_PERMISSION_LABELS = {
   gerenciarAlmoxarifado: "Gerenciar Almoxarifado",
   verSST: "Ver SST",
   gerenciarSST: "Gerenciar SST",
+  criarAnuncios: "Criar anúncios",
 };
 
 const ACCESS_PERMISSION_CATALOG = [
@@ -1690,6 +1709,14 @@ const ACCESS_PERMISSION_CATALOG = [
     label: "Feedbacks",
     description: "Acesso a feedbacks e comunicados.",
     level: "READ",
+  },
+  {
+    key: "criarAnuncios",
+    module: "Comunicação",
+    group: "Anúncios",
+    label: "Criar anúncios",
+    description: "Criar e enviar anúncios para equipes e projetos.",
+    level: "WRITE",
   },
   {
     key: "perfil",
@@ -2649,6 +2676,11 @@ const PERMISSION_GROUPS = [
     items: ["verRelatorios", "exportarRelatorios"],
   },
   {
+    key: "comunicacao",
+    label: "Comunicação",
+    items: ["criarAnuncios"],
+  },
+  {
     key: "diagnostico",
     label: "Diagnóstico",
     items: ["verDiagnostico", "reexecutarTarefas"],
@@ -3547,6 +3579,16 @@ function canExportRelatorios(user) {
   return hasGranularPermission(user, "exportarRelatorios");
 }
 
+function canCreateAnnouncements(user) {
+  if (!user) {
+    return false;
+  }
+  if (isFullAccessUser(user)) {
+    return true;
+  }
+  return hasGranularPermission(user, "criarAnuncios");
+}
+
 function canViewGerencial(user) {
   if (!user) {
     return false;
@@ -4358,6 +4400,10 @@ let syncPollTimer = null;
 let syncDebugEnabled = false;
 let syncLastEventAt = 0;
 let syncSiteRunning = false;
+let announcements = [];
+let announcementsLastFetch = 0;
+let announcementsUnreadCount = 0;
+let reminderTotalCount = 0;
 
 function readJson(key, fallback) {
   const raw = localStorage.getItem(key);
@@ -4454,22 +4500,36 @@ function getSyncStatusKey() {
   return getProjectStorageKey(SYNC_LAST_AT_KEY);
 }
 
-function readLastSyncAt() {
-  const stored = readJson(getSyncStatusKey(), 0);
-  return Number(stored) || 0;
+function normalizeSyncMeta(value) {
+  if (typeof value === "number") {
+    return { at: value, source: "manual" };
+  }
+  if (value && typeof value === "object") {
+    const at = Number(value.at) || 0;
+    const source = String(value.source || "").trim() || "manual";
+    return { at, source };
+  }
+  return { at: 0, source: "manual" };
 }
 
-function updateSyncStatusLabel(value = readLastSyncAt()) {
+function readLastSyncMeta() {
+  const stored = readJson(getSyncStatusKey(), 0);
+  return normalizeSyncMeta(stored);
+}
+
+function updateSyncStatusLabel(meta = readLastSyncMeta()) {
   if (!syncStatusLabel) {
     return;
   }
-  const timeLabel = value ? formatTimeShort(value) : "--:--";
-  syncStatusLabel.textContent = `Última sincronização: ${timeLabel}`;
+  const timeLabel = meta.at ? formatTimeShort(meta.at) : "--:--";
+  const suffix = meta.source === "auto" ? " automática" : "";
+  syncStatusLabel.textContent = `Última sincronização${suffix}: ${timeLabel}`;
 }
 
-function setLastSyncAt(value = Date.now()) {
-  writeJson(getSyncStatusKey(), value);
-  updateSyncStatusLabel(value);
+function setLastSyncAt(value = Date.now(), source = "manual") {
+  const payload = { at: Number(value) || Date.now(), source };
+  writeJson(getSyncStatusKey(), payload);
+  updateSyncStatusLabel(payload);
 }
 
 async function checkForNewBuildAndReload() {
@@ -4492,7 +4552,7 @@ async function checkForNewBuildAndReload() {
     const match = html.match(/<meta[^>]+name=["']opscope-build["'][^>]+content=["']([^"']+)["']/i);
     const remoteBuild = match ? String(match[1] || "").trim() : "";
     if (remoteBuild && remoteBuild !== currentBuild) {
-      setLastSyncAt(Date.now());
+      setLastSyncAt(Date.now(), "manual");
       showAuthToast("Atualização encontrada. Recarregando...");
       window.location.reload();
       return true;
@@ -4553,6 +4613,8 @@ function startSyncPolling() {
       refreshProjects();
     }
     refreshAccessData({ reason: "poll" });
+    carregarAnuncios(true, { auto: true });
+    setLastSyncAt(Date.now(), "auto");
   }, SYNC_POLL_MS);
 }
 
@@ -4570,9 +4632,14 @@ function handleSyncEvent(eventName, payload = {}) {
     return;
   }
   logSyncDebug("event", { name: eventName, payload });
+  setLastSyncAt(Date.now(), "auto");
   if (eventName === "maintenance.updated") {
     carregarManutencoesServidor(true);
     loadDashboardSummary(true, { skipSync: true });
+    return;
+  }
+  if (eventName === "announcements.updated" || eventName === "announcement.created") {
+    carregarAnuncios(true, { auto: true });
     return;
   }
   if (eventName === "projects.updated") {
@@ -4620,7 +4687,15 @@ function startSyncEvents() {
   source.addEventListener("ping", () => {
     logSyncDebug("sse.ping");
   });
-  ["maintenance.updated", "projects.updated", "project.team.updated", "project.equipamentos.updated", "access.updated"].forEach(
+  [
+    "maintenance.updated",
+    "projects.updated",
+    "project.team.updated",
+    "project.equipamentos.updated",
+    "access.updated",
+    "announcements.updated",
+    "announcement.created",
+  ].forEach(
     (name) => {
       source.addEventListener(name, (event) => {
         let payload = {};
@@ -4683,6 +4758,7 @@ async function syncSiteNow() {
       await refreshProjects();
       await refreshAccessData({ force: true });
       await carregarUsuariosServidor();
+      await carregarAnuncios(true);
       if (activeProjectId) {
         await Promise.all([carregarEquipeProjeto(), carregarEquipamentosProjeto()]);
         await carregarManutencoesServidor(true);
@@ -4694,7 +4770,7 @@ async function syncSiteNow() {
       atualizarSeNecessario();
     }
     renderTudo();
-    setLastSyncAt(Date.now());
+    setLastSyncAt(Date.now(), "manual");
     showAuthToast("Sincronização concluída.");
   } catch (error) {
     showAuthToast("Falha ao sincronizar. Tente novamente.");
@@ -8705,6 +8781,8 @@ function alternarPainelLembretes() {
     fecharUserMenu();
     painelLembretes.hidden = false;
     btnLembretes.setAttribute("aria-expanded", "true");
+    markVisibleAnnouncementsRead();
+    renderAnuncios();
     return;
   }
   fecharPainelLembretes();
@@ -9861,6 +9939,7 @@ async function carregarSessaoServidor() {
   await carregarUsuariosServidor();
   renderAuthUI();
   await refreshProjects();
+  await carregarAnuncios(true);
   await carregarPmpDados();
   if (currentUser) {
     const activeTab = getActiveTabKey();
@@ -13374,6 +13453,433 @@ function getStatusBadge(status) {
   return `<span class="${classe}">${escapeHtml(texto || "OK")}</span>`;
 }
 
+const ANNOUNCEMENT_TYPES = {
+  info: "Informativo",
+  aviso: "Aviso",
+  alerta: "Alerta",
+};
+
+function normalizeAnnouncementType(value) {
+  const normalized = normalizeSearchValue(value);
+  if (normalized.includes("alert")) {
+    return "alerta";
+  }
+  if (normalized.includes("aviso")) {
+    return "aviso";
+  }
+  return "info";
+}
+
+function getUserHierarchyRank(user) {
+  if (!user) {
+    return 99;
+  }
+  const role = String(user.rbacRole || user.role || "").trim().toLowerCase();
+  const cargo = normalizeSearchValue(user.cargo || user.roleName || "");
+  if (role === "admin" || role === "gestor" || cargo.includes("admin")) {
+    return 0;
+  }
+  if (
+    role === "diretor_om" ||
+    role === "gerente_contrato" ||
+    cargo.includes("diretor") ||
+    cargo.includes("gerente") ||
+    cargo.includes("coordenador")
+  ) {
+    return 1;
+  }
+  if (
+    role === "supervisor" ||
+    role === "supervisor_om" ||
+    role === "pcm" ||
+    cargo.includes("supervisor") ||
+    cargo.includes("pcm")
+  ) {
+    return 2;
+  }
+  return 3;
+}
+
+function getAnnouncementSenderRank(record) {
+  if (record && Number.isFinite(record.senderRank)) {
+    return record.senderRank;
+  }
+  const roleLabel = normalizeSearchValue(record && record.senderRoleLabel);
+  if (roleLabel.includes("admin")) {
+    return 0;
+  }
+  if (roleLabel.includes("diretor") || roleLabel.includes("gerente") || roleLabel.includes("coordenador")) {
+    return 1;
+  }
+  if (roleLabel.includes("supervisor") || roleLabel.includes("pcm")) {
+    return 2;
+  }
+  return 3;
+}
+
+function getAnnouncementProjectLabel(projectId) {
+  if (!projectId) {
+    return "";
+  }
+  const match = availableProjects.find((project) => String(project.id) === String(projectId));
+  return match ? getProjectLabel(match) : "";
+}
+
+function isUserInProject(user, projectId, projectLabel = "") {
+  if (!user || !projectId) {
+    return false;
+  }
+  const normalizedTarget = [
+    projectId,
+    projectLabel,
+    getAnnouncementProjectLabel(projectId),
+  ]
+    .map((value) => normalizeSearchValue(value))
+    .filter(Boolean);
+
+  const userTokens = [
+    user.projectId,
+    user.projetoId,
+    user.project_id,
+    user.project,
+    user.projectKey,
+    user.projectCode,
+    user.projectName,
+    user.projectLabel,
+    user.projeto,
+    getUserProjectLabel(user),
+  ];
+  if (user.project && typeof user.project === "object") {
+    userTokens.push(user.project.id, user.project.codigo, user.project.nome, user.project.label);
+  }
+  if (Array.isArray(user.projects)) {
+    user.projects.forEach((entry) => {
+      if (entry && typeof entry === "object") {
+        userTokens.push(entry.id, entry.codigo, entry.nome, entry.label);
+      } else {
+        userTokens.push(entry);
+      }
+    });
+  }
+  const normalizedUser = userTokens.map((value) => normalizeSearchValue(value)).filter(Boolean);
+  if (normalizedUser.some((token) => normalizedTarget.includes(token))) {
+    return true;
+  }
+  if (activeProjectId && String(activeProjectId) === String(projectId)) {
+    const equipeIds = getActiveProjectEquipeIds();
+    if (equipeIds.size && user.id && equipeIds.has(user.id)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function canReceiveAnnouncement(item, user) {
+  if (!item || !user) {
+    return false;
+  }
+  if (item.scope === "project" && item.projectId) {
+    if (!isUserInProject(user, item.projectId, item.projectLabel)) {
+      return false;
+    }
+  }
+  if (item.createdBy && user.id && String(item.createdBy) === String(user.id)) {
+    return true;
+  }
+  const senderRank = getAnnouncementSenderRank(item);
+  const userRank = getUserHierarchyRank(user);
+  return userRank >= senderRank;
+}
+
+function normalizeAnnouncementRecord(record) {
+  if (!record || typeof record !== "object") {
+    return null;
+  }
+  const id = record.id || record._id || criarId();
+  const title = String(record.title || record.titulo || "").trim();
+  const message = String(record.message || record.mensagem || record.text || "").trim();
+  if (!title && !message) {
+    return null;
+  }
+  const createdAt = normalizeIso(record.createdAt || record.created || new Date());
+  const type = normalizeAnnouncementType(record.type || record.tipo || "info");
+  const scope = record.scope || (record.projectId || record.project ? "project" : "all");
+  const projectId = String(record.projectId || record.project || "").trim();
+  const projectLabel =
+    String(record.projectLabel || record.projectName || "").trim() || getAnnouncementProjectLabel(projectId);
+  return {
+    id,
+    title: title || "Anúncio",
+    message,
+    type,
+    scope,
+    projectId,
+    projectLabel,
+    createdAt,
+    createdBy: record.createdBy || record.authorId || record.userId || "",
+    createdByName: record.createdByName || record.authorName || record.userName || "",
+    senderRank: Number.isFinite(record.senderRank) ? record.senderRank : undefined,
+    senderRoleLabel: record.senderRoleLabel || record.senderRole || record.roleLabel || "",
+  };
+}
+
+function readAnnouncementsStorage() {
+  return readJson(ANNOUNCEMENTS_KEY, []);
+}
+
+function saveAnnouncementsStorage(list) {
+  writeJson(ANNOUNCEMENTS_KEY, Array.isArray(list) ? list : []);
+}
+
+function normalizeAnnouncements(list) {
+  return (Array.isArray(list) ? list : [])
+    .map((item) => normalizeAnnouncementRecord(item))
+    .filter(Boolean)
+    .sort((a, b) => {
+      const ta = parseTimestamp(a.createdAt);
+      const tb = parseTimestamp(b.createdAt);
+      return (tb ? tb.getTime() : 0) - (ta ? ta.getTime() : 0);
+    });
+}
+
+function getAnnouncementTypeLabel(type) {
+  return ANNOUNCEMENT_TYPES[type] || ANNOUNCEMENT_TYPES.info;
+}
+
+function getAnnouncementScopeLabel(item) {
+  if (!item) {
+    return "Geral";
+  }
+  if (item.scope === "project" && (item.projectLabel || item.projectId)) {
+    return item.projectLabel || getAnnouncementProjectLabel(item.projectId) || "Projeto";
+  }
+  return "Geral";
+}
+
+function getReadAnnouncementIds() {
+  const stored = readJson(ANNOUNCEMENTS_READ_KEY, []);
+  return new Set((stored || []).map((id) => String(id)));
+}
+
+function saveReadAnnouncementIds(readSet) {
+  writeJson(ANNOUNCEMENTS_READ_KEY, Array.from(readSet));
+}
+
+function markAnnouncementRead(id) {
+  if (!id) {
+    return;
+  }
+  const readSet = getReadAnnouncementIds();
+  const key = String(id);
+  if (!readSet.has(key)) {
+    readSet.add(key);
+    saveReadAnnouncementIds(readSet);
+  }
+}
+
+function markVisibleAnnouncementsRead() {
+  if (!currentUser) {
+    return;
+  }
+  const readSet = getReadAnnouncementIds();
+  let changed = false;
+  announcements
+    .filter((item) => canReceiveAnnouncement(item, currentUser))
+    .forEach((item) => {
+      const key = String(item.id);
+      if (!readSet.has(key)) {
+        readSet.add(key);
+        changed = true;
+      }
+    });
+  if (changed) {
+    saveReadAnnouncementIds(readSet);
+  }
+}
+
+function updateBellDot() {
+  if (!lembretesCount) {
+    return;
+  }
+  const show = reminderTotalCount > 0 || announcementsUnreadCount > 0;
+  if (lembretesCount.id === "bellDot") {
+    lembretesCount.textContent = "";
+    lembretesCount.hidden = !show;
+    lembretesCount.classList.toggle("is-zero", !show);
+    return;
+  }
+  const total = reminderTotalCount + announcementsUnreadCount;
+  lembretesCount.textContent = total;
+  lembretesCount.hidden = total === 0;
+  lembretesCount.classList.toggle("is-zero", total === 0);
+}
+
+function renderAnuncios() {
+  if (!listaAnuncios || !anunciosVazio) {
+    return;
+  }
+  listaAnuncios.innerHTML = "";
+  if (btnNovoAnuncio) {
+    btnNovoAnuncio.hidden = !(currentUser && canCreateAnnouncements(currentUser));
+  }
+  if (!currentUser) {
+    anunciosVazio.hidden = false;
+    announcementsUnreadCount = 0;
+    updateBellDot();
+    return;
+  }
+  const readSet = getReadAnnouncementIds();
+  const visible = announcements.filter((item) => canReceiveAnnouncement(item, currentUser));
+  if (!visible.length) {
+    anunciosVazio.hidden = false;
+    announcementsUnreadCount = 0;
+    updateBellDot();
+    return;
+  }
+  anunciosVazio.hidden = true;
+  const limited = visible.slice(0, 5);
+  let unreadCount = 0;
+  limited.forEach((item) => {
+    const card = document.createElement("div");
+    card.className = `announcement-item announcement-item--${item.type}`;
+    card.dataset.announcementId = item.id;
+    if (!readSet.has(String(item.id))) {
+      card.classList.add("is-unread");
+      unreadCount += 1;
+    }
+
+    const head = document.createElement("div");
+    head.className = "announcement-item__head";
+    const title = document.createElement("strong");
+    title.textContent = item.title || "Anúncio";
+    const tag = document.createElement("span");
+    tag.className = `announcement-tag announcement-tag--${item.type}`;
+    tag.textContent = getAnnouncementTypeLabel(item.type);
+    head.append(title, tag);
+
+    const body = document.createElement("span");
+    body.textContent = item.message || "";
+
+    const meta = document.createElement("small");
+    const when = item.createdAt ? formatDateTime(parseTimestamp(item.createdAt) || new Date()) : "-";
+    const scopeLabel = getAnnouncementScopeLabel(item);
+    meta.textContent = `${scopeLabel} • ${when}`;
+
+    card.append(head, body, meta);
+    listaAnuncios.append(card);
+  });
+  announcementsUnreadCount = unreadCount;
+  updateBellDot();
+
+  if (btnNovoAnuncio) {
+    btnNovoAnuncio.hidden = !(currentUser && canCreateAnnouncements(currentUser));
+  }
+}
+
+async function apiAnnouncementsList() {
+  if (!USE_AUTH_API) {
+    return { items: readAnnouncementsStorage() };
+  }
+  return apiRequest("/api/announcements");
+}
+
+async function apiAnnouncementsCreate(payload) {
+  if (!USE_AUTH_API) {
+    const list = readAnnouncementsStorage();
+    const record = normalizeAnnouncementRecord(payload);
+    if (!record) {
+      throw new Error("Anúncio inválido.");
+    }
+    list.unshift(record);
+    saveAnnouncementsStorage(list);
+    return { item: record, items: list };
+  }
+  return apiRequest("/api/announcements", {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function carregarAnuncios(force = false, options = {}) {
+  if (!currentUser) {
+    announcements = [];
+    announcementsLastFetch = 0;
+    renderAnuncios();
+    return;
+  }
+  const agora = Date.now();
+  if (!force && announcementsLastFetch && agora - announcementsLastFetch < ANNOUNCEMENTS_TTL_MS) {
+    renderAnuncios();
+    return;
+  }
+  try {
+    const data = await apiAnnouncementsList();
+    const list = data && (data.items || data.announcements || data.list);
+    announcements = normalizeAnnouncements(list);
+    announcementsLastFetch = Date.now();
+  } catch (error) {
+    announcements = normalizeAnnouncements(readAnnouncementsStorage());
+  }
+  renderAnuncios();
+  if (options.auto) {
+    setLastSyncAt(Date.now(), "auto");
+  }
+}
+
+function renderAnnouncementProjectOptions() {
+  if (!anuncioProjeto) {
+    return;
+  }
+  anuncioProjeto.innerHTML = "";
+  availableProjects.forEach((project) => {
+    const opt = document.createElement("option");
+    opt.value = project.id;
+    opt.textContent = getProjectLabel(project);
+    anuncioProjeto.append(opt);
+  });
+  if (activeProjectId) {
+    anuncioProjeto.value = activeProjectId;
+  }
+}
+
+function updateAnnouncementScopeField() {
+  if (!anuncioEscopo || !anuncioProjetoField) {
+    return;
+  }
+  const scope = anuncioEscopo.value || "all";
+  anuncioProjetoField.hidden = scope !== "project";
+  if (scope === "project") {
+    renderAnnouncementProjectOptions();
+  }
+}
+
+function openAnnouncementModal() {
+  if (!modalAnuncio) {
+    return;
+  }
+  if (!currentUser || !canCreateAnnouncements(currentUser)) {
+    showAuthToast("Sem permissão para criar anúncios.");
+    return;
+  }
+  fecharPainelLembretes();
+  if (formAnuncio) {
+    formAnuncio.reset();
+  }
+  if (mensagemAnuncio) {
+    mensagemAnuncio.textContent = "";
+    mensagemAnuncio.classList.remove("mensagem--erro");
+  }
+  updateAnnouncementScopeField();
+  modalAnuncio.hidden = false;
+}
+
+function closeAnnouncementModal() {
+  if (!modalAnuncio) {
+    return;
+  }
+  modalAnuncio.hidden = true;
+}
+
 function renderLembretes() {
   if (!listaLembretes || !lembretesVazio) {
     return;
@@ -13401,6 +13907,8 @@ function renderLembretes() {
     .filter((entrada) => entrada.diff >= 0 && entrada.diff <= reminderDays)
     .sort((a, b) => a.data - b.data);
 
+  reminderTotalCount = proximos.length;
+
   if (lembretesCount) {
     const ids = new Set(proximos.map(({ item }) => String(item.id)));
     let changed = false;
@@ -13413,21 +13921,19 @@ function renderLembretes() {
     if (changed) {
       saveReadNotificationIds(readSet);
     }
-    const total = proximos.length;
+    reminderTotalCount = proximos.length;
     const unreadTotal = proximos.filter(({ item }) => !readSet.has(String(item.id))).length;
-    if (lembretesCount.id === "bellDot") {
-      lembretesCount.textContent = "";
-      lembretesCount.hidden = total === 0;
-      lembretesCount.classList.toggle("is-zero", total === 0);
-    } else {
-      lembretesCount.textContent = unreadTotal;
-      lembretesCount.hidden = unreadTotal === 0;
-      lembretesCount.classList.toggle("is-zero", unreadTotal === 0);
+    updateBellDot();
+    if (lembretesCount.id !== "bellDot") {
+      lembretesCount.textContent = unreadTotal + announcementsUnreadCount;
+      lembretesCount.hidden = unreadTotal + announcementsUnreadCount === 0;
+      lembretesCount.classList.toggle("is-zero", unreadTotal + announcementsUnreadCount === 0);
     }
   }
 
   if (proximos.length === 0) {
     lembretesVazio.hidden = false;
+    updateBellDot();
     return;
   }
 
@@ -13446,6 +13952,7 @@ function renderLembretes() {
     card.append(titulo, detalhe);
     listaLembretes.append(card);
   });
+  updateBellDot();
 }
 
 function criarBotaoAcao(texto, acao, perigo = false) {
@@ -40945,12 +41452,35 @@ if (listaLembretes) {
   });
 }
 
+if (listaAnuncios) {
+  listaAnuncios.addEventListener("click", (event) => {
+    const item = event.target.closest("[data-announcement-id]");
+    if (!item) {
+      return;
+    }
+    const id = item.dataset.announcementId;
+    if (!id) {
+      return;
+    }
+    markAnnouncementRead(id);
+    renderAnuncios();
+  });
+}
+
 document.addEventListener("click", (event) => {
   if (painelLembretes && !painelLembretes.hidden && btnLembretes) {
     const dentro =
       painelLembretes.contains(event.target) || btnLembretes.contains(event.target);
     if (!dentro) {
       fecharPainelLembretes();
+    }
+  }
+  if (feedbackInboxPanel && !feedbackInboxPanel.hidden && btnFeedbackInbox) {
+    const dentro =
+      feedbackInboxPanel.contains(event.target) || btnFeedbackInbox.contains(event.target);
+    if (!dentro) {
+      feedbackInboxPanel.hidden = true;
+      btnFeedbackInbox.setAttribute("aria-expanded", "false");
     }
   }
   if (userMenuPanel && !userMenuPanel.hidden && btnUserMenu) {
@@ -41992,7 +42522,8 @@ if (feedbackSort) {
   feedbackSort.addEventListener("change", renderFeedbackList);
 }
 if (btnFeedbackInbox) {
-  btnFeedbackInbox.addEventListener("click", () => {
+  btnFeedbackInbox.addEventListener("click", (event) => {
+    event.stopPropagation();
     if (!feedbackInboxPanel) {
       return;
     }
@@ -42006,6 +42537,105 @@ if (feedbackInboxLink) {
     ativarTab("feedbacks");
     if (feedbackInboxPanel) {
       feedbackInboxPanel.hidden = true;
+    }
+  });
+}
+if (btnNovoAnuncio) {
+  btnNovoAnuncio.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openAnnouncementModal();
+  });
+}
+if (btnCancelarAnuncio) {
+  btnCancelarAnuncio.addEventListener("click", () => {
+    closeAnnouncementModal();
+  });
+}
+if (btnFecharAnuncio) {
+  btnFecharAnuncio.addEventListener("click", () => {
+    closeAnnouncementModal();
+  });
+}
+if (modalAnuncio) {
+  modalAnuncio.addEventListener("click", (event) => {
+    if (event.target === modalAnuncio) {
+      closeAnnouncementModal();
+    }
+  });
+}
+if (anuncioEscopo) {
+  anuncioEscopo.addEventListener("change", updateAnnouncementScopeField);
+}
+if (formAnuncio) {
+  formAnuncio.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!currentUser || !canCreateAnnouncements(currentUser)) {
+      if (mensagemAnuncio) {
+        mensagemAnuncio.textContent = "Sem permissão para criar anúncios.";
+        mensagemAnuncio.classList.add("mensagem--erro");
+      }
+      return;
+    }
+    const titulo = anuncioTitulo ? anuncioTitulo.value.trim() : "";
+    const mensagem = anuncioMensagem ? anuncioMensagem.value.trim() : "";
+    const tipo = normalizeAnnouncementType(anuncioTipo ? anuncioTipo.value : "info");
+    const escopo = anuncioEscopo ? anuncioEscopo.value : "all";
+    const projectId = escopo === "project" && anuncioProjeto ? anuncioProjeto.value.trim() : "";
+    if (!titulo || !mensagem) {
+      if (mensagemAnuncio) {
+        mensagemAnuncio.textContent = "Informe título e mensagem do anúncio.";
+        mensagemAnuncio.classList.add("mensagem--erro");
+      }
+      return;
+    }
+    if (escopo === "project" && !projectId) {
+      if (mensagemAnuncio) {
+        mensagemAnuncio.textContent = "Selecione o projeto do anúncio.";
+        mensagemAnuncio.classList.add("mensagem--erro");
+      }
+      return;
+    }
+    if (mensagemAnuncio) {
+      mensagemAnuncio.textContent = "Enviando anúncio...";
+      mensagemAnuncio.classList.remove("mensagem--erro");
+    }
+    const nowIso = toIsoUtc(new Date());
+    const senderRank = getUserHierarchyRank(currentUser);
+    const payload = {
+      id: criarId(),
+      title: titulo,
+      message: mensagem,
+      type: tipo,
+      scope: escopo,
+      projectId,
+      projectLabel: escopo === "project" ? getAnnouncementProjectLabel(projectId) : "",
+      createdAt: nowIso,
+      createdBy: currentUser.id,
+      createdByName: getDisplayName(currentUser),
+      senderRank,
+      senderRoleLabel: getRoleLabel(currentUser),
+    };
+    try {
+      const data = await apiAnnouncementsCreate(payload);
+      const item = normalizeAnnouncementRecord(
+        data && (data.item || data.announcement || data.annuncio || payload)
+      );
+      if (item) {
+        announcements = normalizeAnnouncements([item].concat(announcements || []));
+        announcementsLastFetch = Date.now();
+      }
+      renderAnuncios();
+      if (mensagemAnuncio) {
+        mensagemAnuncio.textContent = "Anúncio enviado.";
+        mensagemAnuncio.classList.remove("mensagem--erro");
+      }
+      showAuthToast("Anúncio enviado.");
+      closeAnnouncementModal();
+    } catch (error) {
+      if (mensagemAnuncio) {
+        mensagemAnuncio.textContent = error && error.message ? error.message : "Falha ao enviar anúncio.";
+        mensagemAnuncio.classList.add("mensagem--erro");
+      }
     }
   });
 }
@@ -43956,6 +44586,10 @@ applyProjectVehiclesQuery();
 
 window.addEventListener("focus", atualizarSeNecessario);
 window.addEventListener("storage", (event) => {
+  if (event.key === ANNOUNCEMENTS_KEY || event.key === ANNOUNCEMENTS_READ_KEY) {
+    carregarAnuncios(true);
+    return;
+  }
   const keysBase = [
     STORAGE_KEY,
     REQUEST_KEY,
