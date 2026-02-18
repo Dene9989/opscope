@@ -92,6 +92,8 @@ const BUILD_ID = (() => {
     return `build-${new Date().toISOString()}`;
   }
 })();
+const COMPAT_SCHEMA_VERSION = 1;
+const COMPAT_DATASETS = ["maintenance", "announcements", "feedbacks", "sstDocs"];
 const SSE_PING_INTERVAL_MS = 25000;
 const sseClients = new Map();
 
@@ -159,6 +161,7 @@ const DATA_FILE_NAMES = [
   "announcements.json",
   "feedbacks.json",
   "sst_docs.json",
+  "compat_versions.json",
   "automations.json",
   "api_logs.json",
   "health_tasks.json",
@@ -199,6 +202,7 @@ const MAINTENANCE_TOMBSTONES_FILE = path.join(DATA_DIR, "maintenance_tombstones.
 const ANNOUNCEMENTS_FILE = path.join(DATA_DIR, "announcements.json");
 const FEEDBACKS_FILE = path.join(DATA_DIR, "feedbacks.json");
 const SST_DOCS_FILE = path.join(DATA_DIR, "sst_docs.json");
+const COMPAT_FILE = path.join(DATA_DIR, "compat_versions.json");
 const AUTOMATIONS_FILE = path.join(DATA_DIR, "automations.json");
 const UPLOADS_DIR = process.env.OPSCOPE_UPLOADS_DIR
   ? path.resolve(process.env.OPSCOPE_UPLOADS_DIR)
@@ -243,6 +247,7 @@ const STORE_FILES = [
   ANNOUNCEMENTS_FILE,
   FEEDBACKS_FILE,
   SST_DOCS_FILE,
+  COMPAT_FILE,
   AUTOMATIONS_FILE,
   API_LOG_FILE,
   HEALTH_TASKS_FILE,
@@ -4107,6 +4112,63 @@ function saveFeedbacks(list) {
   writeJson(FEEDBACKS_FILE, Array.isArray(list) ? list : []);
 }
 
+function getDefaultCompatState() {
+  const datasets = {};
+  COMPAT_DATASETS.forEach((key) => {
+    datasets[key] = 0;
+  });
+  return {
+    schemaVersion: COMPAT_SCHEMA_VERSION,
+    datasets,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function normalizeCompatState(state) {
+  const base = getDefaultCompatState();
+  if (!state || typeof state !== "object") {
+    return base;
+  }
+  const schemaVersion = Number(state.schemaVersion) || COMPAT_SCHEMA_VERSION;
+  const datasets =
+    state.datasets && typeof state.datasets === "object" ? state.datasets : {};
+  COMPAT_DATASETS.forEach((key) => {
+    if (!Number.isFinite(Number(datasets[key]))) {
+      datasets[key] = 0;
+    }
+  });
+  return {
+    schemaVersion,
+    datasets: { ...datasets },
+    updatedAt: String(state.updatedAt || base.updatedAt || ""),
+  };
+}
+
+function loadCompatState() {
+  const data = readJson(COMPAT_FILE, null);
+  return normalizeCompatState(data);
+}
+
+function saveCompatState(state) {
+  writeJson(COMPAT_FILE, normalizeCompatState(state));
+}
+
+function touchCompat(dataset, projectId = "") {
+  if (!dataset) {
+    return;
+  }
+  const next = normalizeCompatState(compatState);
+  next.datasets[dataset] = Number(next.datasets[dataset] || 0) + 1;
+  next.updatedAt = new Date().toISOString();
+  compatState = next;
+  saveCompatState(next);
+  broadcastSse("compat.updated", {
+    dataset,
+    version: next.datasets[dataset],
+    projectId: projectId || "",
+  });
+}
+
 function normalizeSstDoc(record) {
   if (!record || typeof record !== "object") {
     return null;
@@ -6364,6 +6426,7 @@ let sstAprs = [];
 let sstPermits = [];
 let sstVehicles = [];
 let sstDocs = [];
+let compatState = getDefaultCompatState();
 let accessRoles = [];
 let users = [];
 let invites = [];
@@ -6497,6 +6560,10 @@ async function bootstrap() {
   if (!fs.existsSync(FEEDBACKS_FILE)) {
     saveFeedbacks(feedbacks);
   }
+  compatState = loadCompatState();
+  if (!fs.existsSync(COMPAT_FILE)) {
+    saveCompatState(compatState);
+  }
   pmpActivities = loadPmpActivities().map(normalizePmpActivity);
   if (!fs.existsSync(PMP_ACTIVITIES_FILE)) {
     savePmpActivities(pmpActivities);
@@ -6578,6 +6645,15 @@ app.use("/api", (req, res, next) => {
 
 app.get("/api/version", (req, res) => {
   return res.json({ buildId: BUILD_ID, serverTime: new Date().toISOString() });
+});
+
+app.get("/api/compat", requireAuth, (req, res) => {
+  return res.json({
+    schemaVersion: compatState.schemaVersion,
+    datasets: compatState.datasets,
+    updatedAt: compatState.updatedAt,
+    buildId: BUILD_ID,
+  });
 });
 
 app.get("/api/events", requireAuth, (req, res) => {
@@ -8650,6 +8726,7 @@ app.post(
     }
     sstDocs = sstDocs.concat(record);
     saveSstDocs(sstDocs);
+    touchCompat("sstDocs", projectId);
     appendAudit(
       "sst_doc_create",
       user ? user.id : null,
@@ -8706,6 +8783,7 @@ app.put(
     });
     sstDocs[index] = updated;
     saveSstDocs(sstDocs);
+    touchCompat("sstDocs", current.projectId);
     appendAudit(
       "sst_doc_update",
       user ? user.id : null,
@@ -10083,6 +10161,7 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
   const filtered = existing.filter((item) => !(item && item.projectId === projectId));
   const merged = [...filtered, ...mergedProject];
   writeJson(MAINTENANCE_FILE, merged);
+  touchCompat("maintenance", projectId);
   DASHBOARD_CACHE.delete(projectId);
   if (createdItems.length) {
     const ip = getClientIp(req);
@@ -10124,6 +10203,7 @@ app.get("/api/maintenance", requireAuth, (req, res) => {
     list = deduped.list;
     const filtered = dataset.filter((item) => !(item && item.projectId === projectId));
     writeJson(MAINTENANCE_FILE, [...filtered, ...list]);
+    touchCompat("maintenance", projectId);
   }
   return res.json({ items: list, projectId });
 });
@@ -10154,6 +10234,7 @@ app.delete("/api/maintenance/:id", requireAuth, (req, res) => {
   }
   dataset.splice(index, 1);
   writeJson(MAINTENANCE_FILE, dataset);
+  touchCompat("maintenance", projectId);
   addMaintenanceTombstone(projectId, maintenanceId, user ? user.id : null);
   DASHBOARD_CACHE.delete(projectId);
   appendAudit(
@@ -10224,6 +10305,7 @@ app.post("/api/maintenance/reopen", requireAuth, (req, res) => {
   }
   dataset[index] = updated;
   writeJson(MAINTENANCE_FILE, dataset);
+  touchCompat("maintenance", projectId);
   DASHBOARD_CACHE.delete(projectId);
   appendAudit(
     "maintenance_reopen",
@@ -10282,6 +10364,7 @@ app.post(
     }
     announcements = [record, ...announcements];
     saveAnnouncements(announcements);
+    touchCompat("announcements", record.projectId || "");
     appendAudit(
       "announcement_create",
       user ? user.id : null,
@@ -10330,6 +10413,7 @@ app.post("/api/announcements/read", requireAuth, requireStorageWritable, (req, r
   });
   if (changed) {
     saveAnnouncements(announcements);
+    touchCompat("announcements");
     broadcastSse("announcements.updated", { projectId: "" });
   }
   return res.json({ ok: true, updated: changed ? normalized.length : 0 });
@@ -10379,6 +10463,7 @@ app.post("/api/feedbacks", requireAuth, requireStorageWritable, (req, res) => {
   }
   feedbacks = [record, ...feedbacks];
   saveFeedbacks(feedbacks);
+  touchCompat("feedbacks", projectId);
   appendAudit(
     "feedback_create",
     user ? user.id : null,
@@ -10418,6 +10503,7 @@ app.post("/api/feedbacks/read", requireAuth, requireStorageWritable, (req, res) 
   });
   if (changed) {
     saveFeedbacks(feedbacks);
+    touchCompat("feedbacks");
     broadcastSse("feedbacks.updated", { projectId: "" });
   }
   return res.json({ ok: true, updated: changed ? normalized.length : 0 });

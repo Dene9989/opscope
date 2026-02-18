@@ -556,6 +556,18 @@ h1 {
   white-space: nowrap;
 }
 
+.topbar-sync-meta.is-ok {
+  color: var(--color-success);
+}
+
+.topbar-sync-meta.is-warn {
+  color: var(--color-warning);
+}
+
+.topbar-sync-meta.is-danger {
+  color: var(--color-danger);
+}
+
 .project-switcher {
   display: flex;
   align-items: center;

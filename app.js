@@ -233,6 +233,7 @@ const btnDashboard = document.getElementById("btnDashboard");
 const btnHelp = document.getElementById("btnHelp");
 const btnSyncSite = document.getElementById("btnSyncSite");
 const syncStatusLabel = document.getElementById("syncStatusLabel");
+const compatStatusLabel = document.getElementById("compatStatusLabel");
 const modalHelp = document.getElementById("modalHelp");
 const helpTitle = document.getElementById("helpTitle");
 const helpMeta = document.getElementById("helpMeta");
@@ -4378,6 +4379,7 @@ let maintenanceSyncFailed = false;
 let maintenanceLastUserId = null;
 let maintenanceLastFetch = 0;
 const maintenanceLoadedProjects = new Set();
+const maintenanceRenderHashes = new Map();
 let healthSnapshot = null;
 let healthLoading = false;
 let apiLogsState = {
@@ -4456,6 +4458,10 @@ let homeTipsTimer = null;
 let homeTipIndex = 0;
 const SYNC_POLL_MS = 30000;
 const SYNC_DEBUG_KEY = "opscope.debugSync";
+const COMPAT_SCHEMA_VERSION = 1;
+const COMPAT_STATE_KEY = "opscope.compat.state";
+const COMPAT_CHECK_TTL_MS = 15000;
+const COMPAT_DATASETS = ["maintenance", "announcements", "feedbacks", "sstDocs"];
 let syncEventSource = null;
 let syncEventProject = "";
 let syncPollTimer = null;
@@ -4470,6 +4476,9 @@ let reminderTotalCount = 0;
 let reminderUnreadCount = 0;
 let feedbacksLastFetch = 0;
 let feedbacksLastProjectId = "";
+let compatLastCheck = 0;
+let compatState = { schemaVersion: COMPAT_SCHEMA_VERSION, datasets: {}, updatedAt: "" };
+let compatStatus = { state: "idle", message: "" };
 let announcementDraftImages = [];
 let activeAnnouncementView = null;
 
@@ -4600,6 +4609,121 @@ function setLastSyncAt(value = Date.now(), source = "manual") {
   updateSyncStatusLabel(payload);
 }
 
+function normalizeCompatState(state) {
+  const base = {
+    schemaVersion: COMPAT_SCHEMA_VERSION,
+    datasets: {},
+    updatedAt: "",
+  };
+  if (!state || typeof state !== "object") {
+    return base;
+  }
+  const schemaVersion = Number(state.schemaVersion) || COMPAT_SCHEMA_VERSION;
+  const datasets = state.datasets && typeof state.datasets === "object" ? state.datasets : {};
+  return {
+    schemaVersion,
+    datasets: { ...datasets },
+    updatedAt: String(state.updatedAt || ""),
+  };
+}
+
+function readCompatState() {
+  return normalizeCompatState(readJson(COMPAT_STATE_KEY, null));
+}
+
+function saveCompatState(state) {
+  compatState = normalizeCompatState(state);
+  writeJson(COMPAT_STATE_KEY, compatState);
+}
+
+function setCompatStatus(state, message = "") {
+  compatStatus = { state, message };
+  updateCompatStatusLabel();
+}
+
+function updateCompatStatusLabel() {
+  if (!compatStatusLabel) {
+    return;
+  }
+  if (!currentUser || !USE_AUTH_API) {
+    compatStatusLabel.hidden = true;
+    compatStatusLabel.classList.remove("is-ok", "is-warn", "is-danger");
+    return;
+  }
+  compatStatusLabel.hidden = false;
+  compatStatusLabel.classList.remove("is-ok", "is-warn", "is-danger");
+  if (compatStatus.state === "ok") {
+    compatStatusLabel.classList.add("is-ok");
+  }
+  if (compatStatus.state === "warn") {
+    compatStatusLabel.classList.add("is-warn");
+  }
+  if (compatStatus.state === "danger") {
+    compatStatusLabel.classList.add("is-danger");
+  }
+  compatStatusLabel.textContent =
+    compatStatus.message || "Compatibilidade: --";
+}
+
+async function apiCompatState() {
+  if (!USE_AUTH_API) {
+    return null;
+  }
+  return apiRequest("/api/compat");
+}
+
+async function checkCompatState(force = false) {
+  if (!USE_AUTH_API || !currentUser) {
+    setCompatStatus("idle", "Compatibilidade: --");
+    return;
+  }
+  const agora = Date.now();
+  if (!force && compatLastCheck && agora - compatLastCheck < COMPAT_CHECK_TTL_MS) {
+    return;
+  }
+  compatLastCheck = agora;
+  if (compatStatus.state !== "ok") {
+    setCompatStatus("warn", "Compatibilidade: verificando...");
+  }
+  let remote;
+  try {
+    remote = await apiCompatState();
+  } catch (error) {
+    setCompatStatus("warn", "Compatibilidade: offline");
+    return;
+  }
+  const normalized = normalizeCompatState(remote);
+  if (normalized.schemaVersion !== COMPAT_SCHEMA_VERSION) {
+    setCompatStatus("danger", "Compatibilidade: atualizar");
+    showAuthToast("Atualização necessária. Recarregue o sistema.");
+    return;
+  }
+  const local = readCompatState();
+  const changed = COMPAT_DATASETS.filter(
+    (key) => Number(normalized.datasets[key] || 0) !== Number(local.datasets[key] || 0)
+  );
+  if (changed.length) {
+    setCompatStatus("warn", "Compatibilidade: sincronizando...");
+    const tasks = [];
+    if (changed.includes("maintenance") && activeProjectId) {
+      tasks.push(carregarManutencoesServidor(true));
+      tasks.push(loadDashboardSummary(true, { skipSync: true }));
+    }
+    if (changed.includes("announcements")) {
+      tasks.push(carregarAnuncios(true));
+    }
+    if (changed.includes("feedbacks")) {
+      tasks.push(carregarFeedbacks(true));
+    }
+    if (changed.includes("sstDocs")) {
+      tasks.push(carregarSst(true));
+    }
+    await Promise.allSettled(tasks);
+  }
+  saveCompatState(normalized);
+  setCompatStatus("ok", "Compatibilidade: OK");
+}
+
 async function checkForNewBuildAndReload() {
   const currentBuild = getBuildId();
   if (!currentBuild || !window.fetch) {
@@ -4687,6 +4811,7 @@ function startSyncPolling() {
     if (activeTab && activeTab.startsWith("sst")) {
       carregarSst(true);
     }
+    checkCompatState();
     setLastSyncAt(Date.now(), "auto");
   }, SYNC_POLL_MS);
 }
@@ -4721,6 +4846,10 @@ function handleSyncEvent(eventName, payload = {}) {
       renderFeedbackInbox();
       renderFeedbackList();
     });
+    return;
+  }
+  if (eventName === "compat.updated") {
+    checkCompatState(true);
     return;
   }
   if (eventName === "sst.docs.updated") {
@@ -4783,6 +4912,7 @@ function startSyncEvents() {
     "feedback.created",
     "feedbacks.updated",
     "sst.docs.updated",
+    "compat.updated",
   ].forEach(
     (name) => {
       source.addEventListener(name, (event) => {
@@ -4857,6 +4987,7 @@ async function syncSiteNow() {
         await carregarSst(true);
       }
       await loadDashboardSummary(true, { skipSync: true });
+      await checkCompatState(true);
       restartSyncEvents();
     } else {
       atualizarSeNecessario();
@@ -10037,6 +10168,7 @@ async function carregarSessaoServidor() {
   await carregarAnuncios(true);
   await carregarFeedbacks(true);
   await carregarPmpDados();
+  await checkCompatState(true);
   if (currentUser) {
     const activeTab = getActiveTabKey();
     if (activeTab && activeTab.startsWith("almoxarifado")) {
@@ -11356,6 +11488,33 @@ function getMaintenanceUpdatedAtValue(item) {
     .map((value) => getTimeValue(value))
     .filter((value) => Number.isFinite(value));
   return times.length ? Math.max(...times) : 0;
+}
+
+function getMaintenanceListFingerprint(list) {
+  if (!Array.isArray(list)) {
+    return "";
+  }
+  const snapshot = list
+    .filter((item) => item && item.id)
+    .map((item) => ({
+      id: String(item.id),
+      status: normalizeMaintenanceStatus(item.status),
+      updatedAt: getMaintenanceUpdatedAtValue(item),
+      data: item.data || "",
+      projectId: item.projectId || "",
+      equipamento:
+        item.equipamento ||
+        item.equipamentoId ||
+        item.equipamentoNome ||
+        item.equipamentoTag ||
+        "",
+      executionStartedAt: item.executionStartedAt || "",
+      executionFinishedAt: item.executionFinishedAt || "",
+      doneAt: item.doneAt || "",
+      participantes: Array.isArray(item.participantes) ? item.participantes.length : 0,
+    }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  return hashString(JSON.stringify(snapshot));
 }
 
 function isMaintenanceConcluded(item) {
@@ -35055,8 +35214,14 @@ async function carregarManutencoesServidor(force = false) {
       if (needsSync) {
         scheduleMaintenanceSync(manutencoes, true);
       }
-      renderTudo();
-      showTeamMaintenanceNotifications();
+      const nextHash = getMaintenanceListFingerprint(manutencoes);
+      const prevHash = maintenanceRenderHashes.get(activeProjectId);
+      const changed = nextHash && nextHash !== prevHash;
+      maintenanceRenderHashes.set(activeProjectId, nextHash);
+      if (changed) {
+        renderTudo();
+        showTeamMaintenanceNotifications();
+      }
       triggerExecucaoRegistradaAlertIfDue();
     }
   } catch (error) {
@@ -35497,6 +35662,7 @@ function renderAuthUI() {
   atualizarFeedbackBadge();
   renderFeedbackInbox();
   updateSyncStatusLabel();
+  updateCompatStatusLabel();
 }
 
 function initAvatarUpload() {
