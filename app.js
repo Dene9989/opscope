@@ -137,6 +137,7 @@ const feedbackInboxEmpty = document.getElementById("feedbackInboxEmpty");
 const feedbackInboxLink = document.getElementById("feedbackInboxLink");
 const listaAnuncios = document.getElementById("listaAnuncios");
 const anunciosVazio = document.getElementById("anunciosVazio");
+const btnAnunciosLidos = document.getElementById("btnAnunciosLidos");
 const btnNovoAnuncio = document.getElementById("btnNovoAnuncio");
 const modalAnuncio = document.getElementById("modalAnuncio");
 const formAnuncio = document.getElementById("formAnuncio");
@@ -164,6 +165,11 @@ const anuncioViewReads = document.getElementById("anuncioViewReads");
 const btnAnuncioViewClose = document.getElementById("btnAnuncioViewClose");
 const btnAnuncioViewCloseFooter = document.getElementById("btnAnuncioViewCloseFooter");
 const btnAnuncioViewMarkRead = document.getElementById("btnAnuncioViewMarkRead");
+const modalAnunciosLidos = document.getElementById("modalAnunciosLidos");
+const listaAnunciosLidos = document.getElementById("listaAnunciosLidos");
+const anunciosLidosVazio = document.getElementById("anunciosLidosVazio");
+const btnAnunciosLidosClose = document.getElementById("btnAnunciosLidosClose");
+const btnAnunciosLidosCloseFooter = document.getElementById("btnAnunciosLidosCloseFooter");
 const countAgendadas = document.getElementById("countAgendadas");
 const countLiberadas = document.getElementById("countLiberadas");
 const countBacklog = document.getElementById("countBacklog");
@@ -1440,6 +1446,7 @@ const ACCESS_PERMISSIONS = [
   "reexecutarTarefas",
   "verLogsAPI",
   "limparLogsAPI",
+  "verAnuncios",
   "criarAnuncios",
   "gerenciarAutomacoes",
   "verAutomacoes",
@@ -1476,6 +1483,8 @@ const ACCESS_PERMISSION_LABELS = {
   MAINT_REMOVE: "Manutenção - excluir",
   MAINT_RESCHEDULE: "Manutenção - reagendar",
   MAINT_COMPLETE: "Manutenção - executar",
+  verAnuncios: "Ver anúncios",
+  criarAnuncios: "Criar anúncios",
 };
 
 const ACCESS_PERMISSION_GROUPS = [
@@ -1535,6 +1544,11 @@ const ACCESS_PERMISSION_GROUPS = [
     items: ["verRelatorios", "exportarRelatorios"],
   },
   {
+    key: "comunicacao",
+    label: "Comunicação",
+    items: ["verAnuncios", "criarAnuncios"],
+  },
+  {
     key: "automacoes",
     label: "Automações",
     items: ["verAutomacoes", "gerenciarAutomacoes"],
@@ -1588,6 +1602,7 @@ const GRANULAR_PERMISSION_LABELS = {
   gerenciarAlmoxarifado: "Gerenciar Almoxarifado",
   verSST: "Ver SST",
   gerenciarSST: "Gerenciar SST",
+  verAnuncios: "Ver anúncios",
   criarAnuncios: "Criar anúncios",
 };
 
@@ -1724,6 +1739,14 @@ const ACCESS_PERMISSION_CATALOG = [
     group: "Seções",
     label: "Feedbacks",
     description: "Acesso a feedbacks e comunicados.",
+    level: "READ",
+  },
+  {
+    key: "verAnuncios",
+    module: "Comunicação",
+    group: "Anúncios",
+    label: "Ver anúncios",
+    description: "Visualizar anúncios enviados para a equipe.",
     level: "READ",
   },
   {
@@ -2248,6 +2271,14 @@ const ACCESS_ROLE_ITEMS = [
     editKeys: [],
   },
   {
+    key: "comunicacao_anuncios",
+    module: "Comunicação",
+    label: "Anúncios",
+    description: "Visualizar e enviar anúncios.",
+    viewKeys: ["verAnuncios"],
+    editKeys: ["criarAnuncios"],
+  },
+  {
     key: "manut_criar",
     module: "Manutencao",
     label: "Criar manutencoes",
@@ -2694,7 +2725,7 @@ const PERMISSION_GROUPS = [
   {
     key: "comunicacao",
     label: "Comunicação",
-    items: ["criarAnuncios"],
+    items: ["verAnuncios", "criarAnuncios"],
   },
   {
     key: "diagnostico",
@@ -3603,6 +3634,18 @@ function canCreateAnnouncements(user) {
     return true;
   }
   return hasGranularPermission(user, "criarAnuncios");
+}
+
+function canViewAnnouncements(user) {
+  if (!user) {
+    return false;
+  }
+  if (isFullAccessUser(user)) {
+    return true;
+  }
+  return (
+    hasGranularPermission(user, "verAnuncios") || hasGranularPermission(user, "criarAnuncios")
+  );
 }
 
 function canViewGerencial(user) {
@@ -13645,6 +13688,9 @@ function canReceiveAnnouncement(item, user) {
   if (!item || !user) {
     return false;
   }
+  if (!canViewAnnouncements(user)) {
+    return false;
+  }
   if (item.scope === "project" && item.projectId) {
     if (!isUserInProject(user, item.projectId, item.projectLabel)) {
       return false;
@@ -13778,13 +13824,37 @@ function getAnnouncementScopeLabel(item) {
   return "Geral";
 }
 
-function getReadAnnouncementIds() {
-  const stored = readJson(ANNOUNCEMENTS_READ_KEY, []);
-  return new Set((stored || []).map((id) => String(id)));
+function getAnnouncementReadState() {
+  const stored = readJson(ANNOUNCEMENTS_READ_KEY, {});
+  if (Array.isArray(stored)) {
+    const state = {};
+    if (currentUser && currentUser.id) {
+      state[currentUser.id] = stored;
+    }
+    return state;
+  }
+  return stored && typeof stored === "object" ? stored : {};
 }
 
-function saveReadAnnouncementIds(readSet) {
-  writeJson(ANNOUNCEMENTS_READ_KEY, Array.from(readSet));
+function getReadAnnouncementIds(user = currentUser) {
+  const state = getAnnouncementReadState();
+  if (user && user.id && state[user.id]) {
+    return new Set((state[user.id] || []).map((id) => String(id)));
+  }
+  if (Array.isArray(state)) {
+    return new Set(state.map((id) => String(id)));
+  }
+  return new Set();
+}
+
+function saveReadAnnouncementIds(readSet, user = currentUser) {
+  if (!user || !user.id) {
+    writeJson(ANNOUNCEMENTS_READ_KEY, Array.from(readSet));
+    return;
+  }
+  const state = getAnnouncementReadState();
+  state[user.id] = Array.from(readSet);
+  writeJson(ANNOUNCEMENTS_READ_KEY, state);
 }
 
 function getAnnouncementReadersMap() {
@@ -13920,29 +13990,44 @@ function renderAnuncios() {
   if (btnNovoAnuncio) {
     btnNovoAnuncio.hidden = !(currentUser && canCreateAnnouncements(currentUser));
   }
+  if (btnAnunciosLidos) {
+    btnAnunciosLidos.hidden = !(currentUser && canViewAnnouncements(currentUser));
+  }
   if (!currentUser) {
     anunciosVazio.hidden = false;
+    anunciosVazio.textContent = "Nenhum anúncio não lido.";
     announcementsUnreadCount = 0;
+    updateBellDot();
+    return;
+  }
+  if (!canViewAnnouncements(currentUser)) {
+    anunciosVazio.hidden = false;
+    anunciosVazio.textContent = "Sem permissão para visualizar anúncios.";
+    announcementsUnreadCount = 0;
+    announcementsUnreadSeverity = "baixa";
     updateBellDot();
     return;
   }
   const readSet = getReadAnnouncementIds();
   const visible = announcements.filter((item) => canReceiveAnnouncement(item, currentUser));
-  if (!visible.length) {
+  const unreadVisible = visible.filter((item) => !readSet.has(String(item.id)));
+  if (!visible.length || !unreadVisible.length) {
     anunciosVazio.hidden = false;
+    anunciosVazio.textContent = visible.length
+      ? "Nenhum anúncio não lido."
+      : "Nenhum anúncio recente.";
     announcementsUnreadCount = 0;
     announcementsUnreadSeverity = "baixa";
     updateBellDot();
     return;
   }
   anunciosVazio.hidden = true;
-  const unreadAll = visible.filter((item) => !readSet.has(String(item.id)));
-  announcementsUnreadCount = unreadAll.length;
-  announcementsUnreadSeverity = unreadAll.length
-    ? getHighestAnnouncementSeverity(unreadAll)
+  announcementsUnreadCount = unreadVisible.length;
+  announcementsUnreadSeverity = unreadVisible.length
+    ? getHighestAnnouncementSeverity(unreadVisible)
     : "baixa";
 
-  const limited = visible.slice(0, 5);
+  const limited = unreadVisible.slice(0, 5);
   limited.forEach((item) => {
     const card = document.createElement("div");
     card.className = `announcement-item announcement-item--${item.type}`;
@@ -13982,6 +14067,61 @@ function renderAnuncios() {
   if (btnNovoAnuncio) {
     btnNovoAnuncio.hidden = !(currentUser && canCreateAnnouncements(currentUser));
   }
+}
+
+function renderAnunciosLidos() {
+  if (!listaAnunciosLidos || !anunciosLidosVazio) {
+    return;
+  }
+  listaAnunciosLidos.innerHTML = "";
+  if (!currentUser) {
+    anunciosLidosVazio.hidden = false;
+    return;
+  }
+  if (!canViewAnnouncements(currentUser)) {
+    anunciosLidosVazio.hidden = false;
+    anunciosLidosVazio.textContent = "Sem permissão para visualizar anúncios.";
+    return;
+  }
+  const readSet = getReadAnnouncementIds();
+  const visible = announcements.filter((item) => canReceiveAnnouncement(item, currentUser));
+  const readVisible = visible.filter((item) => readSet.has(String(item.id)));
+  if (!readVisible.length) {
+    anunciosLidosVazio.hidden = false;
+    return;
+  }
+  anunciosLidosVazio.hidden = true;
+  readVisible.slice(0, 20).forEach((item) => {
+    const card = document.createElement("div");
+    card.className = `announcement-item announcement-item--${item.type} is-read`;
+    card.dataset.announcementId = item.id;
+
+    const head = document.createElement("div");
+    head.className = "announcement-item__head";
+    const title = document.createElement("strong");
+    title.textContent = item.title || "Anúncio";
+    const tag = document.createElement("span");
+    tag.className = `announcement-tag announcement-tag--${item.type}`;
+    tag.textContent = getAnnouncementTypeLabel(item.type);
+    const severityTag = document.createElement("span");
+    severityTag.className = `announcement-severity announcement-severity--${item.severity || "baixa"}`;
+    severityTag.textContent = getAnnouncementSeverityLabel(item.severity || "baixa");
+    const tags = document.createElement("div");
+    tags.className = "announcement-item__tags";
+    tags.append(tag, severityTag);
+    head.append(title, tags);
+
+    const body = document.createElement("span");
+    body.textContent = item.message || "";
+
+    const meta = document.createElement("small");
+    const when = item.createdAt ? formatDateTime(parseTimestamp(item.createdAt) || new Date()) : "-";
+    const scopeLabel = getAnnouncementScopeLabel(item);
+    meta.textContent = `${scopeLabel} • ${when}`;
+
+    card.append(head, body, meta);
+    listaAnunciosLidos.append(card);
+  });
 }
 
 async function apiAnnouncementsList() {
@@ -14036,6 +14176,13 @@ async function carregarAnuncios(force = false, options = {}) {
     renderAnuncios();
     return;
   }
+  if (!canViewAnnouncements(currentUser)) {
+    announcements = [];
+    announcementsLastFetch = 0;
+    renderAnuncios();
+    renderAnunciosLidos();
+    return;
+  }
   const agora = Date.now();
   if (!force && announcementsLastFetch && agora - announcementsLastFetch < ANNOUNCEMENTS_TTL_MS) {
     renderAnuncios();
@@ -14053,6 +14200,7 @@ async function carregarAnuncios(force = false, options = {}) {
   if (options.auto) {
     setLastSyncAt(Date.now(), "auto");
   }
+  renderAnunciosLidos();
 }
 
 function renderAnnouncementProjectOptions() {
@@ -14283,6 +14431,10 @@ function openAnnouncementView(item) {
   if (!modalAnuncioView) {
     return;
   }
+  if (currentUser && !canViewAnnouncements(currentUser)) {
+    showAuthToast("Sem permissão para visualizar anúncios.");
+    return;
+  }
   fecharPainelLembretes();
   activeAnnouncementView = item;
   renderAnnouncementView(item);
@@ -14295,6 +14447,26 @@ function closeAnnouncementView() {
   }
   modalAnuncioView.hidden = true;
   activeAnnouncementView = null;
+}
+
+function openAnnouncementsReadModal() {
+  if (!modalAnunciosLidos) {
+    return;
+  }
+  if (currentUser && !canViewAnnouncements(currentUser)) {
+    showAuthToast("Sem permissão para visualizar anúncios.");
+    return;
+  }
+  fecharPainelLembretes();
+  renderAnunciosLidos();
+  modalAnunciosLidos.hidden = false;
+}
+
+function closeAnnouncementsReadModal() {
+  if (!modalAnunciosLidos) {
+    return;
+  }
+  modalAnunciosLidos.hidden = true;
 }
 
 function renderLembretes() {
@@ -41892,6 +42064,22 @@ if (listaAnuncios) {
     }
   });
 }
+if (listaAnunciosLidos) {
+  listaAnunciosLidos.addEventListener("click", (event) => {
+    const item = event.target.closest("[data-announcement-id]");
+    if (!item) {
+      return;
+    }
+    const id = item.dataset.announcementId;
+    if (!id) {
+      return;
+    }
+    const anuncio = announcements.find((entry) => String(entry.id) === String(id));
+    if (anuncio) {
+      openAnnouncementView(anuncio);
+    }
+  });
+}
 
 document.addEventListener("click", (event) => {
   if (painelLembretes && !painelLembretes.hidden && btnLembretes) {
@@ -41934,6 +42122,10 @@ document.addEventListener("keydown", (event) => {
     }
     if (modalAnuncioView && !modalAnuncioView.hidden) {
       closeAnnouncementView();
+      return;
+    }
+    if (modalAnunciosLidos && !modalAnunciosLidos.hidden) {
+      closeAnnouncementsReadModal();
       return;
     }
     fecharPainelLembretes();
@@ -42976,6 +43168,12 @@ if (btnNovoAnuncio) {
     openAnnouncementModal();
   });
 }
+if (btnAnunciosLidos) {
+  btnAnunciosLidos.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openAnnouncementsReadModal();
+  });
+}
 if (btnCancelarAnuncio) {
   btnCancelarAnuncio.addEventListener("click", () => {
     closeAnnouncementModal();
@@ -43013,6 +43211,23 @@ if (modalAnuncioView) {
     }
   });
 }
+if (btnAnunciosLidosClose) {
+  btnAnunciosLidosClose.addEventListener("click", () => {
+    closeAnnouncementsReadModal();
+  });
+}
+if (btnAnunciosLidosCloseFooter) {
+  btnAnunciosLidosCloseFooter.addEventListener("click", () => {
+    closeAnnouncementsReadModal();
+  });
+}
+if (modalAnunciosLidos) {
+  modalAnunciosLidos.addEventListener("click", (event) => {
+    if (event.target === modalAnunciosLidos) {
+      closeAnnouncementsReadModal();
+    }
+  });
+}
 if (btnAnuncioViewMarkRead) {
   btnAnuncioViewMarkRead.addEventListener("click", () => {
     if (!activeAnnouncementView || !currentUser) {
@@ -43020,6 +43235,7 @@ if (btnAnuncioViewMarkRead) {
     }
     markAnnouncementRead(activeAnnouncementView.id, currentUser);
     renderAnuncios();
+    renderAnunciosLidos();
     renderAnnouncementView(activeAnnouncementView);
   });
 }

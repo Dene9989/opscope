@@ -1259,9 +1259,14 @@
                 <div class="notify-section">
                   <div class="notify-section__header">
                     <span>An&uacute;ncios</span>
-                    <button id="btnNovoAnuncio" class="btn btn--ghost btn--small" type="button" hidden>
-                      Criar an&uacute;ncio
-                    </button>
+                    <div class="notify-section__actions">
+                      <button id="btnAnunciosLidos" class="btn btn--ghost btn--small" type="button">
+                        An&uacute;ncios lidos
+                      </button>
+                      <button id="btnNovoAnuncio" class="btn btn--ghost btn--small" type="button" hidden>
+                        Criar an&uacute;ncio
+                      </button>
+                    </div>
                   </div>
                   <div id="listaAnuncios" class="lembretes"></div>
                   <p id="anunciosVazio" class="empty-state">Nenhum an&uacute;ncio recente.</p>
@@ -6829,6 +6834,31 @@
             Marcar como lido
           </button>
           <button id="btnAnuncioViewCloseFooter" class="btn btn--ghost" type="button">
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modalAnunciosLidos" class="modal" hidden>
+      <div class="modal__content modal__content--wide">
+        <div class="modal__header">
+          <h3>An&uacute;ncios lidos</h3>
+          <button
+            id="btnAnunciosLidosClose"
+            class="btn btn--ghost btn--icon"
+            type="button"
+            aria-label="Fechar"
+          >
+            <span aria-hidden="true">x</span>
+          </button>
+        </div>
+        <div class="modal__form">
+          <div id="listaAnunciosLidos" class="lembretes"></div>
+          <p id="anunciosLidosVazio" class="empty-state">Nenhum an&uacute;ncio lido.</p>
+        </div>
+        <div class="modal__actions">
+          <button id="btnAnunciosLidosCloseFooter" class="btn btn--ghost" type="button">
             Fechar
           </button>
         </div>
