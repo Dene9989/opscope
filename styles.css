@@ -513,7 +513,7 @@ h1 {
   justify-content: space-between;
   gap: 18px;
   flex-wrap: nowrap;
-  padding: 10px 18px;
+  padding: 8px 18px;
   background: var(--sb-bg);
   border-bottom: 1px solid var(--sb-border);
   box-shadow: none;
@@ -540,6 +540,14 @@ h1 {
   justify-content: center;
   min-width: 0;
   padding: 0 12px;
+}
+
+.topbar-center-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
 }
 
 .topbar-right {
@@ -580,6 +588,12 @@ h1 {
   gap: 2px;
   max-width: 220px;
   line-height: 1.1;
+}
+
+.topbar-status--center {
+  align-items: center;
+  max-width: none;
+  line-height: 1;
 }
 
 .project-switcher {

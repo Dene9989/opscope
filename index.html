@@ -1145,14 +1145,21 @@
             </button>
           </div>
 
-          <div class="topbar-center" aria-live="polite">
-            <div class="crumbs" id="crumbs">
-              <span class="crumbs__label">Projeto:</span>
-              <span class="crumbs__project">-</span>
-              <span class="crumbs__sep">&#8250;</span>
-              <span class="crumbs__module">-</span>
+                    <div class="topbar-center" aria-live="polite">
+            <div class="topbar-center-stack">
+              <div class="crumbs" id="crumbs">
+                <span class="crumbs__label">Projeto:</span>
+                <span class="crumbs__project">-</span>
+                <span class="crumbs__sep">&#8250;</span>
+                <span class="crumbs__module">-</span>
+              </div>
+              <div class="topbar-status topbar-status--center">
+                <span id="syncStatusLabel" class="topbar-sync-meta">?ltima sincroniza??o: --:--</span>
+                <span id="compatStatusLabel" class="topbar-sync-meta">Compatibilidade: --</span>
+              </div>
             </div>
           </div>
+
           <div class="topbar-right">
             <div class="project-switcher">
               <label class="project-switcher__label visually-hidden" id="projectSelectLabel" for="projectSelect">Projeto ativo</label>
@@ -1226,10 +1233,6 @@
               </svg>
               <span class="visually-hidden">Sincronizar</span>
             </button>
-            <div class="topbar-status">
-              <span id="syncStatusLabel" class="topbar-sync-meta">?ltima sincroniza??o: --:--</span>
-              <span id="compatStatusLabel" class="topbar-sync-meta">Compatibilidade: --</span>
-            </div>
             <div class="notify">
               <button
                 id="btnBell"
