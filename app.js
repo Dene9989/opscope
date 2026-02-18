@@ -12779,18 +12779,18 @@ function renderDashboardHome() {
   const renderKpiCard = (label, value) =>
     `<article class="kpi-card"><span>${label}</span><strong>${value}</strong></article>`;
 
-  const atrasoMedioPct = Math.round((Number(saudeOperacional.atrasoMedioDias) || 0) * 100);
+  const atrasoMedioPct = Math.round((Number(saudeFinal.atrasoMedioDias) || 0) * 100);
   const pieValues = [
-    Number(saudeOperacional.pontualidadePct) || 0,
-    Number(saudeOperacional.backlogTotal) || 0,
-    Number(saudeOperacional.concluidasPeriodo) || 0,
+    Number(saudeFinal.pontualidadePct) || 0,
+    Number(saudeFinal.backlogTotal) || 0,
+    Number(saudeFinal.concluidasPeriodo) || 0,
     atrasoMedioPct,
   ];
   const pieLabels = ["Pontualidade", "Backlog", "Concluídas", "Atraso médio"];
   const pieDisplay = [
-    `${saudeOperacional.pontualidadePct}%`,
-    String(saudeOperacional.backlogTotal),
-    String(saudeOperacional.concluidasPeriodo),
+    `${saudeFinal.pontualidadePct}%`,
+    String(saudeFinal.backlogTotal),
+    String(saudeFinal.concluidasPeriodo),
     `${atrasoMedioPct}%`,
   ];
   const chart = buildNeonPieChart(pieValues, pieLabels, pieDisplay);
@@ -12811,25 +12811,29 @@ function renderDashboardHome() {
         "Pontualidade",
         `${pontualidadePct}%`,
         "#22c55e",
-        buildEfficiencyBar(pontualidadePct)
+        buildEfficiencyBar(pontualidadePct),
+        "Percentual de entregas no prazo."
       )}
       ${buildEfficiencyKpiBlock(
         "Atraso médio",
         atrasoLabel,
         "#ef4444",
-        buildEfficiencyBar(atrasoScale)
+        buildEfficiencyBar(atrasoScale),
+        "Tempo médio de atraso (dias)."
       )}
       ${buildEfficiencyKpiBlock(
         "Backlog",
         String(backlogTotal),
         "#3b82f6",
-        backlogBars
+        backlogBars,
+        "Pendências acumuladas."
       )}
       ${buildEfficiencyKpiBlock(
         "Concluídas",
         String(concluidasTotal),
         "#facc15",
-        concluidasBars
+        concluidasBars,
+        "Volume total concluído no período."
       )}
     </div>
   `;
@@ -12914,19 +12918,19 @@ function renderDashboardHome() {
             <div class="health-grid">
               <div class="health-item">
                 <span>Pontualidade</span>
-                <strong>${saudeOperacional.pontualidadePct}%</strong>
+                <strong>${saudeFinal.pontualidadePct}%</strong>
               </div>
               <div class="health-item">
                 <span>Backlog</span>
-                <strong>${saudeOperacional.backlogTotal}</strong>
+                <strong>${saudeFinal.backlogTotal}</strong>
               </div>
               <div class="health-item">
                 <span>Concluídas</span>
-                <strong>${saudeOperacional.concluidasPeriodo}</strong>
+                <strong>${saudeFinal.concluidasPeriodo}</strong>
               </div>
               <div class="health-item">
                 <span>Atraso médio</span>
-                <strong>${saudeOperacional.atrasoMedioDias}d</strong>
+                <strong>${saudeFinal.atrasoMedioDias}d</strong>
               </div>
             </div>
           </article>
@@ -12941,10 +12945,7 @@ function renderDashboardHome() {
               <h3>EFICIÊNCIA OPERACIONAL</h3>
               <span class="trend-tag">+8%</span>
             </div>
-            <div class="mini-chart neon-pie" data-tooltip="Distribuição operacional: Pontualidade mostra o percentual de entregas no prazo; Backlog indica tarefas pendentes; Concluídas mostra o volume finalizado no período; Atraso médio reflete o desvio médio em dias. Passe o mouse para revisar estes indicadores.">
-              <div class="neon-tooltip">
-                Distribuição operacional: Pontualidade mostra o percentual de entregas no prazo; Backlog indica tarefas pendentes; Concluídas mostra o volume finalizado no período; Atraso médio reflete o desvio médio em dias.
-              </div>
+            <div class="mini-chart neon-pie">
               ${efficiencyKpisHtml}
               <div class="pie-legend">
                 <div class="pie-legend__item">
@@ -12955,24 +12956,24 @@ function renderDashboardHome() {
                   </div>
                 </div>
                 <div class="pie-legend__item">
+                  <span class="pie-legend__dot pie-legend__dot--red"></span>
+                  <div>
+                    <strong>Atraso médio</strong>
+                    <span>Tempo médio de atraso (dias).</span>
+                  </div>
+                </div>
+                <div class="pie-legend__item">
                   <span class="pie-legend__dot pie-legend__dot--blue"></span>
                   <div>
                     <strong>Backlog</strong>
-                    <span>Tarefas pendentes e não executadas.</span>
+                    <span>Pendências acumuladas.</span>
                   </div>
                 </div>
                 <div class="pie-legend__item">
                   <span class="pie-legend__dot pie-legend__dot--yellow"></span>
                   <div>
                     <strong>Concluídas</strong>
-                    <span>Volume finalizado no período atual.</span>
-                  </div>
-                </div>
-                <div class="pie-legend__item">
-                  <span class="pie-legend__dot pie-legend__dot--red"></span>
-                  <div>
-                    <strong>Atraso médio</strong>
-                    <span>Percentual médio de atraso das atividades.</span>
+                    <span>Volume total concluído no período.</span>
                   </div>
                 </div>
               </div>
@@ -13080,7 +13081,10 @@ function buildEfficiencyBars(values, maxBars = 8) {
   return `<div class="efficiency-kpi__bars">${bars}</div>`;
 }
 
-function buildEfficiencyKpiBlock(label, value, accentColor, detailHtml) {
+function buildEfficiencyKpiBlock(label, value, accentColor, detailHtml, tooltipText) {
+  const tooltip = tooltipText
+    ? `<div class="efficiency-kpi__tooltip" role="tooltip">${escapeHtml(tooltipText)}</div>`
+    : "";
   return `
     <div class="efficiency-kpi" style="--accent-color:${accentColor}">
       <div class="efficiency-kpi__label">
@@ -13089,6 +13093,7 @@ function buildEfficiencyKpiBlock(label, value, accentColor, detailHtml) {
       </div>
       <div class="efficiency-kpi__value">${escapeHtml(value)}</div>
       ${detailHtml || ""}
+      ${tooltip}
     </div>
   `;
 }
@@ -39590,8 +39595,6 @@ function buildLocalDashboardSummary(items, projectId) {
     return due && due < today;
   }).length;
 
-  const sevenDaysAgo = startOfDay(addDays(today, -6));
-  const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
   let concluidasTotal = 0;
   let concluidasNoPrazo = 0;
   let concluidasPeriodo = 0;
@@ -39603,17 +39606,12 @@ function buildLocalDashboardSummary(items, projectId) {
       missingCompletionDates += 1;
     }
     const completedDay = startOfDay(completedAt);
-    const inPeriodo = completedDay >= sevenDaysAgo && completedDay <= today;
-    if (inPeriodo) {
-      concluidasTotal += 1;
-      const due = getMaintenanceDueDate(item);
-      if (!due || completedDay <= due) {
-        concluidasNoPrazo += 1;
-      }
+    concluidasTotal += 1;
+    const due = getMaintenanceDueDate(item);
+    if (!due || completedDay <= due) {
+      concluidasNoPrazo += 1;
     }
-    if (completedAt >= last24h && completedAt <= new Date()) {
-      concluidasPeriodo += 1;
-    }
+    concluidasPeriodo += 1;
   });
 
   const pontualidadePct = concluidasTotal
