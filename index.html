@@ -1146,109 +1146,35 @@
           </div>
 
           <div class="topbar-center" aria-live="polite">
-            <div class="crumbs" id="crumbs">
-              <span class="crumbs__label">Projeto:</span>
-              <span class="crumbs__project">-</span>
-              <span class="crumbs__sep">&#8250;</span>
-              <span class="crumbs__module">-</span>
+            <div class="topbar-info">
+              <div class="crumbs" id="crumbs">
+                <span class="crumbs__label">Projeto:</span>
+                <span class="crumbs__project">-</span>
+                <span class="crumbs__sep">&#8250;</span>
+                <span class="crumbs__module">-</span>
+              </div>
+              <div class="topbar-meta">
+                <div class="topbar-status">
+                  <span id="syncStatusLabel" class="topbar-sync-meta">Última sincronização: --:--</span>
+                  <span id="compatStatusLabel" class="topbar-sync-meta">Compatibilidade: --</span>
+                </div>
+                <div class="project-switcher">
+                  <label class="project-switcher__label" id="projectSelectLabel" for="projectSelect">Projeto ativo</label>
+                  <div class="project-switcher__control">
+                    <select id="projectSelect" aria-label="Selecionar projeto ativo">
+                      <option value="">Sem projetos</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <div class="topbar-right">
-            <button id="btnDashboard" class="btn btn--ghost btn--small topbar-dashboard" type="button" aria-label="Voltar ao Dashboard">
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path
-                  d="M3 11.5 12 4l9 7.5v7.5a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-              <span class="visually-hidden">Voltar ao Dashboard</span>
-            </button>
-            <button id="btnHelp" class="btn btn--ghost btn--small topbar-help" type="button" aria-label="Ajuda / Como usar">
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6" />
-                <path
-                  d="M9.5 9.2a2.7 2.7 0 1 1 4.8 1.6c-.8.9-1.9 1.3-1.9 2.8"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                />
-                <circle cx="12" cy="16.6" r="1" fill="currentColor" />
-              </svg>
-              <span class="visually-hidden">Ajuda / Como usar</span>
-            </button>
-            <button id="btnSyncSite" class="btn btn--ghost btn--small topbar-sync" type="button" aria-label="Sincronizar atualizações">
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path
-                  d="M4.5 12a7.5 7.5 0 0 1 12.9-4.9"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-                <path
-                  d="M17.4 3.8v4.1H13.3"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-                <path
-                  d="M19.5 12a7.5 7.5 0 0 1-12.9 4.9"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-                <path
-                  d="M6.6 20.2v-4.1h4.1"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-              <span class="visually-hidden">Sincronizar</span>
-            </button>
-            <div class="topbar-status">
-              <span id="syncStatusLabel" class="topbar-sync-meta">Última sincronização: --:--</span>
-              <span id="compatStatusLabel" class="topbar-sync-meta">Compatibilidade: --</span>
-            </div>
-            <div class="project-switcher">
-              <label class="project-switcher__label visually-hidden" id="projectSelectLabel" for="projectSelect">Projeto ativo</label>
-              <div class="project-switcher__control">
-                <select id="projectSelect" aria-label="Selecionar projeto ativo">
-                  <option value="">Sem projetos</option>
-                </select>
-              </div>
-            </div>
-            <div class="notify">
-              <button
-                id="btnBell"
-                class="icon-btn"
-                type="button"
-                aria-label="Notifica&ccedil;&otilde;es"
-                aria-expanded="false"
-              >
-                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <div class="topbar-actions" aria-label="Ações rápidas">
+              <button id="btnDashboard" class="btn btn--ghost btn--small topbar-dashboard" type="button" aria-label="Voltar ao Dashboard">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                   <path
-                    d="M6 9a6 6 0 1 1 12 0c0 4 2 4 2 5H4c0-1 2-1 2-5Z"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                  <path
-                    d="M9.5 19a2.5 2.5 0 0 0 5 0"
+                    d="M3 11.5 12 4l9 7.5v7.5a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"
                     fill="none"
                     stroke="currentColor"
                     stroke-width="1.6"
@@ -1256,66 +1182,146 @@
                     stroke-linejoin="round"
                   />
                 </svg>
-                <span class="bell-dot" id="bellDot" hidden></span>
+                <span class="visually-hidden">Voltar ao Dashboard</span>
               </button>
-              <div id="painelLembretes" class="notify-panel" hidden>
-                <div class="notify-section">
-                  <div class="notify-section__header">
-                    <span>An&uacute;ncios</span>
-                    <div class="notify-section__actions">
-                      <button id="btnAnunciosLidos" class="btn btn--ghost btn--small" type="button">
-                        An&uacute;ncios lidos
-                      </button>
-                      <button id="btnNovoAnuncio" class="btn btn--ghost btn--small" type="button" hidden>
-                        Criar an&uacute;ncio
-                      </button>
-                    </div>
-                  </div>
-                  <div id="listaAnuncios" class="lembretes"></div>
-                  <p id="anunciosVazio" class="empty-state">Nenhum an&uacute;ncio recente.</p>
-                </div>
-                <div class="notify-divider"></div>
-                <div class="notify-section">
-                  <div class="notify-section__header">
-                    <span>Manuten&ccedil;&otilde;es pr&oacute;ximas</span>
-                  </div>
-                  <div id="listaLembretes" class="lembretes"></div>
-                  <p id="lembretesVazio" class="empty-state">Nenhuma manuten&ccedil;&atilde;o pr&oacute;xima.</p>
-                </div>
-              </div>
-            </div>
-            <div class="notify">
-              <button
-                id="btnFeedbackInbox"
-                class="icon-btn"
-                type="button"
-                aria-label="Feedbacks"
-                aria-expanded="false"
-              >
-                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <button id="btnHelp" class="btn btn--ghost btn--small topbar-help" type="button" aria-label="Ajuda / Como usar">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6" />
                   <path
-                    d="M4 5h16v10H7l-3 3V5Z"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    stroke-linejoin="round"
-                  />
-                  <path
-                    d="M8 9h8M8 12h5"
+                    d="M9.5 9.2a2.7 2.7 0 1 1 4.8 1.6c-.8.9-1.9 1.3-1.9 2.8"
                     fill="none"
                     stroke="currentColor"
                     stroke-width="1.6"
                     stroke-linecap="round"
                   />
+                  <circle cx="12" cy="16.6" r="1" fill="currentColor" />
                 </svg>
-                <span class="bell-dot" id="feedbackInboxDot" hidden></span>
+                <span class="visually-hidden">Ajuda / Como usar</span>
               </button>
-              <div id="feedbackInboxPanel" class="notify-panel" hidden>
-                <div id="feedbackInboxList" class="lembretes"></div>
-                <p id="feedbackInboxEmpty" class="empty-state">Nenhum feedback recebido.</p>
-                <button id="feedbackInboxLink" class="btn btn--ghost btn--small" type="button">
-                  Ver todos
+              <button id="btnSyncSite" class="btn btn--ghost btn--small topbar-sync" type="button" aria-label="Sincronizar atualizações">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M4.5 12a7.5 7.5 0 0 1 12.9-4.9"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M17.4 3.8v4.1H13.3"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M19.5 12a7.5 7.5 0 0 1-12.9 4.9"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M6.6 20.2v-4.1h4.1"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span class="visually-hidden">Sincronizar</span>
+              </button>
+              <div class="notify">
+                <button
+                  id="btnBell"
+                  class="icon-btn"
+                  type="button"
+                  aria-label="Notifica&ccedil;&otilde;es"
+                  aria-expanded="false"
+                >
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M6 9a6 6 0 1 1 12 0c0 4 2 4 2 5H4c0-1 2-1 2-5Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M9.5 19a2.5 2.5 0 0 0 5 0"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                  <span class="bell-dot" id="bellDot" hidden></span>
                 </button>
+                <div id="painelLembretes" class="notify-panel" hidden>
+                  <div class="notify-section">
+                    <div class="notify-section__header">
+                      <span>An&uacute;ncios</span>
+                      <div class="notify-section__actions">
+                        <button id="btnAnunciosLidos" class="btn btn--ghost btn--small" type="button">
+                          An&uacute;ncios lidos
+                        </button>
+                        <button id="btnNovoAnuncio" class="btn btn--ghost btn--small" type="button" hidden>
+                          Criar an&uacute;ncio
+                        </button>
+                      </div>
+                    </div>
+                    <div id="listaAnuncios" class="lembretes"></div>
+                    <p id="anunciosVazio" class="empty-state">Nenhum an&uacute;ncio recente.</p>
+                  </div>
+                  <div class="notify-divider"></div>
+                  <div class="notify-section">
+                    <div class="notify-section__header">
+                      <span>Manuten&ccedil;&otilde;es pr&oacute;ximas</span>
+                    </div>
+                    <div id="listaLembretes" class="lembretes"></div>
+                    <p id="lembretesVazio" class="empty-state">Nenhuma manuten&ccedil;&atilde;o pr&oacute;xima.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="notify">
+                <button
+                  id="btnFeedbackInbox"
+                  class="icon-btn"
+                  type="button"
+                  aria-label="Mensagens"
+                  aria-expanded="false"
+                >
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M4 5h16v10H7l-3 3V5Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M8 9h8M8 12h5"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                  <span class="bell-dot" id="feedbackInboxDot" hidden></span>
+                </button>
+                <div id="feedbackInboxPanel" class="notify-panel" hidden>
+                  <div id="feedbackInboxList" class="lembretes"></div>
+                  <p id="feedbackInboxEmpty" class="empty-state">Nenhum feedback recebido.</p>
+                  <button id="feedbackInboxLink" class="btn btn--ghost btn--small" type="button">
+                    Ver todos
+                  </button>
+                </div>
               </div>
             </div>
             <div class="user-menu" id="userMenu">
