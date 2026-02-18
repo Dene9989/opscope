@@ -513,7 +513,7 @@ h1 {
   justify-content: space-between;
   gap: 18px;
   flex-wrap: wrap;
-  padding: 8px 18px;
+  padding: 6px 18px;
   background: var(--sb-bg);
   border-bottom: 1px solid var(--sb-border);
   box-shadow: none;
@@ -551,7 +551,7 @@ h1 {
 }
 
 .topbar-sync-meta {
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   color: var(--sb-muted);
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -577,23 +577,24 @@ h1 {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
+  gap: 2px;
   max-width: none;
-  line-height: 1.1;
+  line-height: 1.05;
 }
 
 .topbar-info {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   width: 100%;
 }
 
 .topbar-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: max-content minmax(240px, 1fr);
+  align-items: start;
+  column-gap: 18px;
+  row-gap: 4px;
   width: 100%;
 }
 
@@ -608,10 +609,10 @@ h1 {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
-  min-width: 280px;
-  max-width: 520px;
-  flex: 1 1 280px;
+  gap: 4px;
+  min-width: 240px;
+  max-width: 480px;
+  flex: 1 1 240px;
   width: 100%;
 }
 
@@ -623,9 +624,9 @@ h1 {
 }
 
 .project-switcher__label {
-  font-size: 0.7rem;
+  font-size: 0.62rem;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   color: var(--sb-text-soft, rgba(233, 239, 247, 0.7));
 }
 
@@ -789,8 +790,8 @@ h1 {
 }
 
 .crumbs {
-  font-size: 0.9rem;
-  letter-spacing: 0.08em;
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
   text-transform: none;
   color: var(--sb-muted);
   font-weight: 500;
