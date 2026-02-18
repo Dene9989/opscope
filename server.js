@@ -3749,6 +3749,19 @@ function isCritical(item) {
   );
 }
 
+function hasExecucaoRegistrada(item) {
+  if (!item || !item.registroExecucao) {
+    return false;
+  }
+  const registro = item.registroExecucao;
+  return Boolean(
+    registro.registradoEm ||
+      registro.comentario ||
+      registro.resultado ||
+      registro.observacaoExecucao
+  );
+}
+
 function getItemTitle(item) {
   return (
     String(item.atividade || item.titulo || item.nome || item.task || "Atividade").trim() ||
@@ -5644,16 +5657,23 @@ function buildDashboardSummary(items, projectId) {
   });
 
   const venceHoje = pendingItems.filter((item) => {
+    if (hasExecucaoRegistrada(item)) {
+      return false;
+    }
     const due = getDueDate(item);
     return due && isSameDay(due, today);
   }).length;
 
   const atrasadas = pendingItems.filter((item) => {
+    if (hasExecucaoRegistrada(item)) {
+      return false;
+    }
     const due = getDueDate(item);
     return due && due < today;
   }).length;
 
   const criticas = pendingItems.filter((item) => isCritical(item)).length;
+  const aguardandoConclusao = pendingItems.filter((item) => hasExecucaoRegistrada(item)).length;
 
   const score = atrasadas * 2 + criticas * 3 + venceHoje;
   let riscoImediato = "Baixo";
@@ -5699,6 +5719,9 @@ function buildDashboardSummary(items, projectId) {
   }
 
   const backlogTotal = pendingItems.filter((item) => {
+    if (hasExecucaoRegistrada(item)) {
+      return false;
+    }
     const status = normalizeStatus(item.status);
     if (status === "backlog") {
       return true;
@@ -5710,8 +5733,6 @@ function buildDashboardSummary(items, projectId) {
     return due && due < today;
   }).length;
 
-  const sevenDaysAgo = startOfDay(addDays(today, -6));
-  const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
   let concluidasTotal = 0;
   let concluidasNoPrazo = 0;
   let concluidasPeriodo = 0;
@@ -5723,17 +5744,12 @@ function buildDashboardSummary(items, projectId) {
       missingCompletionDates += 1;
     }
     const completedDay = startOfDay(completedAt);
-    const inPeriodo = completedDay >= sevenDaysAgo && completedDay <= today;
-    if (inPeriodo) {
-      concluidasTotal += 1;
-      const due = getDueDate(item);
-      if (!due || completedDay <= due) {
-        concluidasNoPrazo += 1;
-      }
+    concluidasTotal += 1;
+    const due = getDueDate(item);
+    if (!due || completedDay <= due) {
+      concluidasNoPrazo += 1;
     }
-    if (completedAt >= last24h && completedAt <= new Date()) {
-      concluidasPeriodo += 1;
-    }
+    concluidasPeriodo += 1;
   });
 
   const pontualidadePct = concluidasTotal
@@ -5786,9 +5802,11 @@ function buildDashboardSummary(items, projectId) {
 
   const labels = [];
   const serie = [];
+  const recentDays = [];
   for (let i = 0; i < 7; i += 1) {
     const day = startOfDay(addDays(today, -6 + i));
     labels.push(formatShortLabel(day));
+    recentDays.push(day);
     const programadas = items.filter((item) => {
       const due = getDueDate(item);
       if (!due || !isSameDay(due, day)) {
@@ -5822,12 +5840,41 @@ function buildDashboardSummary(items, projectId) {
     );
   }
 
+  const miniSeries = {
+    backlog: recentDays.map((day) => {
+      return pendingItems.filter((item) => {
+        if (hasExecucaoRegistrada(item)) {
+          return false;
+        }
+        const status = normalizeStatus(item.status);
+        if (status === "backlog") {
+          return true;
+        }
+        if (status === "em_execucao" || status === "encerramento") {
+          return false;
+        }
+        const due = getDueDate(item);
+        return due && due < day;
+      }).length;
+    }),
+    concluidas: recentDays.map((day) => {
+      return completedItems.filter((item) => {
+        const completedAt = getCompletedAt(item);
+        if (!completedAt) {
+          return false;
+        }
+        return isSameDay(completedAt, day);
+      }).length;
+    }),
+  };
+
   return {
     kpis: {
       venceHoje,
       atrasadas,
       criticas,
       riscoImediato,
+      aguardandoConclusao,
     },
     alertasOperacionais,
     saudeOperacional: {
@@ -5837,6 +5884,7 @@ function buildDashboardSummary(items, projectId) {
       atrasoMedioDias,
     },
     proximasAtividades,
+    miniSeries,
     graficoEficiencia: {
       labels,
       serie,

@@ -6077,6 +6077,8 @@ async function apiRequest(path, options = {}) {
   }
   let response;
   try {
+    const method = String(options.method || "GET").toUpperCase();
+    const cache = options.cache || (method === "GET" ? "no-store" : undefined);
     response = await fetch(`${API_BASE}${path}`, {
       credentials: "include",
       headers: {
@@ -6084,6 +6086,7 @@ async function apiRequest(path, options = {}) {
         ...(options.headers || {}),
       },
       signal: controller ? controller.signal : undefined,
+      cache,
       ...options,
     });
   } catch (error) {
@@ -13064,21 +13067,35 @@ function renderDashboardHome() {
     dashboardHome.innerHTML = `<p class="dashboard-message">${mensagem}</p>`;
     return;
   }
-  const { kpis, saudeOperacional, graficoEficiencia, proximasAtividades } =
-    dashboardSummary;
-  const scopedManutencoes = Array.isArray(manutencoes)
+  const {
+    kpis,
+    saudeOperacional,
+    graficoEficiencia,
+    proximasAtividades,
+    miniSeries: summaryMiniSeries,
+  } = dashboardSummary;
+  const useLocalSummary = !STRICT_SERVER_SYNC;
+  const scopedManutencoes = useLocalSummary && Array.isArray(manutencoes)
     ? manutencoes.filter(
         (item) =>
           item && (!activeProjectId || !item.projectId || item.projectId === activeProjectId)
       )
     : [];
-  const localSummary = buildLocalDashboardSummary(scopedManutencoes, activeProjectId);
-  const kpisFinal = { ...(kpis || {}), ...(localSummary.kpis || {}) };
-  const saudeFinal = {
-    ...(saudeOperacional || {}),
-    ...(localSummary.saudeOperacional || {}),
-  };
-  const miniSeries = (localSummary && localSummary.miniSeries) || {};
+  const localSummary = useLocalSummary
+    ? buildLocalDashboardSummary(scopedManutencoes, activeProjectId)
+    : null;
+  const kpisFinal = useLocalSummary
+    ? { ...(kpis || {}), ...(localSummary ? localSummary.kpis || {} : {}) }
+    : (kpis || {});
+  const saudeFinal = useLocalSummary
+    ? {
+        ...(saudeOperacional || {}),
+        ...(localSummary ? localSummary.saudeOperacional || {} : {}),
+      }
+    : (saudeOperacional || {});
+  const miniSeries = useLocalSummary
+    ? (localSummary && localSummary.miniSeries) || {}
+    : (summaryMiniSeries || {});
 
   const renderKpiCard = (label, value) =>
     `<article class="kpi-card"><span>${label}</span><strong>${value}</strong></article>`;
@@ -14712,7 +14729,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
 
   const badge = document.createElement("span");
   const statusBase =
-    item.status === "concluida"
+    item.status === "concluída"
       ? "concluida"
       : item.status === "em_execucao"
         ? "em_execucao"
@@ -14725,7 +14742,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
       : diff === 0
         ? "hoje"
         : diff === 1
-          ? "amanha"
+          ? "amanhã"
           : "agendada";
   const label =
     statusBase === "concluida"
@@ -41425,7 +41442,8 @@ function scheduleMaintenanceSync(items, force) {
   }
   if (STRICT_SERVER_SYNC) {
     syncMaintenanceNow(items, true)
-      .then(() => {
+      .then(async () => {
+        await carregarManutencoesServidor(true);
         loadDashboardSummary(true, { skipSync: true });
       })
       .catch(() => {
@@ -41469,7 +41487,8 @@ async function loadDashboardSummary(force, options = {}) {
   if (!force && dashboardRequest) {
     return;
   }
-  if (!force && dashboardSummary && agora - dashboardLastFetch < DASHBOARD_CLIENT_TTL_MS) {
+  const dashboardTtl = STRICT_SERVER_SYNC ? 0 : DASHBOARD_CLIENT_TTL_MS;
+  if (!force && dashboardSummary && agora - dashboardLastFetch < dashboardTtl) {
     return;
   }
   dashboardError = "";
