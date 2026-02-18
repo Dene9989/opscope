@@ -9628,6 +9628,12 @@ textarea:focus {
   border: 1px solid var(--border);
 }
 
+#modalAnuncioView .announcement-tag,
+#modalAnuncioView .announcement-severity {
+  font-size: 0.7rem;
+  padding: 3px 10px;
+}
+
 .announcement-images {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));

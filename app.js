@@ -2116,6 +2116,7 @@ const ACCESS_PERMISSION_MODULE_ORDER = [
   "Arquivos",
   "RDOs",
   "Relatorios & KPIs",
+  "Comunicação",
   "Automacoes",
   "Diagnostico",
   "Logs & Rastreabilidade",
@@ -4372,6 +4373,7 @@ let dashboardRequest = null;
 let maintenanceSyncTimer = null;
 let maintenanceSyncPromise = null;
 let maintenanceLastSync = 0;
+let maintenanceSyncFailed = false;
 let maintenanceLastUserId = null;
 let maintenanceLastFetch = 0;
 const maintenanceLoadedProjects = new Set();
@@ -6047,6 +6049,7 @@ function isProjectStorageKey(eventKey, baseKey) {
 const API_BASE = "";
 const USE_AUTH_API = true;
 const USE_SST_INSPECTIONS_API = true;
+const STRICT_SERVER_SYNC = USE_AUTH_API;
 const API_TIMEOUT_MS = 15000;
 const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
 const AVATAR_ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];
@@ -34743,40 +34746,44 @@ async function carregarManutencoesServidor(force = false) {
   try {
     const data = await apiMaintenanceList(activeProjectId);
     if (data && Array.isArray(data.items)) {
-      const localCache = readJson(getProjectStorageKey(STORAGE_KEY), []);
-      const localMap = new Map(
-        Array.isArray(localCache)
-          ? localCache.filter((item) => item && item.id).map((item) => [item.id, item])
-          : []
-      );
       let needsSync = false;
-      const merged = data.items.map((item) => {
-        const resolved = pickMaintenanceMerge(item, localMap.get(item.id));
-        if (resolved.source === "local") {
-          needsSync = true;
-        }
-        return resolved.item;
-      });
-      const lastFetchAt = maintenanceLastFetch;
-      const remoteIds = new Set(
-        data.items.map((item) => (item && item.id ? String(item.id) : "")).filter(Boolean)
-      );
-      if (Array.isArray(localCache)) {
-        localCache.forEach((item) => {
-          if (!item || !item.id) {
-            return;
+      if (STRICT_SERVER_SYNC) {
+        manutencoes = data.items.slice();
+      } else {
+        const localCache = readJson(getProjectStorageKey(STORAGE_KEY), []);
+        const localMap = new Map(
+          Array.isArray(localCache)
+            ? localCache.filter((item) => item && item.id).map((item) => [item.id, item])
+            : []
+        );
+        const merged = data.items.map((item) => {
+          const resolved = pickMaintenanceMerge(item, localMap.get(item.id));
+          if (resolved.source === "local") {
+            needsSync = true;
           }
-          const id = String(item.id);
-          if (!remoteIds.has(id)) {
-            const updatedAt = getMaintenanceUpdatedAtValue(item);
-            if (lastFetchAt > 0 && updatedAt > lastFetchAt) {
-              merged.push(item);
-              needsSync = true;
-            }
-          }
+          return resolved.item;
         });
+        const lastFetchAt = maintenanceLastFetch;
+        const remoteIds = new Set(
+          data.items.map((item) => (item && item.id ? String(item.id) : "")).filter(Boolean)
+        );
+        if (Array.isArray(localCache)) {
+          localCache.forEach((item) => {
+            if (!item || !item.id) {
+              return;
+            }
+            const id = String(item.id);
+            if (!remoteIds.has(id)) {
+              const updatedAt = getMaintenanceUpdatedAtValue(item);
+              if (lastFetchAt > 0 && updatedAt > lastFetchAt) {
+                merged.push(item);
+                needsSync = true;
+              }
+            }
+          });
+        }
+        manutencoes = merged;
       }
-      manutencoes = merged;
       const payloadHash = syncDebugEnabled
         ? hashString(JSON.stringify(data.items))
         : "";
@@ -34800,7 +34807,10 @@ async function carregarManutencoesServidor(force = false) {
       triggerExecucaoRegistradaAlertIfDue();
     }
   } catch (error) {
-    // fallback silencioso
+    if (STRICT_SERVER_SYNC) {
+      maintenanceSyncFailed = true;
+      showAuthToast("Falha ao carregar dados do servidor. Tente sincronizar novamente.");
+    }
   }
 }
 
@@ -41374,27 +41384,30 @@ async function apiSstPermitCreate(payload) {
 
 async function syncMaintenanceNow(items, force) {
   if (!USE_AUTH_API) {
-    return;
+    return { ok: true, skipped: true };
   }
   if (!currentUser) {
-    return;
+    return { ok: false, skipped: true };
   }
   if (!activeProjectId) {
-    return;
+    return { ok: false, skipped: true };
   }
   if (maintenanceSyncPromise) {
     return maintenanceSyncPromise;
   }
   if (!force && Date.now() - maintenanceLastSync < 10 * 1000) {
-    return;
+    return { ok: true, skipped: true };
   }
   maintenanceSyncPromise = apiMaintenanceSync(items);
   try {
     await maintenanceSyncPromise;
     maintenanceLastSync = Date.now();
     maintenanceLastUserId = currentUser.id;
+    maintenanceSyncFailed = false;
+    return { ok: true };
   } catch (error) {
-    // Falha silenciosa; dashboard trata fallback.
+    maintenanceSyncFailed = true;
+    throw error;
   } finally {
     maintenanceSyncPromise = null;
   }
@@ -41408,6 +41421,17 @@ function scheduleMaintenanceSync(items, force) {
     return;
   }
   if (!activeProjectId) {
+    return;
+  }
+  if (STRICT_SERVER_SYNC) {
+    syncMaintenanceNow(items, true)
+      .then(() => {
+        loadDashboardSummary(true, { skipSync: true });
+      })
+      .catch(() => {
+        showAuthToast("Falha ao sincronizar. Alterações não aplicadas para todos.");
+        carregarManutencoesServidor(true);
+      });
     return;
   }
   if (!maintenanceLoadedProjects.has(activeProjectId) && !force) {
@@ -41451,7 +41475,14 @@ async function loadDashboardSummary(force, options = {}) {
   dashboardError = "";
   dashboardRequest = (async () => {
     if (USE_AUTH_API && !options.skipSync) {
-      await syncMaintenanceNow(manutencoes, force || !dashboardSummary);
+      try {
+        await syncMaintenanceNow(manutencoes, force || !dashboardSummary);
+      } catch (error) {
+        if (STRICT_SERVER_SYNC) {
+          showAuthToast("Falha de sincronização. Recarregando dados do servidor.");
+          await carregarManutencoesServidor(true);
+        }
+      }
     }
     return apiDashboardSummary();
   })();
