@@ -12765,6 +12765,11 @@ function renderDashboardHome() {
     : [];
   const localSummary = buildLocalDashboardSummary(scopedManutencoes, activeProjectId);
   const kpisFinal = { ...(kpis || {}), ...(localSummary.kpis || {}) };
+  const saudeFinal = {
+    ...(saudeOperacional || {}),
+    ...(localSummary.saudeOperacional || {}),
+  };
+  const miniSeries = (localSummary && localSummary.miniSeries) || {};
 
   const renderKpiCard = (label, value) =>
     `<article class="kpi-card"><span>${label}</span><strong>${value}</strong></article>`;
@@ -12784,6 +12789,45 @@ function renderDashboardHome() {
     `${atrasoMedioPct}%`,
   ];
   const chart = buildNeonPieChart(pieValues, pieLabels, pieDisplay);
+
+  const pontualidadePct = clampPercent(Number(saudeFinal.pontualidadePct) || 0);
+  const atrasoMedioDias = Number(saudeFinal.atrasoMedioDias) || 0;
+  const atrasoScale = clampPercent((Math.min(atrasoMedioDias, 10) / 10) * 100);
+  const atrasoLabel = Number.isFinite(atrasoMedioDias)
+    ? `${atrasoMedioDias % 1 ? atrasoMedioDias.toFixed(1) : Math.round(atrasoMedioDias)}d`
+    : "-";
+  const backlogTotal = Number(saudeFinal.backlogTotal) || 0;
+  const concluidasTotal = Number(saudeFinal.concluidasPeriodo) || 0;
+  const backlogBars = buildEfficiencyBars(miniSeries.backlog || []);
+  const concluidasBars = buildEfficiencyBars(miniSeries.concluidas || []);
+  const efficiencyKpisHtml = `
+    <div class="efficiency-kpis">
+      ${buildEfficiencyKpiBlock(
+        "Pontualidade",
+        `${pontualidadePct}%`,
+        "#22c55e",
+        buildEfficiencyBar(pontualidadePct)
+      )}
+      ${buildEfficiencyKpiBlock(
+        "Atraso médio",
+        atrasoLabel,
+        "#ef4444",
+        buildEfficiencyBar(atrasoScale)
+      )}
+      ${buildEfficiencyKpiBlock(
+        "Backlog",
+        String(backlogTotal),
+        "#3b82f6",
+        backlogBars
+      )}
+      ${buildEfficiencyKpiBlock(
+        "Concluídas",
+        String(concluidasTotal),
+        "#facc15",
+        concluidasBars
+      )}
+    </div>
+  `;
 
   const today = startOfDay(new Date());
   const sortedAtividades = Array.isArray(proximasAtividades)
@@ -12892,11 +12936,11 @@ function renderDashboardHome() {
               <h3>EFICIÊNCIA OPERACIONAL</h3>
               <span class="trend-tag">+8%</span>
             </div>
-            <div class="mini-chart neon-pie" data-tooltip="Distribuição operacional em pizza: Pontualidade mostra o percentual de entregas no prazo; Backlog indica tarefas pendentes; Concluídas mostra o volume finalizado no período; Atraso médio reflete o desvio médio em dias. Passe o mouse para revisar estes indicadores.">
+            <div class="mini-chart neon-pie" data-tooltip="Distribuição operacional: Pontualidade mostra o percentual de entregas no prazo; Backlog indica tarefas pendentes; Concluídas mostra o volume finalizado no período; Atraso médio reflete o desvio médio em dias. Passe o mouse para revisar estes indicadores.">
               <div class="neon-tooltip">
-                Distribuição operacional em pizza: Pontualidade mostra o percentual de entregas no prazo; Backlog indica tarefas pendentes; Concluídas mostra o volume finalizado no período; Atraso médio reflete o desvio médio em dias.
+                Distribuição operacional: Pontualidade mostra o percentual de entregas no prazo; Backlog indica tarefas pendentes; Concluídas mostra o volume finalizado no período; Atraso médio reflete o desvio médio em dias.
               </div>
-              ${chart}
+              ${efficiencyKpisHtml}
               <div class="pie-legend">
                 <div class="pie-legend__item">
                   <span class="pie-legend__dot pie-legend__dot--green"></span>
@@ -13005,6 +13049,42 @@ function buildNeonPieChart(series, labels, displayValues = []) {
       </g>
       <circle cx="${center}" cy="${center}" r="20" fill="rgba(12, 26, 40, 0.85)" />
     </svg>
+  `;
+}
+
+function buildEfficiencyBar(valuePercent) {
+  const width = clampPercent(Number(valuePercent) || 0);
+  return `<div class="efficiency-kpi__bar"><span style="width:${width}%"></span></div>`;
+}
+
+function buildEfficiencyBars(values, maxBars = 8) {
+  const safe = Array.isArray(values)
+    ? values.filter((val) => Number.isFinite(val))
+    : [];
+  const slice = safe.slice(-maxBars);
+  const max = slice.length ? Math.max(...slice, 1) : 1;
+  const bars = slice
+    .map((value) => {
+      const height = Math.max(6, Math.round((value / max) * 28));
+      return `<span style="height:${height}px"></span>`;
+    })
+    .join("");
+  if (!bars) {
+    return `<div class="efficiency-kpi__bars efficiency-kpi__bars--empty"><span style="height:6px"></span></div>`;
+  }
+  return `<div class="efficiency-kpi__bars">${bars}</div>`;
+}
+
+function buildEfficiencyKpiBlock(label, value, accentColor, detailHtml) {
+  return `
+    <div class="efficiency-kpi" style="--accent-color:${accentColor}">
+      <div class="efficiency-kpi__label">
+        <span class="efficiency-kpi__dot"></span>
+        <span>${escapeHtml(label)}</span>
+      </div>
+      <div class="efficiency-kpi__value">${escapeHtml(value)}</div>
+      ${detailHtml || ""}
+    </div>
   `;
 }
 
@@ -39581,9 +39661,11 @@ function buildLocalDashboardSummary(items, projectId) {
 
   const labels = [];
   const serie = [];
+  const recentDays = [];
   for (let i = 0; i < 7; i += 1) {
     const day = startOfDay(addDays(today, -6 + i));
     labels.push(formatShortLabel(day));
+    recentDays.push(day);
     const programadas = list.filter((item) => {
       const due = getMaintenanceDueDate(item);
       if (!due || !isSameDay(due, day)) {
@@ -39611,6 +39693,34 @@ function buildLocalDashboardSummary(items, projectId) {
     serie.push(eficiencia);
   }
 
+  const miniSeries = {
+    backlog: recentDays.map((day) => {
+      return pendingItems.filter((item) => {
+        if (hasExecucaoRegistrada(item)) {
+          return false;
+        }
+        const status = normalizeMaintenanceStatus(item && item.status);
+        if (status === "backlog") {
+          return true;
+        }
+        if (status === "em_execucao" || status === "encerramento") {
+          return false;
+        }
+        const due = getMaintenanceDueDate(item);
+        return due && due < day;
+      }).length;
+    }),
+    concluidas: recentDays.map((day) => {
+      return completedItems.filter((item) => {
+        const completedAt = getMaintenanceCompletedAt(item);
+        if (!completedAt) {
+          return false;
+        }
+        return isSameDay(completedAt, day);
+      }).length;
+    }),
+  };
+
   const generatedAt = new Date().toISOString();
 
   return {
@@ -39629,6 +39739,7 @@ function buildLocalDashboardSummary(items, projectId) {
       atrasoMedioDias,
     },
     proximasAtividades,
+    miniSeries,
     graficoEficiencia: {
       labels,
       serie,
