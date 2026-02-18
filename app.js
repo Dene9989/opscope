@@ -11135,7 +11135,11 @@ function can(action) {
   if (currentUser.role === "admin") {
     return true;
   }
-  return Boolean(currentUser.permissions && currentUser.permissions[action]);
+  const permissions = currentUser.permissions || {};
+  if (action === "complete") {
+    return Boolean(permissions.complete || permissions.create);
+  }
+  return Boolean(permissions[action]);
 }
 
 function requirePermission(action) {
@@ -41207,15 +41211,21 @@ function getMaintenanceTitle(item) {
 }
 
 function getMaintenanceOwner(item) {
-  return (
-    String(
-      item.responsavel ||
-        item.executadaPor ||
-        item.owner ||
-        item.responsavelManutencao ||
-        "Equipe"
-    ).trim() || "Equipe"
-  );
+  const raw = String(
+    item.responsavel ||
+      item.executadaPor ||
+      item.owner ||
+      item.responsavelManutencao ||
+      "Equipe"
+  ).trim();
+  if (!raw) {
+    return "Equipe";
+  }
+  if (raw.toLowerCase().startsWith("team:")) {
+    const cleaned = raw.slice(5).trim();
+    return cleaned || "Equipe";
+  }
+  return raw;
 }
 
 function buildLocalDashboardSummary(items, projectId) {
