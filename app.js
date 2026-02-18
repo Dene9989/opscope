@@ -11511,6 +11511,7 @@ function getMaintenanceUpdatedAtValue(item) {
   if (!item || typeof item !== "object") {
     return 0;
   }
+  const registro = item.registroExecucao || {};
   const candidates = [
     item.updatedAt,
     item.doneAt,
@@ -11518,6 +11519,12 @@ function getMaintenanceUpdatedAtValue(item) {
     item.executionStartedAt,
     item.concluidaEm,
     item.dataConclusao,
+    registro.registradoEm,
+    registro.registrado_em,
+    registro.executedAt,
+    registro.executadoEm,
+    item.execucaoRegistradaEm,
+    item.executionRegisteredAt,
     item.createdAt,
   ];
   const times = candidates
@@ -11548,6 +11555,12 @@ function getMaintenanceListFingerprint(list) {
       executionFinishedAt: item.executionFinishedAt || "",
       doneAt: item.doneAt || "",
       participantes: Array.isArray(item.participantes) ? item.participantes.length : 0,
+      execRegistrada: hasExecucaoRegistrada(item) ? 1 : 0,
+      execRegistradaAt:
+        (item.registroExecucao && (item.registroExecucao.registradoEm || item.registroExecucao.registrado_em || item.registroExecucao.executedAt || item.registroExecucao.executadoEm)) ||
+        item.execucaoRegistradaEm ||
+        item.executionRegisteredAt ||
+        "",
     }))
     .sort((a, b) => a.id.localeCompare(b.id));
   return hashString(JSON.stringify(snapshot));
