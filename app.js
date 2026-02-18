@@ -4146,6 +4146,7 @@ const MAINTENANCE_STATE_LABELS = {
   overdue: "ATRASADA",
   released: "LIBERADA",
   planned: "PLANEJADA",
+  awaiting: "AGUARDANDO CONCLUSÃO",
 };
 
 const RESULTADO_LABELS = {
@@ -12720,9 +12721,12 @@ function getMaintenanceState(item, data, hoje) {
   if (!item) {
     return "planned";
   }
-  const status = String(item.status || "").trim().toLowerCase();
+  const status = normalizeMaintenanceStatus(item.status);
   if (status === "concluida" || status === "cancelada") {
     return "planned";
+  }
+  if (hasExecucaoRegistrada(item) && (status === "em_execucao" || status === "encerramento")) {
+    return "awaiting";
   }
   if (data && data.getTime() === hoje.getTime()) {
     return "released";
@@ -12829,6 +12833,7 @@ function renderDashboardHome() {
         <div class="kpi-grid">
           ${renderKpiCard("VENCE HOJE", kpis.venceHoje)}
           ${renderKpiCard("ATRASADAS", kpis.atrasadas)}
+          ${renderKpiCard("AGUARDANDO CONCLUSÃO", kpis.aguardandoConclusao)}
           ${renderKpiCard("CRÍTICAS", kpis.criticas)}
           ${renderKpiCard("RISCO IMEDIATO", kpis.riscoImediato)}
         </div>
@@ -39416,16 +39421,29 @@ function buildLocalDashboardSummary(items, projectId) {
   });
 
   const venceHoje = pendingItems.filter((item) => {
+    if (hasExecucaoRegistrada(item)) {
+      return false;
+    }
     const due = getMaintenanceDueDate(item);
     return due && isSameDay(due, today);
   }).length;
 
   const atrasadas = pendingItems.filter((item) => {
+    if (hasExecucaoRegistrada(item)) {
+      return false;
+    }
     const due = getMaintenanceDueDate(item);
     return due && due < today;
   }).length;
 
   const criticas = pendingItems.filter((item) => isMaintenanceCritical(item)).length;
+  const aguardandoConclusao = pendingItems.filter((item) => {
+    if (!hasExecucaoRegistrada(item)) {
+      return false;
+    }
+    const status = normalizeMaintenanceStatus(item.status);
+    return status === "em_execucao" || status === "encerramento";
+  }).length;
 
   const score = atrasadas * 2 + criticas * 3 + venceHoje;
   let riscoImediato = "Baixo";
@@ -39596,6 +39614,7 @@ function buildLocalDashboardSummary(items, projectId) {
       atrasadas,
       criticas,
       riscoImediato,
+      aguardandoConclusao,
     },
     alertasOperacionais,
     saudeOperacional: {
