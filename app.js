@@ -196,6 +196,7 @@ const projectManageBtn = document.getElementById("projectManageBtn");
 const crumbs = document.getElementById("crumbs");
 const btnDashboard = document.getElementById("btnDashboard");
 const btnHelp = document.getElementById("btnHelp");
+const btnSyncSite = document.getElementById("btnSyncSite");
 const modalHelp = document.getElementById("modalHelp");
 const helpTitle = document.getElementById("helpTitle");
 const helpMeta = document.getElementById("helpMeta");
@@ -4354,6 +4355,7 @@ let syncEventProject = "";
 let syncPollTimer = null;
 let syncDebugEnabled = false;
 let syncLastEventAt = 0;
+let syncSiteRunning = false;
 
 function readJson(key, fallback) {
   const raw = localStorage.getItem(key);
@@ -4434,6 +4436,36 @@ function compactEvidencias(list) {
 function getBuildId() {
   const meta = document.querySelector('meta[name="opscope-build"]');
   return meta ? String(meta.content || "").trim() : "";
+}
+
+async function checkForNewBuildAndReload() {
+  const currentBuild = getBuildId();
+  if (!currentBuild || !window.fetch) {
+    return false;
+  }
+  try {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 4000);
+    const response = await fetch(window.location.href, {
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    window.clearTimeout(timeout);
+    if (!response.ok) {
+      return false;
+    }
+    const html = await response.text();
+    const match = html.match(/<meta[^>]+name=["']opscope-build["'][^>]+content=["']([^"']+)["']/i);
+    const remoteBuild = match ? String(match[1] || "").trim() : "";
+    if (remoteBuild && remoteBuild !== currentBuild) {
+      showAuthToast("Atualização encontrada. Recarregando...");
+      window.location.reload();
+      return true;
+    }
+  } catch (error) {
+    return false;
+  }
+  return false;
 }
 
 function initSyncDebug() {
@@ -4579,6 +4611,62 @@ function startSyncEvents() {
 function restartSyncEvents() {
   stopSyncEvents();
   startSyncEvents();
+}
+
+function setSyncButtonState(isLoading) {
+  if (!btnSyncSite) {
+    return;
+  }
+  btnSyncSite.disabled = isLoading;
+  btnSyncSite.classList.toggle("is-loading", isLoading);
+  btnSyncSite.setAttribute("aria-busy", String(isLoading));
+  const label = btnSyncSite.querySelector("span");
+  if (label) {
+    label.textContent = isLoading ? "Sincronizando..." : "Sincronizar";
+  }
+}
+
+async function syncSiteNow() {
+  if (syncSiteRunning) {
+    return;
+  }
+  if (!currentUser) {
+    showAuthToast("Faça login para sincronizar.");
+    return;
+  }
+  syncSiteRunning = true;
+  setSyncButtonState(true);
+  mostrarCarregando();
+  showAuthToast("Sincronizando atualizações...");
+  try {
+    const reloaded = await checkForNewBuildAndReload();
+    if (reloaded) {
+      return;
+    }
+    if (USE_AUTH_API) {
+      await syncMaintenanceNow(manutencoes, true);
+      await refreshProjects();
+      await refreshAccessData({ force: true });
+      await carregarUsuariosServidor();
+      if (activeProjectId) {
+        await Promise.all([carregarEquipeProjeto(), carregarEquipamentosProjeto()]);
+        await carregarManutencoesServidor(true);
+        await carregarPmpDados();
+      }
+      await loadDashboardSummary(true, { skipSync: true });
+      restartSyncEvents();
+    } else {
+      atualizarSeNecessario();
+    }
+    renderTudo();
+    showAuthToast("Sincronização concluída.");
+  } catch (error) {
+    showAuthToast("Falha ao sincronizar. Tente novamente.");
+  } finally {
+    esconderCarregando();
+    setSyncButtonState(false);
+    syncSiteRunning = false;
+  }
 }
 
 function setProjectFlag(key, value) {
@@ -40709,6 +40797,13 @@ if (btnHelp) {
       return;
     }
     openHelpModal();
+  });
+}
+
+if (btnSyncSite) {
+  btnSyncSite.addEventListener("click", (event) => {
+    event.stopPropagation();
+    syncSiteNow();
   });
 }
 
