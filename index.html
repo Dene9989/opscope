@@ -1146,30 +1146,28 @@
           </div>
 
           <div class="topbar-center" aria-live="polite">
-            <div class="topbar-info">
-              <div class="crumbs" id="crumbs">
-                <span class="crumbs__label">Projeto:</span>
-                <span class="crumbs__project">-</span>
-                <span class="crumbs__sep">&#8250;</span>
-                <span class="crumbs__module">-</span>
-              </div>
-              <div class="topbar-meta">
-                <div class="topbar-status">
-                  <span id="syncStatusLabel" class="topbar-sync-meta">Última sincronização: --:--</span>
-                  <span id="compatStatusLabel" class="topbar-sync-meta">Compatibilidade: --</span>
-                </div>
-                <div class="project-switcher">
-                  <label class="project-switcher__label" id="projectSelectLabel" for="projectSelect">Projeto ativo</label>
-                  <div class="project-switcher__control">
-                    <select id="projectSelect" aria-label="Selecionar projeto ativo">
-                      <option value="">Sem projetos</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
+            <div class="crumbs" id="crumbs">
+              <span class="crumbs__label">Projeto:</span>
+              <span class="crumbs__project">-</span>
+              <span class="crumbs__sep">&#8250;</span>
+              <span class="crumbs__module">-</span>
             </div>
           </div>
           <div class="topbar-right">
+            <div class="topbar-stack">
+              <div class="topbar-status">
+                <span id="syncStatusLabel" class="topbar-sync-meta">Última sincronização: --:--</span>
+                <span id="compatStatusLabel" class="topbar-sync-meta">Compatibilidade: --</span>
+              </div>
+              <div class="project-switcher">
+                <label class="project-switcher__label" id="projectSelectLabel" for="projectSelect">Projeto ativo</label>
+                <div class="project-switcher__control">
+                  <select id="projectSelect" aria-label="Selecionar projeto ativo">
+                    <option value="">Sem projetos</option>
+                  </select>
+                </div>
+              </div>
+            </div>
             <div class="topbar-actions" aria-label="Ações rápidas">
               <button id="btnDashboard" class="btn btn--ghost btn--small topbar-dashboard" type="button" aria-label="Voltar ao Dashboard">
                 <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
