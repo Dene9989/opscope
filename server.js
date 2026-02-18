@@ -156,6 +156,9 @@ const DATA_FILE_NAMES = [
   "audit.json",
   "maintenance.json",
   "maintenance_tombstones.json",
+  "announcements.json",
+  "feedbacks.json",
+  "sst_docs.json",
   "automations.json",
   "api_logs.json",
   "health_tasks.json",
@@ -193,6 +196,9 @@ const INVITES_FILE = path.join(DATA_DIR, "invites.json");
 const AUDIT_FILE = path.join(DATA_DIR, "audit.json");
 const MAINTENANCE_FILE = path.join(DATA_DIR, "maintenance.json");
 const MAINTENANCE_TOMBSTONES_FILE = path.join(DATA_DIR, "maintenance_tombstones.json");
+const ANNOUNCEMENTS_FILE = path.join(DATA_DIR, "announcements.json");
+const FEEDBACKS_FILE = path.join(DATA_DIR, "feedbacks.json");
+const SST_DOCS_FILE = path.join(DATA_DIR, "sst_docs.json");
 const AUTOMATIONS_FILE = path.join(DATA_DIR, "automations.json");
 const UPLOADS_DIR = process.env.OPSCOPE_UPLOADS_DIR
   ? path.resolve(process.env.OPSCOPE_UPLOADS_DIR)
@@ -234,6 +240,9 @@ const STORE_FILES = [
   AUDIT_FILE,
   MAINTENANCE_FILE,
   MAINTENANCE_TOMBSTONES_FILE,
+  ANNOUNCEMENTS_FILE,
+  FEEDBACKS_FILE,
+  SST_DOCS_FILE,
   AUTOMATIONS_FILE,
   API_LOG_FILE,
   HEALTH_TASKS_FILE,
@@ -405,6 +414,8 @@ const PERMISSION_CATALOG = [
 const GRANULAR_PERMISSION_CATALOG = [
   { key: "editarPerfil", label: "Editar perfil (UEN/Projeto)" },
   { key: "editarPerfilOutros", label: "Editar perfil de outros" },
+  { key: "verAnuncios", label: "Ver anúncios" },
+  { key: "criarAnuncios", label: "Criar anúncios" },
   { key: "verUsuarios", label: "Ver usuários" },
   { key: "convidarUsuarios", label: "Convidar usuários" },
   { key: "desativarUsuarios", label: "Desativar usuários" },
@@ -455,6 +466,8 @@ const GRANULAR_PROFILE_CATALOG = [
 const GRANULAR_BASE_PERMISSIONS = {
   editarPerfil: false,
   editarPerfilOutros: false,
+  verAnuncios: true,
+  criarAnuncios: false,
   verUsuarios: false,
   convidarUsuarios: false,
   desativarUsuarios: false,
@@ -582,6 +595,8 @@ const ACCESS_PERMISSION_KEYS = new Set([
   "execucao",
   "backlog",
   "feedbacks",
+  "verAnuncios",
+  "criarAnuncios",
   "perfil",
   "editarPerfil",
   "editarPerfilOutros",
@@ -3474,6 +3489,24 @@ function ensureProjectSeedData() {
     automations = automationMigration.list;
     saveAutomations(automations);
   }
+
+  const announcementsMigration = migrateRecordsProjectId(announcements, defaultProject.id);
+  if (announcementsMigration.changed) {
+    announcements = announcementsMigration.list;
+    saveAnnouncements(announcements);
+  }
+
+  const feedbacksMigration = migrateRecordsProjectId(feedbacks, defaultProject.id);
+  if (feedbacksMigration.changed) {
+    feedbacks = feedbacksMigration.list;
+    saveFeedbacks(feedbacks);
+  }
+
+  const sstDocsMigration = migrateRecordsProjectId(sstDocs, defaultProject.id);
+  if (sstDocsMigration.changed) {
+    sstDocs = sstDocsMigration.list;
+    saveSstDocs(sstDocs);
+  }
 }
 
 function normalizeProjectKey(value) {
@@ -3692,6 +3725,78 @@ function getMaintenanceUpdatedAtValue(item) {
   return times.length ? Math.max(...times) : 0;
 }
 
+function isMeaningfulValue(value) {
+  if (value === undefined || value === null) {
+    return false;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return false;
+    }
+    const normalized = normalizeSearchValue(trimmed);
+    const placeholders = new Set([
+      "nao informado",
+      "nao definido",
+      "nao disponivel",
+      "n/a",
+      "na",
+      "-",
+      "--",
+    ]);
+    return !placeholders.has(normalized);
+  }
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+  if (typeof value === "object") {
+    return Object.keys(value).length > 0;
+  }
+  return true;
+}
+
+function mergePreferMeaningful(primary, fallback) {
+  if (!primary) {
+    return fallback || null;
+  }
+  if (!fallback) {
+    return primary || null;
+  }
+  if (Array.isArray(primary) || Array.isArray(fallback)) {
+    return isMeaningfulValue(primary) ? primary : fallback;
+  }
+  if (typeof primary !== "object" || typeof fallback !== "object") {
+    return isMeaningfulValue(primary) ? primary : fallback;
+  }
+  const merged = {};
+  const keys = new Set([...Object.keys(primary), ...Object.keys(fallback)]);
+  keys.forEach((key) => {
+    const p = primary[key];
+    const f = fallback[key];
+    if (
+      p &&
+      f &&
+      typeof p === "object" &&
+      typeof f === "object" &&
+      !Array.isArray(p) &&
+      !Array.isArray(f)
+    ) {
+      merged[key] = mergePreferMeaningful(p, f);
+      return;
+    }
+    if (isMeaningfulValue(p)) {
+      merged[key] = p;
+      return;
+    }
+    if (isMeaningfulValue(f)) {
+      merged[key] = f;
+      return;
+    }
+    merged[key] = p !== undefined ? p : f;
+  });
+  return merged;
+}
+
 function pickMaintenanceMerge(existing, incoming) {
   if (!existing && !incoming) {
     return null;
@@ -3706,25 +3811,27 @@ function pickMaintenanceMerge(existing, incoming) {
   const incomingStatus = normalizeStatus(incoming.status);
   const existingTime = getMaintenanceUpdatedAtValue(existing);
   const incomingTime = getMaintenanceUpdatedAtValue(incoming);
+  const mergedIncoming = mergePreferMeaningful(incoming, existing);
+  const mergedExisting = mergePreferMeaningful(existing, incoming);
   if (existingStatus === "concluida" && incomingStatus !== "concluida") {
     if (incomingTime && incomingTime > existingTime) {
-      return { ...existing, ...incoming };
+      return mergedIncoming;
     }
-    return existing;
+    return mergedExisting;
   }
   if (incomingStatus === "concluida" && existingStatus !== "concluida") {
     if (existingTime && existingTime > incomingTime) {
-      return existing;
+      return mergedExisting;
     }
-    return { ...existing, ...incoming };
+    return mergedIncoming;
   }
   if (incomingTime && (!existingTime || incomingTime > existingTime)) {
-    return { ...existing, ...incoming };
+    return mergedIncoming;
   }
   if (existingTime && (!incomingTime || existingTime > incomingTime)) {
-    return existing;
+    return mergedExisting;
   }
-  return { ...incoming, ...existing };
+  return mergedIncoming;
 }
 
 function getDueDate(item) {
@@ -3779,6 +3886,271 @@ function getItemOwner(item) {
         "Equipe"
     ).trim() || "Equipe"
   );
+}
+
+function normalizeAnnouncementType(value) {
+  const normalized = normalizeSearchValue(value);
+  if (normalized.includes("alert")) {
+    return "alerta";
+  }
+  if (normalized.includes("aviso")) {
+    return "aviso";
+  }
+  return "info";
+}
+
+function normalizeAnnouncementSeverity(value) {
+  const normalized = normalizeSearchValue(value);
+  if (normalized.includes("crit")) {
+    return "critica";
+  }
+  if (normalized.includes("alta")) {
+    return "alta";
+  }
+  if (normalized.includes("med")) {
+    return "media";
+  }
+  return "baixa";
+}
+
+function normalizeAnnouncementImage(entry) {
+  if (!entry) {
+    return null;
+  }
+  if (typeof entry === "string") {
+    const src = entry.trim();
+    return src ? { src, name: "" } : null;
+  }
+  if (typeof entry === "object") {
+    const src = String(entry.src || entry.url || entry.dataUrl || entry.data || "").trim();
+    if (!src) {
+      return null;
+    }
+    return {
+      src,
+      name: String(entry.name || entry.filename || "").trim(),
+    };
+  }
+  return null;
+}
+
+function normalizeAnnouncementRecord(record) {
+  if (!record || typeof record !== "object") {
+    return null;
+  }
+  const title = String(record.title || record.titulo || "").trim();
+  const message = String(record.message || record.mensagem || record.text || "").trim();
+  if (!title && !message) {
+    return null;
+  }
+  const scope = String(record.scope || "").trim() || (record.projectId || record.project ? "project" : "all");
+  const projectId = String(record.projectId || record.project || "").trim();
+  if (scope === "project" && !projectId) {
+    return null;
+  }
+  const images = Array.isArray(record.images || record.fotos || record.photos || record.imagens)
+    ? (record.images || record.fotos || record.photos || record.imagens)
+        .map((item) => normalizeAnnouncementImage(item))
+        .filter(Boolean)
+    : [];
+  const readByRaw = Array.isArray(record.readBy || record.reads || record.lidos)
+    ? record.readBy || record.reads || record.lidos
+    : [];
+  const readBy = readByRaw
+    .map((entry) => {
+      if (!entry) {
+        return null;
+      }
+      if (typeof entry === "string") {
+        return { userId: entry };
+      }
+      if (typeof entry === "object") {
+        return {
+          userId: entry.userId || entry.id || entry.user || "",
+          readAt: entry.readAt || entry.at || entry.date || "",
+        };
+      }
+      return null;
+    })
+    .filter((entry) => entry && entry.userId);
+  const createdAt = record.createdAt || record.created || new Date().toISOString();
+  return {
+    id: record.id ? String(record.id) : crypto.randomUUID(),
+    title: title || "Anúncio",
+    message,
+    type: normalizeAnnouncementType(record.type || record.tipo || "info"),
+    severity: normalizeAnnouncementSeverity(record.severity || record.criticidade || "baixa"),
+    scope,
+    projectId,
+    projectLabel: String(record.projectLabel || record.projectName || "").trim(),
+    images,
+    readBy,
+    createdAt,
+    createdBy: record.createdBy || record.authorId || record.userId || "",
+    createdByName: record.createdByName || record.authorName || record.userName || "",
+    senderRank: Number.isFinite(record.senderRank) ? record.senderRank : undefined,
+    senderRoleLabel: record.senderRoleLabel || record.senderRole || record.roleLabel || "",
+  };
+}
+
+function getUserHierarchyRank(user) {
+  if (!user) {
+    return 99;
+  }
+  const role = String(user.rbacRole || user.role || "").trim().toLowerCase();
+  const cargo = normalizeSearchValue(user.cargo || user.roleName || "");
+  if (role === "admin" || role === "gestor" || cargo.includes("admin")) {
+    return 0;
+  }
+  if (
+    role === "diretor_om" ||
+    role === "gerente_contrato" ||
+    cargo.includes("diretor") ||
+    cargo.includes("gerente") ||
+    cargo.includes("coordenador")
+  ) {
+    return 1;
+  }
+  if (
+    role === "supervisor" ||
+    role === "supervisor_om" ||
+    role === "pcm" ||
+    cargo.includes("supervisor") ||
+    cargo.includes("pcm")
+  ) {
+    return 2;
+  }
+  return 3;
+}
+
+function getAnnouncementSenderRank(record) {
+  if (record && Number.isFinite(record.senderRank)) {
+    return record.senderRank;
+  }
+  const roleLabel = normalizeSearchValue(record && record.senderRoleLabel);
+  if (roleLabel.includes("admin")) {
+    return 0;
+  }
+  if (roleLabel.includes("diretor") || roleLabel.includes("gerente") || roleLabel.includes("coordenador")) {
+    return 1;
+  }
+  if (roleLabel.includes("supervisor") || roleLabel.includes("pcm")) {
+    return 2;
+  }
+  return 3;
+}
+
+function canReceiveAnnouncement(record, user) {
+  if (!record || !user) {
+    return false;
+  }
+  if (record.scope === "project" && record.projectId) {
+    if (!userHasProjectAccess(user, record.projectId)) {
+      return false;
+    }
+  }
+  if (record.createdBy && user.id && String(record.createdBy) === String(user.id)) {
+    return true;
+  }
+  const senderRank = getAnnouncementSenderRank(record);
+  const userRank = getUserHierarchyRank(user);
+  return userRank >= senderRank;
+}
+
+function loadAnnouncements() {
+  const data = readJson(ANNOUNCEMENTS_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.map((item) => normalizeAnnouncementRecord(item)).filter(Boolean);
+}
+
+function saveAnnouncements(list) {
+  writeJson(ANNOUNCEMENTS_FILE, Array.isArray(list) ? list : []);
+}
+
+function normalizeFeedbackRecord(record) {
+  if (!record || typeof record !== "object") {
+    return null;
+  }
+  const projectId = String(record.projectId || "").trim();
+  const from = String(record.from || record.fromId || record.senderId || "").trim();
+  const to = String(record.to || record.toId || record.receiverId || "").trim();
+  const message = String(record.message || record.text || "").trim();
+  if (!projectId || !from || !to || !message) {
+    return null;
+  }
+  const createdAt = record.createdAt || new Date().toISOString();
+  return {
+    id: record.id ? String(record.id) : crypto.randomUUID(),
+    projectId,
+    from,
+    to,
+    score: Number(record.score) || 0,
+    message,
+    createdAt,
+    readAt: record.readAt || "",
+    fromName: String(record.fromName || "").trim(),
+    toName: String(record.toName || "").trim(),
+  };
+}
+
+function loadFeedbacks() {
+  const data = readJson(FEEDBACKS_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.map((item) => normalizeFeedbackRecord(item)).filter(Boolean);
+}
+
+function saveFeedbacks(list) {
+  writeJson(FEEDBACKS_FILE, Array.isArray(list) ? list : []);
+}
+
+function normalizeSstDoc(record) {
+  if (!record || typeof record !== "object") {
+    return null;
+  }
+  const createdAt = record.createdAt || new Date().toISOString();
+  const status = record.status ? String(record.status).toUpperCase() : "PENDENTE";
+  const projectId = String(record.projectId || "").trim();
+  const activity = String(record.activity || record.activityName || "").trim();
+  if (!projectId || !activity) {
+    return null;
+  }
+  return {
+    id: record.id ? String(record.id) : crypto.randomUUID(),
+    activity,
+    projectId,
+    responsibleId: record.responsibleId || record.createdBy || "",
+    aprCode: record.aprCode || "",
+    aprDoc: record.aprDoc || record.apr || null,
+    attachments: Array.isArray(record.attachments) ? record.attachments.filter(Boolean) : [],
+    status,
+    notes: record.notes || "",
+    createdAt,
+    createdBy: record.createdBy || record.responsibleId || "",
+    reviewedAt: record.reviewedAt || "",
+    reviewedBy: record.reviewedBy || "",
+    reviewNotes: record.reviewNotes || "",
+    correctionInstructions: record.correctionInstructions || "",
+    notifiedAt: record.notifiedAt || "",
+    source: record.source || "manual",
+    relatedId: record.relatedId || "",
+    updatedAt: record.updatedAt || createdAt,
+  };
+}
+
+function loadSstDocs() {
+  const data = readJson(SST_DOCS_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.map((item) => normalizeSstDoc(item)).filter(Boolean);
+}
+
+function saveSstDocs(list) {
+  writeJson(SST_DOCS_FILE, Array.isArray(list) ? list : []);
 }
 
 function getAutomationEmailKey(event, item) {
@@ -3924,6 +4296,54 @@ async function runAutomationsForItems(event, items, actor, ip) {
 function loadMaintenanceData() {
   const data = readJson(MAINTENANCE_FILE, []);
   return Array.isArray(data) ? data : [];
+}
+
+function getMaintenanceRecurrenceKey(item) {
+  if (!item || !item.templateId || !item.data) {
+    return "";
+  }
+  const projectId = String(item.projectId || "").trim();
+  const templateId = String(item.templateId || "").trim();
+  const date = String(item.data || "").trim();
+  if (!templateId || !date) {
+    return "";
+  }
+  return `${projectId}::${templateId}::${date}`;
+}
+
+function dedupeMaintenanceRecords(list, projectId = "") {
+  if (!Array.isArray(list) || list.length === 0) {
+    return { list: Array.isArray(list) ? list : [], changed: false };
+  }
+  const output = [];
+  const indexMap = new Map();
+  let changed = false;
+  list.forEach((item) => {
+    if (!item || typeof item !== "object") {
+      output.push(item);
+      return;
+    }
+    if (projectId && String(item.projectId || "") !== String(projectId)) {
+      output.push(item);
+      return;
+    }
+    const key = getMaintenanceRecurrenceKey(item);
+    if (!key) {
+      output.push(item);
+      return;
+    }
+    const existingIndex = indexMap.get(key);
+    if (existingIndex === undefined) {
+      indexMap.set(key, output.length);
+      output.push(item);
+      return;
+    }
+    const existing = output[existingIndex];
+    const merged = pickMaintenanceMerge(existing, item);
+    output[existingIndex] = merged;
+    changed = true;
+  });
+  return { list: output, changed };
 }
 
 function loadMaintenanceTombstones() {
@@ -5932,6 +6352,8 @@ let almoxItems = [];
 let almoxStock = [];
 let almoxMovements = [];
 let almoxKits = [];
+let announcements = [];
+let feedbacks = [];
 let sstTrainings = [];
 let sstTrainingRecords = [];
 let sstInspectionTemplates = [];
@@ -5941,6 +6363,7 @@ let sstIncidents = [];
 let sstAprs = [];
 let sstPermits = [];
 let sstVehicles = [];
+let sstDocs = [];
 let accessRoles = [];
 let users = [];
 let invites = [];
@@ -6061,6 +6484,18 @@ async function bootstrap() {
   sstVehicles = loadSstVehicles();
   if (!fs.existsSync(SST_VEHICLES_FILE)) {
     saveSstVehicles(sstVehicles);
+  }
+  sstDocs = loadSstDocs();
+  if (!fs.existsSync(SST_DOCS_FILE)) {
+    saveSstDocs(sstDocs);
+  }
+  announcements = loadAnnouncements();
+  if (!fs.existsSync(ANNOUNCEMENTS_FILE)) {
+    saveAnnouncements(announcements);
+  }
+  feedbacks = loadFeedbacks();
+  if (!fs.existsSync(FEEDBACKS_FILE)) {
+    saveFeedbacks(feedbacks);
   }
   pmpActivities = loadPmpActivities().map(normalizePmpActivity);
   if (!fs.existsSync(PMP_ACTIVITIES_FILE)) {
@@ -8155,6 +8590,134 @@ app.delete("/api/sst/vehicles/:id", requireAuth, requirePermission("gerenciarPro
   return res.json({ ok: true, vehicle: updated });
 });
 
+app.get("/api/sst/docs", requireAuth, requirePermission("verSST"), (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const projectId = String(req.query.projectId || "").trim();
+  const allowed = new Set(getUserProjectIds(user));
+  if (projectId && !allowed.has(projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  let list = sstDocs.filter((item) => !item.projectId || allowed.has(item.projectId));
+  if (projectId) {
+    list = list.filter((item) => item.projectId === projectId);
+  }
+  if (req.query.status) {
+    const status = String(req.query.status || "").toUpperCase();
+    list = list.filter((item) => String(item.status || "").toUpperCase() === status);
+  }
+  if (req.query.relatedId) {
+    const relatedId = String(req.query.relatedId || "").trim();
+    if (relatedId) {
+      list = list.filter((item) => String(item.relatedId || "") === relatedId);
+    }
+  }
+  if (req.query.q) {
+    const term = normalizeSearchValue(req.query.q);
+    list = list.filter(
+      (item) =>
+        normalizeSearchValue(item.activity || "").includes(term) ||
+        normalizeSearchValue(item.aprCode || "").includes(term)
+    );
+  }
+  list = list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  return res.json({ docs: list });
+});
+
+app.post(
+  "/api/sst/docs",
+  requireAuth,
+  requirePermission("verSST"),
+  requireStorageWritable,
+  (req, res) => {
+    const payload = req.body && typeof req.body === "object" ? req.body : {};
+    const projectId = String(payload.projectId || "").trim();
+    if (!projectId) {
+      return res.status(400).json({ message: "Projeto obrigatorio." });
+    }
+    const user = req.currentUser || getSessionUser(req);
+    if (!userHasProjectAccess(user, projectId)) {
+      return res.status(403).json({ message: "Nao autorizado." });
+    }
+    const record = normalizeSstDoc({
+      ...payload,
+      projectId,
+      createdBy: payload.createdBy || (user ? user.id : ""),
+      createdAt: payload.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    if (!record) {
+      return res.status(400).json({ message: "Documentacao invalida." });
+    }
+    sstDocs = sstDocs.concat(record);
+    saveSstDocs(sstDocs);
+    appendAudit(
+      "sst_doc_create",
+      user ? user.id : null,
+      { docId: record.id, projectId },
+      getClientIp(req),
+      projectId
+    );
+    broadcastSse("sst.docs.updated", { projectId });
+    return res.json({ doc: record });
+  }
+);
+
+app.put(
+  "/api/sst/docs/:id",
+  requireAuth,
+  requireStorageWritable,
+  (req, res) => {
+    const docId = String(req.params.id || "").trim();
+    const index = sstDocs.findIndex((item) => item && String(item.id) === docId);
+    if (index === -1) {
+      return res.status(404).json({ message: "Documentacao nao encontrada." });
+    }
+    const payload = req.body && typeof req.body === "object" ? req.body : {};
+    const current = sstDocs[index];
+    const user = req.currentUser || getSessionUser(req);
+    if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
+      return res.status(403).json({ message: "Nao autorizado." });
+    }
+    const canManage =
+      isMasterUser(user) ||
+      isFullAccessRole(user.rbacRole || user.role) ||
+      hasGranularPermission(user, "gerenciarSST");
+    if (!canManage) {
+      const isLiberacao = String(payload.source || current.source || "").toLowerCase() === "liberacao";
+      const status = payload.status ? String(payload.status).toUpperCase() : "";
+      const hasReviewFields =
+        payload.reviewedAt ||
+        payload.reviewedBy ||
+        payload.reviewNotes ||
+        payload.correctionInstructions ||
+        payload.notifiedAt;
+      if (!isLiberacao || !canSyncMaintenance(user) || (status && status !== "PENDENTE") || hasReviewFields) {
+        return res.status(403).json({ message: "Nao autorizado." });
+      }
+    }
+    const updated = normalizeSstDoc({
+      ...current,
+      ...payload,
+      id: current.id,
+      projectId: current.projectId,
+      createdAt: current.createdAt,
+      createdBy: current.createdBy,
+      updatedAt: new Date().toISOString(),
+    });
+    sstDocs[index] = updated;
+    saveSstDocs(sstDocs);
+    appendAudit(
+      "sst_doc_update",
+      user ? user.id : null,
+      { docId },
+      getClientIp(req),
+      current.projectId
+    );
+    broadcastSse("sst.docs.updated", { projectId: current.projectId });
+    return res.json({ doc: updated });
+  }
+);
+
 app.patch("/api/profile", requireAuth, (req, res) => {
   const actor = req.currentUser || getSessionUser(req);
   if (!actor) {
@@ -9512,7 +10075,11 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
     }
     mergedMap.set(key, pickMaintenanceMerge(current, item));
   });
-  const mergedProject = Array.from(mergedMap.values()).filter(Boolean);
+  let mergedProject = Array.from(mergedMap.values()).filter(Boolean);
+  const deduped = dedupeMaintenanceRecords(mergedProject, projectId);
+  if (deduped.changed) {
+    mergedProject = deduped.list;
+  }
   const filtered = existing.filter((item) => !(item && item.projectId === projectId));
   const merged = [...filtered, ...mergedProject];
   writeJson(MAINTENANCE_FILE, merged);
@@ -9545,12 +10112,19 @@ app.get("/api/maintenance", requireAuth, (req, res) => {
     return res.status(403).json({ message: "Nao autorizado." });
   }
   const tombstones = getMaintenanceTombstonesMap(projectId);
-  const list = loadMaintenanceData().filter((item) => {
+  const dataset = loadMaintenanceData();
+  let list = dataset.filter((item) => {
     if (!item || item.projectId !== projectId) {
       return false;
     }
     return !tombstones.has(String(item.id || ""));
   });
+  const deduped = dedupeMaintenanceRecords(list, projectId);
+  if (deduped.changed) {
+    list = deduped.list;
+    const filtered = dataset.filter((item) => !(item && item.projectId === projectId));
+    writeJson(MAINTENANCE_FILE, [...filtered, ...list]);
+  }
   return res.json({ items: list, projectId });
 });
 
@@ -9664,6 +10238,189 @@ app.post("/api/maintenance/reopen", requireAuth, (req, res) => {
     source: "reopen",
   });
   return res.json({ ok: true, item: updated, projectId });
+});
+
+app.get("/api/announcements", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const projectFilter = String(req.query.projectId || "").trim();
+  const list = Array.isArray(announcements) ? announcements.slice() : [];
+  const filtered = list.filter((item) => {
+    if (!item) {
+      return false;
+    }
+    if (projectFilter && item.projectId && String(item.projectId) !== projectFilter) {
+      return false;
+    }
+    return canReceiveAnnouncement(item, user);
+  });
+  return res.json({ items: filtered });
+});
+
+app.post(
+  "/api/announcements",
+  requireAuth,
+  requirePermission("criarAnuncios"),
+  requireStorageWritable,
+  (req, res) => {
+    const user = req.currentUser || getSessionUser(req);
+    const payload = req.body || {};
+    const senderRank = getUserHierarchyRank(user);
+    const record = normalizeAnnouncementRecord({
+      ...payload,
+      createdBy: user ? user.id : "",
+      createdByName: user ? getUserLabel(user) : "",
+      senderRank,
+      senderRoleLabel: user ? (user.cargo || user.roleName || user.role || "") : "",
+    });
+    if (!record) {
+      return res.status(400).json({ message: "Anúncio inválido." });
+    }
+    if (record.scope === "project" && record.projectId) {
+      if (!userHasProjectAccess(user, record.projectId)) {
+        return res.status(403).json({ message: "Nao autorizado." });
+      }
+    }
+    announcements = [record, ...announcements];
+    saveAnnouncements(announcements);
+    appendAudit(
+      "announcement_create",
+      user ? user.id : null,
+      { announcementId: record.id, projectId: record.projectId || "" },
+      getClientIp(req),
+      record.projectId || null
+    );
+    broadcastSse("announcement.created", {
+      projectId: record.scope === "project" ? record.projectId : "",
+      announcementId: record.id,
+    });
+    return res.json({ item: record });
+  }
+);
+
+app.post("/api/announcements/read", requireAuth, requireStorageWritable, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const ids = Array.isArray(req.body.ids)
+    ? req.body.ids
+    : req.body.id
+      ? [req.body.id]
+      : [];
+  const normalized = ids.map((id) => String(id || "").trim()).filter(Boolean);
+  if (!normalized.length) {
+    return res.json({ ok: true, updated: 0 });
+  }
+  let changed = false;
+  const now = new Date().toISOString();
+  announcements = announcements.map((item) => {
+    if (!item || !normalized.includes(String(item.id))) {
+      return item;
+    }
+    if (!canReceiveAnnouncement(item, user)) {
+      return item;
+    }
+    const readBy = Array.isArray(item.readBy) ? item.readBy.slice() : [];
+    const existing = readBy.find(
+      (entry) => entry && String(entry.userId || entry.id || entry.user || "") === String(user.id)
+    );
+    if (existing) {
+      return item;
+    }
+    readBy.push({ userId: user.id, readAt: now });
+    changed = true;
+    return { ...item, readBy };
+  });
+  if (changed) {
+    saveAnnouncements(announcements);
+    broadcastSse("announcements.updated", { projectId: "" });
+  }
+  return res.json({ ok: true, updated: changed ? normalized.length : 0 });
+});
+
+app.get("/api/feedbacks", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const projectId = String(req.query.projectId || "").trim() || getActiveProjectId(req, user);
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto ativo obrigatório." });
+  }
+  if (!userHasProjectAccess(user, projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  const list = Array.isArray(feedbacks) ? feedbacks : [];
+  const visible = list.filter(
+    (item) =>
+      item &&
+      item.projectId === projectId &&
+      (String(item.to) === String(user.id) || String(item.from) === String(user.id))
+  );
+  return res.json({ items: visible });
+});
+
+app.post("/api/feedbacks", requireAuth, requireStorageWritable, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const projectId = String(req.body.projectId || "").trim() || getActiveProjectId(req, user);
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto ativo obrigatório." });
+  }
+  if (!userHasProjectAccess(user, projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  const payload = {
+    ...req.body,
+    projectId,
+    from: user ? user.id : "",
+    fromName: user ? getUserLabel(user) : "",
+  };
+  const record = normalizeFeedbackRecord(payload);
+  if (!record) {
+    return res.status(400).json({ message: "Feedback inválido." });
+  }
+  const receiver = users.find((entry) => entry && String(entry.id) === String(record.to));
+  if (receiver) {
+    record.toName = record.toName || getUserLabel(receiver);
+  }
+  feedbacks = [record, ...feedbacks];
+  saveFeedbacks(feedbacks);
+  appendAudit(
+    "feedback_create",
+    user ? user.id : null,
+    { feedbackId: record.id, projectId },
+    getClientIp(req),
+    projectId
+  );
+  broadcastSse("feedback.created", { projectId, feedbackId: record.id });
+  return res.json({ item: record });
+});
+
+app.post("/api/feedbacks/read", requireAuth, requireStorageWritable, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const ids = Array.isArray(req.body.ids)
+    ? req.body.ids
+    : req.body.id
+      ? [req.body.id]
+      : [];
+  const normalized = ids.map((id) => String(id || "").trim()).filter(Boolean);
+  if (!normalized.length) {
+    return res.json({ ok: true, updated: 0 });
+  }
+  let changed = false;
+  const now = new Date().toISOString();
+  feedbacks = feedbacks.map((item) => {
+    if (!item || !normalized.includes(String(item.id))) {
+      return item;
+    }
+    if (String(item.to) !== String(user.id)) {
+      return item;
+    }
+    if (item.readAt) {
+      return item;
+    }
+    changed = true;
+    return { ...item, readAt: now };
+  });
+  if (changed) {
+    saveFeedbacks(feedbacks);
+    broadcastSse("feedbacks.updated", { projectId: "" });
+  }
+  return res.json({ ok: true, updated: changed ? normalized.length : 0 });
 });
 
 app.post(

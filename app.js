@@ -1177,6 +1177,7 @@ const SYNC_LAST_AT_KEY = "opscope.sync.lastAt";
 const ANNOUNCEMENTS_KEY = "opscope.announcements";
 const ANNOUNCEMENTS_READ_KEY = "opscope.announcements.read";
 const ANNOUNCEMENTS_READERS_KEY = "opscope.announcements.readers";
+const FEEDBACK_TTL_MS = 20 * 1000;
 const TEAM_NOTIFICATION_WINDOW_DAYS = 14;
 const STORAGE_KEY = "denemanu.manutencoes";
 const TEMPLATE_KEY = "denemanu.templates";
@@ -4467,6 +4468,8 @@ let announcementsUnreadCount = 0;
 let announcementsUnreadSeverity = "baixa";
 let reminderTotalCount = 0;
 let reminderUnreadCount = 0;
+let feedbacksLastFetch = 0;
+let feedbacksLastProjectId = "";
 let announcementDraftImages = [];
 let activeAnnouncementView = null;
 
@@ -4679,6 +4682,11 @@ function startSyncPolling() {
     }
     refreshAccessData({ reason: "poll" });
     carregarAnuncios(true, { auto: true });
+    carregarFeedbacks(true);
+    const activeTab = getActiveTabKey();
+    if (activeTab && activeTab.startsWith("sst")) {
+      carregarSst(true);
+    }
     setLastSyncAt(Date.now(), "auto");
   }, SYNC_POLL_MS);
 }
@@ -4705,6 +4713,18 @@ function handleSyncEvent(eventName, payload = {}) {
   }
   if (eventName === "announcements.updated" || eventName === "announcement.created") {
     carregarAnuncios(true, { auto: true });
+    return;
+  }
+  if (eventName === "feedback.created" || eventName === "feedbacks.updated") {
+    carregarFeedbacks(true).then(() => {
+      atualizarFeedbackBadge();
+      renderFeedbackInbox();
+      renderFeedbackList();
+    });
+    return;
+  }
+  if (eventName === "sst.docs.updated") {
+    carregarSst(true);
     return;
   }
   if (eventName === "projects.updated") {
@@ -4760,6 +4780,9 @@ function startSyncEvents() {
     "access.updated",
     "announcements.updated",
     "announcement.created",
+    "feedback.created",
+    "feedbacks.updated",
+    "sst.docs.updated",
   ].forEach(
     (name) => {
       source.addEventListener(name, (event) => {
@@ -4824,10 +4847,14 @@ async function syncSiteNow() {
       await refreshAccessData({ force: true });
       await carregarUsuariosServidor();
       await carregarAnuncios(true);
+      await carregarFeedbacks(true);
       if (activeProjectId) {
         await Promise.all([carregarEquipeProjeto(), carregarEquipamentosProjeto()]);
         await carregarManutencoesServidor(true);
         await carregarPmpDados();
+      }
+      if (currentUser && canViewSst(currentUser)) {
+        await carregarSst(true);
       }
       await loadDashboardSummary(true, { skipSync: true });
       restartSyncEvents();
@@ -10008,6 +10035,7 @@ async function carregarSessaoServidor() {
   renderAuthUI();
   await refreshProjects();
   await carregarAnuncios(true);
+  await carregarFeedbacks(true);
   await carregarPmpDados();
   if (currentUser) {
     const activeTab = getActiveTabKey();
@@ -13858,13 +13886,24 @@ function getAnnouncementReadState() {
 
 function getReadAnnouncementIds(user = currentUser) {
   const state = getAnnouncementReadState();
+  const readSet = new Set();
   if (user && user.id && state[user.id]) {
-    return new Set((state[user.id] || []).map((id) => String(id)));
+    (state[user.id] || []).forEach((id) => readSet.add(String(id)));
+  } else if (Array.isArray(state)) {
+    state.forEach((id) => readSet.add(String(id)));
   }
-  if (Array.isArray(state)) {
-    return new Set(state.map((id) => String(id)));
+  if (user && user.id && Array.isArray(announcements)) {
+    announcements.forEach((item) => {
+      if (!item || !item.id) {
+        return;
+      }
+      const readers = Array.isArray(item.readBy) ? item.readBy : [];
+      if (readers.some((entry) => String(entry.userId || entry.id || "") === String(user.id))) {
+        readSet.add(String(item.id));
+      }
+    });
   }
-  return new Set();
+  return readSet;
 }
 
 function saveReadAnnouncementIds(readSet, user = currentUser) {
@@ -13941,6 +13980,9 @@ function markAnnouncementRead(id, user = currentUser) {
     saveReadAnnouncementIds(readSet);
   }
   markAnnouncementReadByUser(id, user);
+  if (USE_AUTH_API && user && user.id) {
+    apiAnnouncementsRead([id]).catch(() => null);
+  }
 }
 
 function markVisibleAnnouncementsRead() {
@@ -13948,6 +13990,7 @@ function markVisibleAnnouncementsRead() {
     return;
   }
   const readSet = getReadAnnouncementIds();
+  const ids = [];
   let changed = false;
   announcements
     .filter((item) => canReceiveAnnouncement(item, currentUser))
@@ -13956,10 +13999,14 @@ function markVisibleAnnouncementsRead() {
       if (!readSet.has(key)) {
         readSet.add(key);
         changed = true;
+        ids.push(item.id);
       }
     });
   if (changed) {
     saveReadAnnouncementIds(readSet);
+    if (USE_AUTH_API && ids.length) {
+      apiAnnouncementsRead(ids).catch(() => null);
+    }
   }
 }
 
@@ -14187,6 +14234,51 @@ async function apiAnnouncementsCreate(payload) {
     }
     throw error;
   }
+}
+
+async function apiAnnouncementsRead(ids = []) {
+  if (!USE_AUTH_API) {
+    return { ok: true };
+  }
+  return apiRequest("/api/announcements/read", {
+    method: "POST",
+    body: JSON.stringify({ ids }),
+  });
+}
+
+async function apiFeedbackList(projectId = "") {
+  if (!USE_AUTH_API) {
+    return { items: readJson(getProjectStorageKey(FEEDBACK_KEY), []) };
+  }
+  const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
+  return apiRequest(`/api/feedbacks${query}`);
+}
+
+async function apiFeedbackCreate(payload) {
+  if (!USE_AUTH_API) {
+    const list = readJson(getProjectStorageKey(FEEDBACK_KEY), []);
+    const record = normalizeFeedbackRecord(payload);
+    if (!record) {
+      throw new Error("Feedback inválido.");
+    }
+    list.unshift(record);
+    writeJson(getProjectStorageKey(FEEDBACK_KEY), list);
+    return { item: record, items: list };
+  }
+  return apiRequest("/api/feedbacks", {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiFeedbackRead(ids = []) {
+  if (!USE_AUTH_API) {
+    return { ok: true };
+  }
+  return apiRequest("/api/feedbacks/read", {
+    method: "POST",
+    body: JSON.stringify({ ids }),
+  });
 }
 
 async function carregarAnuncios(force = false, options = {}) {
@@ -16197,8 +16289,87 @@ function renderPerformancePessoas() {
   }
 }
 
-function carregarFeedbacks() {
-  feedbacks = readJson(getProjectStorageKey(FEEDBACK_KEY), []);
+function normalizeFeedbackRecord(record) {
+  if (!record || typeof record !== "object") {
+    return null;
+  }
+  const projectId = String(record.projectId || activeProjectId || "").trim();
+  const from = String(record.from || record.fromId || record.senderId || "").trim();
+  const to = String(record.to || record.toId || record.receiverId || "").trim();
+  const message = String(record.message || record.text || "").trim();
+  if (!from || !to || !message) {
+    return null;
+  }
+  const createdAt = record.createdAt || toIsoUtc(new Date());
+  return {
+    id: record.id || criarId(),
+    projectId,
+    from,
+    to,
+    score: Number(record.score) || 0,
+    message,
+    createdAt,
+    readAt: record.readAt || "",
+    fromName: String(record.fromName || record.senderName || "").trim(),
+    toName: String(record.toName || record.receiverName || "").trim(),
+  };
+}
+
+function normalizeFeedbackList(list) {
+  const map = new Map();
+  (Array.isArray(list) ? list : [])
+    .map((item) => normalizeFeedbackRecord(item))
+    .filter(Boolean)
+    .forEach((item) => {
+      map.set(String(item.id), item);
+    });
+  return Array.from(map.values()).sort((a, b) => {
+    const ta = getTimeValue(parseTimestamp(a.createdAt)) || 0;
+    const tb = getTimeValue(parseTimestamp(b.createdAt)) || 0;
+    return tb - ta;
+  });
+}
+
+async function carregarFeedbacks(force = false) {
+  if (!currentUser) {
+    feedbacks = [];
+    feedbacksLastFetch = 0;
+    feedbacksLastProjectId = "";
+    atualizarFeedbackBadge();
+    renderFeedbackInbox();
+    renderFeedbackList();
+    return;
+  }
+  if (activeProjectId !== feedbacksLastProjectId) {
+    feedbacksLastProjectId = activeProjectId || "";
+    force = true;
+  }
+  if (!USE_AUTH_API) {
+    feedbacks = readJson(getProjectStorageKey(FEEDBACK_KEY), []);
+    atualizarFeedbackBadge();
+    renderFeedbackInbox();
+    renderFeedbackList();
+    return;
+  }
+  const agora = Date.now();
+  if (!force && feedbacksLastFetch && agora - feedbacksLastFetch < FEEDBACK_TTL_MS) {
+    atualizarFeedbackBadge();
+    renderFeedbackInbox();
+    renderFeedbackList();
+    return;
+  }
+  try {
+    const data = await apiFeedbackList(activeProjectId);
+    const list = data && (data.items || data.feedbacks || data.list);
+    feedbacks = normalizeFeedbackList(list);
+    feedbacksLastFetch = Date.now();
+    salvarFeedbacks(feedbacks);
+  } catch (error) {
+    feedbacks = readJson(getProjectStorageKey(FEEDBACK_KEY), []);
+  }
+  atualizarFeedbackBadge();
+  renderFeedbackInbox();
+  renderFeedbackList();
 }
 
 function salvarFeedbacks(lista) {
@@ -16212,6 +16383,16 @@ function getFeedbacksRecebidos(userId) {
 
 function getFeedbacksEnviados(userId) {
   return feedbacks.filter((item) => item.from === userId);
+}
+
+function getFeedbackUserLabel(userId, fallbackName) {
+  const label = getUserLabel(userId);
+  const normalized = String(label || "").trim();
+  if (normalized && normalized !== String(userId) && normalized !== "Desconhecido") {
+    return normalized;
+  }
+  const fallback = String(fallbackName || "").trim();
+  return fallback || normalized || String(userId || "-");
 }
 
 function renderFeedbackStats() {
@@ -16251,7 +16432,9 @@ function renderFeedbackList() {
     if (!searchQuery) {
       return true;
     }
-    const peer = mode === "enviados" ? getUserLabel(item.to) : getUserLabel(item.from);
+    const peerId = mode === "enviados" ? item.to : item.from;
+    const peerName = mode === "enviados" ? item.toName : item.fromName;
+    const peer = getFeedbackUserLabel(peerId, peerName);
     const content = normalizeSearchValue(`${peer} ${item.message || ""}`);
     return content.includes(searchQuery);
   });
@@ -16278,7 +16461,9 @@ function renderFeedbackList() {
       const card = document.createElement("div");
       card.className = `feedback-item ${item.readAt ? "" : "is-unread"}`;
       const createdAt = item.createdAt ? formatDateTime(parseTimestamp(item.createdAt)) : "-";
-      const peer = mode === "enviados" ? getUserLabel(item.to) : getUserLabel(item.from);
+      const peerId = mode === "enviados" ? item.to : item.from;
+      const peerName = mode === "enviados" ? item.toName : item.fromName;
+      const peer = getFeedbackUserLabel(peerId, peerName);
       card.innerHTML = `
         <div class="feedback-item__head">
           <strong>${escapeHtml(peer || "-")}</strong>
@@ -16297,15 +16482,23 @@ function renderFeedbackList() {
 
 function marcarFeedbacksComoLidos(userId) {
   let mudou = false;
+  const ids = [];
+  const agora = toIsoUtc(new Date());
   const atualizados = feedbacks.map((item) => {
     if (item.to === userId && !item.readAt) {
       mudou = true;
-      return { ...item, readAt: toIsoUtc(new Date()) };
+      if (item.id) {
+        ids.push(item.id);
+      }
+      return { ...item, readAt: agora };
     }
     return item;
   });
   if (mudou) {
     salvarFeedbacks(atualizados);
+    if (USE_AUTH_API && ids.length) {
+      apiFeedbackRead(ids).catch(() => null);
+    }
   }
   atualizarFeedbackBadge();
   renderFeedbackInbox();
@@ -16349,8 +16542,9 @@ function renderFeedbackInbox() {
     const row = document.createElement("div");
     row.className = `feedback-inbox-item${item.readAt ? "" : " is-unread"}`;
     const createdAt = item.createdAt ? formatDateTime(parseTimestamp(item.createdAt)) : "-";
+    const author = getFeedbackUserLabel(item.from, item.fromName);
     row.innerHTML = `
-      <strong>${escapeHtml(getUserLabel(item.from) || "-")}</strong>
+      <strong>${escapeHtml(author || "-")}</strong>
       <span>${escapeHtml(item.message || "").slice(0, 60)}${item.message && item.message.length > 60 ? "..." : ""}</span>
       <small>${escapeHtml(createdAt)}</small>
     `;
@@ -16359,7 +16553,7 @@ function renderFeedbackInbox() {
   renderFeedbackStats();
 }
 
-function enviarFeedback() {
+async function enviarFeedback() {
   if (!currentUser) {
     return;
   }
@@ -16373,28 +16567,51 @@ function enviarFeedback() {
     }
     return;
   }
-  const novo = {
-    id: criarId(),
+  if (btnEnviarFeedback) {
+    btnEnviarFeedback.disabled = true;
+  }
+  const payload = {
+    projectId: activeProjectId || "",
     from: currentUser.id,
+    fromName: getFeedbackUserLabel(currentUser.id, currentUser.name || currentUser.nome),
     to,
+    toName: getFeedbackUserLabel(to),
     score,
     message,
     createdAt: toIsoUtc(new Date()),
     readAt: null,
   };
-  const atualizados = [novo, ...feedbacks];
-  salvarFeedbacks(atualizados);
-  if (feedbackMessage) {
-    feedbackMessage.value = "";
+  try {
+    const data = await apiFeedbackCreate(payload);
+    const item = normalizeFeedbackRecord(data.item || data.feedback || payload);
+    const list = Array.isArray(data.items || data.list)
+      ? normalizeFeedbackList(data.items || data.list)
+      : item
+        ? normalizeFeedbackList([item].concat(feedbacks))
+        : feedbacks;
+    salvarFeedbacks(list);
+    feedbacksLastFetch = Date.now();
+    if (feedbackMessage) {
+      feedbackMessage.value = "";
+    }
+    if (feedbackSendMsg) {
+      feedbackSendMsg.textContent = "Feedback enviado com sucesso.";
+      feedbackSendMsg.classList.remove("mensagem--erro");
+    }
+    atualizarFeedbackBadge();
+    renderFeedbackInbox();
+    renderFeedbackList();
+    renderFeedbackStats();
+  } catch (error) {
+    if (feedbackSendMsg) {
+      feedbackSendMsg.textContent = error.message || "Falha ao enviar feedback.";
+      feedbackSendMsg.classList.add("mensagem--erro");
+    }
+  } finally {
+    if (btnEnviarFeedback) {
+      btnEnviarFeedback.disabled = false;
+    }
   }
-  if (feedbackSendMsg) {
-    feedbackSendMsg.textContent = "Feedback enviado com sucesso.";
-    feedbackSendMsg.classList.remove("mensagem--erro");
-  }
-  atualizarFeedbackBadge();
-  renderFeedbackInbox();
-  renderFeedbackList();
-  renderFeedbackStats();
 }
 
 function renderFeedbackRecipients() {
@@ -32221,9 +32438,28 @@ async function salvarSstDocArquivo(file) {
   if (!file) {
     return null;
   }
-  const docId = criarId();
   const agoraIso = toIsoUtc(new Date());
   const nome = file.name || "Documento";
+  if (USE_AUTH_API) {
+    try {
+      const uploaded = await uploadEvidenceFile(file);
+      if (!uploaded) {
+        return null;
+      }
+      const uploadName = uploaded.nome || uploaded.name || nome;
+      return {
+        name: uploadName,
+        nome: uploadName,
+        mime: uploaded.mime || file.type || "",
+        url: uploaded.url || uploaded.dataUrl || "",
+        size: uploaded.size || file.size || 0,
+        createdAt: agoraIso,
+      };
+    } catch (error) {
+      // fallback para armazenamento local
+    }
+  }
+  const docId = criarId();
   if (typeof indexedDB === "undefined") {
     const data = await lerDocumentoFile(file);
     if (!data || !data.dataUrl) {
@@ -40189,6 +40425,12 @@ function ativarTab(nome) {
     renderBreadcrumb();
   }
   atualizarTituloPagina(nome);
+  if (currentUser && nome && nome.startsWith("sst")) {
+    carregarSst(true);
+  }
+  if (currentUser && nome === "feedbacks") {
+    carregarFeedbacks(true);
+  }
 }
 
 async function authLoginLocal(login, senha) {
