@@ -548,6 +548,14 @@ h1 {
   flex-shrink: 0;
 }
 
+.topbar-sync-meta {
+  font-size: 0.72rem;
+  color: var(--sb-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .project-switcher {
   display: flex;
   align-items: center;
@@ -763,6 +771,14 @@ h1 {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+
+.topbar-dashboard,
+.topbar-help,
+.topbar-sync {
+  padding: 6px 10px;
+  justify-content: center;
+  min-width: 36px;
 }
 
 .topbar .btn .icon {
@@ -10801,6 +10817,10 @@ textarea:focus {
   .topbar-dashboard,
   .topbar-help {
     padding: 6px 10px;
+  }
+
+  .topbar-sync-meta {
+    display: none;
   }
 
   .topbar-right {

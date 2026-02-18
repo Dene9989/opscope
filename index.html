@@ -1165,7 +1165,7 @@
                   stroke-linejoin="round"
                 />
               </svg>
-              <span>Voltar ao Dashboard</span>
+              <span class="visually-hidden">Voltar ao Dashboard</span>
             </button>
             <button id="btnHelp" class="btn btn--ghost btn--small topbar-help" type="button" aria-label="Ajuda / Como usar">
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -1179,7 +1179,7 @@
                 />
                 <circle cx="12" cy="16.6" r="1" fill="currentColor" />
               </svg>
-              <span>Ajuda / Como usar</span>
+              <span class="visually-hidden">Ajuda / Como usar</span>
             </button>
             <button id="btnSyncSite" class="btn btn--ghost btn--small topbar-sync" type="button" aria-label="Sincronizar atualizações">
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -1216,8 +1216,9 @@
                   stroke-linejoin="round"
                 />
               </svg>
-              <span>Sincronizar</span>
+              <span class="visually-hidden">Sincronizar</span>
             </button>
+            <span id="syncStatusLabel" class="topbar-sync-meta">Última sincronização: --:--</span>
             <div class="project-switcher">
               <label class="project-switcher__label visually-hidden" id="projectSelectLabel" for="projectSelect">Projeto ativo</label>
               <div class="project-switcher__control">

@@ -197,6 +197,7 @@ const crumbs = document.getElementById("crumbs");
 const btnDashboard = document.getElementById("btnDashboard");
 const btnHelp = document.getElementById("btnHelp");
 const btnSyncSite = document.getElementById("btnSyncSite");
+const syncStatusLabel = document.getElementById("syncStatusLabel");
 const modalHelp = document.getElementById("modalHelp");
 const helpTitle = document.getElementById("helpTitle");
 const helpMeta = document.getElementById("helpMeta");
@@ -1137,6 +1138,7 @@ const SIDEBAR_KEY = "opscope.sidebarCollapsed";
 const SIDEBAR_STATE_KEY = "sb_state";
 const NOTIFICATION_READ_KEY = "opscope.notifications.read";
 const EXECUCAO_REG_ALERT_KEY = "opscope.execucaoRegistrada.alerts";
+const SYNC_LAST_AT_KEY = "opscope.sync.lastAt";
 const TEAM_NOTIFICATION_WINDOW_DAYS = 14;
 const STORAGE_KEY = "denemanu.manutencoes";
 const TEMPLATE_KEY = "denemanu.templates";
@@ -4438,6 +4440,38 @@ function getBuildId() {
   return meta ? String(meta.content || "").trim() : "";
 }
 
+function formatTimeShort(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (!date || Number.isNaN(date.getTime())) {
+    return "--:--";
+  }
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mm = String(date.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+function getSyncStatusKey() {
+  return getProjectStorageKey(SYNC_LAST_AT_KEY);
+}
+
+function readLastSyncAt() {
+  const stored = readJson(getSyncStatusKey(), 0);
+  return Number(stored) || 0;
+}
+
+function updateSyncStatusLabel(value = readLastSyncAt()) {
+  if (!syncStatusLabel) {
+    return;
+  }
+  const timeLabel = value ? formatTimeShort(value) : "--:--";
+  syncStatusLabel.textContent = `Última sincronização: ${timeLabel}`;
+}
+
+function setLastSyncAt(value = Date.now()) {
+  writeJson(getSyncStatusKey(), value);
+  updateSyncStatusLabel(value);
+}
+
 async function checkForNewBuildAndReload() {
   const currentBuild = getBuildId();
   if (!currentBuild || !window.fetch) {
@@ -4458,6 +4492,7 @@ async function checkForNewBuildAndReload() {
     const match = html.match(/<meta[^>]+name=["']opscope-build["'][^>]+content=["']([^"']+)["']/i);
     const remoteBuild = match ? String(match[1] || "").trim() : "";
     if (remoteBuild && remoteBuild !== currentBuild) {
+      setLastSyncAt(Date.now());
       showAuthToast("Atualização encontrada. Recarregando...");
       window.location.reload();
       return true;
@@ -4659,6 +4694,7 @@ async function syncSiteNow() {
       atualizarSeNecessario();
     }
     renderTudo();
+    setLastSyncAt(Date.now());
     showAuthToast("Sincronização concluída.");
   } catch (error) {
     showAuthToast("Falha ao sincronizar. Tente novamente.");
@@ -7031,6 +7067,25 @@ function markExecucaoRegistradaAlertSent(projectId, dateKey) {
   setExecucaoRegistradaAlertState(state);
 }
 
+function isExecucaoRegistradaAlertDue(now = new Date()) {
+  if (!activeProjectId) {
+    return false;
+  }
+  if (now.getHours() < 7) {
+    return false;
+  }
+  const hojeKey = formatDateISO(now);
+  return !hasExecucaoRegistradaAlertSent(activeProjectId, hojeKey);
+}
+
+function triggerExecucaoRegistradaAlertIfDue(force = false) {
+  if (!force && !isExecucaoRegistradaAlertDue()) {
+    return false;
+  }
+  showExecucaoRegistradaAlert(force);
+  return true;
+}
+
 function showExecucaoRegistradaAlert(force = false) {
   if (!currentUser || !activeProjectId) {
     return;
@@ -7073,12 +7128,12 @@ function scheduleExecucaoRegistradaAlerts() {
   const next = new Date();
   next.setHours(7, 0, 0, 0);
   if (now >= next) {
-    showExecucaoRegistradaAlert();
+    triggerExecucaoRegistradaAlertIfDue();
     next.setDate(next.getDate() + 1);
   }
   const delay = Math.max(0, next.getTime() - now.getTime());
   execucaoRegistradaAlertTimer = window.setTimeout(() => {
-    showExecucaoRegistradaAlert();
+    triggerExecucaoRegistradaAlertIfDue();
     scheduleExecucaoRegistradaAlerts();
   }, delay);
 }
@@ -7086,6 +7141,15 @@ function scheduleExecucaoRegistradaAlerts() {
 function setFocusParam(id) {
   const url = new URL(window.location.href);
   url.searchParams.set("focus", id);
+  window.history.replaceState(null, "", url.toString());
+}
+
+function clearFocusParam() {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has("focus")) {
+    return;
+  }
+  url.searchParams.delete("focus");
   window.history.replaceState(null, "", url.toString());
 }
 
@@ -7133,6 +7197,7 @@ function openMaintenanceFromNotification(id) {
   setFocusParam(id);
   abrirPainelComCarregamento("programacao");
   window.setTimeout(() => focusMaintenanceById(id), 200);
+  clearFocusParam();
 }
 
 function handleFocusFromUrl() {
@@ -7141,12 +7206,17 @@ function handleFocusFromUrl() {
   }
   const params = new URLSearchParams(window.location.search);
   const focusId = params.get("focus");
-  if (!focusId || focusId === lastFocusMaintenanceId) {
+  if (!focusId) {
+    return;
+  }
+  if (focusId === lastFocusMaintenanceId) {
+    clearFocusParam();
     return;
   }
   lastFocusMaintenanceId = focusId;
   abrirPainelComCarregamento("programacao");
   window.setTimeout(() => focusMaintenanceById(focusId), 200);
+  clearFocusParam();
 }
 
 async function handleEmailVerification() {
@@ -9716,6 +9786,7 @@ async function setActiveProjectId(nextId, options = {}) {
   if (!trimmed) {
     activeProjectId = "";
     persistActiveProjectId("");
+    updateSyncStatusLabel();
     return;
   }
   if (activeProjectId === trimmed && !options.force) {
@@ -9741,6 +9812,7 @@ async function setActiveProjectId(nextId, options = {}) {
   await carregarPmpDados();
   restartSyncEvents();
   scheduleExecucaoRegistradaAlerts();
+  updateSyncStatusLabel();
 }
 
 async function carregarSessaoServidor() {
@@ -12993,7 +13065,7 @@ function renderDashboardHome() {
         <div class="dashboard-row">
           <article class="card panel-card">
             <div class="panel-head">
-              <h3>DICAS OPSCOPE</h3>
+              <h3>DICAS DA OPSCOPE</h3>
             </div>
             <div class="opscope-tips" id="opscopeTips">
               <p class="opscope-tip" data-tip></p>
@@ -13001,7 +13073,7 @@ function renderDashboardHome() {
           </article>
           <article class="card panel-card">
             <div class="panel-head">
-              <h3>SAUDE OPERACIONAL</h3>
+              <h3>SAÚDE OPERACIONAL</h3>
             </div>
             <div class="health-grid">
               <div class="health-item">
@@ -33622,6 +33694,7 @@ async function carregarManutencoesServidor(force = false) {
       }
       renderTudo();
       showTeamMaintenanceNotifications();
+      triggerExecucaoRegistradaAlertIfDue();
     }
   } catch (error) {
     // fallback silencioso
@@ -34057,6 +34130,7 @@ function renderAuthUI() {
   renderFeedbackRecipients();
   atualizarFeedbackBadge();
   renderFeedbackInbox();
+  updateSyncStatusLabel();
 }
 
 function initAvatarUpload() {
@@ -34787,6 +34861,7 @@ function atualizarSeNecessario() {
   if (gerou) {
     renderTudo();
   }
+  triggerExecucaoRegistradaAlertIfDue();
 }
 
 async function adicionarManutencao() {
