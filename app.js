@@ -13459,6 +13459,11 @@ const ANNOUNCEMENT_TYPES = {
   alerta: "Alerta",
 };
 
+function shouldFallbackAnnouncements(error) {
+  const status = Number(error && error.status) || 0;
+  return status === 404 || status === 405 || status === 501;
+}
+
 function normalizeAnnouncementType(value) {
   const normalized = normalizeSearchValue(value);
   if (normalized.includes("alert")) {
@@ -13780,7 +13785,14 @@ async function apiAnnouncementsList() {
   if (!USE_AUTH_API) {
     return { items: readAnnouncementsStorage() };
   }
-  return apiRequest("/api/announcements");
+  try {
+    return await apiRequest("/api/announcements");
+  } catch (error) {
+    if (shouldFallbackAnnouncements(error)) {
+      return { items: readAnnouncementsStorage(), fallback: true };
+    }
+    throw error;
+  }
 }
 
 async function apiAnnouncementsCreate(payload) {
@@ -13794,10 +13806,24 @@ async function apiAnnouncementsCreate(payload) {
     saveAnnouncementsStorage(list);
     return { item: record, items: list };
   }
-  return apiRequest("/api/announcements", {
-    method: "POST",
-    body: JSON.stringify(payload || {}),
-  });
+  try {
+    return await apiRequest("/api/announcements", {
+      method: "POST",
+      body: JSON.stringify(payload || {}),
+    });
+  } catch (error) {
+    if (shouldFallbackAnnouncements(error)) {
+      const list = readAnnouncementsStorage();
+      const record = normalizeAnnouncementRecord(payload);
+      if (!record) {
+        throw new Error("Anúncio inválido.");
+      }
+      list.unshift(record);
+      saveAnnouncementsStorage(list);
+      return { item: record, items: list, fallback: true };
+    }
+    throw error;
+  }
 }
 
 async function carregarAnuncios(force = false, options = {}) {
@@ -42620,16 +42646,21 @@ if (formAnuncio) {
       const item = normalizeAnnouncementRecord(
         data && (data.item || data.announcement || data.annuncio || payload)
       );
+      const fallback = Boolean(data && data.fallback);
       if (item) {
         announcements = normalizeAnnouncements([item].concat(announcements || []));
         announcementsLastFetch = Date.now();
       }
       renderAnuncios();
       if (mensagemAnuncio) {
-        mensagemAnuncio.textContent = "Anúncio enviado.";
+        mensagemAnuncio.textContent = fallback
+          ? "Anúncio salvo localmente (API indisponível)."
+          : "Anúncio enviado.";
         mensagemAnuncio.classList.remove("mensagem--erro");
       }
-      showAuthToast("Anúncio enviado.");
+      showAuthToast(
+        fallback ? "API de anúncios indisponível. Salvo localmente." : "Anúncio enviado."
+      );
       closeAnnouncementModal();
     } catch (error) {
       if (mensagemAnuncio) {
