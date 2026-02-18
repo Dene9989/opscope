@@ -11591,6 +11591,46 @@ function mergeMaintenanceFallback(remote, local) {
   return pickMaintenanceMerge(remote, local).item;
 }
 
+function mergeLocalExecucaoRegistro(remote, local) {
+  if (!remote || !local) {
+    return remote;
+  }
+  if (!hasExecucaoRegistrada(local) || hasExecucaoRegistrada(remote)) {
+    return remote;
+  }
+  const localTime = getMaintenanceUpdatedAtValue(local);
+  const remoteTime = getMaintenanceUpdatedAtValue(remote);
+  if (remoteTime && localTime && localTime < remoteTime - 1000) {
+    return remote;
+  }
+  const merged = { ...remote };
+  if (local.registroExecucao) {
+    merged.registroExecucao = local.registroExecucao;
+  }
+  if (local.execucaoRegistradaEm && !remote.execucaoRegistradaEm) {
+    merged.execucaoRegistradaEm = local.execucaoRegistradaEm;
+  }
+  if (local.executionRegisteredAt && !remote.executionRegisteredAt) {
+    merged.executionRegisteredAt = local.executionRegisteredAt;
+  }
+  if (local.executionStartedAt && !remote.executionStartedAt) {
+    merged.executionStartedAt = local.executionStartedAt;
+  }
+  if (local.executionStartedBy && !remote.executionStartedBy) {
+    merged.executionStartedBy = local.executionStartedBy;
+  }
+  if (local.executionFinishedAt && !remote.executionFinishedAt) {
+    merged.executionFinishedAt = local.executionFinishedAt;
+  }
+  if (local.updatedAt && (!remote.updatedAt || local.updatedAt > remote.updatedAt)) {
+    merged.updatedAt = local.updatedAt;
+  }
+  if (local.updatedBy && !remote.updatedBy) {
+    merged.updatedBy = local.updatedBy;
+  }
+  return merged;
+}
+
 function getParticipantesLabel(participantes) {
   if (!Array.isArray(participantes) || !participantes.length) {
     return "-";
@@ -35201,22 +35241,38 @@ async function carregarManutencoesServidor(force = false) {
           ? localCache.filter((item) => item && item.id).map((item) => [item.id, item])
           : []
       );
-      const merged = data.items.map((item) => {
-        const localItem = localMap.get(item.id);
-        if (!localItem) {
-          return item;
-        }
-        const localHasExec = hasExecucaoRegistrada(localItem);
-        const remoteHasExec = hasExecucaoRegistrada(item);
-        if (localHasExec && !remoteHasExec) {
-          needsSync = true;
-        }
-        const resolved = pickMaintenanceMerge(item, localItem);
-        if (resolved.source === "local") {
-          needsSync = true;
-        }
-        return resolved.item;
-      });
+      let merged = [];
+      if (STRICT_SERVER_SYNC) {
+        merged = data.items.map((item) => {
+          const localItem = localMap.get(item.id);
+          if (!localItem) {
+            return item;
+          }
+          const localHasExec = hasExecucaoRegistrada(localItem);
+          const remoteHasExec = hasExecucaoRegistrada(item);
+          if (localHasExec && !remoteHasExec) {
+            needsSync = true;
+          }
+          return mergeLocalExecucaoRegistro(item, localItem);
+        });
+      } else {
+        merged = data.items.map((item) => {
+          const localItem = localMap.get(item.id);
+          if (!localItem) {
+            return item;
+          }
+          const localHasExec = hasExecucaoRegistrada(localItem);
+          const remoteHasExec = hasExecucaoRegistrada(item);
+          if (localHasExec && !remoteHasExec) {
+            needsSync = true;
+          }
+          const resolved = pickMaintenanceMerge(item, localItem);
+          if (resolved.source === "local") {
+            needsSync = true;
+          }
+          return resolved.item;
+        });
+      }
       const lastFetchAt = maintenanceLastFetch;
       const remoteIds = new Set(
         data.items.map((item) => (item && item.id ? String(item.id) : "")).filter(Boolean)
