@@ -4475,7 +4475,7 @@ let rdoUI = {
 let kpiRankingSort = { key: "concluidas", dir: "desc" };
 let homeTipsTimer = null;
 let homeTipIndex = 0;
-const SYNC_POLL_MS = 30000;
+const SYNC_POLL_MS = 10 * 60 * 1000;
 const SYNC_DEBUG_KEY = "opscope.debugSync";
 const COMPAT_SCHEMA_VERSION = 1;
 const COMPAT_STATE_KEY = "opscope.compat.state";
@@ -4484,6 +4484,7 @@ const COMPAT_DATASETS = ["maintenance", "announcements", "feedbacks", "sstDocs"]
 let syncEventSource = null;
 let syncEventProject = "";
 let syncPollTimer = null;
+let syncPollRunning = false;
 let syncDebugEnabled = false;
 let syncLastEventAt = 0;
 let syncSiteRunning = false;
@@ -4806,43 +4807,51 @@ function stopSyncPolling() {
   }
 }
 
+async function runAutoSyncTick() {
+  if (!currentUser || syncPollRunning || syncSiteRunning) {
+    return;
+  }
+  syncPollRunning = true;
+  try {
+    logSyncDebug("poll.tick");
+    const tasks = [];
+    if (activeProjectId) {
+      if (maintenancePendingSync) {
+        tasks.push(
+          syncMaintenanceNow(manutencoes, true)
+            .then(() => carregarManutencoesServidor(true))
+            .catch(() => null)
+        );
+      } else {
+        tasks.push(carregarManutencoesServidor(true));
+      }
+      tasks.push(loadDashboardSummary(true, { skipSync: true }));
+      tasks.push(refreshProjects());
+    }
+    tasks.push(refreshAccessData({ reason: "poll" }));
+    tasks.push(carregarUsuariosServidor());
+    tasks.push(carregarAnuncios(true, { auto: true }));
+    tasks.push(carregarFeedbacks(true));
+    const activeTab = getActiveTabKey();
+    if (activeTab && activeTab.startsWith("sst")) {
+      tasks.push(carregarSst(true));
+    }
+    tasks.push(checkCompatState());
+    await Promise.allSettled(tasks);
+    setLastSyncAt(Date.now(), "auto");
+  } finally {
+    syncPollRunning = false;
+  }
+}
+
 function startSyncPolling() {
   if (syncPollTimer || !USE_AUTH_API) {
     return;
   }
   syncPollTimer = setInterval(() => {
-    if (!currentUser) {
-      return;
-    }
-    if (document.hidden) {
-      return;
-    }
-    logSyncDebug("poll.tick");
-    if (activeProjectId) {
-      if (maintenancePendingSync) {
-        syncMaintenanceNow(manutencoes, true)
-          .then(() => {
-            carregarManutencoesServidor(true);
-          })
-          .catch(() => {
-            // Mantém estado local até conseguir sincronizar.
-          });
-      } else {
-        carregarManutencoesServidor(true);
-      }
-      loadDashboardSummary(true, { skipSync: true });
-      refreshProjects();
-    }
-    refreshAccessData({ reason: "poll" });
-    carregarAnuncios(true, { auto: true });
-    carregarFeedbacks(true);
-    const activeTab = getActiveTabKey();
-    if (activeTab && activeTab.startsWith("sst")) {
-      carregarSst(true);
-    }
-    checkCompatState();
-    setLastSyncAt(Date.now(), "auto");
+    runAutoSyncTick();
   }, SYNC_POLL_MS);
+  runAutoSyncTick();
 }
 
 function stopSyncEvents() {
@@ -4925,7 +4934,6 @@ function startSyncEvents() {
       payload = {};
     }
     logSyncDebug("sse.hello", payload);
-    stopSyncPolling();
   });
   source.addEventListener("ping", () => {
     logSyncDebug("sse.ping");
@@ -4961,7 +4969,6 @@ function startSyncEvents() {
   };
   source.onopen = () => {
     logSyncDebug("sse.open", { projectId });
-    stopSyncPolling();
   };
 }
 
@@ -10220,8 +10227,10 @@ async function carregarSessaoServidor() {
   }
   if (currentUser) {
     startSyncEvents();
+    startSyncPolling();
   } else {
     stopSyncEvents();
+    stopSyncPolling();
   }
 }
 
