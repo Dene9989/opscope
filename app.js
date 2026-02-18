@@ -12725,7 +12725,7 @@ function getMaintenanceState(item, data, hoje) {
   if (status === "concluida" || status === "cancelada") {
     return "planned";
   }
-  if (hasExecucaoRegistrada(item) && (status === "em_execucao" || status === "encerramento")) {
+  if (hasExecucaoRegistrada(item)) {
     return "awaiting";
   }
   if (data && data.getTime() === hoje.getTime()) {
@@ -12757,6 +12757,14 @@ function renderDashboardHome() {
   }
   const { kpis, saudeOperacional, graficoEficiencia, proximasAtividades } =
     dashboardSummary;
+  const scopedManutencoes = Array.isArray(manutencoes)
+    ? manutencoes.filter(
+        (item) =>
+          item && (!activeProjectId || !item.projectId || item.projectId === activeProjectId)
+      )
+    : [];
+  const localSummary = buildLocalDashboardSummary(scopedManutencoes, activeProjectId);
+  const kpisFinal = { ...(kpis || {}), ...(localSummary.kpis || {}) };
 
   const renderKpiCard = (label, value) =>
     `<article class="kpi-card"><span>${label}</span><strong>${value}</strong></article>`;
@@ -12831,11 +12839,11 @@ function renderDashboardHome() {
       <section class="home-section">
         <h3 class="home-section__title">Indicadores do dia</h3>
         <div class="kpi-grid">
-          ${renderKpiCard("VENCE HOJE", kpis.venceHoje)}
-          ${renderKpiCard("ATRASADAS", kpis.atrasadas)}
-          ${renderKpiCard("AGUARDANDO CONCLUSÃO", kpis.aguardandoConclusao)}
-          ${renderKpiCard("CRÍTICAS", kpis.criticas)}
-          ${renderKpiCard("RISCO IMEDIATO", kpis.riscoImediato)}
+          ${renderKpiCard("VENCE HOJE", kpisFinal.venceHoje)}
+          ${renderKpiCard("ATRASADAS", kpisFinal.atrasadas)}
+          ${renderKpiCard("AGUARDANDO CONCLUSÃO", kpisFinal.aguardandoConclusao)}
+          ${renderKpiCard("CRÍTICAS", kpisFinal.criticas)}
+          ${renderKpiCard("RISCO IMEDIATO", kpisFinal.riscoImediato)}
         </div>
       </section>
 
@@ -39437,13 +39445,7 @@ function buildLocalDashboardSummary(items, projectId) {
   }).length;
 
   const criticas = pendingItems.filter((item) => isMaintenanceCritical(item)).length;
-  const aguardandoConclusao = pendingItems.filter((item) => {
-    if (!hasExecucaoRegistrada(item)) {
-      return false;
-    }
-    const status = normalizeMaintenanceStatus(item.status);
-    return status === "em_execucao" || status === "encerramento";
-  }).length;
+  const aguardandoConclusao = pendingItems.filter((item) => hasExecucaoRegistrada(item)).length;
 
   const score = atrasadas * 2 + criticas * 3 + venceHoje;
   let riscoImediato = "Baixo";
@@ -39489,6 +39491,9 @@ function buildLocalDashboardSummary(items, projectId) {
   }
 
   const backlogTotal = pendingItems.filter((item) => {
+    if (hasExecucaoRegistrada(item)) {
+      return false;
+    }
     const status = normalizeMaintenanceStatus(item && item.status);
     if (status === "backlog") {
       return true;
