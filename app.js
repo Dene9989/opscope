@@ -11163,11 +11163,25 @@ function hasExecucaoRegistrada(item) {
     return false;
   }
   const registro = item.registroExecucao;
-  return Boolean(
+  const registradoEm =
     registro.registradoEm ||
-    registro.comentario ||
-    registro.resultado ||
-    registro.observacaoExecucao
+    registro.registrado_em ||
+    registro.executadoEm ||
+    registro.executedAt;
+  const comentario = registro.comentario || registro.descricao || registro.resumo;
+  const observacao = registro.observacaoExecucao || registro.observacao;
+  const resultado = registro.resultado || registro.status;
+  const evidencias =
+    Array.isArray(registro.evidencias) && registro.evidencias.length > 0;
+  const marcadorTopo =
+    item.execucaoRegistradaEm || item.executionRegisteredAt || item.execucaoRegistradaAt;
+  return Boolean(
+    registradoEm ||
+      comentario ||
+      resultado ||
+      observacao ||
+      evidencias ||
+      marcadorTopo
   );
 }
 
@@ -35181,43 +35195,48 @@ async function carregarManutencoesServidor(force = false) {
     const data = await apiMaintenanceList(activeProjectId);
     if (data && Array.isArray(data.items)) {
       let needsSync = false;
-      if (STRICT_SERVER_SYNC) {
-        manutencoes = data.items.slice();
-      } else {
-        const localCache = readJson(getProjectStorageKey(STORAGE_KEY), []);
-        const localMap = new Map(
-          Array.isArray(localCache)
-            ? localCache.filter((item) => item && item.id).map((item) => [item.id, item])
-            : []
-        );
-        const merged = data.items.map((item) => {
-          const resolved = pickMaintenanceMerge(item, localMap.get(item.id));
-          if (resolved.source === "local") {
-            needsSync = true;
-          }
-          return resolved.item;
-        });
-        const lastFetchAt = maintenanceLastFetch;
-        const remoteIds = new Set(
-          data.items.map((item) => (item && item.id ? String(item.id) : "")).filter(Boolean)
-        );
-        if (Array.isArray(localCache)) {
-          localCache.forEach((item) => {
-            if (!item || !item.id) {
-              return;
-            }
-            const id = String(item.id);
-            if (!remoteIds.has(id)) {
-              const updatedAt = getMaintenanceUpdatedAtValue(item);
-              if (lastFetchAt > 0 && updatedAt > lastFetchAt) {
-                merged.push(item);
-                needsSync = true;
-              }
-            }
-          });
+      const localCache = readJson(getProjectStorageKey(STORAGE_KEY), []);
+      const localMap = new Map(
+        Array.isArray(localCache)
+          ? localCache.filter((item) => item && item.id).map((item) => [item.id, item])
+          : []
+      );
+      const merged = data.items.map((item) => {
+        const localItem = localMap.get(item.id);
+        if (!localItem) {
+          return item;
         }
-        manutencoes = merged;
+        const localHasExec = hasExecucaoRegistrada(localItem);
+        const remoteHasExec = hasExecucaoRegistrada(item);
+        if (localHasExec && !remoteHasExec) {
+          needsSync = true;
+        }
+        const resolved = pickMaintenanceMerge(item, localItem);
+        if (resolved.source === "local") {
+          needsSync = true;
+        }
+        return resolved.item;
+      });
+      const lastFetchAt = maintenanceLastFetch;
+      const remoteIds = new Set(
+        data.items.map((item) => (item && item.id ? String(item.id) : "")).filter(Boolean)
+      );
+      if (Array.isArray(localCache)) {
+        localCache.forEach((item) => {
+          if (!item || !item.id) {
+            return;
+          }
+          const id = String(item.id);
+          if (!remoteIds.has(id)) {
+            const updatedAt = getMaintenanceUpdatedAtValue(item);
+            if (lastFetchAt > 0 && updatedAt > lastFetchAt) {
+              merged.push(item);
+              needsSync = true;
+            }
+          }
+        });
       }
+      manutencoes = merged;
       const payloadHash = syncDebugEnabled
         ? hashString(JSON.stringify(data.items))
         : "";
