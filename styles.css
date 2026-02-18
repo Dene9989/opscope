@@ -544,16 +544,20 @@ h1 {
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
+  gap: 8px;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .topbar-sync-meta {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   color: var(--sb-muted);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
 }
 
 .topbar-sync-meta.is-ok {
@@ -568,11 +572,30 @@ h1 {
   color: var(--color-danger);
 }
 
+.topbar-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  max-width: 220px;
+  line-height: 1.1;
+}
+
 .project-switcher {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 200px;
+  min-width: 180px;
+  max-width: 260px;
+  flex: 0 1 260px;
+}
+
+.project-switcher select {
+  max-width: 100%;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .project-switcher__label {
@@ -735,7 +758,7 @@ h1 {
 }
 
 .topbar-logo__img {
-  height: 100px;
+  height: 64px;
   width: auto;
   display: block;
   object-fit: contain;
@@ -11140,6 +11163,10 @@ textarea:focus {
   }
 
   .topbar-sync-meta {
+    display: none;
+  }
+
+  .topbar-status {
     display: none;
   }
 
