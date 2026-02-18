@@ -10688,9 +10688,14 @@ function buildManutencaoResumoTexto(item) {
   }
   const titulo = item.titulo || "Manutenção";
   const local = item.local || "-";
+  const equipamentoLabel = getMaintenanceEquipamentoLabel(item);
+  const equipamentoTexto =
+    equipamentoLabel && equipamentoLabel !== "-"
+      ? `Equipamento: ${equipamentoLabel}`
+      : "Equipamento não informado";
   const dataParsed = item.data ? parseDate(item.data) : null;
   const dataTexto = dataParsed ? formatDate(dataParsed) : "data indefinida";
-  return `${titulo} | ${local} | ${dataTexto}`;
+  return `${titulo} | ${local} | ${equipamentoTexto} | ${dataTexto}`;
 }
 
 function normalizeIso(value) {
