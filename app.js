@@ -142,13 +142,28 @@ const modalAnuncio = document.getElementById("modalAnuncio");
 const formAnuncio = document.getElementById("formAnuncio");
 const anuncioTitulo = document.getElementById("anuncioTitulo");
 const anuncioTipo = document.getElementById("anuncioTipo");
+const anuncioCriticidade = document.getElementById("anuncioCriticidade");
 const anuncioEscopo = document.getElementById("anuncioEscopo");
 const anuncioProjeto = document.getElementById("anuncioProjeto");
 const anuncioProjetoField = document.getElementById("anuncioProjetoField");
+const anuncioImagens = document.getElementById("anuncioImagens");
+const anuncioImagensPreview = document.getElementById("anuncioImagensPreview");
 const anuncioMensagem = document.getElementById("anuncioMensagem");
 const btnCancelarAnuncio = document.getElementById("btnCancelarAnuncio");
 const btnFecharAnuncio = document.getElementById("btnFecharAnuncio");
 const mensagemAnuncio = document.getElementById("mensagemAnuncio");
+const modalAnuncioView = document.getElementById("modalAnuncioView");
+const anuncioViewTitulo = document.getElementById("anuncioViewTitulo");
+const anuncioViewMeta = document.getElementById("anuncioViewMeta");
+const anuncioViewMensagem = document.getElementById("anuncioViewMensagem");
+const anuncioViewTipo = document.getElementById("anuncioViewTipo");
+const anuncioViewSeveridade = document.getElementById("anuncioViewSeveridade");
+const anuncioViewImagens = document.getElementById("anuncioViewImagens");
+const anuncioViewReadsWrap = document.getElementById("anuncioViewReadsWrap");
+const anuncioViewReads = document.getElementById("anuncioViewReads");
+const btnAnuncioViewClose = document.getElementById("btnAnuncioViewClose");
+const btnAnuncioViewCloseFooter = document.getElementById("btnAnuncioViewCloseFooter");
+const btnAnuncioViewMarkRead = document.getElementById("btnAnuncioViewMarkRead");
 const countAgendadas = document.getElementById("countAgendadas");
 const countLiberadas = document.getElementById("countLiberadas");
 const countBacklog = document.getElementById("countBacklog");
@@ -1155,6 +1170,7 @@ const EXECUCAO_REG_ALERT_KEY = "opscope.execucaoRegistrada.alerts";
 const SYNC_LAST_AT_KEY = "opscope.sync.lastAt";
 const ANNOUNCEMENTS_KEY = "opscope.announcements";
 const ANNOUNCEMENTS_READ_KEY = "opscope.announcements.read";
+const ANNOUNCEMENTS_READERS_KEY = "opscope.announcements.readers";
 const TEAM_NOTIFICATION_WINDOW_DAYS = 14;
 const STORAGE_KEY = "denemanu.manutencoes";
 const TEMPLATE_KEY = "denemanu.templates";
@@ -4403,7 +4419,11 @@ let syncSiteRunning = false;
 let announcements = [];
 let announcementsLastFetch = 0;
 let announcementsUnreadCount = 0;
+let announcementsUnreadSeverity = "baixa";
 let reminderTotalCount = 0;
+let reminderUnreadCount = 0;
+let announcementDraftImages = [];
+let activeAnnouncementView = null;
 
 function readJson(key, fallback) {
   const raw = localStorage.getItem(key);
@@ -8781,7 +8801,6 @@ function alternarPainelLembretes() {
     fecharUserMenu();
     painelLembretes.hidden = false;
     btnLembretes.setAttribute("aria-expanded", "true");
-    markVisibleAnnouncementsRead();
     renderAnuncios();
     return;
   }
@@ -13459,6 +13478,15 @@ const ANNOUNCEMENT_TYPES = {
   alerta: "Alerta",
 };
 
+const ANNOUNCEMENT_SEVERITIES = {
+  baixa: "Baixa",
+  media: "Média",
+  alta: "Alta",
+  critica: "Crítica",
+};
+
+const ANNOUNCEMENT_SEVERITY_ORDER = ["baixa", "media", "alta", "critica"];
+
 function shouldFallbackAnnouncements(error) {
   const status = Number(error && error.status) || 0;
   return status === 404 || status === 405 || status === 501;
@@ -13473,6 +13501,40 @@ function normalizeAnnouncementType(value) {
     return "aviso";
   }
   return "info";
+}
+
+function normalizeAnnouncementSeverity(value) {
+  const normalized = normalizeSearchValue(value);
+  if (normalized.includes("crit")) {
+    return "critica";
+  }
+  if (normalized.includes("alta")) {
+    return "alta";
+  }
+  if (normalized.includes("med")) {
+    return "media";
+  }
+  return "baixa";
+}
+
+function getAnnouncementSeverityLabel(severity) {
+  return ANNOUNCEMENT_SEVERITIES[severity] || ANNOUNCEMENT_SEVERITIES.baixa;
+}
+
+function getAnnouncementSeverityRank(severity) {
+  const index = ANNOUNCEMENT_SEVERITY_ORDER.indexOf(severity);
+  return index === -1 ? 0 : index;
+}
+
+function getHighestAnnouncementSeverity(items) {
+  let highest = "baixa";
+  items.forEach((item) => {
+    const rank = getAnnouncementSeverityRank(item.severity || "baixa");
+    if (rank > getAnnouncementSeverityRank(highest)) {
+      highest = item.severity || "baixa";
+    }
+  });
+  return highest;
 }
 
 function getUserHierarchyRank(user) {
@@ -13596,6 +13658,34 @@ function canReceiveAnnouncement(item, user) {
   return userRank >= senderRank;
 }
 
+function normalizeAnnouncementImage(entry) {
+  if (!entry) {
+    return null;
+  }
+  if (typeof entry === "string") {
+    const src = entry.trim();
+    return src ? { src, name: "" } : null;
+  }
+  if (typeof entry === "object") {
+    const src = String(entry.src || entry.url || entry.dataUrl || entry.data || "").trim();
+    if (!src) {
+      return null;
+    }
+    return {
+      src,
+      name: String(entry.name || entry.filename || "").trim(),
+    };
+  }
+  return null;
+}
+
+function normalizeAnnouncementImages(list) {
+  if (!Array.isArray(list)) {
+    return [];
+  }
+  return list.map((item) => normalizeAnnouncementImage(item)).filter(Boolean);
+}
+
 function normalizeAnnouncementRecord(record) {
   if (!record || typeof record !== "object") {
     return null;
@@ -13608,18 +13698,45 @@ function normalizeAnnouncementRecord(record) {
   }
   const createdAt = normalizeIso(record.createdAt || record.created || new Date());
   const type = normalizeAnnouncementType(record.type || record.tipo || "info");
+  const severity = normalizeAnnouncementSeverity(record.severity || record.criticidade || "baixa");
   const scope = record.scope || (record.projectId || record.project ? "project" : "all");
   const projectId = String(record.projectId || record.project || "").trim();
   const projectLabel =
     String(record.projectLabel || record.projectName || "").trim() || getAnnouncementProjectLabel(projectId);
+  const images = normalizeAnnouncementImages(
+    record.images || record.fotos || record.photos || record.imagens || []
+  );
+  const readByRaw = Array.isArray(record.readBy || record.reads || record.lidos)
+    ? record.readBy || record.reads || record.lidos
+    : [];
+  const readBy = readByRaw
+    .map((entry) => {
+      if (!entry) {
+        return null;
+      }
+      if (typeof entry === "string") {
+        return { userId: entry };
+      }
+      if (typeof entry === "object") {
+        return {
+          userId: entry.userId || entry.id || entry.user || "",
+          readAt: entry.readAt || entry.at || entry.date || "",
+        };
+      }
+      return null;
+    })
+    .filter((entry) => entry && entry.userId);
   return {
     id,
     title: title || "Anúncio",
     message,
     type,
+    severity,
     scope,
     projectId,
     projectLabel,
+    images,
+    readBy,
     createdAt,
     createdBy: record.createdBy || record.authorId || record.userId || "",
     createdByName: record.createdByName || record.authorName || record.userName || "",
@@ -13670,7 +13787,60 @@ function saveReadAnnouncementIds(readSet) {
   writeJson(ANNOUNCEMENTS_READ_KEY, Array.from(readSet));
 }
 
-function markAnnouncementRead(id) {
+function getAnnouncementReadersMap() {
+  return readJson(ANNOUNCEMENTS_READERS_KEY, {});
+}
+
+function saveAnnouncementReadersMap(map) {
+  writeJson(ANNOUNCEMENTS_READERS_KEY, map || {});
+}
+
+function markAnnouncementReadByUser(id, user = currentUser) {
+  if (!id || !user || !user.id) {
+    return;
+  }
+  const key = String(id);
+  const map = getAnnouncementReadersMap();
+  const entry = map[key] && typeof map[key] === "object" ? map[key] : {};
+  if (!entry[user.id]) {
+    entry[user.id] = toIsoUtc(new Date());
+    map[key] = entry;
+    saveAnnouncementReadersMap(map);
+  }
+}
+
+function getAnnouncementReaders(item) {
+  if (!item) {
+    return [];
+  }
+  const result = new Map();
+  const list = Array.isArray(item.readBy) ? item.readBy : [];
+  list.forEach((entry) => {
+    if (!entry) {
+      return;
+    }
+    const userId = String(entry.userId || entry.id || entry.user || "").trim();
+    if (!userId) {
+      return;
+    }
+    result.set(userId, entry.readAt || entry.at || entry.date || "");
+  });
+  const map = getAnnouncementReadersMap();
+  const local = map[String(item.id)];
+  if (local && typeof local === "object") {
+    Object.entries(local).forEach(([userId, readAt]) => {
+      if (!result.has(userId)) {
+        result.set(userId, readAt);
+      }
+    });
+  }
+  return Array.from(result.entries()).map(([userId, readAt]) => ({
+    userId,
+    readAt,
+  }));
+}
+
+function markAnnouncementRead(id, user = currentUser) {
   if (!id) {
     return;
   }
@@ -13680,6 +13850,7 @@ function markAnnouncementRead(id) {
     readSet.add(key);
     saveReadAnnouncementIds(readSet);
   }
+  markAnnouncementReadByUser(id, user);
 }
 
 function markVisibleAnnouncementsRead() {
@@ -13702,21 +13873,43 @@ function markVisibleAnnouncementsRead() {
   }
 }
 
+function setBadgeSeverity(element, severity) {
+  if (!element) {
+    return;
+  }
+  element.classList.remove(
+    "bell-dot--low",
+    "bell-dot--medium",
+    "bell-dot--high",
+    "bell-dot--critical"
+  );
+  if (!severity) {
+    return;
+  }
+  const key = normalizeAnnouncementSeverity(severity);
+  const map = {
+    baixa: "bell-dot--low",
+    media: "bell-dot--medium",
+    alta: "bell-dot--high",
+    critica: "bell-dot--critical",
+  };
+  element.classList.add(map[key] || "bell-dot--low");
+}
+
 function updateBellDot() {
   if (!lembretesCount) {
     return;
   }
-  const show = reminderTotalCount > 0 || announcementsUnreadCount > 0;
-  if (lembretesCount.id === "bellDot") {
-    lembretesCount.textContent = "";
-    lembretesCount.hidden = !show;
-    lembretesCount.classList.toggle("is-zero", !show);
-    return;
-  }
-  const total = reminderTotalCount + announcementsUnreadCount;
-  lembretesCount.textContent = total;
+  const total = reminderUnreadCount + announcementsUnreadCount;
+  lembretesCount.textContent = total ? String(total) : "";
   lembretesCount.hidden = total === 0;
   lembretesCount.classList.toggle("is-zero", total === 0);
+  if (total > 0) {
+    const severity = announcementsUnreadCount ? announcementsUnreadSeverity : "baixa";
+    setBadgeSeverity(lembretesCount, severity);
+  } else {
+    setBadgeSeverity(lembretesCount, null);
+  }
 }
 
 function renderAnuncios() {
@@ -13738,19 +13931,24 @@ function renderAnuncios() {
   if (!visible.length) {
     anunciosVazio.hidden = false;
     announcementsUnreadCount = 0;
+    announcementsUnreadSeverity = "baixa";
     updateBellDot();
     return;
   }
   anunciosVazio.hidden = true;
+  const unreadAll = visible.filter((item) => !readSet.has(String(item.id)));
+  announcementsUnreadCount = unreadAll.length;
+  announcementsUnreadSeverity = unreadAll.length
+    ? getHighestAnnouncementSeverity(unreadAll)
+    : "baixa";
+
   const limited = visible.slice(0, 5);
-  let unreadCount = 0;
   limited.forEach((item) => {
     const card = document.createElement("div");
     card.className = `announcement-item announcement-item--${item.type}`;
     card.dataset.announcementId = item.id;
     if (!readSet.has(String(item.id))) {
       card.classList.add("is-unread");
-      unreadCount += 1;
     }
 
     const head = document.createElement("div");
@@ -13760,7 +13958,13 @@ function renderAnuncios() {
     const tag = document.createElement("span");
     tag.className = `announcement-tag announcement-tag--${item.type}`;
     tag.textContent = getAnnouncementTypeLabel(item.type);
-    head.append(title, tag);
+    const severityTag = document.createElement("span");
+    severityTag.className = `announcement-severity announcement-severity--${item.severity || "baixa"}`;
+    severityTag.textContent = getAnnouncementSeverityLabel(item.severity || "baixa");
+    const tags = document.createElement("div");
+    tags.className = "announcement-item__tags";
+    tags.append(tag, severityTag);
+    head.append(title, tags);
 
     const body = document.createElement("span");
     body.textContent = item.message || "";
@@ -13773,7 +13977,6 @@ function renderAnuncios() {
     card.append(head, body, meta);
     listaAnuncios.append(card);
   });
-  announcementsUnreadCount = unreadCount;
   updateBellDot();
 
   if (btnNovoAnuncio) {
@@ -13879,6 +14082,85 @@ function updateAnnouncementScopeField() {
   }
 }
 
+function resetAnnouncementDraftImages() {
+  announcementDraftImages = [];
+  if (anuncioImagens) {
+    anuncioImagens.value = "";
+  }
+  if (anuncioImagensPreview) {
+    anuncioImagensPreview.innerHTML = "";
+  }
+}
+
+function renderAnnouncementDraftImages() {
+  if (!anuncioImagensPreview) {
+    return;
+  }
+  anuncioImagensPreview.innerHTML = "";
+  if (!announcementDraftImages.length) {
+    anuncioImagensPreview.hidden = true;
+    return;
+  }
+  anuncioImagensPreview.hidden = false;
+  announcementDraftImages.forEach((image, index) => {
+    const card = document.createElement("div");
+    card.className = "announcement-image";
+    const img = document.createElement("img");
+    img.src = image.src;
+    img.alt = image.name || "Imagem do anúncio";
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "announcement-image__remove";
+    remove.textContent = "x";
+    remove.addEventListener("click", () => {
+      announcementDraftImages.splice(index, 1);
+      renderAnnouncementDraftImages();
+    });
+    card.append(img, remove);
+    anuncioImagensPreview.append(card);
+  });
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error || new Error("Falha ao ler imagem."));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleAnnouncementImageInput(event) {
+  const files = Array.from(event.target.files || []);
+  if (!files.length) {
+    return;
+  }
+  const maxFiles = 4;
+  const maxSize = 2 * 1024 * 1024;
+  const availableSlots = Math.max(0, maxFiles - announcementDraftImages.length);
+  if (availableSlots === 0) {
+    showAuthToast("Limite de 4 imagens atingido.");
+    return;
+  }
+  const selected = files.slice(0, availableSlots);
+  for (const file of selected) {
+    if (file.size > maxSize) {
+      showAuthToast("Imagem muito grande (máx 2MB).");
+      continue;
+    }
+    try {
+      const src = await readFileAsDataUrl(file);
+      if (src) {
+        announcementDraftImages.push({ src, name: file.name || "" });
+      }
+    } catch (error) {
+      // ignore individual failures
+    }
+  }
+  renderAnnouncementDraftImages();
+  event.target.value = "";
+}
+
 function openAnnouncementModal() {
   if (!modalAnuncio) {
     return;
@@ -13891,6 +14173,7 @@ function openAnnouncementModal() {
   if (formAnuncio) {
     formAnuncio.reset();
   }
+  resetAnnouncementDraftImages();
   if (mensagemAnuncio) {
     mensagemAnuncio.textContent = "";
     mensagemAnuncio.classList.remove("mensagem--erro");
@@ -13904,6 +14187,114 @@ function closeAnnouncementModal() {
     return;
   }
   modalAnuncio.hidden = true;
+  resetAnnouncementDraftImages();
+}
+
+function renderAnnouncementImages(container, images = []) {
+  if (!container) {
+    return;
+  }
+  container.innerHTML = "";
+  if (!images.length) {
+    container.hidden = true;
+    return;
+  }
+  container.hidden = false;
+  images.forEach((image) => {
+    const card = document.createElement("div");
+    card.className = "announcement-image";
+    const img = document.createElement("img");
+    img.src = image.src;
+    img.alt = image.name || "Imagem do anúncio";
+    card.append(img);
+    container.append(card);
+  });
+}
+
+function renderAnnouncementReadersList(item) {
+  if (!anuncioViewReadsWrap || !anuncioViewReads) {
+    return;
+  }
+  const readers = getAnnouncementReaders(item);
+  if (!currentUser || !item || String(item.createdBy || "") !== String(currentUser.id || "")) {
+    anuncioViewReadsWrap.hidden = true;
+    anuncioViewReads.innerHTML = "";
+    return;
+  }
+  if (!readers.length) {
+    anuncioViewReadsWrap.hidden = true;
+    anuncioViewReads.innerHTML = "";
+    return;
+  }
+  anuncioViewReadsWrap.hidden = false;
+  anuncioViewReads.innerHTML = "";
+  readers.forEach((entry) => {
+    const chip = document.createElement("span");
+    const label = getUserLabel(entry.userId) || entry.userId || "-";
+    chip.textContent = label;
+    anuncioViewReads.append(chip);
+  });
+}
+
+function renderAnnouncementView(item) {
+  if (!item || !modalAnuncioView) {
+    return;
+  }
+  if (anuncioViewTitulo) {
+    anuncioViewTitulo.textContent = item.title || "Anúncio";
+  }
+  if (anuncioViewTipo) {
+    anuncioViewTipo.className = `announcement-tag announcement-tag--${item.type}`;
+    anuncioViewTipo.textContent = getAnnouncementTypeLabel(item.type);
+  }
+  if (anuncioViewSeveridade) {
+    const severity = item.severity || "baixa";
+    anuncioViewSeveridade.className = `announcement-severity announcement-severity--${severity}`;
+    anuncioViewSeveridade.textContent = getAnnouncementSeverityLabel(severity);
+  }
+  if (anuncioViewMeta) {
+    const scopeLabel = getAnnouncementScopeLabel(item);
+    const when = item.createdAt
+      ? formatDateTime(parseTimestamp(item.createdAt) || new Date())
+      : "-";
+    const author =
+      item.createdByName ||
+      getUserLabel(item.createdBy) ||
+      getDisplayName(currentUser) ||
+      "Sistema";
+    anuncioViewMeta.textContent = `${scopeLabel} • ${author} • ${when}`;
+  }
+  if (anuncioViewMensagem) {
+    anuncioViewMensagem.textContent = item.message || "";
+  }
+  renderAnnouncementImages(anuncioViewImagens, item.images || []);
+  renderAnnouncementReadersList(item);
+  if (btnAnuncioViewMarkRead) {
+    const readSet = getReadAnnouncementIds();
+    const isRead = readSet.has(String(item.id));
+    const isSender =
+      currentUser && item.createdBy && String(item.createdBy) === String(currentUser.id);
+    btnAnuncioViewMarkRead.hidden =
+      isRead || isSender || !currentUser || !canReceiveAnnouncement(item, currentUser);
+  }
+}
+
+function openAnnouncementView(item) {
+  if (!modalAnuncioView) {
+    return;
+  }
+  fecharPainelLembretes();
+  activeAnnouncementView = item;
+  renderAnnouncementView(item);
+  modalAnuncioView.hidden = false;
+}
+
+function closeAnnouncementView() {
+  if (!modalAnuncioView) {
+    return;
+  }
+  modalAnuncioView.hidden = true;
+  activeAnnouncementView = null;
 }
 
 function renderLembretes() {
@@ -13934,6 +14325,7 @@ function renderLembretes() {
     .sort((a, b) => a.data - b.data);
 
   reminderTotalCount = proximos.length;
+  reminderUnreadCount = proximos.filter(({ item }) => !readSet.has(String(item.id))).length;
 
   if (lembretesCount) {
     const ids = new Set(proximos.map(({ item }) => String(item.id)));
@@ -13949,6 +14341,7 @@ function renderLembretes() {
     }
     reminderTotalCount = proximos.length;
     const unreadTotal = proximos.filter(({ item }) => !readSet.has(String(item.id))).length;
+    reminderUnreadCount = unreadTotal;
     updateBellDot();
     if (lembretesCount.id !== "bellDot") {
       lembretesCount.textContent = unreadTotal + announcementsUnreadCount;
@@ -15730,13 +16123,18 @@ function marcarFeedbacksComoLidos(userId) {
 function atualizarFeedbackBadge() {
   const userId = currentUser ? currentUser.id : "";
   const unread = feedbacks.filter((item) => item.to === userId && !item.readAt).length;
-  const total = feedbacks.filter((item) => item.to === userId).length;
   if (feedbackBadge) {
     feedbackBadge.textContent = String(unread);
     feedbackBadge.hidden = unread === 0;
   }
   if (feedbackInboxDot) {
-    feedbackInboxDot.hidden = total === 0;
+    feedbackInboxDot.textContent = unread ? String(unread) : "";
+    feedbackInboxDot.hidden = unread === 0;
+    if (unread > 0) {
+      setBadgeSeverity(feedbackInboxDot, "media");
+    } else {
+      setBadgeSeverity(feedbackInboxDot, null);
+    }
   }
 }
 
@@ -41488,8 +41886,10 @@ if (listaAnuncios) {
     if (!id) {
       return;
     }
-    markAnnouncementRead(id);
-    renderAnuncios();
+    const anuncio = announcements.find((entry) => String(entry.id) === String(id));
+    if (anuncio) {
+      openAnnouncementView(anuncio);
+    }
   });
 }
 
@@ -41530,6 +41930,10 @@ document.addEventListener("keydown", (event) => {
     }
     if (modalPasswordReset && !modalPasswordReset.hidden) {
       closePasswordResetModal();
+      return;
+    }
+    if (modalAnuncioView && !modalAnuncioView.hidden) {
+      closeAnnouncementView();
       return;
     }
     fecharPainelLembretes();
@@ -42589,6 +42993,36 @@ if (modalAnuncio) {
     }
   });
 }
+if (anuncioImagens) {
+  anuncioImagens.addEventListener("change", handleAnnouncementImageInput);
+}
+if (btnAnuncioViewClose) {
+  btnAnuncioViewClose.addEventListener("click", () => {
+    closeAnnouncementView();
+  });
+}
+if (btnAnuncioViewCloseFooter) {
+  btnAnuncioViewCloseFooter.addEventListener("click", () => {
+    closeAnnouncementView();
+  });
+}
+if (modalAnuncioView) {
+  modalAnuncioView.addEventListener("click", (event) => {
+    if (event.target === modalAnuncioView) {
+      closeAnnouncementView();
+    }
+  });
+}
+if (btnAnuncioViewMarkRead) {
+  btnAnuncioViewMarkRead.addEventListener("click", () => {
+    if (!activeAnnouncementView || !currentUser) {
+      return;
+    }
+    markAnnouncementRead(activeAnnouncementView.id, currentUser);
+    renderAnuncios();
+    renderAnnouncementView(activeAnnouncementView);
+  });
+}
 if (anuncioEscopo) {
   anuncioEscopo.addEventListener("change", updateAnnouncementScopeField);
 }
@@ -42605,6 +43039,9 @@ if (formAnuncio) {
     const titulo = anuncioTitulo ? anuncioTitulo.value.trim() : "";
     const mensagem = anuncioMensagem ? anuncioMensagem.value.trim() : "";
     const tipo = normalizeAnnouncementType(anuncioTipo ? anuncioTipo.value : "info");
+    const criticidade = normalizeAnnouncementSeverity(
+      anuncioCriticidade ? anuncioCriticidade.value : "baixa"
+    );
     const escopo = anuncioEscopo ? anuncioEscopo.value : "all";
     const projectId = escopo === "project" && anuncioProjeto ? anuncioProjeto.value.trim() : "";
     if (!titulo || !mensagem) {
@@ -42632,9 +43069,11 @@ if (formAnuncio) {
       title: titulo,
       message: mensagem,
       type: tipo,
+      severity: criticidade,
       scope: escopo,
       projectId,
       projectLabel: escopo === "project" ? getAnnouncementProjectLabel(projectId) : "",
+      images: announcementDraftImages,
       createdAt: nowIso,
       createdBy: currentUser.id,
       createdByName: getDisplayName(currentUser),
@@ -44617,7 +45056,11 @@ applyProjectVehiclesQuery();
 
 window.addEventListener("focus", atualizarSeNecessario);
 window.addEventListener("storage", (event) => {
-  if (event.key === ANNOUNCEMENTS_KEY || event.key === ANNOUNCEMENTS_READ_KEY) {
+  if (
+    event.key === ANNOUNCEMENTS_KEY ||
+    event.key === ANNOUNCEMENTS_READ_KEY ||
+    event.key === ANNOUNCEMENTS_READERS_KEY
+  ) {
     carregarAnuncios(true);
     return;
   }

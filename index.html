@@ -6759,6 +6759,15 @@
               </select>
             </div>
             <div class="field">
+              <label for="anuncioCriticidade">Criticidade</label>
+              <select id="anuncioCriticidade">
+                <option value="baixa">Baixa</option>
+                <option value="media">M&eacute;dia</option>
+                <option value="alta">Alta</option>
+                <option value="critica">Cr&iacute;tica</option>
+              </select>
+            </div>
+            <div class="field">
               <label for="anuncioEscopo">Escopo</label>
               <select id="anuncioEscopo">
                 <option value="all">Geral (todos os projetos)</option>
@@ -6768,6 +6777,12 @@
             <div class="field" data-full id="anuncioProjetoField">
               <label for="anuncioProjeto">Projeto</label>
               <select id="anuncioProjeto"></select>
+            </div>
+            <div class="field" data-full>
+              <label for="anuncioImagens">Fotos (opcional)</label>
+              <input id="anuncioImagens" type="file" accept="image/*" multiple />
+              <div id="anuncioImagensPreview" class="announcement-images announcement-images--preview"></div>
+              <small class="hint">At&eacute; 4 imagens para destacar comunicados importantes.</small>
             </div>
             <div class="field" data-full>
               <label for="anuncioMensagem">Mensagem</label>
@@ -6780,6 +6795,43 @@
           </div>
           <p id="mensagemAnuncio" class="mensagem" aria-live="polite"></p>
         </form>
+      </div>
+    </div>
+
+    <div id="modalAnuncioView" class="modal" hidden>
+      <div class="modal__content modal__content--wide">
+        <div class="modal__header">
+          <h3 id="anuncioViewTitulo">An&uacute;ncio</h3>
+          <button
+            id="btnAnuncioViewClose"
+            class="btn btn--ghost btn--icon"
+            type="button"
+            aria-label="Fechar"
+          >
+            <span aria-hidden="true">x</span>
+          </button>
+        </div>
+        <div class="announcement-view__meta">
+          <div class="announcement-view__tags">
+            <span id="anuncioViewTipo" class="announcement-tag"></span>
+            <span id="anuncioViewSeveridade" class="announcement-severity"></span>
+          </div>
+          <small id="anuncioViewMeta"></small>
+        </div>
+        <p id="anuncioViewMensagem" class="announcement-view__message"></p>
+        <div id="anuncioViewImagens" class="announcement-images"></div>
+        <div id="anuncioViewReadsWrap" class="announcement-reads" hidden>
+          <strong>Lidos por</strong>
+          <div id="anuncioViewReads" class="announcement-reads__list"></div>
+        </div>
+        <div class="modal__actions">
+          <button id="btnAnuncioViewMarkRead" class="btn btn--primary" type="button">
+            Marcar como lido
+          </button>
+          <button id="btnAnuncioViewCloseFooter" class="btn btn--ghost" type="button">
+            Fechar
+          </button>
+        </div>
       </div>
     </div>
 
