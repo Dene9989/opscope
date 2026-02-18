@@ -4396,6 +4396,7 @@ let maintenanceLastSync = 0;
 let maintenanceSyncFailed = false;
 let maintenanceLastUserId = null;
 let maintenanceLastFetch = 0;
+let maintenancePendingSync = false;
 const maintenanceLoadedProjects = new Set();
 const maintenanceRenderHashes = new Map();
 let healthSnapshot = null;
@@ -4818,7 +4819,17 @@ function startSyncPolling() {
     }
     logSyncDebug("poll.tick");
     if (activeProjectId) {
-      carregarManutencoesServidor(true);
+      if (maintenancePendingSync) {
+        syncMaintenanceNow(manutencoes, true)
+          .then(() => {
+            carregarManutencoesServidor(true);
+          })
+          .catch(() => {
+            // Mantém estado local até conseguir sincronizar.
+          });
+      } else {
+        carregarManutencoesServidor(true);
+      }
       loadDashboardSummary(true, { skipSync: true });
       refreshProjects();
     }
@@ -11608,12 +11619,20 @@ function mergeLocalExecucaoRegistro(remote, local) {
   if (!remote || !local) {
     return remote;
   }
-  if (!hasExecucaoRegistrada(local) || hasExecucaoRegistrada(remote)) {
-    return remote;
-  }
   const localTime = getMaintenanceUpdatedAtValue(local);
   const remoteTime = getMaintenanceUpdatedAtValue(remote);
-  if (remoteTime && localTime && localTime < remoteTime - 1000) {
+  const localStatus = normalizeMaintenanceStatus(local.status);
+  const remoteStatus = normalizeMaintenanceStatus(remote.status);
+  if (localTime && (!remoteTime || localTime > remoteTime + 1000)) {
+    return mergePreferLocal(local, remote);
+  }
+  if (remoteTime && (!localTime || remoteTime > localTime + 1000)) {
+    return remote;
+  }
+  if (localStatus === "concluida" && remoteStatus !== "concluida") {
+    return mergePreferLocal(local, remote);
+  }
+  if (!hasExecucaoRegistrada(local) || hasExecucaoRegistrada(remote)) {
     return remote;
   }
   const merged = { ...remote };
@@ -12954,20 +12973,41 @@ async function uploadLiberacaoDoc(file, docType) {
   const formData = new FormData();
   formData.append("type", docType || "");
   formData.append("file", file);
-  const data = await apiUploadLiberacaoDoc(formData);
-  const info = data && data.file ? data.file : null;
-  if (!info || !info.url) {
-    throw new Error("Falha ao enviar o documento.");
+  try {
+    const data = await apiUploadLiberacaoDoc(formData);
+    const info = data && data.file ? data.file : null;
+    if (!info || !info.url) {
+      throw new Error("Falha ao enviar o documento.");
+    }
+    const name = info.originalName || info.name || file.name || "Documento";
+    return {
+      id: info.id || "",
+      url: info.url,
+      name,
+      nome: name,
+      mime: info.mime || file.type || "",
+      docType: info.docType || docType || "",
+    };
+  } catch (error) {
+    if (!isUnauthorizedError(error)) {
+      throw error;
+    }
+    const doc = await lerDocumentoFile(file);
+    if (!doc || !doc.dataUrl) {
+      throw error;
+    }
+    const name = file.name || doc.nome || "Documento";
+    return {
+      id: criarId(),
+      url: doc.dataUrl,
+      dataUrl: doc.dataUrl,
+      name,
+      nome: name,
+      mime: file.type || doc.type || "",
+      docType: docType || "",
+      localFallback: true,
+    };
   }
-  const name = info.originalName || info.name || file.name || "Documento";
-  return {
-    id: info.id || "",
-    url: info.url,
-    name,
-    nome: name,
-    mime: info.mime || file.type || "",
-    docType: info.docType || docType || "",
-  };
 }
 
 async function uploadEvidenceFile(file) {
@@ -39041,6 +39081,7 @@ async function confirmarOverrideLiberacao(event) {
     return;
   }
   const item = manutencoes[index];
+  let liberacaoOkNoServidor = true;
   try {
     await apiMaintenanceRelease({
       id: pendingLiberacaoOverride.id,
@@ -39048,13 +39089,21 @@ async function confirmarOverrideLiberacao(event) {
       justificativa: motivo,
     });
   } catch (error) {
-    mostrarMensagemOverride(error.message || "Não foi possível liberar.", true);
-    return;
+    if (isUnauthorizedError(error)) {
+      liberacaoOkNoServidor = false;
+      showAuthToast("Liberação salva localmente. Sincronização pendente.");
+    } else {
+      mostrarMensagemOverride(error.message || "Não foi possível liberar.", true);
+      return;
+    }
   }
   const liberacaoBase = pendingLiberacaoOverride.liberacaoBase;
   pendingLiberacaoOverride = null;
   fecharOverrideLiberacao();
   await finalizarLiberacao(index, item, liberacaoBase, motivo);
+  if (!liberacaoOkNoServidor) {
+    maintenancePendingSync = true;
+  }
 }
 
 async function salvarLiberacao(event) {
@@ -39163,13 +39212,22 @@ async function salvarLiberacao(event) {
     abrirOverrideLiberacao(dataProgramada);
     return;
   }
+  let liberacaoOkNoServidor = true;
   try {
     await apiMaintenanceRelease({ id: item.id, dataProgramada: item.data });
   } catch (error) {
-    mostrarMensagemLiberacao(error.message || "Não foi possível liberar.", true);
-    return;
+    if (isUnauthorizedError(error)) {
+      liberacaoOkNoServidor = false;
+      showAuthToast("Liberação salva localmente. Sincronização pendente.");
+    } else {
+      mostrarMensagemLiberacao(error.message || "Não foi possível liberar.", true);
+      return;
+    }
   }
   await finalizarLiberacao(index, item, liberacaoBase);
+  if (!liberacaoOkNoServidor) {
+    maintenancePendingSync = true;
+  }
 }
 
 function handleLiberacaoDocChange(input) {
@@ -41961,12 +42019,14 @@ async function syncMaintenanceNow(items, force) {
   if (!force && Date.now() - maintenanceLastSync < 10 * 1000) {
     return { ok: true, skipped: true };
   }
+  maintenancePendingSync = true;
   maintenanceSyncPromise = apiMaintenanceSync(items);
   try {
     await maintenanceSyncPromise;
     maintenanceLastSync = Date.now();
     maintenanceLastUserId = currentUser.id;
     maintenanceSyncFailed = false;
+    maintenancePendingSync = false;
     return { ok: true };
   } catch (error) {
     maintenanceSyncFailed = true;
@@ -41986,6 +42046,7 @@ function scheduleMaintenanceSync(items, force) {
   if (!activeProjectId) {
     return;
   }
+  maintenancePendingSync = true;
   if (STRICT_SERVER_SYNC) {
     syncMaintenanceNow(items, true)
       .then(async () => {
@@ -41994,7 +42055,7 @@ function scheduleMaintenanceSync(items, force) {
       })
       .catch(() => {
         showAuthToast("Falha ao sincronizar. Alterações não aplicadas para todos.");
-        carregarManutencoesServidor(true);
+        // Mantém estado local; nova tentativa ocorrerá via sincronização automática/manual.
       });
     return;
   }
@@ -42044,8 +42105,7 @@ async function loadDashboardSummary(force, options = {}) {
         await syncMaintenanceNow(manutencoes, force || !dashboardSummary);
       } catch (error) {
         if (STRICT_SERVER_SYNC) {
-          showAuthToast("Falha de sincronização. Recarregando dados do servidor.");
-          await carregarManutencoesServidor(true);
+          showAuthToast("Falha de sincronização. Alterações locais preservadas.");
         }
       }
     }
