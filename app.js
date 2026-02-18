@@ -13535,7 +13535,7 @@ function renderDashboardHome() {
       const badge = getStatusBadge(item.status);
       return `<tr>
         <td>${escapeHtml(item.atividade)}</td>
-        <td>${escapeHtml(item.responsavel)}</td>
+        <td>${escapeHtml(formatResponsavelText(item.responsavel))}</td>
         <td>${escapeHtml(item.prazo)}</td>
         <td>${badge}</td>
       </tr>`;
@@ -15852,6 +15852,18 @@ function getPeriodoFiltro(value) {
 
 function getProjetoLabel(item) {
   return item.local || item.projeto || item.projectKey || "Sem projeto";
+}
+
+function formatResponsavelText(value) {
+  const text = String(value || "").trim();
+  if (!text) {
+    return "-";
+  }
+  if (text.startsWith("team:") || text.startsWith("time:")) {
+    const name = text.slice(5).trim();
+    return name || "Time";
+  }
+  return text;
 }
 
 function getResponsavelLabel(item) {
