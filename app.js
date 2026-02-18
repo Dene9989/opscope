@@ -12980,22 +12980,44 @@ async function uploadEvidenceFile(file) {
   }
   const formData = new FormData();
   formData.append("file", file);
-  const data = await apiUploadEvidence(formData);
-  const info = data && data.file ? data.file : null;
-  if (!info || !info.url) {
-    throw new Error("Falha ao enviar evidência.");
+  try {
+    const data = await apiUploadEvidence(formData);
+    const info = data && data.file ? data.file : null;
+    if (!info || !info.url) {
+      throw new Error("Falha ao enviar evidência.");
+    }
+    const name = info.originalName || info.name || file.name || "Evidência";
+    return {
+      id: info.id || "",
+      url: info.url,
+      name,
+      nome: name,
+      mime: info.mime || file.type || "",
+      type: info.mime || file.type || "",
+      size: info.size || file.size || 0,
+      uploadedAt: info.createdAt || new Date().toISOString(),
+    };
+  } catch (error) {
+    if (!isUnauthorizedError(error)) {
+      throw error;
+    }
+    const doc = await lerDocumentoFile(file);
+    if (!doc || !doc.dataUrl) {
+      throw error;
+    }
+    const name = file.name || doc.nome || "Evidência";
+    return {
+      id: criarId(),
+      url: doc.dataUrl,
+      dataUrl: doc.dataUrl,
+      name,
+      nome: name,
+      mime: file.type || doc.type || "",
+      type: file.type || doc.type || "",
+      size: file.size || 0,
+      localFallback: true,
+    };
   }
-  const name = info.originalName || info.name || file.name || "Evidência";
-  return {
-    id: info.id || "",
-    url: info.url,
-    name,
-    nome: name,
-    mime: info.mime || file.type || "",
-    type: info.mime || file.type || "",
-    size: info.size || file.size || 0,
-    uploadedAt: info.createdAt || new Date().toISOString(),
-  };
 }
 
 function base64ToBlob(base64, mimeType) {
