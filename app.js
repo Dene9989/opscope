@@ -1450,6 +1450,7 @@ const ACCESS_PERMISSIONS = [
   "limparLogsAPI",
   "verAnuncios",
   "criarAnuncios",
+  "receberEmailNovaManutencao",
   "gerenciarAutomacoes",
   "verAutomacoes",
   "verDiagnostico",
@@ -1487,6 +1488,7 @@ const ACCESS_PERMISSION_LABELS = {
   MAINT_COMPLETE: "Manutenção - executar",
   verAnuncios: "Ver anúncios",
   criarAnuncios: "Criar anúncios",
+  receberEmailNovaManutencao: "Receber e-mail de nova manutenção",
 };
 
 const ACCESS_PERMISSION_GROUPS = [
@@ -1548,7 +1550,7 @@ const ACCESS_PERMISSION_GROUPS = [
   {
     key: "comunicacao",
     label: "Comunicação",
-    items: ["verAnuncios", "criarAnuncios"],
+    items: ["verAnuncios", "criarAnuncios", "receberEmailNovaManutencao"],
   },
   {
     key: "automacoes",
@@ -1758,6 +1760,14 @@ const ACCESS_PERMISSION_CATALOG = [
     label: "Criar anúncios",
     description: "Criar e enviar anúncios para equipes e projetos.",
     level: "WRITE",
+  },
+  {
+    key: "receberEmailNovaManutencao",
+    module: "Comunicação",
+    group: "Notificações",
+    label: "Receber e-mail de nova manutenção",
+    description: "Receber avisos por e-mail quando novas manutenções forem criadas.",
+    level: "READ",
   },
   {
     key: "perfil",
@@ -2280,6 +2290,14 @@ const ACCESS_ROLE_ITEMS = [
     description: "Visualizar e enviar anúncios.",
     viewKeys: ["verAnuncios"],
     editKeys: ["criarAnuncios"],
+  },
+  {
+    key: "comunicacao_email_manutencao",
+    module: "Comunicação",
+    label: "E-mail de nova manutenção",
+    description: "Receber e-mail quando uma nova manutenção for criada no projeto.",
+    viewKeys: ["receberEmailNovaManutencao"],
+    editKeys: [],
   },
   {
     key: "manut_criar",

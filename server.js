@@ -326,6 +326,8 @@ const AUTOMATION_DEFAULTS = [
 ];
 const AUTOMATION_EMAIL_DEDUP_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const automationEmailDedup = new Map();
+const MAINTENANCE_TEAM_EMAIL_PERMISSION = "receberEmailNovaManutencao";
+const MAINTENANCE_TEAM_EMAIL_DEDUP_PREFIX = "maintenance_team_email";
 
 const ALMOX_ITEM_TYPES = new Set(["FERRAMENTA", "EPI", "EPC", "CONSUMIVEL"]);
 const ALMOX_ITEM_UNITS = new Set(["UN", "PAR", "CX"]);
@@ -602,6 +604,7 @@ const ACCESS_PERMISSION_KEYS = new Set([
   "feedbacks",
   "verAnuncios",
   "criarAnuncios",
+  "receberEmailNovaManutencao",
   "perfil",
   "editarPerfil",
   "editarPerfilOutros",
@@ -635,6 +638,8 @@ const ACCESS_PERMISSION_KEYS = new Set([
   "verSST",
   "gerenciarSST",
 ]);
+const ACCESS_ROLE_PERMISSION_VERSION = 2;
+const ACCESS_ROLE_DEFAULT_PERMISSION_KEYS = ["receberEmailNovaManutencao"];
 const ACCESS_SECTION_PERMISSIONS = [
   "inicio",
   "programacao",
@@ -746,8 +751,9 @@ function buildDefaultAccessRoles() {
     {
       id: crypto.randomUUID(),
       name: "Administrador",
-      permissions: ["ADMIN"],
+      permissions: ["ADMIN", "receberEmailNovaManutencao"],
       isSystem: true,
+      permissionsVersion: ACCESS_ROLE_PERMISSION_VERSION,
       createdAt: now,
       updatedAt: now,
     },
@@ -762,56 +768,64 @@ function buildDefaultAccessRoles() {
         "SST_WRITE",
         "ALMOX_READ",
         "REPORTS_READ",
+        "receberEmailNovaManutencao",
       ],
       isSystem: true,
+      permissionsVersion: ACCESS_ROLE_PERMISSION_VERSION,
       createdAt: now,
       updatedAt: now,
     },
     {
       id: crypto.randomUUID(),
       name: "Supervisor O&M",
-      permissions: ["SST_WRITE", "REPORTS_READ"],
+      permissions: ["SST_WRITE", "REPORTS_READ", "receberEmailNovaManutencao"],
       isSystem: true,
+      permissionsVersion: ACCESS_ROLE_PERMISSION_VERSION,
       createdAt: now,
       updatedAt: now,
     },
     {
       id: crypto.randomUUID(),
       name: "Tecnico Senior",
-      permissions: ["SST_READ", "ALMOX_READ", "PROJECT_READ"],
+      permissions: ["SST_READ", "ALMOX_READ", "PROJECT_READ", "receberEmailNovaManutencao"],
       isSystem: true,
+      permissionsVersion: ACCESS_ROLE_PERMISSION_VERSION,
       createdAt: now,
       updatedAt: now,
     },
     {
       id: crypto.randomUUID(),
       name: "Tecnico Pleno",
-      permissions: ["SST_READ", "ALMOX_READ", "PROJECT_READ"],
+      permissions: ["SST_READ", "ALMOX_READ", "PROJECT_READ", "receberEmailNovaManutencao"],
       isSystem: true,
+      permissionsVersion: ACCESS_ROLE_PERMISSION_VERSION,
       createdAt: now,
       updatedAt: now,
     },
     {
       id: crypto.randomUUID(),
       name: "Tecnico Junior",
-      permissions: ["SST_READ", "ALMOX_READ", "PROJECT_READ"],
+      permissions: ["SST_READ", "ALMOX_READ", "PROJECT_READ", "receberEmailNovaManutencao"],
       isSystem: true,
+      permissionsVersion: ACCESS_ROLE_PERMISSION_VERSION,
       createdAt: now,
       updatedAt: now,
     },
     {
       id: crypto.randomUUID(),
       name: "Gerente de Contrato",
-      permissions: ["REPORTS_READ", "KPIS_READ", "PROJECT_READ"],
+      permissions: ["REPORTS_READ", "KPIS_READ", "PROJECT_READ", "receberEmailNovaManutencao"],
       isSystem: true,
+      permissionsVersion: ACCESS_ROLE_PERMISSION_VERSION,
       createdAt: now,
       updatedAt: now,
     },
     {
       id: crypto.randomUUID(),
       name: "Diretor O&M",
-      permissions: ["REPORTS_READ", "KPIS_READ", "PROJECT_READ"],
+      permissions: ["REPORTS_READ", "KPIS_READ", "PROJECT_READ", "receberEmailNovaManutencao"],
       isSystem: true,
+      permissionsVersion: ACCESS_ROLE_PERMISSION_VERSION,
       createdAt: now,
       updatedAt: now,
     },
@@ -827,6 +841,7 @@ function normalizeAccessRoleRecord(role) {
   if (!name) {
     return null;
   }
+  const permissionsVersion = Number(role.permissionsVersion) || 1;
   const createdAt = role.createdAt || new Date().toISOString();
   return {
     id,
@@ -834,6 +849,7 @@ function normalizeAccessRoleRecord(role) {
     nameNormalized: normalizeAccessRoleName(name),
     permissions: ensureSectionPermissions(normalizeAccessPermissionList(role.permissions || [])),
     isSystem: Boolean(role.isSystem),
+    permissionsVersion,
     createdAt,
     updatedAt: role.updatedAt || createdAt,
   };
@@ -853,6 +869,35 @@ function saveAccessRoles(list) {
     .filter(Boolean);
   writeJson(ACCESS_ROLES_FILE, accessRoles);
   return accessRoles;
+}
+
+function applyAccessRolePermissionDefaults(list) {
+  let changed = false;
+  const updated = (Array.isArray(list) ? list : []).map((role) => {
+    if (!role || typeof role !== "object") {
+      return role;
+    }
+    const version = Number(role.permissionsVersion) || 1;
+    if (version >= ACCESS_ROLE_PERMISSION_VERSION) {
+      return role;
+    }
+    const permissions = ensureSectionPermissions(
+      normalizeAccessPermissionList(role.permissions || [])
+    );
+    const nextPermissions = new Set(permissions);
+    ACCESS_ROLE_DEFAULT_PERMISSION_KEYS.forEach((key) => nextPermissions.add(key));
+    changed = true;
+    return {
+      ...role,
+      permissions: Array.from(nextPermissions),
+      permissionsVersion: ACCESS_ROLE_PERMISSION_VERSION,
+      updatedAt: new Date().toISOString(),
+    };
+  });
+  if (changed) {
+    return saveAccessRoles(updated);
+  }
+  return list;
 }
 
 function seedDefaultAccessRolesIfEmpty() {
@@ -4355,6 +4400,235 @@ async function runAutomationsForItems(event, items, actor, ip) {
   }
 }
 
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function parseTeamName(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "";
+  }
+  if (raw.startsWith("team:")) {
+    return raw.slice(5).trim();
+  }
+  if (raw.startsWith("time:")) {
+    return raw.slice(5).trim();
+  }
+  return raw;
+}
+
+function getMaintenanceTeamName(item) {
+  if (!item || typeof item !== "object") {
+    return "";
+  }
+  const direct = parseTeamName(
+    item.equipeResponsavel || item.teamResponsavel || item.timeResponsavel || ""
+  );
+  if (direct) {
+    return direct;
+  }
+  const fromLiberacao =
+    item.liberacao && parseTeamName(item.liberacao.equipeResponsavel || "");
+  if (fromLiberacao) {
+    return fromLiberacao;
+  }
+  const candidates = [
+    item.executadaPor,
+    item.responsavel,
+    item.responsavelManutencao,
+    item.registroExecucao && item.registroExecucao.executadoPor,
+  ];
+  for (const candidate of candidates) {
+    const raw = String(candidate || "").trim();
+    if (!raw) {
+      continue;
+    }
+    if (raw.startsWith("team:") || raw.startsWith("time:")) {
+      return parseTeamName(raw);
+    }
+  }
+  return "";
+}
+
+function shouldNotifyProjectTeam(item) {
+  return Boolean(getMaintenanceTeamName(item));
+}
+
+function getProjectParticipantUsers(projectId) {
+  if (!projectId) {
+    return [];
+  }
+  const ids = new Set(
+    projectUsers
+      .filter((entry) => entry && entry.projectId === projectId && entry.userId)
+      .map((entry) => String(entry.userId))
+  );
+  let list = users.filter((user) => {
+    if (!user || !user.id) {
+      return false;
+    }
+    if (ids.size) {
+      return ids.has(String(user.id));
+    }
+    return String(user.projectId || "") === projectId;
+  });
+  if (!ids.size && !list.length) {
+    list = users.filter((user) => user && userHasProjectAccess(user, projectId));
+  }
+  return list;
+}
+
+function hasAccessRoleConfig(user) {
+  if (!user) {
+    return false;
+  }
+  if (Array.isArray(user.accessPermissions) && user.accessPermissions.length) {
+    return true;
+  }
+  if (Array.isArray(user.rolePermissions) && user.rolePermissions.length) {
+    return true;
+  }
+  const role =
+    (user.roleId && getAccessRoleById(user.roleId)) ||
+    getAccessRoleByName(user.roleName || user.cargo || user.role);
+  return Boolean(role);
+}
+
+function canUserReceiveMaintenanceEmail(user) {
+  if (!user) {
+    return false;
+  }
+  if (isMasterUser(user) || isFullAccessRole(user.rbacRole || user.role)) {
+    return true;
+  }
+  if (!hasAccessRoleConfig(user)) {
+    return true;
+  }
+  const access = new Set(getAccessPermissionsForUser(user));
+  if (access.has("ADMIN")) {
+    return true;
+  }
+  return access.has(MAINTENANCE_TEAM_EMAIL_PERMISSION);
+}
+
+async function sendMaintenanceCreatedEmail({ to, subject, text, html, meta }) {
+  if (!isValidEmail(to)) {
+    return false;
+  }
+  const resendOk = await sendEmailViaResend({ to, subject, text, html });
+  if (resendOk) {
+    return true;
+  }
+  const smtpOk = await sendEmailViaSmtp({ to, subject, text, html });
+  if (smtpOk) {
+    return true;
+  }
+  console.warn("Aviso de nova manutencao sem envio de email.");
+  console.log(`[maintenance-email] ${subject} -> ${to}`, meta || {});
+  return false;
+}
+
+async function notifyProjectTeamMaintenanceCreated(items, actor, ip, projectId) {
+  if (!Array.isArray(items) || !items.length) {
+    return;
+  }
+  const recipientsCache = new Map();
+  for (const item of items) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+    const itemProjectId = String(item.projectId || projectId || "").trim();
+    if (!itemProjectId) {
+      continue;
+    }
+    let recipients = recipientsCache.get(itemProjectId);
+    if (!recipients) {
+      recipients = getProjectParticipantUsers(itemProjectId);
+      recipientsCache.set(itemProjectId, recipients);
+    }
+    if (!recipients.length) {
+      continue;
+    }
+    const project = getProjectById(itemProjectId);
+    const projectLabel = project ? getProjectLabel(project) : itemProjectId;
+    const projectTeam = project
+      ? String(project.nomeTime || project.timeName || project.time || "").trim()
+      : "";
+    const teamName = getMaintenanceTeamName(item) || projectTeam;
+    if (!teamName) {
+      continue;
+    }
+    const title = getItemTitle(item);
+    const due = getDueDate(item);
+    const dueLabel = due ? due.toLocaleDateString("pt-BR") : "-";
+    const equipamento = getEquipmentLabel(item, itemProjectId);
+    const osRef = String(item.osReferencia || item.osNumero || item.referencia || "").trim();
+    const createdBy = item.createdBy
+      ? getUserLabel(item.createdBy)
+      : actor
+        ? getUserLabel(actor.id)
+        : "-";
+    const subject = `OPSCOPE - Nova manutenção criada (${projectLabel})`;
+    const text = `Uma nova manutenção foi criada no projeto ${projectLabel}.\n\nAtividade: ${title}\nPrazo: ${dueLabel}\nEquipe: ${teamName}\nEquipamento: ${equipamento}\nOS/Referência: ${
+      osRef || "-"
+    }\nCriada por: ${createdBy}\n\nAcesse o OPSCOPE para detalhes.`;
+    const html = `
+      <p>Uma nova manutenção foi criada no projeto <strong>${escapeHtml(projectLabel)}</strong>.</p>
+      <p><strong>Atividade:</strong> ${escapeHtml(title)}</p>
+      <p><strong>Prazo:</strong> ${escapeHtml(dueLabel)}</p>
+      <p><strong>Equipe:</strong> ${escapeHtml(teamName)}</p>
+      <p><strong>Equipamento:</strong> ${escapeHtml(equipamento)}</p>
+      <p><strong>OS/Referência:</strong> ${escapeHtml(osRef || "-")}</p>
+      <p><strong>Criada por:</strong> ${escapeHtml(createdBy)}</p>
+      <p>Acesse o OPSCOPE para detalhes.</p>
+    `;
+    for (const recipient of recipients) {
+      if (!recipient || getUserStatus(recipient) === "INATIVO") {
+        continue;
+      }
+      if (!canUserReceiveMaintenanceEmail(recipient)) {
+        continue;
+      }
+      const to = getUserEmail(recipient);
+      if (!isValidEmail(to)) {
+        continue;
+      }
+      const itemId = String(item.id || "").trim();
+      const userId = String(recipient.id || "").trim();
+      const dedupKey =
+        itemId && userId
+          ? `${MAINTENANCE_TEAM_EMAIL_DEDUP_PREFIX}:${itemId}:${userId}`
+          : "";
+      if (dedupKey && shouldSkipAutomationEmail(dedupKey)) {
+        continue;
+      }
+      const sent = await sendMaintenanceCreatedEmail({
+        to,
+        subject,
+        text,
+        html,
+        meta: { itemId, userId, projectId: itemProjectId },
+      });
+      if (sent && dedupKey) {
+        markAutomationEmailSent(dedupKey);
+        appendAudit(
+          "maintenance_email_sent",
+          actor ? actor.id : null,
+          { manutencaoId: itemId, projectId: itemProjectId, to },
+          ip || "unknown",
+          itemProjectId
+        );
+      }
+    }
+  }
+}
+
 function loadMaintenanceData() {
   const data = readJson(MAINTENANCE_FILE, []);
   return Array.isArray(data) ? data : [];
@@ -6482,6 +6756,7 @@ async function bootstrap() {
   }
   accessRoles = loadAccessRoles();
   seedDefaultAccessRolesIfEmpty();
+  accessRoles = applyAccessRolePermissionDefaults(accessRoles);
   filesMeta = readJson(FILES_META_FILE, []);
   if (!Array.isArray(filesMeta)) {
     filesMeta = [];
@@ -9045,12 +9320,16 @@ app.post(
     if (conflict) {
       return res.status(409).json({ message: "Ja existe um cargo com esse nome." });
     }
+    const basePermissions = normalizeAccessPermissionList(req.body.permissions || []);
+    const withDefaults = new Set(ensureSectionPermissions(basePermissions));
+    ACCESS_ROLE_DEFAULT_PERMISSION_KEYS.forEach((key) => withDefaults.add(key));
     const now = new Date().toISOString();
     const role = normalizeAccessRoleRecord({
       id: crypto.randomUUID(),
       name,
-      permissions: normalizeAccessPermissionList(req.body.permissions || []),
+      permissions: Array.from(withDefaults),
       isSystem: false,
+      permissionsVersion: ACCESS_ROLE_PERMISSION_VERSION,
       createdAt: now,
       updatedAt: now,
     });
@@ -10168,6 +10447,12 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
     runAutomationsForItems("maintenance_created", createdItems, user, ip).catch((error) => {
       console.warn(
         "Automacoes falharam.",
+        error && error.message ? error.message : error
+      );
+    });
+    notifyProjectTeamMaintenanceCreated(createdItems, user, ip, projectId).catch((error) => {
+      console.warn(
+        "Aviso de nova manutencao falhou.",
         error && error.message ? error.message : error
       );
     });
