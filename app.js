@@ -7411,7 +7411,7 @@ function getExecucaoRegistradaPendentes(projectId = activeProjectId) {
     return [];
   }
   return manutencoes.filter((item) => {
-    if (!item || !hasExecucaoRegistrada(item)) {
+    if (!item || !hasExecucaoRegistradaCompleta(item)) {
       return false;
     }
     if (item.projectId && String(item.projectId) !== String(projectId)) {
@@ -11431,6 +11431,23 @@ function hasExecucaoRegistrada(item) {
   );
 }
 
+function hasExecucaoRegistradaCompleta(item) {
+  if (!item) {
+    return false;
+  }
+  const registro = item.registroExecucao || {};
+  const executadoPor =
+    registro.executadoPor ||
+    registro.executedBy ||
+    item.executadaPor ||
+    item.executionStartedBy ||
+    item.createdBy ||
+    "";
+  const comentario = registro.comentario || registro.descricao || registro.resumo || "";
+  const comentarioNormalizado = normalizeResumoRdoTexto(comentario);
+  return Boolean(executadoPor && comentarioNormalizado.length >= MIN_RESUMO_RDO_CHARS);
+}
+
 function buildManutencaoResumoTexto(item) {
   if (!item) {
     return "-";
@@ -13805,7 +13822,7 @@ function atualizarResumo() {
     contagem[status] += 1;
   });
   const execucoesRegistradas = manutencoes.filter((item) => {
-    if (!hasExecucaoRegistrada(item)) {
+    if (!hasExecucaoRegistradaCompleta(item)) {
       return false;
     }
     const status = normalizeMaintenanceStatus(item.status);
@@ -13826,7 +13843,7 @@ function atualizarResumo() {
         return false;
       }
       const status = normalizeMaintenanceStatus(item.status);
-      return status === "em_execucao" && !hasExecucaoRegistrada(item);
+      return status === "em_execucao" && !hasExecucaoRegistradaCompleta(item);
     }).length;
     countEmExecucao.textContent = emExecucaoAtivas;
   }
@@ -13867,7 +13884,7 @@ function getMaintenanceState(item, data, hoje) {
   if (status === "concluida" || status === "cancelada") {
     return "planned";
   }
-  if (hasExecucaoRegistrada(item)) {
+  if (hasExecucaoRegistradaCompleta(item)) {
     return "awaiting";
   }
   if (data && data.getTime() === hoje.getTime()) {
@@ -15661,7 +15678,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
 
   const statusGroup = document.createElement("div");
   statusGroup.className = "status-group";
-  const execucaoRegistrada = hasExecucaoRegistrada(item);
+  const execucaoRegistrada = hasExecucaoRegistradaCompleta(item);
   const esconderEmExecucao =
     execucaoRegistrada && statusBase === "em_execucao" && statusNormalized !== "concluida";
   if (!esconderEmExecucao) {
@@ -15731,20 +15748,20 @@ function criarCardManutencao(item, permissoes, options = {}) {
       actions.append(criarBotaoAcao("Reagendar", "reschedule"));
     }
   } else if (statusNormalized === "em_execucao") {
-    if (permite("execute") && !hasExecucaoRegistrada(item)) {
+    if (permite("execute") && !execucaoRegistrada) {
       actions.append(criarBotaoAcao("Registrar execução", "register"));
     }
-    if (permite("execute") && !hasExecucaoRegistrada(item)) {
+    if (permite("execute") && !execucaoRegistrada) {
       actions.append(criarBotaoAcao("Cancelar início", "cancel_start"));
     }
-    if (permite("execute") && hasExecucaoRegistrada(item)) {
+    if (permite("execute") && execucaoRegistrada) {
       actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
     }
   } else if (statusNormalized === "encerramento") {
-    if (permite("execute") && !hasExecucaoRegistrada(item)) {
+    if (permite("execute") && !execucaoRegistrada) {
       actions.append(criarBotaoAcao("Registrar execução", "register"));
     }
-    if (permite("execute") && hasExecucaoRegistrada(item)) {
+    if (permite("execute") && execucaoRegistrada) {
       actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
     }
   } else if (statusNormalized === "concluida") {
@@ -15897,7 +15914,7 @@ function renderProgramacao() {
         return false;
       }
     } else if (filtroStatus === "em_execucao") {
-      if (status !== "em_execucao" || hasExecucaoRegistrada(item)) {
+      if (status !== "em_execucao" || hasExecucaoRegistradaCompleta(item)) {
         return false;
       }
     } else if (filtroStatus === "encerramento") {
@@ -15905,7 +15922,12 @@ function renderProgramacao() {
         return false;
       }
     } else if (filtroStatus === "execucao_registrada") {
-      if (!(hasExecucaoRegistrada(item) && (status === "em_execucao" || status === "encerramento"))) {
+      if (
+        !(
+          hasExecucaoRegistradaCompleta(item) &&
+          (status === "em_execucao" || status === "encerramento")
+        )
+      ) {
         return false;
       }
     } else if (filtroStatus === "concluida") {
@@ -40929,8 +40951,19 @@ function abrirConclusao(item) {
     mostrarMensagemManutencao("Início da execução não encontrado.", true);
     return;
   }
+  if (!hasExecucaoRegistradaCompleta(item)) {
+    mostrarMensagemManutencao("Registre a execução antes de concluir.", true);
+    abrirRegistroExecucao(item);
+    return;
+  }
   const registro = item.registroExecucao || {};
-  const executadoPor = registro.executadoPor || registro.executedBy || "";
+  const executadoPor =
+    registro.executadoPor ||
+    registro.executedBy ||
+    item.executadaPor ||
+    item.executionStartedBy ||
+    item.createdBy ||
+    "";
   const comentario =
     registro.comentario ||
     registro.descricao ||
@@ -40938,10 +40971,6 @@ function abrirConclusao(item) {
     registro.observacaoExecucao ||
     registro.observacao ||
     "";
-  if (!executadoPor || !comentario) {
-    mostrarMensagemManutencao("Registre a execução antes de concluir.", true);
-    return;
-  }
   manutencaoEmConclusao = item.id;
   conclusaoItemAtual = item;
   mostrarMensagemConclusao("");
@@ -41069,7 +41098,13 @@ async function salvarConclusao(event) {
     return;
   }
   const registro = item.registroExecucao || {};
-  const executadoPor = registro.executadoPor || registro.executedBy || "";
+  const executadoPor =
+    registro.executadoPor ||
+    registro.executedBy ||
+    item.executadaPor ||
+    item.executionStartedBy ||
+    item.createdBy ||
+    "";
   const comentario =
     registro.comentario ||
     registro.descricao ||
@@ -42186,7 +42221,7 @@ function buildLocalDashboardSummary(items, projectId) {
   });
 
   const venceHoje = pendingItems.filter((item) => {
-    if (hasExecucaoRegistrada(item)) {
+    if (hasExecucaoRegistradaCompleta(item)) {
       return false;
     }
     const due = getMaintenanceDueDate(item);
@@ -42194,7 +42229,7 @@ function buildLocalDashboardSummary(items, projectId) {
   }).length;
 
   const atrasadas = pendingItems.filter((item) => {
-    if (hasExecucaoRegistrada(item)) {
+    if (hasExecucaoRegistradaCompleta(item)) {
       return false;
     }
     const status = normalizeMaintenanceStatus(item && item.status);
@@ -42207,7 +42242,7 @@ function buildLocalDashboardSummary(items, projectId) {
 
   const criticas = pendingItems.filter((item) => isMaintenanceCritical(item)).length;
   const aguardandoConclusao = pendingItems.filter((item) => {
-    if (hasExecucaoRegistrada(item)) {
+    if (hasExecucaoRegistradaCompleta(item)) {
       return true;
     }
     const status = normalizeMaintenanceStatus(item && item.status);
@@ -42258,7 +42293,7 @@ function buildLocalDashboardSummary(items, projectId) {
   }
 
   const backlogTotal = pendingItems.filter((item) => {
-    if (hasExecucaoRegistrada(item)) {
+    if (hasExecucaoRegistradaCompleta(item)) {
       return false;
     }
     const status = normalizeMaintenanceStatus(item && item.status);
@@ -42376,7 +42411,7 @@ function buildLocalDashboardSummary(items, projectId) {
   const miniSeries = {
     backlog: recentDays.map((day) => {
       return pendingItems.filter((item) => {
-        if (hasExecucaoRegistrada(item)) {
+        if (hasExecucaoRegistradaCompleta(item)) {
           return false;
         }
         const status = normalizeMaintenanceStatus(item && item.status);
