@@ -4570,11 +4570,75 @@ function readJson(key, fallback) {
   }
 }
 
+let lastStorageError = null;
+let storageQuotaWarned = false;
+
+function isQuotaExceededError(error) {
+  if (!error) {
+    return false;
+  }
+  const name = String(error.name || "");
+  if (name === "QuotaExceededError") {
+    return true;
+  }
+  const message = String(error.message || "");
+  if (message.toLowerCase().includes("quota")) {
+    return true;
+  }
+  const code = Number(error.code || 0);
+  const number = Number(error.number || 0);
+  return code === 22 || code === 1014 || number === -2147024882;
+}
+
+function listStorageKeys() {
+  const keys = [];
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const key = localStorage.key(i);
+    if (key) {
+      keys.push(key);
+    }
+  }
+  return keys;
+}
+
+function cleanupStorageForQuota(activeKey = "") {
+  let removed = false;
+  const keys = listStorageKeys();
+  const maintenancePrefix = `${STORAGE_KEY}.`;
+  const rdoPrefix = `${RDO_KEY}.`;
+  keys.forEach((key) => {
+    if (key !== activeKey && key.startsWith(maintenancePrefix)) {
+      localStorage.removeItem(key);
+      removed = true;
+    }
+  });
+  keys.forEach((key) => {
+    if (key === RDO_KEY || key.startsWith(rdoPrefix)) {
+      localStorage.removeItem(key);
+      removed = true;
+    }
+  });
+  return removed;
+}
+
+function warnStorageQuota(key) {
+  if (storageQuotaWarned) {
+    return;
+  }
+  storageQuotaWarned = true;
+  console.warn(`Armazenamento do navegador cheio (${key}).`);
+  if (typeof showAuthToast === "function") {
+    showAuthToast("Armazenamento do navegador cheio. Limpe o cache do site.");
+  }
+}
+
 function writeJson(key, value) {
+  lastStorageError = null;
   try {
     localStorage.setItem(key, JSON.stringify(value));
     return true;
   } catch (error) {
+    lastStorageError = error;
     console.error(`Falha ao salvar ${key} no storage.`, error);
     return false;
   }
@@ -10035,6 +10099,12 @@ function salvarManutencoes(lista, options = {}) {
   }
   const compacted = compactEvidencias(sanitized);
   let ok = writeJson(storageKey, compacted.list);
+  if (!ok && isQuotaExceededError(lastStorageError)) {
+    const cleaned = cleanupStorageForQuota(storageKey);
+    if (cleaned) {
+      ok = writeJson(storageKey, compacted.list);
+    }
+  }
   if (!ok) {
     try {
       localStorage.removeItem(storageKey);
@@ -10042,6 +10112,9 @@ function salvarManutencoes(lista, options = {}) {
       // noop
     }
     ok = writeJson(storageKey, compacted.list);
+  }
+  if (!ok && isQuotaExceededError(lastStorageError)) {
+    warnStorageQuota(storageKey);
   }
   if (!options.skipDirty && dirtyIds.length) {
     markMaintenanceDirtyIds(dirtyIds);
