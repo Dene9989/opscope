@@ -4480,6 +4480,18 @@ body.is-visitor .container.auth-only {
   transform: translateY(-1px);
 }
 
+.app .modal__header .btn--icon,
+.app .modal__actions .btn--ghost {
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.app .modal__header .btn--icon:hover,
+.app .modal__actions .btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
 .app .stat span {
   color: var(--text);
 }
