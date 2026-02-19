@@ -11303,15 +11303,16 @@ function statusValido(status) {
 }
 
 function hasExecucaoRegistrada(item) {
-  if (!item || !item.registroExecucao) {
+  if (!item) {
     return false;
   }
-  const registro = item.registroExecucao;
+  const registro = item.registroExecucao || {};
   const registradoEm =
     registro.registradoEm ||
     registro.registrado_em ||
     registro.executadoEm ||
     registro.executedAt;
+  const executadoPor = registro.executadoPor || registro.executedBy;
   const comentario = registro.comentario || registro.descricao || registro.resumo;
   const observacao = registro.observacaoExecucao || registro.observacao;
   const resultado = registro.resultado || registro.status;
@@ -11321,6 +11322,7 @@ function hasExecucaoRegistrada(item) {
     item.execucaoRegistradaEm || item.executionRegisteredAt || item.execucaoRegistradaAt;
   return Boolean(
     registradoEm ||
+      executadoPor ||
       comentario ||
       resultado ||
       observacao ||
@@ -11385,7 +11387,7 @@ function normalizarManutencoes(lista) {
     ) {
       mudouTempo = true;
     }
-    const statusOriginal = statusValido(item.status) ? item.status : "agendada";
+    const statusOriginal = normalizeMaintenanceStatus(item.status);
     if (statusOriginal === "concluida") {
       return {
         ...item,
@@ -13611,7 +13613,7 @@ function atualizarResumo() {
   };
 
   manutencoes.forEach((item) => {
-    const status = statusValido(item.status) ? item.status : "agendada";
+    const status = normalizeMaintenanceStatus(item.status);
     contagem[status] += 1;
   });
   const execucoesRegistradas = manutencoes.filter((item) => {
@@ -15286,9 +15288,10 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const liberacao = getLiberacao(item);
   const lockInfo = getReleaseLockInfo(item, data, hoje);
   const state = getMaintenanceState(item, data, hoje);
+  const statusNormalized = normalizeMaintenanceStatus(item.status);
 
   const card = document.createElement("article");
-  card.className = `manutencao-item status-${item.status} state-${state}`;
+  card.className = `manutencao-item status-${statusNormalized} state-${state}`;
   card.dataset.id = item.id;
   card.dataset.maintenanceId = item.id;
   card.id = `maintenance-${item.id}`;
@@ -15320,18 +15323,18 @@ function criarCardManutencao(item, permissoes, options = {}) {
 
   const statusInfo = document.createElement("p");
   statusInfo.className = "submeta";
-  if (item.status === "agendada" || item.status === "liberada") {
+  if (statusNormalized === "agendada" || statusNormalized === "liberada") {
     statusInfo.textContent = formatUpcoming(diff);
-  } else if (item.status === "backlog") {
+  } else if (statusNormalized === "backlog") {
     statusInfo.textContent = formatOverdue(diff);
-  } else if (item.status === "em_execucao") {
+  } else if (statusNormalized === "em_execucao") {
     const inicio = parseTimestamp(item.executionStartedAt);
     statusInfo.textContent = inicio
       ? `Em execução desde ${formatDateTime(inicio)}`
       : "Em execução";
-  } else if (item.status === "encerramento") {
+  } else if (statusNormalized === "encerramento") {
     statusInfo.textContent = "Encerramento em preenchimento";
-  } else if (item.status === "concluida" && item.doneAt) {
+  } else if (statusNormalized === "concluida" && item.doneAt) {
     const feitoEm = parseTimestamp(item.doneAt);
     if (feitoEm) {
       statusInfo.textContent = `concluída em ${formatDate(startOfDay(feitoEm))}`;
@@ -15366,14 +15369,14 @@ function criarCardManutencao(item, permissoes, options = {}) {
     lockLine.append(lockIcon, lockText);
     info.append(lockLine);
   }
-  if (item.status === "liberada") {
+  if (statusNormalized === "liberada") {
     const liberadaInfo = document.createElement("p");
     liberadaInfo.className = "submeta";
     liberadaInfo.textContent = "Liberada para iniciar";
     info.append(liberadaInfo);
   }
   if (
-    (item.status === "em_execucao" || item.status === "encerramento") &&
+    (statusNormalized === "em_execucao" || statusNormalized === "encerramento") &&
     liberacao
   ) {
     const osLinha = document.createElement("p");
@@ -15389,7 +15392,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
   }
   info.append(autoria);
 
-  if (item.status === "backlog" && item.backlogMotivo && item.backlogMotivo.motivo) {
+  if (statusNormalized === "backlog" && item.backlogMotivo && item.backlogMotivo.motivo) {
     const motivo = document.createElement("p");
     motivo.className = "submeta";
     const motivoData = parseTimestamp(item.backlogMotivo.registradoEm);
@@ -15397,7 +15400,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
     motivo.textContent = `Motivo não executada: ${item.backlogMotivo.motivo}${dataTexto}`;
     info.append(motivo);
   }
-  if (item.status === "backlog" && item.backlogMotivo && item.backlogMotivo.observacao) {
+  if (statusNormalized === "backlog" && item.backlogMotivo && item.backlogMotivo.observacao) {
     const obs = document.createElement("p");
     obs.className = "submeta";
     obs.textContent = `Obs.: ${item.backlogMotivo.observacao}`;
@@ -15433,15 +15436,15 @@ function criarCardManutencao(item, permissoes, options = {}) {
 
   const badge = document.createElement("span");
   const statusBase =
-    item.status === "concluída"
+    statusNormalized === "concluida"
       ? "concluida"
-      : item.status === "em_execucao"
+      : statusNormalized === "em_execucao"
         ? "em_execucao"
-      : item.status === "encerramento"
+      : statusNormalized === "encerramento"
         ? "encerramento"
-      : item.status === "backlog" || (diff !== null && diff < 0)
+      : statusNormalized === "backlog" || (diff !== null && diff < 0)
         ? "backlog"
-      : item.status === "liberada"
+      : statusNormalized === "liberada"
         ? "liberada"
       : diff === 0
         ? "hoje"
@@ -15476,17 +15479,21 @@ function criarCardManutencao(item, permissoes, options = {}) {
   statusGroup.className = "status-group";
   const execucaoRegistrada = hasExecucaoRegistrada(item);
   const esconderEmExecucao =
-    execucaoRegistrada && statusBase === "em_execucao" && item.status !== "concluida";
+    execucaoRegistrada && statusBase === "em_execucao" && statusNormalized !== "concluida";
   if (!esconderEmExecucao) {
     statusGroup.append(badge);
   }
-  if (execucaoRegistrada && item.status !== "concluida") {
+  if (execucaoRegistrada && statusNormalized !== "concluida") {
     const execBadge = document.createElement("span");
     execBadge.className = "status status--execucao-registrada";
     execBadge.textContent = "Execução registrada";
     statusGroup.append(execBadge);
   }
-  if (!badge.textContent || badge.textContent !== stateLabel) {
+  if (
+    statusNormalized !== "concluida" &&
+    statusNormalized !== "cancelada" &&
+    (!badge.textContent || badge.textContent !== stateLabel)
+  ) {
     statusGroup.append(stateBadge);
   }
 
@@ -15505,10 +15512,10 @@ function criarCardManutencao(item, permissoes, options = {}) {
 
   const liberacaoOk = isLiberacaoOk(item);
   const podeEditar =
-    item.status === "agendada" ||
-    item.status === "backlog" ||
-    item.status === "liberada" ||
-    (item.status === "concluida" && canEditConcludedMaintenance(currentUser));
+    statusNormalized === "agendada" ||
+    statusNormalized === "backlog" ||
+    statusNormalized === "liberada" ||
+    (statusNormalized === "concluida" && canEditConcludedMaintenance(currentUser));
   if (permite("edit") && podeEditar) {
     actions.append(criarBotaoAcao("Editar", "edit"));
   }
@@ -15517,7 +15524,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
     actions.append(criarBotaoAcao("Observação", "note"));
   }
 
-  if (item.status === "agendada" || item.status === "liberada") {
+  if (statusNormalized === "agendada" || statusNormalized === "liberada") {
     if (permite("execute")) {
       const action = liberacaoOk ? "execute" : "release";
       const actionLabel = liberacaoOk ? "Iniciar execução" : "Liberar execução";
@@ -15532,14 +15539,14 @@ function criarCardManutencao(item, permissoes, options = {}) {
     if (permite("reschedule") && !isDailySubstationInspection(item)) {
       actions.append(criarBotaoAcao("Reagendar", "reschedule"));
     }
-  } else if (item.status === "backlog") {
+  } else if (statusNormalized === "backlog") {
     if (permite("backlog_reason")) {
       actions.append(criarBotaoAcao("Motivo não executada", "backlog_reason"));
     }
     if (permite("reschedule") && !isDailySubstationInspection(item)) {
       actions.append(criarBotaoAcao("Reagendar", "reschedule"));
     }
-  } else if (item.status === "em_execucao") {
+  } else if (statusNormalized === "em_execucao") {
     if (permite("execute") && !hasExecucaoRegistrada(item)) {
       actions.append(criarBotaoAcao("Registrar execução", "register"));
     }
@@ -15549,14 +15556,14 @@ function criarCardManutencao(item, permissoes, options = {}) {
     if (permite("execute") && hasExecucaoRegistrada(item)) {
       actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
     }
-  } else if (item.status === "encerramento") {
+  } else if (statusNormalized === "encerramento") {
     if (permite("execute") && !hasExecucaoRegistrada(item)) {
       actions.append(criarBotaoAcao("Registrar execução", "register"));
     }
     if (permite("execute") && hasExecucaoRegistrada(item)) {
       actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
     }
-  } else if (item.status === "concluida") {
+  } else if (statusNormalized === "concluida") {
     if (permite("reopen")) {
       actions.append(criarBotaoAcao("Reabrir", "reopen"));
     }
@@ -15569,8 +15576,8 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const podeExcluir = canDeleteMaintenance(currentUser);
   if (
     podeExcluir &&
-    item.status !== "em_execucao" &&
-    item.status !== "encerramento"
+    statusNormalized !== "em_execucao" &&
+    statusNormalized !== "encerramento"
   ) {
     actions.append(criarBotaoAcao("Excluir", "remove", true));
   }
@@ -15598,7 +15605,7 @@ function renderListaStatus(status, container, emptyEl, options = {}) {
     history: true,
   };
   const items = manutencoes
-    .filter((item) => item.status === status)
+    .filter((item) => normalizeMaintenanceStatus(item && item.status) === status)
     .sort((a, b) => {
       const dataA = parseDate(a.data);
       const dataB = parseDate(b.data);
@@ -15639,12 +15646,17 @@ function renderProgramacao() {
   const existentes = manutencoes.filter(
     (item) =>
       item &&
-      (item.status === "agendada" ||
-        item.status === "liberada" ||
-        item.status === "backlog" ||
-        item.status === "em_execucao" ||
-        item.status === "encerramento" ||
-        (incluirConcluidas && item.status === "concluida"))
+      (() => {
+        const status = normalizeMaintenanceStatus(item.status);
+        return (
+          status === "agendada" ||
+          status === "liberada" ||
+          status === "backlog" ||
+          status === "em_execucao" ||
+          status === "encerramento" ||
+          (incluirConcluidas && status === "concluida")
+        );
+      })()
   );
 
   if (filtroProgramacaoSubestacao) {
@@ -15672,10 +15684,11 @@ function renderProgramacao() {
   const filtroPeriodo = filtroProgramacaoPeriodo ? filtroProgramacaoPeriodo.value : "";
 
   const filtrados = existentes.filter((item) => {
+    const status = normalizeMaintenanceStatus(item.status);
     if (filtroSubestacao && item.local !== filtroSubestacao) {
       return false;
     }
-    const info = item.status === "concluida"
+    const info = status === "concluida"
       ? (() => {
           const dataConclusao = getItemConclusaoDate(item) || parseDate(item.data);
           if (!dataConclusao) {
@@ -15689,31 +15702,30 @@ function renderProgramacao() {
     if (filtroStatus === "backlog") {
       if (
         !(
-          item.status === "backlog" ||
-          (item.status !== "em_execucao" && item.status !== "encerramento" && diff !== null && diff < 0)
+          status === "backlog" ||
+          (status !== "em_execucao" && status !== "encerramento" && diff !== null && diff < 0)
         )
       ) {
         return false;
       }
     } else if (filtroStatus === "liberada") {
-      if (item.status !== "liberada") {
+      if (status !== "liberada") {
         return false;
       }
     } else if (filtroStatus === "em_execucao") {
-      if (item.status !== "em_execucao" || hasExecucaoRegistrada(item)) {
+      if (status !== "em_execucao" || hasExecucaoRegistrada(item)) {
         return false;
       }
     } else if (filtroStatus === "encerramento") {
-      if (item.status !== "encerramento") {
+      if (status !== "encerramento") {
         return false;
       }
     } else if (filtroStatus === "execucao_registrada") {
-      const statusAtual = normalizeMaintenanceStatus(item.status);
-      if (!(hasExecucaoRegistrada(item) && (statusAtual === "em_execucao" || statusAtual === "encerramento"))) {
+      if (!(hasExecucaoRegistrada(item) && (status === "em_execucao" || status === "encerramento"))) {
         return false;
       }
     } else if (filtroStatus === "concluida") {
-      if (item.status !== "concluida") {
+      if (status !== "concluida") {
         return false;
       }
     } else if (filtroStatus === "hoje") {
@@ -15722,7 +15734,7 @@ function renderProgramacao() {
       }
     } else if (filtroStatus === "agendada") {
       if (
-        (item.status !== "agendada" && item.status !== "liberada") ||
+        (status !== "agendada" && status !== "liberada") ||
         diff === null ||
         diff < 1
       ) {
@@ -41714,7 +41726,18 @@ function normalizeMaintenanceStatus(raw) {
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
   if (
-    ["concluida", "concluido", "done", "completed", "finalizada", "finalizado"].includes(
+    [
+      "concluida",
+      "concluido",
+      "executada",
+      "executadas",
+      "executado",
+      "executados",
+      "done",
+      "completed",
+      "finalizada",
+      "finalizado",
+    ].includes(
       normalized
     )
   ) {
@@ -41726,7 +41749,16 @@ function normalizeMaintenanceStatus(raw) {
   if (["em_execucao", "execucao", "executando", "em_exec"].includes(normalized)) {
     return "em_execucao";
   }
-  if (["encerramento", "encerrando", "encerrado", "finalizacao"].includes(normalized)) {
+  if (
+    [
+      "encerramento",
+      "encerrando",
+      "encerrado",
+      "encerrada",
+      "encerradas",
+      "finalizacao",
+    ].includes(normalized)
+  ) {
     return "encerramento";
   }
   if (["backlog", "atrasada", "atrasado", "overdue"].includes(normalized)) {
