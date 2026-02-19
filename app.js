@@ -42981,8 +42981,31 @@ async function syncMaintenanceNow(items, force) {
     const id = String(item.id);
     return serverIds.has(id) || Boolean(dirtyMap[id]);
   });
+  if (syncDebugEnabled) {
+    const summarized = payloadItems.map((item) => ({
+      id: String(item.id || ""),
+      status: normalizeStatus(item.status),
+      updatedAt: item.updatedAt || "",
+      doneAt: item.doneAt || "",
+      executionFinishedAt: item.executionFinishedAt || "",
+      executionStartedAt: item.executionStartedAt || "",
+      conclusaoFim: item.conclusao ? item.conclusao.fim || "" : "",
+    }));
+    const focus = summarized.filter((entry) =>
+      ["concluida", "encerramento", "em_execucao"].includes(entry.status)
+    );
+    logSyncDebug("maintenance.sync.request", {
+      count: summarized.length,
+      items: focus.length ? focus : summarized.slice(0, 12),
+    });
+  }
   if (!payloadItems.length) {
     maintenancePendingSync = false;
+    logSyncDebug("maintenance.sync.skip", {
+      reason: "no_items",
+      dirtyCount: Object.keys(dirtyMap || {}).length,
+      serverIds: serverIds ? serverIds.size : null,
+    });
     return { ok: true, skipped: true };
   }
   maintenanceSyncPromise = apiMaintenanceSync(payloadItems);
@@ -42993,9 +43016,14 @@ async function syncMaintenanceNow(items, force) {
     maintenanceSyncFailed = false;
     maintenancePendingSync = false;
     clearMaintenanceDirtyIds();
+    logSyncDebug("maintenance.sync.ok", { count: payloadItems.length });
     return { ok: true };
   } catch (error) {
     maintenanceSyncFailed = true;
+    logSyncDebug("maintenance.sync.error", {
+      status: error && error.status ? error.status : null,
+      message: error && error.message ? error.message : String(error || ""),
+    });
     throw error;
   } finally {
     maintenanceSyncPromise = null;

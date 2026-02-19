@@ -92,6 +92,7 @@ const BUILD_ID = (() => {
     return `build-${new Date().toISOString()}`;
   }
 })();
+const MAINT_SYNC_DEBUG = String(process.env.OPSCOPE_DEBUG_MAINT_SYNC || "").trim();
 const COMPAT_SCHEMA_VERSION = 1;
 const COMPAT_DATASETS = ["maintenance", "templates", "announcements", "feedbacks", "sstDocs"];
 const SSE_PING_INTERVAL_MS = 25000;
@@ -3815,6 +3816,52 @@ function normalizeStatus(raw) {
     return "agendada";
   }
   return "agendada";
+}
+
+function shouldLogMaintenanceSync(item, projectId) {
+  if (!MAINT_SYNC_DEBUG) {
+    return false;
+  }
+  const flag = MAINT_SYNC_DEBUG.toLowerCase();
+  if (flag === "1" || flag === "true" || flag === "all") {
+    return true;
+  }
+  if (projectId && String(projectId) === MAINT_SYNC_DEBUG) {
+    return true;
+  }
+  if (item && String(item.id || "") === MAINT_SYNC_DEBUG) {
+    return true;
+  }
+  return false;
+}
+
+function logMaintenanceSync(label, payload) {
+  if (!MAINT_SYNC_DEBUG) {
+    return;
+  }
+  console.log(`[maintenance-sync] ${label}`, payload);
+}
+
+function summarizeMaintenanceSyncItem(item) {
+  if (!item || typeof item !== "object") {
+    return { id: "" };
+  }
+  const registro = item.registroExecucao || {};
+  return {
+    id: String(item.id || ""),
+    status: normalizeStatus(item.status),
+    updatedAt: item.updatedAt || "",
+    doneAt: item.doneAt || "",
+    executionFinishedAt: item.executionFinishedAt || "",
+    executionStartedAt: item.executionStartedAt || "",
+    registroAt:
+      registro.registradoEm ||
+      registro.registrado_em ||
+      registro.executadoEm ||
+      registro.executedAt ||
+      "",
+    conclusaoFim: item.conclusao ? item.conclusao.fim || "" : "",
+  };
 }
 
 function getMaintenanceUpdatedAtValue(item) {
@@ -10530,6 +10577,12 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
     return res.status(400).json({ message: "Projeto ativo obrigatório." });
   }
   if (!canSyncMaintenance(user)) {
+    logMaintenanceSync("denied", {
+      projectId,
+      userId: user ? user.id : "",
+      role: user ? user.role || user.cargo || "" : "",
+      accessPermissions: user ? user.accessPermissions || [] : [],
+    });
     return res.status(403).json({ message: "Sem permissão para editar manutenções." });
   }
   const incoming = Array.isArray(req.body.items) ? req.body.items : [];
@@ -10539,6 +10592,11 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
       ...item,
       projectId,
     }));
+  logMaintenanceSync("request", {
+    projectId,
+    userId: user ? user.id : "",
+    count: sanitized.length,
+  });
   const existing = loadMaintenanceData();
   const tombstones = getMaintenanceTombstonesMap(projectId);
   const existingProject = existing
@@ -10555,13 +10613,30 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
     }
     const key = String(item.id);
     if (tombstones.has(key)) {
+      if (shouldLogMaintenanceSync(item, projectId)) {
+        logMaintenanceSync("skip.tombstone", {
+          projectId,
+          userId: user ? user.id : "",
+          id: key,
+        });
+      }
       return;
     }
     const current = mergedMap.get(key) || null;
     if (!current) {
       createdItems.push(item);
     }
-    mergedMap.set(key, pickMaintenanceMerge(current, item));
+    const mergedItem = pickMaintenanceMerge(current, item);
+    if (shouldLogMaintenanceSync(item, projectId) || shouldLogMaintenanceSync(current, projectId)) {
+      logMaintenanceSync("merge", {
+        projectId,
+        userId: user ? user.id : "",
+        incoming: summarizeMaintenanceSyncItem(item),
+        current: summarizeMaintenanceSyncItem(current),
+        merged: summarizeMaintenanceSyncItem(mergedItem),
+      });
+    }
+    mergedMap.set(key, mergedItem);
   });
   let mergedProject = Array.from(mergedMap.values()).filter(Boolean);
   const deduped = dedupeMaintenanceRecords(mergedProject, projectId);
