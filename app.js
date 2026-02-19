@@ -15472,9 +15472,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
         ? "liberada"
       : diff === 0
         ? "hoje"
-        : diff === 1
-          ? "amanhã"
-          : "agendada";
+        : "agendada";
   const label =
     statusBase === "concluida"
       ? STATUS_LABELS.concluida
@@ -15488,9 +15486,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
         ? STATUS_LABELS.liberada
       : statusBase === "hoje"
         ? "Vence hoje"
-      : statusBase === "amanha"
-        ? "Vence amanhã"
-        : STATUS_LABELS.agendada;
+      : STATUS_LABELS.agendada;
   badge.className = `status status--${statusBase}`;
   badge.textContent = label;
 
