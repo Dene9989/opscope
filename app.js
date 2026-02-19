@@ -11470,6 +11470,23 @@ function normalizarManutencoes(lista) {
   return { normalizadas, mudou: changes.length > 0 || mudouTempo, changes };
 }
 
+function getMaintenanceEquipamentoKey(item) {
+  if (!item || typeof item !== "object") {
+    return "";
+  }
+  const raw =
+    item.equipamentoId ||
+    (item.equipamento && item.equipamento.id) ||
+    (item.equipamento && (item.equipamento.tag || item.equipamento.nome || item.equipamento.name)) ||
+    (typeof item.equipamento === "string" ? item.equipamento : "");
+  const label = raw || getMaintenanceEquipamentoLabel(item);
+  const normalized = normalizeSearchValue(String(label || ""));
+  if (!normalized || normalized === "-") {
+    return "";
+  }
+  return normalized;
+}
+
 function getMaintenanceDedupKey(item) {
   if (!item || typeof item !== "object") {
     return "";
@@ -11478,13 +11495,18 @@ function getMaintenanceDedupKey(item) {
   const templateId = String(item.templateId || "").trim();
   const data = String(item.data || "").trim();
   if (templateId && data) {
-    return `tpl|${projectId}|${templateId}|${data}`;
+    const equipamentoKey = getMaintenanceEquipamentoKey(item);
+    return equipamentoKey
+      ? `tpl|${projectId}|${templateId}|${data}|eq:${equipamentoKey}`
+      : `tpl|${projectId}|${templateId}|${data}`;
   }
   const osRef = String(getMaintenanceOsReferencia(item) || "").trim();
   if (osRef && data) {
     const titulo = normalizeSearchValue(item.titulo || "");
     const local = normalizeSearchValue(item.local || "");
-    return `os|${projectId}|${data}|${osRef}|${titulo}|${local}`;
+    const equipamentoKey = getMaintenanceEquipamentoKey(item);
+    const equipSuffix = equipamentoKey ? `|eq:${equipamentoKey}` : "";
+    return `os|${projectId}|${data}|${osRef}|${titulo}|${local}${equipSuffix}`;
   }
   return "";
 }
