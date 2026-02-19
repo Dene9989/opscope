@@ -1184,6 +1184,7 @@ const FEEDBACK_TTL_MS = 20 * 1000;
 const TEAM_NOTIFICATION_WINDOW_DAYS = 14;
 const STORAGE_KEY = "denemanu.manutencoes";
 const MAINT_DIRTY_KEY = "opscope.maintenance.dirty";
+const MAINT_TOMBSTONE_KEY = "opscope.maintenance.tombstones";
 const MAINT_CACHE_USER_KEY = "opscope.maintenance.cache.user";
 const TEMPLATE_KEY = "denemanu.templates";
 const USER_KEY = "denemanu.users";
@@ -4928,6 +4929,29 @@ function handleSyncEvent(eventName, payload = {}) {
   logSyncDebug("event", { name: eventName, payload });
   setLastSyncAt(Date.now(), "auto");
   if (eventName === "maintenance.updated") {
+    const removedIds = [];
+    if (payload.removedId) {
+      removedIds.push(payload.removedId);
+    }
+    if (Array.isArray(payload.removedIds)) {
+      removedIds.push(...payload.removedIds);
+    }
+    if (removedIds.length) {
+      const normalized = removedIds.map((id) => String(id || "").trim()).filter(Boolean);
+      if (normalized.length) {
+        markMaintenanceDeletedIds(normalized);
+        clearMaintenanceDirtyIds(normalized);
+        const removedSet = new Set(normalized);
+        manutencoes = manutencoes.filter(
+          (item) => item && !removedSet.has(String(item.id || ""))
+        );
+        salvarManutencoes(manutencoes, { skipSync: true, skipDirty: true });
+        const serverIds = maintenanceServerIdsByProject.get(activeProjectId || "");
+        if (serverIds) {
+          removedSet.forEach((id) => serverIds.delete(id));
+        }
+      }
+    }
     carregarManutencoesServidor(true);
     loadDashboardSummary(true, { skipSync: true });
     return;
@@ -9925,6 +9949,59 @@ function isMaintenanceDirtyId(id) {
   return Boolean(map[key]);
 }
 
+function readMaintenanceTombstoneMap() {
+  const raw = readJson(getProjectStorageKey(MAINT_TOMBSTONE_KEY), {});
+  return raw && typeof raw === "object" ? { ...raw } : {};
+}
+
+function writeMaintenanceTombstoneMap(map) {
+  writeJson(getProjectStorageKey(MAINT_TOMBSTONE_KEY), map || {});
+}
+
+function markMaintenanceDeletedIds(ids) {
+  const list = Array.isArray(ids) ? ids : [ids];
+  if (!list.length) {
+    return;
+  }
+  const map = readMaintenanceTombstoneMap();
+  const now = Date.now();
+  list.forEach((id) => {
+    const key = String(id || "").trim();
+    if (key) {
+      map[key] = now;
+    }
+  });
+  writeMaintenanceTombstoneMap(map);
+}
+
+function clearMaintenanceDeletedIds(ids = null) {
+  if (!ids) {
+    writeMaintenanceTombstoneMap({});
+    return;
+  }
+  const list = Array.isArray(ids) ? ids : [ids];
+  if (!list.length) {
+    return;
+  }
+  const map = readMaintenanceTombstoneMap();
+  list.forEach((id) => {
+    const key = String(id || "").trim();
+    if (key && Object.prototype.hasOwnProperty.call(map, key)) {
+      delete map[key];
+    }
+  });
+  writeMaintenanceTombstoneMap(map);
+}
+
+function isMaintenanceDeletedId(id) {
+  const key = String(id || "").trim();
+  if (!key) {
+    return false;
+  }
+  const map = readMaintenanceTombstoneMap();
+  return Boolean(map[key]);
+}
+
 function salvarManutencoes(lista, options = {}) {
   const sanitized = Array.isArray(lista)
     ? lista.map((item) =>
@@ -10284,6 +10361,9 @@ function ensureMaintenanceCacheOwnership() {
         keysToRemove.push(key);
       }
       if (key === MAINT_DIRTY_KEY || key.startsWith(`${MAINT_DIRTY_KEY}.`)) {
+        keysToRemove.push(key);
+      }
+      if (key === MAINT_TOMBSTONE_KEY || key.startsWith(`${MAINT_TOMBSTONE_KEY}.`)) {
         keysToRemove.push(key);
       }
     }
@@ -11713,6 +11793,9 @@ function dedupeMaintenanceList(list) {
 
 function shouldKeepLocalOnlyMaintenance(item, lastFetchAt) {
   if (!item || !item.id) {
+    return false;
+  }
+  if (isMaintenanceDeletedId(item.id)) {
     return false;
   }
   const dirty = isMaintenanceDirtyId(item.id);
@@ -36051,12 +36134,24 @@ async function carregarManutencoesServidor(force = false) {
     const data = await apiMaintenanceList(activeProjectId);
     if (data && Array.isArray(data.items)) {
       let needsSync = false;
+      const previousServerIds = maintenanceServerIdsByProject.get(activeProjectId) || null;
       const remoteIds = new Set(
         data.items
           .map((item) => (item && item.id ? String(item.id) : ""))
           .filter(Boolean)
       );
       maintenanceServerIdsByProject.set(activeProjectId, remoteIds);
+      const tombstones = readMaintenanceTombstoneMap();
+      let tombstonesChanged = false;
+      remoteIds.forEach((id) => {
+        if (tombstones[id]) {
+          delete tombstones[id];
+          tombstonesChanged = true;
+        }
+      });
+      if (tombstonesChanged) {
+        writeMaintenanceTombstoneMap(tombstones);
+      }
       const localCache = readJson(getProjectStorageKey(STORAGE_KEY), []);
       const localMap = new Map(
         Array.isArray(localCache)
@@ -36103,6 +36198,11 @@ async function carregarManutencoesServidor(force = false) {
           }
           const id = String(item.id);
           if (!remoteIds.has(id)) {
+            if (previousServerIds && previousServerIds.has(id)) {
+              markMaintenanceDeletedIds(id);
+              clearMaintenanceDirtyIds(id);
+              return;
+            }
             if (shouldKeepLocalOnlyMaintenance(item, lastFetchAt)) {
               merged.push(item);
               needsSync = true;
@@ -41468,10 +41568,18 @@ async function removerManutencao(index) {
   }
   try {
     await apiMaintenanceDelete(item.id, activeProjectId);
+    markMaintenanceDeletedIds(item.id);
+    clearMaintenanceDirtyIds(item.id);
+    const serverIds = maintenanceServerIdsByProject.get(activeProjectId || "");
+    if (serverIds) {
+      serverIds.delete(String(item.id));
+    }
     if (item && item.templateId && item.data) {
       addRecurrenceSuppression(item.templateId, item.data);
     }
-    manutencoes = manutencoes.filter((entry) => entry && entry.id !== item.id);
+    manutencoes = manutencoes.filter(
+      (entry) => entry && String(entry.id) !== String(item.id)
+    );
     salvarManutencoes(manutencoes);
     logAction("remove", item, { resumo: "Excluida" });
     renderTudo();
