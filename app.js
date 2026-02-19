@@ -41897,12 +41897,22 @@ function buildLocalDashboardSummary(items, projectId) {
     if (hasExecucaoRegistrada(item)) {
       return false;
     }
+    const status = normalizeMaintenanceStatus(item && item.status);
+    if (status !== "backlog") {
+      return false;
+    }
     const due = getMaintenanceDueDate(item);
-    return due && due < today;
+    return Boolean(due && due < today);
   }).length;
 
   const criticas = pendingItems.filter((item) => isMaintenanceCritical(item)).length;
-  const aguardandoConclusao = pendingItems.filter((item) => hasExecucaoRegistrada(item)).length;
+  const aguardandoConclusao = pendingItems.filter((item) => {
+    if (hasExecucaoRegistrada(item)) {
+      return true;
+    }
+    const status = normalizeMaintenanceStatus(item && item.status);
+    return status === "encerramento";
+  }).length;
 
   const score = atrasadas * 2 + criticas * 3 + venceHoje;
   let riscoImediato = "Baixo";

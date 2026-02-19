@@ -3907,15 +3907,24 @@ function isCritical(item) {
 }
 
 function hasExecucaoRegistrada(item) {
-  if (!item || !item.registroExecucao) {
+  if (!item) {
     return false;
   }
-  const registro = item.registroExecucao;
-  return Boolean(
+  const registro = item.registroExecucao || {};
+  const registradoEm =
     registro.registradoEm ||
-      registro.comentario ||
-      registro.resultado ||
-      registro.observacaoExecucao
+    registro.registrado_em ||
+    registro.executadoEm ||
+    registro.executedAt;
+  const executadoPor = registro.executadoPor || registro.executedBy;
+  const comentario = registro.comentario || registro.descricao || registro.resumo;
+  const observacao = registro.observacaoExecucao || registro.observacao;
+  const resultado = registro.resultado || registro.status;
+  const evidencias = Array.isArray(registro.evidencias) && registro.evidencias.length > 0;
+  const marcadorTopo =
+    item.execucaoRegistradaEm || item.executionRegisteredAt || item.execucaoRegistradaAt;
+  return Boolean(
+    registradoEm || executadoPor || comentario || resultado || observacao || evidencias || marcadorTopo
   );
 }
 
@@ -6424,12 +6433,22 @@ function buildDashboardSummary(items, projectId) {
     if (hasExecucaoRegistrada(item)) {
       return false;
     }
+    const status = normalizeStatus(item.status);
+    if (status !== "backlog") {
+      return false;
+    }
     const due = getDueDate(item);
-    return due && due < today;
+    return Boolean(due && due < today);
   }).length;
 
   const criticas = pendingItems.filter((item) => isCritical(item)).length;
-  const aguardandoConclusao = pendingItems.filter((item) => hasExecucaoRegistrada(item)).length;
+  const aguardandoConclusao = pendingItems.filter((item) => {
+    if (hasExecucaoRegistrada(item)) {
+      return true;
+    }
+    const status = normalizeStatus(item.status);
+    return status === "encerramento";
+  }).length;
 
   const score = atrasadas * 2 + criticas * 3 + venceHoje;
   let riscoImediato = "Baixo";
