@@ -11379,7 +11379,7 @@ function can(action) {
   if (!currentUser) {
     return false;
   }
-  if (currentUser.role === "admin") {
+  if (currentUser.role === "admin" || isFullAccessUser(currentUser)) {
     return true;
   }
   const permissions = getMaintenancePermissionsForUser(currentUser);
@@ -40930,7 +40930,15 @@ function abrirConclusao(item) {
     return;
   }
   const registro = item.registroExecucao || {};
-  if (!registro.executadoPor || !registro.comentario) {
+  const executadoPor = registro.executadoPor || registro.executedBy || "";
+  const comentario =
+    registro.comentario ||
+    registro.descricao ||
+    registro.resumo ||
+    registro.observacaoExecucao ||
+    registro.observacao ||
+    "";
+  if (!executadoPor || !comentario) {
     mostrarMensagemManutencao("Registre a execução antes de concluir.", true);
     return;
   }
@@ -40965,10 +40973,10 @@ function abrirConclusao(item) {
   }
 
   if (conclusaoExecutadaPor) {
-    conclusaoExecutadaPor.value = getUserLabel(registro.executadoPor);
+    conclusaoExecutadaPor.value = getUserLabel(executadoPor);
   }
   if (conclusaoComentario) {
-    conclusaoComentario.value = registro.comentario || "";
+    conclusaoComentario.value = comentario || "";
   }
   if (conclusaoResultado) {
     conclusaoResultado.value = registro.resultado || "";
@@ -41061,7 +41069,15 @@ async function salvarConclusao(event) {
     return;
   }
   const registro = item.registroExecucao || {};
-  if (!registro.executadoPor || !registro.comentario) {
+  const executadoPor = registro.executadoPor || registro.executedBy || "";
+  const comentario =
+    registro.comentario ||
+    registro.descricao ||
+    registro.resumo ||
+    registro.observacaoExecucao ||
+    registro.observacao ||
+    "";
+  if (!executadoPor || !comentario) {
     mostrarMensagemConclusao("Registre a execução antes de concluir.", true);
     return;
   }
@@ -41076,8 +41092,6 @@ async function salvarConclusao(event) {
     mostrarMensagemConclusao("Documentação de liberação pendente.", true);
     return;
   }
-  const executadoPor = registro.executadoPor;
-  const comentario = registro.comentario;
   const comentarioMsg = getMensagemResumoRdo(comentario);
   if (comentarioMsg) {
     mostrarMensagemConclusao(comentarioMsg, true);
@@ -41095,8 +41109,8 @@ async function salvarConclusao(event) {
   }
   const observacaoExecucao = registro.observacaoExecucao || "";
   const registroAtualizado = resultado
-    ? { ...registro, resultado }
-    : registro;
+    ? { ...registro, resultado, comentario, executadoPor }
+    : { ...registro, comentario, executadoPor };
   const referenciaInformada = conclusaoReferencia ? conclusaoReferencia.value.trim() : "";
   const referencia = referenciaInformada || (liberacao ? liberacao.osNumero || "" : "");
   if (!referencia) {
