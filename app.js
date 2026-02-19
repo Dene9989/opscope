@@ -3108,7 +3108,7 @@ function mapAccessPermissionsToGranular(permissionList = []) {
 }
 
 function deriveMaintenancePermissions(rolePermissions, accountPermissions, accessRoleActive) {
-  const normalized = normalizeAccessPermissionList(rolePermissions);
+  const normalized = applyMaintenancePermissionDependencies(rolePermissions);
   if (normalized.includes("ADMIN")) {
     return getDefaultPermissions();
   }
@@ -3789,7 +3789,7 @@ function canAccessGerencialTab(tabId, user) {
     case "logs":
       return hasGranularPermission(user, "verLogsAPI");
     case "permissoes":
-      return true;
+      return !USE_AUTH_API;
     case "arquivos":
       return canManageFilesClient(user);
     case "automacoes":
@@ -4338,6 +4338,11 @@ const weekLabelFormatter = new Intl.DateTimeFormat("pt-BR", {
 
 let manutencoes = [];
 let templates = [];
+let templatesSyncEnabled = false;
+let templatesSyncInFlight = false;
+let templatesSyncQueued = false;
+let templatesSyncPayload = null;
+const templatesLoadedProjects = new Set();
 let users = [];
 let accessUsers = [];
 let accessRoles = [];
@@ -4448,6 +4453,7 @@ let maintenanceLastFetch = 0;
 let maintenancePendingSync = false;
 const maintenanceLoadedProjects = new Set();
 const maintenanceRenderHashes = new Map();
+const templatesRenderHashes = new Map();
 let healthSnapshot = null;
 let healthLoading = false;
 let apiLogsState = {
@@ -4529,7 +4535,7 @@ const SYNC_DEBUG_KEY = "opscope.debugSync";
 const COMPAT_SCHEMA_VERSION = 1;
 const COMPAT_STATE_KEY = "opscope.compat.state";
 const COMPAT_CHECK_TTL_MS = 15000;
-const COMPAT_DATASETS = ["maintenance", "announcements", "feedbacks", "sstDocs"];
+const COMPAT_DATASETS = ["maintenance", "templates", "announcements", "feedbacks", "sstDocs"];
 let syncEventSource = null;
 let syncEventProject = "";
 let syncPollTimer = null;
@@ -4876,6 +4882,7 @@ async function runAutoSyncTick() {
       } else {
         tasks.push(carregarManutencoesServidor(true));
       }
+      tasks.push(carregarTemplatesServidor(true));
       tasks.push(loadDashboardSummary(true, { skipSync: true }));
       tasks.push(refreshProjects());
     }
@@ -4923,6 +4930,10 @@ function handleSyncEvent(eventName, payload = {}) {
   if (eventName === "maintenance.updated") {
     carregarManutencoesServidor(true);
     loadDashboardSummary(true, { skipSync: true });
+    return;
+  }
+  if (eventName === "templates.updated") {
+    carregarTemplatesServidor(true);
     return;
   }
   if (eventName === "announcements.updated" || eventName === "announcement.created") {
@@ -4991,6 +5002,7 @@ function startSyncEvents() {
   });
   [
     "maintenance.updated",
+    "templates.updated",
     "projects.updated",
     "project.team.updated",
     "project.equipamentos.updated",
@@ -5068,6 +5080,7 @@ async function syncSiteNow() {
       if (activeProjectId) {
         await Promise.all([carregarEquipeProjeto(), carregarEquipamentosProjeto()]);
         await carregarManutencoesServidor(true);
+        await carregarTemplatesServidor(true);
         await carregarPmpDados();
       }
       if (currentUser && canViewSst(currentUser)) {
@@ -10011,9 +10024,42 @@ function carregarTemplates() {
   return data.filter((item) => item && typeof item === "object");
 }
 
-function salvarTemplates(lista) {
+async function syncTemplatesNow(list) {
+  if (!USE_AUTH_API || !templatesSyncEnabled || !currentUser || !activeProjectId) {
+    return;
+  }
+  const payload = Array.isArray(list)
+    ? list.map((item) => ({ ...item, projectId: item.projectId || activeProjectId }))
+    : [];
+  if (templatesSyncInFlight) {
+    templatesSyncQueued = true;
+    templatesSyncPayload = payload;
+    return;
+  }
+  templatesSyncInFlight = true;
+  try {
+    await apiTemplatesSync(payload, activeProjectId);
+    templatesLoadedProjects.add(activeProjectId);
+  } catch (error) {
+    const message = error && error.message ? error.message : "Falha ao sincronizar modelos.";
+    showAuthToast(message);
+  } finally {
+    templatesSyncInFlight = false;
+  }
+  if (templatesSyncQueued) {
+    templatesSyncQueued = false;
+    const next = templatesSyncPayload || payload;
+    templatesSyncPayload = null;
+    syncTemplatesNow(next);
+  }
+}
+
+function salvarTemplates(lista, options = {}) {
   writeJson(getProjectStorageKey(TEMPLATE_KEY), lista);
   setProjectFlag(TEMPLATE_SEED_DISABLED_KEY, Array.isArray(lista) && lista.length === 0);
+  if (USE_AUTH_API && !options.skipSync) {
+    syncTemplatesNow(lista);
+  }
 }
 
 function carregarRdoSnapshots() {
@@ -10084,7 +10130,7 @@ function garantirTemplatesPadrao() {
     criarPadrao("Inspeção mensal dos GMG PCT4", { frequencia: "monthly", monthlyDay: 25 }),
   ];
 
-  salvarTemplates(templates);
+  salvarTemplates(templates, { skipSync: true });
 }
 
 function formatDateISO(date) {
@@ -10256,13 +10302,13 @@ function reloadProjectState() {
   templates = carregarTemplates();
   if (!isDefaultProjectActive() && shouldClearDefaultTemplates(templates)) {
     templates = [];
-    salvarTemplates(templates);
+    salvarTemplates(templates, { skipSync: true });
   }
   garantirTemplatesPadrao();
   const normalizados = normalizarTemplates(templates);
   templates = normalizados.normalizadas;
   if (normalizados.mudou) {
-    salvarTemplates(templates);
+    salvarTemplates(templates, { skipSync: true });
   }
   requests = carregarSolicitacoes();
   auditLog = carregarAuditoria();
@@ -10293,6 +10339,7 @@ async function setActiveProjectId(nextId, options = {}) {
     return;
   }
   activeProjectId = trimmed;
+  templatesSyncEnabled = false;
   persistActiveProjectId(trimmed);
   if (options.sync !== false) {
     try {
@@ -10309,6 +10356,7 @@ async function setActiveProjectId(nextId, options = {}) {
   await carregarEquipeProjeto();
   await carregarEquipamentosProjeto();
   await carregarManutencoesServidor(true);
+  await carregarTemplatesServidor(true);
   await carregarPmpDados();
   restartSyncEvents();
   scheduleExecucaoRegistradaAlerts();
@@ -11311,6 +11359,22 @@ function isAdmin() {
   return Boolean(currentUser && isFullAccessUser(currentUser));
 }
 
+function getMaintenancePermissionsForUser(user) {
+  if (!user) {
+    return getEmptyPermissions();
+  }
+  const rolePermissions = Array.isArray(user.rolePermissions) ? user.rolePermissions : [];
+  const accessPermissions = Array.isArray(user.accessPermissions) ? user.accessPermissions : [];
+  const permissionList = rolePermissions.length ? rolePermissions : accessPermissions;
+  if (permissionList.length) {
+    return deriveMaintenancePermissions(permissionList, user.permissions, true);
+  }
+  if (user.permissions && typeof user.permissions === "object" && !Array.isArray(user.permissions)) {
+    return user.permissions;
+  }
+  return getEmptyPermissions();
+}
+
 function can(action) {
   if (!currentUser) {
     return false;
@@ -11318,7 +11382,7 @@ function can(action) {
   if (currentUser.role === "admin") {
     return true;
   }
-  const permissions = currentUser.permissions || {};
+  const permissions = getMaintenancePermissionsForUser(currentUser);
   return Boolean(permissions[action]);
 }
 
@@ -24350,12 +24414,17 @@ function preencherTemplateForm(template) {
 
 function salvarModelo(event) {
   event.preventDefault();
-  if (!isAdmin()) {
-    mostrarMensagemTemplate("Apenas administradores podem criar modelos.", true);
-    return;
-  }
   if (!activeProjectId) {
     mostrarMensagemTemplate("Selecione um projeto ativo antes de salvar.", true);
+    return;
+  }
+  const templateIdAtual = templateForm ? templateForm.dataset.templateId || "" : "";
+  const existente = templateIdAtual
+    ? templates.find((item) => item && item.id === templateIdAtual)
+    : null;
+  const podeSalvar = existente ? can("edit") : can("create");
+  if (!podeSalvar) {
+    mostrarMensagemTemplate("Sem permissão para salvar modelos.", true);
     return;
   }
   if (templateProjeto && templateProjeto.value && templateProjeto.value !== activeProjectId) {
@@ -24440,8 +24509,7 @@ function salvarModelo(event) {
   }
 
   const ativo = Boolean(templateAtivo.checked);
-  const templateId = templateForm.dataset.templateId || criarId();
-  const existente = templates.find((item) => item.id === templateId);
+  const templateId = templateIdAtual || criarId();
 
   const modelo = {
     id: templateId,
@@ -24481,7 +24549,8 @@ function salvarModelo(event) {
 }
 
 async function removerModelo(item) {
-  if (!isAdmin()) {
+  if (!can("edit")) {
+    mostrarMensagemTemplate("Sem permissão para remover modelos.", true);
     return;
   }
   const templateId = item.dataset.templateId;
@@ -24506,7 +24575,8 @@ async function removerModelo(item) {
 }
 
 function alternarModelo(item) {
-  if (!isAdmin()) {
+  if (!can("edit")) {
+    mostrarMensagemTemplate("Sem permissão para atualizar modelos.", true);
     return;
   }
   const templateId = item.dataset.templateId;
@@ -35868,6 +35938,86 @@ async function carregarEquipamentosProjeto() {
   renderEquipamentoOptions();
 }
 
+async function carregarTemplatesServidor(force = false) {
+  if (!USE_AUTH_API || !currentUser || !activeProjectId) {
+    return;
+  }
+  if (!force && templatesLoadedProjects.has(activeProjectId)) {
+    return;
+  }
+  try {
+    const data = await apiTemplatesList(activeProjectId);
+    const list = Array.isArray(data.items) ? data.items : [];
+    const localSnapshot = Array.isArray(templates) ? templates.slice() : [];
+    if (!list.length && localSnapshot.length) {
+      const normalizados = normalizarTemplates(localSnapshot);
+      templates = normalizados.normalizadas;
+      salvarTemplates(templates, { skipSync: true });
+      templatesLoadedProjects.add(activeProjectId);
+      const nextHash = hashString(JSON.stringify(templates));
+      const prevHash = templatesRenderHashes.get(activeProjectId);
+      templatesRenderHashes.set(activeProjectId, nextHash);
+      if (!prevHash || nextHash !== prevHash) {
+        renderTudo();
+      }
+      templatesSyncEnabled = true;
+      if (can("edit") || can("create")) {
+        syncTemplatesNow(templates);
+      }
+      return;
+    }
+    const serverIds = new Set(
+      list.map((item) => (item && item.id ? String(item.id) : "")).filter(Boolean)
+    );
+    const extras = localSnapshot.filter(
+      (item) => item && item.id && !serverIds.has(String(item.id))
+    );
+    const extrasToMerge = extras.filter((item) => !isDefaultSeedTemplate(item));
+    if (list.length && extrasToMerge.length) {
+      const mergedList = list.concat(extrasToMerge);
+      templates = mergedList.map((item) => ({
+        ...item,
+        projectId: item.projectId || activeProjectId,
+      }));
+      const normalizados = normalizarTemplates(templates);
+      templates = normalizados.normalizadas;
+      salvarTemplates(templates, { skipSync: true });
+      templatesLoadedProjects.add(activeProjectId);
+      const nextHash = hashString(JSON.stringify(templates));
+      const prevHash = templatesRenderHashes.get(activeProjectId);
+      templatesRenderHashes.set(activeProjectId, nextHash);
+      if (!prevHash || nextHash !== prevHash) {
+        renderTudo();
+      }
+      templatesSyncEnabled = true;
+      if (can("edit") || can("create")) {
+        syncTemplatesNow(templates);
+      }
+      return;
+    }
+    templates = list.map((item) => ({
+      ...item,
+      projectId: item.projectId || activeProjectId,
+    }));
+    const normalizados = normalizarTemplates(templates);
+    templates = normalizados.normalizadas;
+    salvarTemplates(templates, { skipSync: true });
+    templatesLoadedProjects.add(activeProjectId);
+    const nextHash = hashString(JSON.stringify(templates));
+    const prevHash = templatesRenderHashes.get(activeProjectId);
+    if (!prevHash || nextHash !== prevHash) {
+      templatesRenderHashes.set(activeProjectId, nextHash);
+      renderTudo();
+    }
+  } catch (error) {
+    if (STRICT_SERVER_SYNC) {
+      showAuthToast("Falha ao carregar modelos do servidor.");
+    }
+  } finally {
+    templatesSyncEnabled = true;
+  }
+}
+
 async function carregarManutencoesServidor(force = false) {
   if (!currentUser || !activeProjectId) {
     return;
@@ -41824,6 +41974,21 @@ async function apiMaintenanceSync(items) {
   });
 }
 
+async function apiTemplatesList(projectId) {
+  const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
+  return apiRequest(`/api/maintenance/templates${query}`);
+}
+
+async function apiTemplatesSync(items, projectId) {
+  return apiRequest("/api/maintenance/templates/sync", {
+    method: "POST",
+    body: JSON.stringify({
+      projectId: projectId || "",
+      items: Array.isArray(items) ? items : [],
+    }),
+  });
+}
+
 async function apiMaintenanceList(projectId) {
   const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
   return apiRequest(`/api/maintenance${query}`);
@@ -46530,7 +46695,7 @@ garantirTemplatesPadrao();
 const resultadoTemplates = normalizarTemplates(templates);
 templates = resultadoTemplates.normalizadas;
 if (resultadoTemplates.mudou) {
-  salvarTemplates(templates);
+  salvarTemplates(templates, { skipSync: true });
 }
 requests = carregarSolicitacoes();
 auditLog = carregarAuditoria();
@@ -46605,7 +46770,7 @@ window.addEventListener("storage", (event) => {
     const normalizados = normalizarTemplates(templates);
     templates = normalizados.normalizadas;
     if (normalizados.mudou) {
-      salvarTemplates(templates);
+      salvarTemplates(templates, { skipSync: true });
     }
     requests = carregarSolicitacoes();
     auditLog = carregarAuditoria();

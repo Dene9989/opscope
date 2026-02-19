@@ -93,7 +93,7 @@ const BUILD_ID = (() => {
   }
 })();
 const COMPAT_SCHEMA_VERSION = 1;
-const COMPAT_DATASETS = ["maintenance", "announcements", "feedbacks", "sstDocs"];
+const COMPAT_DATASETS = ["maintenance", "templates", "announcements", "feedbacks", "sstDocs"];
 const SSE_PING_INTERVAL_MS = 25000;
 const sseClients = new Map();
 
@@ -157,6 +157,7 @@ const DATA_FILE_NAMES = [
   "invites.json",
   "audit.json",
   "maintenance.json",
+  "maintenance_templates.json",
   "maintenance_tombstones.json",
   "announcements.json",
   "feedbacks.json",
@@ -198,6 +199,7 @@ const USERS_FILE = path.join(STORAGE_DIR, "users.json");
 const INVITES_FILE = path.join(DATA_DIR, "invites.json");
 const AUDIT_FILE = path.join(DATA_DIR, "audit.json");
 const MAINTENANCE_FILE = path.join(DATA_DIR, "maintenance.json");
+const MAINTENANCE_TEMPLATES_FILE = path.join(DATA_DIR, "maintenance_templates.json");
 const MAINTENANCE_TOMBSTONES_FILE = path.join(DATA_DIR, "maintenance_tombstones.json");
 const ANNOUNCEMENTS_FILE = path.join(DATA_DIR, "announcements.json");
 const FEEDBACKS_FILE = path.join(DATA_DIR, "feedbacks.json");
@@ -243,6 +245,7 @@ const STORE_FILES = [
   INVITES_FILE,
   AUDIT_FILE,
   MAINTENANCE_FILE,
+  MAINTENANCE_TEMPLATES_FILE,
   MAINTENANCE_TOMBSTONES_FILE,
   ANNOUNCEMENTS_FILE,
   FEEDBACKS_FILE,
@@ -697,6 +700,9 @@ function normalizeAccessPermissionList(list) {
       return;
     }
   });
+  if (result.has("MAINT_CREATE") && !result.has("MAINT_COMPLETE")) {
+    result.add("MAINT_COMPLETE");
+  }
   return Array.from(result);
 }
 
@@ -3427,6 +3433,13 @@ function canSyncMaintenance(user) {
   );
 }
 
+function canManageMaintenanceTemplates(user) {
+  if (!user) {
+    return false;
+  }
+  return hasPermission(user, "create") || hasPermission(user, "edit");
+}
+
 function canManagePmpActivities(user) {
   if (!user) {
     return false;
@@ -4695,6 +4708,36 @@ async function notifyProjectTeamMaintenanceCreated(items, actor, ip, projectId) 
 function loadMaintenanceData() {
   const data = readJson(MAINTENANCE_FILE, []);
   return Array.isArray(data) ? data : [];
+}
+
+function loadMaintenanceTemplates() {
+  const data = readJson(MAINTENANCE_TEMPLATES_FILE, []);
+  return Array.isArray(data) ? data : [];
+}
+
+function saveMaintenanceTemplates(list) {
+  writeJson(MAINTENANCE_TEMPLATES_FILE, Array.isArray(list) ? list : []);
+}
+
+function normalizeMaintenanceTemplateRecord(record, projectId) {
+  if (!record || typeof record !== "object") {
+    return null;
+  }
+  const id = String(record.id || "").trim() || crypto.randomUUID();
+  const nome = String(record.nome || record.name || "").trim();
+  if (!nome) {
+    return null;
+  }
+  const createdAt = record.createdAt || new Date().toISOString();
+  const updatedAt = record.updatedAt || createdAt;
+  return {
+    ...record,
+    id,
+    nome,
+    projectId,
+    createdAt,
+    updatedAt,
+  };
 }
 
 function getMaintenanceRecurrenceKey(item) {
@@ -10545,6 +10588,53 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
     source: "sync",
   });
   return res.json({ ok: true, count: sanitized.length, project: projectId });
+});
+
+app.get("/api/maintenance/templates", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const fromQuery = String(req.query.projectId || "").trim();
+  const projectId = fromQuery || getActiveProjectId(req, user);
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+  }
+  if (!userHasProjectAccess(user, projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  const dataset = loadMaintenanceTemplates();
+  const list = dataset.filter((item) => item && item.projectId === projectId);
+  return res.json({ items: list, projectId });
+});
+
+app.post("/api/maintenance/templates/sync", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const fromQuery = String(req.query.projectId || "").trim();
+  const fromBody = String(req.body.projectId || "").trim();
+  const projectId = fromBody || fromQuery || getActiveProjectId(req, user);
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+  }
+  if (!userHasProjectAccess(user, projectId)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
+  if (!canManageMaintenanceTemplates(user)) {
+    return res.status(403).json({ message: "Sem permissao para atualizar modelos." });
+  }
+  const incoming = Array.isArray(req.body.items) ? req.body.items : [];
+  const sanitized = incoming
+    .filter((item) => item && typeof item === "object")
+    .map((item) => normalizeMaintenanceTemplateRecord(item, projectId))
+    .filter(Boolean);
+  const existing = loadMaintenanceTemplates();
+  const filtered = existing.filter((item) => !(item && item.projectId === projectId));
+  const merged = [...filtered, ...sanitized];
+  saveMaintenanceTemplates(merged);
+  touchCompat("templates", projectId);
+  broadcastSse("templates.updated", {
+    projectId,
+    count: sanitized.length,
+    source: "sync",
+  });
+  return res.json({ ok: true, count: sanitized.length, projectId });
 });
 
 app.get("/api/maintenance", requireAuth, (req, res) => {
