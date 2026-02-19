@@ -4635,7 +4635,9 @@ function updateSyncStatusLabel(meta = readLastSyncMeta()) {
   }
   const timeLabel = meta.at ? formatTimeShort(meta.at) : "--:--";
   const suffix = meta.source === "auto" ? " automática" : "";
-  syncStatusLabel.textContent = `Última sincronização${suffix}: ${timeLabel}`;
+  const label = `Última sincronização${suffix}`;
+  syncStatusLabel.textContent = `${timeLabel} · ${label}`;
+  syncStatusLabel.title = `${label}: ${timeLabel}`;
 }
 
 function setLastSyncAt(value = Date.now(), source = "manual") {
