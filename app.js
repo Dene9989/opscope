@@ -1354,7 +1354,7 @@ const SECTION_LABELS = {
   pmp: "PMP / Cronograma",
   execucao: "Execução do dia",
   backlog: "Backlog",
-  projetos: "Locais de trabalho",
+  projetos: "Gerenciar projeto",
   desempenho: "Desempenho",
   "performance-projects": "Desempenho por projeto",
   "performance-people": "Desempenho por colaborador",
@@ -1402,14 +1402,19 @@ const PERMISSIONS = {
 
 const ACCESS_SECTION_PERMISSIONS = [
   "inicio",
-  "programação",
+  "programacao",
   "nova",
   "modelos",
-  "execução",
+  "execucao",
   "backlog",
   "feedbacks",
   "perfil",
 ];
+
+const ACCESS_PERMISSION_ALIASES = {
+  "programação": "programacao",
+  "execução": "execucao",
+};
 
 const MAINTENANCE_ACCESS_PERMISSIONS = [
   "MAINT_CREATE",
@@ -1711,23 +1716,23 @@ const ACCESS_PERMISSION_CATALOG = [
   },
   {
     key: "nova",
-    module: "Navegação",
-    group: "Seções",
+    module: "Navegacao",
+    group: "Secoes",
     label: "Nova manutenção",
     description: "Acesso ao formulário de manutenção.",
     level: "READ",
   },
   {
     key: "modelos",
-    module: "Navegação",
-    group: "Seções",
+    module: "Navegacao",
+    group: "Secoes",
     label: "Modelos e recorrências",
     description: "Acesso a modelos e recorrências.",
     level: "READ",
   },
   {
-    key: "execução",
-    module: "Navegação",
+    key: "execucao",
+    module: "Navegacao",
     group: "Secoes",
     label: "Execução do dia",
     description: "Acesso ao painel de execução.",
@@ -1736,15 +1741,15 @@ const ACCESS_PERMISSION_CATALOG = [
   {
     key: "backlog",
     module: "Navegacao",
-    group: "Seções",
+    group: "Secoes",
     label: "Backlog",
     description: "Acesso a manutenções em backlog.",
     level: "READ",
   },
   {
     key: "feedbacks",
-    module: "Navegação",
-    group: "Seções",
+    module: "Navegacao",
+    group: "Secoes",
     label: "Feedbacks",
     description: "Acesso a feedbacks e comunicados.",
     level: "READ",
@@ -1775,16 +1780,16 @@ const ACCESS_PERMISSION_CATALOG = [
   },
   {
     key: "perfil",
-    module: "Navegação",
-    group: "Secções",
+    module: "Navegacao",
+    group: "Secoes",
     label: "Meu perfil",
     description: "Acesso a tela de perfil.",
     level: "READ",
   },
   {
     key: "MAINT_CREATE",
-    module: "Manutenção",
-    group: "Ações",
+    module: "Manutencao",
+    group: "Acoes",
     label: "Manutenção - criar",
     description: "Criar novas manutenções.",
     level: "WRITE",
@@ -2908,6 +2913,15 @@ function normalizeRoleName(value) {
   return normalizeSearchValue(value).replace(/\s+/g, " ").trim();
 }
 
+function normalizeAccessPermissionKey(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "";
+  }
+  const alias = ACCESS_PERMISSION_ALIASES[raw.toLowerCase()];
+  return alias || raw;
+}
+
 function normalizeAccessPermissionList(list) {
   const source = Array.isArray(list)
     ? list
@@ -2926,7 +2940,7 @@ function normalizeAccessPermissionList(list) {
   });
   const result = new Set();
   source.forEach((perm) => {
-    const raw = String(perm || "").trim();
+    const raw = normalizeAccessPermissionKey(perm);
     if (!raw) {
       return;
     }
@@ -3156,7 +3170,12 @@ function hasAccessPermission(user, permission) {
   if (list.includes("ADMIN")) {
     return true;
   }
-  return list.includes(permission);
+  if (list.includes(permission)) {
+    return true;
+  }
+  const normalizedPermission = normalizeAccessPermissionKey(permission);
+  const normalizedList = normalizeAccessPermissionList(list);
+  return normalizedList.includes(normalizedPermission);
 }
 
 function buildRbacRoleKey(roleName) {
@@ -3693,6 +3712,21 @@ function canViewGerencial(user) {
 
 function canManageProjetos(user) {
   return hasGranularPermission(user, "gerenciarProjetos");
+}
+
+function canViewProjetos(user) {
+  if (!user) {
+    return false;
+  }
+  if (isFullAccessUser(user)) {
+    return true;
+  }
+  return (
+    hasGranularPermission(user, "verProjetos") ||
+    canManageProjetos(user) ||
+    canManageEquipamentos(user) ||
+    canManageEquipeProjeto(user)
+  );
 }
 
 function canManageEquipamentos(user) {
@@ -12075,15 +12109,54 @@ function normalizeAccessRoleRecord(role) {
   if (!id || !name) {
     return null;
   }
+  const order = Number(role.order);
   return {
     id,
     name,
     nameNormalized: normalizeRoleName(name),
     permissions: ensureSectionPermissions(normalizeAccessRoleKeys(role.permissions || [])),
     isSystem: Boolean(role.isSystem),
+    order: Number.isFinite(order) ? order : null,
     createdAt: role.createdAt || "",
     updatedAt: role.updatedAt || "",
   };
+}
+
+function getAccessRoleOrderValue(role, fallback = 0) {
+  const order = Number(role && role.order);
+  return Number.isFinite(order) ? order : fallback;
+}
+
+function ensureAccessRoleOrder(list = []) {
+  let changed = false;
+  const result = list
+    .map((role, index) => {
+      if (!role || typeof role !== "object") {
+        return null;
+      }
+      const order = Number(role.order);
+      if (Number.isFinite(order)) {
+        return role;
+      }
+      changed = true;
+      return { ...role, order: index };
+    })
+    .filter(Boolean);
+  return { list: result, changed };
+}
+
+function sortAccessRolesByOrder(list = []) {
+  return list
+    .map((role, index) => ({ role, index }))
+    .sort((a, b) => {
+      const ao = getAccessRoleOrderValue(a.role, a.index);
+      const bo = getAccessRoleOrderValue(b.role, b.index);
+      if (ao !== bo) {
+        return ao - bo;
+      }
+      return String(a.role.name || "").localeCompare(String(b.role.name || ""), "pt-BR");
+    })
+    .map((entry) => entry.role);
 }
 
 function normalizeAccessUserStatus(value, active) {
@@ -12169,20 +12242,32 @@ function readRolesStorage() {
   }
   const normalized = list.map(normalizeAccessRoleRecord).filter(Boolean);
   if (normalized.length) {
+    const ensured = ensureAccessRoleOrder(normalized);
+    if (ensured.changed) {
+      writeRolesStorage(ensured.list);
+      return ensured.list;
+    }
     return normalized;
   }
   const backup = readJson(ACCESS_ROLES_BACKUP_KEY, []);
   if (!Array.isArray(backup)) {
     return [];
   }
-  return backup.map(normalizeAccessRoleRecord).filter(Boolean);
+  const normalizedBackup = backup.map(normalizeAccessRoleRecord).filter(Boolean);
+  const ensuredBackup = ensureAccessRoleOrder(normalizedBackup);
+  if (ensuredBackup.changed) {
+    writeRolesStorage(ensuredBackup.list);
+  }
+  return ensuredBackup.list;
 }
 
 function writeRolesStorage(list) {
-  writeJson(ACCESS_ROLES_KEY, list);
-  writeJson(ACCESS_ROLES_BACKUP_KEY, list);
+  const ensured = ensureAccessRoleOrder(Array.isArray(list) ? list : []);
+  const payload = ensured.list;
+  writeJson(ACCESS_ROLES_KEY, payload);
+  writeJson(ACCESS_ROLES_BACKUP_KEY, payload);
   touchAccessSync();
-  return list;
+  return payload;
 }
 
 function upsertRoleBackup(role) {
@@ -12402,7 +12487,7 @@ function seedDefaultProjectsIfEmpty() {
 async function listRolesFromDb(q = "") {
   const query = normalizeSearchValue(q);
   if (typeof indexedDB === "undefined") {
-    const list = readRolesStorage();
+    const list = sortAccessRolesByOrder(readRolesStorage());
     return query
       ? list.filter((role) => normalizeSearchValue(role.name).includes(query))
       : list;
@@ -12422,7 +12507,7 @@ async function listRolesFromDb(q = "") {
             const writeStore = writeTx.objectStore("roles");
             fallback.forEach((role) => writeStore.put(role));
             writeTx.oncomplete = () => {
-              list = fallback.slice();
+              list = sortAccessRolesByOrder(fallback.slice());
               writeRolesStorage(list);
               resolve(
                 query
@@ -12431,27 +12516,30 @@ async function listRolesFromDb(q = "") {
               );
             };
             writeTx.onerror = () => {
-              writeRolesStorage(fallback);
+              const orderedFallback = sortAccessRolesByOrder(fallback);
+              writeRolesStorage(orderedFallback);
               resolve(
                 query
-                  ? fallback.filter((role) => normalizeSearchValue(role.name).includes(query))
-                  : fallback
+                  ? orderedFallback.filter((role) => normalizeSearchValue(role.name).includes(query))
+                  : orderedFallback
               );
             };
             return;
           }
         }
-        writeRolesStorage(list);
+        const ensured = ensureAccessRoleOrder(list);
+        const ordered = sortAccessRolesByOrder(ensured.list);
+        writeRolesStorage(ordered);
         resolve(
           query
-            ? list.filter((role) => normalizeSearchValue(role.name).includes(query))
-            : list
+            ? ordered.filter((role) => normalizeSearchValue(role.name).includes(query))
+            : ordered
         );
       };
-      request.onerror = () => resolve(readRolesStorage());
+      request.onerror = () => resolve(sortAccessRolesByOrder(readRolesStorage()));
     });
   } catch (error) {
-    return readRolesStorage();
+    return sortAccessRolesByOrder(readRolesStorage());
   }
 }
 
@@ -12513,12 +12601,24 @@ async function upsertRoleToDb(input) {
   if (duplicate && String(duplicate.id) !== String(id)) {
     throw new Error("Ja existe um cargo com esse nome.");
   }
+  const existingOrder = existing ? Number(existing.order) : NaN;
+  const providedOrder = payload.order !== undefined ? Number(payload.order) : NaN;
+  let order = Number.isFinite(providedOrder) ? providedOrder : existingOrder;
+  if (!Number.isFinite(order)) {
+    const list = readRolesStorage();
+    const maxOrder = list.reduce((acc, role) => {
+      const value = Number(role.order);
+      return Number.isFinite(value) ? Math.max(acc, value) : acc;
+    }, -1);
+    order = maxOrder + 1;
+  }
   const role = {
     id,
     name,
     nameNormalized,
     permissions: normalizeAccessRoleKeys(payload.permissions || existing?.permissions || []),
     isSystem: existing ? Boolean(existing.isSystem) : Boolean(payload.isSystem),
+    order,
     createdAt: existing && existing.createdAt ? existing.createdAt : now,
     updatedAt: now,
   };
@@ -27849,9 +27949,7 @@ function setAccessTab(tab) {
 }
 
 function renderAccessRoleSelectOptions() {
-  const sorted = accessRoles.slice().sort((a, b) =>
-    String(a.name || "").localeCompare(String(b.name || ""), "pt-BR")
-  );
+  const sorted = sortAccessRolesByOrder(accessRoles);
   if (accessUserRole) {
     accessUserRole.innerHTML = '<option value="">Selecione</option>';
     sorted.forEach((role) => {
@@ -27876,9 +27974,7 @@ function renderAccessRoleNameOptions(selectedId = "") {
   if (!accessRoleSelect) {
     return;
   }
-  const sorted = accessRoles.slice().sort((a, b) =>
-    String(a.name || "").localeCompare(String(b.name || ""), "pt-BR")
-  );
+  const sorted = sortAccessRolesByOrder(accessRoles);
   accessRoleSelectLocked = true;
   accessRoleSelect.innerHTML = "";
   const optionNew = document.createElement("option");
@@ -28010,7 +28106,8 @@ function renderAccessRoles() {
     return;
   }
   const query = normalizeSearchValue(accessRoleSearch ? accessRoleSearch.value : "");
-  const filtered = accessRoles.filter((role) => {
+  const orderedAll = sortAccessRolesByOrder(accessRoles);
+  const filtered = orderedAll.filter((role) => {
     if (!query) {
       return true;
     }
@@ -28023,10 +28120,7 @@ function renderAccessRoles() {
   }
   accessRolesEmpty.hidden = true;
   const canWrite = Boolean(currentUser && canManageAccess(currentUser) && accessWriteEnabled);
-  filtered
-    .slice()
-    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR"))
-    .forEach((role) => {
+  filtered.forEach((role) => {
       const tr = document.createElement("tr");
       const inUse = accessUsers.some((user) => String(user.roleId || "") === String(role.id));
       const statusLabel = role.isSystem ? "Sistema" : inUse ? "Em uso" : "Customizado";
@@ -28036,6 +28130,15 @@ function renderAccessRoles() {
         : `${permCount} permiss${permCount === 1 ? "\u00e3o" : "\u00f5es"}`;
       const actions = [];
       if (canWrite) {
+        const index = orderedAll.findIndex((item) => String(item.id) === String(role.id));
+        const canMoveUp = index > 0;
+        const canMoveDown = index >= 0 && index < orderedAll.length - 1;
+        actions.push(
+          `<button class="btn btn--ghost btn--small" type="button" data-action="move-role-up" data-role-id="${role.id}" ${canMoveUp ? "" : "disabled"} title="Mover para cima">\u2191</button>`
+        );
+        actions.push(
+          `<button class="btn btn--ghost btn--small" type="button" data-action="move-role-down" data-role-id="${role.id}" ${canMoveDown ? "" : "disabled"} title="Mover para baixo">\u2193</button>`
+        );
         actions.push(
           `<button class="btn btn--ghost btn--small" type="button" data-action="edit-role" data-role-id="${role.id}">Editar</button>`
         );
@@ -28061,6 +28164,33 @@ function roleNeedsMaintenanceExecuteFix(role) {
   }
   const normalized = normalizeAccessPermissionList(role.permissions);
   return normalized.includes("MAINT_CREATE") && !normalized.includes("MAINT_COMPLETE");
+}
+
+async function moveAccessRole(roleId, direction) {
+  const ordered = sortAccessRolesByOrder(accessRoles);
+  const index = ordered.findIndex((item) => String(item.id) === String(roleId));
+  if (index < 0) {
+    return;
+  }
+  const targetIndex = direction === "up" ? index - 1 : index + 1;
+  if (targetIndex < 0 || targetIndex >= ordered.length) {
+    return;
+  }
+  const current = ordered[index];
+  const target = ordered[targetIndex];
+  const currentOrder = getAccessRoleOrderValue(current, index);
+  const targetOrder = getAccessRoleOrderValue(target, targetIndex);
+  setAccessMessage("Atualizando ordem...");
+  try {
+    await Promise.all([
+      dataProvider.roles.upsertRole({ ...current, order: targetOrder }),
+      dataProvider.roles.upsertRole({ ...target, order: currentOrder }),
+    ]);
+    await refreshAccessRoles();
+    setAccessMessage("Ordem atualizada.");
+  } catch (error) {
+    setAccessMessage(error.message || "Falha ao mover cargo.", true);
+  }
 }
 
 async function ensureMaintenanceExecutePermissionForRoles() {
@@ -30281,12 +30411,7 @@ function renderProjectSelector() {
     projectSelectLabel.textContent = "Projeto ativo";
   }
   if (projectManageBtn) {
-    const canManage =
-      currentUser &&
-      (canManageProjetos(currentUser) ||
-        canManageEquipamentos(currentUser) ||
-        canManageEquipeProjeto(currentUser));
-    projectManageBtn.hidden = !canManage;
+    projectManageBtn.hidden = !canViewProjetos(currentUser);
   }
   if (crumbs) {
     renderBreadcrumb();
@@ -45533,6 +45658,14 @@ if (accessRolesTableBody) {
     }
     if (!accessWriteEnabled) {
       setAccessMessage(ACCESS_STORAGE_READONLY_MESSAGE, true);
+      return;
+    }
+    if (button.dataset.action === "move-role-up") {
+      await moveAccessRole(role.id, "up");
+      return;
+    }
+    if (button.dataset.action === "move-role-down") {
+      await moveAccessRole(role.id, "down");
       return;
     }
     if (button.dataset.action === "edit-role") {

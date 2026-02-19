@@ -650,6 +650,11 @@ const ACCESS_SECTION_PERMISSIONS = [
   "feedbacks",
   "perfil",
 ];
+
+const ACCESS_PERMISSION_ALIASES = {
+  "programação": "programacao",
+  "execução": "execucao",
+};
 const ACCESS_MAINTENANCE_PERMISSION_MAP = {
   create: "MAINT_CREATE",
   edit: "MAINT_EDIT",
@@ -675,7 +680,10 @@ function normalizeAccessRoleName(value) {
 function normalizeAccessPermissionList(list) {
   const result = new Set();
   (Array.isArray(list) ? list : []).forEach((perm) => {
-    const raw = String(perm || "").trim();
+    const rawInput = String(perm || "").trim();
+    const mapped =
+      ACCESS_PERMISSION_ALIASES[rawInput.toLowerCase()] || rawInput;
+    const raw = String(mapped || "").trim();
     if (!raw) {
       return;
     }
@@ -843,16 +851,55 @@ function normalizeAccessRoleRecord(role) {
   }
   const permissionsVersion = Number(role.permissionsVersion) || 1;
   const createdAt = role.createdAt || new Date().toISOString();
+  const order = Number(role.order);
   return {
     id,
     name,
     nameNormalized: normalizeAccessRoleName(name),
     permissions: ensureSectionPermissions(normalizeAccessPermissionList(role.permissions || [])),
     isSystem: Boolean(role.isSystem),
+    order: Number.isFinite(order) ? order : null,
     permissionsVersion,
     createdAt,
     updatedAt: role.updatedAt || createdAt,
   };
+}
+
+function getAccessRoleOrderValue(role, fallback = 0) {
+  const order = Number(role && role.order);
+  return Number.isFinite(order) ? order : fallback;
+}
+
+function ensureAccessRoleOrder(list = []) {
+  let changed = false;
+  const result = list
+    .map((role, index) => {
+      if (!role || typeof role !== "object") {
+        return null;
+      }
+      const order = Number(role.order);
+      if (Number.isFinite(order)) {
+        return role;
+      }
+      changed = true;
+      return { ...role, order: index };
+    })
+    .filter(Boolean);
+  return { list: result, changed };
+}
+
+function sortAccessRolesByOrder(list = []) {
+  return list
+    .map((role, index) => ({ role, index }))
+    .sort((a, b) => {
+      const ao = getAccessRoleOrderValue(a.role, a.index);
+      const bo = getAccessRoleOrderValue(b.role, b.index);
+      if (ao !== bo) {
+        return ao - bo;
+      }
+      return String(a.role.name || "").localeCompare(String(b.role.name || ""));
+    })
+    .map((entry) => entry.role);
 }
 
 function loadAccessRoles() {
@@ -860,13 +907,20 @@ function loadAccessRoles() {
   if (!Array.isArray(data)) {
     return [];
   }
-  return data.map(normalizeAccessRoleRecord).filter(Boolean);
+  const normalized = data.map(normalizeAccessRoleRecord).filter(Boolean);
+  const ensured = ensureAccessRoleOrder(normalized);
+  if (ensured.changed) {
+    writeJson(ACCESS_ROLES_FILE, ensured.list);
+  }
+  return ensured.list;
 }
 
 function saveAccessRoles(list) {
-  accessRoles = (Array.isArray(list) ? list : [])
+  const normalized = (Array.isArray(list) ? list : [])
     .map(normalizeAccessRoleRecord)
     .filter(Boolean);
+  const ensured = ensureAccessRoleOrder(normalized);
+  accessRoles = ensured.list;
   writeJson(ACCESS_ROLES_FILE, accessRoles);
   return accessRoles;
 }
@@ -9304,7 +9358,7 @@ app.get("/api/admin/access/storage", requireAuth, requireAccessView, (req, res) 
 
 app.get("/api/admin/access/roles", requireAuth, requireAccessView, (req, res) => {
   const term = normalizeSearchValue(req.query.q || "");
-  let list = accessRoles.slice();
+  let list = sortAccessRolesByOrder(accessRoles);
   if (term) {
     list = list.filter((role) => {
       const name = normalizeSearchValue(role.name || "");
@@ -9312,7 +9366,6 @@ app.get("/api/admin/access/roles", requireAuth, requireAccessView, (req, res) =>
       return name.includes(term) || normalized.includes(term);
     });
   }
-  list.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
   return res.json({ roles: list });
 });
 
@@ -9343,11 +9396,16 @@ app.post(
     const withDefaults = new Set(ensureSectionPermissions(basePermissions));
     ACCESS_ROLE_DEFAULT_PERMISSION_KEYS.forEach((key) => withDefaults.add(key));
     const now = new Date().toISOString();
+    const maxOrder = accessRoles.reduce((acc, role) => {
+      const value = Number(role && role.order);
+      return Number.isFinite(value) ? Math.max(acc, value) : acc;
+    }, -1);
     const role = normalizeAccessRoleRecord({
       id: crypto.randomUUID(),
       name,
       permissions: Array.from(withDefaults),
       isSystem: false,
+      order: maxOrder + 1,
       permissionsVersion: ACCESS_ROLE_PERMISSION_VERSION,
       createdAt: now,
       updatedAt: now,
@@ -9355,7 +9413,7 @@ app.post(
     if (!role) {
       return res.status(400).json({ message: "Cargo invalido." });
     }
-    accessRoles = [role, ...accessRoles];
+    accessRoles = accessRoles.concat(role);
     saveAccessRoles(accessRoles);
     appendAudit("access_role_create", req.session.userId, { roleId: role.id }, getClientIp(req));
     broadcastSse("access.updated", { scope: "roles" });
@@ -9390,10 +9448,15 @@ app.put(
       req.body.permissions !== undefined
         ? normalizeAccessPermissionList(req.body.permissions || [])
         : current.permissions;
+    const order =
+      req.body.order !== undefined && Number.isFinite(Number(req.body.order))
+        ? Number(req.body.order)
+        : current.order;
     const updated = normalizeAccessRoleRecord({
       ...current,
       name,
       permissions,
+      order,
       updatedAt: new Date().toISOString(),
     });
     accessRoles[index] = updated;
