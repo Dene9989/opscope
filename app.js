@@ -41351,7 +41351,14 @@ async function salvarConclusao(event) {
     status: "concluida",
     doneAt: fimIso,
     doneBy: currentUser.id,
-    updatedAt: toIsoUtc(new Date()),
+    updatedAt: (() => {
+      const now = new Date();
+      const last = getMaintenanceUpdatedAtValue(item);
+      if (last && last > now.getTime()) {
+        return toIsoUtc(new Date(last + 1000));
+      }
+      return toIsoUtc(now);
+    })(),
     updatedBy: currentUser.id,
     conclusao,
   };
