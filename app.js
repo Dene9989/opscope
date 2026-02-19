@@ -541,6 +541,8 @@ const sstDocTableBody = document.getElementById("sstDocTableBody");
 const sstDocEmpty = document.getElementById("sstDocEmpty");
 const sstDocQueue = document.getElementById("sstDocQueue");
 const sstDocQueueEmpty = document.getElementById("sstDocQueueEmpty");
+const sstDocArchive = document.getElementById("sstDocArchive");
+const sstDocArchiveEmpty = document.getElementById("sstDocArchiveEmpty");
 const modalSstDocForm = document.getElementById("modalSstDocForm");
 const formSstDoc = document.getElementById("formSstDoc");
 const sstDocProject = document.getElementById("sstDocProject");
@@ -1181,6 +1183,8 @@ const ANNOUNCEMENTS_READERS_KEY = "opscope.announcements.readers";
 const FEEDBACK_TTL_MS = 20 * 1000;
 const TEAM_NOTIFICATION_WINDOW_DAYS = 14;
 const STORAGE_KEY = "denemanu.manutencoes";
+const MAINT_DIRTY_KEY = "opscope.maintenance.dirty";
+const MAINT_CACHE_USER_KEY = "opscope.maintenance.cache.user";
 const TEMPLATE_KEY = "denemanu.templates";
 const USER_KEY = "denemanu.users";
 const ACCESS_USERS_KEY = "opscope.access.users";
@@ -2938,6 +2942,14 @@ function normalizeAccessPermissionList(list) {
   return Array.from(result);
 }
 
+function applyMaintenancePermissionDependencies(list) {
+  const normalized = normalizeAccessPermissionList(list);
+  if (normalized.includes("MAINT_CREATE") && !normalized.includes("MAINT_COMPLETE")) {
+    normalized.push("MAINT_COMPLETE");
+  }
+  return normalized;
+}
+
 function ensureSectionPermissions(list) {
   const normalized = Array.isArray(list) ? list.slice() : [];
   if (!normalized.length) {
@@ -4315,6 +4327,9 @@ let accessRoleEditorState = {
   renameMode: false,
   showChanges: false,
 };
+let accessRoleAutoFixRunning = false;
+let accessRoleAutoFixDone = false;
+let maintenanceServerIdsByProject = new Map();
 let accessRoleSelectLocked = false;
 let requests = [];
 let auditLog = [];
@@ -9808,6 +9823,59 @@ function carregarManutencoes() {
   return compacted.list;
 }
 
+function readMaintenanceDirtyMap() {
+  const raw = readJson(getProjectStorageKey(MAINT_DIRTY_KEY), {});
+  return raw && typeof raw === "object" ? { ...raw } : {};
+}
+
+function writeMaintenanceDirtyMap(map) {
+  writeJson(getProjectStorageKey(MAINT_DIRTY_KEY), map || {});
+}
+
+function markMaintenanceDirtyIds(ids) {
+  const list = Array.isArray(ids) ? ids : [];
+  if (!list.length) {
+    return;
+  }
+  const map = readMaintenanceDirtyMap();
+  const now = Date.now();
+  list.forEach((id) => {
+    const key = String(id || "").trim();
+    if (key) {
+      map[key] = now;
+    }
+  });
+  writeMaintenanceDirtyMap(map);
+}
+
+function clearMaintenanceDirtyIds(ids = null) {
+  if (!ids) {
+    writeMaintenanceDirtyMap({});
+    return;
+  }
+  const list = Array.isArray(ids) ? ids : [ids];
+  if (!list.length) {
+    return;
+  }
+  const map = readMaintenanceDirtyMap();
+  list.forEach((id) => {
+    const key = String(id || "").trim();
+    if (key && Object.prototype.hasOwnProperty.call(map, key)) {
+      delete map[key];
+    }
+  });
+  writeMaintenanceDirtyMap(map);
+}
+
+function isMaintenanceDirtyId(id) {
+  const key = String(id || "").trim();
+  if (!key) {
+    return false;
+  }
+  const map = readMaintenanceDirtyMap();
+  return Boolean(map[key]);
+}
+
 function salvarManutencoes(lista, options = {}) {
   const sanitized = Array.isArray(lista)
     ? lista.map((item) =>
@@ -9816,8 +9884,30 @@ function salvarManutencoes(lista, options = {}) {
           : item
       )
     : [];
-  const compacted = compactEvidencias(sanitized);
   const storageKey = getProjectStorageKey(STORAGE_KEY);
+  const prevList = options.skipDirty ? [] : readJson(storageKey, []);
+  const prevMap = new Map(
+    Array.isArray(prevList)
+      ? prevList
+          .filter((item) => item && item.id)
+          .map((item) => [String(item.id), getMaintenanceItemFingerprint(item)])
+      : []
+  );
+  const dirtyIds = [];
+  if (!options.skipDirty) {
+    sanitized.forEach((item) => {
+      if (!item || !item.id) {
+        return;
+      }
+      const id = String(item.id);
+      const prevFingerprint = prevMap.get(id) || "";
+      const nextFingerprint = getMaintenanceItemFingerprint(item);
+      if (!prevFingerprint || prevFingerprint !== nextFingerprint) {
+        dirtyIds.push(id);
+      }
+    });
+  }
+  const compacted = compactEvidencias(sanitized);
   let ok = writeJson(storageKey, compacted.list);
   if (!ok) {
     try {
@@ -9826,6 +9916,9 @@ function salvarManutencoes(lista, options = {}) {
       // noop
     }
     ok = writeJson(storageKey, compacted.list);
+  }
+  if (!options.skipDirty && dirtyIds.length) {
+    markMaintenanceDirtyIds(dirtyIds);
   }
   if (!options.skipSync) {
     scheduleMaintenanceSync(lista);
@@ -10092,6 +10185,37 @@ function persistActiveProjectId(projectId) {
   localStorage.setItem(ACTIVE_PROJECT_KEY, projectId);
 }
 
+function ensureMaintenanceCacheOwnership() {
+  if (!USE_AUTH_API || !currentUser || !currentUser.id) {
+    return;
+  }
+  const currentId = String(currentUser.id);
+  const storedId = localStorage.getItem(MAINT_CACHE_USER_KEY) || "";
+  if (storedId && storedId !== currentId) {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (!key) {
+        continue;
+      }
+      if (key === STORAGE_KEY || key.startsWith(`${STORAGE_KEY}.`)) {
+        keysToRemove.push(key);
+      }
+      if (key === MAINT_DIRTY_KEY || key.startsWith(`${MAINT_DIRTY_KEY}.`)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((key) => {
+      try {
+        localStorage.removeItem(key);
+      } catch (error) {
+        // noop
+      }
+    });
+  }
+  localStorage.setItem(MAINT_CACHE_USER_KEY, currentId);
+}
+
 function reloadProjectState() {
   templates = carregarTemplates();
   if (!isDefaultProjectActive() && shouldClearDefaultTemplates(templates)) {
@@ -10164,6 +10288,9 @@ async function carregarSessaoServidor() {
       const data = await apiRequest("/api/auth/me");
       currentUser = data.user || null;
       availableProjects = Array.isArray(data.projects) ? data.projects : [];
+      if (currentUser) {
+        ensureMaintenanceCacheOwnership();
+      }
       const storedProjectId = localStorage.getItem(ACTIVE_PROJECT_KEY) || "";
       const validStored = availableProjects.some((item) => item.id === storedProjectId);
       const resolvedProjectId =
@@ -11156,9 +11283,6 @@ function can(action) {
     return true;
   }
   const permissions = currentUser.permissions || {};
-  if (action === "complete") {
-    return Boolean(permissions.complete || permissions.create);
-  }
   return Boolean(permissions[action]);
 }
 
@@ -11342,6 +11466,143 @@ function normalizarManutencoes(lista) {
     };
   });
   return { normalizadas, mudou: changes.length > 0 || mudouTempo, changes };
+}
+
+function getMaintenanceDedupKey(item) {
+  if (!item || typeof item !== "object") {
+    return "";
+  }
+  const projectId = item.projectId || activeProjectId || "";
+  const templateId = String(item.templateId || "").trim();
+  const data = String(item.data || "").trim();
+  if (templateId && data) {
+    return `tpl|${projectId}|${templateId}|${data}`;
+  }
+  const osRef = String(getMaintenanceOsReferencia(item) || "").trim();
+  if (osRef && data) {
+    const titulo = normalizeSearchValue(item.titulo || "");
+    const local = normalizeSearchValue(item.local || "");
+    return `os|${projectId}|${data}|${osRef}|${titulo}|${local}`;
+  }
+  return "";
+}
+
+function getMaintenanceItemScore(item) {
+  if (!item || typeof item !== "object") {
+    return 0;
+  }
+  let score = 0;
+  if (item.equipamentoId) {
+    score += 4;
+  }
+  if (getMaintenanceOsReferencia(item)) {
+    score += 4;
+  }
+  if (item.liberacao) {
+    score += 5;
+  }
+  if (hasExecucaoRegistrada(item)) {
+    score += 4;
+  }
+  if (item.conclusao) {
+    score += 4;
+  }
+  if (item.documentos && Object.keys(item.documentos || {}).length) {
+    score += 2;
+  }
+  if (item.observacao || item.observacaoHtml) {
+    score += 1;
+  }
+  return score;
+}
+
+function dedupeMaintenanceList(list) {
+  if (!Array.isArray(list)) {
+    return [];
+  }
+  const byKey = new Map();
+  const output = [];
+  list.forEach((item) => {
+    const key = getMaintenanceDedupKey(item);
+    if (!key) {
+      output.push(item);
+      return;
+    }
+    if (!byKey.has(key)) {
+      byKey.set(key, item);
+      return;
+    }
+    const current = byKey.get(key);
+    const scoreA = getMaintenanceItemScore(current);
+    const scoreB = getMaintenanceItemScore(item);
+    if (scoreB > scoreA) {
+      byKey.set(key, item);
+      return;
+    }
+    if (scoreB < scoreA) {
+      return;
+    }
+    const updatedA = getMaintenanceUpdatedAtValue(current);
+    const updatedB = getMaintenanceUpdatedAtValue(item);
+    if (updatedB > updatedA) {
+      byKey.set(key, item);
+    }
+  });
+  if (!byKey.size) {
+    return output;
+  }
+  const ids = new Set();
+  byKey.forEach((item) => {
+    if (!item) {
+      return;
+    }
+    ids.add(item.id);
+  });
+  output.forEach((item) => {
+    if (!item || !item.id) {
+      return;
+    }
+    if (ids.has(item.id)) {
+      return;
+    }
+    byKey.set(`id|${item.id}`, item);
+  });
+  return Array.from(byKey.values());
+}
+
+function shouldKeepLocalOnlyMaintenance(item, lastFetchAt) {
+  if (!item || !item.id) {
+    return false;
+  }
+  const dirty = isMaintenanceDirtyId(item.id);
+  if (!dirty) {
+    return false;
+  }
+  const updatedAt = getMaintenanceUpdatedAtValue(item);
+  if (lastFetchAt > 0 && updatedAt <= lastFetchAt && !dirty) {
+    return false;
+  }
+  if (!USE_AUTH_API) {
+    return true;
+  }
+  if (!currentUser) {
+    return false;
+  }
+  const createdBy = String(item.createdBy || "");
+  const updatedBy = String(item.updatedBy || "");
+  const isSystem = createdBy === SYSTEM_USER_ID && updatedBy === SYSTEM_USER_ID;
+  const hasUserPayload = Boolean(
+    item.liberacao ||
+      item.conclusao ||
+      item.registroExecucao ||
+      item.documentos ||
+      item.participantes ||
+      item.osReferencia
+  );
+  if (isSystem && !hasUserPayload) {
+    return false;
+  }
+  return true;
 }
 
 function logAction(action, item, detalhes = {}, userId = null) {
@@ -11553,6 +11814,34 @@ function getMaintenanceUpdatedAtValue(item) {
   return times.length ? Math.max(...times) : 0;
 }
 
+function getMaintenanceItemFingerprint(item) {
+  if (!item || !item.id) {
+    return "";
+  }
+  const liberacao = item.liberacao || {};
+  const registro = item.registroExecucao || {};
+  const conclusao = item.conclusao || {};
+  const execMark =
+    item.execucaoRegistradaEm || item.executionRegisteredAt || item.execucaoRegistradaAt || "";
+  return [
+    String(item.id),
+    normalizeMaintenanceStatus(item.status),
+    getMaintenanceUpdatedAtValue(item),
+    item.projectId || "",
+    item.data || "",
+    item.equipamentoId || "",
+    getMaintenanceOsReferencia(item) || "",
+    registro.registradoEm || registro.registrado_em || registro.executedAt || "",
+    conclusao.fim || item.doneAt || "",
+    execMark,
+    liberacao.osNumero || "",
+    Array.isArray(liberacao.participantes) ? liberacao.participantes.length : 0,
+    Boolean(item.registroExecucao),
+    Boolean(item.conclusao),
+    Boolean(item.liberacao),
+  ].join("|");
+}
+
 function getMaintenanceListFingerprint(list) {
   if (!Array.isArray(list)) {
     return "";
@@ -11628,10 +11917,14 @@ function mergeLocalExecucaoRegistro(remote, local) {
   if (!remote || !local) {
     return remote;
   }
+  const localDirty = isMaintenanceDirtyId(local.id);
   const localTime = getMaintenanceUpdatedAtValue(local);
   const remoteTime = getMaintenanceUpdatedAtValue(remote);
   const localStatus = normalizeMaintenanceStatus(local.status);
   const remoteStatus = normalizeMaintenanceStatus(remote.status);
+  if (localDirty && (!remoteTime || localTime >= remoteTime)) {
+    return mergePreferLocal(local, remote);
+  }
   if (localTime && (!remoteTime || localTime > remoteTime + 1000)) {
     return mergePreferLocal(local, remote);
   }
@@ -15176,7 +15469,8 @@ function criarCardManutencao(item, permissoes, options = {}) {
 
   const stateBadge = document.createElement("span");
   stateBadge.className = `status-flag status-flag--${state}`;
-  stateBadge.textContent = MAINTENANCE_STATE_LABELS[state] || "PLANEJADA";
+  const stateLabel = MAINTENANCE_STATE_LABELS[state] || "PLANEJADA";
+  stateBadge.textContent = stateLabel;
 
   const statusGroup = document.createElement("div");
   statusGroup.className = "status-group";
@@ -15192,7 +15486,9 @@ function criarCardManutencao(item, permissoes, options = {}) {
     execBadge.textContent = "Execução registrada";
     statusGroup.append(execBadge);
   }
-  statusGroup.append(stateBadge);
+  if (!badge.textContent || badge.textContent !== stateLabel) {
+    statusGroup.append(stateBadge);
+  }
 
   header.append(info, statusGroup);
 
@@ -27135,6 +27431,9 @@ async function duplicarPmpPlano() {
 }
 
 function gerarManutencoesRecorrentes() {
+  if (USE_AUTH_API) {
+    return false;
+  }
   if (!templates.length) {
     return false;
   }
@@ -27724,6 +28023,49 @@ function renderAccessRoles() {
     });
 }
 
+function roleNeedsMaintenanceExecuteFix(role) {
+  if (!role || !Array.isArray(role.permissions)) {
+    return false;
+  }
+  const normalized = normalizeAccessPermissionList(role.permissions);
+  return normalized.includes("MAINT_CREATE") && !normalized.includes("MAINT_COMPLETE");
+}
+
+async function ensureMaintenanceExecutePermissionForRoles() {
+  if (accessRoleAutoFixRunning || accessRoleAutoFixDone) {
+    return false;
+  }
+  if (!USE_AUTH_API || !currentUser || !canManageAccess(currentUser) || !accessWriteEnabled) {
+    return false;
+  }
+  const rolesToFix = accessRoles.filter(roleNeedsMaintenanceExecuteFix);
+  if (!rolesToFix.length) {
+    accessRoleAutoFixDone = true;
+    return false;
+  }
+  accessRoleAutoFixRunning = true;
+  try {
+    for (const role of rolesToFix) {
+      const permissions = applyMaintenancePermissionDependencies(role.permissions || []);
+      await dataProvider.roles.upsertRole({
+        id: role.id,
+        name: role.name || "",
+        permissions,
+      });
+    }
+    showAuthToast(
+      "Permissão 'Manutenção - executar' adicionada aos cargos com 'Manutenção - criar'."
+    );
+    accessRoleAutoFixDone = true;
+    return true;
+  } catch (error) {
+    showAuthToast("Não foi possível atualizar permissões de execução automaticamente.");
+    return false;
+  } finally {
+    accessRoleAutoFixRunning = false;
+  }
+}
+
 async function refreshAccessRoles(options = {}) {
   const skipEditor = Boolean(options.skipEditor);
   try {
@@ -27734,6 +28076,14 @@ async function refreshAccessRoles(options = {}) {
   if (!accessRoles.length) {
     try {
       await dataProvider.roles.seedDefaultRolesIfEmpty();
+      accessRoles = await dataProvider.roles.listRoles();
+    } catch (error) {
+      // noop
+    }
+  }
+  const autoFixed = await ensureMaintenanceExecutePermissionForRoles();
+  if (autoFixed) {
+    try {
       accessRoles = await dataProvider.roles.listRoles();
     } catch (error) {
       // noop
@@ -28592,7 +28942,7 @@ function collectAccessRolePermissions() {
     return ["ADMIN"];
   }
   const selected = Array.from(accessRoleEditorState.selected || []).filter((key) => key !== "ADMIN");
-  return normalizeAccessPermissionList(selected);
+  return applyMaintenancePermissionDependencies(selected);
 }
 
 function setAccessRoleSelection(list) {
@@ -32930,13 +33280,8 @@ async function getSstEvidenceById(evidenceId) {
 
 function getSstDocsScoped() {
   let list = Array.isArray(sstDocs) ? sstDocs.slice() : [];
-  if (!currentUser || !canManageSst(currentUser)) {
-    if (!currentUser) {
-      return [];
-    }
-    list = list.filter(
-      (doc) => doc.responsibleId === currentUser.id || doc.createdBy === currentUser.id
-    );
+  if (!currentUser || !canViewSst(currentUser)) {
+    return [];
   }
   const projectFilter = sstDocProjectFilter ? sstDocProjectFilter.value : "";
   if (projectFilter) {
@@ -33037,6 +33382,51 @@ function renderSstDocQueue(scopedDocs) {
   }
 }
 
+function renderSstDocArchive(scopedDocs) {
+  if (!sstDocArchive) {
+    return;
+  }
+  const aprovadas = scopedDocs
+    .filter((doc) => String(doc.status || "").toUpperCase() === "APROVADO")
+    .sort((a, b) => {
+      const stampA = parseTimestamp(a.reviewedAt || a.updatedAt || a.createdAt) || 0;
+      const stampB = parseTimestamp(b.reviewedAt || b.updatedAt || b.createdAt) || 0;
+      return stampB - stampA;
+    });
+  sstDocArchive.innerHTML = aprovadas
+    .map((doc) => {
+      const project = availableProjects.find((item) => item.id === doc.projectId);
+      const projectLabel = project ? getProjectLabel(project) : doc.projectId || "-";
+      const responsavel = getUserLabel(doc.responsibleId);
+      const revisadoEm = doc.reviewedAt
+        ? formatDateTime(parseTimestamp(doc.reviewedAt))
+        : doc.updatedAt
+          ? formatDateTime(parseTimestamp(doc.updatedAt))
+          : "-";
+      const revisadoPor = doc.reviewedBy ? getUserLabel(doc.reviewedBy) : "Sistema";
+      return `
+        <div class="doc-queue-item" data-doc-id="${escapeHtml(String(doc.id))}">
+          <div>
+            <strong>${escapeHtml(doc.activity || "Documentação")}</strong>
+            <div class="doc-queue-meta">
+              ${escapeHtml(projectLabel)} · ${escapeHtml(responsavel)} · Aprovado em ${escapeHtml(revisadoEm)}
+            </div>
+            <div class="doc-queue-meta">
+              Revisado por ${escapeHtml(revisadoPor)}
+            </div>
+          </div>
+          <button class="btn btn--ghost btn--small" type="button" data-action="review">
+            ${currentUser && canManageSst(currentUser) ? "Revisar" : "Detalhes"}
+          </button>
+        </div>
+      `;
+    })
+    .join("");
+  if (sstDocArchiveEmpty) {
+    sstDocArchiveEmpty.hidden = aprovadas.length > 0;
+  }
+}
+
 function renderSstAprPt() {
   if (!sstDocTableBody || !sstLoaded) {
     return;
@@ -33051,6 +33441,7 @@ function renderSstAprPt() {
   const scoped = getSstDocsScoped();
   renderSstDocStats(scoped);
   renderSstDocQueue(scoped);
+  renderSstDocArchive(scoped);
   const list = getSstDocsFiltered();
   sstDocTableBody.innerHTML = list
     .map((doc) => {
@@ -35331,6 +35722,12 @@ async function carregarManutencoesServidor(force = false) {
     const data = await apiMaintenanceList(activeProjectId);
     if (data && Array.isArray(data.items)) {
       let needsSync = false;
+      const remoteIds = new Set(
+        data.items
+          .map((item) => (item && item.id ? String(item.id) : ""))
+          .filter(Boolean)
+      );
+      maintenanceServerIdsByProject.set(activeProjectId, remoteIds);
       const localCache = readJson(getProjectStorageKey(STORAGE_KEY), []);
       const localMap = new Map(
         Array.isArray(localCache)
@@ -35370,9 +35767,6 @@ async function carregarManutencoesServidor(force = false) {
         });
       }
       const lastFetchAt = maintenanceLastFetch;
-      const remoteIds = new Set(
-        data.items.map((item) => (item && item.id ? String(item.id) : "")).filter(Boolean)
-      );
       if (Array.isArray(localCache)) {
         localCache.forEach((item) => {
           if (!item || !item.id) {
@@ -35380,15 +35774,14 @@ async function carregarManutencoesServidor(force = false) {
           }
           const id = String(item.id);
           if (!remoteIds.has(id)) {
-            const updatedAt = getMaintenanceUpdatedAtValue(item);
-            if (lastFetchAt > 0 && updatedAt > lastFetchAt) {
+            if (shouldKeepLocalOnlyMaintenance(item, lastFetchAt)) {
               merged.push(item);
               needsSync = true;
             }
           }
         });
       }
-      manutencoes = merged;
+      manutencoes = dedupeMaintenanceList(merged);
       const payloadHash = syncDebugEnabled
         ? hashString(JSON.stringify(data.items))
         : "";
@@ -35400,7 +35793,7 @@ async function carregarManutencoesServidor(force = false) {
       });
       const resultado = normalizarManutencoes(manutencoes);
       manutencoes = resultado.normalizadas;
-      salvarManutencoes(manutencoes, { skipSync: true });
+      salvarManutencoes(manutencoes, { skipSync: true, skipDirty: true });
       pmpMaintenanceCache.set(activeProjectId, manutencoes);
       maintenanceLoadedProjects.add(activeProjectId);
       maintenanceLastFetch = Date.now();
@@ -42041,13 +42434,33 @@ async function syncMaintenanceNow(items, force) {
     return { ok: true, skipped: true };
   }
   maintenancePendingSync = true;
-  maintenanceSyncPromise = apiMaintenanceSync(items);
+  const dirtyMap = readMaintenanceDirtyMap();
+  const serverIds = maintenanceServerIdsByProject.get(activeProjectId) || null;
+  const payloadItems = dedupeMaintenanceList(items).filter((item) => {
+    if (!item || !item.id) {
+      return false;
+    }
+    if (!serverIds) {
+      return true;
+    }
+    if (serverIds.size === 0) {
+      return Boolean(dirtyMap[String(item.id)]);
+    }
+    const id = String(item.id);
+    return serverIds.has(id) || Boolean(dirtyMap[id]);
+  });
+  if (!payloadItems.length) {
+    maintenancePendingSync = false;
+    return { ok: true, skipped: true };
+  }
+  maintenanceSyncPromise = apiMaintenanceSync(payloadItems);
   try {
     await maintenanceSyncPromise;
     maintenanceLastSync = Date.now();
     maintenanceLastUserId = currentUser.id;
     maintenanceSyncFailed = false;
     maintenancePendingSync = false;
+    clearMaintenanceDirtyIds();
     return { ok: true };
   } catch (error) {
     maintenanceSyncFailed = true;
@@ -42074,8 +42487,14 @@ function scheduleMaintenanceSync(items, force) {
         await carregarManutencoesServidor(true);
         loadDashboardSummary(true, { skipSync: true });
       })
-      .catch(() => {
-        showAuthToast("Falha ao sincronizar. Alterações não aplicadas para todos.");
+      .catch((error) => {
+        if (error && error.status === 403) {
+          showAuthToast(
+            "Sem permissão para sincronizar alterações. Verifique 'Manutenção - executar'."
+          );
+        } else {
+          showAuthToast("Falha ao sincronizar. Alterações não aplicadas para todos.");
+        }
         // Mantém estado local; nova tentativa ocorrerá via sincronização automática/manual.
       });
     return;
