@@ -41585,8 +41585,24 @@ async function removerManutencao(index) {
     renderTudo();
     mostrarMensagemManutencao("Manutencao excluida.");
   } catch (error) {
+    if (error && error.status === 404) {
+      markMaintenanceDeletedIds(item.id);
+      clearMaintenanceDirtyIds(item.id);
+      const serverIds = maintenanceServerIdsByProject.get(activeProjectId || "");
+      if (serverIds) {
+        serverIds.delete(String(item.id));
+      }
+      manutencoes = manutencoes.filter(
+        (entry) => entry && String(entry.id) !== String(item.id)
+      );
+      salvarManutencoes(manutencoes, { skipSync: true, skipDirty: true });
+      renderTudo();
+      mostrarMensagemManutencao("Manutenção já havia sido excluída.");
+      return;
+    }
     const message = error && error.message ? error.message : "Falha ao excluir manutencao.";
     mostrarMensagemManutencao(message, true);
+    showAuthToast(message);
   }
 }
 

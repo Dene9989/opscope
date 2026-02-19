@@ -6418,7 +6418,8 @@ function hasPermission(user, permissionKey) {
     if (mapped && accessSet.has(mapped)) {
       return true;
     }
-    return false;
+    const legacy = buildPermissions(user.rbacRole || user.role, user.permissions);
+    return Boolean(legacy && legacy[permissionKey]);
   }
   const permissions = buildPermissions(user.rbacRole || user.role, user.permissions);
   return Boolean(permissions && permissions[permissionKey]);
