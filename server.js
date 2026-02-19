@@ -3990,6 +3990,9 @@ function pickMaintenanceMerge(existing, incoming) {
   if (incomingStatus === "concluida" && existingStatus !== "concluida") {
     const reopened = Boolean(existing.reopenedAt || existing.reopenedBy);
     if (reopened) {
+      if (incomingTime && (!existingTime || incomingTime > existingTime)) {
+        return mergedIncoming;
+      }
       return mergedExisting;
     }
     return mergedIncoming;
