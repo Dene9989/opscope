@@ -12038,11 +12038,172 @@ function getHistoricoManutencao(manutencaoId) {
     .sort((a, b) => (getTimeValue(b.timestamp) || 0) - (getTimeValue(a.timestamp) || 0));
 }
 
+function toHistoricoTimestamp(value) {
+  if (!value) {
+    return "";
+  }
+  const normalized = normalizeIso(value);
+  return normalized || value;
+}
+
+function normalizeHistoricoParticipantes(value) {
+  if (Array.isArray(value)) {
+    return value.filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(";")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function buildSyntheticMaintenanceHistory(item, baseHistory) {
+  if (!item) {
+    return [];
+  }
+  const extras = [];
+  const actionsPresent = new Set(
+    Array.isArray(baseHistory) ? baseHistory.map((entry) => entry && entry.action) : []
+  );
+  const addEntry = (action, timestamp, userId, detalhes = {}, source = "") => {
+    const stamp = toHistoricoTimestamp(timestamp);
+    if (!stamp || actionsPresent.has(action)) {
+      return;
+    }
+    const resolvedUser = userId || SYSTEM_USER_ID;
+    const resolvedSource = source || (resolvedUser === SYSTEM_USER_ID ? "Sistema" : "Registro");
+    extras.push({
+      id: `snapshot:${item.id}:${action}`,
+      action,
+      manutencaoId: item.id,
+      timestamp: stamp,
+      userId: resolvedUser,
+      source: resolvedSource,
+      detalhes,
+      prevHash: "",
+      hash: "",
+    });
+    actionsPresent.add(action);
+  };
+
+  const createdAt = pickItemValue(item, ["createdAt", "abertaEm", "criadaEm"]);
+  const createdBy = pickItemValue(item, ["createdBy", "abertaPor"]);
+  if (createdAt) {
+    addEntry("create", createdAt, createdBy, {
+      dataProgramada: item.data || "",
+      resumo: "Manutenção criada.",
+    });
+  }
+
+  const liberacao = getLiberacao(item) || {};
+  const liberadoEm = liberacao.liberadoEm || liberacao.liberado_em || "";
+  const liberadoPor = liberacao.liberadoPor || liberacao.liberado_por || "";
+  const participantes = normalizeHistoricoParticipantes(liberacao.participantes);
+  const documentos = liberacao.documentos || item.documentos || {};
+  const documentosLista = DOC_KEYS.filter((key) => documentos && documentos[key]).map(
+    (key) => DOC_LABELS[key] || key
+  );
+  const liberacaoDetalhes = {
+    osNumero:
+      liberacao.osNumero ||
+      item.osReferencia ||
+      item.osNumero ||
+      (item.conclusao && item.conclusao.osNumero) ||
+      (item.conclusao && item.conclusao.referencia) ||
+      "",
+    participantes,
+    critico: liberacao.critico,
+    documentos: documentosLista,
+    resumo: "Liberação registrada.",
+  };
+  if (liberadoEm || liberadoPor || isLiberacaoOk(item) || normalizeMaintenanceStatus(item.status) === "liberada") {
+    addEntry(
+      "release",
+      liberadoEm || item.updatedAt || item.createdAt || createdAt,
+      liberadoPor || item.updatedBy || item.createdBy,
+      liberacaoDetalhes
+    );
+  } else {
+    const dataProgramada = item.data ? parseDate(item.data) : null;
+    if (dataProgramada) {
+      const hoje = startOfDay(new Date());
+      if (startOfDay(dataProgramada).getTime() <= hoje.getTime()) {
+        addEntry(
+          "release",
+          toIsoUtc(startOfDay(dataProgramada)),
+          SYSTEM_USER_ID,
+          { ...liberacaoDetalhes, resumo: "Liberada automaticamente na data programada." },
+          "Sistema"
+        );
+      }
+    }
+  }
+
+  const execStartAt = pickItemValue(item, ["executionStartedAt", "inicioExecucao", "inicio"]);
+  const execStartBy = pickItemValue(item, ["executionStartedBy", "executadaPor"]);
+  if (execStartAt) {
+    addEntry("execute", execStartAt, execStartBy, {
+      inicioExecucao: execStartAt,
+      resumo: "Execução iniciada.",
+    });
+  }
+
+  const registro = item.registroExecucao || {};
+  const registroAt =
+    registro.registradoEm ||
+    registro.registrado_em ||
+    registro.executadoEm ||
+    registro.executedAt ||
+    item.execucaoRegistradaEm ||
+    item.executionRegisteredAt ||
+    "";
+  if (registroAt) {
+    addEntry("execute_register", registroAt, registro.executadoPor || item.executadaPor, {
+      observacaoExecucao: registro.observacaoExecucao || registro.observacao || "",
+      resultado: registro.resultado || "",
+      resumo: "Execução registrada.",
+    });
+  }
+
+  const conclusao = item.conclusao || {};
+  const concluidaAt =
+    item.doneAt || item.executionFinishedAt || conclusao.fim || item.concluidaEm || "";
+  if (normalizeMaintenanceStatus(item.status) === "concluida" || conclusao.fim || item.doneAt) {
+    addEntry("complete", concluidaAt, item.doneBy || conclusao.encerradoPor || item.updatedBy, {
+      resultado: conclusao.resultado || "",
+      referencia: conclusao.referencia || conclusao.osNumero || item.osReferencia || "",
+      observacaoExecucao: conclusao.observacaoExecucao || "",
+      evidenciasCount: Array.isArray(conclusao.evidencias) ? conclusao.evidencias.length : undefined,
+      inicioExecucao: conclusao.inicio || item.executionStartedAt || "",
+      fimExecucao:
+        conclusao.fim || item.executionFinishedAt || item.doneAt || "",
+      resumo: "Manutenção concluída.",
+    });
+  }
+
+  return extras;
+}
+
+function getHistoricoManutencaoCompleto(itemOrId) {
+  const item =
+    typeof itemOrId === "object"
+      ? itemOrId
+      : manutencoes.find((registro) => registro && registro.id === itemOrId);
+  const historicoBase = getHistoricoManutencao(item ? item.id : itemOrId);
+  const extras = buildSyntheticMaintenanceHistory(item, historicoBase);
+  const combinado = [...historicoBase, ...extras].filter(Boolean);
+  return combinado.sort(
+    (a, b) => (getTimeValue(b.timestamp) || 0) - (getTimeValue(a.timestamp) || 0)
+  );
+}
+
 function getUltimaAcao(item) {
   if (!item) {
     return null;
   }
-  const historico = getHistoricoManutencao(item.id);
+  const historico = getHistoricoManutencaoCompleto(item);
   return historico.length ? historico[0] : null;
 }
 
@@ -12050,7 +12211,7 @@ function getHistoricoDetalhes(manutencaoId, campos = []) {
   if (!manutencaoId) {
     return null;
   }
-  const historico = getHistoricoManutencao(manutencaoId);
+  const historico = getHistoricoManutencaoCompleto(manutencaoId);
   if (!historico.length) {
     return null;
   }
@@ -40629,7 +40790,7 @@ function renderHistorico(item) {
     return;
   }
   listaHistorico.innerHTML = "";
-  const historico = getHistoricoManutencao(item.id);
+  const historico = getHistoricoManutencaoCompleto(item);
   if (historicoResumo) {
     historicoResumo.textContent = buildManutencaoResumoTexto(item);
   }
@@ -40789,7 +40950,7 @@ function escapeCsv(valor) {
 }
 
 function exportarHistorico(item) {
-  const historico = getHistoricoManutencao(item.id);
+  const historico = getHistoricoManutencaoCompleto(item);
   if (!historico.length) {
     return;
   }
@@ -40867,7 +41028,7 @@ function exportarHistorico(item) {
 }
 
 function exportarHistoricoPdf(item) {
-  const historico = getHistoricoManutencao(item.id);
+  const historico = getHistoricoManutencaoCompleto(item);
   if (!historico.length) {
     return;
   }
