@@ -718,6 +718,61 @@ h1 {
   color: var(--sb-muted);
 }
 
+.user-menu__actions {
+  margin-left: auto;
+  position: relative;
+}
+
+.user-menu__dots {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--sb-text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.user-menu__dots span {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: currentColor;
+  display: block;
+  box-shadow: 0 -6px 0 currentColor, 0 6px 0 currentColor;
+}
+
+.user-menu__dots:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--sb-focus);
+}
+
+.user-menu__actions-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 210px;
+  background: rgba(9, 16, 24, 0.98);
+  border: 1px solid var(--sb-border);
+  border-radius: 10px;
+  box-shadow: 0 12px 24px rgba(6, 12, 20, 0.35);
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  z-index: 90;
+}
+
+.user-menu__actions-panel[hidden] {
+  display: none;
+}
+
+.user-menu__actions-item {
+  padding: 8px 10px;
+  font-size: 0.85rem;
+}
+
 .user-menu__item {
   background: transparent;
   border: 0;

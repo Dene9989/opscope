@@ -688,6 +688,9 @@ const userAvatar = document.getElementById("userAvatar");
 const userMenu = document.getElementById("userMenu");
 const btnUserMenu = document.getElementById("btnUserMenu");
 const userMenuPanel = document.getElementById("userMenuPanel");
+const userMenuActions = document.getElementById("userMenuActions");
+const btnUserMenuActions = document.getElementById("btnUserMenuActions");
+const userMenuActionsPanel = document.getElementById("userMenuActionsPanel");
 const userMenuAvatar = document.getElementById("userMenuAvatar");
 const userMenuName = document.getElementById("userMenuName");
 const userMenuRole = document.getElementById("userMenuRole");
@@ -1504,6 +1507,7 @@ const ACCESS_PERMISSION_LABELS = {
   MAINT_REMOVE: "Manutenção - excluir",
   MAINT_RESCHEDULE: "Manutenção - reagendar",
   MAINT_COMPLETE: "Manutenção - executar",
+  limparCacheLocal: "Limpar cache local",
   verAnuncios: "Ver anúncios",
   criarAnuncios: "Criar anúncios",
   receberEmailNovaManutencao: "Receber e-mail de nova manutenção",
@@ -1513,7 +1517,7 @@ const ACCESS_PERMISSION_GROUPS = [
   {
     key: "admin",
     label: "Administração",
-    items: ["ADMIN", "gerenciarAcessos", "editarPerfil", "editarPerfilOutros"],
+    items: ["ADMIN", "gerenciarAcessos", "editarPerfil", "editarPerfilOutros", "limparCacheLocal"],
   },
   {
     key: "visibilidade",
@@ -1578,7 +1582,7 @@ const ACCESS_PERMISSION_GROUPS = [
   {
     key: "diagnostico",
     label: "Diagnóstico",
-    items: ["verDiagnostico", "reexecutarTarefas"],
+    items: ["verDiagnostico", "reexecutarTarefas", "limparCacheLocal"],
   },
   {
     key: "logs",
@@ -1598,6 +1602,7 @@ const GRANULAR_PERMISSION_LABELS = {
   verUsuarios: "Ver usuários",
   convidarUsuarios: "Convidar usuários",
   desativarUsuarios: "Desativar usuários",
+  limparCacheLocal: "Limpar cache local",
   verArquivos: "Ver arquivos",
   uploadArquivos: "Enviar arquivos",
   excluirArquivos: "Excluir arquivos",
@@ -1664,6 +1669,14 @@ const ACCESS_PERMISSION_CATALOG = [
     description: "Alterar dados de outros colaboradores.",
     level: "ADMIN",
     dangerous: true,
+  },
+  {
+    key: "limparCacheLocal",
+    module: "Administracao",
+    group: "Operacoes",
+    label: "Limpar cache local",
+    description: "Permite limpar o cache local neste dispositivo.",
+    level: "WRITE",
   },
   {
     key: "verUsuarios",
@@ -2769,7 +2782,7 @@ const PERMISSION_GROUPS = [
   {
     key: "diagnostico",
     label: "Diagnóstico",
-    items: ["verDiagnostico", "reexecutarTarefas"],
+    items: ["verDiagnostico", "reexecutarTarefas", "limparCacheLocal"],
   },
   {
     key: "logs",
@@ -3477,6 +3490,10 @@ function hasGranularPermission(user, permissionKey) {
     return Boolean(derived[permissionKey]);
   }
   return false;
+}
+
+function canClearCacheLocal(user) {
+  return Boolean(user && hasGranularPermission(user, "limparCacheLocal"));
 }
 
 function canEditProfile(actor, target) {
@@ -9374,6 +9391,7 @@ function fecharUserMenu() {
   }
   userMenuPanel.hidden = true;
   btnUserMenu.setAttribute("aria-expanded", "false");
+  closeUserMenuActions();
 }
 
 function alternarPainelLembretes() {
@@ -9405,6 +9423,33 @@ function alternarUserMenu() {
   fecharUserMenu();
 }
 
+function closeUserMenuActions() {
+  if (!userMenuActionsPanel || !btnUserMenuActions) {
+    return;
+  }
+  userMenuActionsPanel.hidden = true;
+  btnUserMenuActions.setAttribute("aria-expanded", "false");
+}
+
+function toggleUserMenuActions() {
+  if (!userMenuActionsPanel || !btnUserMenuActions) {
+    return;
+  }
+  const abrir = userMenuActionsPanel.hidden;
+  userMenuActionsPanel.hidden = !abrir;
+  btnUserMenuActions.setAttribute("aria-expanded", abrir ? "true" : "false");
+}
+
+function updateUserMenuActions() {
+  if (!userMenuActions) {
+    return;
+  }
+  const permitido = canClearCacheLocal(currentUser);
+  userMenuActions.hidden = !permitido;
+  if (!permitido) {
+    closeUserMenuActions();
+  }
+}
 const DEFAULT_LOADING_TITLE = "Processando...";
 const DEFAULT_LOADING_DETAIL = "";
 const OVERLAY_FADE_MS = 250;
@@ -37255,6 +37300,7 @@ function renderAuthUI() {
     applyAvatarToElement(userAvatar, "");
     applyAvatarToElement(userMenuAvatar, "");
   }
+  updateUserMenuActions();
 
   const secConfig = getSectionConfig(currentUser);
 
@@ -44413,6 +44459,16 @@ if (btnUserMenu) {
   });
 }
 
+if (btnUserMenuActions) {
+  btnUserMenuActions.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (!currentUser || !canClearCacheLocal(currentUser)) {
+      return;
+    }
+    toggleUserMenuActions();
+  });
+}
+
 if (userMenuPanel) {
   userMenuPanel.addEventListener("click", (event) => {
     const item = event.target.closest(".user-menu__item");
@@ -44431,6 +44487,14 @@ if (userMenuPanel) {
     }
     if (action === "edit-profile") {
       openProfileForUser(currentUser.id, { edit: true });
+      return;
+    }
+    if (action === "clear-cache") {
+      if (!canClearCacheLocal(currentUser)) {
+        showAuthToast("Sem permissão para limpar o cache local.");
+        return;
+      }
+      limparCacheLocal();
     }
   });
 }
