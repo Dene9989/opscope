@@ -9280,10 +9280,18 @@ function getTabFromPathname(pathname) {
 function resolveTabFromLocation() {
   const params = new URLSearchParams(window.location.search);
   const queryTab = params.get("tab");
+  const path = normalizeUrlPath(window.location.pathname);
+  if ((path === "/" || path === "/inicio") && queryTab && getTabButton(queryTab)) {
+    return queryTab;
+  }
+  const pathTab = getTabFromPathname(path);
+  if (pathTab) {
+    return pathTab;
+  }
   if (queryTab && getTabButton(queryTab)) {
     return queryTab;
   }
-  return getTabFromPathname(window.location.pathname);
+  return null;
 }
 
 function updateUrlForTab(tabName, options = {}) {
@@ -9291,12 +9299,13 @@ function updateUrlForTab(tabName, options = {}) {
     return;
   }
   const targetPath = normalizeUrlPath(getTabPath(tabName));
+  const currentPath = normalizeUrlPath(window.location.pathname);
   const url = new URL(window.location.href);
-  const currentPath = normalizeUrlPath(url.pathname);
-  if (currentPath === targetPath) {
+  url.searchParams.delete("tab");
+  url.pathname = targetPath;
+  if (currentPath === targetPath && url.search === window.location.search) {
     return;
   }
-  url.pathname = targetPath;
   if (options.push) {
     window.history.pushState({ tab: tabName }, "", url.toString());
     return;
@@ -9405,14 +9414,14 @@ function esconderCarregando() {
   }
 }
 
-function abrirPainelComCarregamento(tab, scrollTarget = null) {
+function abrirPainelComCarregamento(tab, scrollTarget = null, options = {}) {
   if (!tab) {
     return;
   }
   fecharPainelLembretes();
 
   const abrir = () => {
-    ativarTab(tab);
+    ativarTab(tab, { pushUrl: options.pushUrl });
     if (tab === "gerencial") {
       carregarPainelGerencial(false);
     }
@@ -43869,7 +43878,7 @@ tabButtons.forEach((botao) => {
   botao.addEventListener("click", () => {
     const tab = botao.dataset.tab;
     const scrollTarget = botao.dataset.scrollTarget;
-    abrirPainelComCarregamento(tab, scrollTarget);
+    abrirPainelComCarregamento(tab, scrollTarget, { pushUrl: true });
     if (tab === "acessos") {
       refreshAccessData({ force: true });
     }
@@ -43883,7 +43892,7 @@ document.querySelectorAll("[data-open-tab]").forEach((link) => {
     if (tab) {
       const href = link.getAttribute("href");
       const scrollTarget = href && href.startsWith("#") ? href.slice(1) : null;
-      abrirPainelComCarregamento(tab, scrollTarget);
+      abrirPainelComCarregamento(tab, scrollTarget, { pushUrl: true });
     }
   });
 });
@@ -47498,7 +47507,7 @@ preencherInicioExecucaoNova();
 
 function applyProjectVehiclesQuery() {
   const params = new URLSearchParams(window.location.search);
-  const tab = params.get("tab");
+  const tab = resolveTabFromLocation();
   const projectTab = params.get("projectTab");
   if (tab === "projetos" && projectTab === "veiculos") {
     openProjectVehiclesTab(params.get("projectId") || "");
