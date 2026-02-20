@@ -44278,14 +44278,22 @@ function scheduleMaintenanceSync(items, force) {
         loadDashboardSummary(true, { skipSync: true });
       })
       .catch((error) => {
-        if (error && error.status === 403) {
+        const isForbidden = error && error.status === 403;
+        if (isForbidden) {
           showAuthToast(
             "Sem permissão para sincronizar alterações. Verifique 'Manutenção - executar'."
           );
+          clearMaintenanceDirtyIds();
+          maintenancePendingSync = false;
         } else {
           showAuthToast("Falha ao sincronizar. Alterações não aplicadas para todos.");
         }
-        // Mantém estado local; nova tentativa ocorrerá via sincronização automática/manual.
+        if (isForbidden) {
+          carregarManutencoesServidor(true)
+            .then(() => loadDashboardSummary(true, { skipSync: true }))
+            .catch(() => null);
+        }
+        // Em outras falhas, mantém estado local; nova tentativa ocorrerá via sincronização automática/manual.
       });
     return;
   }
