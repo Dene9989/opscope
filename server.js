@@ -11804,6 +11804,16 @@ app.get("/api/dashboard/summary", requireAuth, (req, res) => {
   return res.json(payload);
 });
 
+app.get("*", (req, res) => {
+  if (req.path.startsWith("/api") || req.path.startsWith("/uploads")) {
+    return res.status(404).json({ message: "Rota nao encontrada." });
+  }
+  if (path.extname(req.path)) {
+    return res.status(404).send("Rota nao encontrada.");
+  }
+  return res.sendFile(path.join(__dirname, "index.html"));
+});
+
 bootstrap()
   .then(() => {
     app.listen(PORT, HOST, () => {

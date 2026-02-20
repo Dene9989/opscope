@@ -4432,6 +4432,7 @@ let pmpCellContext = null;
 let adminPermissionCatalog = [];
 let reminderDays = DEFAULT_REMINDER_DAYS;
 let loadingTimeout = null;
+let urlSyncReady = false;
 let historicoAtualId = null;
 let historicoLimite = HISTORY_PAGE_SIZE;
 let manutencaoEmLiberacao = null;
@@ -9234,6 +9235,101 @@ function atualizarTituloPagina(tabName) {
   document.title = `${label} - OPSCOPE`;
 }
 
+function normalizeUrlPath(pathname) {
+  if (!pathname) {
+    return "/";
+  }
+  let path = String(pathname).trim();
+  if (!path.startsWith("/")) {
+    path = `/${path}`;
+  }
+  path = path.replace(/\/+$/, "");
+  return path === "" ? "/" : path;
+}
+
+function getTabPath(tabName) {
+  if (!tabName) {
+    return "/";
+  }
+  if (tabName === "inicio") {
+    return "/";
+  }
+  return `/${tabName}`;
+}
+
+function getTabButton(tabName) {
+  if (!tabName) {
+    return null;
+  }
+  const safe = window.CSS && CSS.escape ? CSS.escape(tabName) : tabName.replace(/["\\]/g, "\\$&");
+  return document.querySelector(`[data-tab="${safe}"]`);
+}
+
+function getTabFromPathname(pathname) {
+  const path = normalizeUrlPath(pathname);
+  if (path === "/" || path === "/inicio") {
+    return "inicio";
+  }
+  const candidate = path.slice(1);
+  if (!candidate) {
+    return "inicio";
+  }
+  return getTabButton(candidate) ? candidate : null;
+}
+
+function resolveTabFromLocation() {
+  const params = new URLSearchParams(window.location.search);
+  const queryTab = params.get("tab");
+  if (queryTab && getTabButton(queryTab)) {
+    return queryTab;
+  }
+  return getTabFromPathname(window.location.pathname);
+}
+
+function updateUrlForTab(tabName, options = {}) {
+  if (!urlSyncReady || !tabName) {
+    return;
+  }
+  const targetPath = normalizeUrlPath(getTabPath(tabName));
+  const url = new URL(window.location.href);
+  const currentPath = normalizeUrlPath(url.pathname);
+  if (currentPath === targetPath) {
+    return;
+  }
+  url.pathname = targetPath;
+  if (options.push) {
+    window.history.pushState({ tab: tabName }, "", url.toString());
+    return;
+  }
+  window.history.replaceState({ tab: tabName }, "", url.toString());
+}
+
+function handleTabDataLoad(tab) {
+  if (!currentUser || !tab) {
+    return;
+  }
+  if (tab === "gerencial") {
+    carregarPainelGerencial(false);
+  }
+  if (tab.startsWith("almoxarifado")) {
+    carregarAlmoxarifado(false);
+  }
+}
+
+function applyTabFromUrl() {
+  const tab = resolveTabFromLocation();
+  if (!tab) {
+    return false;
+  }
+  const button = getTabButton(tab);
+  if (button && button.hidden) {
+    return false;
+  }
+  ativarTab(tab, { updateUrl: false });
+  handleTabDataLoad(tab);
+  return true;
+}
+
 function atualizarTituloAuth(panelName) {
   if (panelName === "registro") {
     document.title = "Cadastro - OPSCOPE";
@@ -10615,6 +10711,7 @@ async function setActiveProjectId(nextId, options = {}) {
 }
 
 async function carregarSessaoServidor() {
+  urlSyncReady = false;
   if (!currentUser) {
     mostrarAuthPanel("login");
   }
@@ -10662,6 +10759,13 @@ async function carregarSessaoServidor() {
   }
   await carregarUsuariosServidor();
   renderAuthUI();
+  if (currentUser) {
+    applyTabFromUrl();
+  }
+  urlSyncReady = Boolean(currentUser);
+  if (currentUser) {
+    updateUrlForTab(getActiveTabKey());
+  }
   await refreshProjects();
   await carregarAnuncios(true);
   await carregarFeedbacks(true);
@@ -42126,7 +42230,7 @@ function agirNaManutencao(event) {
   }
 }
 
-function ativarTab(nome) {
+function ativarTab(nome, options = {}) {
   tabButtons.forEach((botao) => {
     const ativo = botao.dataset.tab === nome;
     botao.classList.toggle("is-active", ativo);
@@ -42139,6 +42243,9 @@ function ativarTab(nome) {
     renderBreadcrumb();
   }
   atualizarTituloPagina(nome);
+  if (options.updateUrl !== false) {
+    updateUrlForTab(nome, { push: options.pushUrl });
+  }
   if (currentUser && nome && nome.startsWith("sst")) {
     carregarSst(true);
   }
@@ -44284,6 +44391,7 @@ if (btnSair) {
       // noop
     }
     currentUser = null;
+    urlSyncReady = false;
     renderTudo();
     pendingVerificationEmail = "";
     mostrarAuthPanel("login");
@@ -47398,6 +47506,17 @@ function applyProjectVehiclesQuery() {
 }
 
 applyProjectVehiclesQuery();
+
+window.addEventListener("popstate", () => {
+  if (!currentUser || !urlSyncReady) {
+    return;
+  }
+  const tab = resolveTabFromLocation();
+  if (tab) {
+    ativarTab(tab, { updateUrl: false });
+    handleTabDataLoad(tab);
+  }
+});
 
 window.addEventListener("focus", atualizarSeNecessario);
 window.addEventListener("storage", (event) => {
