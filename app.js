@@ -767,6 +767,8 @@ const btnRecalcularBacklog = document.getElementById("btnRecalcularBacklog");
 const btnGerarRelatorio = document.getElementById("btnGerarRelatorio");
 const relatorioGerencial = document.getElementById("relatorioGerencial");
 const mensagemGerencial = document.getElementById("mensagemGerencial");
+const btnLimparCacheLocal = document.getElementById("btnLimparCacheLocal");
+const cacheLocalInfo = document.getElementById("cacheLocalInfo");
 const healthSummary = document.getElementById("healthSummary");
 const healthTasks = document.getElementById("healthTasks");
 const healthIntegrity = document.getElementById("healthIntegrity");
@@ -1203,6 +1205,8 @@ const GERENCIAL_FILES_KEY = "opscope.gerencial.files";
 const REQUEST_KEY = "denemanu.requests";
 const AUDIT_KEY = "denemanu.audit";
 const RDO_KEY = "denemanu.rdo";
+const STORAGE_CLEANUP_KEY = "opscope.storage.cleanupAt";
+const STORAGE_CLEANUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 const FEEDBACK_KEY = "opscope.feedbacks";
 const SST_DOCS_KEY = "opscope.sst.docs";
 const SST_TEMPLATES_KEY = "opscope.sst.templates";
@@ -4601,24 +4605,54 @@ function listStorageKeys() {
   return keys;
 }
 
-function cleanupStorageForQuota(activeKey = "") {
-  let removed = false;
+function isStorageKeyMatch(key, baseKey) {
+  return key === baseKey || key.startsWith(`${baseKey}.`);
+}
+
+function removeStorageKeys(filterFn) {
+  let removed = 0;
   const keys = listStorageKeys();
-  const maintenancePrefix = `${STORAGE_KEY}.`;
-  const rdoPrefix = `${RDO_KEY}.`;
   keys.forEach((key) => {
-    if (key !== activeKey && key.startsWith(maintenancePrefix)) {
-      localStorage.removeItem(key);
-      removed = true;
+    if (!filterFn(key)) {
+      return;
     }
-  });
-  keys.forEach((key) => {
-    if (key === RDO_KEY || key.startsWith(rdoPrefix)) {
-      localStorage.removeItem(key);
-      removed = true;
-    }
+    localStorage.removeItem(key);
+    removed += 1;
   });
   return removed;
+}
+
+function clearLocalMaintenanceCache(options = {}) {
+  const keepActive = options.keepActive === true;
+  const activeKey = activeProjectId ? `${STORAGE_KEY}.${activeProjectId}` : STORAGE_KEY;
+  return removeStorageKeys((key) => {
+    if (keepActive && key === activeKey) {
+      return false;
+    }
+    return (
+      isStorageKeyMatch(key, STORAGE_KEY) ||
+      isStorageKeyMatch(key, MAINT_DIRTY_KEY) ||
+      isStorageKeyMatch(key, MAINT_TOMBSTONE_KEY)
+    );
+  });
+}
+
+function clearLocalCache() {
+  let removed = clearLocalMaintenanceCache({ keepActive: false });
+  removed += removeStorageKeys((key) => isStorageKeyMatch(key, RDO_KEY));
+  return removed;
+}
+
+function cleanupStorageForQuota(activeKey = "") {
+  const removed = removeStorageKeys(
+    (key) =>
+      key !== activeKey &&
+      (isStorageKeyMatch(key, STORAGE_KEY) ||
+        isStorageKeyMatch(key, MAINT_DIRTY_KEY) ||
+        isStorageKeyMatch(key, MAINT_TOMBSTONE_KEY) ||
+        isStorageKeyMatch(key, RDO_KEY))
+  );
+  return removed > 0;
 }
 
 function warnStorageQuota(key) {
@@ -9969,6 +10003,11 @@ function writeMaintenanceDirtyMap(map) {
   writeJson(getProjectStorageKey(MAINT_DIRTY_KEY), map || {});
 }
 
+function hasPendingMaintenanceDirty() {
+  const map = readMaintenanceDirtyMap();
+  return Boolean(map && Object.keys(map).length);
+}
+
 function markMaintenanceDirtyIds(ids) {
   const list = Array.isArray(ids) ? ids : [];
   if (!list.length) {
@@ -10002,6 +10041,26 @@ function clearMaintenanceDirtyIds(ids = null) {
     }
   });
   writeMaintenanceDirtyMap(map);
+}
+
+function maybeRunWeeklyStorageCleanup() {
+  const last = Number(localStorage.getItem(STORAGE_CLEANUP_KEY)) || 0;
+  if (Date.now() - last < STORAGE_CLEANUP_INTERVAL_MS) {
+    updateCacheLocalInfo();
+    return;
+  }
+  if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    return;
+  }
+  if (hasPendingMaintenanceDirty()) {
+    return;
+  }
+  const removed = clearLocalMaintenanceCache({ keepActive: false });
+  if (removed > 0) {
+    logSyncDebug("storage.cleanup", { removed, source: "auto" });
+  }
+  localStorage.setItem(STORAGE_CLEANUP_KEY, String(Date.now()));
+  updateCacheLocalInfo();
 }
 
 function isMaintenanceDirtyId(id) {
@@ -10570,6 +10629,7 @@ async function carregarSessaoServidor() {
   await carregarPmpDados();
   await checkCompatState(true);
   if (currentUser) {
+    maybeRunWeeklyStorageCleanup();
     const activeTab = getActiveTabKey();
     if (activeTab && activeTab.startsWith("almoxarifado")) {
       await carregarAlmoxarifado(true);
@@ -37188,6 +37248,36 @@ function limparAuditoria() {
   mostrarMensagemGerencial("Auditoria limpa.");
 }
 
+function updateCacheLocalInfo() {
+  if (!cacheLocalInfo) {
+    return;
+  }
+  const stored = Number(localStorage.getItem(STORAGE_CLEANUP_KEY)) || 0;
+  if (!stored) {
+    cacheLocalInfo.textContent = "Nenhuma limpeza registrada.";
+    return;
+  }
+  cacheLocalInfo.textContent = `Última limpeza: ${formatDateTime(new Date(stored))}`;
+}
+
+async function limparCacheLocal() {
+  const confirmar = await openConfirmModal({
+    title: "Limpar cache local",
+    message:
+      "Isso remove o cache local de manutenções e RDO neste navegador. Nenhum dado do servidor será apagado, mas alterações pendentes sem sincronizar podem ser perdidas. Deseja continuar?",
+    confirmText: "Limpar",
+    cancelText: "Cancelar",
+  });
+  if (!confirmar) {
+    return;
+  }
+  clearLocalCache();
+  localStorage.setItem(STORAGE_CLEANUP_KEY, String(Date.now()));
+  updateCacheLocalInfo();
+  showAuthToast("Cache local limpo. Recarregando...");
+  setTimeout(() => window.location.reload(), 300);
+}
+
 function recalcularBacklog() {
   atualizarSeNecessario();
   mostrarMensagemGerencial("Backlog recalculado.");
@@ -44023,6 +44113,14 @@ if (btnRecalcularBacklog) {
 
 if (btnGerarRelatorio) {
   btnGerarRelatorio.addEventListener("click", gerarRelatorio);
+}
+
+if (btnLimparCacheLocal) {
+  btnLimparCacheLocal.addEventListener("click", limparCacheLocal);
+}
+
+if (cacheLocalInfo) {
+  updateCacheLocalInfo();
 }
 // Convites removidos: gestao de acessos e feita via administracao.
 
