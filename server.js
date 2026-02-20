@@ -432,6 +432,7 @@ const GRANULAR_PERMISSION_CATALOG = [
   { key: "convidarUsuarios", label: "Convidar usuários" },
   { key: "desativarUsuarios", label: "Desativar usuários" },
   { key: "limparCacheLocal", label: "Limpar cache local" },
+  { key: "executarManutencaoTerceiros", label: "Executar manutenção de terceiros" },
   { key: "verArquivos", label: "Ver arquivos" },
   { key: "uploadArquivos", label: "Enviar arquivos" },
   { key: "excluirArquivos", label: "Excluir arquivos" },
@@ -485,6 +486,7 @@ const GRANULAR_BASE_PERMISSIONS = {
   convidarUsuarios: false,
   desativarUsuarios: false,
   limparCacheLocal: false,
+  executarManutencaoTerceiros: false,
   verArquivos: false,
   uploadArquivos: false,
   excluirArquivos: false,
@@ -602,6 +604,7 @@ const ACCESS_PERMISSION_KEYS = new Set([
   "MAINT_REMOVE",
   "MAINT_RESCHEDULE",
   "MAINT_COMPLETE",
+  "executarManutencaoTerceiros",
   "inicio",
   "programacao",
   "nova",
@@ -3981,33 +3984,73 @@ function pickMaintenanceMerge(existing, incoming) {
   const incomingTime = getMaintenanceUpdatedAtValue(incoming);
   const mergedIncoming = mergePreferMeaningful(incoming, existing);
   const mergedExisting = mergePreferMeaningful(existing, incoming);
+  const incomingHasResponsavel =
+    Object.prototype.hasOwnProperty.call(incoming, "responsavelIds") ||
+    Object.prototype.hasOwnProperty.call(incoming, "responsavelId") ||
+    Object.prototype.hasOwnProperty.call(incoming, "responsaveis") ||
+    Object.prototype.hasOwnProperty.call(incoming, "responsavelUsers") ||
+    Object.prototype.hasOwnProperty.call(incoming, "responsavel");
+  let result = mergedIncoming;
+  let usedIncoming = true;
   if (existingStatus === "concluida" && incomingStatus !== "concluida") {
     const reopened = Boolean(incoming.reopenedAt || incoming.reopenedBy);
     if (!reopened) {
-      return mergedExisting;
+      result = mergedExisting;
+      usedIncoming = false;
+    } else if (incomingTime && incomingTime > existingTime) {
+      result = mergedIncoming;
+      usedIncoming = true;
+    } else {
+      result = mergedExisting;
+      usedIncoming = false;
     }
-    if (incomingTime && incomingTime > existingTime) {
-      return mergedIncoming;
-    }
-    return mergedExisting;
-  }
-  if (incomingStatus === "concluida" && existingStatus !== "concluida") {
+  } else if (incomingStatus === "concluida" && existingStatus !== "concluida") {
     const reopened = Boolean(existing.reopenedAt || existing.reopenedBy);
     if (reopened) {
       if (incomingTime && (!existingTime || incomingTime > existingTime)) {
-        return mergedIncoming;
+        result = mergedIncoming;
+        usedIncoming = true;
+      } else {
+        result = mergedExisting;
+        usedIncoming = false;
       }
-      return mergedExisting;
+    } else {
+      result = mergedIncoming;
+      usedIncoming = true;
     }
-    return mergedIncoming;
+  } else if (incomingTime && (!existingTime || incomingTime > existingTime)) {
+    result = mergedIncoming;
+    usedIncoming = true;
+  } else if (existingTime && (!incomingTime || existingTime > incomingTime)) {
+    result = mergedExisting;
+    usedIncoming = false;
+  } else {
+    result = mergedIncoming;
+    usedIncoming = true;
   }
-  if (incomingTime && (!existingTime || incomingTime > existingTime)) {
-    return mergedIncoming;
+  if (usedIncoming && incomingHasResponsavel) {
+    const responsavelIds = normalizeResponsavelIds(
+      incoming.responsavelIds ||
+        incoming.responsavelId ||
+        incoming.responsaveis ||
+        incoming.responsavelUsers
+    );
+    let responsavelTexto = String(incoming.responsavel || "").trim();
+    if (responsavelIds.length) {
+      const labels = getMaintenanceResponsibleLabels({ responsavelIds });
+      if (labels.length) {
+        responsavelTexto = labels.join("; ");
+      }
+    } else if (!Object.prototype.hasOwnProperty.call(incoming, "responsavel")) {
+      responsavelTexto = "";
+    }
+    result = {
+      ...result,
+      responsavelIds,
+      responsavel: responsavelTexto,
+    };
   }
-  if (existingTime && (!incomingTime || existingTime > incomingTime)) {
-    return mergedExisting;
-  }
-  return mergedIncoming;
+  return result;
 }
 
 function getDueDate(item) {
@@ -4062,6 +4105,10 @@ function getItemTitle(item) {
 }
 
 function getItemOwner(item) {
+  const responsaveis = getMaintenanceResponsibleLabels(item);
+  if (responsaveis.length) {
+    return responsaveis.join("; ");
+  }
   return (
     String(
       item.responsavel ||
@@ -4591,6 +4638,175 @@ function getMaintenanceTeamName(item) {
   return "";
 }
 
+function normalizeResponsavelIds(list) {
+  if (!list) {
+    return [];
+  }
+  const rawList = Array.isArray(list) ? list : [list];
+  const ids = [];
+  rawList.forEach((entry) => {
+    if (!entry) {
+      return;
+    }
+    if (typeof entry === "string") {
+      entry
+        .split(/[;,]/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .forEach((item) => ids.push(item));
+      return;
+    }
+    if (typeof entry === "object") {
+      const id =
+        entry.id ||
+        entry.userId ||
+        entry.matricula ||
+        entry.username ||
+        entry.email ||
+        "";
+      if (id) {
+        ids.push(String(id).trim());
+      }
+    }
+  });
+  return Array.from(new Set(ids.filter(Boolean)));
+}
+
+function getMaintenanceResponsibleIds(item) {
+  if (!item || typeof item !== "object") {
+    return [];
+  }
+  return normalizeResponsavelIds(
+    item.responsavelIds || item.responsavelId || item.responsaveis || item.responsavelUsers
+  );
+}
+
+function getMaintenanceResponsibleLabels(item) {
+  const ids = getMaintenanceResponsibleIds(item);
+  if (!ids.length) {
+    return [];
+  }
+  const labels = ids
+    .map((id) => getUserLabel(id))
+    .filter(Boolean)
+    .filter((value, index, arr) => arr.indexOf(value) === index);
+  return labels;
+}
+
+function isUserResponsibleForMaintenance(item, user) {
+  if (!user) {
+    return false;
+  }
+  const ids = getMaintenanceResponsibleIds(item);
+  if (!ids.length) {
+    return true;
+  }
+  return ids.some((id) => String(id) === String(user.id));
+}
+
+function canExecuteMaintenanceForUser(item, user) {
+  if (!user) {
+    return false;
+  }
+  if (hasGranularPermission(user, "executarManutencaoTerceiros")) {
+    return true;
+  }
+  return isUserResponsibleForMaintenance(item, user);
+}
+
+const MAINTENANCE_EXECUTION_FIELDS = [
+  "status",
+  "inicioExecucao",
+  "executionStartedAt",
+  "executionStartedBy",
+  "executionFinishedAt",
+  "doneAt",
+  "doneBy",
+  "concluidaEm",
+  "dataConclusao",
+  "execucaoRegistradaEm",
+  "executionRegisteredAt",
+  "execucaoRegistradaAt",
+  "registroExecucao",
+  "conclusao",
+  "encerramento",
+  "encerramentoEm",
+  "encerramentoPor",
+  "ultimaAcao",
+  "canceladoEm",
+  "canceladoPor",
+];
+
+function normalizeMaintenanceResponsaveis(item) {
+  if (!item || typeof item !== "object") {
+    return item;
+  }
+  const hasResponsavelKeys =
+    Object.prototype.hasOwnProperty.call(item, "responsavelIds") ||
+    Object.prototype.hasOwnProperty.call(item, "responsavelId") ||
+    Object.prototype.hasOwnProperty.call(item, "responsaveis") ||
+    Object.prototype.hasOwnProperty.call(item, "responsavelUsers");
+  const hasResponsavelLabel = Object.prototype.hasOwnProperty.call(item, "responsavel");
+  if (!hasResponsavelKeys && !hasResponsavelLabel) {
+    return item;
+  }
+  const responsavelIds = normalizeResponsavelIds(
+    item.responsavelIds || item.responsavelId || item.responsaveis || item.responsavelUsers
+  );
+  let responsavelTexto = String(item.responsavel || "").trim();
+  if (responsavelIds.length) {
+    const labels = getMaintenanceResponsibleLabels({ responsavelIds });
+    if (labels.length) {
+      responsavelTexto = labels.join("; ");
+    }
+  } else if (hasResponsavelKeys && !hasResponsavelLabel) {
+    responsavelTexto = "";
+  }
+  return {
+    ...item,
+    responsavelIds,
+    responsavel: responsavelTexto,
+  };
+}
+
+function stripMaintenanceExecutionFields(item) {
+  if (!item || typeof item !== "object") {
+    return item;
+  }
+  const cleaned = { ...item };
+  MAINTENANCE_EXECUTION_FIELDS.forEach((key) => {
+    if (key in cleaned) {
+      delete cleaned[key];
+    }
+  });
+  if (cleaned.liberacao && typeof cleaned.liberacao === "object") {
+    const liberacao = { ...cleaned.liberacao };
+    ["liberadoEm", "liberado_em", "liberadoPor", "liberado_por"].forEach((key) => {
+      if (key in liberacao) {
+        delete liberacao[key];
+      }
+    });
+    cleaned.liberacao = liberacao;
+  }
+  return cleaned;
+}
+
+function sanitizeMaintenanceIncoming(item, current, user) {
+  if (!item || typeof item !== "object") {
+    return item;
+  }
+  let next = normalizeMaintenanceResponsaveis(item);
+  const reference = current || next;
+  const canExecute = canExecuteMaintenanceForUser(reference, user);
+  if (!canExecute) {
+    next = stripMaintenanceExecutionFields(next);
+    if (!current) {
+      next.status = "agendada";
+    }
+  }
+  return next;
+}
+
 function shouldNotifyProjectTeam(item) {
   return Boolean(getMaintenanceTeamName(item));
 }
@@ -4687,16 +4903,20 @@ async function notifyProjectTeamMaintenanceCreated(items, actor, ip, projectId) 
       recipients = getProjectParticipantUsers(itemProjectId);
       recipientsCache.set(itemProjectId, recipients);
     }
-    if (!recipients.length) {
-      continue;
-    }
     const project = getProjectById(itemProjectId);
     const projectLabel = project ? getProjectLabel(project) : itemProjectId;
     const projectTeam = project
       ? String(project.nomeTime || project.timeName || project.time || "").trim()
       : "";
     const teamName = getMaintenanceTeamName(item) || projectTeam;
-    if (!teamName) {
+    const responsavelIds = getMaintenanceResponsibleIds(item);
+    const responsavelSet = new Set(responsavelIds.map((id) => String(id)));
+    const responsavelLabels = getMaintenanceResponsibleLabels(item);
+    const responsavelTexto = responsavelLabels.length ? responsavelLabels.join(", ") : "";
+    const responsavelUsers = responsavelIds
+      .map((id) => users.find((user) => user && String(user.id) === String(id)))
+      .filter(Boolean);
+    if (!teamName && !responsavelIds.length) {
       continue;
     }
     const title = getItemTitle(item);
@@ -4709,25 +4929,43 @@ async function notifyProjectTeamMaintenanceCreated(items, actor, ip, projectId) 
       : actor
         ? getUserLabel(actor.id)
         : "-";
+    const destinatarios = new Map();
+    if (Array.isArray(recipients) && recipients.length) {
+      recipients.forEach((user) => {
+        if (user && user.id) {
+          destinatarios.set(String(user.id), user);
+        }
+      });
+    }
+    responsavelUsers.forEach((user) => {
+      if (user && user.id) {
+        destinatarios.set(String(user.id), user);
+      }
+    });
+    if (!destinatarios.size) {
+      continue;
+    }
     const subject = `OPSCOPE - Nova manutenção criada (${projectLabel})`;
     const text = `Uma nova manutenção foi criada no projeto ${projectLabel}.\n\nAtividade: ${title}\nPrazo: ${dueLabel}\nEquipe: ${teamName}\nEquipamento: ${equipamento}\nOS/Referência: ${
       osRef || "-"
-    }\nCriada por: ${createdBy}\n\nAcesse o OPSCOPE para detalhes.`;
+    }\nResponsáveis: ${responsavelTexto || "-"}\nCriada por: ${createdBy}\n\nAcesse o OPSCOPE para detalhes.`;
     const html = `
       <p>Uma nova manutenção foi criada no projeto <strong>${escapeHtml(projectLabel)}</strong>.</p>
       <p><strong>Atividade:</strong> ${escapeHtml(title)}</p>
       <p><strong>Prazo:</strong> ${escapeHtml(dueLabel)}</p>
-      <p><strong>Equipe:</strong> ${escapeHtml(teamName)}</p>
+      <p><strong>Equipe:</strong> ${escapeHtml(teamName || "-")}</p>
       <p><strong>Equipamento:</strong> ${escapeHtml(equipamento)}</p>
       <p><strong>OS/Referência:</strong> ${escapeHtml(osRef || "-")}</p>
+      <p><strong>Responsáveis:</strong> ${escapeHtml(responsavelTexto || "-")}</p>
       <p><strong>Criada por:</strong> ${escapeHtml(createdBy)}</p>
       <p>Acesse o OPSCOPE para detalhes.</p>
     `;
-    for (const recipient of recipients) {
+    for (const recipient of destinatarios.values()) {
       if (!recipient || getUserStatus(recipient) === "INATIVO") {
         continue;
       }
-      if (!canUserReceiveMaintenanceEmail(recipient)) {
+      const isResponsavel = responsavelSet.has(String(recipient.id || ""));
+      if (!isResponsavel && !canUserReceiveMaintenanceEmail(recipient)) {
         continue;
       }
       const to = getUserEmail(recipient);
@@ -4789,6 +5027,30 @@ function normalizeMaintenanceTemplateRecord(record, projectId) {
   }
   const createdAt = record.createdAt || new Date().toISOString();
   const updatedAt = record.updatedAt || createdAt;
+  const hasResponsavelKeys =
+    Object.prototype.hasOwnProperty.call(record, "responsavelIds") ||
+    Object.prototype.hasOwnProperty.call(record, "responsavelId") ||
+    Object.prototype.hasOwnProperty.call(record, "responsaveis") ||
+    Object.prototype.hasOwnProperty.call(record, "responsavelUsers");
+  const hasResponsavelLabel = Object.prototype.hasOwnProperty.call(record, "responsavel");
+  let responsavelIds = [];
+  let responsavelTexto = String(record.responsavel || "").trim();
+  if (hasResponsavelKeys) {
+    responsavelIds = normalizeResponsavelIds(
+      record.responsavelIds ||
+        record.responsavelId ||
+        record.responsaveis ||
+        record.responsavelUsers
+    );
+    if (responsavelIds.length) {
+      const labels = getMaintenanceResponsibleLabels({ responsavelIds });
+      if (labels.length) {
+        responsavelTexto = labels.join("; ");
+      }
+    } else if (!hasResponsavelLabel) {
+      responsavelTexto = "";
+    }
+  }
   return {
     ...record,
     id,
@@ -4796,6 +5058,9 @@ function normalizeMaintenanceTemplateRecord(record, projectId) {
     projectId,
     createdAt,
     updatedAt,
+    ...(hasResponsavelKeys || hasResponsavelLabel
+      ? { responsavelIds, responsavel: responsavelTexto }
+      : {}),
   };
 }
 
@@ -10592,7 +10857,7 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
     return res.status(403).json({ message: "Sem permissão para editar manutenções." });
   }
   const incoming = Array.isArray(req.body.items) ? req.body.items : [];
-  const sanitized = incoming
+  const incomingList = incoming
     .filter((item) => item && typeof item === "object")
     .map((item) => ({
       ...item,
@@ -10601,7 +10866,7 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
   logMaintenanceSync("request", {
     projectId,
     userId: user ? user.id : "",
-    count: sanitized.length,
+    count: incomingList.length,
   });
   const existing = loadMaintenanceData();
   const tombstones = getMaintenanceTombstonesMap(projectId);
@@ -10613,7 +10878,7 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
   );
   const createdItems = [];
   const mergedMap = new Map(existingMap);
-  sanitized.forEach((item) => {
+  incomingList.forEach((item) => {
     if (!item || !item.id) {
       return;
     }
@@ -10629,15 +10894,19 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
       return;
     }
     const current = mergedMap.get(key) || null;
+    const sanitizedItem = sanitizeMaintenanceIncoming(item, current, user);
     if (!current) {
-      createdItems.push(item);
+      createdItems.push(sanitizedItem);
     }
-    const mergedItem = pickMaintenanceMerge(current, item);
-    if (shouldLogMaintenanceSync(item, projectId) || shouldLogMaintenanceSync(current, projectId)) {
+    const mergedItem = pickMaintenanceMerge(current, sanitizedItem);
+    if (
+      shouldLogMaintenanceSync(sanitizedItem, projectId) ||
+      shouldLogMaintenanceSync(current, projectId)
+    ) {
       logMaintenanceSync("merge", {
         projectId,
         userId: user ? user.id : "",
-        incoming: summarizeMaintenanceSyncItem(item),
+        incoming: summarizeMaintenanceSyncItem(sanitizedItem),
         current: summarizeMaintenanceSyncItem(current),
         merged: summarizeMaintenanceSyncItem(mergedItem),
       });
@@ -10671,10 +10940,10 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
   }
   broadcastSse("maintenance.updated", {
     projectId,
-    count: sanitized.length,
+    count: incomingList.length,
     source: "sync",
   });
-  return res.json({ ok: true, count: sanitized.length, project: projectId });
+  return res.json({ ok: true, count: incomingList.length, project: projectId });
 });
 
 app.get("/api/maintenance/templates", requireAuth, (req, res) => {
@@ -11151,6 +11420,12 @@ app.post("/api/maintenance/release", requireAuth, (req, res) => {
     }
     return item && item.projectId === projectId;
   });
+  if (!candidate) {
+    return res.status(404).json({ message: "ManutenÃ§Ã£o nÃ£o encontrada." });
+  }
+  if (!canExecuteMaintenanceForUser(candidate, user)) {
+    return res.status(403).json({ message: "Nao autorizado." });
+  }
 
   const dueDate = getDueDate(candidate) || parseDateOnly(payloadDate);
   const today = startOfDay(new Date());

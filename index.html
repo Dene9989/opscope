@@ -1564,6 +1564,21 @@
               <p class="hint">Selecione ao menos 2 participantes.</p>
               <p id="participantesManutencaoErro" class="field-error" hidden></p>
             </div>
+            <div class="field field--checkbox" data-full>
+              <label class="checkbox-field">
+                <input id="manutencaoResponsaveisToggle" type="checkbox" />
+                <span>Selecionar responsáveis?</span>
+              </label>
+              <p class="hint">Se marcado, apenas os responsáveis podem executar e concluir.</p>
+            </div>
+            <div class="field" data-full id="manutencaoResponsaveisField" hidden>
+              <label>Responsáveis do projeto (clique para selecionar)</label>
+              <div id="manutencaoResponsaveisList" class="participant-grid"></div>
+              <div id="manutencaoResponsaveisSelected" class="participant-selected"></div>
+              <input id="manutencaoResponsaveisIds" type="hidden" />
+              <p class="hint">Selecione ao menos 1 responsável.</p>
+              <p id="manutencaoResponsaveisErro" class="field-error" hidden></p>
+            </div>
             <div class="field">
               <label for="criticoManutencao">Trabalho crítico?</label>
               <select id="criticoManutencao" required>
@@ -1843,6 +1858,21 @@
                 <input id="templateParticipantes" type="hidden" />
                 <p class="hint">Opcional. Use para padronizar a equipe do modelo.</p>
                 <p id="templateParticipantesErro" class="field-error" hidden></p>
+              </div>
+              <div class="field field--checkbox" data-full>
+                <label class="checkbox-field">
+                  <input id="templateResponsaveisToggle" type="checkbox" />
+                  <span>Selecionar responsáveis?</span>
+                </label>
+                <p class="hint">Opcional. Defina responsáveis padrão do modelo.</p>
+              </div>
+              <div class="field" data-full id="templateResponsaveisField" hidden>
+                <label>Responsáveis do projeto (clique para selecionar)</label>
+                <div id="templateResponsaveisList" class="participant-grid"></div>
+                <div id="templateResponsaveisSelected" class="participant-selected"></div>
+                <input id="templateResponsaveisIds" type="hidden" />
+                <p class="hint">Opcional. Pode ajustar por manutenção.</p>
+                <p id="templateResponsaveisErro" class="field-error" hidden></p>
               </div>
             </div>
             <div class="template-section">

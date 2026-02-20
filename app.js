@@ -27,6 +27,12 @@ const participantesManutencaoList = document.getElementById("participantesManute
 const participantesManutencaoSelected = document.getElementById("participantesManutencaoSelected");
 const participanteExternoManutencao = document.getElementById("participanteExternoManutencao");
 const btnAddParticipanteExterno = document.getElementById("btnAddParticipanteExterno");
+const manutencaoResponsaveisToggle = document.getElementById("manutencaoResponsaveisToggle");
+const manutencaoResponsaveisField = document.getElementById("manutencaoResponsaveisField");
+const manutencaoResponsaveisList = document.getElementById("manutencaoResponsaveisList");
+const manutencaoResponsaveisSelected = document.getElementById("manutencaoResponsaveisSelected");
+const manutencaoResponsaveisIds = document.getElementById("manutencaoResponsaveisIds");
+const manutencaoResponsaveisErro = document.getElementById("manutencaoResponsaveisErro");
 const criticoManutencao = document.getElementById("criticoManutencao");
 const novaDocPt = document.getElementById("novaDocPt");
 const novaPtLabel = document.getElementById("novaPtLabel");
@@ -860,6 +866,12 @@ const templateParticipantes = document.getElementById("templateParticipantes");
 const templateParticipantesList = document.getElementById("templateParticipantesList");
 const templateParticipantesSelected = document.getElementById("templateParticipantesSelected");
 const templateParticipantesErro = document.getElementById("templateParticipantesErro");
+const templateResponsaveisToggle = document.getElementById("templateResponsaveisToggle");
+const templateResponsaveisField = document.getElementById("templateResponsaveisField");
+const templateResponsaveisList = document.getElementById("templateResponsaveisList");
+const templateResponsaveisSelected = document.getElementById("templateResponsaveisSelected");
+const templateResponsaveisIds = document.getElementById("templateResponsaveisIds");
+const templateResponsaveisErro = document.getElementById("templateResponsaveisErro");
 const templateParticipanteExterno = document.getElementById("templateParticipanteExterno");
 const btnAddTemplateParticipanteExterno = document.getElementById(
   "btnAddTemplateParticipanteExterno"
@@ -1461,6 +1473,7 @@ const ACCESS_PERMISSIONS = [
   "ADMIN",
   ...MAINTENANCE_ACCESS_PERMISSIONS,
   ...ACCESS_SECTION_PERMISSIONS,
+  "executarManutencaoTerceiros",
   "editarPerfil",
   "editarPerfilOutros",
   "verUsuarios",
@@ -1516,6 +1529,7 @@ const ACCESS_PERMISSION_LABELS = {
   MAINT_REMOVE: "Manutenção - excluir",
   MAINT_RESCHEDULE: "Manutenção - reagendar",
   MAINT_COMPLETE: "Manutenção - executar",
+  executarManutencaoTerceiros: "Executar manutenção de terceiros",
   limparCacheLocal: "Limpar cache local",
   verAnuncios: "Ver anúncios",
   criarAnuncios: "Criar anúncios",
@@ -1536,7 +1550,7 @@ const ACCESS_PERMISSION_GROUPS = [
   {
     key: "manutencao",
     label: "Manutenção (ações)",
-    items: MAINTENANCE_ACCESS_PERMISSIONS.slice(),
+    items: MAINTENANCE_ACCESS_PERMISSIONS.concat(["executarManutencaoTerceiros"]),
   },
   {
     key: "usuarios",
@@ -1640,6 +1654,7 @@ const GRANULAR_PERMISSION_LABELS = {
   gerenciarSST: "Gerenciar SST",
   verAnuncios: "Ver anúncios",
   criarAnuncios: "Criar anúncios",
+  executarManutencaoTerceiros: "Executar manutenção de terceiros",
 };
 
 const ACCESS_PERMISSION_CATALOG = [
@@ -1856,6 +1871,14 @@ const ACCESS_PERMISSION_CATALOG = [
     group: "Acoes",
     label: "Manutencao - executar",
     description: "Registrar execucao e conclusao.",
+    level: "WRITE",
+  },
+  {
+    key: "executarManutencaoTerceiros",
+    module: "Manutencao",
+    group: "Acoes",
+    label: "Executar manutenção de terceiros",
+    description: "Permite executar manutenções onde não é responsável.",
     level: "WRITE",
   },
   {
@@ -2380,6 +2403,14 @@ const ACCESS_ROLE_ITEMS = [
     editKeys: ["MAINT_COMPLETE"],
   },
   {
+    key: "manut_executar_terceiros",
+    module: "Manutencao",
+    label: "Executar manutenção de terceiros",
+    description: "Permite executar manutenções onde não é responsável.",
+    viewKeys: ["executarManutencaoTerceiros"],
+    editKeys: [],
+  },
+  {
     key: "manut_excluir",
     module: "Manutencao",
     label: "Excluir manutencoes",
@@ -2755,6 +2786,11 @@ const PERMISSION_GROUPS = [
       "desativarUsuarios",
       "gerenciarAcessos",
     ],
+  },
+  {
+    key: "manutencao",
+    label: "Manutenção",
+    items: ["executarManutencaoTerceiros"],
   },
   {
     key: "projetos",
@@ -4429,6 +4465,8 @@ let projectEquipe = [];
 let manutencaoParticipantesSelecionados = [];
 let liberacaoParticipantesSelecionados = [];
 let templateParticipantesSelecionados = [];
+let manutencaoResponsaveisSelecionados = [];
+let templateResponsaveisSelecionados = [];
 let pmpActivities = [];
 let pmpExecutions = [];
 let almoxItems = [];
@@ -4953,6 +4991,7 @@ function buildMaintenanceLiteItem(item) {
     prioridade: item.prioridade || "",
     categoria: item.categoria || "",
     responsavel: item.responsavel || "",
+    responsavelIds: getMaintenanceResponsibleIds(item),
     createdAt: item.createdAt || "",
     updatedAt: item.updatedAt || "",
     doneAt: item.doneAt || "",
@@ -7106,6 +7145,10 @@ function getProfileMaintenanceItems(user) {
   return list.filter((item) => {
     if (!item) {
       return false;
+    }
+    const responsaveisIds = getMaintenanceResponsibleIds(item);
+    if (userId && responsaveisIds.some((id) => String(id) === userId)) {
+      return true;
     }
     const executadoId = String(
       getExecutadoPorId(item) || item.executadaPor || item.doneBy || item.createdBy || ""
@@ -10485,6 +10528,15 @@ function atualizarTipoSelecionado() {
         setManutencaoParticipantes(lista);
       }
     }
+    if (template && manutencaoResponsaveisToggle) {
+      const responsaveisTemplate = getMaintenanceResponsibleIds(template);
+      manutencaoResponsaveisToggle.checked = responsaveisTemplate.length > 0;
+      setManutencaoResponsaveis(responsaveisTemplate);
+      updateManutencaoResponsaveisUI();
+    } else if (manutencaoResponsaveisToggle && !manutencaoEmEdicao) {
+      manutencaoResponsaveisToggle.checked = false;
+      updateManutencaoResponsaveisUI();
+    }
     if (
       template &&
       obsManutencao &&
@@ -13015,6 +13067,7 @@ function getMaintenanceItemFingerprint(item) {
     item.projectId || "",
     item.data || "",
     item.equipamentoId || "",
+    getMaintenanceResponsibleIds(item).join(","),
     getMaintenanceOsReferencia(item) || "",
     registro.registradoEm || registro.registrado_em || registro.executedAt || "",
     conclusao.fim || item.doneAt || "",
@@ -13056,6 +13109,7 @@ function getMaintenanceListFingerprint(list) {
         item.equipamentoNome ||
         item.equipamentoTag ||
         "",
+      responsaveis: getMaintenanceResponsibleIds(item).join(","),
       executionStartedAt: item.executionStartedAt || "",
       executionFinishedAt: item.executionFinishedAt || "",
       doneAt: item.doneAt || "",
@@ -16645,6 +16699,13 @@ function criarCardManutencao(item, permissoes, options = {}) {
   }
 
   info.append(titulo, meta, equipamentoLinha);
+  const responsaveis = getMaintenanceResponsibleLabels(item);
+  if (responsaveis.length) {
+    const responsavelLinha = document.createElement("p");
+    responsavelLinha.className = "submeta";
+    responsavelLinha.textContent = `Responsáveis: ${formatResponsavelLista(responsaveis)}`;
+    info.append(responsavelLinha);
+  }
   if (statusInfo.textContent) {
     info.append(statusInfo);
   }
@@ -16823,11 +16884,17 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const actions = document.createElement("div");
   actions.className = "manutencao-actions";
   const allowed = options.allowedActions || null;
+  const podeExecutarItem = canExecuteMaintenanceForUser(item, currentUser);
   const permite = (key) => {
     const base =
       key === "register" || key === "finish" || key === "release" || key === "cancel_start"
         ? permissoes.execute
         : permissoes[key];
+    const executaAcao =
+      key === "execute" || key === "register" || key === "finish" || key === "release" || key === "cancel_start";
+    if (executaAcao && !podeExecutarItem) {
+      return false;
+    }
     return (allowed ? allowed.includes(key) : true) && base;
   };
 
@@ -17257,6 +17324,10 @@ function getRelatorioItemDate(item) {
 }
 
 function getRelatorioResponsavel(item) {
+  const responsaveis = getMaintenanceResponsibleLabels(item);
+  if (responsaveis.length) {
+    return formatResponsavelLista(responsaveis);
+  }
   const id =
     getExecutadoPorId(item) ||
     item.doneBy ||
@@ -17501,6 +17572,10 @@ function formatResponsavelText(value) {
 }
 
 function getResponsavelLabel(item) {
+  const responsaveis = getMaintenanceResponsibleLabels(item);
+  if (responsaveis.length) {
+    return formatResponsavelLista(responsaveis);
+  }
   const id = getExecutadoPorId(item) || item.doneBy || item.createdBy || "";
   return getUserLabel(id) || "Sistema";
 }
@@ -25443,6 +25518,10 @@ function limparTemplateForm() {
   }
   renderTemplateEquipeOptions();
   setTemplateParticipantes([]);
+  if (templateResponsaveisToggle) {
+    templateResponsaveisToggle.checked = false;
+  }
+  updateTemplateResponsaveisUI();
   if (templateParticipanteExterno) {
     templateParticipanteExterno.value = "";
   }
@@ -25507,6 +25586,12 @@ function preencherTemplateForm(template) {
           .filter(Boolean)
       : [];
   setTemplateParticipantes(participantesTemplate);
+  const responsaveisTemplate = getMaintenanceResponsibleIds(template);
+  if (templateResponsaveisToggle) {
+    templateResponsaveisToggle.checked = responsaveisTemplate.length > 0;
+  }
+  setTemplateResponsaveis(responsaveisTemplate);
+  updateTemplateResponsaveisUI();
   if (templateParticipanteExterno) {
     templateParticipanteExterno.value = "";
   }
@@ -25587,6 +25672,14 @@ function salvarModelo(event) {
   const equipamentoId = templateEquipamento ? templateEquipamento.value.trim() : "";
   const equipeResponsavel = getTemplateEquipeSelecionada();
   const participantes = getTemplateParticipantesFromForm();
+  const responsaveisAtivos =
+    templateResponsaveisToggle && templateResponsaveisToggle.checked;
+  const responsavelIds = responsaveisAtivos ? getTemplateResponsaveisFromForm() : [];
+  if (responsaveisAtivos && !responsavelIds.length) {
+    setFieldError(templateResponsaveisErro, "Selecione ao menos 1 responsável.");
+    return;
+  }
+  const responsavelTexto = responsavelIds.length ? buildResponsavelTexto(responsavelIds) : "";
   const frequencia = templateFrequencia ? templateFrequencia.value : "none";
   const inicio = templateInicio ? templateInicio.value : formatDateISO(new Date());
 
@@ -25660,6 +25753,8 @@ function salvarModelo(event) {
     equipamentoId,
     equipeResponsavel,
     participantes,
+    responsavelIds: responsaveisAtivos ? responsavelIds : [],
+    responsavel: responsaveisAtivos ? responsavelTexto : "",
     frequencia,
     dailyDays: frequencia === "daily" ? dailyDays : [],
     weeklyDay: frequencia === "weekly" ? weeklyDay : null,
@@ -28838,6 +28933,8 @@ function gerarManutencoesRecorrentes() {
       const executadoPorTime = modelo.equipeResponsavel
         ? `team:${modelo.equipeResponsavel}`
         : "";
+      const responsavelIds = getMaintenanceResponsibleIds(modelo);
+      const responsavelTexto = responsavelIds.length ? buildResponsavelTexto(responsavelIds) : "";
       const nova = {
         id: criarId(),
         titulo: modelo.nome,
@@ -28847,6 +28944,8 @@ function gerarManutencoesRecorrentes() {
         templateId: modelo.id,
         equipamentoId: modelo.equipamentoId || "",
         participantes: participantesModelo,
+        responsavelIds: responsavelIds.length ? responsavelIds : [],
+        responsavel: responsavelIds.length ? responsavelTexto : "",
         executadaPor: executadoPorTime,
         status: "agendada",
         createdAt: agoraIso,
@@ -31140,6 +31239,375 @@ function getMaintenanceParticipantCandidates() {
     normalizeParticipantName(user.name || user.username || user.label || "")
   );
   return Array.from(new Set(list.filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+}
+
+function normalizeResponsavelIds(list) {
+  if (!list) {
+    return [];
+  }
+  const rawList = Array.isArray(list) ? list : [list];
+  const ids = [];
+  rawList.forEach((entry) => {
+    if (!entry) {
+      return;
+    }
+    if (typeof entry === "string") {
+      entry
+        .split(/[;,]/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .forEach((item) => ids.push(item));
+      return;
+    }
+    if (typeof entry === "object") {
+      const id =
+        entry.id ||
+        entry.userId ||
+        entry.matricula ||
+        entry.username ||
+        entry.email ||
+        "";
+      if (id) {
+        ids.push(String(id).trim());
+      }
+    }
+  });
+  return Array.from(new Set(ids.filter(Boolean)));
+}
+
+function getMaintenanceResponsibleIds(item) {
+  if (!item) {
+    return [];
+  }
+  return normalizeResponsavelIds(
+    item.responsavelIds || item.responsavelId || item.responsaveis || item.responsavelUsers
+  );
+}
+
+function getMaintenanceResponsibleLabels(item) {
+  const ids = getMaintenanceResponsibleIds(item);
+  if (!ids.length) {
+    return [];
+  }
+  const labels = ids
+    .map((id) => getUserLabel(id))
+    .filter(Boolean)
+    .filter((value, index, arr) => arr.indexOf(value) === index);
+  return labels;
+}
+
+function isUserResponsibleForMaintenance(item, user) {
+  if (!user) {
+    return false;
+  }
+  const ids = getMaintenanceResponsibleIds(item);
+  if (!ids.length) {
+    return true;
+  }
+  return ids.some((id) => String(id) === String(user.id));
+}
+
+function canExecuteMaintenanceForUser(item, user = currentUser) {
+  if (!user) {
+    return false;
+  }
+  if (hasGranularPermission(user, "executarManutencaoTerceiros")) {
+    return true;
+  }
+  return isUserResponsibleForMaintenance(item, user);
+}
+
+function formatResponsavelLista(labels = []) {
+  const list = Array.isArray(labels) ? labels.filter(Boolean) : [];
+  return list.length ? list.join(", ") : "";
+}
+
+function buildResponsavelTexto(ids = []) {
+  const labels = getMaintenanceResponsibleLabels({ responsavelIds: ids });
+  return formatResponsavelLista(labels);
+}
+
+function getResponsavelRestricaoMensagem(item) {
+  const labels = getMaintenanceResponsibleLabels(item);
+  if (labels.length) {
+    return `Apenas responsáveis podem executar: ${formatResponsavelLista(labels)}.`;
+  }
+  return "Apenas responsáveis podem executar esta manutenção.";
+}
+
+function ensureExecucaoPermitida(item, mostrarMensagem = mostrarMensagemManutencao) {
+  if (canExecuteMaintenanceForUser(item, currentUser)) {
+    return true;
+  }
+  if (mostrarMensagem) {
+    mostrarMensagem(getResponsavelRestricaoMensagem(item), true);
+  }
+  return false;
+}
+
+function updateManutencaoSubmitLabel() {
+  if (!btnAdicionarManutencao) {
+    return;
+  }
+  const editing = Boolean(manutencaoEditBanner && !manutencaoEditBanner.hidden);
+  if (editing) {
+    btnAdicionarManutencao.textContent = "Salvar edição";
+    return;
+  }
+  const responsaveisAtivos =
+    manutencaoResponsaveisToggle && manutencaoResponsaveisToggle.checked;
+  const responsaveis = responsaveisAtivos ? getManutencaoResponsaveisFromForm() : [];
+  const podeExecutar = canExecuteMaintenanceForUser(
+    { responsavelIds: responsaveis },
+    currentUser
+  );
+  btnAdicionarManutencao.textContent = podeExecutar ? "Iniciar execução" : "Criar manutenção";
+}
+
+function getResponsibleCandidates() {
+  return collectActiveProjectMembers([], { includeAdmins: true });
+}
+
+function formatResponsibleLabel(user) {
+  if (!user) {
+    return "";
+  }
+  return String(user.name || user.label || user.username || user.matricula || user.id || "").trim();
+}
+
+function syncManutencaoResponsaveisInput() {
+  if (!manutencaoResponsaveisIds) {
+    return;
+  }
+  manutencaoResponsaveisIds.value = manutencaoResponsaveisSelecionados.join("; ");
+}
+
+function renderManutencaoResponsaveisSelected() {
+  if (!manutencaoResponsaveisSelected) {
+    return;
+  }
+  manutencaoResponsaveisSelected.innerHTML = "";
+  if (!manutencaoResponsaveisSelecionados.length) {
+    const vazio = document.createElement("span");
+    vazio.className = "participant-empty";
+    vazio.textContent = "Nenhum responsável selecionado.";
+    manutencaoResponsaveisSelected.append(vazio);
+    return;
+  }
+  manutencaoResponsaveisSelecionados.forEach((id) => {
+    const user = getUserById(id);
+    const label = formatResponsibleLabel(user) || String(id);
+    const tag = document.createElement("span");
+    tag.className = "participant-tag";
+    const text = document.createElement("span");
+    text.textContent = label;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "participant-remove";
+    remove.textContent = "x";
+    remove.dataset.responsavelRemove = id;
+    tag.append(text, remove);
+    manutencaoResponsaveisSelected.append(tag);
+  });
+}
+
+function renderManutencaoResponsaveisOptions() {
+  if (!manutencaoResponsaveisList) {
+    return;
+  }
+  manutencaoResponsaveisList.innerHTML = "";
+  const list = getResponsibleCandidates();
+  if (!list.length) {
+    const vazio = document.createElement("span");
+    vazio.className = "participant-empty";
+    vazio.textContent = "Sem colaboradores vinculados ao projeto.";
+    manutencaoResponsaveisList.append(vazio);
+    return;
+  }
+  list
+    .sort((a, b) => formatResponsibleLabel(a).localeCompare(formatResponsibleLabel(b), "pt-BR"))
+    .forEach((user) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "participant-pill";
+      if (manutencaoResponsaveisSelecionados.includes(user.id)) {
+        button.classList.add("is-selected");
+      }
+      button.textContent = formatResponsibleLabel(user);
+      button.dataset.responsavelId = user.id;
+      manutencaoResponsaveisList.append(button);
+    });
+}
+
+function setManutencaoResponsaveis(list = []) {
+  const ids = normalizeResponsavelIds(list);
+  manutencaoResponsaveisSelecionados = ids;
+  syncManutencaoResponsaveisInput();
+  renderManutencaoResponsaveisOptions();
+  renderManutencaoResponsaveisSelected();
+  setFieldError(manutencaoResponsaveisErro, "");
+  updateManutencaoSubmitLabel();
+}
+
+function toggleManutencaoResponsavel(id) {
+  const key = String(id || "").trim();
+  if (!key) {
+    return;
+  }
+  if (manutencaoResponsaveisSelecionados.includes(key)) {
+    manutencaoResponsaveisSelecionados = manutencaoResponsaveisSelecionados.filter(
+      (item) => item !== key
+    );
+  } else {
+    manutencaoResponsaveisSelecionados = manutencaoResponsaveisSelecionados.concat(key);
+  }
+  syncManutencaoResponsaveisInput();
+  renderManutencaoResponsaveisOptions();
+  renderManutencaoResponsaveisSelected();
+  setFieldError(manutencaoResponsaveisErro, "");
+  updateManutencaoSubmitLabel();
+}
+
+function getManutencaoResponsaveisFromForm() {
+  if (manutencaoResponsaveisSelecionados.length) {
+    return manutencaoResponsaveisSelecionados.slice();
+  }
+  const texto = manutencaoResponsaveisIds ? manutencaoResponsaveisIds.value : "";
+  return normalizeResponsavelIds(texto);
+}
+
+function updateManutencaoResponsaveisUI() {
+  if (!manutencaoResponsaveisToggle) {
+    return;
+  }
+  const enabled = manutencaoResponsaveisToggle.checked;
+  if (manutencaoResponsaveisField) {
+    manutencaoResponsaveisField.hidden = !enabled;
+  }
+  if (!enabled) {
+    setManutencaoResponsaveis([]);
+  } else {
+    renderManutencaoResponsaveisOptions();
+    renderManutencaoResponsaveisSelected();
+  }
+  setFieldError(manutencaoResponsaveisErro, "");
+  updateManutencaoSubmitLabel();
+}
+
+function syncTemplateResponsaveisInput() {
+  if (!templateResponsaveisIds) {
+    return;
+  }
+  templateResponsaveisIds.value = templateResponsaveisSelecionados.join("; ");
+}
+
+function renderTemplateResponsaveisSelected() {
+  if (!templateResponsaveisSelected) {
+    return;
+  }
+  templateResponsaveisSelected.innerHTML = "";
+  if (!templateResponsaveisSelecionados.length) {
+    const vazio = document.createElement("span");
+    vazio.className = "participant-empty";
+    vazio.textContent = "Nenhum responsável selecionado.";
+    templateResponsaveisSelected.append(vazio);
+    return;
+  }
+  templateResponsaveisSelecionados.forEach((id) => {
+    const user = getUserById(id);
+    const label = formatResponsibleLabel(user) || String(id);
+    const tag = document.createElement("span");
+    tag.className = "participant-tag";
+    const text = document.createElement("span");
+    text.textContent = label;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "participant-remove";
+    remove.textContent = "x";
+    remove.dataset.templateResponsavelRemove = id;
+    tag.append(text, remove);
+    templateResponsaveisSelected.append(tag);
+  });
+}
+
+function renderTemplateResponsaveisOptions() {
+  if (!templateResponsaveisList) {
+    return;
+  }
+  templateResponsaveisList.innerHTML = "";
+  const list = getResponsibleCandidates();
+  if (!list.length) {
+    const vazio = document.createElement("span");
+    vazio.className = "participant-empty";
+    vazio.textContent = "Sem colaboradores vinculados ao projeto.";
+    templateResponsaveisList.append(vazio);
+    return;
+  }
+  list
+    .sort((a, b) => formatResponsibleLabel(a).localeCompare(formatResponsibleLabel(b), "pt-BR"))
+    .forEach((user) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "participant-pill";
+      if (templateResponsaveisSelecionados.includes(user.id)) {
+        button.classList.add("is-selected");
+      }
+      button.textContent = formatResponsibleLabel(user);
+      button.dataset.templateResponsavelId = user.id;
+      templateResponsaveisList.append(button);
+    });
+}
+
+function setTemplateResponsaveis(list = []) {
+  const ids = normalizeResponsavelIds(list);
+  templateResponsaveisSelecionados = ids;
+  syncTemplateResponsaveisInput();
+  renderTemplateResponsaveisOptions();
+  renderTemplateResponsaveisSelected();
+  setFieldError(templateResponsaveisErro, "");
+}
+
+function toggleTemplateResponsavel(id) {
+  const key = String(id || "").trim();
+  if (!key) {
+    return;
+  }
+  if (templateResponsaveisSelecionados.includes(key)) {
+    templateResponsaveisSelecionados = templateResponsaveisSelecionados.filter(
+      (item) => item !== key
+    );
+  } else {
+    templateResponsaveisSelecionados = templateResponsaveisSelecionados.concat(key);
+  }
+  syncTemplateResponsaveisInput();
+  renderTemplateResponsaveisOptions();
+  renderTemplateResponsaveisSelected();
+  setFieldError(templateResponsaveisErro, "");
+}
+
+function getTemplateResponsaveisFromForm() {
+  if (templateResponsaveisSelecionados.length) {
+    return templateResponsaveisSelecionados.slice();
+  }
+  const texto = templateResponsaveisIds ? templateResponsaveisIds.value : "";
+  return normalizeResponsavelIds(texto);
+}
+
+function updateTemplateResponsaveisUI() {
+  if (!templateResponsaveisToggle) {
+    return;
+  }
+  const enabled = templateResponsaveisToggle.checked;
+  if (templateResponsaveisField) {
+    templateResponsaveisField.hidden = !enabled;
+  }
+  if (!enabled) {
+    setTemplateResponsaveis([]);
+  } else {
+    renderTemplateResponsaveisOptions();
+    renderTemplateResponsaveisSelected();
+  }
+  setFieldError(templateResponsaveisErro, "");
 }
 
 function renderEquipeOptions(select, selectedName = "") {
@@ -37291,12 +37759,16 @@ async function carregarEquipeProjeto() {
     renderManutencaoEquipeOptions();
     renderManutencaoParticipantesOptions();
     renderManutencaoParticipantesSelected();
+    renderManutencaoResponsaveisOptions();
+    renderManutencaoResponsaveisSelected();
     renderLiberacaoEquipeOptions();
     renderLiberacaoParticipantesOptions();
     renderLiberacaoParticipantesSelected();
     renderTemplateEquipeOptions();
     renderTemplateParticipantesOptions();
     renderTemplateParticipantesSelected();
+    renderTemplateResponsaveisOptions();
+    renderTemplateResponsaveisSelected();
     return;
   }
   try {
@@ -37309,12 +37781,16 @@ async function carregarEquipeProjeto() {
   renderManutencaoEquipeOptions();
   renderManutencaoParticipantesOptions();
   renderManutencaoParticipantesSelected();
+  renderManutencaoResponsaveisOptions();
+  renderManutencaoResponsaveisSelected();
   renderLiberacaoEquipeOptions();
   renderLiberacaoParticipantesOptions();
   renderLiberacaoParticipantesSelected();
   renderTemplateEquipeOptions();
   renderTemplateParticipantesOptions();
   renderTemplateParticipantesSelected();
+  renderTemplateResponsaveisOptions();
+  renderTemplateResponsaveisSelected();
 }
 
 function renderPerfil() {
@@ -38583,6 +39059,19 @@ async function adicionarManutencao() {
     mostrarMensagemManutencao("Informe ao menos 2 participantes.", true);
     return;
   }
+  const responsaveisAtivos =
+    manutencaoResponsaveisToggle && manutencaoResponsaveisToggle.checked;
+  const responsavelIds = responsaveisAtivos ? getManutencaoResponsaveisFromForm() : [];
+  if (responsaveisAtivos && !responsavelIds.length) {
+    setFieldError(manutencaoResponsaveisErro, "Selecione ao menos 1 responsável.");
+    mostrarMensagemManutencao("Selecione ao menos 1 responsável.", true);
+    return;
+  }
+  const responsavelTexto = responsavelIds.length ? buildResponsavelTexto(responsavelIds) : "";
+  const autoExecutar = canExecuteMaintenanceForUser(
+    { responsavelIds: responsavelIds },
+    currentUser
+  );
 
   mostrarCarregando();
   try {
@@ -38602,13 +39091,15 @@ async function adicionarManutencao() {
         }
       }
     }
-    if (!documentos.apr || !documentos.os || !documentos.pte) {
-      mostrarMensagemManutencao("Anexe APR, OS e PTE para iniciar.", true);
-      return;
-    }
-    if (critico && !documentos.pt) {
-      mostrarMensagemManutencao("PT obrigatória para trabalho crítico.", true);
-      return;
+    if (autoExecutar) {
+      if (!documentos.apr || !documentos.os || !documentos.pte) {
+        mostrarMensagemManutencao("Anexe APR, OS e PTE para iniciar.", true);
+        return;
+      }
+      if (critico && !documentos.pt) {
+        mostrarMensagemManutencao("PT obrigatória para trabalho crítico.", true);
+        return;
+      }
     }
 
     const agora = new Date();
@@ -38617,14 +39108,19 @@ async function adicionarManutencao() {
     const teamName = getManutencaoEquipeSelecionada();
     const executadoPorTime = teamName ? `team:${teamName}` : currentUser.id;
     const ultimaAcao = `Execução iniciada em ${formatDateTime(agora)} por ${usuarioLabel}`;
-    const liberacao = {
+    const liberacaoBase = {
       osNumero: osReferencia,
       participantes,
       critico,
       documentos,
-      liberadoEm: agoraIso,
-      liberadoPor: currentUser.id,
     };
+    const liberacao = autoExecutar
+      ? {
+          ...liberacaoBase,
+          liberadoEm: agoraIso,
+          liberadoPor: currentUser.id,
+        }
+      : liberacaoBase;
     const nova = {
       id: criarId(),
       titulo,
@@ -38635,27 +39131,31 @@ async function adicionarManutencao() {
       observacao,
       observacaoHtml,
       templateId,
-      status: "em_execucao",
+      status: autoExecutar ? "em_execucao" : "agendada",
       categoria,
       prioridade,
       criticidade: critico ? "sim" : "nao",
       osReferencia,
       participantes,
+      responsavelIds: responsaveisAtivos ? responsavelIds : [],
+      responsavel: responsaveisAtivos ? responsavelTexto : "",
       documentos,
+      liberacao,
       abertaEm: agoraIso,
-      inicioExecucao: agoraIso,
       abertaPor: currentUser.id,
       executadaPor: executadoPorTime,
-      ultimaAcao,
-      executionStartedAt: agoraIso,
-      executionStartedBy: currentUser.id,
-      registroExecucao: { executadoPor: executadoPorTime },
-      liberacao,
       createdAt: agoraIso,
       createdBy: currentUser.id,
       updatedAt: agoraIso,
       updatedBy: currentUser.id,
     };
+    if (autoExecutar) {
+      nova.inicioExecucao = agoraIso;
+      nova.ultimaAcao = ultimaAcao;
+      nova.executionStartedAt = agoraIso;
+      nova.executionStartedBy = currentUser.id;
+      nova.registroExecucao = { executadoPor: executadoPorTime };
+    }
 
     manutencoes = [...manutencoes, nova];
     const resultado = normalizarManutencoes(manutencoes);
@@ -38664,30 +39164,32 @@ async function adicionarManutencao() {
     logAction("create", nova, {
       source: "manual",
       dataProgramada: data,
-      resumo: "Manutenção criada e iniciada.",
+      resumo: autoExecutar ? "Manutenção criada e iniciada." : "Manutenção criada.",
     });
     const documentosLista = DOC_KEYS.filter((key) => documentos[key]).map(
       (key) => DOC_LABELS[key] || key
     );
-    logAction("execute", nova, {
-      dataProgramada: data,
-      inicioExecucao: agoraIso,
-      osNumero: osReferencia,
-      participantes,
-      critico,
-      documentos: documentosLista,
-      resumo: "Execução iniciada.",
-    });
-    await registrarSstDocumentacao(nova, liberacao);
+    if (autoExecutar) {
+      logAction("execute", nova, {
+        dataProgramada: data,
+        inicioExecucao: agoraIso,
+        osNumero: osReferencia,
+        participantes,
+        critico,
+        documentos: documentosLista,
+        resumo: "Execução iniciada.",
+      });
+      await registrarSstDocumentacao(nova, liberacao);
+    }
     renderTudo();
     showTeamMaintenanceNotifications();
     limparFormularioManutencao();
 
     const criada = manutencoes.find((item) => item.id === nova.id);
-    if (criada) {
+    if (autoExecutar && criada) {
       abrirRegistroExecucao(criada);
     }
-    mostrarMensagemManutencao("Execução iniciada.");
+    mostrarMensagemManutencao(autoExecutar ? "Execução iniciada." : "Manutenção criada.");
   } finally {
     esconderCarregando();
   }
@@ -38747,7 +39249,7 @@ function setEditModeManutencao(item) {
     }
   }
   if (btnAdicionarManutencao) {
-    btnAdicionarManutencao.textContent = ativo ? "Salvar edição" : "Iniciar execução";
+    updateManutencaoSubmitLabel();
     const podeCriar = can("create") && secConfig.nova !== false;
     const podeSalvar = ativo ? can("edit") : podeCriar;
     btnAdicionarManutencao.disabled = !podeSalvar;
@@ -38814,6 +39316,10 @@ function limparFormularioManutencao() {
     participanteExternoManutencao.value = "";
   }
   setManutencaoParticipantes([]);
+  if (manutencaoResponsaveisToggle) {
+    manutencaoResponsaveisToggle.checked = false;
+  }
+  updateManutencaoResponsaveisUI();
   renderManutencaoEquipeOptions();
   if (criticoManutencao) {
     criticoManutencao.value = "nao";
@@ -39123,6 +39629,13 @@ function preencherFormularioManutencao(item) {
     : "";
   renderManutencaoEquipeOptions(equipeSelecionada);
 
+  const responsaveisItem = getMaintenanceResponsibleIds(item);
+  if (manutencaoResponsaveisToggle) {
+    manutencaoResponsaveisToggle.checked = responsaveisItem.length > 0;
+  }
+  setManutencaoResponsaveis(responsaveisItem);
+  updateManutencaoResponsaveisUI();
+
   const critico =
     isCriticoValor(item.criticidade) ||
     isCriticoValor(liberacao.critico) ||
@@ -39330,6 +39843,15 @@ async function salvarEdicaoManutencao() {
       .filter(Boolean);
   }
   const criticoValor = criticoManutencao ? criticoManutencao.value : "";
+  const responsaveisAtivos =
+    manutencaoResponsaveisToggle && manutencaoResponsaveisToggle.checked;
+  const responsavelIds = responsaveisAtivos ? getManutencaoResponsaveisFromForm() : [];
+  if (responsaveisAtivos && !responsavelIds.length) {
+    setFieldError(manutencaoResponsaveisErro, "Selecione ao menos 1 responsável.");
+    mostrarMensagemManutencao("Selecione ao menos 1 responsável.", true);
+    return;
+  }
+  const responsavelTexto = responsavelIds.length ? buildResponsavelTexto(responsavelIds) : "";
   const critico =
     criticoValor === "sim"
       ? true
@@ -39471,6 +39993,8 @@ async function salvarEdicaoManutencao() {
     prioridade: prioridadeFinal,
     osReferencia: osReferenciaFinal,
     participantes: participantesFinal,
+    responsavelIds: responsaveisAtivos ? responsavelIds : [],
+    responsavel: responsaveisAtivos ? responsavelTexto : "",
     executadaPor: executadoPorTime || item.executadaPor,
     criticidade: critico ? "sim" : "nao",
     documentos: documentosAtualizados,
@@ -40341,6 +40865,9 @@ function executarManutencao(index) {
     return;
   }
   const item = manutencoes[index];
+  if (!ensureExecucaoPermitida(item, mostrarMensagemManutencao)) {
+    return;
+  }
   if (item.status === "backlog") {
     mostrarMensagemManutencao("Manutenção em backlog. Registre o motivo.", true);
     return;
@@ -40357,6 +40884,9 @@ function abrirInicioExecucao(item) {
     return;
   }
   if (!item) {
+    return;
+  }
+  if (!ensureExecucaoPermitida(item, mostrarMensagemManutencao)) {
     return;
   }
   if (item.status === "concluida") {
@@ -40408,6 +40938,9 @@ function confirmarInicioExecucao() {
     return;
   }
   const item = manutencoes[index];
+  if (!ensureExecucaoPermitida(item, mostrarMensagemInicioExecucao)) {
+    return;
+  }
   if (item.status === "concluida") {
     mostrarMensagemInicioExecucao("Manutenção concluída. Apenas leitura.", true);
     return;
@@ -40463,6 +40996,9 @@ function abrirRegistroExecucao(item) {
   }
   if (!item || (item.status !== "em_execucao" && item.status !== "encerramento")) {
     mostrarMensagemManutencao("Inicie a execução antes de registrar.", true);
+    return;
+  }
+  if (!ensureExecucaoPermitida(item, mostrarMensagemManutencao)) {
     return;
   }
   const inicio = parseTimestamp(item.executionStartedAt);
@@ -40644,6 +41180,9 @@ function salvarCancelamentoExecucao(event) {
     return;
   }
   const item = manutencoes[index];
+  if (!ensureExecucaoPermitida(item, mostrarMensagemCancelarExecucao)) {
+    return;
+  }
   if (item.status !== "em_execucao") {
     mostrarMensagemCancelarExecucao("A manutenção precisa estar em execução.", true);
     return;
@@ -40688,6 +41227,9 @@ function salvarRegistroExecucao(event) {
     return;
   }
   const item = manutencoes[index];
+  if (!ensureExecucaoPermitida(item, mostrarMensagemRegistroExecucao)) {
+    return;
+  }
   if (item.status !== "em_execucao" && item.status !== "encerramento") {
     mostrarMensagemRegistroExecucao("Inicie a execução antes de registrar.", true);
     return;
@@ -41315,6 +41857,9 @@ function liberarManutencao(index) {
     return;
   }
   const item = manutencoes[index];
+  if (!ensureExecucaoPermitida(item, mostrarMensagemManutencao)) {
+    return;
+  }
   if (item.status === "backlog") {
     mostrarMensagemManutencao("Manutenção em backlog. Não é possível liberar.", true);
     return;
@@ -41384,6 +41929,9 @@ function salvarCancelarInicio(event) {
     return;
   }
   const item = manutencoes[index];
+  if (!ensureExecucaoPermitida(item, mostrarMensagemCancelarInicio)) {
+    return;
+  }
   const motivo = cancelarInicioMotivo ? cancelarInicioMotivo.value.trim() : "";
   if (!motivo) {
     mostrarMensagemCancelarInicio("Selecione o motivo do cancelamento.", true);
@@ -42269,6 +42817,9 @@ function abrirConclusao(item) {
     mostrarMensagemManutencao("Inicie a execução antes de concluir.", true);
     return;
   }
+  if (!ensureExecucaoPermitida(item, mostrarMensagemManutencao)) {
+    return;
+  }
   if (!item.executionStartedAt) {
     mostrarMensagemManutencao("Início da execução não encontrado.", true);
     return;
@@ -42415,6 +42966,9 @@ async function salvarConclusao(event) {
   }
 
   const item = manutencoes[index];
+  if (!ensureExecucaoPermitida(item, mostrarMensagemConclusao)) {
+    return;
+  }
   if (item.status !== "em_execucao" && item.status !== "encerramento") {
     mostrarMensagemConclusao("Inicie a execução antes de concluir.", true);
     return;
@@ -43545,6 +44099,10 @@ function getMaintenanceTitle(item) {
 }
 
 function getMaintenanceOwner(item) {
+  const responsaveis = getMaintenanceResponsibleLabels(item);
+  if (responsaveis.length) {
+    return formatResponsavelLista(responsaveis);
+  }
   const raw = String(
     item.responsavel ||
       item.executadaPor ||
@@ -46542,6 +47100,39 @@ if (participanteExternoManutencao) {
     }
   });
 }
+if (manutencaoResponsaveisToggle) {
+  manutencaoResponsaveisToggle.addEventListener("change", updateManutencaoResponsaveisUI);
+  updateManutencaoResponsaveisUI();
+}
+if (manutencaoResponsaveisList) {
+  manutencaoResponsaveisList.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-responsavel-id]");
+    if (!button) {
+      return;
+    }
+    toggleManutencaoResponsavel(button.dataset.responsavelId);
+  });
+}
+if (manutencaoResponsaveisSelected) {
+  manutencaoResponsaveisSelected.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-responsavel-remove]");
+    if (!button) {
+      return;
+    }
+    const id = button.dataset.responsavelRemove;
+    if (!id) {
+      return;
+    }
+    manutencaoResponsaveisSelecionados = manutencaoResponsaveisSelecionados.filter(
+      (item) => item !== id
+    );
+    syncManutencaoResponsaveisInput();
+    renderManutencaoResponsaveisOptions();
+    renderManutencaoResponsaveisSelected();
+    setFieldError(manutencaoResponsaveisErro, "");
+    updateManutencaoSubmitLabel();
+  });
+}
 if (templateParticipantesList) {
   templateParticipantesList.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-participant-name]");
@@ -46585,6 +47176,38 @@ if (templateParticipanteExterno) {
       addTemplateParticipantesExternos(templateParticipanteExterno.value);
       templateParticipanteExterno.value = "";
     }
+  });
+}
+if (templateResponsaveisToggle) {
+  templateResponsaveisToggle.addEventListener("change", updateTemplateResponsaveisUI);
+  updateTemplateResponsaveisUI();
+}
+if (templateResponsaveisList) {
+  templateResponsaveisList.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-template-responsavel-id]");
+    if (!button) {
+      return;
+    }
+    toggleTemplateResponsavel(button.dataset.templateResponsavelId);
+  });
+}
+if (templateResponsaveisSelected) {
+  templateResponsaveisSelected.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-template-responsavel-remove]");
+    if (!button) {
+      return;
+    }
+    const id = button.dataset.templateResponsavelRemove;
+    if (!id) {
+      return;
+    }
+    templateResponsaveisSelecionados = templateResponsaveisSelecionados.filter(
+      (item) => item !== id
+    );
+    syncTemplateResponsaveisInput();
+    renderTemplateResponsaveisOptions();
+    renderTemplateResponsaveisSelected();
+    setFieldError(templateResponsaveisErro, "");
   });
 }
 if (btnFecharHistorico) {
