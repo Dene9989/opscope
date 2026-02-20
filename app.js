@@ -12199,6 +12199,41 @@ function getHistoricoManutencaoCompleto(itemOrId) {
   );
 }
 
+function sortHistoricoAsc(lista) {
+  if (!Array.isArray(lista)) {
+    return [];
+  }
+  return [...lista].sort(
+    (a, b) => (getTimeValue(a.timestamp) || 0) - (getTimeValue(b.timestamp) || 0)
+  );
+}
+
+function getHistoricoSectionLabel(entry) {
+  const action = entry && entry.action ? entry.action : "";
+  if (action === "create") {
+    return "Criação";
+  }
+  if (action === "release") {
+    return "Liberação";
+  }
+  if (action === "execute" || action === "execute_register" || action === "cancel_start") {
+    return "Execução";
+  }
+  if (action === "complete") {
+    return "Conclusão";
+  }
+  if (action === "reopen") {
+    return "Reabertura";
+  }
+  if (action === "reschedule") {
+    return "Reagendamento";
+  }
+  if (action === "backlog_auto" || action === "backlog_reason") {
+    return "Backlog";
+  }
+  return "Outros";
+}
+
 function getUltimaAcao(item) {
   if (!item) {
     return null;
@@ -40790,7 +40825,7 @@ function renderHistorico(item) {
     return;
   }
   listaHistorico.innerHTML = "";
-  const historico = getHistoricoManutencaoCompleto(item);
+  const historico = sortHistoricoAsc(getHistoricoManutencaoCompleto(item));
   if (historicoResumo) {
     historicoResumo.textContent = buildManutencaoResumoTexto(item);
   }
@@ -40811,7 +40846,16 @@ function renderHistorico(item) {
   historicoVazio.hidden = true;
 
   const limite = Math.min(historicoLimite, historico.length);
+  let lastSection = "";
   historico.slice(0, limite).forEach((entry) => {
+    const sectionLabel = getHistoricoSectionLabel(entry);
+    if (sectionLabel && sectionLabel !== lastSection) {
+      const section = document.createElement("div");
+      section.className = "history-section";
+      section.textContent = sectionLabel;
+      listaHistorico.append(section);
+      lastSection = sectionLabel;
+    }
     const card = document.createElement("div");
     card.className = "history-item";
 
@@ -40950,7 +40994,7 @@ function escapeCsv(valor) {
 }
 
 function exportarHistorico(item) {
-  const historico = getHistoricoManutencaoCompleto(item);
+  const historico = sortHistoricoAsc(getHistoricoManutencaoCompleto(item));
   if (!historico.length) {
     return;
   }
@@ -41028,7 +41072,7 @@ function exportarHistorico(item) {
 }
 
 function exportarHistoricoPdf(item) {
-  const historico = getHistoricoManutencaoCompleto(item);
+  const historico = sortHistoricoAsc(getHistoricoManutencaoCompleto(item));
   if (!historico.length) {
     return;
   }

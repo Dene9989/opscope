@@ -3456,6 +3456,21 @@ body.is-visitor .container.auth-only {
   margin-top: 12px;
 }
 
+.history-section {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px dashed rgba(19, 32, 42, 0.2);
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
 .history-actions {
   display: flex;
   flex-wrap: wrap;
@@ -3495,6 +3510,12 @@ body.is-visitor .container.auth-only {
   background: var(--surface2);
   border-color: rgba(255, 255, 255, 0.14);
   color: var(--text);
+}
+
+.app .history-section {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(15, 23, 33, 0.6);
+  color: var(--muted);
 }
 
 .app .history-item {
