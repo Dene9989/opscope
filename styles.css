@@ -1743,10 +1743,18 @@ body.is-visitor .notify.auth-only {
   backdrop-filter: blur(3px);
   gap: 12px;
   text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
 }
 
 .loading-overlay[hidden] {
   display: none;
+}
+
+.loading-overlay.is-active {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .loading-spinner {
@@ -1768,6 +1776,12 @@ body.is-visitor .notify.auth-only {
   letter-spacing: 0.02em;
   color: #f4efe6;
   text-shadow: 0 6px 18px rgba(8, 12, 18, 0.45);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.loading-message.is-updating {
+  opacity: 0;
+  transform: translateY(6px);
 }
 
 .loading-message span {

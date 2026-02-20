@@ -609,6 +609,7 @@ const painelLembretes = document.getElementById("painelLembretes");
 const loadingOverlay = document.getElementById("loadingOverlay");
 const loadingMessageTitle = document.getElementById("loadingMessageTitle");
 const loadingMessageDetail = document.getElementById("loadingMessageDetail");
+const loadingMessageWrap = document.querySelector(".loading-message");
 const sidebar = document.getElementById("sidebar");
 const btnToggleSidebar = document.querySelectorAll(
   "#btnSidebar, #btnSidebarToggle, #btnToggleSidebar, #btnMenu, #topbarMenuToggle, .header-toggle"
@@ -4436,6 +4437,9 @@ let reminderDays = DEFAULT_REMINDER_DAYS;
 let loadingTimeout = null;
 let urlSyncReady = false;
 let bootInProgress = false;
+let loadingOverlayHideTimer = null;
+let loadingOverlayShownAt = 0;
+let loadingMessageTimer = null;
 let historicoAtualId = null;
 let historicoLimite = HISTORY_PAGE_SIZE;
 let manutencaoEmLiberacao = null;
@@ -9399,16 +9403,38 @@ function alternarUserMenu() {
 
 const DEFAULT_LOADING_TITLE = "Processando...";
 const DEFAULT_LOADING_DETAIL = "";
+const OVERLAY_FADE_MS = 250;
+const OVERLAY_MIN_MS = 650;
 
 function setLoadingOverlayMessage(title = DEFAULT_LOADING_TITLE, detail = DEFAULT_LOADING_DETAIL) {
-  if (loadingMessageTitle) {
-    loadingMessageTitle.textContent = title || "";
-    loadingMessageTitle.hidden = !title;
+  const nextTitle = title || "";
+  const nextDetail = detail || "";
+  const prevTitle = loadingMessageTitle ? loadingMessageTitle.textContent || "" : "";
+  const prevDetail = loadingMessageDetail ? loadingMessageDetail.textContent || "" : "";
+  const changed = nextTitle !== prevTitle || nextDetail !== prevDetail;
+  const apply = () => {
+    if (loadingMessageTitle) {
+      loadingMessageTitle.textContent = nextTitle;
+      loadingMessageTitle.hidden = !nextTitle;
+    }
+    if (loadingMessageDetail) {
+      loadingMessageDetail.textContent = nextDetail;
+      loadingMessageDetail.hidden = !nextDetail;
+    }
+  };
+  if (changed && loadingMessageWrap) {
+    loadingMessageWrap.classList.add("is-updating");
+    if (loadingMessageTimer) {
+      window.clearTimeout(loadingMessageTimer);
+    }
+    loadingMessageTimer = window.setTimeout(() => {
+      apply();
+      loadingMessageWrap.classList.remove("is-updating");
+      loadingMessageTimer = null;
+    }, 160);
+    return;
   }
-  if (loadingMessageDetail) {
-    loadingMessageDetail.textContent = detail || "";
-    loadingMessageDetail.hidden = !detail;
-  }
+  apply();
 }
 
 function resetLoadingOverlayMessage() {
@@ -9450,16 +9476,36 @@ function mostrarCarregando() {
   } else {
     resetLoadingOverlayMessage();
   }
+  if (loadingOverlayHideTimer) {
+    window.clearTimeout(loadingOverlayHideTimer);
+    loadingOverlayHideTimer = null;
+  }
   loadingOverlay.hidden = false;
+  loadingOverlay.classList.add("is-active");
   document.body.classList.add("is-loading");
+  loadingOverlayShownAt = Date.now();
 }
 
 function esconderCarregando() {
   if (!loadingOverlay) {
     return;
   }
-  loadingOverlay.hidden = true;
-  document.body.classList.remove("is-loading");
+  const elapsed = Date.now() - loadingOverlayShownAt;
+  const delay = elapsed < OVERLAY_MIN_MS ? OVERLAY_MIN_MS - elapsed : 0;
+  if (loadingOverlayHideTimer) {
+    window.clearTimeout(loadingOverlayHideTimer);
+  }
+  loadingOverlayHideTimer = window.setTimeout(() => {
+    loadingOverlay.classList.remove("is-active");
+    loadingOverlayHideTimer = window.setTimeout(() => {
+      loadingOverlay.hidden = true;
+      document.body.classList.remove("is-loading");
+      if (loadingMessageWrap) {
+        loadingMessageWrap.classList.remove("is-updating");
+      }
+      loadingOverlayHideTimer = null;
+    }, OVERLAY_FADE_MS);
+  }, delay);
   if (loadingTimeout) {
     window.clearTimeout(loadingTimeout);
     loadingTimeout = null;
