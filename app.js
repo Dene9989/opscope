@@ -9429,6 +9429,13 @@ function finishBootOverlay() {
   esconderCarregando();
 }
 
+function setBootStep(title, detail = "") {
+  if (!bootInProgress) {
+    return;
+  }
+  setLoadingOverlayMessage(title, detail);
+}
+
 function mostrarCarregando() {
   if (!loadingOverlay) {
     return;
@@ -10766,7 +10773,15 @@ async function setActiveProjectId(nextId, options = {}) {
 
 async function carregarSessaoServidor() {
   urlSyncReady = false;
-  startBootOverlay();
+  let bootStarted = false;
+  const maybeStartBoot = () => {
+    if (bootStarted || !currentUser) {
+      return;
+    }
+    bootStarted = true;
+    startBootOverlay();
+  };
+  maybeStartBoot();
   try {
     if (!currentUser) {
       mostrarAuthPanel("login");
@@ -10779,12 +10794,14 @@ async function carregarSessaoServidor() {
         if (currentUser) {
           ensureMaintenanceCacheOwnership();
         }
+        maybeStartBoot();
         const storedProjectId = localStorage.getItem(ACTIVE_PROJECT_KEY) || "";
         const validStored = availableProjects.some((item) => item.id === storedProjectId);
         const resolvedProjectId =
           data.activeProjectId ||
           (validStored ? storedProjectId : availableProjects[0]?.id || "");
         if (resolvedProjectId) {
+          setBootStep("Inicializando OPSCOPE...", "Carregando projeto ativo.");
           await setActiveProjectId(resolvedProjectId, { sync: false, force: true });
         }
       } catch (error) {
@@ -10808,6 +10825,7 @@ async function carregarSessaoServidor() {
         if (account && normalizeAccessUserStatus(account.status, account.active) !== "INATIVO") {
           const role = await resolveRoleFromDb(account);
           currentUser = buildSessionUser(account, role);
+          maybeStartBoot();
         } else {
           salvarSessao(null);
         }
@@ -10822,10 +10840,16 @@ async function carregarSessaoServidor() {
     if (currentUser) {
       updateUrlForTab(getActiveTabKey());
     }
+    if (currentUser) {
+      setBootStep("Sincronizando dados...", "Projetos, anúncios e feedbacks.");
+    }
     await refreshProjects();
     await carregarAnuncios(true);
     await carregarFeedbacks(true);
     await carregarPmpDados();
+    if (currentUser) {
+      setBootStep("Verificando compatibilidade...", "Ajustando versão dos dados.");
+    }
     await checkCompatState(true);
     if (currentUser) {
       maybeRunWeeklyStorageCleanup();
@@ -10856,7 +10880,10 @@ async function carregarSessaoServidor() {
       stopSyncPolling();
     }
   } finally {
-    finishBootOverlay();
+    if (bootStarted) {
+      setBootStep("Finalizando...", "Carregando painel inicial.");
+      finishBootOverlay();
+    }
   }
 }
 
