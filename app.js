@@ -1194,6 +1194,7 @@ const TEAM_NOTIFICATION_WINDOW_DAYS = 14;
 const STORAGE_KEY = "denemanu.manutencoes";
 const MAINT_DIRTY_KEY = "opscope.maintenance.dirty";
 const MAINT_TOMBSTONE_KEY = "opscope.maintenance.tombstones";
+const MAINT_STORAGE_MODE_KEY = "opscope.maintenance.storageMode";
 const MAINT_CACHE_USER_KEY = "opscope.maintenance.cache.user";
 const TEMPLATE_KEY = "denemanu.templates";
 const USER_KEY = "denemanu.users";
@@ -4493,7 +4494,9 @@ let maintenanceSyncFailed = false;
 let maintenanceLastUserId = null;
 let maintenanceLastFetch = 0;
 let maintenancePendingSync = false;
-let maintenanceStorageMode = "full";
+let maintenanceStorageMode = getMaintenanceStorageMode();
+let maintenanceDirtyMemory = {};
+let maintenanceDirtyPersistFailed = false;
 const maintenanceLoadedProjects = new Set();
 const maintenanceRenderHashes = new Map();
 const templatesRenderHashes = new Map();
@@ -4686,6 +4689,7 @@ function clearLocalMaintenanceCache(options = {}) {
 function clearLocalCache() {
   let removed = clearLocalMaintenanceCache({ keepActive: false });
   removed += removeStorageKeys((key) => isStorageKeyMatch(key, RDO_KEY));
+  resetMaintenanceStorageMode();
   return removed;
 }
 
@@ -4736,6 +4740,46 @@ function warnStorageQuota(key) {
   console.warn(`Armazenamento do navegador cheio (${key}).`);
   if (typeof showAuthToast === "function") {
     showAuthToast("Armazenamento do navegador cheio. Limpe o cache do site.");
+  }
+}
+
+function getMaintenanceStorageMode() {
+  if (typeof sessionStorage === "undefined") {
+    return "full";
+  }
+  try {
+    const raw = String(sessionStorage.getItem(MAINT_STORAGE_MODE_KEY) || "").trim();
+    if (raw === "lite" || raw === "disabled" || raw === "full") {
+      return raw;
+    }
+  } catch (error) {
+    // noop
+  }
+  return "full";
+}
+
+function setMaintenanceStorageMode(mode) {
+  const next = mode === "lite" || mode === "disabled" ? mode : "full";
+  maintenanceStorageMode = next;
+  try {
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem(MAINT_STORAGE_MODE_KEY, next);
+    }
+  } catch (error) {
+    // noop
+  }
+}
+
+function resetMaintenanceStorageMode() {
+  maintenanceStorageMode = "full";
+  maintenanceDirtyPersistFailed = false;
+  storageQuotaWarned = false;
+  try {
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.removeItem(MAINT_STORAGE_MODE_KEY);
+    }
+  } catch (error) {
+    // noop
   }
 }
 
@@ -10461,11 +10505,26 @@ function carregarManutencoes() {
 
 function readMaintenanceDirtyMap() {
   const raw = readJson(getProjectStorageKey(MAINT_DIRTY_KEY), {});
-  return raw && typeof raw === "object" ? { ...raw } : {};
+  const stored = raw && typeof raw === "object" ? { ...raw } : {};
+  if (maintenanceDirtyMemory && typeof maintenanceDirtyMemory === "object") {
+    return { ...stored, ...maintenanceDirtyMemory };
+  }
+  return stored;
 }
 
 function writeMaintenanceDirtyMap(map) {
-  writeJson(getProjectStorageKey(MAINT_DIRTY_KEY), map || {});
+  const payload = map && typeof map === "object" ? { ...map } : {};
+  maintenanceDirtyMemory = { ...payload };
+  if (maintenanceDirtyPersistFailed || maintenanceStorageMode === "disabled") {
+    return false;
+  }
+  const ok = writeJson(getProjectStorageKey(MAINT_DIRTY_KEY), payload);
+  if (!ok && isQuotaExceededError(lastStorageError)) {
+    maintenanceDirtyPersistFailed = true;
+  } else if (ok) {
+    maintenanceDirtyPersistFailed = false;
+  }
+  return ok;
 }
 
 function hasPendingMaintenanceDirty() {
@@ -10623,17 +10682,22 @@ function salvarManutencoes(lista, options = {}) {
   }
   const compacted = compactEvidencias(sanitized);
   let storageList = compacted.list;
+  let forceSync = maintenanceStorageMode === "disabled";
+  let hadQuotaError = false;
+  const attemptedWrite = maintenanceStorageMode !== "disabled";
   if (maintenanceStorageMode === "lite") {
     storageList = buildMaintenanceLiteList(storageList);
   }
   let ok = maintenanceStorageMode === "disabled" ? true : writeJson(storageKey, storageList);
   if (!ok && isQuotaExceededError(lastStorageError)) {
+    hadQuotaError = true;
     const cleaned = cleanupStorageForQuota(storageKey);
     if (cleaned) {
       ok = writeJson(storageKey, storageList);
     }
   }
   if (!ok && isQuotaExceededError(lastStorageError)) {
+    hadQuotaError = true;
     const stripped = compacted.list.map((item) => stripMaintenanceDataUrls(item));
     ok = writeJson(storageKey, stripped);
     if (ok) {
@@ -10641,13 +10705,15 @@ function salvarManutencoes(lista, options = {}) {
     }
   }
   if (!ok && isQuotaExceededError(lastStorageError)) {
+    hadQuotaError = true;
     const liteList = buildMaintenanceLiteList(compacted.list);
     ok = writeJson(storageKey, liteList);
     if (ok) {
       storageList = liteList;
       if (maintenanceStorageMode !== "lite") {
-        maintenanceStorageMode = "lite";
+        setMaintenanceStorageMode("lite");
         showAuthToast("Cache local cheio. Modo compacto ativado.");
+        forceSync = true;
       }
     }
   }
@@ -10660,14 +10726,19 @@ function salvarManutencoes(lista, options = {}) {
     ok = writeJson(storageKey, storageList);
   }
   if (!ok && isQuotaExceededError(lastStorageError)) {
-    maintenanceStorageMode = "disabled";
+    hadQuotaError = true;
+    setMaintenanceStorageMode("disabled");
+    forceSync = true;
     warnStorageQuota(storageKey);
+  }
+  if (attemptedWrite && ok) {
+    maintenanceDirtyPersistFailed = false;
   }
   if (!options.skipDirty && dirtyIds.length) {
     markMaintenanceDirtyIds(dirtyIds);
   }
   if (!options.skipSync) {
-    scheduleMaintenanceSync(lista);
+    scheduleMaintenanceSync(lista, forceSync || hadQuotaError);
   }
 }
 
