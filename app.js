@@ -2233,6 +2233,14 @@ const ACCESS_ROLE_ITEMS = [
     editKeys: ["editarPerfilOutros"],
   },
   {
+    key: "admin_cache_local",
+    module: "Administracao",
+    label: "Limpar cache local",
+    description: "Permite limpar o cache local neste dispositivo.",
+    viewKeys: ["limparCacheLocal"],
+    editKeys: [],
+  },
+  {
     key: "cargos",
     module: "Cargos",
     label: "Cargos",
