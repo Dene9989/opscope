@@ -10112,6 +10112,12 @@ textarea:focus {
   border-color: rgba(239, 68, 68, 0.6);
 }
 
+.app .status--escalado {
+  background: rgba(249, 115, 22, 0.28);
+  color: #ffedd5;
+  border-color: rgba(249, 115, 22, 0.65);
+}
+
 .app .status--em_execucao {
   background: rgba(45, 212, 191, 0.22);
   color: #d7fff7;
@@ -10275,6 +10281,12 @@ textarea:focus {
   background: #5a1e18;
   color: #ffe3dd;
   border-color: #7a2b1e;
+}
+
+.status--escalado {
+  background: rgba(249, 115, 22, 0.18);
+  color: #8a3d12;
+  border-color: rgba(249, 115, 22, 0.45);
 }
 
 .status--em_execucao {

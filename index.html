@@ -5392,9 +5392,16 @@
               <option value="Condicao climatica">Condição climática</option>
               <option value="Indisponibilidade operacional">Indisponibilidade operacional</option>
               <option value="Falta de equipe ou recurso">Falta de equipe ou recurso</option>
+              <option value="Falta de material ou peca">Falta de material ou peça</option>
+              <option value="Acesso indisponivel / permissao de entrada">Acesso indisponível / permissão de entrada</option>
+              <option value="Equipamento indisponivel">Equipamento indisponível</option>
+              <option value="Seguranca / risco operacional">Segurança / risco operacional</option>
               <option value="Conflito com outra atividade">Conflito com outra atividade</option>
               <option value="Solicitacao operacional / COS">Solicitação operacional / COS</option>
               <option value="Aguardando liberacao">Aguardando liberação</option>
+              <option value="Aguardando documentacao">Aguardando documentação</option>
+              <option value="Dependencia de fornecedor">Dependência de fornecedor</option>
+              <option value="Prioridade alterada pela gestao">Prioridade alterada pela gestão</option>
               <option value="Outros">Outros</option>
             </select>
           </div>
@@ -5428,18 +5435,56 @@
             <label for="backlogMotivoSelect">Motivo</label>
             <select id="backlogMotivoSelect" required>
               <option value="">Selecione</option>
-              <option value="Condicao climatica">Condicao climatica</option>
+              <option value="Condicao climatica">Condição climática</option>
               <option value="Indisponibilidade operacional">Indisponibilidade operacional</option>
               <option value="Falta de equipe ou recurso">Falta de equipe ou recurso</option>
+              <option value="Falta de material ou peca">Falta de material ou peça</option>
+              <option value="Acesso indisponivel / permissao de entrada">Acesso indisponível / permissão de entrada</option>
+              <option value="Equipamento indisponivel">Equipamento indisponível</option>
+              <option value="Seguranca / risco operacional">Segurança / risco operacional</option>
               <option value="Conflito com outra atividade">Conflito com outra atividade</option>
               <option value="Solicitacao operacional / COS">Solicitação operacional / COS</option>
               <option value="Aguardando liberacao">Aguardando liberação</option>
+              <option value="Aguardando documentacao">Aguardando documentação</option>
+              <option value="Dependencia de fornecedor">Dependência de fornecedor</option>
+              <option value="Prioridade alterada pela gestao">Prioridade alterada pela gestão</option>
               <option value="Outros">Outros</option>
             </select>
           </div>
           <div class="field" data-full>
             <label for="backlogMotivoObs">Observação complementar</label>
             <textarea id="backlogMotivoObs" rows="3" placeholder="Detalhes adicionais"></textarea>
+            <p class="hint">Obrigatorio quando o motivo for Outros.</p>
+          </div>
+          <div class="field">
+            <label for="backlogReplanValid">Replanejamento válido?</label>
+            <select id="backlogReplanValid" required>
+              <option value="">Selecione</option>
+              <option value="sim">Sim, replanejar</option>
+              <option value="nao">Não é possível agora</option>
+            </select>
+          </div>
+          <div class="field" data-full id="backlogReplanDataField" hidden>
+            <label for="backlogReplanData">Nova data obrigatória</label>
+            <input id="backlogReplanData" type="date" />
+            <p class="hint">Ao informar a nova data, a manutenção sai do backlog.</p>
+          </div>
+          <div class="field" data-full id="backlogReplanMotivoField" hidden>
+            <label for="backlogReplanMotivo">Motivo do não replanejamento</label>
+            <select id="backlogReplanMotivo">
+              <option value="">Selecione</option>
+              <option value="Aguardando autorizacao / janela">Aguardando autorização / janela</option>
+              <option value="Aguardando orcamento / aprovacao">Aguardando orçamento / aprovação</option>
+              <option value="Aguardando peca critica">Aguardando peça crítica</option>
+              <option value="Dependencia externa">Dependência externa</option>
+              <option value="Contrato suspenso">Contrato suspenso</option>
+              <option value="Sem previsao operacional">Sem previsão operacional</option>
+              <option value="Outros">Outros</option>
+            </select>
+          </div>
+          <div class="field" data-full id="backlogReplanObsField" hidden>
+            <label for="backlogReplanObs">Observação do não replanejamento</label>
+            <textarea id="backlogReplanObs" rows="3" placeholder="Detalhes adicionais"></textarea>
             <p class="hint">Obrigatorio quando o motivo for Outros.</p>
           </div>
         </div>

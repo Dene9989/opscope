@@ -1075,6 +1075,13 @@ const formBacklogMotivo = document.getElementById("formBacklogMotivo");
 const backlogMotivoId = document.getElementById("backlogMotivoId");
 const backlogMotivoSelect = document.getElementById("backlogMotivoSelect");
 const backlogMotivoObs = document.getElementById("backlogMotivoObs");
+const backlogReplanValid = document.getElementById("backlogReplanValid");
+const backlogReplanDataField = document.getElementById("backlogReplanDataField");
+const backlogReplanData = document.getElementById("backlogReplanData");
+const backlogReplanMotivoField = document.getElementById("backlogReplanMotivoField");
+const backlogReplanMotivo = document.getElementById("backlogReplanMotivo");
+const backlogReplanObsField = document.getElementById("backlogReplanObsField");
+const backlogReplanObs = document.getElementById("backlogReplanObs");
 const mensagemBacklogMotivo = document.getElementById("mensagemBacklogMotivo");
 const btnFecharBacklogMotivo = document.getElementById("btnFecharBacklogMotivo");
 const btnCancelarBacklogMotivo = document.getElementById("btnCancelarBacklogMotivo");
@@ -1245,6 +1252,7 @@ const PASSWORD_RESET_RESEND_SECONDS = 60;
 const ACCESS_STORAGE_READONLY_MESSAGE =
   "Armazenamento indisponivel. O sistema esta em modo somente leitura para evitar perda de dados.";
 const MAX_REAGENDAMENTOS = 3;
+const BACKLOG_ESCALATION_DAYS = 7;
 const OUTROS_ALERT_THRESHOLD = 3;
 const MIN_EVIDENCIAS = 2;
 const MIN_DESCRICAO_BREVE = 60;
@@ -4954,6 +4962,21 @@ function buildMaintenanceLiteItem(item) {
     projectId: item.projectId || "",
     templateId: item.templateId || "",
   };
+  if (item.backlogMotivo && typeof item.backlogMotivo === "object") {
+    lite.backlogMotivo = {
+      motivo: item.backlogMotivo.motivo || "",
+      observacao: item.backlogMotivo.observacao || "",
+      registradoEm: item.backlogMotivo.registradoEm || "",
+      registradoPor: item.backlogMotivo.registradoPor || "",
+      replanejamentoValido:
+        typeof item.backlogMotivo.replanejamentoValido === "boolean"
+          ? item.backlogMotivo.replanejamentoValido
+          : null,
+      replanejamentoData: item.backlogMotivo.replanejamentoData || "",
+      replanejamentoMotivo: item.backlogMotivo.replanejamentoMotivo || "",
+      replanejamentoObs: item.backlogMotivo.replanejamentoObs || "",
+    };
+  }
   if (item.registroExecucao && typeof item.registroExecucao === "object") {
     const registro = item.registroExecucao;
     lite.registroExecucao = {
@@ -12982,6 +13005,7 @@ function getMaintenanceItemFingerprint(item) {
   const liberacao = item.liberacao || {};
   const registro = item.registroExecucao || {};
   const conclusao = item.conclusao || {};
+  const backlogMotivo = item.backlogMotivo || {};
   const execMark =
     item.execucaoRegistradaEm || item.executionRegisteredAt || item.execucaoRegistradaAt || "";
   return [
@@ -13000,6 +13024,17 @@ function getMaintenanceItemFingerprint(item) {
     Boolean(item.registroExecucao),
     Boolean(item.conclusao),
     Boolean(item.liberacao),
+    backlogMotivo.motivo || "",
+    backlogMotivo.observacao || "",
+    backlogMotivo.registradoEm || "",
+    backlogMotivo.replanejamentoValido === true
+      ? "replan_yes"
+      : backlogMotivo.replanejamentoValido === false
+        ? "replan_no"
+        : "replan_none",
+    backlogMotivo.replanejamentoData || "",
+    backlogMotivo.replanejamentoMotivo || "",
+    backlogMotivo.replanejamentoObs || "",
   ].join("|");
 }
 
@@ -16536,11 +16571,14 @@ function criarBotaoAcao(texto, acao, perigo = false) {
 function criarCardManutencao(item, permissoes, options = {}) {
   const data = parseDate(item.data);
   const hoje = startOfDay(new Date());
+  const statusNormalized = normalizeMaintenanceStatus(item.status);
   const diff = data ? diffInDays(hoje, data) : null;
+  const backlogDias = statusNormalized === "backlog" && diff !== null ? Math.abs(diff) : 0;
+  const backlogEscalated =
+    statusNormalized === "backlog" && backlogDias >= BACKLOG_ESCALATION_DAYS;
   const liberacao = getLiberacao(item);
   const lockInfo = getReleaseLockInfo(item, data, hoje);
   const state = getMaintenanceState(item, data, hoje);
-  const statusNormalized = normalizeMaintenanceStatus(item.status);
 
   const card = document.createElement("article");
   card.className = `manutencao-item status-${statusNormalized} state-${state}`;
@@ -16658,6 +16696,35 @@ function criarCardManutencao(item, permissoes, options = {}) {
     obs.textContent = `Obs.: ${item.backlogMotivo.observacao}`;
     info.append(obs);
   }
+  if (statusNormalized === "backlog" && item.backlogMotivo) {
+    if (
+      item.backlogMotivo.replanejamentoValido &&
+      item.backlogMotivo.replanejamentoData
+    ) {
+      const replan = document.createElement("p");
+      replan.className = "submeta";
+      const dataReplan = parseDate(item.backlogMotivo.replanejamentoData);
+      replan.textContent = `Replanejamento: ${dataReplan ? formatDate(dataReplan) : "-"}`;
+      info.append(replan);
+    } else if (
+      item.backlogMotivo.replanejamentoValido === false &&
+      item.backlogMotivo.replanejamentoMotivo
+    ) {
+      const replan = document.createElement("p");
+      replan.className = "submeta";
+      replan.textContent = `Replanejamento não válido: ${item.backlogMotivo.replanejamentoMotivo}`;
+      info.append(replan);
+    }
+    if (
+      item.backlogMotivo.replanejamentoValido === false &&
+      item.backlogMotivo.replanejamentoObs
+    ) {
+      const replanObs = document.createElement("p");
+      replanObs.className = "submeta";
+      replanObs.textContent = `Obs. replanejamento: ${item.backlogMotivo.replanejamentoObs}`;
+      info.append(replanObs);
+    }
+  }
 
   const ultimoReagendamento = getUltimoReagendamento(item);
   if (ultimoReagendamento && ultimoReagendamento.detalhes && ultimoReagendamento.detalhes.motivo) {
@@ -16736,6 +16803,12 @@ function criarCardManutencao(item, permissoes, options = {}) {
     execBadge.className = "status status--execucao-registrada";
     execBadge.textContent = "Execução registrada";
     statusGroup.append(execBadge);
+  }
+  if (backlogEscalated) {
+    const escaladoBadge = document.createElement("span");
+    escaladoBadge.className = "status status--escalado";
+    escaladoBadge.textContent = `Escalado ${BACKLOG_ESCALATION_DAYS}d+`;
+    statusGroup.append(escaladoBadge);
   }
   if (
     statusNormalized !== "concluida" &&
@@ -39852,6 +39925,34 @@ function registrarMotivoBacklog(index) {
   abrirBacklogMotivo(item);
 }
 
+function updateBacklogReplanFields() {
+  if (!backlogReplanValid) {
+    return;
+  }
+  const value = backlogReplanValid.value.trim();
+  const isYes = value === "sim";
+  const hasChoice = value === "sim" || value === "nao";
+  if (backlogReplanDataField) {
+    backlogReplanDataField.hidden = !hasChoice || !isYes;
+  }
+  if (backlogReplanMotivoField) {
+    backlogReplanMotivoField.hidden = !hasChoice || isYes;
+  }
+  if (backlogReplanObsField) {
+    backlogReplanObsField.hidden = !hasChoice || isYes;
+  }
+  if (backlogReplanData) {
+    backlogReplanData.required = hasChoice && isYes;
+  }
+  if (backlogReplanMotivo) {
+    backlogReplanMotivo.required = hasChoice && !isYes;
+    backlogReplanMotivo.disabled = !hasChoice || isYes;
+  }
+  if (backlogReplanObs) {
+    backlogReplanObs.disabled = !hasChoice || isYes;
+  }
+}
+
 function abrirBacklogMotivo(item) {
   if (!modalBacklogMotivo || !formBacklogMotivo) {
     return;
@@ -39869,6 +39970,34 @@ function abrirBacklogMotivo(item) {
     backlogMotivoObs.value =
       item.backlogMotivo && item.backlogMotivo.observacao ? item.backlogMotivo.observacao : "";
   }
+  if (backlogReplanValid) {
+    if (item.backlogMotivo && item.backlogMotivo.replanejamentoValido === true) {
+      backlogReplanValid.value = "sim";
+    } else if (item.backlogMotivo && item.backlogMotivo.replanejamentoValido === false) {
+      backlogReplanValid.value = "nao";
+    } else {
+      backlogReplanValid.value = "";
+    }
+  }
+  if (backlogReplanData) {
+    backlogReplanData.value =
+      item.backlogMotivo && item.backlogMotivo.replanejamentoData
+        ? item.backlogMotivo.replanejamentoData
+        : "";
+  }
+  if (backlogReplanMotivo) {
+    backlogReplanMotivo.value =
+      item.backlogMotivo && item.backlogMotivo.replanejamentoMotivo
+        ? item.backlogMotivo.replanejamentoMotivo
+        : "";
+  }
+  if (backlogReplanObs) {
+    backlogReplanObs.value =
+      item.backlogMotivo && item.backlogMotivo.replanejamentoObs
+        ? item.backlogMotivo.replanejamentoObs
+        : "";
+  }
+  updateBacklogReplanFields();
   modalBacklogMotivo.hidden = false;
 }
 
@@ -39909,16 +40038,76 @@ function salvarBacklogMotivo(event) {
     mostrarMensagemBacklogMotivo("Informe a observação para o motivo Outros.", true);
     return;
   }
+  const replanValue = backlogReplanValid ? backlogReplanValid.value.trim() : "";
+  if (!replanValue) {
+    mostrarMensagemBacklogMotivo("Informe se o replanejamento é válido.", true);
+    return;
+  }
+  const replanejamentoValido = replanValue === "sim";
+  let replanejamentoData = "";
+  let replanejamentoMotivo = "";
+  let replanejamentoObs = "";
+  if (replanejamentoValido) {
+    replanejamentoData = backlogReplanData ? backlogReplanData.value : "";
+    if (!replanejamentoData) {
+      mostrarMensagemBacklogMotivo("Informe a nova data para replanejamento.", true);
+      return;
+    }
+    if (!parseDate(replanejamentoData)) {
+      mostrarMensagemBacklogMotivo("Data de replanejamento inválida.", true);
+      return;
+    }
+  } else {
+    replanejamentoMotivo = backlogReplanMotivo ? backlogReplanMotivo.value.trim() : "";
+    if (!replanejamentoMotivo) {
+      mostrarMensagemBacklogMotivo("Selecione o motivo do não replanejamento.", true);
+      return;
+    }
+    replanejamentoObs = backlogReplanObs ? backlogReplanObs.value.trim() : "";
+    if (replanejamentoMotivo === "Outros" && !replanejamentoObs) {
+      mostrarMensagemBacklogMotivo(
+        "Informe a observação para o motivo Outros.",
+        true
+      );
+      return;
+    }
+  }
 
   const registro = {
     motivo,
     observacao,
     registradoEm: toIsoUtc(new Date()),
     registradoPor: currentUser ? currentUser.id : SYSTEM_USER_ID,
+    replanejamentoValido,
+    replanejamentoData,
+    replanejamentoMotivo,
+    replanejamentoObs,
   };
+  let proximaData = item.data || "";
+  let proximoPrazo = item.prazo || "";
+  let proximoDue = item.dueDate || "";
+  let proximoStatus = item.status;
+  if (replanejamentoValido && replanejamentoData) {
+    proximaData = replanejamentoData;
+    proximoPrazo = replanejamentoData;
+    proximoDue = replanejamentoData;
+    const dataNova = parseDate(replanejamentoData);
+    const hoje = startOfDay(new Date());
+    if (dataNova && dataNova < hoje) {
+      proximoStatus = "backlog";
+    } else if (isLiberacaoOk(item)) {
+      proximoStatus = "liberada";
+    } else {
+      proximoStatus = "agendada";
+    }
+  }
   const atualizado = {
     ...item,
     backlogMotivo: registro,
+    data: proximaData,
+    prazo: proximoPrazo,
+    dueDate: proximoDue,
+    status: proximoStatus,
     updatedAt: toIsoUtc(new Date()),
     updatedBy: currentUser ? currentUser.id : SYSTEM_USER_ID,
   };
@@ -39930,7 +40119,15 @@ function salvarBacklogMotivo(event) {
   logAction("backlog_reason", atualizado, {
     motivo,
     observacao,
-    resumo: "Motivo registrado.",
+    replanejamentoValido,
+    replanejamentoData,
+    replanejamentoMotivo,
+    replanejamentoObs,
+    resumo: replanejamentoValido
+      ? `Motivo registrado e replanejada para ${formatDate(
+          parseDate(replanejamentoData)
+        )}.`
+      : "Motivo registrado.",
   });
   renderTudo();
   fecharBacklogMotivo();
@@ -46200,6 +46397,17 @@ if (btnCancelarBacklogMotivo) {
 }
 if (backlogMotivoSelect) {
   backlogMotivoSelect.addEventListener("change", () => {
+    mostrarMensagemBacklogMotivo("");
+  });
+}
+if (backlogReplanValid) {
+  backlogReplanValid.addEventListener("change", () => {
+    updateBacklogReplanFields();
+    mostrarMensagemBacklogMotivo("");
+  });
+}
+if (backlogReplanMotivo) {
+  backlogReplanMotivo.addEventListener("change", () => {
     mostrarMensagemBacklogMotivo("");
   });
 }
