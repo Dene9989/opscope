@@ -356,6 +356,7 @@ const PERMISSION_KEYS = [
   "admin:users:read",
   "admin:users:write",
 ];
+const LEGACY_PERMISSION_KEYS = new Set(PERMISSION_KEYS);
 const FULL_PERMISSIONS = PERMISSION_KEYS.reduce((acc, key) => {
   acc[key] = true;
   return acc;
@@ -6495,10 +6496,9 @@ function requirePermission(permissionKey) {
     if (isMasterUser(user)) {
       return next();
     }
-    const isLegacy = String(permissionKey || "").startsWith("admin:");
-    const allowed = isLegacy
-      ? hasPermission(user, permissionKey)
-      : hasGranularPermission(user, permissionKey);
+    const key = String(permissionKey || "");
+    const isLegacy = key.startsWith("admin:") || LEGACY_PERMISSION_KEYS.has(key);
+    const allowed = isLegacy ? hasPermission(user, key) : hasGranularPermission(user, key);
     if (!allowed) {
       return res.status(403).json({ message: "Nao autorizado." });
     }
