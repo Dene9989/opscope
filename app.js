@@ -14142,10 +14142,10 @@ function getMaintenanceState(item, data, hoje) {
   if (hasExecucaoRegistradaCompleta(item)) {
     return "awaiting";
   }
-  if (data && data.getTime() === hoje.getTime()) {
+  if (status === "liberada" || isLiberacaoOk(item)) {
     return "released";
   }
-  if (data && data < hoje) {
+  if (status === "backlog" || (data && data < hoje)) {
     return "overdue";
   }
   return "planned";
