@@ -4485,6 +4485,7 @@ let maintenanceSyncFailed = false;
 let maintenanceLastUserId = null;
 let maintenanceLastFetch = 0;
 let maintenancePendingSync = false;
+let maintenanceStorageMode = "full";
 const maintenanceLoadedProjects = new Set();
 const maintenanceRenderHashes = new Map();
 const templatesRenderHashes = new Map();
@@ -4794,6 +4795,142 @@ function compactEvidencias(list) {
       })
     : list;
   return { list: output, changed };
+}
+
+function stripDataUrlField(entry) {
+  if (!entry || typeof entry !== "object") {
+    return entry;
+  }
+  if (!("dataUrl" in entry) && !("dataURL" in entry)) {
+    return entry;
+  }
+  const clone = { ...entry };
+  delete clone.dataUrl;
+  delete clone.dataURL;
+  return clone;
+}
+
+function stripEvidenceDataUrls(list) {
+  if (!Array.isArray(list)) {
+    return list;
+  }
+  return list.map((entry) => stripDataUrlField(entry));
+}
+
+function sanitizeDocsForStorage(documentos) {
+  if (!documentos || typeof documentos !== "object") {
+    return documentos;
+  }
+  const output = {};
+  Object.keys(documentos).forEach((key) => {
+    const doc = documentos[key];
+    if (!doc || typeof doc !== "object") {
+      output[key] = doc;
+      return;
+    }
+    output[key] = stripDataUrlField(doc);
+  });
+  return output;
+}
+
+function stripMaintenanceDataUrls(item) {
+  if (!item || typeof item !== "object") {
+    return item;
+  }
+  const updated = { ...item };
+  if (Array.isArray(updated.evidencias)) {
+    updated.evidencias = stripEvidenceDataUrls(updated.evidencias);
+  }
+  if (updated.registroExecucao && typeof updated.registroExecucao === "object") {
+    const registro = { ...updated.registroExecucao };
+    if (Array.isArray(registro.evidencias)) {
+      registro.evidencias = stripEvidenceDataUrls(registro.evidencias);
+    }
+    updated.registroExecucao = registro;
+  }
+  if (updated.conclusao && typeof updated.conclusao === "object") {
+    const conclusao = { ...updated.conclusao };
+    if (Array.isArray(conclusao.evidencias)) {
+      conclusao.evidencias = stripEvidenceDataUrls(conclusao.evidencias);
+    }
+    updated.conclusao = conclusao;
+  }
+  if (updated.liberacao && typeof updated.liberacao === "object") {
+    const liberacao = { ...updated.liberacao };
+    if (liberacao.documentos) {
+      liberacao.documentos = sanitizeDocsForStorage(liberacao.documentos);
+    }
+    updated.liberacao = liberacao;
+  }
+  if (updated.documentos) {
+    updated.documentos = sanitizeDocsForStorage(updated.documentos);
+  }
+  if (Array.isArray(updated.anexos)) {
+    updated.anexos = stripEvidenceDataUrls(updated.anexos);
+  }
+  if (Array.isArray(updated.arquivos)) {
+    updated.arquivos = stripEvidenceDataUrls(updated.arquivos);
+  }
+  return updated;
+}
+
+function buildMaintenanceLiteItem(item) {
+  if (!item || typeof item !== "object") {
+    return item;
+  }
+  const lite = {
+    id: item.id,
+    status: item.status,
+    titulo: item.titulo || item.nome || item.atividade || "",
+    local: item.local || item.subestacao || "",
+    subestacao: item.subestacao || "",
+    equipamento: item.equipamento || "",
+    equipamentoId: item.equipamentoId || "",
+    data: item.data || "",
+    prazo: item.prazo || "",
+    dueDate: item.dueDate || "",
+    criticidade: item.criticidade || "",
+    prioridade: item.prioridade || "",
+    categoria: item.categoria || "",
+    responsavel: item.responsavel || "",
+    createdAt: item.createdAt || "",
+    updatedAt: item.updatedAt || "",
+    doneAt: item.doneAt || "",
+    doneBy: item.doneBy || "",
+    executionStartedAt: item.executionStartedAt || "",
+    executionFinishedAt: item.executionFinishedAt || "",
+    projectId: item.projectId || "",
+    templateId: item.templateId || "",
+  };
+  if (item.registroExecucao && typeof item.registroExecucao === "object") {
+    const registro = item.registroExecucao;
+    lite.registroExecucao = {
+      executadoPor: registro.executadoPor || registro.executedBy || "",
+      comentario: registro.comentario || registro.descricao || registro.resumo || "",
+      resultado: registro.resultado || registro.status || "",
+      registradoEm:
+        registro.registradoEm || registro.registrado_em || registro.executadoEm || registro.executedAt || "",
+    };
+  }
+  if (item.conclusao && typeof item.conclusao === "object") {
+    const conclusao = item.conclusao;
+    lite.conclusao = {
+      inicio: conclusao.inicio || "",
+      fim: conclusao.fim || "",
+      duracaoMin: conclusao.duracaoMin || null,
+      resultado: conclusao.resultado || "",
+      referencia: conclusao.referencia || "",
+      osNumero: conclusao.osNumero || "",
+    };
+  }
+  return lite;
+}
+
+function buildMaintenanceLiteList(list) {
+  if (!Array.isArray(list)) {
+    return list;
+  }
+  return list.map((item) => buildMaintenanceLiteItem(item));
 }
 
 function getBuildId() {
@@ -10477,11 +10614,33 @@ function salvarManutencoes(lista, options = {}) {
     });
   }
   const compacted = compactEvidencias(sanitized);
-  let ok = writeJson(storageKey, compacted.list);
+  let storageList = compacted.list;
+  if (maintenanceStorageMode === "lite") {
+    storageList = buildMaintenanceLiteList(storageList);
+  }
+  let ok = maintenanceStorageMode === "disabled" ? true : writeJson(storageKey, storageList);
   if (!ok && isQuotaExceededError(lastStorageError)) {
     const cleaned = cleanupStorageForQuota(storageKey);
     if (cleaned) {
-      ok = writeJson(storageKey, compacted.list);
+      ok = writeJson(storageKey, storageList);
+    }
+  }
+  if (!ok && isQuotaExceededError(lastStorageError)) {
+    const stripped = compacted.list.map((item) => stripMaintenanceDataUrls(item));
+    ok = writeJson(storageKey, stripped);
+    if (ok) {
+      storageList = stripped;
+    }
+  }
+  if (!ok && isQuotaExceededError(lastStorageError)) {
+    const liteList = buildMaintenanceLiteList(compacted.list);
+    ok = writeJson(storageKey, liteList);
+    if (ok) {
+      storageList = liteList;
+      if (maintenanceStorageMode !== "lite") {
+        maintenanceStorageMode = "lite";
+        showAuthToast("Cache local cheio. Modo compacto ativado.");
+      }
     }
   }
   if (!ok) {
@@ -10490,9 +10649,10 @@ function salvarManutencoes(lista, options = {}) {
     } catch (error) {
       // noop
     }
-    ok = writeJson(storageKey, compacted.list);
+    ok = writeJson(storageKey, storageList);
   }
   if (!ok && isQuotaExceededError(lastStorageError)) {
+    maintenanceStorageMode = "disabled";
     warnStorageQuota(storageKey);
   }
   if (!options.skipDirty && dirtyIds.length) {
