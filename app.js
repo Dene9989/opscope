@@ -4440,8 +4440,6 @@ let bootInProgress = false;
 let loadingOverlayHideTimer = null;
 let loadingOverlayShownAt = 0;
 let loadingMessageTimer = null;
-let bootMessageTimer = null;
-let bootMessageIndex = 0;
 let historicoAtualId = null;
 let historicoLimite = HISTORY_PAGE_SIZE;
 let manutencaoEmLiberacao = null;
@@ -9411,15 +9409,7 @@ const DEFAULT_LOADING_TITLE = "Processando...";
 const DEFAULT_LOADING_DETAIL = "";
 const OVERLAY_FADE_MS = 250;
 const OVERLAY_MIN_MS = 650;
-const BOOT_MESSAGE_INTERVAL_MS = 2000;
-const BOOT_MESSAGES = [
-  { title: "Inicializando OPSCOPE...", detail: "Carregando módulos essenciais." },
-  { title: "Sincronizando dados...", detail: "Projetos, anúncios e feedbacks." },
-  { title: "Verificando compatibilidade...", detail: "Ajustando versões dos dados." },
-  { title: "Carregando manutenções...", detail: "Preparando sua programação." },
-  { title: "Otimizando desempenho...", detail: "Quase tudo pronto." },
-  { title: "Finalizando...", detail: "Abrindo painel inicial." },
-];
+const BOOT_STEP_MIN_MS = 2000;
 
 function setLoadingOverlayMessage(title = DEFAULT_LOADING_TITLE, detail = DEFAULT_LOADING_DETAIL) {
   const nextTitle = title || "";
@@ -9456,53 +9446,53 @@ function resetLoadingOverlayMessage() {
   setLoadingOverlayMessage(DEFAULT_LOADING_TITLE, DEFAULT_LOADING_DETAIL);
 }
 
-function applyBootMessage(index) {
-  if (!BOOT_MESSAGES.length) {
-    return;
-  }
-  const safeIndex = ((index % BOOT_MESSAGES.length) + BOOT_MESSAGES.length) % BOOT_MESSAGES.length;
-  const message = BOOT_MESSAGES[safeIndex];
-  setLoadingOverlayMessage(message.title, message.detail);
+function delay(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
 }
 
-function startBootMessageRotation() {
-  if (bootMessageTimer) {
-    return;
+async function runBootStep(title, detail = "", task) {
+  if (!bootInProgress) {
+    if (typeof task === "function") {
+      return await task();
+    }
+    return undefined;
   }
-  bootMessageIndex = 0;
-  applyBootMessage(bootMessageIndex);
-  bootMessageTimer = window.setInterval(() => {
-    bootMessageIndex = (bootMessageIndex + 1) % BOOT_MESSAGES.length;
-    applyBootMessage(bootMessageIndex);
-  }, BOOT_MESSAGE_INTERVAL_MS);
-}
-
-function stopBootMessageRotation() {
-  if (!bootMessageTimer) {
-    return;
+  setLoadingOverlayMessage(title, detail);
+  const startedAt = Date.now();
+  let result;
+  let error;
+  try {
+    if (typeof task === "function") {
+      result = await task();
+    }
+  } catch (err) {
+    error = err;
   }
-  window.clearInterval(bootMessageTimer);
-  bootMessageTimer = null;
+  const elapsed = Date.now() - startedAt;
+  const remaining = BOOT_STEP_MIN_MS - elapsed;
+  if (remaining > 0) {
+    await delay(remaining);
+  }
+  if (error) {
+    throw error;
+  }
+  return result;
 }
 
 function startBootOverlay() {
   bootInProgress = true;
-  mostrarCarregando();
-  startBootMessageRotation();
+  mostrarCarregando({
+    title: "Inicializando OPSCOPE...",
+    detail: "Preparando sincronização inicial.",
+  });
 }
 
 function finishBootOverlay() {
   bootInProgress = false;
-  stopBootMessageRotation();
   resetLoadingOverlayMessage();
   esconderCarregando();
-}
-
-function setBootStep(title, detail = "") {
-  if (!bootInProgress) {
-    return;
-  }
-  setLoadingOverlayMessage(title, detail);
 }
 
 function mostrarCarregando() {
@@ -10890,7 +10880,11 @@ async function carregarSessaoServidor() {
           data.activeProjectId ||
           (validStored ? storedProjectId : availableProjects[0]?.id || "");
         if (resolvedProjectId) {
-          await setActiveProjectId(resolvedProjectId, { sync: false, force: true });
+          await runBootStep(
+            "Carregando projeto ativo...",
+            "Sincronizando equipes e manutenções.",
+            () => setActiveProjectId(resolvedProjectId, { sync: false, force: true })
+          );
         }
       } catch (error) {
         currentUser = null;
@@ -10919,48 +10913,68 @@ async function carregarSessaoServidor() {
         }
       }
     }
-    await carregarUsuariosServidor();
-    renderAuthUI();
-    if (currentUser) {
-      ativarTab("inicio", { updateUrl: false });
-    }
-    urlSyncReady = Boolean(currentUser);
-    if (currentUser) {
-      updateUrlForTab("inicio");
-    }
-    await refreshProjects();
-    await carregarAnuncios(true);
-    await carregarFeedbacks(true);
-    await carregarPmpDados();
-    await checkCompatState(true);
-    if (currentUser) {
-      maybeRunWeeklyStorageCleanup();
-      const activeTab = getActiveTabKey();
-      if (activeTab && activeTab.startsWith("almoxarifado")) {
-        await carregarAlmoxarifado(true);
+    await runBootStep(
+      "Carregando perfil e permissões...",
+      "Preparando acessos do time.",
+      async () => {
+        await carregarUsuariosServidor();
+        renderAuthUI();
       }
-      if (activeTab && activeTab.startsWith("sst")) {
-        await carregarSst(true);
+    );
+    await runBootStep(
+      "Sincronizando dados operacionais...",
+      "Projetos, comunicados e rotinas.",
+      async () => {
+        await refreshProjects();
+        await carregarAnuncios(true);
+        await carregarFeedbacks(true);
+        await carregarPmpDados();
       }
-    }
-    if (!currentUser) {
-      renderProjectSelector();
-      renderProjectPanel();
-    }
-    if (USE_AUTH_API) {
-      await handleEmailVerification();
-    }
-    handleFocusFromUrl();
-    if (!currentUser) {
-      mostrarAuthPanel("login");
-    }
-    if (currentUser) {
-      startSyncEvents();
-      startSyncPolling();
-    } else {
-      stopSyncEvents();
-      stopSyncPolling();
-    }
+    );
+    await runBootStep(
+      "Verificando compatibilidade...",
+      "Checando versões e requisitos.",
+      async () => {
+        await checkCompatState(true);
+      }
+    );
+    await runBootStep(
+      "Abrindo painel inicial...",
+      "Finalizando sincronização.",
+      async () => {
+        if (currentUser) {
+          ativarTab("inicio", { updateUrl: false });
+          urlSyncReady = true;
+          updateUrlForTab("inicio");
+          maybeRunWeeklyStorageCleanup();
+          const activeTab = getActiveTabKey();
+          if (activeTab && activeTab.startsWith("almoxarifado")) {
+            await carregarAlmoxarifado(true);
+          }
+          if (activeTab && activeTab.startsWith("sst")) {
+            await carregarSst(true);
+          }
+        } else {
+          urlSyncReady = false;
+          renderProjectSelector();
+          renderProjectPanel();
+        }
+        if (USE_AUTH_API) {
+          await handleEmailVerification();
+        }
+        handleFocusFromUrl();
+        if (!currentUser) {
+          mostrarAuthPanel("login");
+        }
+        if (currentUser) {
+          startSyncEvents();
+          startSyncPolling();
+        } else {
+          stopSyncEvents();
+          stopSyncPolling();
+        }
+      }
+    );
   } finally {
     if (bootStarted) {
       finishBootOverlay();
