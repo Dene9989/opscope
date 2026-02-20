@@ -4440,6 +4440,8 @@ let bootInProgress = false;
 let loadingOverlayHideTimer = null;
 let loadingOverlayShownAt = 0;
 let loadingMessageTimer = null;
+let bootMessageTimer = null;
+let bootMessageIndex = 0;
 let historicoAtualId = null;
 let historicoLimite = HISTORY_PAGE_SIZE;
 let manutencaoEmLiberacao = null;
@@ -9174,6 +9176,10 @@ function mostrarAuthPanel(nome) {
     return;
   }
   atualizarTituloAuth(nome);
+  const url = new URL(window.location.href);
+  url.pathname = nome === "registro" ? "/registro" : "/login";
+  url.searchParams.delete("tab");
+  window.history.replaceState({ auth: nome }, "", url.toString());
   authPanels.hidden = false;
   if (authPanels.classList.contains("auth-panels--dual")) {
     if (authPanelLogin) {
@@ -9405,6 +9411,15 @@ const DEFAULT_LOADING_TITLE = "Processando...";
 const DEFAULT_LOADING_DETAIL = "";
 const OVERLAY_FADE_MS = 250;
 const OVERLAY_MIN_MS = 650;
+const BOOT_MESSAGE_INTERVAL_MS = 2000;
+const BOOT_MESSAGES = [
+  { title: "Inicializando OPSCOPE...", detail: "Carregando módulos essenciais." },
+  { title: "Sincronizando dados...", detail: "Projetos, anúncios e feedbacks." },
+  { title: "Verificando compatibilidade...", detail: "Ajustando versões dos dados." },
+  { title: "Carregando manutenções...", detail: "Preparando sua programação." },
+  { title: "Otimizando desempenho...", detail: "Quase tudo pronto." },
+  { title: "Finalizando...", detail: "Abrindo painel inicial." },
+];
 
 function setLoadingOverlayMessage(title = DEFAULT_LOADING_TITLE, detail = DEFAULT_LOADING_DETAIL) {
   const nextTitle = title || "";
@@ -9441,16 +9456,44 @@ function resetLoadingOverlayMessage() {
   setLoadingOverlayMessage(DEFAULT_LOADING_TITLE, DEFAULT_LOADING_DETAIL);
 }
 
+function applyBootMessage(index) {
+  if (!BOOT_MESSAGES.length) {
+    return;
+  }
+  const safeIndex = ((index % BOOT_MESSAGES.length) + BOOT_MESSAGES.length) % BOOT_MESSAGES.length;
+  const message = BOOT_MESSAGES[safeIndex];
+  setLoadingOverlayMessage(message.title, message.detail);
+}
+
+function startBootMessageRotation() {
+  if (bootMessageTimer) {
+    return;
+  }
+  bootMessageIndex = 0;
+  applyBootMessage(bootMessageIndex);
+  bootMessageTimer = window.setInterval(() => {
+    bootMessageIndex = (bootMessageIndex + 1) % BOOT_MESSAGES.length;
+    applyBootMessage(bootMessageIndex);
+  }, BOOT_MESSAGE_INTERVAL_MS);
+}
+
+function stopBootMessageRotation() {
+  if (!bootMessageTimer) {
+    return;
+  }
+  window.clearInterval(bootMessageTimer);
+  bootMessageTimer = null;
+}
+
 function startBootOverlay() {
   bootInProgress = true;
-  mostrarCarregando({
-    title: "Inicializando OPSCOPE...",
-    detail: "Sincronizando dados e verificando compatibilidade. Aguarde.",
-  });
+  mostrarCarregando();
+  startBootMessageRotation();
 }
 
 function finishBootOverlay() {
   bootInProgress = false;
+  stopBootMessageRotation();
   resetLoadingOverlayMessage();
   esconderCarregando();
 }
@@ -10847,7 +10890,6 @@ async function carregarSessaoServidor() {
           data.activeProjectId ||
           (validStored ? storedProjectId : availableProjects[0]?.id || "");
         if (resolvedProjectId) {
-          setBootStep("Inicializando OPSCOPE...", "Carregando projeto ativo.");
           await setActiveProjectId(resolvedProjectId, { sync: false, force: true });
         }
       } catch (error) {
@@ -10880,22 +10922,16 @@ async function carregarSessaoServidor() {
     await carregarUsuariosServidor();
     renderAuthUI();
     if (currentUser) {
-      applyTabFromUrl();
+      ativarTab("inicio", { updateUrl: false });
     }
     urlSyncReady = Boolean(currentUser);
     if (currentUser) {
-      updateUrlForTab(getActiveTabKey());
-    }
-    if (currentUser) {
-      setBootStep("Sincronizando dados...", "Projetos, anúncios e feedbacks.");
+      updateUrlForTab("inicio");
     }
     await refreshProjects();
     await carregarAnuncios(true);
     await carregarFeedbacks(true);
     await carregarPmpDados();
-    if (currentUser) {
-      setBootStep("Verificando compatibilidade...", "Ajustando versão dos dados.");
-    }
     await checkCompatState(true);
     if (currentUser) {
       maybeRunWeeklyStorageCleanup();
@@ -10927,7 +10963,6 @@ async function carregarSessaoServidor() {
     }
   } finally {
     if (bootStarted) {
-      setBootStep("Finalizando...", "Carregando painel inicial.");
       finishBootOverlay();
     }
   }
@@ -47643,7 +47678,11 @@ function applyProjectVehiclesQuery() {
 applyProjectVehiclesQuery();
 
 window.addEventListener("popstate", () => {
-  if (!currentUser || !urlSyncReady) {
+  if (!currentUser) {
+    mostrarAuthPanel("login");
+    return;
+  }
+  if (!urlSyncReady) {
     return;
   }
   const tab = resolveTabFromLocation();
