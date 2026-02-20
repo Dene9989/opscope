@@ -14072,9 +14072,31 @@ function atualizarResumo() {
     concluida: 0,
   };
 
+  const hoje = startOfDay(new Date());
   manutencoes.forEach((item) => {
+    if (!item) {
+      return;
+    }
     const status = normalizeMaintenanceStatus(item.status);
-    contagem[status] += 1;
+    if (status === "concluida" || status === "cancelada") {
+      contagem[status] += 1;
+      return;
+    }
+    if (status === "em_execucao" || status === "encerramento") {
+      contagem[status] += 1;
+      return;
+    }
+    const data = parseDate(item.data);
+    const state = getMaintenanceState(item, data, hoje);
+    if (state === "released") {
+      contagem.liberada += 1;
+      return;
+    }
+    if (state === "overdue") {
+      contagem.backlog += 1;
+      return;
+    }
+    contagem.agendada += 1;
   });
   const execucoesRegistradas = manutencoes.filter((item) => {
     if (!hasExecucaoRegistradaCompleta(item)) {
@@ -14142,7 +14164,11 @@ function getMaintenanceState(item, data, hoje) {
   if (hasExecucaoRegistradaCompleta(item)) {
     return "awaiting";
   }
-  if (status === "liberada" || isLiberacaoOk(item)) {
+  if (
+    status === "liberada" ||
+    isLiberacaoOk(item) ||
+    (data && data.getTime() === hoje.getTime())
+  ) {
     return "released";
   }
   if (status === "backlog" || (data && data < hoje)) {
