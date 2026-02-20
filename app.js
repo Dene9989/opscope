@@ -769,6 +769,7 @@ const relatorioGerencial = document.getElementById("relatorioGerencial");
 const mensagemGerencial = document.getElementById("mensagemGerencial");
 const btnLimparCacheLocal = document.getElementById("btnLimparCacheLocal");
 const cacheLocalInfo = document.getElementById("cacheLocalInfo");
+const cacheLocalSize = document.getElementById("cacheLocalSize");
 const healthSummary = document.getElementById("healthSummary");
 const healthTasks = document.getElementById("healthTasks");
 const healthIntegrity = document.getElementById("healthIntegrity");
@@ -3989,6 +3990,9 @@ function loadGerencialTab(tabId, force = false) {
     case "automacoes":
       carregarAutomacoes(true);
       break;
+    case "operacoes":
+      updateCacheLocalInfo();
+      break;
     case "geral":
       updateGerencialIndicators();
       break;
@@ -4609,6 +4613,18 @@ function isStorageKeyMatch(key, baseKey) {
   return key === baseKey || key.startsWith(`${baseKey}.`);
 }
 
+function isLocalMaintenanceCacheKey(key) {
+  return (
+    isStorageKeyMatch(key, STORAGE_KEY) ||
+    isStorageKeyMatch(key, MAINT_DIRTY_KEY) ||
+    isStorageKeyMatch(key, MAINT_TOMBSTONE_KEY)
+  );
+}
+
+function isLocalCacheKey(key) {
+  return isLocalMaintenanceCacheKey(key) || isStorageKeyMatch(key, RDO_KEY);
+}
+
 function removeStorageKeys(filterFn) {
   let removed = 0;
   const keys = listStorageKeys();
@@ -4629,11 +4645,7 @@ function clearLocalMaintenanceCache(options = {}) {
     if (keepActive && key === activeKey) {
       return false;
     }
-    return (
-      isStorageKeyMatch(key, STORAGE_KEY) ||
-      isStorageKeyMatch(key, MAINT_DIRTY_KEY) ||
-      isStorageKeyMatch(key, MAINT_TOMBSTONE_KEY)
-    );
+    return isLocalMaintenanceCacheKey(key);
   });
 }
 
@@ -4647,12 +4659,39 @@ function cleanupStorageForQuota(activeKey = "") {
   const removed = removeStorageKeys(
     (key) =>
       key !== activeKey &&
-      (isStorageKeyMatch(key, STORAGE_KEY) ||
-        isStorageKeyMatch(key, MAINT_DIRTY_KEY) ||
-        isStorageKeyMatch(key, MAINT_TOMBSTONE_KEY) ||
-        isStorageKeyMatch(key, RDO_KEY))
+      isLocalCacheKey(key)
   );
   return removed > 0;
+}
+
+function estimateCacheLocalBytes() {
+  let total = 0;
+  const keys = listStorageKeys();
+  keys.forEach((key) => {
+    if (!isLocalCacheKey(key)) {
+      return;
+    }
+    const value = localStorage.getItem(key) || "";
+    total += (key.length + value.length) * 2;
+  });
+  return total;
+}
+
+function formatCacheSize(bytes) {
+  const total = Number(bytes) || 0;
+  if (total <= 0) {
+    return "0 KB";
+  }
+  const kb = total / 1024;
+  if (kb < 1024) {
+    return `${kb.toFixed(kb < 10 ? 1 : 0)} KB`;
+  }
+  const mb = kb / 1024;
+  if (mb < 1024) {
+    return `${mb.toFixed(mb < 10 ? 1 : 0)} MB`;
+  }
+  const gb = mb / 1024;
+  return `${gb.toFixed(gb < 10 ? 1 : 0)} GB`;
 }
 
 function warnStorageQuota(key) {
@@ -37249,6 +37288,10 @@ function limparAuditoria() {
 }
 
 function updateCacheLocalInfo() {
+  if (cacheLocalSize) {
+    const bytes = estimateCacheLocalBytes();
+    cacheLocalSize.textContent = `Tamanho estimado: ${formatCacheSize(bytes)}`;
+  }
   if (!cacheLocalInfo) {
     return;
   }
