@@ -15957,6 +15957,7 @@ function openAnnouncementView(item) {
     return;
   }
   fecharPainelLembretes();
+  closeAnnouncementsReadModal();
   activeAnnouncementView = item;
   renderAnnouncementView(item);
   modalAnuncioView.hidden = false;
