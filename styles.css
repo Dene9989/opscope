@@ -1760,11 +1760,20 @@ body.is-visitor .notify.auth-only {
 }
 
 .loading-message {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   font-size: 0.95rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   color: #f4efe6;
   text-shadow: 0 6px 18px rgba(8, 12, 18, 0.45);
+}
+
+.loading-message span {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: rgba(244, 239, 230, 0.85);
 }
 
 .loading-dot {

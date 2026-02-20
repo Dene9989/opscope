@@ -607,6 +607,8 @@ const btnLembretes = document.getElementById("btnBell") || document.getElementBy
 const lembretesCount = document.getElementById("bellDot") || document.getElementById("lembretesCount");
 const painelLembretes = document.getElementById("painelLembretes");
 const loadingOverlay = document.getElementById("loadingOverlay");
+const loadingMessageTitle = document.getElementById("loadingMessageTitle");
+const loadingMessageDetail = document.getElementById("loadingMessageDetail");
 const sidebar = document.getElementById("sidebar");
 const btnToggleSidebar = document.querySelectorAll(
   "#btnSidebar, #btnSidebarToggle, #btnToggleSidebar, #btnMenu, #topbarMenuToggle, .header-toggle"
@@ -4433,6 +4435,7 @@ let adminPermissionCatalog = [];
 let reminderDays = DEFAULT_REMINDER_DAYS;
 let loadingTimeout = null;
 let urlSyncReady = false;
+let bootInProgress = false;
 let historicoAtualId = null;
 let historicoLimite = HISTORY_PAGE_SIZE;
 let manutencaoEmLiberacao = null;
@@ -9394,9 +9397,51 @@ function alternarUserMenu() {
   fecharUserMenu();
 }
 
+const DEFAULT_LOADING_TITLE = "Processando...";
+const DEFAULT_LOADING_DETAIL = "";
+
+function setLoadingOverlayMessage(title = DEFAULT_LOADING_TITLE, detail = DEFAULT_LOADING_DETAIL) {
+  if (loadingMessageTitle) {
+    loadingMessageTitle.textContent = title || "";
+    loadingMessageTitle.hidden = !title;
+  }
+  if (loadingMessageDetail) {
+    loadingMessageDetail.textContent = detail || "";
+    loadingMessageDetail.hidden = !detail;
+  }
+}
+
+function resetLoadingOverlayMessage() {
+  setLoadingOverlayMessage(DEFAULT_LOADING_TITLE, DEFAULT_LOADING_DETAIL);
+}
+
+function startBootOverlay() {
+  bootInProgress = true;
+  mostrarCarregando({
+    title: "Inicializando OPSCOPE...",
+    detail: "Sincronizando dados e verificando compatibilidade. Aguarde.",
+  });
+}
+
+function finishBootOverlay() {
+  bootInProgress = false;
+  resetLoadingOverlayMessage();
+  esconderCarregando();
+}
+
 function mostrarCarregando() {
   if (!loadingOverlay) {
     return;
+  }
+  const options = arguments.length ? arguments[0] : null;
+  if (typeof options === "string") {
+    setLoadingOverlayMessage(options, "");
+  } else if (options && typeof options === "object") {
+    const title = options.title || DEFAULT_LOADING_TITLE;
+    const detail = options.detail || "";
+    setLoadingOverlayMessage(title, detail);
+  } else {
+    resetLoadingOverlayMessage();
   }
   loadingOverlay.hidden = false;
   document.body.classList.add("is-loading");
@@ -10721,92 +10766,97 @@ async function setActiveProjectId(nextId, options = {}) {
 
 async function carregarSessaoServidor() {
   urlSyncReady = false;
-  if (!currentUser) {
-    mostrarAuthPanel("login");
-  }
-  if (USE_AUTH_API) {
-    try {
-      const data = await apiRequest("/api/auth/me");
-      currentUser = data.user || null;
-      availableProjects = Array.isArray(data.projects) ? data.projects : [];
-      if (currentUser) {
-        ensureMaintenanceCacheOwnership();
+  startBootOverlay();
+  try {
+    if (!currentUser) {
+      mostrarAuthPanel("login");
+    }
+    if (USE_AUTH_API) {
+      try {
+        const data = await apiRequest("/api/auth/me");
+        currentUser = data.user || null;
+        availableProjects = Array.isArray(data.projects) ? data.projects : [];
+        if (currentUser) {
+          ensureMaintenanceCacheOwnership();
+        }
+        const storedProjectId = localStorage.getItem(ACTIVE_PROJECT_KEY) || "";
+        const validStored = availableProjects.some((item) => item.id === storedProjectId);
+        const resolvedProjectId =
+          data.activeProjectId ||
+          (validStored ? storedProjectId : availableProjects[0]?.id || "");
+        if (resolvedProjectId) {
+          await setActiveProjectId(resolvedProjectId, { sync: false, force: true });
+        }
+      } catch (error) {
+        currentUser = null;
+        availableProjects = [];
+        activeProjectId = "";
       }
-      const storedProjectId = localStorage.getItem(ACTIVE_PROJECT_KEY) || "";
-      const validStored = availableProjects.some((item) => item.id === storedProjectId);
-      const resolvedProjectId =
-        data.activeProjectId ||
-        (validStored ? storedProjectId : availableProjects[0]?.id || "");
-      if (resolvedProjectId) {
-        await setActiveProjectId(resolvedProjectId, { sync: false, force: true });
-      }
-    } catch (error) {
+    } else {
       currentUser = null;
-      availableProjects = [];
       activeProjectId = "";
-    }
-  } else {
-    currentUser = null;
-    activeProjectId = "";
-    await dataProvider.roles.seedDefaultRolesIfEmpty();
-    try {
-      await ensureBootstrapAccessAccount();
-    } catch (error) {
-      // noop
-    }
-    await refreshAccessRoles();
-    const session = carregarSessao();
-    if (session && session.userId) {
-      const account = await dataProvider.authAdmin.getUser(session.userId);
-      if (account && normalizeAccessUserStatus(account.status, account.active) !== "INATIVO") {
-        const role = await resolveRoleFromDb(account);
-        currentUser = buildSessionUser(account, role);
-      } else {
-        salvarSessao(null);
+      await dataProvider.roles.seedDefaultRolesIfEmpty();
+      try {
+        await ensureBootstrapAccessAccount();
+      } catch (error) {
+        // noop
+      }
+      await refreshAccessRoles();
+      const session = carregarSessao();
+      if (session && session.userId) {
+        const account = await dataProvider.authAdmin.getUser(session.userId);
+        if (account && normalizeAccessUserStatus(account.status, account.active) !== "INATIVO") {
+          const role = await resolveRoleFromDb(account);
+          currentUser = buildSessionUser(account, role);
+        } else {
+          salvarSessao(null);
+        }
       }
     }
-  }
-  await carregarUsuariosServidor();
-  renderAuthUI();
-  if (currentUser) {
-    applyTabFromUrl();
-  }
-  urlSyncReady = Boolean(currentUser);
-  if (currentUser) {
-    updateUrlForTab(getActiveTabKey());
-  }
-  await refreshProjects();
-  await carregarAnuncios(true);
-  await carregarFeedbacks(true);
-  await carregarPmpDados();
-  await checkCompatState(true);
-  if (currentUser) {
-    maybeRunWeeklyStorageCleanup();
-    const activeTab = getActiveTabKey();
-    if (activeTab && activeTab.startsWith("almoxarifado")) {
-      await carregarAlmoxarifado(true);
+    await carregarUsuariosServidor();
+    renderAuthUI();
+    if (currentUser) {
+      applyTabFromUrl();
     }
-    if (activeTab && activeTab.startsWith("sst")) {
-      await carregarSst(true);
+    urlSyncReady = Boolean(currentUser);
+    if (currentUser) {
+      updateUrlForTab(getActiveTabKey());
     }
-  }
-  if (!currentUser) {
-    renderProjectSelector();
-    renderProjectPanel();
-  }
-  if (USE_AUTH_API) {
-    await handleEmailVerification();
-  }
-  handleFocusFromUrl();
-  if (!currentUser) {
-    mostrarAuthPanel("login");
-  }
-  if (currentUser) {
-    startSyncEvents();
-    startSyncPolling();
-  } else {
-    stopSyncEvents();
-    stopSyncPolling();
+    await refreshProjects();
+    await carregarAnuncios(true);
+    await carregarFeedbacks(true);
+    await carregarPmpDados();
+    await checkCompatState(true);
+    if (currentUser) {
+      maybeRunWeeklyStorageCleanup();
+      const activeTab = getActiveTabKey();
+      if (activeTab && activeTab.startsWith("almoxarifado")) {
+        await carregarAlmoxarifado(true);
+      }
+      if (activeTab && activeTab.startsWith("sst")) {
+        await carregarSst(true);
+      }
+    }
+    if (!currentUser) {
+      renderProjectSelector();
+      renderProjectPanel();
+    }
+    if (USE_AUTH_API) {
+      await handleEmailVerification();
+    }
+    handleFocusFromUrl();
+    if (!currentUser) {
+      mostrarAuthPanel("login");
+    }
+    if (currentUser) {
+      startSyncEvents();
+      startSyncPolling();
+    } else {
+      stopSyncEvents();
+      stopSyncPolling();
+    }
+  } finally {
+    finishBootOverlay();
   }
 }
 
@@ -37015,7 +37065,9 @@ function renderAuthUI() {
     clearProfileTargetUserId();
     fecharPainelLembretes();
     fecharUserMenu();
-    esconderCarregando();
+    if (!bootInProgress) {
+      esconderCarregando();
+    }
     dashboardSummary = null;
     dashboardError = "";
     dashboardLastFetch = 0;
