@@ -37938,108 +37938,113 @@ async function adicionarManutencao() {
     return;
   }
 
-  const documentos = {};
-  for (const chave of DOC_KEYS) {
-    const input = novaDocInputs.find((itemInput) => itemInput.dataset.novaDocInput === chave);
-    const file = input && input.files && input.files[0] ? input.files[0] : null;
-    if (file) {
-      try {
-        documentos[chave] = await uploadLiberacaoDoc(file, chave);
-      } catch (error) {
-        mostrarMensagemManutencao(
-          error && error.message ? error.message : "Não foi possível enviar o documento.",
-          true
-        );
-        return;
+  mostrarCarregando();
+  try {
+    const documentos = {};
+    for (const chave of DOC_KEYS) {
+      const input = novaDocInputs.find((itemInput) => itemInput.dataset.novaDocInput === chave);
+      const file = input && input.files && input.files[0] ? input.files[0] : null;
+      if (file) {
+        try {
+          documentos[chave] = await uploadLiberacaoDoc(file, chave);
+        } catch (error) {
+          mostrarMensagemManutencao(
+            error && error.message ? error.message : "Não foi possível enviar o documento.",
+            true
+          );
+          return;
+        }
       }
     }
-  }
-  if (!documentos.apr || !documentos.os || !documentos.pte) {
-    mostrarMensagemManutencao("Anexe APR, OS e PTE para iniciar.", true);
-    return;
-  }
-  if (critico && !documentos.pt) {
-    mostrarMensagemManutencao("PT obrigatória para trabalho crítico.", true);
-    return;
-  }
+    if (!documentos.apr || !documentos.os || !documentos.pte) {
+      mostrarMensagemManutencao("Anexe APR, OS e PTE para iniciar.", true);
+      return;
+    }
+    if (critico && !documentos.pt) {
+      mostrarMensagemManutencao("PT obrigatória para trabalho crítico.", true);
+      return;
+    }
 
-  const agora = new Date();
-  const agoraIso = toIsoUtc(agora);
-  const usuarioLabel = getUserLabel(currentUser.id);
-  const teamName = getManutencaoEquipeSelecionada();
-  const executadoPorTime = teamName ? `team:${teamName}` : currentUser.id;
-  const ultimaAcao = `Execução iniciada em ${formatDateTime(agora)} por ${usuarioLabel}`;
-  const liberacao = {
-    osNumero: osReferencia,
-    participantes,
-    critico,
-    documentos,
-    liberadoEm: agoraIso,
-    liberadoPor: currentUser.id,
-  };
-  const nova = {
-    id: criarId(),
-    titulo,
-    local,
-    data,
-    projectId: activeProjectId,
-    equipamentoId,
-    observacao,
-    observacaoHtml,
-    templateId,
-    status: "em_execucao",
-    categoria,
-    prioridade,
-    criticidade: critico ? "sim" : "nao",
-    osReferencia,
-    participantes,
-    documentos,
-    abertaEm: agoraIso,
-    inicioExecucao: agoraIso,
-    abertaPor: currentUser.id,
-    executadaPor: executadoPorTime,
-    ultimaAcao,
-    executionStartedAt: agoraIso,
-    executionStartedBy: currentUser.id,
-    registroExecucao: { executadoPor: executadoPorTime },
-    liberacao,
-    createdAt: agoraIso,
-    createdBy: currentUser.id,
-    updatedAt: agoraIso,
-    updatedBy: currentUser.id,
-  };
+    const agora = new Date();
+    const agoraIso = toIsoUtc(agora);
+    const usuarioLabel = getUserLabel(currentUser.id);
+    const teamName = getManutencaoEquipeSelecionada();
+    const executadoPorTime = teamName ? `team:${teamName}` : currentUser.id;
+    const ultimaAcao = `Execução iniciada em ${formatDateTime(agora)} por ${usuarioLabel}`;
+    const liberacao = {
+      osNumero: osReferencia,
+      participantes,
+      critico,
+      documentos,
+      liberadoEm: agoraIso,
+      liberadoPor: currentUser.id,
+    };
+    const nova = {
+      id: criarId(),
+      titulo,
+      local,
+      data,
+      projectId: activeProjectId,
+      equipamentoId,
+      observacao,
+      observacaoHtml,
+      templateId,
+      status: "em_execucao",
+      categoria,
+      prioridade,
+      criticidade: critico ? "sim" : "nao",
+      osReferencia,
+      participantes,
+      documentos,
+      abertaEm: agoraIso,
+      inicioExecucao: agoraIso,
+      abertaPor: currentUser.id,
+      executadaPor: executadoPorTime,
+      ultimaAcao,
+      executionStartedAt: agoraIso,
+      executionStartedBy: currentUser.id,
+      registroExecucao: { executadoPor: executadoPorTime },
+      liberacao,
+      createdAt: agoraIso,
+      createdBy: currentUser.id,
+      updatedAt: agoraIso,
+      updatedBy: currentUser.id,
+    };
 
-  manutencoes = [...manutencoes, nova];
-  const resultado = normalizarManutencoes(manutencoes);
-  manutencoes = resultado.normalizadas;
-  salvarManutencoes(manutencoes);
-  logAction("create", nova, {
-    source: "manual",
-    dataProgramada: data,
-    resumo: "Manutenção criada e iniciada.",
-  });
-  const documentosLista = DOC_KEYS.filter((key) => documentos[key]).map(
-    (key) => DOC_LABELS[key] || key
-  );
-  logAction("execute", nova, {
-    dataProgramada: data,
-    inicioExecucao: agoraIso,
-    osNumero: osReferencia,
-    participantes,
-    critico,
-    documentos: documentosLista,
-    resumo: "Execução iniciada.",
-  });
-  await registrarSstDocumentacao(nova, liberacao);
-  renderTudo();
-  showTeamMaintenanceNotifications();
-  limparFormularioManutencao();
+    manutencoes = [...manutencoes, nova];
+    const resultado = normalizarManutencoes(manutencoes);
+    manutencoes = resultado.normalizadas;
+    salvarManutencoes(manutencoes);
+    logAction("create", nova, {
+      source: "manual",
+      dataProgramada: data,
+      resumo: "Manutenção criada e iniciada.",
+    });
+    const documentosLista = DOC_KEYS.filter((key) => documentos[key]).map(
+      (key) => DOC_LABELS[key] || key
+    );
+    logAction("execute", nova, {
+      dataProgramada: data,
+      inicioExecucao: agoraIso,
+      osNumero: osReferencia,
+      participantes,
+      critico,
+      documentos: documentosLista,
+      resumo: "Execução iniciada.",
+    });
+    await registrarSstDocumentacao(nova, liberacao);
+    renderTudo();
+    showTeamMaintenanceNotifications();
+    limparFormularioManutencao();
 
-  const criada = manutencoes.find((item) => item.id === nova.id);
-  if (criada) {
-    abrirRegistroExecucao(criada);
+    const criada = manutencoes.find((item) => item.id === nova.id);
+    if (criada) {
+      abrirRegistroExecucao(criada);
+    }
+    mostrarMensagemManutencao("Execução iniciada.");
+  } finally {
+    esconderCarregando();
   }
-  mostrarMensagemManutencao("Execução iniciada.");
 }
 
 let manutencaoEmConclusao = null;
@@ -40352,28 +40357,33 @@ async function confirmarOverrideLiberacao(event) {
     return;
   }
   const item = manutencoes[index];
-  let liberacaoOkNoServidor = true;
+  mostrarCarregando();
   try {
-    await apiMaintenanceRelease({
-      id: pendingLiberacaoOverride.id,
-      dataProgramada: item.data,
-      justificativa: motivo,
-    });
-  } catch (error) {
-    if (isUnauthorizedError(error)) {
-      liberacaoOkNoServidor = false;
-      showAuthToast("Liberação salva localmente. Sincronização pendente.");
-    } else {
-      mostrarMensagemOverride(error.message || "Não foi possível liberar.", true);
-      return;
+    let liberacaoOkNoServidor = true;
+    try {
+      await apiMaintenanceRelease({
+        id: pendingLiberacaoOverride.id,
+        dataProgramada: item.data,
+        justificativa: motivo,
+      });
+    } catch (error) {
+      if (isUnauthorizedError(error)) {
+        liberacaoOkNoServidor = false;
+        showAuthToast("Liberação salva localmente. Sincronização pendente.");
+      } else {
+        mostrarMensagemOverride(error.message || "Não foi possível liberar.", true);
+        return;
+      }
     }
-  }
-  const liberacaoBase = pendingLiberacaoOverride.liberacaoBase;
-  pendingLiberacaoOverride = null;
-  fecharOverrideLiberacao();
-  await finalizarLiberacao(index, item, liberacaoBase, motivo);
-  if (!liberacaoOkNoServidor) {
-    maintenancePendingSync = true;
+    const liberacaoBase = pendingLiberacaoOverride.liberacaoBase;
+    pendingLiberacaoOverride = null;
+    fecharOverrideLiberacao();
+    await finalizarLiberacao(index, item, liberacaoBase, motivo);
+    if (!liberacaoOkNoServidor) {
+      maintenancePendingSync = true;
+    }
+  } finally {
+    esconderCarregando();
   }
 }
 
@@ -40432,72 +40442,77 @@ async function salvarLiberacao(event) {
     );
     return;
   }
-  const documentos = { ...liberacaoDocsBase };
-  for (const chave of DOC_KEYS) {
-    const input = liberacaoDocInputs.find((itemInput) => itemInput.dataset.docInput === chave);
-    if (input && input.files && input.files[0]) {
-      try {
-        documentos[chave] = await uploadLiberacaoDoc(input.files[0], chave);
-      } catch (error) {
-        mostrarMensagemLiberacao(
-          error && error.message ? error.message : "Não foi possível enviar o documento.",
-          true
-        );
-        return;
-      }
-      continue;
-    }
-    const docAtual = getLiberacaoDocAtual(chave);
-    if (docAtual) {
-      documentos[chave] = docAtual;
-    }
-  }
-  if (!documentos.apr || !documentos.os || !documentos.pte) {
-    mostrarMensagemLiberacao("Anexe APR, OS e PTE para liberar.", true);
-    return;
-  }
-  if (critico && !documentos.pt) {
-    mostrarMensagemLiberacao("PT obrigatória para trabalho crítico.", true);
-    return;
-  }
-  const dataProgramada = parseDate(item.data);
-  const hoje = startOfDay(new Date());
-  const liberacaoAntecipada = dataProgramada && dataProgramada > hoje;
-  if (liberacaoAntecipada && !canOverrideRelease(currentUser)) {
-    mostrarMensagemLiberacao(
-      `Trancada - libera em ${dataProgramada ? formatDate(dataProgramada) : "-"}.`,
-      true
-    );
-    return;
-  }
-  const liberacaoBase = {
-    osNumero,
-    participantes,
-    critico,
-    documentos,
-    equipamentoId,
-    equipeResponsavel,
-  };
-  if (liberacaoAntecipada) {
-    pendingLiberacaoOverride = { id: item.id, liberacaoBase };
-    abrirOverrideLiberacao(dataProgramada);
-    return;
-  }
-  let liberacaoOkNoServidor = true;
+  mostrarCarregando();
   try {
-    await apiMaintenanceRelease({ id: item.id, dataProgramada: item.data });
-  } catch (error) {
-    if (isUnauthorizedError(error)) {
-      liberacaoOkNoServidor = false;
-      showAuthToast("Liberação salva localmente. Sincronização pendente.");
-    } else {
-      mostrarMensagemLiberacao(error.message || "Não foi possível liberar.", true);
+    const documentos = { ...liberacaoDocsBase };
+    for (const chave of DOC_KEYS) {
+      const input = liberacaoDocInputs.find((itemInput) => itemInput.dataset.docInput === chave);
+      if (input && input.files && input.files[0]) {
+        try {
+          documentos[chave] = await uploadLiberacaoDoc(input.files[0], chave);
+        } catch (error) {
+          mostrarMensagemLiberacao(
+            error && error.message ? error.message : "Não foi possível enviar o documento.",
+            true
+          );
+          return;
+        }
+        continue;
+      }
+      const docAtual = getLiberacaoDocAtual(chave);
+      if (docAtual) {
+        documentos[chave] = docAtual;
+      }
+    }
+    if (!documentos.apr || !documentos.os || !documentos.pte) {
+      mostrarMensagemLiberacao("Anexe APR, OS e PTE para liberar.", true);
       return;
     }
-  }
-  await finalizarLiberacao(index, item, liberacaoBase);
-  if (!liberacaoOkNoServidor) {
-    maintenancePendingSync = true;
+    if (critico && !documentos.pt) {
+      mostrarMensagemLiberacao("PT obrigatória para trabalho crítico.", true);
+      return;
+    }
+    const dataProgramada = parseDate(item.data);
+    const hoje = startOfDay(new Date());
+    const liberacaoAntecipada = dataProgramada && dataProgramada > hoje;
+    if (liberacaoAntecipada && !canOverrideRelease(currentUser)) {
+      mostrarMensagemLiberacao(
+        `Trancada - libera em ${dataProgramada ? formatDate(dataProgramada) : "-"}.`,
+        true
+      );
+      return;
+    }
+    const liberacaoBase = {
+      osNumero,
+      participantes,
+      critico,
+      documentos,
+      equipamentoId,
+      equipeResponsavel,
+    };
+    if (liberacaoAntecipada) {
+      pendingLiberacaoOverride = { id: item.id, liberacaoBase };
+      abrirOverrideLiberacao(dataProgramada);
+      return;
+    }
+    let liberacaoOkNoServidor = true;
+    try {
+      await apiMaintenanceRelease({ id: item.id, dataProgramada: item.data });
+    } catch (error) {
+      if (isUnauthorizedError(error)) {
+        liberacaoOkNoServidor = false;
+        showAuthToast("Liberação salva localmente. Sincronização pendente.");
+      } else {
+        mostrarMensagemLiberacao(error.message || "Não foi possível liberar.", true);
+        return;
+      }
+    }
+    await finalizarLiberacao(index, item, liberacaoBase);
+    if (!liberacaoOkNoServidor) {
+      maintenancePendingSync = true;
+    }
+  } finally {
+    esconderCarregando();
   }
 }
 
@@ -41732,105 +41747,110 @@ async function salvarConclusao(event) {
       return;
     }
   }
-  if (fotosObrigatorias) {
-    mostrarMensagemConclusao("Enviando evidências...");
-  }
-  let evidencias = [];
-  if (fotosObrigatorias) {
-    try {
-      evidencias = await lerEvidencias(arquivosValidos);
-    } catch (error) {
-      mostrarMensagemConclusao(
-        error && error.message ? error.message : "Falha ao enviar evidências.",
-        true
-      );
+  mostrarCarregando();
+  try {
+    if (fotosObrigatorias) {
+      mostrarMensagemConclusao("Enviando evidências...");
+    }
+    let evidencias = [];
+    if (fotosObrigatorias) {
+      try {
+        evidencias = await lerEvidencias(arquivosValidos);
+      } catch (error) {
+        mostrarMensagemConclusao(
+          error && error.message ? error.message : "Falha ao enviar evidências.",
+          true
+        );
+        return;
+      }
+    }
+    if (fotosObrigatorias && evidencias.length < MIN_EVIDENCIAS) {
+      mostrarMensagemConclusao("Não foi possível ler as evidências.", true);
       return;
     }
+
+    const minutos = (fimDate.getTime() - inicioDate.getTime()) / 60000;
+    const inicioIso = toIsoUtc(inicioDate);
+    const fimIso = toIsoUtc(fimDate);
+    const conclusao = {
+      executadoPor,
+      encerradoPor: currentUser.id,
+      inicio: inicioIso,
+      fim: fimIso,
+      duracaoMin: Math.round(minutos),
+      comentario,
+      resultado,
+      referencia,
+      osNumero: liberacao ? liberacao.osNumero || "" : "",
+      participantes: liberacao ? liberacao.participantes || [] : [],
+      critico: liberacao ? liberacao.critico : undefined,
+      categoria: item.categoria || "",
+      prioridade: item.prioridade || "",
+      equipamentoId:
+        item.equipamentoId ||
+        (typeof item.equipamento === "string" ? item.equipamento : "") ||
+        (item.equipamento && typeof item.equipamento === "object"
+          ? item.equipamento.id || item.equipamento.nome || item.equipamento.name || ""
+          : ""),
+      observacaoExecucao,
+      descricaoBreve,
+      evidencias,
+    };
+
+    const atualizado = {
+      ...item,
+      registroExecucao: registroAtualizado,
+      executionStartedAt: inicioIso,
+      executionFinishedAt: fimIso,
+      status: "concluida",
+      doneAt: fimIso,
+      doneBy: currentUser.id,
+      updatedAt: (() => {
+        const now = new Date();
+        const last = getMaintenanceUpdatedAtValue(item);
+        if (last && last > now.getTime()) {
+          return toIsoUtc(new Date(last + 1000));
+        }
+        return toIsoUtc(now);
+      })(),
+      updatedBy: currentUser.id,
+      conclusao,
+    };
+
+    manutencoes[index] = atualizado;
+    salvarManutencoes(manutencoes);
+    const dataProgramada = item.data ? parseDate(item.data) : null;
+    const atrasoDias =
+      dataProgramada && fimDate
+        ? diffInDays(startOfDay(dataProgramada), startOfDay(fimDate))
+        : null;
+    const documentosLista = DOC_KEYS.filter(
+      (key) => liberacao && liberacao.documentos && liberacao.documentos[key]
+    ).map((key) => DOC_LABELS[key] || key);
+    logAction("complete", atualizado, {
+      dataProgramada: item.data || "",
+      dataConclusao: formatDateISO(startOfDay(fimDate)),
+      atrasoDias,
+      executadoPor,
+      resultado,
+      referencia,
+      osNumero: liberacao ? liberacao.osNumero || "" : "",
+      participantes: liberacao ? liberacao.participantes || [] : [],
+      critico: liberacao ? liberacao.critico : undefined,
+      documentos: documentosLista,
+      observacaoExecucao,
+      descricaoBreve: truncarTexto(descricaoBreve, 180),
+      evidenciasCount: evidencias.length,
+      inicioExecucao: inicioIso,
+      fimExecucao: fimIso,
+      resumo: `Executada por ${getUserLabel(executadoPor)} | ${formatDuracaoMin(minutos)}`,
+    });
+    renderTudo();
+    fecharConclusao();
+    mostrarMensagemManutencao("Manutenção concluída.");
+  } finally {
+    esconderCarregando();
   }
-  if (fotosObrigatorias && evidencias.length < MIN_EVIDENCIAS) {
-    mostrarMensagemConclusao("Não foi possível ler as evidências.", true);
-    return;
-  }
-
-  const minutos = (fimDate.getTime() - inicioDate.getTime()) / 60000;
-  const inicioIso = toIsoUtc(inicioDate);
-  const fimIso = toIsoUtc(fimDate);
-  const conclusao = {
-    executadoPor,
-    encerradoPor: currentUser.id,
-    inicio: inicioIso,
-    fim: fimIso,
-    duracaoMin: Math.round(minutos),
-    comentario,
-    resultado,
-    referencia,
-    osNumero: liberacao ? liberacao.osNumero || "" : "",
-    participantes: liberacao ? liberacao.participantes || [] : [],
-    critico: liberacao ? liberacao.critico : undefined,
-    categoria: item.categoria || "",
-    prioridade: item.prioridade || "",
-    equipamentoId:
-      item.equipamentoId ||
-      (typeof item.equipamento === "string" ? item.equipamento : "") ||
-      (item.equipamento && typeof item.equipamento === "object"
-        ? item.equipamento.id || item.equipamento.nome || item.equipamento.name || ""
-        : ""),
-    observacaoExecucao,
-    descricaoBreve,
-    evidencias,
-  };
-
-  const atualizado = {
-    ...item,
-    registroExecucao: registroAtualizado,
-    executionStartedAt: inicioIso,
-    executionFinishedAt: fimIso,
-    status: "concluida",
-    doneAt: fimIso,
-    doneBy: currentUser.id,
-    updatedAt: (() => {
-      const now = new Date();
-      const last = getMaintenanceUpdatedAtValue(item);
-      if (last && last > now.getTime()) {
-        return toIsoUtc(new Date(last + 1000));
-      }
-      return toIsoUtc(now);
-    })(),
-    updatedBy: currentUser.id,
-    conclusao,
-  };
-
-  manutencoes[index] = atualizado;
-  salvarManutencoes(manutencoes);
-  const dataProgramada = item.data ? parseDate(item.data) : null;
-  const atrasoDias =
-    dataProgramada && fimDate
-      ? diffInDays(startOfDay(dataProgramada), startOfDay(fimDate))
-      : null;
-  const documentosLista = DOC_KEYS.filter(
-    (key) => liberacao && liberacao.documentos && liberacao.documentos[key]
-  ).map((key) => DOC_LABELS[key] || key);
-  logAction("complete", atualizado, {
-    dataProgramada: item.data || "",
-    dataConclusao: formatDateISO(startOfDay(fimDate)),
-    atrasoDias,
-    executadoPor,
-    resultado,
-    referencia,
-    osNumero: liberacao ? liberacao.osNumero || "" : "",
-    participantes: liberacao ? liberacao.participantes || [] : [],
-    critico: liberacao ? liberacao.critico : undefined,
-    documentos: documentosLista,
-    observacaoExecucao,
-    descricaoBreve: truncarTexto(descricaoBreve, 180),
-    evidenciasCount: evidencias.length,
-    inicioExecucao: inicioIso,
-    fimExecucao: fimIso,
-    resumo: `Executada por ${getUserLabel(executadoPor)} | ${formatDuracaoMin(minutos)}`,
-  });
-  renderTudo();
-  fecharConclusao();
-  mostrarMensagemManutencao("Manutenção concluída.");
 }
 
 function toggleConclusaoFotosUI() {
