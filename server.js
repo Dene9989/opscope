@@ -1991,6 +1991,39 @@ function saveEquipamentos(list) {
   writeJson(EQUIPAMENTOS_FILE, list);
 }
 
+function normalizeProcedimentoArquivo(record) {
+  if (!record || typeof record !== "object") {
+    return null;
+  }
+  const url = String(record.url || record.dataUrl || "").trim();
+  if (!url) {
+    return null;
+  }
+  const name = String(record.name || record.originalName || "Procedimento.pdf").trim() || "Procedimento.pdf";
+  const originalName = String(record.originalName || record.name || name).trim() || name;
+  const mime = String(record.mime || "application/pdf").trim().toLowerCase() || "application/pdf";
+  const isPdfByMime = mime === "application/pdf";
+  const isPdfByName = /\.pdf$/i.test(originalName) || /\.pdf$/i.test(name);
+  const isPdfByDataUrl = /^data:application\/pdf/i.test(url);
+  if (!isPdfByMime && !isPdfByName && !isPdfByDataUrl) {
+    return null;
+  }
+  const size = Number(record.size || 0);
+  const uploadedAtValue = String(record.uploadedAt || record.createdAt || "").trim();
+  const uploadedAtTs = Date.parse(uploadedAtValue);
+  return {
+    id: String(record.id || "").trim(),
+    url,
+    name,
+    originalName,
+    mime: "application/pdf",
+    size: Number.isFinite(size) && size > 0 ? Math.round(size) : 0,
+    uploadedAt: Number.isFinite(uploadedAtTs)
+      ? new Date(uploadedAtTs).toISOString()
+      : new Date().toISOString(),
+  };
+}
+
 function normalizeProcedimentoRecord(record, projectId = "") {
   if (!record || typeof record !== "object") {
     return null;
@@ -2000,12 +2033,16 @@ function normalizeProcedimentoRecord(record, projectId = "") {
   if (!nome) {
     return null;
   }
+  const arquivo = normalizeProcedimentoArquivo(
+    record.arquivo || record.documento || record.pdf || record.file || null
+  );
   return {
     id: String(record.id || "").trim() || crypto.randomUUID(),
     projectId: String(record.projectId || projectId || "").trim(),
     nome,
     codigo: String(record.codigo || record.code || "").trim(),
     descricao: String(record.descricao || record.description || "").trim(),
+    arquivo,
     createdAt: record.createdAt || now,
     createdBy: String(record.createdBy || "").trim(),
     updatedAt: record.updatedAt || now,
@@ -3056,6 +3093,105 @@ function saveAutomations(list) {
 function getFileTypeConfig(type) {
   const key = String(type || "").trim().toLowerCase();
   return FILE_TYPE_CONFIG[key] ? { key, ...FILE_TYPE_CONFIG[key] } : null;
+}
+
+function resolveProcedimentoArquivo(record, projectId = "", currentFile = null) {
+  const normalized = normalizeProcedimentoArquivo(record);
+  if (!normalized) {
+    return null;
+  }
+  const current = normalizeProcedimentoArquivo(currentFile || null);
+  const fileId = String(normalized.id || "").trim();
+  if (!fileId) {
+    const url = String(normalized.url || "").trim();
+    if (/^data:application\/pdf/i.test(url) || /\/uploads\/files\/procedimentos\//i.test(url)) {
+      return normalized;
+    }
+    return null;
+  }
+  const entry = Array.isArray(filesMeta)
+    ? filesMeta.find((item) => {
+        if (!item || String(item.id || "") !== fileId) {
+          return false;
+        }
+        if (String(item.type || "").trim().toLowerCase() !== "procedure") {
+          return false;
+        }
+        if (projectId && item.projectId && String(item.projectId) !== String(projectId)) {
+          return false;
+        }
+        return true;
+      })
+    : null;
+  if (entry) {
+    return normalizeProcedimentoArquivo({
+      id: entry.id,
+      url: entry.url,
+      name: entry.name || entry.originalName || normalized.name,
+      originalName: entry.originalName || entry.name || normalized.originalName,
+      mime: entry.mime || "application/pdf",
+      size: Number(entry.size || 0),
+      uploadedAt: entry.createdAt || entry.updatedAt || normalized.uploadedAt,
+    });
+  }
+  if (current && String(current.id || "") === fileId) {
+    return current;
+  }
+  return null;
+}
+
+function isProcedimentoArquivoEmUso(fileId, ignoreProcedimentoId = "") {
+  const target = String(fileId || "").trim();
+  if (!target) {
+    return false;
+  }
+  const ignoreId = String(ignoreProcedimentoId || "").trim();
+  return Array.isArray(procedimentos)
+    ? procedimentos.some((item) => {
+        if (!item || typeof item !== "object") {
+          return false;
+        }
+        if (ignoreId && String(item.id || "") === ignoreId) {
+          return false;
+        }
+        return String(item.arquivo && item.arquivo.id ? item.arquivo.id : "").trim() === target;
+      })
+    : false;
+}
+
+async function removeStoredFileById(fileId, options = {}) {
+  const id = String(fileId || "").trim();
+  if (!id || !Array.isArray(filesMeta)) {
+    return false;
+  }
+  const expectedType = String(options.expectedType || "").trim().toLowerCase();
+  const projectId = String(options.projectId || "").trim();
+  const index = filesMeta.findIndex((item) => item && String(item.id || "") === id);
+  if (index === -1) {
+    return false;
+  }
+  const file = filesMeta[index];
+  if (expectedType && String(file.type || "").trim().toLowerCase() !== expectedType) {
+    return false;
+  }
+  if (projectId && file.projectId && String(file.projectId || "") !== projectId) {
+    return false;
+  }
+  const typeConfig = getFileTypeConfig(file.type);
+  if (typeConfig) {
+    const filePath = path.join(FILES_DIR, typeConfig.dir, file.name);
+    if (fs.existsSync(filePath)) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch (error) {
+        // noop
+      }
+    }
+  }
+  await deleteUploadBlob(file.id);
+  filesMeta.splice(index, 1);
+  writeJson(FILES_META_FILE, filesMeta);
+  return true;
 }
 
 function sanitizeFileName(name) {
@@ -8740,6 +8876,81 @@ app.get("/api/projetos/:id/procedimentos", requireAuth, requireProjectAccess, (r
 });
 
 app.post(
+  "/api/projetos/:id/procedimentos/upload",
+  requireAuth,
+  requirePermission("gerenciarProcedimentosProjeto"),
+  requireProjectAccess,
+  express.raw({ type: "multipart/form-data", limit: FILE_MAX_BYTES + 1024 * 1024 }),
+  async (req, res) => {
+    const projectId = req.projectId;
+    const parsed = parseMultipartForm(req);
+    if (!parsed || !parsed.file) {
+      return res.status(400).json({ message: "Arquivo nao enviado." });
+    }
+    const originalName = String(parsed.file.originalName || "").trim();
+    const mimeRaw = String(parsed.file.mime || "").trim().toLowerCase();
+    const isPdf = mimeRaw === "application/pdf" || /\.pdf$/i.test(originalName);
+    if (!isPdf) {
+      return res.status(415).json({ message: "Envie apenas arquivo PDF." });
+    }
+    if (!parsed.file.buffer || parsed.file.buffer.length === 0) {
+      return res.status(400).json({ message: "Arquivo invalido." });
+    }
+    if (parsed.file.buffer.length > FILE_MAX_BYTES) {
+      return res.status(413).json({ message: "Arquivo acima de 10 MB." });
+    }
+    ensureUploadDirs();
+    const baseName = sanitizeFileName(path.parse(originalName || "procedimento").name);
+    const unique = crypto.randomUUID().slice(0, 8);
+    const fileName = `${Date.now()}-${unique}-${baseName || "procedimento"}.pdf`;
+    const typeConfig = FILE_TYPE_CONFIG.procedure;
+    const filePath = path.join(FILES_DIR, typeConfig.dir, fileName);
+    try {
+      fs.writeFileSync(filePath, parsed.file.buffer);
+    } catch (error) {
+      return res.status(500).json({ message: "Falha ao salvar arquivo." });
+    }
+    const actor = req.currentUser || getSessionUser(req);
+    const createdAt = new Date().toISOString();
+    const entry = {
+      id: crypto.randomUUID(),
+      name: fileName,
+      originalName: originalName || fileName,
+      type: "procedure",
+      size: parsed.file.buffer.length,
+      mime: "application/pdf",
+      url: `/uploads/files/${typeConfig.dir}/${fileName}`,
+      createdAt,
+      createdBy: actor ? actor.id : "",
+      createdByName: actor ? actor.name : "",
+      projectId,
+    };
+    filesMeta = Array.isArray(filesMeta) ? filesMeta.concat(entry) : [entry];
+    writeJson(FILES_META_FILE, filesMeta);
+    await upsertUploadBlob(entry, parsed.file.buffer);
+    appendAudit(
+      "file_upload",
+      actor ? actor.id : null,
+      { fileId: entry.id, name: entry.originalName, type: entry.type, projectId },
+      getClientIp(req),
+      projectId
+    );
+    return res.json({
+      ok: true,
+      file: {
+        id: entry.id,
+        url: entry.url,
+        name: entry.originalName,
+        originalName: entry.originalName,
+        mime: entry.mime,
+        size: entry.size,
+        uploadedAt: createdAt,
+      },
+    });
+  }
+);
+
+app.post(
   "/api/projetos/:id/procedimentos",
   requireAuth,
   requirePermission("gerenciarProcedimentosProjeto"),
@@ -8748,17 +8959,25 @@ app.post(
     const projectId = req.projectId;
     const user = req.currentUser || getSessionUser(req);
     const payload = req.body && typeof req.body === "object" ? req.body : {};
+    const arquivo = resolveProcedimentoArquivo(
+      payload.arquivo || payload.documento || payload.pdf || payload.file || null,
+      projectId
+    );
     const normalized = normalizeProcedimentoRecord(
       {
         ...payload,
         projectId,
+        arquivo,
         createdBy: user ? user.id : "",
         updatedBy: user ? user.id : "",
       },
       projectId
     );
     if (!normalized) {
-      return res.status(400).json({ message: "Nome do procedimento obrigatório." });
+      return res.status(400).json({ message: "Nome do procedimento obrigatorio." });
+    }
+    if (!normalized.arquivo) {
+      return res.status(400).json({ message: "Anexe o PDF do procedimento." });
     }
     procedimentos = procedimentos.concat(normalized);
     saveProcedimentos(procedimentos);
@@ -8775,11 +8994,11 @@ app.put(
   "/api/procedimentos/:id",
   requireAuth,
   requirePermission("gerenciarProcedimentosProjeto"),
-  (req, res) => {
+  async (req, res) => {
     const procedimentoId = String(req.params.id || "").trim();
     const index = procedimentos.findIndex((item) => item && item.id === procedimentoId);
     if (index === -1) {
-      return res.status(404).json({ message: "Procedimento não encontrado." });
+      return res.status(404).json({ message: "Procedimento nao encontrado." });
     }
     const user = req.currentUser || getSessionUser(req);
     const current = procedimentos[index];
@@ -8787,12 +9006,25 @@ app.put(
       return res.status(403).json({ message: "Nao autorizado." });
     }
     const payload = req.body && typeof req.body === "object" ? req.body : {};
+    const hasArquivoPayload =
+      Object.prototype.hasOwnProperty.call(payload, "arquivo") ||
+      Object.prototype.hasOwnProperty.call(payload, "documento") ||
+      Object.prototype.hasOwnProperty.call(payload, "pdf") ||
+      Object.prototype.hasOwnProperty.call(payload, "file");
+    const arquivo = hasArquivoPayload
+      ? resolveProcedimentoArquivo(
+          payload.arquivo || payload.documento || payload.pdf || payload.file || null,
+          current.projectId,
+          current.arquivo || null
+        )
+      : normalizeProcedimentoArquivo(current.arquivo || null);
     const normalized = normalizeProcedimentoRecord(
       {
         ...current,
         ...payload,
         id: current.id,
         projectId: current.projectId,
+        arquivo,
         createdAt: current.createdAt,
         createdBy: current.createdBy,
         updatedAt: new Date().toISOString(),
@@ -8801,7 +9033,24 @@ app.put(
       current.projectId
     );
     if (!normalized) {
-      return res.status(400).json({ message: "Nome do procedimento obrigatório." });
+      return res.status(400).json({ message: "Nome do procedimento obrigatorio." });
+    }
+    if (!normalized.arquivo) {
+      return res.status(400).json({ message: "Anexe o PDF do procedimento." });
+    }
+    const previousFileId = String(current.arquivo && current.arquivo.id ? current.arquivo.id : "").trim();
+    const nextFileId = String(
+      normalized.arquivo && normalized.arquivo.id ? normalized.arquivo.id : ""
+    ).trim();
+    if (
+      previousFileId &&
+      previousFileId !== nextFileId &&
+      !isProcedimentoArquivoEmUso(previousFileId, current.id)
+    ) {
+      await removeStoredFileById(previousFileId, {
+        expectedType: "procedure",
+        projectId: current.projectId || "",
+      });
     }
     procedimentos[index] = normalized;
     saveProcedimentos(procedimentos);
@@ -8818,19 +9067,26 @@ app.delete(
   "/api/procedimentos/:id",
   requireAuth,
   requirePermission("gerenciarProcedimentosProjeto"),
-  (req, res) => {
+  async (req, res) => {
     const procedimentoId = String(req.params.id || "").trim();
     const index = procedimentos.findIndex((item) => item && item.id === procedimentoId);
     if (index === -1) {
-      return res.status(404).json({ message: "Procedimento não encontrado." });
+      return res.status(404).json({ message: "Procedimento nao encontrado." });
     }
     const user = req.currentUser || getSessionUser(req);
     const current = procedimentos[index];
     if (!userHasProjectAccess(user, current.projectId)) {
       return res.status(403).json({ message: "Nao autorizado." });
     }
+    const fileId = String(current.arquivo && current.arquivo.id ? current.arquivo.id : "").trim();
     procedimentos.splice(index, 1);
     saveProcedimentos(procedimentos);
+    if (fileId && !isProcedimentoArquivoEmUso(fileId)) {
+      await removeStoredFileById(fileId, {
+        expectedType: "procedure",
+        projectId: current.projectId || "",
+      });
+    }
     broadcastSse("project.procedimentos.updated", {
       projectId: current.projectId,
       procedimentoId,

@@ -280,10 +280,15 @@ const procedimentoFormId = document.getElementById("procedimentoFormId");
 const procedimentoFormProject = document.getElementById("procedimentoFormProject");
 const procedimentoFormCodigo = document.getElementById("procedimentoFormCodigo");
 const procedimentoFormNome = document.getElementById("procedimentoFormNome");
-const procedimentoFormDescricao = document.getElementById("procedimentoFormDescricao");
+const procedimentoFormPdf = document.getElementById("procedimentoFormPdf");
+const procedimentoFormPdfName = document.getElementById("procedimentoFormPdfName");
+const procedimentoFormPdfPreview = document.getElementById("procedimentoFormPdfPreview");
+const procedimentoFormPdfRemove = document.getElementById("procedimentoFormPdfRemove");
 const procedimentoFormCancel = document.getElementById("procedimentoFormCancel");
 const procedimentoTable = document.getElementById("procedimentoTable");
 const procedimentoTableBody = document.querySelector("#procedimentoTable tbody");
+const procedimentoManutencaoLinks = document.getElementById("procedimentoManutencaoLinks");
+const templateProcedimentosLinks = document.getElementById("templateProcedimentosLinks");
 const equipeForm = document.getElementById("equipeForm");
 const equipeFormUser = document.getElementById("equipeFormUser");
 const equipeSearch = document.getElementById("equipeSearch");
@@ -4600,6 +4605,9 @@ const pmpMaintenanceCache = new Map();
 let pmpChecklistItems = [];
 let pmpFormOrigem = "manual";
 let pmpProcedimentoDoc = null;
+let procedimentoFormPdfDoc = null;
+let procedimentoFormPdfPendingFile = null;
+let procedimentoFormPdfPendingUrl = "";
 let pmpImportItems = [];
 let pmpImportSelection = new Set();
 let pmpLastSnapshot = null;
@@ -11027,6 +11035,7 @@ function atualizarTipoSelecionado() {
       setMultiSelectValues(subequipamentoManutencao, []);
       setMultiSelectValues(procedimentoManutencao, []);
     }
+    renderProcedimentoBindingLinks();
     if (template && template.equipeResponsavel) {
       renderManutencaoEquipeOptions(template.equipeResponsavel);
     }
@@ -26294,6 +26303,7 @@ function limparTemplateForm() {
   if (templateProcedimentos) {
     setMultiSelectValues(templateProcedimentos, []);
   }
+  renderProcedimentoBindingLinks();
   renderTemplateEquipeOptions();
   setTemplateParticipantes([]);
   if (templateResponsaveisToggle) {
@@ -26386,6 +26396,7 @@ function preencherTemplateForm(template) {
   }
   setMultiSelectValues(templateSubequipamentos, template.subequipamentos || []);
   setMultiSelectValues(templateProcedimentos, template.procedimentoIds || []);
+  renderProcedimentoBindingLinks();
   renderTemplateEquipeOptions(template.equipeResponsavel || "");
   const participantesTemplate = Array.isArray(template.participantes)
     ? template.participantes
@@ -33415,6 +33426,141 @@ function getMaintenanceProcedimentoLabels(item) {
     .filter(Boolean);
 }
 
+function normalizeProcedimentoPdfDoc(doc) {
+  if (!doc || typeof doc !== "object") {
+    return null;
+  }
+  const url = resolvePublicUrl(String(doc.url || doc.dataUrl || "").trim());
+  if (!url) {
+    return null;
+  }
+  const name = String(doc.originalName || doc.name || "Procedimento.pdf").trim() || "Procedimento.pdf";
+  const sizeRaw = Number(doc.size || 0);
+  return {
+    id: String(doc.id || "").trim(),
+    url,
+    name,
+    originalName: name,
+    mime: "application/pdf",
+    size: Number.isFinite(sizeRaw) && sizeRaw > 0 ? Math.round(sizeRaw) : 0,
+    uploadedAt: String(doc.uploadedAt || doc.createdAt || "").trim(),
+  };
+}
+
+function getProcedimentoPdfDoc(procedimento) {
+  if (!procedimento || typeof procedimento !== "object") {
+    return null;
+  }
+  return normalizeProcedimentoPdfDoc(
+    procedimento.arquivo || procedimento.documento || procedimento.pdf || procedimento.file || null
+  );
+}
+
+function abrirProcedimentoPdf(procedimento) {
+  const doc = getProcedimentoPdfDoc(procedimento);
+  if (!doc || !doc.url) {
+    alert("PDF do procedimento não encontrado.");
+    return;
+  }
+  abrirPreview(doc.url);
+}
+
+function revokeProcedimentoFormPdfPendingUrl() {
+  if (procedimentoFormPdfPendingUrl) {
+    URL.revokeObjectURL(procedimentoFormPdfPendingUrl);
+    procedimentoFormPdfPendingUrl = "";
+  }
+}
+
+function setProcedimentoFormPdfDoc(doc) {
+  procedimentoFormPdfDoc = normalizeProcedimentoPdfDoc(doc);
+  if (procedimentoFormPdfName) {
+    procedimentoFormPdfName.textContent = procedimentoFormPdfDoc
+      ? procedimentoFormPdfDoc.originalName || procedimentoFormPdfDoc.name
+      : "Nenhum PDF selecionado.";
+  }
+  if (procedimentoFormPdfPreview) {
+    procedimentoFormPdfPreview.hidden = !(procedimentoFormPdfDoc || procedimentoFormPdfPendingFile);
+  }
+  if (procedimentoFormPdfRemove) {
+    procedimentoFormPdfRemove.hidden = !(procedimentoFormPdfDoc || procedimentoFormPdfPendingFile);
+  }
+}
+
+function setProcedimentoFormPdfPendingFile(file) {
+  revokeProcedimentoFormPdfPendingUrl();
+  procedimentoFormPdfPendingFile = file || null;
+  if (procedimentoFormPdfPendingFile) {
+    procedimentoFormPdfPendingUrl = URL.createObjectURL(procedimentoFormPdfPendingFile);
+    if (procedimentoFormPdfName) {
+      procedimentoFormPdfName.textContent = procedimentoFormPdfPendingFile.name || "PDF selecionado";
+    }
+    if (procedimentoFormPdfPreview) {
+      procedimentoFormPdfPreview.hidden = false;
+    }
+    if (procedimentoFormPdfRemove) {
+      procedimentoFormPdfRemove.hidden = false;
+    }
+    return;
+  }
+  if (procedimentoFormPdfName) {
+    procedimentoFormPdfName.textContent = procedimentoFormPdfDoc
+      ? procedimentoFormPdfDoc.originalName || procedimentoFormPdfDoc.name
+      : "Nenhum PDF selecionado.";
+  }
+  if (procedimentoFormPdfPreview) {
+    procedimentoFormPdfPreview.hidden = !procedimentoFormPdfDoc;
+  }
+  if (procedimentoFormPdfRemove) {
+    procedimentoFormPdfRemove.hidden = !procedimentoFormPdfDoc;
+  }
+}
+
+function renderProcedimentoSelectedLinks(select, container) {
+  if (!container) {
+    return;
+  }
+  container.innerHTML = "";
+  const selectedIds = normalizeMaintenanceProcedimentoIdsValue(getMultiSelectValues(select));
+  if (!selectedIds.length) {
+    return;
+  }
+  const links = selectedIds
+    .map((id) => getProcedimentoById(id))
+    .filter(Boolean)
+    .map((procedimento) => {
+      const doc = getProcedimentoPdfDoc(procedimento);
+      return { procedimento, doc };
+    })
+    .filter((entry) => entry.doc && entry.doc.url);
+  if (!links.length) {
+    const hint = document.createElement("p");
+    hint.className = "hint";
+    hint.textContent = "Os procedimentos selecionados ainda não possuem PDF.";
+    container.append(hint);
+    return;
+  }
+  links.forEach((entry) => {
+    const row = document.createElement("div");
+    row.className = "procedure-link";
+    const label = document.createElement("span");
+    label.className = "procedure-link__label";
+    label.textContent = getProcedimentoLabel(entry.procedimento);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn--ghost btn--small";
+    btn.textContent = "Ver PDF";
+    btn.addEventListener("click", () => abrirProcedimentoPdf(entry.procedimento));
+    row.append(label, btn);
+    container.append(row);
+  });
+}
+
+function renderProcedimentoBindingLinks() {
+  renderProcedimentoSelectedLinks(procedimentoManutencao, procedimentoManutencaoLinks);
+  renderProcedimentoSelectedLinks(templateProcedimentos, templateProcedimentosLinks);
+}
+
 function renderSubequipamentoSelectOptions(select, equipamentoId) {
   if (!select) {
     return;
@@ -33476,6 +33622,12 @@ function renderProcedimentosTable() {
   projectProcedimentos.forEach((procedimento) => {
     const tr = document.createElement("tr");
     const actions = [];
+    const pdfDoc = getProcedimentoPdfDoc(procedimento);
+    if (pdfDoc && pdfDoc.url) {
+      actions.push(
+        '<button type="button" class="btn btn--ghost btn--small" data-action="view-procedure">Ver PDF</button>'
+      );
+    }
     if (currentUser && canManageProcedimentos(currentUser)) {
       actions.push(
         '<button type="button" class="btn btn--ghost btn--small" data-action="edit-procedure">Editar</button>'
@@ -33488,7 +33640,7 @@ function renderProcedimentosTable() {
     tr.innerHTML = `
       <td>${escapeHtml(procedimento.codigo || "-")}</td>
       <td>${escapeHtml(procedimento.nome || "-")}</td>
-      <td>${escapeHtml(procedimento.descricao || "-")}</td>
+      <td>${escapeHtml((pdfDoc && (pdfDoc.originalName || pdfDoc.name)) || "-")}</td>
       <td class="table-actions">${actions.join(" ")}</td>
     `;
     procedimentoTableBody.append(tr);
@@ -33533,6 +33685,7 @@ function renderProcedimentoSelectOptions(select, placeholder = "Selecione proced
 function renderProcedimentoOptions() {
   renderProcedimentoSelectOptions(procedimentoManutencao, "Selecione procedimentos");
   renderProcedimentoSelectOptions(templateProcedimentos, "Selecione procedimentos");
+  renderProcedimentoBindingLinks();
 }
 
 function resolveEquipamentoIdFromValue(raw) {
@@ -33774,6 +33927,11 @@ function resetEquipamentoForm() {
 function resetProcedimentoForm() {
   if (procedimentoForm) {
     procedimentoForm.reset();
+  }
+  setProcedimentoFormPdfDoc(null);
+  setProcedimentoFormPdfPendingFile(null);
+  if (procedimentoFormPdf) {
+    procedimentoFormPdf.value = "";
   }
   if (procedimentoFormId) {
     procedimentoFormId.value = "";
@@ -40749,6 +40907,7 @@ function limparFormularioManutencao() {
   if (procedimentoManutencao) {
     setMultiSelectValues(procedimentoManutencao, []);
   }
+  renderProcedimentoBindingLinks();
   if (futuraManutencao) {
     futuraManutencao.checked = false;
   }
@@ -40993,6 +41152,7 @@ function preencherFormularioManutencao(item) {
     });
   }
   setMultiSelectValues(procedimentoManutencao, procedimentoIdsFormValue);
+  renderProcedimentoBindingLinks();
 
   const dataValor =
     item.data ||
@@ -46280,6 +46440,61 @@ async function apiProjetosProcedimentosList(projectId) {
   return apiRequest(`/api/projetos/${encodeURIComponent(projectId)}/procedimentos`);
 }
 
+async function apiUploadProcedimentoPdf(projectId, file) {
+  if (!projectId) {
+    throw new Error("Projeto obrigatorio para upload do procedimento.");
+  }
+  const isPdf = Boolean(file) && (file.type === "application/pdf" || /\.pdf$/i.test(file.name || ""));
+  if (!isPdf) {
+    throw new Error("Envie apenas arquivo PDF.");
+  }
+  if (!file || file.size > FILE_MAX_BYTES) {
+    throw new Error("Arquivo acima de 10 MB.");
+  }
+  const uploadLocal = async () => {
+    const doc = await lerDocumentoFile(file);
+    if (!doc || !doc.dataUrl) {
+      throw new Error("Falha ao ler arquivo PDF.");
+    }
+    return {
+      file: {
+        id: criarId(),
+        url: doc.dataUrl,
+        name: file.name || "Procedimento.pdf",
+        originalName: file.name || "Procedimento.pdf",
+        mime: "application/pdf",
+        size: file.size || 0,
+        uploadedAt: new Date().toISOString(),
+      },
+    };
+  };
+  if (!USE_AUTH_API) {
+    return uploadLocal();
+  }
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await fetch(
+    `${API_BASE}/api/projetos/${encodeURIComponent(projectId)}/procedimentos/upload`,
+    {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    }
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = data && data.message ? data.message : "Falha no upload do procedimento.";
+    const error = new Error(message);
+    error.status = response.status;
+    error.data = data;
+    if (shouldFallbackAdminRequest(error)) {
+      return uploadLocal();
+    }
+    throw error;
+  }
+  return data;
+}
+
 async function apiProjetosProcedimentosCreate(projectId, payload) {
   return apiRequest(`/api/projetos/${encodeURIComponent(projectId)}/procedimentos`, {
     method: "POST",
@@ -48347,7 +48562,6 @@ if (procedimentoForm) {
     const payload = {
       codigo: procedimentoFormCodigo ? procedimentoFormCodigo.value.trim() : "",
       nome: procedimentoFormNome ? procedimentoFormNome.value.trim() : "",
-      descricao: procedimentoFormDescricao ? procedimentoFormDescricao.value.trim() : "",
     };
     const targetProjectId = procedimentoFormProject
       ? procedimentoFormProject.value.trim()
@@ -48357,20 +48571,33 @@ if (procedimentoForm) {
       alert("Informe o nome do procedimento.");
       return;
     }
+    if (!targetProjectId) {
+      alert("Selecione um projeto para o procedimento.");
+      return;
+    }
     try {
+      let arquivoPayload = procedimentoFormPdfDoc;
+      if (procedimentoFormPdfPendingFile) {
+        const upload = await apiUploadProcedimentoPdf(targetProjectId, procedimentoFormPdfPendingFile);
+        arquivoPayload = normalizeProcedimentoPdfDoc(upload && upload.file ? upload.file : null);
+        setProcedimentoFormPdfDoc(arquivoPayload);
+        setProcedimentoFormPdfPendingFile(null);
+      }
+      if (!arquivoPayload) {
+        alert("Anexe o PDF do procedimento.");
+        return;
+      }
+      payload.arquivo = arquivoPayload;
       if (procedimentoId) {
         if (targetProjectId && targetProjectId !== activeProjectId) {
           await setActiveProjectId(targetProjectId);
         }
         await apiProcedimentosUpdate(procedimentoId, payload);
-      } else if (targetProjectId) {
+      } else {
         await apiProjetosProcedimentosCreate(targetProjectId, payload);
         if (targetProjectId !== activeProjectId) {
           await setActiveProjectId(targetProjectId);
         }
-      } else {
-        alert("Selecione um projeto para o procedimento.");
-        return;
       }
       resetProcedimentoForm();
       await carregarProcedimentosProjeto();
@@ -48383,6 +48610,54 @@ if (procedimentoForm) {
 if (procedimentoFormCancel) {
   procedimentoFormCancel.addEventListener("click", () => {
     resetProcedimentoForm();
+  });
+}
+
+if (procedimentoFormPdf) {
+  procedimentoFormPdf.addEventListener("change", () => {
+    const file = procedimentoFormPdf.files && procedimentoFormPdf.files[0] ? procedimentoFormPdf.files[0] : null;
+    if (!file) {
+      setProcedimentoFormPdfPendingFile(null);
+      return;
+    }
+    const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
+    if (!isPdf) {
+      alert("Envie apenas arquivo PDF.");
+      procedimentoFormPdf.value = "";
+      setProcedimentoFormPdfPendingFile(null);
+      return;
+    }
+    if (file.size > FILE_MAX_BYTES) {
+      alert("Arquivo acima de 10 MB.");
+      procedimentoFormPdf.value = "";
+      setProcedimentoFormPdfPendingFile(null);
+      return;
+    }
+    setProcedimentoFormPdfPendingFile(file);
+  });
+}
+
+if (procedimentoFormPdfPreview) {
+  procedimentoFormPdfPreview.addEventListener("click", () => {
+    if (procedimentoFormPdfPendingUrl) {
+      abrirPreview(procedimentoFormPdfPendingUrl);
+      return;
+    }
+    if (procedimentoFormPdfDoc && procedimentoFormPdfDoc.url) {
+      abrirPreview(procedimentoFormPdfDoc.url);
+      return;
+    }
+    alert("Nenhum PDF selecionado.");
+  });
+}
+
+if (procedimentoFormPdfRemove) {
+  procedimentoFormPdfRemove.addEventListener("click", () => {
+    setProcedimentoFormPdfPendingFile(null);
+    setProcedimentoFormPdfDoc(null);
+    if (procedimentoFormPdf) {
+      procedimentoFormPdf.value = "";
+    }
   });
 }
 
@@ -48400,11 +48675,15 @@ if (procedimentoTable) {
     if (!procedimentoId) {
       return;
     }
-    if (!currentUser || !canManageProcedimentos(currentUser)) {
-      return;
-    }
     const procedimento = projectProcedimentos.find((item) => item.id === procedimentoId);
     if (!procedimento) {
+      return;
+    }
+    if (action.dataset.action === "view-procedure") {
+      abrirProcedimentoPdf(procedimento);
+      return;
+    }
+    if (!currentUser || !canManageProcedimentos(currentUser)) {
       return;
     }
     if (action.dataset.action === "edit-procedure") {
@@ -48414,7 +48693,11 @@ if (procedimentoTable) {
       }
       if (procedimentoFormCodigo) procedimentoFormCodigo.value = procedimento.codigo || "";
       if (procedimentoFormNome) procedimentoFormNome.value = procedimento.nome || "";
-      if (procedimentoFormDescricao) procedimentoFormDescricao.value = procedimento.descricao || "";
+      setProcedimentoFormPdfDoc(getProcedimentoPdfDoc(procedimento));
+      setProcedimentoFormPdfPendingFile(null);
+      if (procedimentoFormPdf) {
+        procedimentoFormPdf.value = "";
+      }
       return;
     }
     if (action.dataset.action === "delete-procedure") {
@@ -48429,6 +48712,18 @@ if (procedimentoTable) {
         alert(error && error.message ? error.message : "Falha ao excluir procedimento.");
       }
     }
+  });
+}
+
+if (procedimentoManutencao) {
+  procedimentoManutencao.addEventListener("change", () => {
+    renderProcedimentoBindingLinks();
+  });
+}
+
+if (templateProcedimentos) {
+  templateProcedimentos.addEventListener("change", () => {
+    renderProcedimentoBindingLinks();
   });
 }
 

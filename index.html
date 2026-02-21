@@ -1570,6 +1570,7 @@
                 <option value="">Nenhum procedimento cadastrado no projeto</option>
               </select>
               <p class="hint">Opcional. Pode selecionar mais de um procedimento.</p>
+              <div id="procedimentoManutencaoLinks" class="procedure-links"></div>
             </div>
           </div>
         </div>
@@ -1932,6 +1933,7 @@
                   <option value="">Nenhum procedimento cadastrado no projeto</option>
                 </select>
                 <p class="hint">Opcional. Pode selecionar múltiplos procedimentos.</p>
+                <div id="templateProcedimentosLinks" class="procedure-links"></div>
               </div>
               <div class="field" data-full>
                 <label for="templatePrazoQtd">Prazo máximo aberto</label>
@@ -2137,12 +2139,28 @@
               <input id="procedimentoFormNome" type="text" placeholder="Inspeção de disjuntores" required />
             </div>
             <div class="field field--full">
-              <label for="procedimentoFormDescricao">Descrição</label>
-              <textarea
-                id="procedimentoFormDescricao"
-                rows="2"
-                placeholder="Escopo resumido e observações do procedimento"
-              ></textarea>
+              <label for="procedimentoFormPdf">Procedimento (PDF)</label>
+              <input id="procedimentoFormPdf" type="file" accept="application/pdf,.pdf" />
+              <p id="procedimentoFormPdfName" class="hint">Nenhum PDF selecionado.</p>
+              <div class="table-actions">
+                <button
+                  id="procedimentoFormPdfPreview"
+                  type="button"
+                  class="btn btn--ghost btn--small"
+                  hidden
+                >
+                  Visualizar PDF
+                </button>
+                <button
+                  id="procedimentoFormPdfRemove"
+                  type="button"
+                  class="btn btn--ghost btn--small btn--danger"
+                  hidden
+                >
+                  Remover PDF
+                </button>
+              </div>
+              <p class="hint">Obrigatorio. Faca upload do PDF antes de salvar.</p>
             </div>
           </div>
           <div class="form-actions">
@@ -2156,7 +2174,7 @@
               <tr>
                 <th>Código</th>
                 <th>Nome</th>
-                <th>Descrição</th>
+                <th>PDF</th>
                 <th>Ações</th>
               </tr>
             </thead>
