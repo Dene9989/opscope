@@ -271,6 +271,13 @@ const equipamentoFormTag = document.getElementById("equipamentoFormTag");
 const equipamentoFormNome = document.getElementById("equipamentoFormNome");
 const equipamentoFormCategoria = document.getElementById("equipamentoFormCategoria");
 const equipamentoFormSubequipamentos = document.getElementById("equipamentoFormSubequipamentos");
+const equipamentoSubTag = document.getElementById("equipamentoSubTag");
+const equipamentoSubNome = document.getElementById("equipamentoSubNome");
+const equipamentoSubCategoria = document.getElementById("equipamentoSubCategoria");
+const equipamentoSubAdd = document.getElementById("equipamentoSubAdd");
+const equipamentoSubTable = document.getElementById("equipamentoSubTable");
+const equipamentoSubTableBody = document.getElementById("equipamentoSubTableBody");
+const equipamentoSubEmpty = document.getElementById("equipamentoSubEmpty");
 const equipamentoFormDescricao = document.getElementById("equipamentoFormDescricao");
 const equipamentoFormCancel = document.getElementById("equipamentoFormCancel");
 const equipamentoTable = document.getElementById("equipamentoTable");
@@ -4567,6 +4574,8 @@ let availableProjects = [];
 let projectEquipamentos = [];
 let projectProcedimentos = [];
 let projectEquipe = [];
+let equipamentoSubRows = [];
+let equipamentoSubEditIndex = -1;
 let manutencaoParticipantesSelecionados = [];
 let liberacaoParticipantesSelecionados = [];
 let templateParticipantesSelecionados = [];
@@ -33298,6 +33307,209 @@ function renderProjectFormSelect() {
   }
 }
 
+function normalizeEquipamentoSubRow(row) {
+  const input = row && typeof row === "object" ? row : {};
+  const tag = String(input.tag || "").trim();
+  const nome = String(input.nome || "").trim();
+  const categoria = String(input.categoria || "").trim();
+  if (!tag && !nome && !categoria) {
+    return null;
+  }
+  return { tag, nome, categoria };
+}
+
+function formatEquipamentoSubLabel(row) {
+  const normalized = normalizeEquipamentoSubRow(row);
+  if (!normalized) {
+    return "";
+  }
+  const tag = normalized.tag;
+  const nome = normalized.nome;
+  const categoria = normalized.categoria;
+  let base = "";
+  if (tag && nome) {
+    base = `${tag} - ${nome}`;
+  } else {
+    base = tag || nome;
+  }
+  if (categoria) {
+    base = `${base} (${categoria})`;
+  }
+  return base.trim();
+}
+
+function parseEquipamentoSubLabel(value) {
+  const text = String(value || "").trim();
+  if (!text) {
+    return null;
+  }
+  const splitToken = " - ";
+  const splitIndex = text.indexOf(splitToken);
+  if (splitIndex > 0) {
+    const possibleTag = text.slice(0, splitIndex).trim();
+    const remainder = text.slice(splitIndex + splitToken.length).trim();
+    const looksLikeTag = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,29}$/.test(possibleTag);
+    if (looksLikeTag && remainder) {
+      const categoryMatch = remainder.match(/^(.*?)(?:\s*\((.*?)\))?$/);
+      const nome = String(categoryMatch && categoryMatch[1] ? categoryMatch[1] : remainder).trim();
+      const categoria = String(categoryMatch && categoryMatch[2] ? categoryMatch[2] : "").trim();
+      return normalizeEquipamentoSubRow({ tag: possibleTag, nome, categoria });
+    }
+  }
+  const onlyCategoryMatch = text.match(/^(.*?)(?:\s*\((.*?)\))?$/);
+  const nome = String(onlyCategoryMatch && onlyCategoryMatch[1] ? onlyCategoryMatch[1] : text).trim();
+  const categoria = String(onlyCategoryMatch && onlyCategoryMatch[2] ? onlyCategoryMatch[2] : "").trim();
+  if (nome || categoria) {
+    return normalizeEquipamentoSubRow({ nome, categoria });
+  }
+  return normalizeEquipamentoSubRow({ nome: text });
+}
+
+function normalizeEquipamentoSubRows(value) {
+  const rows = [];
+  const pushRow = (candidate) => {
+    const row = normalizeEquipamentoSubRow(candidate);
+    if (!row) {
+      return;
+    }
+    const label = formatEquipamentoSubLabel(row).toLowerCase();
+    const duplicated = rows.some((entry) => formatEquipamentoSubLabel(entry).toLowerCase() === label);
+    if (!duplicated) {
+      rows.push(row);
+    }
+  };
+  if (Array.isArray(value)) {
+    value.forEach((item) => {
+      if (item && typeof item === "object") {
+        pushRow(item);
+      } else {
+        pushRow(parseEquipamentoSubLabel(item));
+      }
+    });
+    return rows;
+  }
+  normalizeLocaisList(value).forEach((item) => {
+    pushRow(parseEquipamentoSubLabel(item));
+  });
+  return rows;
+}
+
+function clearEquipamentoSubInputs() {
+  if (equipamentoSubTag) {
+    equipamentoSubTag.value = "";
+  }
+  if (equipamentoSubNome) {
+    equipamentoSubNome.value = "";
+  }
+  if (equipamentoSubCategoria) {
+    equipamentoSubCategoria.value = "";
+  }
+}
+
+function syncEquipamentoSubTextarea() {
+  if (!equipamentoFormSubequipamentos) {
+    return;
+  }
+  const linhas = equipamentoSubRows
+    .map((entry) => formatEquipamentoSubLabel(entry))
+    .filter(Boolean);
+  equipamentoFormSubequipamentos.value = linhas.join("\n");
+}
+
+function renderEquipamentoSubRows() {
+  syncEquipamentoSubTextarea();
+  if (!equipamentoSubTableBody) {
+    return;
+  }
+  equipamentoSubTableBody.innerHTML = "";
+  if (!equipamentoSubRows.length) {
+    if (equipamentoSubEmpty) {
+      equipamentoSubEmpty.hidden = false;
+    }
+    if (equipamentoSubAdd) {
+      equipamentoSubAdd.textContent = "Adicionar linha";
+    }
+    return;
+  }
+  if (equipamentoSubEmpty) {
+    equipamentoSubEmpty.hidden = true;
+  }
+  equipamentoSubRows.forEach((entry, index) => {
+    const tr = document.createElement("tr");
+    tr.dataset.subIndex = String(index);
+    const tag = escapeHtml(entry.tag || "-");
+    const nome = escapeHtml(entry.nome || "-");
+    const categoria = escapeHtml(entry.categoria || "-");
+    const preview = escapeHtml(formatEquipamentoSubLabel(entry) || "-");
+    tr.innerHTML = `
+      <td>${tag}</td>
+      <td>${nome}</td>
+      <td>${categoria}</td>
+      <td>${preview}</td>
+      <td class="table-actions">
+        <button type="button" class="btn btn--ghost btn--small" data-sub-action="edit">Editar</button>
+        <button type="button" class="btn btn--ghost btn--small btn--danger" data-sub-action="remove">Remover</button>
+      </td>
+    `;
+    equipamentoSubTableBody.append(tr);
+  });
+  if (equipamentoSubAdd) {
+    equipamentoSubAdd.textContent = equipamentoSubEditIndex >= 0 ? "Atualizar linha" : "Adicionar linha";
+  }
+}
+
+function resetEquipamentoSubBuilder(value = []) {
+  equipamentoSubRows = normalizeEquipamentoSubRows(value);
+  equipamentoSubEditIndex = -1;
+  clearEquipamentoSubInputs();
+  renderEquipamentoSubRows();
+}
+
+function startEquipamentoSubEdit(index) {
+  const item = equipamentoSubRows[index];
+  if (!item) {
+    return;
+  }
+  equipamentoSubEditIndex = index;
+  if (equipamentoSubTag) {
+    equipamentoSubTag.value = item.tag || "";
+  }
+  if (equipamentoSubNome) {
+    equipamentoSubNome.value = item.nome || "";
+    equipamentoSubNome.focus();
+  }
+  if (equipamentoSubCategoria) {
+    equipamentoSubCategoria.value = item.categoria || "";
+  }
+  renderEquipamentoSubRows();
+}
+
+function saveEquipamentoSubRowFromInputs() {
+  const tag = equipamentoSubTag ? equipamentoSubTag.value.trim() : "";
+  const nome = equipamentoSubNome ? equipamentoSubNome.value.trim() : "";
+  const categoria = equipamentoSubCategoria ? equipamentoSubCategoria.value.trim() : "";
+  if (!tag && !nome) {
+    alert("Informe ao menos Tag ou Nome do sub-equipamento.");
+    return;
+  }
+  const candidate = normalizeEquipamentoSubRow({ tag, nome, categoria });
+  if (!candidate) {
+    return;
+  }
+  if (equipamentoSubEditIndex >= 0 && equipamentoSubRows[equipamentoSubEditIndex]) {
+    equipamentoSubRows[equipamentoSubEditIndex] = candidate;
+  } else {
+    equipamentoSubRows.push(candidate);
+  }
+  equipamentoSubRows = normalizeEquipamentoSubRows(equipamentoSubRows);
+  equipamentoSubEditIndex = -1;
+  clearEquipamentoSubInputs();
+  renderEquipamentoSubRows();
+  if (equipamentoSubTag) {
+    equipamentoSubTag.focus();
+  }
+}
+
 function renderEquipamentosTable() {
   if (!equipamentoTableBody) {
     return;
@@ -33315,11 +33527,16 @@ function renderEquipamentosTable() {
     }
     tr.dataset.equipmentId = equip.id;
     const subequipamentos = normalizeLocaisList(equip.subequipamentos || []);
+    const subequipamentosHtml = subequipamentos.length
+      ? `<div class="subequip-summary">${subequipamentos
+          .map((entry) => `<span class="subequip-summary__item">${escapeHtml(entry)}</span>`)
+          .join("")}</div>`
+      : '<span class="subequip-summary__empty">-</span>';
     tr.innerHTML = `
       <td>${escapeHtml(equip.tag || "-")}</td>
       <td>${escapeHtml(equip.nome || "-")}</td>
       <td>${escapeHtml(equip.categoria || "-")}</td>
-      <td>${escapeHtml(subequipamentos.length ? subequipamentos.join(", ") : "-")}</td>
+      <td>${subequipamentosHtml}</td>
       <td>${escapeHtml(equip.descricao || "-")}</td>
       <td class="table-actions">${actions.join(" ")}</td>
     `;
@@ -33916,6 +34133,7 @@ function resetEquipamentoForm() {
   if (equipamentoForm) {
     equipamentoForm.reset();
   }
+  resetEquipamentoSubBuilder([]);
   if (equipamentoFormId) {
     equipamentoFormId.value = "";
   }
@@ -48351,6 +48569,60 @@ if (equipamentoFormProject) {
   });
 }
 
+if (equipamentoSubAdd) {
+  equipamentoSubAdd.addEventListener("click", () => {
+    saveEquipamentoSubRowFromInputs();
+  });
+}
+
+if (equipamentoSubTable) {
+  equipamentoSubTable.addEventListener("click", (event) => {
+    const action = event.target.closest("[data-sub-action]");
+    if (!action) {
+      return;
+    }
+    const row = action.closest("tr[data-sub-index]");
+    if (!row) {
+      return;
+    }
+    const index = Number(row.dataset.subIndex || -1);
+    if (!Number.isInteger(index) || index < 0 || index >= equipamentoSubRows.length) {
+      return;
+    }
+    if (action.dataset.subAction === "edit") {
+      startEquipamentoSubEdit(index);
+      return;
+    }
+    if (action.dataset.subAction === "remove") {
+      equipamentoSubRows.splice(index, 1);
+      if (equipamentoSubEditIndex === index) {
+        equipamentoSubEditIndex = -1;
+        clearEquipamentoSubInputs();
+      } else if (equipamentoSubEditIndex > index) {
+        equipamentoSubEditIndex -= 1;
+      }
+      renderEquipamentoSubRows();
+    }
+  });
+}
+
+[equipamentoSubTag, equipamentoSubNome, equipamentoSubCategoria]
+  .filter(Boolean)
+  .forEach((input) => {
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        saveEquipamentoSubRowFromInputs();
+      }
+    });
+  });
+
+if (equipamentoSubTableBody) {
+  resetEquipamentoSubBuilder(
+    equipamentoFormSubequipamentos ? equipamentoFormSubequipamentos.value : ""
+  );
+}
+
 if (procedimentoFormProject) {
   procedimentoFormProject.addEventListener("change", (event) => {
     const nextId = event.target.value;
@@ -48459,13 +48731,19 @@ if (equipamentoForm) {
     if (!currentUser || !canManageEquipamentos(currentUser)) {
       return;
     }
+    const subequipamentosNormalizados = normalizeLocaisList(
+      equipamentoSubRows
+        .map((entry) => formatEquipamentoSubLabel(entry))
+        .filter(Boolean)
+    );
+    if (equipamentoFormSubequipamentos) {
+      equipamentoFormSubequipamentos.value = subequipamentosNormalizados.join("\n");
+    }
     const payload = {
       tag: equipamentoFormTag ? equipamentoFormTag.value.trim() : "",
       nome: equipamentoFormNome ? equipamentoFormNome.value.trim() : "",
       categoria: equipamentoFormCategoria ? equipamentoFormCategoria.value.trim() : "",
-      subequipamentos: normalizeLocaisList(
-        equipamentoFormSubequipamentos ? equipamentoFormSubequipamentos.value : ""
-      ),
+      subequipamentos: subequipamentosNormalizados,
       descricao: equipamentoFormDescricao ? equipamentoFormDescricao.value.trim() : "",
     };
     const targetProjectId = equipamentoFormProject
@@ -48530,11 +48808,7 @@ if (equipamentoTable) {
       if (equipamentoFormTag) equipamentoFormTag.value = equipamento.tag || "";
       if (equipamentoFormNome) equipamentoFormNome.value = equipamento.nome || "";
       if (equipamentoFormCategoria) equipamentoFormCategoria.value = equipamento.categoria || "";
-      if (equipamentoFormSubequipamentos) {
-        equipamentoFormSubequipamentos.value = normalizeLocaisList(
-          equipamento.subequipamentos || []
-        ).join("\n");
-      }
+      resetEquipamentoSubBuilder(equipamento.subequipamentos || []);
       if (equipamentoFormDescricao) equipamentoFormDescricao.value = equipamento.descricao || "";
       return;
     }

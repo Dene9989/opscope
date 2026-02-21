@@ -5727,6 +5727,61 @@ label {
   gap: 6px;
 }
 
+.subequip-builder {
+  display: grid;
+  gap: 10px;
+}
+
+.subequip-builder__grid {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 1fr auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.subequip-builder__table-wrap {
+  margin-top: 0;
+}
+
+.subequip-builder__table {
+  min-width: 760px;
+}
+
+.subequip-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.subequip-summary__item {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(9, 25, 38, 0.85);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #e8eff9;
+}
+
+.subequip-summary__empty {
+  color: rgba(233, 239, 247, 0.65);
+}
+
+@media (max-width: 1024px) {
+  .subequip-builder__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .subequip-builder__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 #procedimentoForm .table-actions {
   justify-content: flex-start;
 }
@@ -5751,6 +5806,32 @@ label {
 .procedure-link__label {
   font-size: 0.8rem;
   color: var(--ink-soft);
+}
+
+.page-procedimentos #procedimentoTable th {
+  color: #eef5ff;
+  background: rgba(6, 18, 30, 0.96);
+}
+
+.page-procedimentos #procedimentoTable td {
+  color: #e9f1ff;
+  font-weight: 500;
+}
+
+.page-procedimentos #procedimentoTable td:nth-child(3) {
+  color: #d3e4ff;
+}
+
+.page-procedimentos #procedimentoTable tbody tr:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.page-procedimentos #procedimentoTable tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.page-procedimentos #procedimentoTable tbody tr:hover {
+  background: rgba(200, 146, 61, 0.18);
 }
 
 #equipeFormUser {

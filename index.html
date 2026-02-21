@@ -2676,12 +2676,39 @@
               </div>
               <div class="field field--full">
                 <label for="equipamentoFormSubequipamentos">Sub-equipamentos</label>
+                <div class="subequip-builder">
+                  <div class="subequip-builder__grid">
+                    <input id="equipamentoSubTag" type="text" placeholder="Tag (ex.: ALM-01)" />
+                    <input id="equipamentoSubNome" type="text" placeholder="Nome (ex.: Alimentador 01)" />
+                    <input id="equipamentoSubCategoria" type="text" placeholder="Categoria (ex.: 34,5 kV)" />
+                    <button id="equipamentoSubAdd" class="btn btn--ghost btn--small" type="button">
+                      Adicionar linha
+                    </button>
+                  </div>
+                  <div class="report-table__wrap subequip-builder__table-wrap">
+                    <table class="report__table subequip-builder__table" id="equipamentoSubTable">
+                      <thead>
+                        <tr>
+                          <th>Tag</th>
+                          <th>Nome</th>
+                          <th>Categoria</th>
+                          <th>Preview</th>
+                          <th>Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody id="equipamentoSubTableBody"></tbody>
+                    </table>
+                    <p id="equipamentoSubEmpty" class="empty-state">Nenhum sub-equipamento adicionado.</p>
+                  </div>
+                </div>
                 <textarea
                   id="equipamentoFormSubequipamentos"
+                  class="visually-hidden"
+                  data-font-group="false"
                   rows="2"
-                  placeholder="Um por linha (ex.: Alimentador A&#10;Alimentador B)"
+                  placeholder="Um por linha"
                 ></textarea>
-                <p class="hint">Opcional. Um sub-equipamento por linha.</p>
+                <p class="hint">Cadastre por linhas com tag, nome e categoria para manter padronização.</p>
               </div>
               <div class="field field--full">
                 <label for="equipamentoFormDescricao">Descrição</label>
