@@ -2414,6 +2414,79 @@ body.is-visitor .notify.auth-only {
   background: var(--surface2);
 }
 
+.profile-signature__modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.profile-signature__draw {
+  display: grid;
+  gap: 8px;
+}
+
+.profile-signature__draw canvas {
+  width: 100%;
+  min-height: 150px;
+  border-radius: 12px;
+  border: 1px dashed rgba(15, 46, 69, 0.35);
+  background: #fff;
+  cursor: crosshair;
+}
+
+.profile-signature__upload {
+  display: grid;
+  gap: 8px;
+}
+
+.profile-signature__preview {
+  margin-top: 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  min-height: 80px;
+  background: rgba(255, 255, 255, 0.02);
+  display: grid;
+  place-items: center;
+  padding: 8px;
+}
+
+.profile-signature__preview::before {
+  content: "Sem assinatura";
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.profile-signature__preview.has-signature::before {
+  content: "";
+}
+
+.profile-signature__preview img {
+  display: none;
+  max-height: 110px;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.profile-signature__preview.has-signature img {
+  display: block;
+}
+
+.profile-signature__actions {
+  margin-top: 8px;
+}
+
+.signature-box {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  min-height: 82px;
+  background: rgba(255, 255, 255, 0.03) center / contain no-repeat;
+}
+
+.signature-box.has-signature {
+  background-color: #fff;
+}
+
 .profile-item {
   border-radius: 12px;
   padding: 14px;

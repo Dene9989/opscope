@@ -488,6 +488,22 @@
                 <span class="nav-item__label">Modelos e Recorr&ecirc;ncias</span>
                 <span class="nav-item__meta"></span>
               </button>
+              <button class="nav-item" type="button" data-tab="procedimentos" data-tooltip="Procedimentos">
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M6 3h9l5 5v13a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linejoin="round"
+                    />
+                    <path d="M15 3v5h5M8 12h8M8 16h8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Procedimentos</span>
+                <span class="nav-item__meta"></span>
+              </button>
               <button class="nav-item" type="button" data-tab="pmp" data-tooltip="PMP / Cronograma">
                 <span class="nav-item__ico">
                   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -1489,6 +1505,13 @@
                 <option value="">Selecione um equipamento</option>
               </select>
             </div>
+            <div class="field">
+              <label for="subequipamentoManutencao">Sub-equipamentos</label>
+              <select id="subequipamentoManutencao" multiple size="4">
+                <option value="">Selecione um equipamento primeiro</option>
+              </select>
+              <p class="hint">Opcional. Selecione um ou mais sub-equipamentos.</p>
+            </div>
           </div>
           <div class="form-grid nova-manutencao__grid-bottom">
             <div class="field field--date-group">
@@ -1540,6 +1563,13 @@
             <div class="field">
               <label for="osReferenciaManutencao">OS / referência</label>
               <input id="osReferenciaManutencao" type="text" required />
+            </div>
+            <div class="field" data-full>
+              <label for="procedimentoManutencao">Procedimentos aplicáveis</label>
+              <select id="procedimentoManutencao" multiple size="4">
+                <option value="">Nenhum procedimento cadastrado no projeto</option>
+              </select>
+              <p class="hint">Opcional. Pode selecionar mais de um procedimento.</p>
             </div>
           </div>
         </div>
@@ -1849,6 +1879,13 @@
                 </select>
               </div>
               <div class="field" data-full>
+                <label for="templateSubequipamentos">Sub-equipamentos</label>
+                <select id="templateSubequipamentos" multiple size="4">
+                  <option value="">Selecione um equipamento primeiro</option>
+                </select>
+                <p class="hint">Opcional. Pode selecionar mais de um sub-equipamento.</p>
+              </div>
+              <div class="field" data-full>
                 <label for="templateEquipeResponsavel">Equipe/Time responsavel</label>
                 <select id="templateEquipeResponsavel"></select>
                 <p class="hint">Equipe vinculada ao projeto ativo.</p>
@@ -1888,6 +1925,13 @@
                 <input id="templateResponsaveisIds" type="hidden" />
                 <p class="hint">Opcional. Pode ajustar por manutenção.</p>
                 <p id="templateResponsaveisErro" class="field-error" hidden></p>
+              </div>
+              <div class="field" data-full>
+                <label for="templateProcedimentos">Procedimentos aplicáveis</label>
+                <select id="templateProcedimentos" multiple size="4">
+                  <option value="">Nenhum procedimento cadastrado no projeto</option>
+                </select>
+                <p class="hint">Opcional. Pode selecionar múltiplos procedimentos.</p>
               </div>
               <div class="field" data-full>
                 <label for="templatePrazoQtd">Prazo máximo aberto</label>
@@ -2067,6 +2111,57 @@
             <div id="listaModelos" class="template-list"></div>
             <p id="modelosVazio" class="empty-state">Nenhum modelo cadastrado.</p>
           </div>
+        </div>
+      </section>
+    </section>
+
+    <section class="panel page-procedimentos" id="procedimentos" data-panel="procedimentos">
+      <section class="card">
+        <h2>Procedimentos</h2>
+        <p class="hint">Cadastre procedimentos por projeto para vincular nas manutenções e recorrências.</p>
+        <form id="procedimentoForm" class="project-form">
+          <input id="procedimentoFormId" type="hidden" />
+          <div class="form-grid">
+            <div class="field">
+              <label for="procedimentoFormProject">Projeto</label>
+              <select id="procedimentoFormProject">
+                <option value="">Selecione</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="procedimentoFormCodigo">Código</label>
+              <input id="procedimentoFormCodigo" type="text" placeholder="POP-001" />
+            </div>
+            <div class="field">
+              <label for="procedimentoFormNome">Nome</label>
+              <input id="procedimentoFormNome" type="text" placeholder="Inspeção de disjuntores" required />
+            </div>
+            <div class="field field--full">
+              <label for="procedimentoFormDescricao">Descrição</label>
+              <textarea
+                id="procedimentoFormDescricao"
+                rows="2"
+                placeholder="Escopo resumido e observações do procedimento"
+              ></textarea>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn--primary" type="submit">Salvar</button>
+            <button class="btn btn--ghost" type="button" id="procedimentoFormCancel">Limpar</button>
+          </div>
+        </form>
+        <div class="report-table__wrap">
+          <table class="report__table" id="procedimentoTable">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Nome</th>
+                <th>Descrição</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
         </div>
       </section>
     </section>
@@ -2562,6 +2657,15 @@
                 <input id="equipamentoFormCategoria" type="text" placeholder="Inversor" />
               </div>
               <div class="field field--full">
+                <label for="equipamentoFormSubequipamentos">Sub-equipamentos</label>
+                <textarea
+                  id="equipamentoFormSubequipamentos"
+                  rows="2"
+                  placeholder="Um por linha (ex.: Alimentador A&#10;Alimentador B)"
+                ></textarea>
+                <p class="hint">Opcional. Um sub-equipamento por linha.</p>
+              </div>
+              <div class="field field--full">
                 <label for="equipamentoFormDescricao">Descrição</label>
                 <textarea id="equipamentoFormDescricao" rows="2" placeholder="Detalhes do equipamento"></textarea>
               </div>
@@ -2578,6 +2682,7 @@
                   <th>Tag</th>
                   <th>Nome</th>
                   <th>Categoria</th>
+                  <th>Sub-equipamentos</th>
                   <th>Descrição</th>
                   <th>Ações</th>
                 </tr>
@@ -4502,6 +4607,45 @@
                 placeholder="Carteira de ativos, &aacute;reas, rotas"
               ></textarea>
             </div>
+            <div class="field" data-full id="perfilSignatureEditor">
+              <label>Assinatura digital</label>
+              <div class="profile-signature__modes">
+                <label class="checkbox-field">
+                  <input type="radio" name="perfilSignatureMode" value="draw" checked />
+                  <span>Desenhar</span>
+                </label>
+                <label class="checkbox-field">
+                  <input type="radio" name="perfilSignatureMode" value="upload" />
+                  <span>Upload</span>
+                </label>
+              </div>
+              <div id="perfilSignatureDrawWrap" class="profile-signature__draw">
+                <canvas id="perfilSignatureCanvas" width="480" height="160"></canvas>
+                <button id="btnPerfilSignatureClear" class="btn btn--ghost btn--small" type="button">
+                  Limpar desenho
+                </button>
+              </div>
+              <div id="perfilSignatureUploadWrap" class="profile-signature__upload" hidden>
+                <input
+                  id="perfilSignatureFile"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                />
+                <p class="hint">PNG, JPG ou WebP at&eacute; 2 MB.</p>
+              </div>
+              <div id="perfilSignaturePreviewWrap" class="profile-signature__preview">
+                <img id="perfilSignaturePreview" alt="Pr&eacute;via da assinatura" />
+              </div>
+              <div class="profile-signature__actions">
+                <button id="btnPerfilSignatureRemove" class="btn btn--ghost btn--small" type="button">
+                  Remover assinatura
+                </button>
+              </div>
+              <p id="perfilSignatureReadonly" class="hint" hidden>
+                Apenas o pr&oacute;prio colaborador pode cadastrar/alterar assinatura.
+              </p>
+              <p id="perfilSignatureErro" class="field-error" hidden></p>
+            </div>
             <p id="perfilSaveMsg" class="field-error" hidden></p>
           </div>
         </template>
@@ -6406,6 +6550,15 @@
           <div class="field" data-full>
             <label for="conclusaoReferencia">Nº OS / referência (obrigatório)</label>
             <input id="conclusaoReferencia" type="text" placeholder="Ex.: OS 123456" required />
+          </div>
+          <div class="field" data-full>
+            <label>Assinatura digital</label>
+            <div id="conclusaoAssinaturaPreview" class="signature-box"></div>
+            <label class="checkbox-field">
+              <input id="conclusaoAssinaturaConfirm" type="checkbox" />
+              <span>Confirmo minha assinatura para encerrar esta manutenção.</span>
+            </label>
+            <p id="conclusaoAssinaturaErro" class="field-error" hidden></p>
           </div>
           <div class="field" data-full>
             <label class="checkbox-field">

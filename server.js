@@ -224,6 +224,7 @@ const FILES_META_FILE = path.join(DATA_DIR, "files.json");
 const PERMISSOES_FILE = path.join(DATA_DIR, "permissoes.json");
 const PROJECTS_FILE = path.join(DATA_DIR, "projects.json");
 const EQUIPAMENTOS_FILE = path.join(DATA_DIR, "equipamentos.json");
+const PROCEDIMENTOS_FILE = path.join(DATA_DIR, "procedimentos.json");
 const PROJECT_USERS_FILE = path.join(DATA_DIR, "project_users.json");
 const ALMOX_ITEMS_FILE = path.join(DATA_DIR, "almox_items.json");
 const ALMOX_STOCK_FILE = path.join(DATA_DIR, "almox_stock.json");
@@ -262,6 +263,7 @@ const STORE_FILES = [
   PERMISSOES_FILE,
   PROJECTS_FILE,
   EQUIPAMENTOS_FILE,
+  PROCEDIMENTOS_FILE,
   PROJECT_USERS_FILE,
   ALMOX_ITEMS_FILE,
   ALMOX_STOCK_FILE,
@@ -298,6 +300,8 @@ const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
 const AVATAR_TARGET_BYTES = 1024 * 1024;
 const AVATAR_SIZE = 512;
 const ALLOWED_AVATAR_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+const SIGNATURE_MAX_BYTES = 2 * 1024 * 1024;
+const ALLOWED_SIGNATURE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const FILE_MAX_BYTES = 10 * 1024 * 1024;
 const STORE_UPLOADS = String(process.env.OPSCOPE_STORE_UPLOADS || "true").toLowerCase() !== "false";
 const STORE_UPLOADS_MAX_BYTES = Number(process.env.OPSCOPE_STORE_UPLOADS_MAX_BYTES) || FILE_MAX_BYTES;
@@ -457,6 +461,7 @@ const GRANULAR_PERMISSION_CATALOG = [
   { key: "verPainelGerencial", label: "Ver painel gerencial" },
   { key: "gerenciarProjetos", label: "Gerenciar projetos" },
   { key: "gerenciarEquipamentos", label: "Gerenciar equipamentos" },
+  { key: "gerenciarProcedimentosProjeto", label: "Gerenciar procedimentos do projeto" },
   { key: "gerenciarEquipeProjeto", label: "Gerenciar equipe do projeto" },
   { key: "gerenciarPMP", label: "Gerenciar PMP/Cronograma" },
   { key: "verAlmoxarifado", label: "Ver Almoxarifado" },
@@ -512,6 +517,7 @@ const GRANULAR_BASE_PERMISSIONS = {
   verPainelGerencial: false,
   gerenciarProjetos: false,
   gerenciarEquipamentos: false,
+  gerenciarProcedimentosProjeto: false,
   gerenciarEquipeProjeto: false,
   gerenciarPMP: false,
   verAlmoxarifado: false,
@@ -542,6 +548,7 @@ const GRANULAR_ADMIN_PERMISSIONS = {
   verPainelGerencial: true,
   gerenciarProjetos: false,
   gerenciarEquipamentos: false,
+  gerenciarProcedimentosProjeto: false,
   gerenciarEquipeProjeto: false,
   gerenciarPMP: false,
   verAlmoxarifado: true,
@@ -553,6 +560,7 @@ const GRANULAR_PCM_PERMISSIONS = {
   ...GRANULAR_ADMIN_PERMISSIONS,
   gerenciarProjetos: true,
   gerenciarEquipamentos: true,
+  gerenciarProcedimentosProjeto: true,
   gerenciarEquipeProjeto: true,
   gerenciarPMP: true,
 };
@@ -649,6 +657,7 @@ const ACCESS_PERMISSION_KEYS = new Set([
   "verProjetos",
   "gerenciarProjetos",
   "gerenciarEquipamentos",
+  "gerenciarProcedimentosProjeto",
   "gerenciarEquipeProjeto",
   "gerenciarPMP",
   "verAlmoxarifado",
@@ -752,6 +761,7 @@ function expandAccessPermissions(list) {
   if (base.has("PROJECT_WRITE")) {
     base.add("gerenciarProjetos");
     base.add("gerenciarEquipamentos");
+    base.add("gerenciarProcedimentosProjeto");
     base.add("gerenciarEquipeProjeto");
   }
   if (base.has("SST_READ")) {
@@ -1876,6 +1886,25 @@ function normalizeLocaisList(value) {
   return Array.from(new Set(normalized));
 }
 
+function normalizeSubequipamentosList(value) {
+  return normalizeLocaisList(value);
+}
+
+function normalizeStringIdList(value) {
+  if (!value) {
+    return [];
+  }
+  const items = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(/[;,|]+/g)
+      : [value];
+  const normalized = items
+    .map((item) => String(item || "").trim())
+    .filter(Boolean);
+  return Array.from(new Set(normalized));
+}
+
 function normalizeProject(record) {
   const now = new Date().toISOString();
   const pmpHoras = Number(
@@ -1950,11 +1979,101 @@ function loadEquipamentos() {
   if (!Array.isArray(data)) {
     return [];
   }
-  return data.filter((item) => item && typeof item === "object");
+  return data
+    .filter((item) => item && typeof item === "object")
+    .map((item) => ({
+      ...item,
+      subequipamentos: normalizeSubequipamentosList(item.subequipamentos || []),
+    }));
 }
 
 function saveEquipamentos(list) {
   writeJson(EQUIPAMENTOS_FILE, list);
+}
+
+function normalizeProcedimentoRecord(record, projectId = "") {
+  if (!record || typeof record !== "object") {
+    return null;
+  }
+  const now = new Date().toISOString();
+  const nome = String(record.nome || record.name || "").trim();
+  if (!nome) {
+    return null;
+  }
+  return {
+    id: String(record.id || "").trim() || crypto.randomUUID(),
+    projectId: String(record.projectId || projectId || "").trim(),
+    nome,
+    codigo: String(record.codigo || record.code || "").trim(),
+    descricao: String(record.descricao || record.description || "").trim(),
+    createdAt: record.createdAt || now,
+    createdBy: String(record.createdBy || "").trim(),
+    updatedAt: record.updatedAt || now,
+    updatedBy: String(record.updatedBy || "").trim(),
+  };
+}
+
+function normalizeSignatureDataUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "";
+  }
+  const match = raw.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) {
+    return "";
+  }
+  const mime = String(match[1] || "").toLowerCase();
+  if (!ALLOWED_SIGNATURE_TYPES.has(mime)) {
+    return "";
+  }
+  let buffer;
+  try {
+    buffer = Buffer.from(match[2], "base64");
+  } catch (error) {
+    return "";
+  }
+  if (!buffer || !buffer.length || buffer.length > SIGNATURE_MAX_BYTES) {
+    return "";
+  }
+  return `data:${mime};base64,${buffer.toString("base64")}`;
+}
+
+function normalizeUserSignature(value) {
+  const input = value && typeof value === "object" ? value : {};
+  const dataUrl = normalizeSignatureDataUrl(input.dataUrl || input.url || "");
+  if (!dataUrl) {
+    return { mode: "", dataUrl: "", hash: "", updatedAt: "" };
+  }
+  const modeRaw = String(input.mode || "").toLowerCase();
+  const mode = modeRaw === "upload" ? "upload" : "draw";
+  const updatedParsed = Date.parse(String(input.updatedAt || ""));
+  return {
+    mode,
+    dataUrl,
+    hash: sha256(dataUrl),
+    updatedAt: Number.isFinite(updatedParsed)
+      ? new Date(updatedParsed).toISOString()
+      : new Date().toISOString(),
+  };
+}
+
+function hasUserRegisteredSignature(user) {
+  const signature = normalizeUserSignature(user && user.signature);
+  return Boolean(signature.dataUrl);
+}
+
+function loadProcedimentos() {
+  const data = readJson(PROCEDIMENTOS_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data
+    .map((item) => normalizeProcedimentoRecord(item, item && item.projectId ? item.projectId : ""))
+    .filter(Boolean);
+}
+
+function saveProcedimentos(list) {
+  writeJson(PROCEDIMENTOS_FILE, Array.isArray(list) ? list : []);
 }
 
 function normalizeNumber(value, fallback = 0) {
@@ -3613,6 +3732,7 @@ function ensureProjectSeedData() {
   projectUsers = loadProjectUsers();
   ensureUserProjectLinks(defaultProject.id);
   equipamentos = loadEquipamentos();
+  procedimentos = loadProcedimentos();
 
   const maintenance = loadMaintenanceData();
   const maintenanceMigration = migrateRecordsProjectId(maintenance, defaultProject.id);
@@ -3636,6 +3756,12 @@ function ensureProjectSeedData() {
   if (automationMigration.changed) {
     automations = automationMigration.list;
     saveAutomations(automations);
+  }
+
+  const procedimentosMigration = migrateRecordsProjectId(procedimentos, defaultProject.id);
+  if (procedimentosMigration.changed) {
+    procedimentos = procedimentosMigration.list;
+    saveProcedimentos(procedimentos);
   }
 
   const announcementsMigration = migrateRecordsProjectId(announcements, defaultProject.id);
@@ -4983,6 +5109,21 @@ function normalizeMaintenanceResponsaveis(item) {
   };
 }
 
+function sanitizeMaintenanceLinkedData(item) {
+  if (!item || typeof item !== "object") {
+    return item;
+  }
+  return {
+    ...item,
+    subequipamentos: normalizeSubequipamentosList(
+      item.subequipamentos || item.subequipamentoIds || []
+    ),
+    procedimentoIds: normalizeStringIdList(
+      item.procedimentoIds || item.procedimentosIds || []
+    ),
+  };
+}
+
 function stripMaintenanceExecutionFields(item) {
   if (!item || typeof item !== "object") {
     return item;
@@ -5003,6 +5144,68 @@ function stripMaintenanceExecutionFields(item) {
     cleaned.liberacao = liberacao;
   }
   return cleaned;
+}
+
+function hasMaintenanceConclusionSignature(conclusao, user) {
+  if (!conclusao || typeof conclusao !== "object") {
+    return false;
+  }
+  if (!hasUserRegisteredSignature(user)) {
+    return false;
+  }
+  const signature =
+    conclusao.assinatura && typeof conclusao.assinatura === "object"
+      ? conclusao.assinatura
+      : conclusao.signature && typeof conclusao.signature === "object"
+        ? conclusao.signature
+        : null;
+  if (!signature) {
+    return false;
+  }
+  const userSignature = normalizeUserSignature(user && user.signature);
+  if (!userSignature.hash) {
+    return false;
+  }
+  const actorId = String((user && user.id) || "").trim();
+  const signatureUserId = String(signature.userId || signature.user || "").trim();
+  const signatureHash = String(signature.hash || signature.signatureHash || "").trim();
+  if (!actorId || !signatureUserId || signatureUserId !== actorId) {
+    return false;
+  }
+  if (!signatureHash || signatureHash !== userSignature.hash) {
+    return false;
+  }
+  return true;
+}
+
+function sanitizeConclusionSignature(item, current, user) {
+  if (!item || typeof item !== "object") {
+    return item;
+  }
+  const next = { ...item };
+  const currentStatus = normalizeStatus(current && current.status ? current.status : "");
+  const nextStatus = normalizeStatus(next.status || (next.conclusao ? "concluida" : ""));
+  const isConcluding = nextStatus === "concluida" && currentStatus !== "concluida";
+  if (!isConcluding) {
+    return next;
+  }
+  if (hasMaintenanceConclusionSignature(next.conclusao, user)) {
+    return next;
+  }
+  const fallbackStatus = currentStatus && currentStatus !== "concluida" ? currentStatus : "encerramento";
+  next.status = fallbackStatus;
+  if (current && currentStatus === "concluida") {
+    next.conclusao = current.conclusao;
+    next.doneAt = current.doneAt;
+    next.doneBy = current.doneBy;
+    next.executionFinishedAt = current.executionFinishedAt;
+    return next;
+  }
+  delete next.conclusao;
+  delete next.doneAt;
+  delete next.doneBy;
+  delete next.executionFinishedAt;
+  return next;
 }
 
 function sanitizePrazoMaximoFields(item) {
@@ -5106,6 +5309,7 @@ function sanitizeMaintenanceIncoming(item, current, user) {
     return item;
   }
   let next = normalizeMaintenanceResponsaveis(item);
+  next = sanitizeMaintenanceLinkedData(next);
   next = sanitizePrazoMaximoFields(next);
   next = sanitizePrazoRevalidacao(next, current, user);
   const reference = current || next;
@@ -5123,6 +5327,7 @@ function sanitizeMaintenanceIncoming(item, current, user) {
       next.status = "agendada";
     }
   }
+  next = sanitizeConclusionSignature(next, current, user);
   return next;
 }
 
@@ -5636,11 +5841,19 @@ function normalizeMaintenanceTemplateRecord(record, projectId) {
       responsavelTexto = "";
     }
   }
+  const subequipamentos = normalizeSubequipamentosList(
+    record.subequipamentos || record.subequipamentoIds || []
+  );
+  const procedimentoIds = normalizeStringIdList(
+    record.procedimentoIds || record.procedimentosIds || []
+  );
   return {
     ...record,
     id,
     nome,
     projectId,
+    subequipamentos,
+    procedimentoIds,
     createdAt,
     updatedAt,
     ...(hasResponsavelKeys || hasResponsavelLabel
@@ -6561,6 +6774,7 @@ function getGranularPermissionsForUser(user) {
       ...base,
       gerenciarProjetos: false,
       gerenciarEquipamentos: false,
+      gerenciarProcedimentosProjeto: false,
       gerenciarEquipeProjeto: false,
     };
   }
@@ -6594,14 +6808,16 @@ function diffGranularPermissions(before, after) {
   return changes;
 }
 
-function sanitizeUser(user) {
+function sanitizeUser(user, options = {}) {
   if (!user) {
     return null;
   }
+  const includeSignature = Boolean(options && options.includeSignature);
   const rbacRole = normalizeRbacRole(user.rbacRole || user.role);
   const role = normalizeRole(user.role, rbacRole);
   const email = getUserEmail(user);
   const emailVerified = user.emailVerified !== false;
+  const signature = normalizeUserSignature(user.signature);
   const status =
     String(user.status || (user.active === false ? "INATIVO" : "ATIVO")).toUpperCase() ===
     "INATIVO"
@@ -6643,6 +6859,20 @@ function sanitizeUser(user) {
     sections: buildSections(rbacRole, user.sections, accessPermissions),
     avatarUrl: user.avatarUrl || "",
     avatarUpdatedAt: user.avatarUpdatedAt || "",
+    signatureConfigured: Boolean(signature.dataUrl),
+    signatureUpdatedAt: signature.updatedAt || "",
+    ...(includeSignature
+      ? {
+          signature: signature.dataUrl
+            ? {
+                mode: signature.mode,
+                dataUrl: signature.dataUrl,
+                hash: signature.hash,
+                updatedAt: signature.updatedAt,
+              }
+            : { mode: "", dataUrl: "", hash: "", updatedAt: "" },
+        }
+      : {}),
     preferences: normalizeProfilePreferences(user.preferences),
     security: normalizeProfileSecurity(user.security || user.securitySettings),
     createdAt: user.createdAt,
@@ -6654,6 +6884,7 @@ function serializeAccessUser(user) {
     return null;
   }
   const normalized = normalizeUserRecord(user);
+  const signature = normalizeUserSignature(normalized.signature);
   const roleRecord =
     (normalized.roleId && getAccessRoleById(normalized.roleId)) ||
     getAccessRoleByName(normalized.roleName || normalized.cargo || normalized.role);
@@ -6695,7 +6926,9 @@ function serializeAccessUser(user) {
     atribuicoes: normalized.atribuicoes || "",
     avatarUrl: normalized.avatarUrl || "",
     avatarUpdatedAt: normalized.avatarUpdatedAt || "",
-  };
+    signatureConfigured: Boolean(signature.dataUrl),
+    signatureUpdatedAt: signature.updatedAt || "",
+    };
 }
 
 function normalizeUserRecord(user) {
@@ -6739,6 +6972,7 @@ function normalizeUserRecord(user) {
     active: status !== "INATIVO",
     permissions: buildPermissions(derivedRbacRole, user.permissions),
     sections: buildSections(derivedRbacRole, user.sections, accessPermissions),
+    signature: normalizeUserSignature(user.signature),
   };
 }
 
@@ -7689,6 +7923,7 @@ function getDashboardSummaryForProject(projectId) {
 let projects = [];
 let projectUsers = [];
 let equipamentos = [];
+let procedimentos = [];
 let pmpActivities = [];
 let pmpExecutions = [];
 let almoxItems = [];
@@ -7783,6 +8018,7 @@ async function bootstrap() {
   projects = loadProjects();
   projectUsers = loadProjectUsers();
   equipamentos = loadEquipamentos();
+  procedimentos = loadProcedimentos();
   almoxItems = loadAlmoxItems();
   if (!fs.existsSync(ALMOX_ITEMS_FILE)) {
     saveAlmoxItems(almoxItems);
@@ -8114,7 +8350,7 @@ app.post("/api/auth/login", async (req, res) => {
     req.session.activeProjectId = activeProjectId;
   }
   appendAudit("login_success", user.id, {}, ip);
-  return res.json({ user: sanitizeUser(user) });
+  return res.json({ user: sanitizeUser(user, { includeSignature: true }) });
 });
 
 app.post("/api/auth/logout", requireAuth, (req, res) => {
@@ -8151,7 +8387,7 @@ app.get("/api/auth/me", (req, res) => {
     req.session.activeProjectId = activeProjectId;
   }
   return res.json({
-    user: sanitizeUser(user),
+    user: sanitizeUser(user, { includeSignature: true }),
     projects: available,
     activeProjectId: activeProjectId || "",
   });
@@ -8393,7 +8629,12 @@ app.delete(
 
 app.get("/api/projetos/:id/equipamentos", requireAuth, requireProjectAccess, (req, res) => {
   const projectId = req.projectId;
-  const list = equipamentos.filter((item) => item.projectId === projectId);
+  const list = equipamentos
+    .filter((item) => item.projectId === projectId)
+    .map((item) => ({
+      ...item,
+      subequipamentos: normalizeSubequipamentosList(item.subequipamentos || []),
+    }));
   return res.json({ equipamentos: list });
 });
 
@@ -8417,6 +8658,7 @@ app.post(
       nome,
       categoria: String(payload.categoria || "").trim(),
       descricao: String(payload.descricao || "").trim(),
+      subequipamentos: normalizeSubequipamentosList(payload.subequipamentos || []),
       metadata: payload.metadata && typeof payload.metadata === "object" ? payload.metadata : {},
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -8452,6 +8694,10 @@ app.put(
         "categoria" in payload ? String(payload.categoria || "").trim() : equipamento.categoria,
       descricao:
         "descricao" in payload ? String(payload.descricao || "").trim() : equipamento.descricao,
+      subequipamentos:
+        "subequipamentos" in payload
+          ? normalizeSubequipamentosList(payload.subequipamentos || [])
+          : normalizeSubequipamentosList(equipamento.subequipamentos || []),
       metadata:
         "metadata" in payload && payload.metadata && typeof payload.metadata === "object"
           ? payload.metadata
@@ -8483,6 +8729,113 @@ app.delete(
     equipamentos.splice(index, 1);
     saveEquipamentos(equipamentos);
     broadcastSse("project.equipamentos.updated", { projectId: equipamento.projectId, equipamentoId, source: "delete" });
+    return res.json({ ok: true });
+  }
+);
+
+app.get("/api/projetos/:id/procedimentos", requireAuth, requireProjectAccess, (req, res) => {
+  const projectId = req.projectId;
+  const list = procedimentos.filter((item) => item && item.projectId === projectId);
+  return res.json({ procedimentos: list });
+});
+
+app.post(
+  "/api/projetos/:id/procedimentos",
+  requireAuth,
+  requirePermission("gerenciarProcedimentosProjeto"),
+  requireProjectAccess,
+  (req, res) => {
+    const projectId = req.projectId;
+    const user = req.currentUser || getSessionUser(req);
+    const payload = req.body && typeof req.body === "object" ? req.body : {};
+    const normalized = normalizeProcedimentoRecord(
+      {
+        ...payload,
+        projectId,
+        createdBy: user ? user.id : "",
+        updatedBy: user ? user.id : "",
+      },
+      projectId
+    );
+    if (!normalized) {
+      return res.status(400).json({ message: "Nome do procedimento obrigatório." });
+    }
+    procedimentos = procedimentos.concat(normalized);
+    saveProcedimentos(procedimentos);
+    broadcastSse("project.procedimentos.updated", {
+      projectId,
+      procedimentoId: normalized.id,
+      source: "create",
+    });
+    return res.json({ procedimento: normalized });
+  }
+);
+
+app.put(
+  "/api/procedimentos/:id",
+  requireAuth,
+  requirePermission("gerenciarProcedimentosProjeto"),
+  (req, res) => {
+    const procedimentoId = String(req.params.id || "").trim();
+    const index = procedimentos.findIndex((item) => item && item.id === procedimentoId);
+    if (index === -1) {
+      return res.status(404).json({ message: "Procedimento não encontrado." });
+    }
+    const user = req.currentUser || getSessionUser(req);
+    const current = procedimentos[index];
+    if (!userHasProjectAccess(user, current.projectId)) {
+      return res.status(403).json({ message: "Nao autorizado." });
+    }
+    const payload = req.body && typeof req.body === "object" ? req.body : {};
+    const normalized = normalizeProcedimentoRecord(
+      {
+        ...current,
+        ...payload,
+        id: current.id,
+        projectId: current.projectId,
+        createdAt: current.createdAt,
+        createdBy: current.createdBy,
+        updatedAt: new Date().toISOString(),
+        updatedBy: user ? user.id : "",
+      },
+      current.projectId
+    );
+    if (!normalized) {
+      return res.status(400).json({ message: "Nome do procedimento obrigatório." });
+    }
+    procedimentos[index] = normalized;
+    saveProcedimentos(procedimentos);
+    broadcastSse("project.procedimentos.updated", {
+      projectId: current.projectId,
+      procedimentoId: normalized.id,
+      source: "update",
+    });
+    return res.json({ procedimento: normalized });
+  }
+);
+
+app.delete(
+  "/api/procedimentos/:id",
+  requireAuth,
+  requirePermission("gerenciarProcedimentosProjeto"),
+  (req, res) => {
+    const procedimentoId = String(req.params.id || "").trim();
+    const index = procedimentos.findIndex((item) => item && item.id === procedimentoId);
+    if (index === -1) {
+      return res.status(404).json({ message: "Procedimento não encontrado." });
+    }
+    const user = req.currentUser || getSessionUser(req);
+    const current = procedimentos[index];
+    if (!userHasProjectAccess(user, current.projectId)) {
+      return res.status(403).json({ message: "Nao autorizado." });
+    }
+    procedimentos.splice(index, 1);
+    saveProcedimentos(procedimentos);
+    broadcastSse("project.procedimentos.updated", {
+      projectId: current.projectId,
+      procedimentoId,
+      source: "delete",
+    });
     return res.json({ ok: true });
   }
 );
@@ -10106,8 +10459,13 @@ app.patch("/api/profile", requireAuth, (req, res) => {
     "atribuicoes" in req.body;
   const wantsSettingsUpdate =
     "preferences" in req.body || "security" in req.body || "securitySettings" in req.body;
+  const wantsSignatureUpdate = "signature" in req.body;
   const canEdit = canEditProfile(actor, targetUser);
-  if ((wantsSensitiveUpdate && !canEdit) || (wantsSettingsUpdate && !(isSelfProfile || canEdit))) {
+  if (
+    (wantsSensitiveUpdate && !canEdit) ||
+    (wantsSettingsUpdate && !(isSelfProfile || canEdit)) ||
+    (wantsSignatureUpdate && !(isSelfProfile || canEdit))
+  ) {
     return res.status(403).json({ message: "Nao autorizado." });
   }
   const index = users.findIndex((item) => item.id === targetUser.id);
@@ -10149,6 +10507,23 @@ app.patch("/api/profile", requireAuth, (req, res) => {
   if ("security" in req.body || "securitySettings" in req.body) {
     updates.security = normalizeProfileSecurity(req.body.security || req.body.securitySettings);
   }
+  if ("signature" in req.body) {
+    const incomingSignature = req.body.signature;
+    const shouldClear =
+      incomingSignature === null ||
+      (incomingSignature &&
+        typeof incomingSignature === "object" &&
+        Boolean(incomingSignature.clear));
+    if (shouldClear) {
+      updates.signature = normalizeUserSignature(null);
+    } else {
+      const normalizedSignature = normalizeUserSignature(incomingSignature);
+      if (!normalizedSignature.dataUrl) {
+        return res.status(400).json({ message: "Assinatura invalida." });
+      }
+      updates.signature = normalizedSignature;
+    }
+  }
 
   if (!Object.keys(updates).length) {
     return res.status(400).json({ message: "Nenhuma alteracao valida." });
@@ -10166,7 +10541,9 @@ app.patch("/api/profile", requireAuth, (req, res) => {
     { alvo: updated.id, campos: Object.keys(updates) },
     getClientIp(req)
   );
-  return res.json({ user: sanitizeUser(updated) });
+  return res.json({
+    user: sanitizeUser(updated, { includeSignature: isSelfProfile || actor.id === updated.id }),
+  });
 });
 
 app.post("/api/profile/avatar", requireAuth, async (req, res) => {
@@ -10223,7 +10600,12 @@ app.post("/api/profile/avatar", requireAuth, async (req, res) => {
   users[index] = updated;
   writeJson(USERS_FILE, users);
   appendAudit("avatar_update", updated.id, { avatarUrl }, getClientIp(req));
-  return res.json({ ok: true, avatarUrl, avatarUpdatedAt, user: sanitizeUser(updated) });
+  return res.json({
+    ok: true,
+    avatarUrl,
+    avatarUpdatedAt,
+    user: sanitizeUser(updated, { includeSignature: true }),
+  });
 });
 
 app.delete("/api/profile/avatar", requireAuth, (req, res) => {
@@ -10256,7 +10638,7 @@ app.delete("/api/profile/avatar", requireAuth, (req, res) => {
   users[index] = updated;
   writeJson(USERS_FILE, users);
   appendAudit("avatar_remove", updated.id, {}, getClientIp(req));
-  return res.json({ ok: true, user: sanitizeUser(updated) });
+  return res.json({ ok: true, user: sanitizeUser(updated, { includeSignature: true }) });
 });
 
 app.get("/api/auth/users", requireAuth, (req, res) => {

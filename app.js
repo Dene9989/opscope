@@ -9,6 +9,8 @@ const tituloManutencao = document.getElementById("tituloManutencao");
 const subestacaoManutencao = document.getElementById("subestacaoManutencao");
 const manutencaoProjeto = document.getElementById("manutencaoProjeto");
 const equipamentoManutencao = document.getElementById("equipamentoManutencao");
+const subequipamentoManutencao = document.getElementById("subequipamentoManutencao");
+const procedimentoManutencao = document.getElementById("procedimentoManutencao");
 const dataManutencao = document.getElementById("dataManutencao");
 const manutencaoPrazoQtd = document.getElementById("manutencaoPrazoQtd");
 const manutencaoPrazoUnidade = document.getElementById("manutencaoPrazoUnidade");
@@ -268,10 +270,20 @@ const equipamentoFormProject = document.getElementById("equipamentoFormProject")
 const equipamentoFormTag = document.getElementById("equipamentoFormTag");
 const equipamentoFormNome = document.getElementById("equipamentoFormNome");
 const equipamentoFormCategoria = document.getElementById("equipamentoFormCategoria");
+const equipamentoFormSubequipamentos = document.getElementById("equipamentoFormSubequipamentos");
 const equipamentoFormDescricao = document.getElementById("equipamentoFormDescricao");
 const equipamentoFormCancel = document.getElementById("equipamentoFormCancel");
 const equipamentoTable = document.getElementById("equipamentoTable");
 const equipamentoTableBody = document.querySelector("#equipamentoTable tbody");
+const procedimentoForm = document.getElementById("procedimentoForm");
+const procedimentoFormId = document.getElementById("procedimentoFormId");
+const procedimentoFormProject = document.getElementById("procedimentoFormProject");
+const procedimentoFormCodigo = document.getElementById("procedimentoFormCodigo");
+const procedimentoFormNome = document.getElementById("procedimentoFormNome");
+const procedimentoFormDescricao = document.getElementById("procedimentoFormDescricao");
+const procedimentoFormCancel = document.getElementById("procedimentoFormCancel");
+const procedimentoTable = document.getElementById("procedimentoTable");
+const procedimentoTableBody = document.querySelector("#procedimentoTable tbody");
 const equipeForm = document.getElementById("equipeForm");
 const equipeFormUser = document.getElementById("equipeFormUser");
 const equipeSearch = document.getElementById("equipeSearch");
@@ -864,6 +876,8 @@ const templateNome = document.getElementById("templateNome");
 const templateProjeto = document.getElementById("templateProjeto");
 const templateSubestacao = document.getElementById("templateSubestacao");
 const templateEquipamento = document.getElementById("templateEquipamento");
+const templateSubequipamentos = document.getElementById("templateSubequipamentos");
+const templateProcedimentos = document.getElementById("templateProcedimentos");
 const templateEquipeResponsavel = document.getElementById("templateEquipeResponsavel");
 const templateParticipantes = document.getElementById("templateParticipantes");
 const templateParticipantesList = document.getElementById("templateParticipantesList");
@@ -1079,6 +1093,9 @@ const mensagemCancelarExecucao = document.getElementById("mensagemCancelarExecuc
 const mensagemRegistroExecucao = document.getElementById("mensagemRegistroExecucao");
 const modalConclusao = document.getElementById("modalConclusao");
 const conclusaoResumo = document.getElementById("conclusaoResumo");
+const conclusaoAssinaturaPreview = document.getElementById("conclusaoAssinaturaPreview");
+const conclusaoAssinaturaConfirm = document.getElementById("conclusaoAssinaturaConfirm");
+const conclusaoAssinaturaErro = document.getElementById("conclusaoAssinaturaErro");
 const modalReagendar = document.getElementById("modalReagendar");
 const formReagendar = document.getElementById("formReagendar");
 const reagendarId = document.getElementById("reagendarId");
@@ -1522,6 +1539,7 @@ const ACCESS_PERMISSIONS = [
   "verProjetos",
   "gerenciarProjetos",
   "gerenciarEquipamentos",
+  "gerenciarProcedimentosProjeto",
   "gerenciarEquipeProjeto",
   "gerenciarPMP",
   "verAlmoxarifado",
@@ -1584,7 +1602,13 @@ const ACCESS_PERMISSION_GROUPS = [
   {
     key: "projetos",
     label: "Projetos",
-    items: ["verProjetos", "gerenciarProjetos", "gerenciarEquipamentos", "gerenciarEquipeProjeto"],
+    items: [
+      "verProjetos",
+      "gerenciarProjetos",
+      "gerenciarEquipamentos",
+      "gerenciarProcedimentosProjeto",
+      "gerenciarEquipeProjeto",
+    ],
   },
   {
     key: "pmp",
@@ -1670,6 +1694,7 @@ const GRANULAR_PERMISSION_LABELS = {
   verProjetos: "Ver projetos",
   gerenciarProjetos: "Gerenciar projetos",
   gerenciarEquipamentos: "Gerenciar equipamentos",
+  gerenciarProcedimentosProjeto: "Gerenciar procedimentos do projeto",
   gerenciarEquipeProjeto: "Gerenciar equipe do projeto",
   gerenciarPMP: "Gerenciar PMP/Cronograma",
   verAlmoxarifado: "Ver Almoxarifado",
@@ -1936,6 +1961,14 @@ const ACCESS_PERMISSION_CATALOG = [
     group: "Acoes",
     label: "Gerenciar equipamentos",
     description: "Cadastrar e ajustar equipamentos.",
+    level: "WRITE",
+  },
+  {
+    key: "gerenciarProcedimentosProjeto",
+    module: "Projetos",
+    group: "Acoes",
+    label: "Gerenciar procedimentos do projeto",
+    description: "Cadastrar e ajustar procedimentos por projeto.",
     level: "WRITE",
   },
   {
@@ -2836,7 +2869,13 @@ const PERMISSION_GROUPS = [
   {
     key: "projetos",
     label: "Projetos corporativos",
-    items: ["verProjetos", "gerenciarProjetos", "gerenciarEquipamentos", "gerenciarEquipeProjeto"],
+    items: [
+      "verProjetos",
+      "gerenciarProjetos",
+      "gerenciarEquipamentos",
+      "gerenciarProcedimentosProjeto",
+      "gerenciarEquipeProjeto",
+    ],
   },
   {
     key: "pmp",
@@ -2969,7 +3008,14 @@ const TAB_PERMISSION_MAP = {
   "performance-people": "verRelatorios",
   tendencias: "verRelatorios",
   relatorios: ["verRelatorios", "verRDOs"],
-  projetos: ["verProjetos", "gerenciarProjetos", "gerenciarEquipamentos", "gerenciarEquipeProjeto"],
+  projetos: [
+    "verProjetos",
+    "gerenciarProjetos",
+    "gerenciarEquipamentos",
+    "gerenciarProcedimentosProjeto",
+    "gerenciarEquipeProjeto",
+  ],
+  procedimentos: ["verProjetos", "gerenciarProcedimentosProjeto"],
   pmp: "gerenciarPMP",
   solicitacoes: "verUsuarios",
   contas: "verUsuarios",
@@ -3176,6 +3222,7 @@ function mapAccessPermissionsToGranular(permissionList = []) {
   if (allow.has("PROJECT_WRITE")) {
     result.gerenciarProjetos = true;
     result.gerenciarEquipamentos = true;
+    result.gerenciarProcedimentosProjeto = true;
     result.gerenciarEquipeProjeto = true;
   }
   if (allow.has("SST_READ") || allow.has("SST_WRITE")) {
@@ -3199,7 +3246,12 @@ function mapAccessPermissionsToGranular(permissionList = []) {
   if (result.gerenciarAlmoxarifado) {
     result.verAlmoxarifado = true;
   }
-  if (result.gerenciarProjetos || result.gerenciarEquipamentos || result.gerenciarEquipeProjeto) {
+  if (
+    result.gerenciarProjetos ||
+    result.gerenciarEquipamentos ||
+    result.gerenciarProcedimentosProjeto ||
+    result.gerenciarEquipeProjeto
+  ) {
     result.verProjetos = true;
   }
   if (result.gerenciarAutomacoes) {
@@ -3845,12 +3897,17 @@ function canViewProjetos(user) {
     hasGranularPermission(user, "verProjetos") ||
     canManageProjetos(user) ||
     canManageEquipamentos(user) ||
+    canManageProcedimentos(user) ||
     canManageEquipeProjeto(user)
   );
 }
 
 function canManageEquipamentos(user) {
   return hasGranularPermission(user, "gerenciarEquipamentos");
+}
+
+function canManageProcedimentos(user) {
+  return hasGranularPermission(user, "gerenciarProcedimentosProjeto");
 }
 
 function canManageEquipeProjeto(user) {
@@ -4503,6 +4560,7 @@ let execucaoRegistradaAlertTimer = null;
 let activeProjectId = "";
 let availableProjects = [];
 let projectEquipamentos = [];
+let projectProcedimentos = [];
 let projectEquipe = [];
 let manutencaoParticipantesSelecionados = [];
 let liberacaoParticipantesSelecionados = [];
@@ -5462,6 +5520,10 @@ function handleSyncEvent(eventName, payload = {}) {
     carregarEquipamentosProjeto();
     return;
   }
+  if (eventName === "project.procedimentos.updated") {
+    carregarProcedimentosProjeto();
+    return;
+  }
   if (eventName === "access.updated") {
     refreshAccessData({ reason: "sync" });
   }
@@ -5500,6 +5562,7 @@ function startSyncEvents() {
     "projects.updated",
     "project.team.updated",
     "project.equipamentos.updated",
+    "project.procedimentos.updated",
     "access.updated",
     "announcements.updated",
     "announcement.created",
@@ -5572,7 +5635,11 @@ async function syncSiteNow() {
       await carregarAnuncios(true);
       await carregarFeedbacks(true);
       if (activeProjectId) {
-        await Promise.all([carregarEquipeProjeto(), carregarEquipamentosProjeto()]);
+        await Promise.all([
+          carregarEquipeProjeto(),
+          carregarEquipamentosProjeto(),
+          carregarProcedimentosProjeto(),
+        ]);
         await carregarManutencoesServidor(true);
         await carregarTemplatesServidor(true);
         await carregarPmpDados();
@@ -6805,6 +6872,8 @@ const STRICT_SERVER_SYNC = USE_AUTH_API;
 const API_TIMEOUT_MS = 15000;
 const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
 const AVATAR_ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const SIGNATURE_MAX_BYTES = 2 * 1024 * 1024;
+const SIGNATURE_ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const FILE_MAX_BYTES = 10 * 1024 * 1024;
 const FILE_ALLOWED_TYPES = [
   "application/pdf",
@@ -6814,6 +6883,10 @@ const FILE_ALLOWED_TYPES = [
 ];
 let pendingAvatarDataUrl = "";
 let avatarUploadBound = false;
+let profileSignatureBound = false;
+let pendingSignatureDataUrl = "";
+let pendingSignatureMode = "draw";
+let pendingSignatureClear = false;
 let lastFocusMaintenanceId = "";
 let pendingVerificationEmail = "";
 let passwordResetCooldownTimer = null;
@@ -6907,6 +6980,361 @@ function getAvatarUrl(user) {
     return `${user.avatarUrl}?v=${Number.isFinite(stamp) ? stamp : Date.now()}`;
   }
   return user.avatarUrl;
+}
+
+function normalizeProfileSignatureValue(value) {
+  const input = value && typeof value === "object" ? value : {};
+  const dataUrl = String(input.dataUrl || input.url || "").trim();
+  const mode = String(input.mode || "").toLowerCase() === "upload" ? "upload" : "draw";
+  const hash = String(input.hash || "").trim();
+  const updatedAt = String(input.updatedAt || "").trim();
+  return {
+    mode: dataUrl ? mode : "",
+    dataUrl,
+    hash,
+    updatedAt,
+  };
+}
+
+function getUserSignatureValue(user) {
+  if (!user) {
+    return { mode: "", dataUrl: "", hash: "", updatedAt: "" };
+  }
+  return normalizeProfileSignatureValue(user.signature);
+}
+
+function hasUserSignatureConfigured(user) {
+  return Boolean(getUserSignatureValue(user).dataUrl);
+}
+
+function setFieldErrorText(element, message) {
+  if (!element) {
+    return;
+  }
+  element.textContent = message || "";
+  element.hidden = !message;
+}
+
+function getProfileSignatureFileInput() {
+  return document.getElementById("perfilSignatureFile");
+}
+
+function getProfileSignatureCanvas() {
+  return document.getElementById("perfilSignatureCanvas");
+}
+
+function getProfileSignaturePreviewImage() {
+  return document.getElementById("perfilSignaturePreview");
+}
+
+function getProfileSignaturePreviewWrap() {
+  return document.getElementById("perfilSignaturePreviewWrap");
+}
+
+function getProfileSignatureError() {
+  return document.getElementById("perfilSignatureErro");
+}
+
+function getProfileSignatureModeInput() {
+  return document.querySelector("input[name='perfilSignatureMode']:checked");
+}
+
+function getProfileSignatureDrawWrap() {
+  return document.getElementById("perfilSignatureDrawWrap");
+}
+
+function getProfileSignatureUploadWrap() {
+  return document.getElementById("perfilSignatureUploadWrap");
+}
+
+function getProfileSignatureRemoveButton() {
+  return document.getElementById("btnPerfilSignatureRemove");
+}
+
+function getProfileSignatureClearButton() {
+  return document.getElementById("btnPerfilSignatureClear");
+}
+
+function setProfileSignatureError(message) {
+  setFieldErrorText(getProfileSignatureError(), message);
+}
+
+function paintSignatureCanvasBackground(canvas) {
+  if (!canvas) {
+    return;
+  }
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return;
+  }
+  ctx.save();
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.restore();
+}
+
+function clearSignatureCanvas(canvas) {
+  if (!canvas) {
+    return;
+  }
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return;
+  }
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  paintSignatureCanvasBackground(canvas);
+}
+
+function resizeSignatureCanvas(canvas, preserve = false) {
+  if (!canvas) {
+    return;
+  }
+  const rect = canvas.getBoundingClientRect();
+  const width = Math.max(200, Math.round(rect.width || 0));
+  const height = Math.max(120, Math.round(rect.height || 0));
+  const nextWidth = width;
+  const nextHeight = height;
+  if (!nextWidth || !nextHeight) {
+    return;
+  }
+  const previous =
+    preserve && canvas.width > 0 && canvas.height > 0 ? canvas.toDataURL("image/png") : "";
+  if (canvas.width === nextWidth && canvas.height === nextHeight) {
+    if (!preserve) {
+      paintSignatureCanvasBackground(canvas);
+    }
+    return;
+  }
+  canvas.width = nextWidth;
+  canvas.height = nextHeight;
+  clearSignatureCanvas(canvas);
+  if (previous) {
+    const image = new Image();
+    image.onload = () => {
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        return;
+      }
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    };
+    image.src = previous;
+  }
+}
+
+function drawSignatureImageToCanvas(canvas, dataUrl) {
+  if (!canvas || !dataUrl) {
+    return;
+  }
+  const image = new Image();
+  image.onload = () => {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      return;
+    }
+    clearSignatureCanvas(canvas);
+    const widthRatio = canvas.width / image.width;
+    const heightRatio = canvas.height / image.height;
+    const ratio = Math.min(widthRatio, heightRatio);
+    const drawWidth = image.width * ratio;
+    const drawHeight = image.height * ratio;
+    const x = (canvas.width - drawWidth) / 2;
+    const y = (canvas.height - drawHeight) / 2;
+    ctx.drawImage(image, x, y, drawWidth, drawHeight);
+  };
+  image.src = dataUrl;
+}
+
+function updateProfileSignaturePreview(url) {
+  const wrap = getProfileSignaturePreviewWrap();
+  const image = getProfileSignaturePreviewImage();
+  if (!wrap || !image) {
+    return;
+  }
+  if (url) {
+    image.src = url;
+    wrap.classList.add("has-signature");
+    return;
+  }
+  image.removeAttribute("src");
+  wrap.classList.remove("has-signature");
+}
+
+function getProfileSignatureCurrentDisplay(user) {
+  const saved = getUserSignatureValue(user);
+  if (pendingSignatureClear) {
+    return "";
+  }
+  return pendingSignatureDataUrl || saved.dataUrl || "";
+}
+
+function syncProfileSignatureModeUI() {
+  const selected = getProfileSignatureModeInput();
+  const mode = selected ? selected.value : "draw";
+  const drawWrap = getProfileSignatureDrawWrap();
+  const uploadWrap = getProfileSignatureUploadWrap();
+  if (drawWrap) {
+    drawWrap.hidden = mode !== "draw";
+  }
+  if (uploadWrap) {
+    uploadWrap.hidden = mode !== "upload";
+  }
+}
+
+function handleProfileSignatureFileChange(event) {
+  const input = event && event.target;
+  if (!input || input.id !== "perfilSignatureFile") {
+    return;
+  }
+  setProfileSignatureError("");
+  const file = input.files && input.files[0] ? input.files[0] : null;
+  if (!file) {
+    return;
+  }
+  if (!SIGNATURE_ALLOWED_TYPES.includes(file.type)) {
+    setProfileSignatureError("Formato não suportado. Use PNG, JPG ou WebP.");
+    input.value = "";
+    return;
+  }
+  if (file.size > SIGNATURE_MAX_BYTES) {
+    setProfileSignatureError("Arquivo acima de 2 MB.");
+    input.value = "";
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const dataUrl = String(reader.result || "");
+    if (!dataUrl) {
+      setProfileSignatureError("Falha ao ler a assinatura.");
+      return;
+    }
+    pendingSignatureDataUrl = dataUrl;
+    pendingSignatureMode = "upload";
+    pendingSignatureClear = false;
+    updateProfileSignaturePreview(dataUrl);
+    const removeBtn = getProfileSignatureRemoveButton();
+    if (removeBtn) {
+      removeBtn.disabled = false;
+    }
+  };
+  reader.onerror = () => {
+    setProfileSignatureError("Falha ao ler a assinatura.");
+  };
+  reader.readAsDataURL(file);
+}
+
+function bindProfileSignatureCanvas(canvas) {
+  if (!canvas || canvas.dataset.bound === "1") {
+    return;
+  }
+  canvas.dataset.bound = "1";
+  canvas.style.touchAction = "none";
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return;
+  }
+  let drawing = false;
+  const getPoint = (event) => {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (event.clientX || 0) - rect.left,
+      y: (event.clientY || 0) - rect.top,
+    };
+  };
+  const start = (event) => {
+    drawing = true;
+    const point = getPoint(event);
+    ctx.beginPath();
+    ctx.moveTo(point.x, point.y);
+    event.preventDefault();
+  };
+  const move = (event) => {
+    if (!drawing) {
+      return;
+    }
+    const point = getPoint(event);
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#0f2e45";
+    ctx.lineTo(point.x, point.y);
+    ctx.stroke();
+    event.preventDefault();
+  };
+  const finish = (event) => {
+    if (!drawing) {
+      return;
+    }
+    drawing = false;
+    ctx.closePath();
+    pendingSignatureDataUrl = canvas.toDataURL("image/png");
+    pendingSignatureMode = "draw";
+    pendingSignatureClear = false;
+    updateProfileSignaturePreview(pendingSignatureDataUrl);
+    const removeBtn = getProfileSignatureRemoveButton();
+    if (removeBtn) {
+      removeBtn.disabled = false;
+    }
+    if (event) {
+      event.preventDefault();
+    }
+  };
+  canvas.addEventListener("pointerdown", start);
+  canvas.addEventListener("pointermove", move);
+  canvas.addEventListener("pointerup", finish);
+  canvas.addEventListener("pointerleave", finish);
+}
+
+function initProfileSignatureEditor(user, isSelfProfile, isEdit) {
+  const container = document.getElementById("perfilSignatureEditor");
+  if (!container) {
+    return;
+  }
+  container.hidden = !isEdit;
+  const readOnlyNotice = document.getElementById("perfilSignatureReadonly");
+  if (readOnlyNotice) {
+    readOnlyNotice.hidden = isSelfProfile;
+  }
+  const canvas = getProfileSignatureCanvas();
+  const fileInput = getProfileSignatureFileInput();
+  const removeBtn = getProfileSignatureRemoveButton();
+  const clearBtn = getProfileSignatureClearButton();
+  const isEnabled = Boolean(isEdit && isSelfProfile);
+  document
+    .querySelectorAll("input[name='perfilSignatureMode']")
+    .forEach((input) => {
+      input.disabled = !isEnabled;
+    });
+  if (canvas) {
+    canvas.disabled = !isEnabled;
+    resizeSignatureCanvas(canvas, true);
+    bindProfileSignatureCanvas(canvas);
+  }
+  if (fileInput) {
+    fileInput.disabled = !isEnabled;
+  }
+  if (removeBtn) {
+    const hasSignature = Boolean(getProfileSignatureCurrentDisplay(user));
+    removeBtn.disabled = !isEnabled || !hasSignature;
+  }
+  if (clearBtn) {
+    clearBtn.disabled = !isEnabled;
+  }
+  const selectedModeInput = getProfileSignatureModeInput();
+  const selectedMode = selectedModeInput ? selectedModeInput.value : pendingSignatureMode || "draw";
+  pendingSignatureMode = selectedMode === "upload" ? "upload" : "draw";
+  syncProfileSignatureModeUI();
+  const displayUrl = getProfileSignatureCurrentDisplay(user);
+  updateProfileSignaturePreview(displayUrl);
+  if (canvas && pendingSignatureMode === "draw") {
+    const signature = getUserSignatureValue(user);
+    if (pendingSignatureDataUrl) {
+      drawSignatureImageToCanvas(canvas, pendingSignatureDataUrl);
+    } else if (!pendingSignatureClear && signature.dataUrl) {
+      drawSignatureImageToCanvas(canvas, signature.dataUrl);
+    } else {
+      clearSignatureCanvas(canvas);
+    }
+  }
 }
 
 function setAvatarError(message) {
@@ -7792,7 +8220,11 @@ function ativarModoEdicaoPerfil() {
 function cancelarModoEdicaoPerfil() {
   setProfileEditParam(false);
   pendingAvatarDataUrl = "";
+  pendingSignatureDataUrl = "";
+  pendingSignatureMode = "draw";
+  pendingSignatureClear = false;
   setAvatarError("");
+  setProfileSignatureError("");
   renderPerfil();
   if (perfilModeBadge) {
     perfilModeBadge.hidden = true;
@@ -10584,6 +11016,17 @@ function atualizarTipoSelecionado() {
     if (template && template.equipamentoId && equipamentoManutencao) {
       setEquipamentoSelectValue(equipamentoManutencao, template.equipamentoId);
     }
+    renderSubequipamentoSelectOptions(
+      subequipamentoManutencao,
+      equipamentoManutencao ? equipamentoManutencao.value : ""
+    );
+    if (template) {
+      setMultiSelectValues(subequipamentoManutencao, template.subequipamentos || []);
+      setMultiSelectValues(procedimentoManutencao, template.procedimentoIds || []);
+    } else if (!manutencaoEmEdicao) {
+      setMultiSelectValues(subequipamentoManutencao, []);
+      setMultiSelectValues(procedimentoManutencao, []);
+    }
     if (template && template.equipeResponsavel) {
       renderManutencaoEquipeOptions(template.equipeResponsavel);
     }
@@ -11288,6 +11731,7 @@ async function setActiveProjectId(nextId, options = {}) {
   renderPmpModule();
   await carregarEquipeProjeto();
   await carregarEquipamentosProjeto();
+  await carregarProcedimentosProjeto();
   await carregarManutencoesServidor(true);
   await carregarTemplatesServidor(true);
   await carregarPmpDados();
@@ -12458,6 +12902,7 @@ function normalizeIso(value) {
 function normalizarManutencoes(lista) {
   const changes = [];
   let mudouTempo = false;
+  let mudouCampos = false;
   const normalizadas = lista.map((item) => {
     if (!item || typeof item !== "object") {
       return item;
@@ -12486,11 +12931,35 @@ function normalizarManutencoes(lista) {
     ) {
       mudouTempo = true;
     }
+    const subequipamentos = normalizeMaintenanceSubequipamentosValue(
+      item.subequipamentos || item.subequipamentoIds || []
+    );
+    const procedimentos = normalizeMaintenanceProcedimentoIdsValue(
+      item.procedimentoIds || item.procedimentosIds || []
+    );
+    const subequipamentosAtuais = Array.isArray(item.subequipamentos)
+      ? item.subequipamentos
+      : [];
+    const procedimentosAtuais = Array.isArray(item.procedimentoIds)
+      ? item.procedimentoIds
+      : [];
+    const camposMudaram =
+      !Array.isArray(item.subequipamentos) ||
+      !Array.isArray(item.procedimentoIds) ||
+      subequipamentosAtuais.length !== subequipamentos.length ||
+      procedimentosAtuais.length !== procedimentos.length ||
+      subequipamentos.some((value, index) => value !== subequipamentosAtuais[index]) ||
+      procedimentos.some((value, index) => value !== procedimentosAtuais[index]);
+    if (camposMudaram) {
+      mudouCampos = true;
+    }
     const statusOriginal = normalizeMaintenanceStatus(item.status);
     if (statusOriginal === "concluida") {
       return {
         ...item,
         status: statusOriginal,
+        subequipamentos,
+        procedimentoIds: procedimentos,
         createdAt,
         updatedAt,
         doneAt,
@@ -12508,6 +12977,8 @@ function normalizarManutencoes(lista) {
       return {
         ...item,
         status: statusEsperado,
+        subequipamentos,
+        procedimentoIds: procedimentos,
         updatedAt: statusEsperado !== statusOriginal ? toIsoUtc(new Date()) : updatedAt,
         updatedBy: statusEsperado !== statusOriginal ? SYSTEM_USER_ID : item.updatedBy,
         createdAt,
@@ -12521,6 +12992,8 @@ function normalizarManutencoes(lista) {
       return {
         ...item,
         status: statusOriginal,
+        subequipamentos,
+        procedimentoIds: procedimentos,
         createdAt,
         updatedAt,
         doneAt,
@@ -12533,6 +13006,8 @@ function normalizarManutencoes(lista) {
       return {
         ...item,
         status: statusOriginal,
+        subequipamentos,
+        procedimentoIds: procedimentos,
         createdAt,
         updatedAt,
         doneAt,
@@ -12553,6 +13028,8 @@ function normalizarManutencoes(lista) {
         ...item,
         projectId: item.projectId || projectId,
         status: novoStatus,
+        subequipamentos,
+        procedimentoIds: procedimentos,
         updatedAt: toIsoUtc(new Date()),
         updatedBy: SYSTEM_USER_ID,
         createdAt,
@@ -12566,6 +13043,8 @@ function normalizarManutencoes(lista) {
       ...item,
       projectId: item.projectId || projectId,
       status: statusOriginal,
+      subequipamentos,
+      procedimentoIds: procedimentos,
       createdAt,
       updatedAt,
       doneAt,
@@ -12574,7 +13053,7 @@ function normalizarManutencoes(lista) {
       conclusao,
     };
   });
-  return { normalizadas, mudou: changes.length > 0 || mudouTempo, changes };
+  return { normalizadas, mudou: changes.length > 0 || mudouTempo || mudouCampos, changes };
 }
 
 function aplicarBacklogMensalLocal(lista) {
@@ -13583,6 +14062,12 @@ function normalizeAccessUserRecord(user) {
     atribuicoes: user.atribuicoes || "",
     avatarUrl: user.avatarUrl || "",
     avatarUpdatedAt: user.avatarUpdatedAt || "",
+    signatureConfigured: Boolean(user.signatureConfigured),
+    signatureUpdatedAt: user.signatureUpdatedAt || "",
+    signature:
+      user.signature && typeof user.signature === "object"
+        ? normalizeProfileSignatureValue(user.signature)
+        : undefined,
     status,
     active: status !== "INATIVO",
     passwordHash: user.passwordHash || "",
@@ -14450,6 +14935,12 @@ async function updateUserToDb(input) {
       payload.avatarUpdatedAt !== undefined
         ? String(payload.avatarUpdatedAt || "").trim()
         : existing.avatarUpdatedAt || "",
+    signature:
+      payload.signature !== undefined
+        ? payload.signature && typeof payload.signature === "object" && payload.signature.clear
+          ? normalizeProfileSignatureValue(null)
+          : normalizeProfileSignatureValue(payload.signature)
+        : normalizeProfileSignatureValue(existing.signature),
     status,
     updatedAt: now,
   };
@@ -16833,6 +17324,8 @@ function criarCardManutencao(item, permissoes, options = {}) {
   equipamentoLinha.textContent = `Equipamento: ${
     equipamentoLabel && equipamentoLabel !== "-" ? equipamentoLabel : "não informado"
   }`;
+  const subequipamentos = getMaintenanceSubequipamentos(item);
+  const procedimentos = getMaintenanceProcedimentoLabels(item);
 
   const statusInfo = document.createElement("p");
   statusInfo.className = "submeta";
@@ -16868,6 +17361,18 @@ function criarCardManutencao(item, permissoes, options = {}) {
   }
 
   info.append(titulo, meta, equipamentoLinha);
+  if (subequipamentos.length) {
+    const subequipLinha = document.createElement("p");
+    subequipLinha.className = "submeta";
+    subequipLinha.textContent = `Sub-equipamentos: ${subequipamentos.join(", ")}`;
+    info.append(subequipLinha);
+  }
+  if (procedimentos.length) {
+    const procedimentoLinha = document.createElement("p");
+    procedimentoLinha.className = "submeta";
+    procedimentoLinha.textContent = `Procedimentos: ${procedimentos.join(", ")}`;
+    info.append(procedimentoLinha);
+  }
   const responsaveis = getMaintenanceResponsibleLabels(item);
   if (responsaveis.length) {
     const responsavelLinha = document.createElement("p");
@@ -25429,6 +25934,36 @@ function normalizarTemplate(template) {
     mudou = true;
   }
 
+  const subequipamentosNormalizados = normalizeMaintenanceSubequipamentosValue(
+    resultado.subequipamentos || resultado.subequipamentoIds || []
+  );
+  const subequipamentosAtuais = Array.isArray(resultado.subequipamentos)
+    ? resultado.subequipamentos
+    : [];
+  if (
+    !Array.isArray(resultado.subequipamentos) ||
+    subequipamentosAtuais.length !== subequipamentosNormalizados.length ||
+    subequipamentosNormalizados.some((entry, index) => entry !== subequipamentosAtuais[index])
+  ) {
+    resultado.subequipamentos = subequipamentosNormalizados;
+    mudou = true;
+  }
+
+  const procedimentoIdsNormalizados = normalizeMaintenanceProcedimentoIdsValue(
+    resultado.procedimentoIds || resultado.procedimentosIds || []
+  );
+  const procedimentoIdsAtuais = Array.isArray(resultado.procedimentoIds)
+    ? resultado.procedimentoIds
+    : [];
+  if (
+    !Array.isArray(resultado.procedimentoIds) ||
+    procedimentoIdsAtuais.length !== procedimentoIdsNormalizados.length ||
+    procedimentoIdsNormalizados.some((entry, index) => entry !== procedimentoIdsAtuais[index])
+  ) {
+    resultado.procedimentoIds = procedimentoIdsNormalizados;
+    mudou = true;
+  }
+
   const equipeRaw = String(resultado.equipeResponsavel || "").trim();
   const equipeNormalizada = equipeRaw ? normalizeTeamName(equipeRaw) : "";
   if (equipeNormalizada !== equipeRaw) {
@@ -25755,6 +26290,10 @@ function limparTemplateForm() {
   if (templateEquipamento) {
     templateEquipamento.value = "";
   }
+  renderSubequipamentoSelectOptions(templateSubequipamentos, "");
+  if (templateProcedimentos) {
+    setMultiSelectValues(templateProcedimentos, []);
+  }
   renderTemplateEquipeOptions();
   setTemplateParticipantes([]);
   if (templateResponsaveisToggle) {
@@ -25815,6 +26354,38 @@ function preencherTemplateForm(template) {
       template.equipamentoId || template.equipamento || ""
     );
   }
+  renderSubequipamentoSelectOptions(
+    templateSubequipamentos,
+    templateEquipamento ? templateEquipamento.value : ""
+  );
+  if (templateSubequipamentos) {
+    normalizeMaintenanceSubequipamentosValue(template.subequipamentos || []).forEach((nome) => {
+      const exists = Array.from(templateSubequipamentos.options || []).some(
+        (opt) => opt.value === nome
+      );
+      if (!exists) {
+        const option = document.createElement("option");
+        option.value = nome;
+        option.textContent = nome;
+        templateSubequipamentos.append(option);
+      }
+    });
+  }
+  if (templateProcedimentos) {
+    normalizeMaintenanceProcedimentoIdsValue(template.procedimentoIds || []).forEach((id) => {
+      const exists = Array.from(templateProcedimentos.options || []).some(
+        (opt) => opt.value === id
+      );
+      if (!exists) {
+        const option = document.createElement("option");
+        option.value = id;
+        option.textContent = id;
+        templateProcedimentos.append(option);
+      }
+    });
+  }
+  setMultiSelectValues(templateSubequipamentos, template.subequipamentos || []);
+  setMultiSelectValues(templateProcedimentos, template.procedimentoIds || []);
   renderTemplateEquipeOptions(template.equipeResponsavel || "");
   const participantesTemplate = Array.isArray(template.participantes)
     ? template.participantes
@@ -25915,6 +26486,12 @@ function salvarModelo(event) {
     getSubestacoesBase()[0] ||
     "";
   const equipamentoId = templateEquipamento ? templateEquipamento.value.trim() : "";
+  const subequipamentos = normalizeMaintenanceSubequipamentosValue(
+    getMultiSelectValues(templateSubequipamentos)
+  );
+  const procedimentoIds = normalizeMaintenanceProcedimentoIdsValue(
+    getMultiSelectValues(templateProcedimentos)
+  );
   const equipeResponsavel = getTemplateEquipeSelecionada();
   const participantes = getTemplateParticipantesFromForm();
   const responsaveisAtivos =
@@ -26005,6 +26582,8 @@ function salvarModelo(event) {
     nome,
     subestacao,
     equipamentoId,
+    subequipamentos,
+    procedimentoIds,
     equipeResponsavel,
     participantes,
     responsavelIds: responsaveisAtivos ? responsavelIds : [],
@@ -29201,6 +29780,12 @@ function gerarManutencoesRecorrentes() {
         observacao: modelo.observacao || "",
         templateId: modelo.id,
         equipamentoId: modelo.equipamentoId || "",
+        subequipamentos: normalizeMaintenanceSubequipamentosValue(
+          modelo.subequipamentos || []
+        ),
+        procedimentoIds: normalizeMaintenanceProcedimentoIdsValue(
+          modelo.procedimentoIds || []
+        ),
         participantes: participantesModelo,
         responsavelIds: responsavelIds.length ? responsavelIds : [],
         responsavel: responsavelIds.length ? responsavelTexto : "",
@@ -29839,6 +30424,7 @@ async function refreshAccessUsers() {
     renderAccessUsers();
     return;
   }
+  const previousCurrentUser = currentUser ? { ...currentUser } : null;
   let shouldRenderAuth = false;
   try {
     const list = await dataProvider.authAdmin.listUsers();
@@ -29856,7 +30442,22 @@ async function refreshAccessUsers() {
         salvarSessao(null);
         currentUser = null;
       } else {
-        currentUser = updated;
+        const merged = { ...updated };
+        if (
+          previousCurrentUser &&
+          String(previousCurrentUser.id || "") === String(updated.id || "") &&
+          previousCurrentUser.signature &&
+          previousCurrentUser.signature.dataUrl &&
+          (!merged.signature || !merged.signature.dataUrl)
+        ) {
+          merged.signature = previousCurrentUser.signature;
+          merged.signatureConfigured = true;
+          merged.signatureUpdatedAt =
+            previousCurrentUser.signatureUpdatedAt ||
+            previousCurrentUser.signature.updatedAt ||
+            "";
+        }
+        currentUser = merged;
       }
       shouldRenderAuth = true;
     }
@@ -32702,15 +33303,236 @@ function renderEquipamentosTable() {
       actions.push(`<button type="button" class="btn btn--ghost btn--small btn--danger" data-action="delete-equipment">Excluir</button>`);
     }
     tr.dataset.equipmentId = equip.id;
+    const subequipamentos = normalizeLocaisList(equip.subequipamentos || []);
     tr.innerHTML = `
       <td>${escapeHtml(equip.tag || "-")}</td>
       <td>${escapeHtml(equip.nome || "-")}</td>
       <td>${escapeHtml(equip.categoria || "-")}</td>
+      <td>${escapeHtml(subequipamentos.length ? subequipamentos.join(", ") : "-")}</td>
       <td>${escapeHtml(equip.descricao || "-")}</td>
       <td class="table-actions">${actions.join(" ")}</td>
     `;
     equipamentoTableBody.append(tr);
   });
+}
+
+function normalizeStringIdList(value) {
+  if (Array.isArray(value)) {
+    return Array.from(
+      new Set(
+        value
+          .map((item) => String(item || "").trim())
+          .filter(Boolean)
+      )
+    );
+  }
+  if (!value) {
+    return [];
+  }
+  return Array.from(
+    new Set(
+      String(value)
+        .split(/[;,|]/g)
+        .map((item) => item.trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+function getMultiSelectValues(select) {
+  if (!select) {
+    return [];
+  }
+  return Array.from(select.selectedOptions || [])
+    .map((option) => String(option.value || "").trim())
+    .filter(Boolean);
+}
+
+function setMultiSelectValues(select, values) {
+  if (!select) {
+    return;
+  }
+  const desired = new Set(normalizeStringIdList(values));
+  Array.from(select.options || []).forEach((option) => {
+    option.selected = desired.has(String(option.value || "").trim());
+  });
+}
+
+function getEquipamentoById(equipamentoId) {
+  const id = String(equipamentoId || "").trim();
+  if (!id) {
+    return null;
+  }
+  return projectEquipamentos.find((equip) => String(equip.id || "") === id) || null;
+}
+
+function getSubequipamentosByEquipamentoId(equipamentoId) {
+  const equipamento = getEquipamentoById(equipamentoId);
+  if (!equipamento) {
+    return [];
+  }
+  return normalizeLocaisList(equipamento.subequipamentos || []);
+}
+
+function normalizeMaintenanceSubequipamentosValue(value) {
+  if (Array.isArray(value)) {
+    return normalizeLocaisList(value);
+  }
+  if (!value) {
+    return [];
+  }
+  return normalizeLocaisList(String(value));
+}
+
+function normalizeMaintenanceProcedimentoIdsValue(value) {
+  return normalizeStringIdList(value);
+}
+
+function getMaintenanceSubequipamentos(item) {
+  if (!item || typeof item !== "object") {
+    return [];
+  }
+  return normalizeMaintenanceSubequipamentosValue(item.subequipamentos || []);
+}
+
+function getMaintenanceProcedimentoIds(item) {
+  if (!item || typeof item !== "object") {
+    return [];
+  }
+  return normalizeMaintenanceProcedimentoIdsValue(item.procedimentoIds || []);
+}
+
+function getMaintenanceProcedimentoLabels(item) {
+  const ids = getMaintenanceProcedimentoIds(item);
+  if (!ids.length) {
+    return [];
+  }
+  return ids
+    .map((id) => {
+      const procedimento = getProcedimentoById(id);
+      return procedimento ? getProcedimentoLabel(procedimento) : id;
+    })
+    .filter(Boolean);
+}
+
+function renderSubequipamentoSelectOptions(select, equipamentoId) {
+  if (!select) {
+    return;
+  }
+  const selected = getMultiSelectValues(select);
+  const subequipamentos = getSubequipamentosByEquipamentoId(equipamentoId);
+  select.innerHTML = "";
+  if (!subequipamentos.length) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = equipamentoId
+      ? "Sem sub-equipamentos cadastrados"
+      : "Selecione um equipamento primeiro";
+    option.disabled = true;
+    option.selected = true;
+    select.append(option);
+  }
+  subequipamentos.forEach((nome) => {
+    const option = document.createElement("option");
+    option.value = nome;
+    option.textContent = nome;
+    if (selected.includes(nome)) {
+      option.selected = true;
+    }
+    select.append(option);
+  });
+  setMultiSelectValues(select, selected);
+  select.disabled = !subequipamentos.length;
+}
+
+function getProcedimentoById(procedimentoId) {
+  const id = String(procedimentoId || "").trim();
+  if (!id) {
+    return null;
+  }
+  return projectProcedimentos.find((item) => String(item.id || "") === id) || null;
+}
+
+function getProcedimentoLabel(procedimento) {
+  if (!procedimento) {
+    return "";
+  }
+  const codigo = String(procedimento.codigo || "").trim();
+  const nome = String(procedimento.nome || "").trim();
+  if (codigo && nome) {
+    return `${codigo} - ${nome}`;
+  }
+  return nome || codigo || "";
+}
+
+function renderProcedimentosTable() {
+  if (!procedimentoTableBody) {
+    return;
+  }
+  procedimentoTableBody.innerHTML = "";
+  if (!projectProcedimentos.length) {
+    return;
+  }
+  projectProcedimentos.forEach((procedimento) => {
+    const tr = document.createElement("tr");
+    const actions = [];
+    if (currentUser && canManageProcedimentos(currentUser)) {
+      actions.push(
+        '<button type="button" class="btn btn--ghost btn--small" data-action="edit-procedure">Editar</button>'
+      );
+      actions.push(
+        '<button type="button" class="btn btn--ghost btn--small btn--danger" data-action="delete-procedure">Excluir</button>'
+      );
+    }
+    tr.dataset.procedureId = procedimento.id;
+    tr.innerHTML = `
+      <td>${escapeHtml(procedimento.codigo || "-")}</td>
+      <td>${escapeHtml(procedimento.nome || "-")}</td>
+      <td>${escapeHtml(procedimento.descricao || "-")}</td>
+      <td class="table-actions">${actions.join(" ")}</td>
+    `;
+    procedimentoTableBody.append(tr);
+  });
+}
+
+function renderProcedimentoSelectOptions(select, placeholder = "Selecione procedimentos") {
+  if (!select) {
+    return;
+  }
+  const selected = getMultiSelectValues(select);
+  select.innerHTML = "";
+  if (!select.multiple) {
+    const placeholderOpt = document.createElement("option");
+    placeholderOpt.value = "";
+    placeholderOpt.textContent = placeholder;
+    select.append(placeholderOpt);
+  } else if (!projectProcedimentos.length) {
+    const emptyOpt = document.createElement("option");
+    emptyOpt.value = "";
+    emptyOpt.textContent = "Nenhum procedimento cadastrado no projeto";
+    emptyOpt.disabled = true;
+    emptyOpt.selected = true;
+    select.append(emptyOpt);
+  }
+  projectProcedimentos.forEach((procedimento) => {
+    const option = document.createElement("option");
+    option.value = procedimento.id;
+    option.textContent = getProcedimentoLabel(procedimento) || procedimento.id;
+    if (selected.includes(option.value)) {
+      option.selected = true;
+    }
+    select.append(option);
+  });
+  if (select.multiple) {
+    setMultiSelectValues(select, selected);
+  } else if (selected.length) {
+    select.value = selected[0];
+  }
+}
+
+function renderProcedimentoOptions() {
+  renderProcedimentoSelectOptions(procedimentoManutencao, "Selecione procedimentos");
+  renderProcedimentoSelectOptions(templateProcedimentos, "Selecione procedimentos");
 }
 
 function resolveEquipamentoIdFromValue(raw) {
@@ -32806,6 +33628,15 @@ function renderEquipamentoOptions() {
   renderEquipamentoSelectOptions(equipamentoManutencao);
   renderEquipamentoSelectOptions(liberacaoEquipamento);
   renderEquipamentoSelectOptions(templateEquipamento);
+  renderSubequipamentoSelectOptions(
+    subequipamentoManutencao,
+    equipamentoManutencao ? equipamentoManutencao.value : ""
+  );
+  renderSubequipamentoSelectOptions(
+    templateSubequipamentos,
+    templateEquipamento ? templateEquipamento.value : ""
+  );
+  renderProcedimentoOptions();
 }
 
 function renderEquipeSelectOptions() {
@@ -32870,15 +33701,19 @@ function renderProjectPanel() {
   renderProjetosTable();
   renderProjectFormSelect();
   renderEquipamentosTable();
+  renderProcedimentosTable();
   renderEquipamentoOptions();
+  renderProcedimentoOptions();
   renderEquipeTable();
   renderEquipeSelectOptions();
   renderProjectSelectOptions(equipamentoFormProject, activeProjectId);
+  renderProjectSelectOptions(procedimentoFormProject, activeProjectId);
   renderProjectSelectOptions(sstVehicleProject, sstVehicleProject ? sstVehicleProject.value : activeProjectId);
   renderProjectFilterOptions(sstVehicleFilterProject, sstVehicleFilterProject ? sstVehicleFilterProject.value : "");
   renderSstVehicles();
   setFormDisabled(projectForm, !(currentUser && canManageProjetos(currentUser)));
   setFormDisabled(equipamentoForm, !(currentUser && canManageEquipamentos(currentUser)));
+  setFormDisabled(procedimentoForm, !(currentUser && canManageProcedimentos(currentUser)));
   setFormDisabled(equipeForm, !(currentUser && canManageEquipeProjeto(currentUser)));
   setFormDisabled(sstVehicleForm, !(currentUser && canManageProjetos(currentUser)));
   if (projectPanels.length && !projectPanels.some((panel) => !panel.hidden)) {
@@ -32933,6 +33768,18 @@ function resetEquipamentoForm() {
   }
   if (equipamentoFormProject) {
     equipamentoFormProject.value = activeProjectId || "";
+  }
+}
+
+function resetProcedimentoForm() {
+  if (procedimentoForm) {
+    procedimentoForm.reset();
+  }
+  if (procedimentoFormId) {
+    procedimentoFormId.value = "";
+  }
+  if (procedimentoFormProject) {
+    procedimentoFormProject.value = activeProjectId || "";
   }
 }
 
@@ -38031,6 +38878,7 @@ async function carregarEquipamentosProjeto() {
   if (!currentUser || !activeProjectId) {
     projectEquipamentos = [];
     renderEquipamentosTable();
+    renderEquipamentoOptions();
     return;
   }
   try {
@@ -38041,6 +38889,23 @@ async function carregarEquipamentosProjeto() {
   }
   renderEquipamentosTable();
   renderEquipamentoOptions();
+}
+
+async function carregarProcedimentosProjeto() {
+  if (!currentUser || !activeProjectId) {
+    projectProcedimentos = [];
+    renderProcedimentosTable();
+    renderProcedimentoOptions();
+    return;
+  }
+  try {
+    const data = await apiProjetosProcedimentosList(activeProjectId);
+    projectProcedimentos = Array.isArray(data.procedimentos) ? data.procedimentos : [];
+  } catch (error) {
+    projectProcedimentos = [];
+  }
+  renderProcedimentosTable();
+  renderProcedimentoOptions();
 }
 
 async function carregarTemplatesServidor(force = false) {
@@ -38353,6 +39218,9 @@ function renderPerfil() {
     unmountProfileEdit();
     setPerfilSaveMessage("");
     pendingAvatarDataUrl = "";
+    pendingSignatureDataUrl = "";
+    pendingSignatureMode = "draw";
+    pendingSignatureClear = false;
   }
 
   if (!perfilUsuario) {
@@ -38457,6 +39325,7 @@ function renderPerfil() {
   if (perfilAtribuicoesInputAtual) {
     perfilAtribuicoesInputAtual.value = perfilUsuario.atribuicoes || "";
   }
+  initProfileSignatureEditor(perfilUsuario, isSelfProfile, isEdit);
   const btnSalvarAtual = document.getElementById("btnPerfilSalvar");
   if (btnSalvarAtual) {
     btnSalvarAtual.disabled = !podeEditarPerfil;
@@ -38574,6 +39443,9 @@ function renderAuthUI() {
       btnSair.hidden = true;
     }
     pendingAvatarDataUrl = "";
+    pendingSignatureDataUrl = "";
+    pendingSignatureMode = "draw";
+    pendingSignatureClear = false;
     const btnAvatarSaveAtual = document.getElementById("btnAvatarSave");
     if (btnAvatarSaveAtual) {
       btnAvatarSaveAtual.disabled = true;
@@ -38809,6 +39681,80 @@ function initAvatarUpload() {
       setAvatarError("Falha ao ler a imagem.");
     };
     reader.readAsDataURL(file);
+  });
+}
+
+function initProfileSignatureBinding() {
+  if (profileSignatureBound) {
+    return;
+  }
+  profileSignatureBound = true;
+
+  document.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!target) {
+      return;
+    }
+    if (target.id === "perfilSignatureFile") {
+      handleProfileSignatureFileChange(event);
+      return;
+    }
+    if (target.name === "perfilSignatureMode") {
+      pendingSignatureMode = target.value === "upload" ? "upload" : "draw";
+      syncProfileSignatureModeUI();
+      const canvas = getProfileSignatureCanvas();
+      if (canvas && pendingSignatureMode === "draw") {
+        if (pendingSignatureDataUrl && !pendingSignatureClear) {
+          drawSignatureImageToCanvas(canvas, pendingSignatureDataUrl);
+        } else {
+          clearSignatureCanvas(canvas);
+        }
+      }
+      return;
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    const clearBtn = event.target.closest("#btnPerfilSignatureClear");
+    if (clearBtn) {
+      event.preventDefault();
+      const canvas = getProfileSignatureCanvas();
+      if (canvas) {
+        clearSignatureCanvas(canvas);
+      }
+      pendingSignatureDataUrl = "";
+      pendingSignatureMode = "draw";
+      pendingSignatureClear = false;
+      updateProfileSignaturePreview("");
+      setProfileSignatureError("");
+      return;
+    }
+
+    const removeBtn = event.target.closest("#btnPerfilSignatureRemove");
+    if (removeBtn) {
+      event.preventDefault();
+      pendingSignatureDataUrl = "";
+      pendingSignatureMode = "draw";
+      pendingSignatureClear = true;
+      const input = getProfileSignatureFileInput();
+      if (input) {
+        input.value = "";
+      }
+      const canvas = getProfileSignatureCanvas();
+      if (canvas) {
+        clearSignatureCanvas(canvas);
+      }
+      updateProfileSignaturePreview("");
+      setProfileSignatureError("");
+      removeBtn.disabled = true;
+    }
+  });
+
+  window.addEventListener("resize", () => {
+    const canvas = getProfileSignatureCanvas();
+    if (canvas) {
+      resizeSignatureCanvas(canvas, true);
+    }
   });
 }
 
@@ -39502,6 +40448,12 @@ async function adicionarManutencao() {
     getSubestacoesBase()[0] ||
     "";
   const equipamentoId = equipamentoManutencao ? equipamentoManutencao.value.trim() : "";
+  const subequipamentos = normalizeMaintenanceSubequipamentosValue(
+    getMultiSelectValues(subequipamentoManutencao)
+  );
+  const procedimentoIds = normalizeMaintenanceProcedimentoIdsValue(
+    getMultiSelectValues(procedimentoManutencao)
+  );
   const data = dataManutencao
     ? dataManutencao.value || formatDateISO(new Date())
     : "";
@@ -39638,6 +40590,8 @@ async function adicionarManutencao() {
       status: autoExecutar ? "em_execucao" : "agendada",
       categoria,
       prioridade,
+      subequipamentos,
+      procedimentoIds,
       criticidade: critico ? "sim" : "nao",
       osReferencia,
       participantes,
@@ -39790,6 +40744,10 @@ function limparFormularioManutencao() {
   }
   if (equipamentoManutencao) {
     equipamentoManutencao.value = "";
+  }
+  renderSubequipamentoSelectOptions(subequipamentoManutencao, "");
+  if (procedimentoManutencao) {
+    setMultiSelectValues(procedimentoManutencao, []);
   }
   if (futuraManutencao) {
     futuraManutencao.checked = false;
@@ -39991,6 +40949,50 @@ function preencherFormularioManutencao(item) {
     }
     equipamentoManutencao.value = equipamentoId;
   }
+  renderSubequipamentoSelectOptions(
+    subequipamentoManutencao,
+    equipamentoManutencao ? equipamentoManutencao.value : ""
+  );
+  const subequipamentosFormValue = normalizeMaintenanceSubequipamentosValue(
+    item.subequipamentos ||
+      (similarItem && similarItem.subequipamentos) ||
+      (template && template.subequipamentos) ||
+      []
+  );
+  if (subequipamentoManutencao) {
+    subequipamentosFormValue.forEach((nome) => {
+      const exists = Array.from(subequipamentoManutencao.options || []).some(
+        (opt) => opt.value === nome
+      );
+      if (!exists) {
+        const option = document.createElement("option");
+        option.value = nome;
+        option.textContent = nome;
+        subequipamentoManutencao.append(option);
+      }
+    });
+  }
+  setMultiSelectValues(subequipamentoManutencao, subequipamentosFormValue);
+  const procedimentoIdsFormValue = normalizeMaintenanceProcedimentoIdsValue(
+    item.procedimentoIds ||
+      (similarItem && similarItem.procedimentoIds) ||
+      (template && template.procedimentoIds) ||
+      []
+  );
+  if (procedimentoManutencao) {
+    procedimentoIdsFormValue.forEach((id) => {
+      const exists = Array.from(procedimentoManutencao.options || []).some(
+        (opt) => opt.value === id
+      );
+      if (!exists) {
+        const option = document.createElement("option");
+        option.value = id;
+        option.textContent = id;
+        procedimentoManutencao.append(option);
+      }
+    });
+  }
+  setMultiSelectValues(procedimentoManutencao, procedimentoIdsFormValue);
 
   const dataValor =
     item.data ||
@@ -40297,6 +41299,12 @@ async function salvarEdicaoManutencao() {
     (typeof item.equipamentoId === "string" && item.equipamentoId) ||
     (typeof item.equipamento === "string" && item.equipamento) ||
     "";
+  const subequipamentosInput = normalizeMaintenanceSubequipamentosValue(
+    getMultiSelectValues(subequipamentoManutencao)
+  );
+  const procedimentoIdsInput = normalizeMaintenanceProcedimentoIdsValue(
+    getMultiSelectValues(procedimentoManutencao)
+  );
   const data = dataManutencao
     ? dataManutencao.value || item.data || formatDateISO(new Date())
     : item.data || "";
@@ -40399,6 +41407,8 @@ async function salvarEdicaoManutencao() {
     ? equipamentoObj.id || equipamentoObj.nome || equipamentoObj.name || equipamentoObj.tag || ""
     : "";
   const equipamentoFinal = equipamentoId || equipamentoFallback || "";
+  const subequipamentosFinal = subequipamentosInput;
+  const procedimentoIdsFinal = procedimentoIdsInput;
   const localFinal = local || getItemSubestacao(item) || "";
   const dataFinal = data || item.data || formatDateISO(new Date());
   if (dataManutencao && !dataManutencao.value) {
@@ -40520,6 +41530,8 @@ async function salvarEdicaoManutencao() {
     local: localFinal,
     data: dataFinal,
     equipamentoId: equipamentoFinal,
+    subequipamentos: subequipamentosFinal,
+    procedimentoIds: procedimentoIdsFinal,
     observacao: observacaoFinal,
     observacaoHtml: observacaoHtmlFinal,
     templateId: templateFinal,
@@ -43485,6 +44497,21 @@ function aplicarModeloBreve() {
   conclusaoDescricaoBreve.value = formatTemplateText(modelo.text, contexto);
 }
 
+function setConclusaoAssinaturaErro(message) {
+  setFieldErrorText(conclusaoAssinaturaErro, message);
+}
+
+function renderConclusaoAssinatura(user) {
+  if (!conclusaoAssinaturaPreview) {
+    return;
+  }
+  const signature = getUserSignatureValue(user);
+  conclusaoAssinaturaPreview.style.backgroundImage = signature.dataUrl
+    ? `url("${signature.dataUrl}")`
+    : "";
+  conclusaoAssinaturaPreview.classList.toggle("has-signature", Boolean(signature.dataUrl));
+}
+
 function abrirConclusao(item) {
   if (!requirePermission("complete")) {
     return;
@@ -43497,6 +44524,13 @@ function abrirConclusao(item) {
     return;
   }
   if (!ensureExecucaoPermitida(item, mostrarMensagemManutencao)) {
+    return;
+  }
+  if (!hasUserSignatureConfigured(currentUser)) {
+    mostrarMensagemManutencao(
+      "Cadastre sua assinatura no Perfil para concluir a manutenção.",
+      true
+    );
     return;
   }
   if (!item.executionStartedAt) {
@@ -43562,6 +44596,11 @@ function abrirConclusao(item) {
   if (conclusaoResultado) {
     conclusaoResultado.value = registro.resultado || "";
   }
+  if (conclusaoAssinaturaConfirm) {
+    conclusaoAssinaturaConfirm.checked = false;
+  }
+  renderConclusaoAssinatura(currentUser);
+  setConclusaoAssinaturaErro("");
   if (conclusaoObsExecucao) {
     conclusaoObsExecucao.value = registro.observacaoExecucao || "";
   }
@@ -43625,6 +44664,10 @@ function fecharConclusao() {
     return;
   }
   modalConclusao.hidden = true;
+  setConclusaoAssinaturaErro("");
+  if (conclusaoAssinaturaConfirm) {
+    conclusaoAssinaturaConfirm.checked = false;
+  }
   manutencaoEmConclusao = null;
   conclusaoItemAtual = null;
 }
@@ -43705,6 +44748,25 @@ async function salvarConclusao(event) {
   const referencia = referenciaInformada || (liberacao ? liberacao.osNumero || "" : "");
   if (!referencia) {
     mostrarMensagemConclusao("Informe o Nº OS / referência.", true);
+    return;
+  }
+  const assinaturaUsuario = getUserSignatureValue(currentUser);
+  if (!assinaturaUsuario.dataUrl) {
+    mostrarMensagemConclusao("Cadastre sua assinatura no perfil antes de concluir.", true);
+    setConclusaoAssinaturaErro("Assinatura não cadastrada no perfil.");
+    return;
+  }
+  if (!conclusaoAssinaturaConfirm || !conclusaoAssinaturaConfirm.checked) {
+    mostrarMensagemConclusao("Confirme sua assinatura para concluir.", true);
+    setConclusaoAssinaturaErro("Confirme a assinatura para concluir.");
+    return;
+  }
+  setConclusaoAssinaturaErro("");
+  const assinaturaHash =
+    assinaturaUsuario.hash || (await hashSha256(String(assinaturaUsuario.dataUrl || "")));
+  if (!assinaturaHash) {
+    mostrarMensagemConclusao("Não foi possível validar a assinatura.", true);
+    setConclusaoAssinaturaErro("Falha na validação da assinatura.");
     return;
   }
   const inicioValor = conclusaoInicio ? conclusaoInicio.value : "";
@@ -43797,6 +44859,13 @@ async function salvarConclusao(event) {
           : ""),
       observacaoExecucao,
       descricaoBreve,
+      assinatura: {
+        userId: currentUser.id,
+        hash: assinaturaHash,
+        mode: assinaturaUsuario.mode || "draw",
+        updatedAt: assinaturaUsuario.updatedAt || "",
+        confirmedAt: toIsoUtc(new Date()),
+      },
       evidencias,
     };
 
@@ -43843,6 +44912,7 @@ async function salvarConclusao(event) {
       documentos: documentosLista,
       observacaoExecucao,
       descricaoBreve: truncarTexto(descricaoBreve, 180),
+      assinaturaHash: assinaturaHash,
       evidenciasCount: evidencias.length,
       inicioExecucao: inicioIso,
       fimExecucao: fimIso,
@@ -45206,6 +46276,30 @@ async function apiEquipamentosDelete(equipamentoId) {
   });
 }
 
+async function apiProjetosProcedimentosList(projectId) {
+  return apiRequest(`/api/projetos/${encodeURIComponent(projectId)}/procedimentos`);
+}
+
+async function apiProjetosProcedimentosCreate(projectId, payload) {
+  return apiRequest(`/api/projetos/${encodeURIComponent(projectId)}/procedimentos`, {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiProcedimentosUpdate(procedimentoId, payload) {
+  return apiRequest(`/api/procedimentos/${encodeURIComponent(procedimentoId)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiProcedimentosDelete(procedimentoId) {
+  return apiRequest(`/api/procedimentos/${encodeURIComponent(procedimentoId)}`, {
+    method: "DELETE",
+  });
+}
+
 async function apiProjetosGetActive() {
   if (!USE_AUTH_API) {
     const projectId = localStorage.getItem(ACTIVE_PROJECT_KEY) || "";
@@ -46361,6 +47455,7 @@ document.addEventListener("click", (event) => {
   const uenValue = uenInput ? uenInput.value.trim() : "";
   const projetoValue = projetoInput ? projetoInput.value.trim() : "";
   const atribuicoesValue = atribuicoesInput ? atribuicoesInput.value.trim() : "";
+  const isSelfProfile = String(currentUser.id) === String(perfilUsuario.id);
   if (uenInput && uenValue !== (perfilUsuario.uen || "")) {
     payload.uen = uenValue;
   }
@@ -46370,14 +47465,44 @@ document.addEventListener("click", (event) => {
   if (atribuicoesInput && atribuicoesValue !== (perfilUsuario.atribuicoes || "")) {
     payload.atribuicoes = atribuicoesValue;
   }
+  if (isSelfProfile) {
+    const signatureAtual = getUserSignatureValue(perfilUsuario);
+    const hasStoredSignature = Boolean(signatureAtual.dataUrl || perfilUsuario.signatureConfigured);
+    if (pendingSignatureClear && hasStoredSignature) {
+      payload.signature = { clear: true };
+    } else if (pendingSignatureDataUrl) {
+      const mode = pendingSignatureMode === "upload" ? "upload" : "draw";
+      if (
+        pendingSignatureDataUrl !== signatureAtual.dataUrl ||
+        mode !== (signatureAtual.mode || "draw")
+      ) {
+        payload.signature = {
+          dataUrl: pendingSignatureDataUrl,
+          mode,
+        };
+      }
+    }
+  }
   if (!Object.keys(payload).length) {
     setPerfilSaveMessage("Nenhuma altera\u00e7\u00e3o para salvar.");
     return;
   }
   salvar.disabled = true;
   setPerfilSaveMessage("");
+  setProfileSignatureError("");
   updateProfileForUser(perfilUsuario.id, payload)
-    .then(() => {
+    .then((result) => {
+      if (
+        result &&
+        result.user &&
+        currentUser &&
+        String(result.user.id || "") === String(currentUser.id || "")
+      ) {
+        currentUser = { ...currentUser, ...result.user };
+      }
+      pendingSignatureDataUrl = "";
+      pendingSignatureMode = "draw";
+      pendingSignatureClear = false;
       setProfileEditParam(false);
       return refreshAccessUsers();
     })
@@ -47011,6 +48136,16 @@ if (equipamentoFormProject) {
   });
 }
 
+if (procedimentoFormProject) {
+  procedimentoFormProject.addEventListener("change", (event) => {
+    const nextId = event.target.value;
+    if (!nextId) {
+      return;
+    }
+    setActiveProjectId(nextId);
+  });
+}
+
 if (projectManageBtn && !projectManageBtn.dataset.tab) {
   projectManageBtn.addEventListener("click", () => {
     abrirPainelComCarregamento("projetos");
@@ -47113,6 +48248,9 @@ if (equipamentoForm) {
       tag: equipamentoFormTag ? equipamentoFormTag.value.trim() : "",
       nome: equipamentoFormNome ? equipamentoFormNome.value.trim() : "",
       categoria: equipamentoFormCategoria ? equipamentoFormCategoria.value.trim() : "",
+      subequipamentos: normalizeLocaisList(
+        equipamentoFormSubequipamentos ? equipamentoFormSubequipamentos.value : ""
+      ),
       descricao: equipamentoFormDescricao ? equipamentoFormDescricao.value.trim() : "",
     };
     const targetProjectId = equipamentoFormProject
@@ -47177,6 +48315,11 @@ if (equipamentoTable) {
       if (equipamentoFormTag) equipamentoFormTag.value = equipamento.tag || "";
       if (equipamentoFormNome) equipamentoFormNome.value = equipamento.nome || "";
       if (equipamentoFormCategoria) equipamentoFormCategoria.value = equipamento.categoria || "";
+      if (equipamentoFormSubequipamentos) {
+        equipamentoFormSubequipamentos.value = normalizeLocaisList(
+          equipamento.subequipamentos || []
+        ).join("\n");
+      }
       if (equipamentoFormDescricao) equipamentoFormDescricao.value = equipamento.descricao || "";
       return;
     }
@@ -47190,6 +48333,100 @@ if (equipamentoTable) {
         await carregarEquipamentosProjeto();
       } catch (error) {
         alert(error && error.message ? error.message : "Falha ao excluir equipamento.");
+      }
+    }
+  });
+}
+
+if (procedimentoForm) {
+  procedimentoForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!currentUser || !canManageProcedimentos(currentUser)) {
+      return;
+    }
+    const payload = {
+      codigo: procedimentoFormCodigo ? procedimentoFormCodigo.value.trim() : "",
+      nome: procedimentoFormNome ? procedimentoFormNome.value.trim() : "",
+      descricao: procedimentoFormDescricao ? procedimentoFormDescricao.value.trim() : "",
+    };
+    const targetProjectId = procedimentoFormProject
+      ? procedimentoFormProject.value.trim()
+      : activeProjectId;
+    const procedimentoId = procedimentoFormId ? procedimentoFormId.value.trim() : "";
+    if (!payload.nome) {
+      alert("Informe o nome do procedimento.");
+      return;
+    }
+    try {
+      if (procedimentoId) {
+        if (targetProjectId && targetProjectId !== activeProjectId) {
+          await setActiveProjectId(targetProjectId);
+        }
+        await apiProcedimentosUpdate(procedimentoId, payload);
+      } else if (targetProjectId) {
+        await apiProjetosProcedimentosCreate(targetProjectId, payload);
+        if (targetProjectId !== activeProjectId) {
+          await setActiveProjectId(targetProjectId);
+        }
+      } else {
+        alert("Selecione um projeto para o procedimento.");
+        return;
+      }
+      resetProcedimentoForm();
+      await carregarProcedimentosProjeto();
+    } catch (error) {
+      alert(error && error.message ? error.message : "Falha ao salvar procedimento.");
+    }
+  });
+}
+
+if (procedimentoFormCancel) {
+  procedimentoFormCancel.addEventListener("click", () => {
+    resetProcedimentoForm();
+  });
+}
+
+if (procedimentoTable) {
+  procedimentoTable.addEventListener("click", async (event) => {
+    const action = event.target.closest("[data-action]");
+    if (!action) {
+      return;
+    }
+    const row = event.target.closest("tr");
+    if (!row) {
+      return;
+    }
+    const procedimentoId = row.dataset.procedureId;
+    if (!procedimentoId) {
+      return;
+    }
+    if (!currentUser || !canManageProcedimentos(currentUser)) {
+      return;
+    }
+    const procedimento = projectProcedimentos.find((item) => item.id === procedimentoId);
+    if (!procedimento) {
+      return;
+    }
+    if (action.dataset.action === "edit-procedure") {
+      if (procedimentoFormId) procedimentoFormId.value = procedimento.id;
+      if (procedimentoFormProject) {
+        procedimentoFormProject.value = procedimento.projectId || activeProjectId || "";
+      }
+      if (procedimentoFormCodigo) procedimentoFormCodigo.value = procedimento.codigo || "";
+      if (procedimentoFormNome) procedimentoFormNome.value = procedimento.nome || "";
+      if (procedimentoFormDescricao) procedimentoFormDescricao.value = procedimento.descricao || "";
+      return;
+    }
+    if (action.dataset.action === "delete-procedure") {
+      const ok = confirm("Excluir procedimento?");
+      if (!ok) {
+        return;
+      }
+      try {
+        await apiProcedimentosDelete(procedimentoId);
+        await carregarProcedimentosProjeto();
+      } catch (error) {
+        alert(error && error.message ? error.message : "Falha ao excluir procedimento.");
       }
     }
   });
@@ -47562,6 +48799,13 @@ if (conclusaoInicio) {
 if (conclusaoFim) {
   conclusaoFim.addEventListener("input", atualizarDuracaoConclusao);
 }
+if (conclusaoAssinaturaConfirm) {
+  conclusaoAssinaturaConfirm.addEventListener("change", () => {
+    if (conclusaoAssinaturaConfirm.checked) {
+      setConclusaoAssinaturaErro("");
+    }
+  });
+}
 if (formRegistroExecucao) {
   formRegistroExecucao.addEventListener("submit", salvarRegistroExecucao);
 }
@@ -47842,6 +49086,14 @@ if (manutencaoResponsaveisSelected) {
     updateManutencaoSubmitLabel();
   });
 }
+if (equipamentoManutencao) {
+  equipamentoManutencao.addEventListener("change", () => {
+    renderSubequipamentoSelectOptions(
+      subequipamentoManutencao,
+      equipamentoManutencao.value
+    );
+  });
+}
 if (templateParticipantesList) {
   templateParticipantesList.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-participant-name]");
@@ -47927,6 +49179,14 @@ if (templateResponsaveisSelected) {
     renderTemplateResponsaveisOptions();
     renderTemplateResponsaveisSelected();
     setFieldError(templateResponsaveisErro, "");
+  });
+}
+if (templateEquipamento) {
+  templateEquipamento.addEventListener("change", () => {
+    renderSubequipamentoSelectOptions(
+      templateSubequipamentos,
+      templateEquipamento.value
+    );
   });
 }
 if (btnFecharHistorico) {
@@ -49534,6 +50794,7 @@ renderTipoOptions();
 limparTemplateForm();
 initSidebarToggle();
 initAvatarUpload();
+initProfileSignatureBinding();
 initRichEditors();
 initConclusaoModelos();
 initFontGroups();
