@@ -4572,6 +4572,8 @@ let execucaoRegistradaAlertTimer = null;
 let activeProjectId = "";
 let availableProjects = [];
 let projectEquipamentos = [];
+let projectEquipamentosProjectId = "";
+let projectEquipamentosLoadError = "";
 let projectProcedimentos = [];
 let projectEquipe = [];
 let equipamentoSubRows = [];
@@ -33243,6 +33245,9 @@ function setProjectTab(tab) {
   projectPanels.forEach((panel) => {
     panel.hidden = panel.dataset.projectPanel !== tab;
   });
+  if (tab === "equipamentos" && currentUser && activeProjectId) {
+    carregarEquipamentosProjeto();
+  }
 }
 
 function openProjectVehiclesTab(projectId) {
@@ -33516,6 +33521,15 @@ function renderEquipamentosTable() {
   }
   equipamentoTableBody.innerHTML = "";
   if (!projectEquipamentos.length) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 6;
+    td.className = "empty-state";
+    td.textContent = projectEquipamentosLoadError
+      ? `Não foi possível carregar equipamentos agora (${projectEquipamentosLoadError}).`
+      : "Nenhum equipamento cadastrado para este projeto.";
+    tr.append(td);
+    equipamentoTableBody.append(tr);
     return;
   }
   projectEquipamentos.forEach((equip) => {
@@ -39253,15 +39267,32 @@ function handleSstDocContainerClick(event) {
 async function carregarEquipamentosProjeto() {
   if (!currentUser || !activeProjectId) {
     projectEquipamentos = [];
+    projectEquipamentosProjectId = "";
+    projectEquipamentosLoadError = "";
     renderEquipamentosTable();
     renderEquipamentoOptions();
     return;
   }
+  const requestProjectId = activeProjectId;
+  const sameProjectCached =
+    projectEquipamentosProjectId === requestProjectId && Array.isArray(projectEquipamentos) && projectEquipamentos.length > 0;
   try {
-    const data = await apiProjetosEquipamentosList(activeProjectId);
-    projectEquipamentos = Array.isArray(data.equipamentos) ? data.equipamentos : [];
+    const data = await apiProjetosEquipamentosList(requestProjectId);
+    const nextList = Array.isArray(data.equipamentos) ? data.equipamentos : [];
+    projectEquipamentos = nextList;
+    projectEquipamentosProjectId = requestProjectId;
+    projectEquipamentosLoadError = "";
   } catch (error) {
-    projectEquipamentos = [];
+    console.error("[equipamentos] falha ao carregar", error);
+    if (!sameProjectCached) {
+      projectEquipamentos = [];
+      projectEquipamentosProjectId = requestProjectId;
+    }
+    projectEquipamentosLoadError =
+      (error && error.message ? String(error.message) : "").trim() || "erro de conexão";
+    if (sameProjectCached) {
+      showAuthToast("Falha ao atualizar equipamentos. Mantendo a lista anterior.");
+    }
   }
   renderEquipamentosTable();
   renderEquipamentoOptions();
