@@ -10,6 +10,9 @@ const subestacaoManutencao = document.getElementById("subestacaoManutencao");
 const manutencaoProjeto = document.getElementById("manutencaoProjeto");
 const equipamentoManutencao = document.getElementById("equipamentoManutencao");
 const dataManutencao = document.getElementById("dataManutencao");
+const manutencaoPrazoQtd = document.getElementById("manutencaoPrazoQtd");
+const manutencaoPrazoUnidade = document.getElementById("manutencaoPrazoUnidade");
+const manutencaoPrazoErro = document.getElementById("manutencaoPrazoErro");
 const futuraManutencao = document.getElementById("futuraManutencao");
 const obsManutencao = document.getElementById("obsManutencao");
 const obsManutencaoEditor = document.getElementById("obsManutencaoEditor");
@@ -872,6 +875,9 @@ const templateResponsaveisList = document.getElementById("templateResponsaveisLi
 const templateResponsaveisSelected = document.getElementById("templateResponsaveisSelected");
 const templateResponsaveisIds = document.getElementById("templateResponsaveisIds");
 const templateResponsaveisErro = document.getElementById("templateResponsaveisErro");
+const templatePrazoQtd = document.getElementById("templatePrazoQtd");
+const templatePrazoUnidade = document.getElementById("templatePrazoUnidade");
+const templatePrazoErro = document.getElementById("templatePrazoErro");
 const templateParticipanteExterno = document.getElementById("templateParticipanteExterno");
 const btnAddTemplateParticipanteExterno = document.getElementById(
   "btnAddTemplateParticipanteExterno"
@@ -1097,6 +1103,18 @@ const backlogReplanObs = document.getElementById("backlogReplanObs");
 const mensagemBacklogMotivo = document.getElementById("mensagemBacklogMotivo");
 const btnFecharBacklogMotivo = document.getElementById("btnFecharBacklogMotivo");
 const btnCancelarBacklogMotivo = document.getElementById("btnCancelarBacklogMotivo");
+const modalRevalidarPrazo = document.getElementById("modalRevalidarPrazo");
+const formRevalidarPrazo = document.getElementById("formRevalidarPrazo");
+const revalidarPrazoId = document.getElementById("revalidarPrazoId");
+const revalidarPrazoResumo = document.getElementById("revalidarPrazoResumo");
+const revalidarPrazoMotivo = document.getElementById("revalidarPrazoMotivo");
+const revalidarPrazoObs = document.getElementById("revalidarPrazoObs");
+const revalidarPrazoQtd = document.getElementById("revalidarPrazoQtd");
+const revalidarPrazoUnidade = document.getElementById("revalidarPrazoUnidade");
+const revalidarPrazoErro = document.getElementById("revalidarPrazoErro");
+const mensagemRevalidarPrazo = document.getElementById("mensagemRevalidarPrazo");
+const btnFecharRevalidarPrazo = document.getElementById("btnFecharRevalidarPrazo");
+const btnCancelarRevalidarPrazo = document.getElementById("btnCancelarRevalidarPrazo");
 const modalLiberacao = document.getElementById("modalLiberacao");
 const formLiberacao = document.getElementById("formLiberacao");
 const liberacaoId = document.getElementById("liberacaoId");
@@ -1212,6 +1230,7 @@ const FEEDBACK_TTL_MS = 20 * 1000;
 const TEAM_NOTIFICATION_WINDOW_DAYS = 14;
 const STORAGE_KEY = "denemanu.manutencoes";
 const MAINT_DIRTY_KEY = "opscope.maintenance.dirty";
+const MAINT_MONTHLY_KEY = "opscope.maintenance.monthly";
 const MAINT_TOMBSTONE_KEY = "opscope.maintenance.tombstones";
 const MAINT_STORAGE_MODE_KEY = "opscope.maintenance.storageMode";
 const MAINT_CACHE_USER_KEY = "opscope.maintenance.cache.user";
@@ -1474,6 +1493,7 @@ const ACCESS_PERMISSIONS = [
   ...MAINTENANCE_ACCESS_PERMISSIONS,
   ...ACCESS_SECTION_PERMISSIONS,
   "executarManutencaoTerceiros",
+  "revalidarPrazoManutencao",
   "editarPerfil",
   "editarPerfilOutros",
   "verUsuarios",
@@ -1530,6 +1550,7 @@ const ACCESS_PERMISSION_LABELS = {
   MAINT_RESCHEDULE: "Manutenção - reagendar",
   MAINT_COMPLETE: "Manutenção - executar",
   executarManutencaoTerceiros: "Executar manutenção de terceiros",
+  revalidarPrazoManutencao: "Revalidar prazo de manutenção",
   limparCacheLocal: "Limpar cache local",
   verAnuncios: "Ver anúncios",
   criarAnuncios: "Criar anúncios",
@@ -1550,7 +1571,10 @@ const ACCESS_PERMISSION_GROUPS = [
   {
     key: "manutencao",
     label: "Manutenção (ações)",
-    items: MAINTENANCE_ACCESS_PERMISSIONS.concat(["executarManutencaoTerceiros"]),
+    items: MAINTENANCE_ACCESS_PERMISSIONS.concat([
+      "executarManutencaoTerceiros",
+      "revalidarPrazoManutencao",
+    ]),
   },
   {
     key: "usuarios",
@@ -1655,6 +1679,7 @@ const GRANULAR_PERMISSION_LABELS = {
   verAnuncios: "Ver anúncios",
   criarAnuncios: "Criar anúncios",
   executarManutencaoTerceiros: "Executar manutenção de terceiros",
+  revalidarPrazoManutencao: "Revalidar prazo de manutenção",
 };
 
 const ACCESS_PERMISSION_CATALOG = [
@@ -1879,6 +1904,14 @@ const ACCESS_PERMISSION_CATALOG = [
     group: "Acoes",
     label: "Executar manutenção de terceiros",
     description: "Permite executar manutenções onde não é responsável.",
+    level: "WRITE",
+  },
+  {
+    key: "revalidarPrazoManutencao",
+    module: "Manutencao",
+    group: "Acoes",
+    label: "Revalidar prazo de manutenção",
+    description: "Permite revalidar prazos vencidos de manutenções.",
     level: "WRITE",
   },
   {
@@ -2411,6 +2444,14 @@ const ACCESS_ROLE_ITEMS = [
     editKeys: [],
   },
   {
+    key: "manut_revalidar_prazo",
+    module: "Manutencao",
+    label: "Revalidar prazo de manutenção",
+    description: "Permite revalidar prazos vencidos de manutenções.",
+    viewKeys: ["revalidarPrazoManutencao"],
+    editKeys: [],
+  },
+  {
     key: "manut_excluir",
     module: "Manutencao",
     label: "Excluir manutencoes",
@@ -2790,7 +2831,7 @@ const PERMISSION_GROUPS = [
   {
     key: "manutencao",
     label: "Manutenção",
-    items: ["executarManutencaoTerceiros"],
+    items: ["executarManutencaoTerceiros", "revalidarPrazoManutencao"],
   },
   {
     key: "projetos",
@@ -4390,6 +4431,7 @@ const ACTION_LABELS = {
   complete: "Concluir",
   reopen: "Reaberta",
   note: "Observação",
+  revalidate: "Revalidar prazo",
   backlog_auto: "Backlog automático",
   backlog_reason: "Motivo não executada",
   rdo_delete: "RDO excluído",
@@ -4987,6 +5029,8 @@ function buildMaintenanceLiteItem(item) {
     data: item.data || "",
     prazo: item.prazo || "",
     dueDate: item.dueDate || "",
+    prazoMaximo: item.prazoMaximo || null,
+    prazoMaximoInicio: item.prazoMaximoInicio || "",
     criticidade: item.criticidade || "",
     prioridade: item.prioridade || "",
     categoria: item.categoria || "",
@@ -5000,6 +5044,8 @@ function buildMaintenanceLiteItem(item) {
     executionFinishedAt: item.executionFinishedAt || "",
     projectId: item.projectId || "",
     templateId: item.templateId || "",
+    backlogAutoEm: item.backlogAutoEm || "",
+    backlogAutoMonth: item.backlogAutoMonth || "",
   };
   if (item.backlogMotivo && typeof item.backlogMotivo === "object") {
     lite.backlogMotivo = {
@@ -5035,6 +5081,17 @@ function buildMaintenanceLiteItem(item) {
       resultado: conclusao.resultado || "",
       referencia: conclusao.referencia || "",
       osNumero: conclusao.osNumero || "",
+    };
+  }
+  if (item.prazoMaximoRevalidacao && typeof item.prazoMaximoRevalidacao === "object") {
+    const revalidacao = item.prazoMaximoRevalidacao;
+    lite.prazoMaximoRevalidacao = {
+      motivo: revalidacao.motivo || "",
+      observacao: revalidacao.observacao || "",
+      registradoEm: revalidacao.registradoEm || "",
+      registradoPor: revalidacao.registradoPor || "",
+      prazoAnterior: revalidacao.prazoAnterior || null,
+      prazoNovo: revalidacao.prazoNovo || null,
     };
   }
   return lite;
@@ -7994,6 +8051,7 @@ function clearFocusParam() {
     return;
   }
   url.searchParams.delete("focus");
+  url.searchParams.delete("projectId");
   window.history.replaceState(null, "", url.toString());
 }
 
@@ -8044,7 +8102,7 @@ function openMaintenanceFromNotification(id) {
   clearFocusParam();
 }
 
-function handleFocusFromUrl() {
+async function handleFocusFromUrl() {
   if (!currentUser) {
     return;
   }
@@ -8056,6 +8114,10 @@ function handleFocusFromUrl() {
   if (focusId === lastFocusMaintenanceId) {
     clearFocusParam();
     return;
+  }
+  const targetProjectId = params.get("projectId");
+  if (targetProjectId && targetProjectId !== activeProjectId) {
+    await setActiveProjectId(targetProjectId, { sync: true, force: true });
   }
   lastFocusMaintenanceId = focusId;
   abrirPainelComCarregamento("programacao");
@@ -9146,6 +9208,14 @@ function mostrarMensagemBacklogMotivo(texto, erro = false) {
   }
   mensagemBacklogMotivo.textContent = texto;
   mensagemBacklogMotivo.classList.toggle("mensagem--erro", erro);
+}
+
+function mostrarMensagemRevalidarPrazo(texto, erro = false) {
+  if (!mensagemRevalidarPrazo) {
+    return;
+  }
+  mensagemRevalidarPrazo.textContent = texto;
+  mensagemRevalidarPrazo.classList.toggle("mensagem--erro", erro);
 }
 
 function mostrarMensagemInicioExecucao(texto, erro = false) {
@@ -10549,6 +10619,14 @@ function atualizarTipoSelecionado() {
         text: template.observacao || "",
       });
     }
+    if (template) {
+      aplicarPrazoInputs(
+        template.prazoMaximo,
+        manutencaoPrazoQtd,
+        manutencaoPrazoUnidade,
+        manutencaoPrazoErro
+      );
+    }
   }
 }
 
@@ -10986,6 +11064,15 @@ function formatDateISO(date) {
   return `${year}-${month}-${day}`;
 }
 
+function formatMonthKey(date) {
+  if (!date) {
+    return "";
+  }
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
 function formatShortLabel(date) {
   if (!date) {
     return "";
@@ -11321,7 +11408,7 @@ async function carregarSessaoServidor() {
         if (USE_AUTH_API) {
           await handleEmailVerification();
         }
-        handleFocusFromUrl();
+        await handleFocusFromUrl();
         if (!currentUser) {
           mostrarAuthPanel("login");
         }
@@ -12369,7 +12456,6 @@ function normalizeIso(value) {
 }
 
 function normalizarManutencoes(lista) {
-  const hoje = startOfDay(new Date());
   const changes = [];
   let mudouTempo = false;
   const normalizadas = lista.map((item) => {
@@ -12443,12 +12529,20 @@ function normalizarManutencoes(lista) {
         conclusao,
       };
     }
-    const data = parseDate(item.data);
-    const atrasada = Boolean(data && data < hoje);
+    if (statusOriginal === "backlog") {
+      return {
+        ...item,
+        status: statusOriginal,
+        createdAt,
+        updatedAt,
+        doneAt,
+        executionStartedAt,
+        executionFinishedAt,
+        conclusao,
+      };
+    }
     let novoStatus = statusOriginal;
-    if (atrasada) {
-      novoStatus = "backlog";
-    } else if (isLiberacaoOk(item)) {
+    if (isLiberacaoOk(item)) {
       novoStatus = "liberada";
     } else {
       novoStatus = "agendada";
@@ -12481,6 +12575,39 @@ function normalizarManutencoes(lista) {
     };
   });
   return { normalizadas, mudou: changes.length > 0 || mudouTempo, changes };
+}
+
+function aplicarBacklogMensalLocal(lista) {
+  if (!Array.isArray(lista)) {
+    return { list: lista, changed: false, changes: [] };
+  }
+  const hoje = startOfDay(new Date());
+  const mesAtual = formatMonthKey(hoje);
+  const changes = [];
+  const updated = lista.map((item) => {
+    if (!item || typeof item !== "object") {
+      return item;
+    }
+    const status = normalizeMaintenanceStatus(item.status);
+    if (status === "concluida" || status === "cancelada" || status === "backlog") {
+      return item;
+    }
+    const mesItem = getMaintenanceMonthKey(item);
+    if (!mesItem || mesItem >= mesAtual) {
+      return item;
+    }
+    const agoraIso = toIsoUtc(new Date());
+    changes.push({ id: item.id, from: status, to: "backlog", month: mesItem });
+    return {
+      ...item,
+      status: "backlog",
+      backlogAutoEm: agoraIso,
+      backlogAutoMonth: mesItem,
+      updatedAt: agoraIso,
+      updatedBy: SYSTEM_USER_ID,
+    };
+  });
+  return { list: updated, changed: changes.length > 0, changes };
 }
 
 function getMaintenanceEquipamentoKey(item) {
@@ -12827,6 +12954,20 @@ function buildSyntheticMaintenanceHistory(item, baseHistory) {
     });
   }
 
+  const revalidacao = item.prazoMaximoRevalidacao || {};
+  const revalidadoEm = revalidacao.registradoEm || "";
+  if (revalidadoEm) {
+    const prazoAnterior = normalizePrazoMaximo(revalidacao.prazoAnterior);
+    const prazoNovo = normalizePrazoMaximo(revalidacao.prazoNovo);
+    addEntry("revalidate", revalidadoEm, revalidacao.registradoPor, {
+      motivo: revalidacao.motivo || "",
+      observacao: revalidacao.observacao || "",
+      prazoAnterior: prazoAnterior ? formatPrazoLabel(prazoAnterior) : "",
+      prazoNovo: prazoNovo ? formatPrazoLabel(prazoNovo) : "",
+      resumo: prazoNovo ? `Prazo revalidado para ${formatPrazoLabel(prazoNovo)}.` : "Prazo revalidado.",
+    });
+  }
+
   return extras;
 }
 
@@ -12874,6 +13015,9 @@ function getHistoricoSectionLabel(entry) {
   }
   if (action === "backlog_auto" || action === "backlog_reason") {
     return "Backlog";
+  }
+  if (action === "revalidate") {
+    return "Prazo";
   }
   return "Outros";
 }
@@ -13036,6 +13180,7 @@ function getMaintenanceUpdatedAtValue(item) {
     item.executionStartedAt,
     item.concluidaEm,
     item.dataConclusao,
+    item.prazoMaximoRevalidacao && item.prazoMaximoRevalidacao.registradoEm,
     registro.registradoEm,
     registro.registrado_em,
     registro.executedAt,
@@ -13058,6 +13203,8 @@ function getMaintenanceItemFingerprint(item) {
   const registro = item.registroExecucao || {};
   const conclusao = item.conclusao || {};
   const backlogMotivo = item.backlogMotivo || {};
+  const prazoMaximo = normalizePrazoMaximo(item.prazoMaximo);
+  const prazoRevalidacao = item.prazoMaximoRevalidacao || {};
   const execMark =
     item.execucaoRegistradaEm || item.executionRegisteredAt || item.execucaoRegistradaAt || "";
   return [
@@ -13088,6 +13235,19 @@ function getMaintenanceItemFingerprint(item) {
     backlogMotivo.replanejamentoData || "",
     backlogMotivo.replanejamentoMotivo || "",
     backlogMotivo.replanejamentoObs || "",
+    prazoMaximo ? `${prazoMaximo.quantidade}${prazoMaximo.unidade}` : "",
+    item.prazoMaximoInicio || "",
+    prazoRevalidacao.registradoEm || "",
+    prazoRevalidacao.motivo || "",
+    prazoRevalidacao.observacao || "",
+    prazoRevalidacao.prazoAnterior
+      ? formatPrazoLabel(normalizePrazoMaximo(prazoRevalidacao.prazoAnterior))
+      : "",
+    prazoRevalidacao.prazoNovo
+      ? formatPrazoLabel(normalizePrazoMaximo(prazoRevalidacao.prazoNovo))
+      : "",
+    item.backlogAutoEm || "",
+    item.backlogAutoMonth || "",
   ].join("|");
 }
 
@@ -13120,6 +13280,13 @@ function getMaintenanceListFingerprint(list) {
         item.execucaoRegistradaEm ||
         item.executionRegisteredAt ||
         "",
+      prazoMaximo: item.prazoMaximo
+        ? `${item.prazoMaximo.quantidade || ""}${item.prazoMaximo.unidade || ""}`
+        : "",
+      prazoMaximoInicio: item.prazoMaximoInicio || "",
+      prazoRevalidadoEm:
+        (item.prazoMaximoRevalidacao && item.prazoMaximoRevalidacao.registradoEm) || "",
+      backlogAutoMonth: item.backlogAutoMonth || "",
     }))
     .sort((a, b) => a.id.localeCompare(b.id));
   return hashString(JSON.stringify(snapshot));
@@ -14940,14 +15107,14 @@ function atualizarResumo() {
       contagem[status] += 1;
       return;
     }
+    if (status === "backlog") {
+      contagem.backlog += 1;
+      return;
+    }
     const data = parseDate(item.data);
     const state = getMaintenanceState(item, data, hoje);
     if (state === "released") {
       contagem.liberada += 1;
-      return;
-    }
-    if (state === "overdue") {
-      contagem.backlog += 1;
       return;
     }
     contagem.agendada += 1;
@@ -16633,6 +16800,8 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const liberacao = getLiberacao(item);
   const lockInfo = getReleaseLockInfo(item, data, hoje);
   const state = getMaintenanceState(item, data, hoje);
+  const prazoInfo = getPrazoMaximoInfo(item);
+  const prazoExpirado = prazoInfo.enabled && prazoInfo.expired && !prazoInfo.revalidado;
 
   const card = document.createElement("article");
   card.className = `manutencao-item status-${statusNormalized} state-${state}`;
@@ -16668,7 +16837,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const statusInfo = document.createElement("p");
   statusInfo.className = "submeta";
   if (statusNormalized === "agendada" || statusNormalized === "liberada") {
-    statusInfo.textContent = formatUpcoming(diff);
+    statusInfo.textContent = diff !== null && diff < 0 ? formatOverdue(diff) : formatUpcoming(diff);
   } else if (statusNormalized === "backlog") {
     statusInfo.textContent = formatOverdue(diff);
   } else if (statusNormalized === "em_execucao") {
@@ -16705,6 +16874,12 @@ function criarCardManutencao(item, permissoes, options = {}) {
     responsavelLinha.className = "submeta";
     responsavelLinha.textContent = `Responsáveis: ${formatResponsavelLista(responsaveis)}`;
     info.append(responsavelLinha);
+  }
+  if (prazoInfo && prazoInfo.enabled) {
+    const prazoLinha = document.createElement("p");
+    prazoLinha.className = `submeta${prazoExpirado ? " submeta--alert" : ""}`;
+    prazoLinha.textContent = getPrazoMaximoResumo(prazoInfo);
+    info.append(prazoLinha);
   }
   if (statusInfo.textContent) {
     info.append(statusInfo);
@@ -16818,14 +16993,14 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const statusBase =
     statusNormalized === "concluida"
       ? "concluida"
-      : statusNormalized === "em_execucao"
-        ? "em_execucao"
-      : statusNormalized === "encerramento"
-        ? "encerramento"
-      : statusNormalized === "backlog" || (diff !== null && diff < 0)
-        ? "backlog"
-      : statusNormalized === "liberada"
-        ? "liberada"
+    : statusNormalized === "em_execucao"
+      ? "em_execucao"
+    : statusNormalized === "encerramento"
+      ? "encerramento"
+    : statusNormalized === "backlog"
+      ? "backlog"
+    : statusNormalized === "liberada"
+      ? "liberada"
       : diff === 0
         ? "hoje"
         : "agendada";
@@ -16865,6 +17040,12 @@ function criarCardManutencao(item, permissoes, options = {}) {
     execBadge.textContent = "Execução registrada";
     statusGroup.append(execBadge);
   }
+  if (prazoExpirado) {
+    const prazoBadge = document.createElement("span");
+    prazoBadge.className = "status status--prazo-expirado";
+    prazoBadge.textContent = "Prazo expirado";
+    statusGroup.append(prazoBadge);
+  }
   if (backlogEscalated) {
     const escaladoBadge = document.createElement("span");
     escaladoBadge.className = "status status--escalado";
@@ -16886,6 +17067,16 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const allowed = options.allowedActions || null;
   const podeExecutarItem = canExecuteMaintenanceForUser(item, currentUser);
   const permite = (key) => {
+    if (key === "revalidate") {
+      return (
+        (!allowed || allowed.includes(key)) &&
+        prazoExpirado &&
+        canRevalidarPrazoManutencao(item)
+      );
+    }
+    if (prazoExpirado && key !== "history") {
+      return false;
+    }
     const base =
       key === "register" || key === "finish" || key === "release" || key === "cancel_start"
         ? permissoes.execute
@@ -16957,6 +17148,9 @@ function criarCardManutencao(item, permissoes, options = {}) {
     }
   }
 
+  if (permite("revalidate")) {
+    actions.append(criarBotaoAcao("Revalidar prazo", "revalidate"));
+  }
   if (permite("history")) {
     actions.append(criarBotaoAcao("Histórico", "history"));
   }
@@ -17088,12 +17282,7 @@ function renderProgramacao() {
     const diff = info ? info.diff : null;
 
     if (filtroStatus === "backlog") {
-      if (
-        !(
-          status === "backlog" ||
-          (status !== "em_execucao" && status !== "encerramento" && diff !== null && diff < 0)
-        )
-      ) {
+      if (status !== "backlog") {
         return false;
       }
     } else if (filtroStatus === "liberada") {
@@ -17231,6 +17420,7 @@ function renderProgramacao() {
           "remove",
           "history",
           "backlog_reason",
+          "revalidate",
         ],
       })
     );
@@ -17277,7 +17467,14 @@ function renderExecucao() {
     .map((entry) => entry.item);
 
   const vencidasInfo = manutencoes
-    .filter((item) => item.status === "backlog")
+    .filter((item) => {
+      const status = normalizeMaintenanceStatus(item && item.status);
+      if (status === "concluida" || status === "cancelada") {
+        return false;
+      }
+      const info = getDateInfo(item, hoje);
+      return info && info.diff < 0;
+    })
     .map((item) => {
       const info = getDateInfo(item, hoje);
       return info ? { item, ...info } : null;
@@ -17295,6 +17492,7 @@ function renderExecucao() {
     "reschedule",
     "history",
     "backlog_reason",
+    "revalidate",
   ]);
   renderListaCustom(vencidas, listaExecucaoVencidas, listaExecucaoVencidasVazia, [
     "note",
@@ -17303,6 +17501,7 @@ function renderExecucao() {
     "reschedule",
     "history",
     "backlog_reason",
+    "revalidate",
   ]);
   renderListaCustom(criticas, listaExecucaoCriticas, listaExecucaoCriticasVazia, [
     "note",
@@ -17311,6 +17510,7 @@ function renderExecucao() {
     "reschedule",
     "history",
     "backlog_reason",
+    "revalidate",
   ]);
 }
 
@@ -23431,6 +23631,22 @@ function startOfWeek(date) {
   return inicio;
 }
 
+function addHours(date, hours) {
+  const copia = new Date(date);
+  copia.setHours(copia.getHours() + hours);
+  return copia;
+}
+
+function addMonths(date, months) {
+  const copia = new Date(date);
+  const currentDay = copia.getDate();
+  copia.setDate(1);
+  copia.setMonth(copia.getMonth() + months);
+  const lastDay = new Date(copia.getFullYear(), copia.getMonth() + 1, 0).getDate();
+  copia.setDate(Math.min(currentDay, lastDay));
+  return copia;
+}
+
 function addDays(date, days) {
   const copia = new Date(date);
   copia.setDate(copia.getDate() + days);
@@ -25220,6 +25436,22 @@ function normalizarTemplate(template) {
     mudou = true;
   }
 
+  const prazoNormalizado = normalizePrazoMaximo(resultado.prazoMaximo);
+  if (prazoNormalizado) {
+    const prazoAtual = resultado.prazoMaximo || null;
+    const diff =
+      !prazoAtual ||
+      prazoAtual.quantidade !== prazoNormalizado.quantidade ||
+      prazoAtual.unidade !== prazoNormalizado.unidade;
+    if (diff) {
+      resultado.prazoMaximo = prazoNormalizado;
+      mudou = true;
+    }
+  } else if (resultado.prazoMaximo) {
+    resultado.prazoMaximo = null;
+    mudou = true;
+  }
+
   return { template: resultado, mudou };
 }
 
@@ -25383,6 +25615,13 @@ function resetTemplateFieldsForTipo(tipo) {
   if (templateMonthlyDaysInput) {
     templateMonthlyDaysInput.value = "";
   }
+  if (templatePrazoQtd) {
+    templatePrazoQtd.value = "";
+  }
+  if (templatePrazoUnidade) {
+    templatePrazoUnidade.value = "";
+  }
+  setFieldError(templatePrazoErro, "");
 }
 
 function resetTemplateMonthlyModeFields(mode) {
@@ -25631,6 +25870,12 @@ function preencherTemplateForm(template) {
   if (templateObs) {
     templateObs.value = template.observacao || "";
   }
+  aplicarPrazoInputs(
+    template.prazoMaximo,
+    templatePrazoQtd,
+    templatePrazoUnidade,
+    templatePrazoErro
+  );
   if (templateAtivo) {
     templateAtivo.checked = template.ativo !== false;
   }
@@ -25743,6 +25988,15 @@ function salvarModelo(event) {
     }
   }
 
+  const prazoMaximo = buildPrazoFromInputs(
+    templatePrazoQtd,
+    templatePrazoUnidade,
+    templatePrazoErro
+  );
+  if (templatePrazoErro && !templatePrazoErro.hidden) {
+    return;
+  }
+
   const ativo = Boolean(templateAtivo.checked);
   const templateId = templateIdAtual || criarId();
 
@@ -25765,6 +26019,7 @@ function salvarModelo(event) {
     inicio,
     proximaData: "",
     observacao: templateObs ? templateObs.value.trim() : "",
+    prazoMaximo: prazoMaximo || null,
     ativo,
     createdAt: existente ? existente.createdAt : toIsoUtc(new Date()),
     createdBy: existente ? existente.createdBy : (currentUser ? currentUser.id : SYSTEM_USER_ID),
@@ -28935,6 +29190,9 @@ function gerarManutencoesRecorrentes() {
         : "";
       const responsavelIds = getMaintenanceResponsibleIds(modelo);
       const responsavelTexto = responsavelIds.length ? buildResponsavelTexto(responsavelIds) : "";
+      const prazoMaximo = modelo.prazoMaximo
+        ? { ...modelo.prazoMaximo }
+        : null;
       const nova = {
         id: criarId(),
         titulo: modelo.nome,
@@ -28947,6 +29205,7 @@ function gerarManutencoesRecorrentes() {
         responsavelIds: responsavelIds.length ? responsavelIds : [],
         responsavel: responsavelIds.length ? responsavelTexto : "",
         executadaPor: executadoPorTime,
+        prazoMaximo: prazoMaximo || null,
         status: "agendada",
         createdAt: agoraIso,
         createdBy: SYSTEM_USER_ID,
@@ -31317,6 +31576,236 @@ function canExecuteMaintenanceForUser(item, user = currentUser) {
   return isUserResponsibleForMaintenance(item, user);
 }
 
+const PRAZO_UNIDADE_LABELS = {
+  h: "hora",
+  d: "dia",
+  w: "semana",
+  m: "m?s",
+};
+
+function normalizePrazoUnidade(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) {
+    return "";
+  }
+  if (["h", "hora", "horas"].includes(raw)) {
+    return "h";
+  }
+  if (["d", "dia", "dias"].includes(raw)) {
+    return "d";
+  }
+  if (["w", "semana", "semanas", "week", "weeks"].includes(raw)) {
+    return "w";
+  }
+  if (["m", "mes", "meses", "month", "months"].includes(raw)) {
+    return "m";
+  }
+  return "";
+}
+
+function normalizePrazoQuantidade(value) {
+  const qtd = Number(value);
+  if (!Number.isFinite(qtd) || qtd <= 0) {
+    return null;
+  }
+  return Math.round(qtd);
+}
+
+function formatPrazoLabel(prazo) {
+  if (!prazo || !prazo.quantidade || !prazo.unidade) {
+    return "";
+  }
+  const base = PRAZO_UNIDADE_LABELS[prazo.unidade] || "dia";
+  const plural = prazo.quantidade > 1 ? "s" : "";
+  return `${prazo.quantidade} ${base}${plural}`;
+}
+
+function parsePrazoTexto(texto) {
+  if (!texto) {
+    return null;
+  }
+  const raw = String(texto).trim().toLowerCase();
+  if (!raw) {
+    return null;
+  }
+  const match = raw.match(/(\d+)\s*([a-z?]+)/i);
+  if (!match) {
+    return null;
+  }
+  const quantidade = normalizePrazoQuantidade(match[1]);
+  const unidade = normalizePrazoUnidade(match[2]);
+  if (!quantidade || !unidade) {
+    return null;
+  }
+  return { quantidade, unidade, label: "" };
+}
+
+function normalizePrazoMaximo(value) {
+  if (!value) {
+    return null;
+  }
+  if (typeof value === "string") {
+    const parsed = parsePrazoTexto(value);
+    if (!parsed) {
+      return null;
+    }
+    return { ...parsed, label: formatPrazoLabel(parsed) };
+  }
+  if (typeof value === "number") {
+    const quantidade = normalizePrazoQuantidade(value);
+    if (!quantidade) {
+      return null;
+    }
+    const prazo = { quantidade, unidade: "d" };
+    return { ...prazo, label: formatPrazoLabel(prazo) };
+  }
+  if (typeof value === "object") {
+    const quantidade = normalizePrazoQuantidade(
+      value.quantidade ?? value.qtd ?? value.valor ?? value.amount ?? value.total
+    );
+    const unidade = normalizePrazoUnidade(value.unidade ?? value.unit ?? value.tipo);
+    if (!quantidade || !unidade) {
+      return null;
+    }
+    const prazo = { quantidade, unidade };
+    return { ...prazo, label: formatPrazoLabel(prazo) };
+  }
+  return null;
+}
+
+function buildPrazoFromInputs(qtdInput, unidadeInput, erroEl) {
+  const quantidade = normalizePrazoQuantidade(qtdInput ? qtdInput.value : "");
+  const unidade = normalizePrazoUnidade(unidadeInput ? unidadeInput.value : "");
+  if (!quantidade && !unidade) {
+    setFieldError(erroEl, "");
+    return null;
+  }
+  if (!quantidade || !unidade) {
+    setFieldError(erroEl, "Informe quantidade e unidade." );
+    return null;
+  }
+  const prazo = { quantidade, unidade };
+  setFieldError(erroEl, "");
+  return { ...prazo, label: formatPrazoLabel(prazo) };
+}
+
+function aplicarPrazoInputs(prazo, qtdInput, unidadeInput, erroEl) {
+  if (qtdInput) {
+    qtdInput.value = "";
+  }
+  if (unidadeInput) {
+    unidadeInput.value = "";
+  }
+  setFieldError(erroEl, "");
+  if (!prazo || !qtdInput || !unidadeInput) {
+    return;
+  }
+  const normalizado = normalizePrazoMaximo(prazo);
+  if (!normalizado) {
+    return;
+  }
+  qtdInput.value = normalizado.quantidade;
+  unidadeInput.value = normalizado.unidade;
+}
+
+function getPrazoMaximoInicio(item) {
+  if (!item) {
+    return null;
+  }
+  const inicio = parseTimestamp(item.prazoMaximoInicio || item.prazoInicio || "");
+  if (inicio) {
+    return inicio;
+  }
+  const data = parseDate(item.data);
+  if (data) {
+    return startOfDay(data);
+  }
+  const created = parseTimestamp(item.createdAt || "");
+  return created || null;
+}
+
+function calcPrazoMaximoDeadline(inicio, prazo) {
+  if (!inicio || !prazo || !prazo.quantidade) {
+    return null;
+  }
+  const base = inicio instanceof Date ? inicio : new Date(inicio);
+  if (Number.isNaN(base.getTime())) {
+    return null;
+  }
+  if (prazo.unidade === "h") {
+    return addHours(base, prazo.quantidade);
+  }
+  if (prazo.unidade === "w") {
+    return addDays(base, prazo.quantidade * 7);
+  }
+  if (prazo.unidade === "m") {
+    return addMonths(base, prazo.quantidade);
+  }
+  return addDays(base, prazo.quantidade);
+}
+
+function getPrazoMaximoInfo(item, now = new Date()) {
+  const prazo = normalizePrazoMaximo(item && item.prazoMaximo);
+  if (!prazo) {
+    return { enabled: false, expired: false, revalidado: false };
+  }
+  const inicio = getPrazoMaximoInicio(item);
+  if (!inicio) {
+    return { enabled: false, expired: false, revalidado: false };
+  }
+  const deadline = calcPrazoMaximoDeadline(inicio, prazo);
+  const validDeadline = deadline && !Number.isNaN(deadline.getTime());
+  const expired = validDeadline ? now > deadline : false;
+  const revalidacao = item && item.prazoMaximoRevalidacao;
+  const revalidado = Boolean(revalidacao && (revalidacao.registradoEm || revalidacao.motivo));
+  return { enabled: true, prazo, inicio, deadline: validDeadline ? deadline : null, expired, revalidado };
+}
+
+function isPrazoMaximoExpirado(item) {
+  if (!item) {
+    return false;
+  }
+  const status = normalizeMaintenanceStatus(item.status);
+  if (status === "concluida" || status === "cancelada" || status === "backlog") {
+    return false;
+  }
+  const info = getPrazoMaximoInfo(item);
+  return info.enabled && info.expired && !info.revalidado;
+}
+
+function canRevalidarPrazoManutencao(item, user = currentUser) {
+  if (!user) {
+    return false;
+  }
+  if (hasGranularPermission(user, "revalidarPrazoManutencao")) {
+    return true;
+  }
+  return isUserResponsibleForMaintenance(item, user);
+}
+
+function getPrazoMaximoResumo(info) {
+  if (!info || !info.enabled) {
+    return "";
+  }
+  const prazoLabel = formatPrazoLabel(info.prazo);
+  const deadlineLabel = info.deadline
+    ? (info.prazo.unidade === "h" ? formatDateTime(info.deadline) : formatDate(info.deadline))
+    : "-";
+  if (info.expired && !info.revalidado) {
+    return `Prazo m?ximo expirado (${prazoLabel}) em ${deadlineLabel}.`;
+  }
+  return `Prazo m?ximo: ${prazoLabel} (vence em ${deadlineLabel}).`;
+}
+
+function getPrazoExpiradoMensagem(item) {
+  const info = getPrazoMaximoInfo(item);
+  if (!info || !info.enabled) {
+    return "Prazo m?ximo expirado. Revalide para continuar.";
+  }
+  const prazoLabel = formatPrazoLabel(info.prazo);
+  return `Prazo m?ximo expirado (${prazoLabel}). Revalide para continuar.`;
+}
+
 function formatResponsavelLista(labels = []) {
   const list = Array.isArray(labels) ? labels.filter(Boolean) : [];
   return list.length ? list.join(", ") : "";
@@ -31336,6 +31825,12 @@ function getResponsavelRestricaoMensagem(item) {
 }
 
 function ensureExecucaoPermitida(item, mostrarMensagem = mostrarMensagemManutencao) {
+  if (isPrazoMaximoExpirado(item)) {
+    if (mostrarMensagem) {
+      mostrarMensagem(getPrazoExpiradoMensagem(item), true);
+    }
+    return false;
+  }
   if (canExecuteMaintenanceForUser(item, currentUser)) {
     return true;
   }
@@ -38884,11 +39379,11 @@ function renderTudo() {
   renderLembretes();
   renderProgramacao();
   renderListaStatus("backlog", listaBacklog, listaBacklogVazia, {
-    allowedActions: ["reschedule", "history", "backlog_reason"],
+    allowedActions: ["reschedule", "history", "backlog_reason", "revalidate"],
   });
   renderListaStatus("concluida", listaConcluidas, listaConcluidasVazia, {
     limit: 6,
-    allowedActions: ["history", "reopen", "remove"],
+    allowedActions: ["history", "reopen", "remove", "revalidate"],
   });
   renderExecucao();
   renderKPIs();
@@ -38925,32 +39420,32 @@ function renderTudo() {
 }
 function atualizarSeNecessario() {
   const gerou = gerarManutencoesRecorrentes();
+  const backlogResultado = USE_AUTH_API
+    ? { list: manutencoes, changed: false, changes: [] }
+    : aplicarBacklogMensalLocal(manutencoes);
+  if (backlogResultado.changed) {
+    manutencoes = backlogResultado.list;
+  }
   const resultado = normalizarManutencoes(manutencoes);
-  if (resultado.mudou) {
+  if (resultado.mudou || backlogResultado.changed) {
     manutencoes = resultado.normalizadas;
     salvarManutencoes(manutencoes);
-    resultado.changes.forEach((change) => {
-      if (change.to === "backlog") {
-        const item = manutencoes.find((registro) => registro.id === change.id);
-        if (item) {
-          const dataProgramada = parseDate(item.data);
-          const atrasoDias = dataProgramada
-            ? Math.max(0, diffInDays(startOfDay(dataProgramada), startOfDay(new Date())))
-            : null;
-          logAction(
-            "backlog_auto",
-            item,
-            {
-              from: change.from,
-              to: change.to,
-              dataProgramada: item.data || "",
-              atrasoDias,
-              resumo: "Manutenção movida para backlog por não conclusão até a data programada.",
-            },
-            SYSTEM_USER_ID
-          );
-        }
+    backlogResultado.changes.forEach((change) => {
+      const item = manutencoes.find((registro) => registro.id === change.id);
+      if (!item) {
+        return;
       }
+      logAction(
+        "backlog_auto",
+        item,
+        {
+          from: change.from,
+          to: change.to,
+          dataProgramada: item.data || "",
+          resumo: "Manutenção movida para backlog por fechamento mensal.",
+        },
+        SYSTEM_USER_ID
+      );
     });
     renderTudo();
     return;
@@ -39067,6 +39562,15 @@ async function adicionarManutencao() {
     mostrarMensagemManutencao("Selecione ao menos 1 responsável.", true);
     return;
   }
+  const prazoMaximo = buildPrazoFromInputs(
+    manutencaoPrazoQtd,
+    manutencaoPrazoUnidade,
+    manutencaoPrazoErro
+  );
+  if (manutencaoPrazoErro && !manutencaoPrazoErro.hidden) {
+    mostrarMensagemManutencao("Informe o prazo máximo aberto.", true);
+    return;
+  }
   const responsavelTexto = responsavelIds.length ? buildResponsavelTexto(responsavelIds) : "";
   const autoExecutar = canExecuteMaintenanceForUser(
     { responsavelIds: responsavelIds },
@@ -39139,6 +39643,7 @@ async function adicionarManutencao() {
       participantes,
       responsavelIds: responsaveisAtivos ? responsavelIds : [],
       responsavel: responsaveisAtivos ? responsavelTexto : "",
+      prazoMaximo: prazoMaximo || null,
       documentos,
       liberacao,
       abertaEm: agoraIso,
@@ -39201,6 +39706,7 @@ let manutencaoEmRegistro = null;
 let manutencaoEmEdicao = null;
 let manutencaoEditSnapshot = null;
 let manutencaoEditDirty = false;
+let manutencaoEmRevalidacao = null;
 
 function setEditModeManutencao(item) {
   const ativo = Boolean(item);
@@ -39309,6 +39815,13 @@ function limparFormularioManutencao() {
   if (osReferenciaManutencao) {
     osReferenciaManutencao.value = "";
   }
+  if (manutencaoPrazoQtd) {
+    manutencaoPrazoQtd.value = "";
+  }
+  if (manutencaoPrazoUnidade) {
+    manutencaoPrazoUnidade.value = "";
+  }
+  setFieldError(manutencaoPrazoErro, "");
   if (participantesManutencao) {
     participantesManutencao.value = "";
   }
@@ -39509,6 +40022,14 @@ function preencherFormularioManutencao(item) {
   if (osReferenciaManutencao) {
     osReferenciaManutencao.value = osNumero;
   }
+  const prazoItem = normalizePrazoMaximo(item.prazoMaximo);
+  const prazoTemplate = template ? normalizePrazoMaximo(template.prazoMaximo) : null;
+  aplicarPrazoInputs(
+    prazoItem || prazoTemplate,
+    manutencaoPrazoQtd,
+    manutencaoPrazoUnidade,
+    manutencaoPrazoErro
+  );
   if (categoriaManutencao) {
     const valorCategoria =
       getItemCategoria(item) ||
@@ -39723,6 +40244,10 @@ async function salvarEdicaoManutencao() {
     return;
   }
   const item = manutencoes[index];
+  if (isPrazoMaximoExpirado(item)) {
+    mostrarMensagemManutencao(getPrazoExpiradoMensagem(item), true);
+    return;
+  }
   const isConcluida = item.status === "concluida";
   if (isConcluida && !canEditConcludedMaintenance(currentUser)) {
     mostrarMensagemManutencao("Sem permiss\u00e3o para editar manutencoes concluidas.", true);
@@ -39858,6 +40383,15 @@ async function salvarEdicaoManutencao() {
       : criticoValor === "nao"
         ? false
         : isItemCritico(item) || isCriticoValor(auditDetalhes && auditDetalhes.critico);
+  const prazoMaximo = buildPrazoFromInputs(
+    manutencaoPrazoQtd,
+    manutencaoPrazoUnidade,
+    manutencaoPrazoErro
+  );
+  if (manutencaoPrazoErro && !manutencaoPrazoErro.hidden) {
+    mostrarMensagemManutencao("Informe o prazo máximo aberto.", true);
+    return;
+  }
 
   const equipamentoObj =
     item.equipamento && typeof item.equipamento === "object" ? item.equipamento : null;
@@ -39995,6 +40529,7 @@ async function salvarEdicaoManutencao() {
     participantes: participantesFinal,
     responsavelIds: responsaveisAtivos ? responsavelIds : [],
     responsavel: responsaveisAtivos ? responsavelTexto : "",
+    prazoMaximo: prazoMaximo || null,
     executadaPor: executadoPorTime || item.executadaPor,
     criticidade: critico ? "sim" : "nao",
     documentos: documentosAtualizados,
@@ -40656,6 +41191,134 @@ function salvarBacklogMotivo(event) {
   renderTudo();
   fecharBacklogMotivo();
   mostrarMensagemManutencao("Motivo registrado.");
+}
+
+function abrirRevalidarPrazo(item) {
+  if (!modalRevalidarPrazo || !formRevalidarPrazo) {
+    return;
+  }
+  if (!canRevalidarPrazoManutencao(item)) {
+    mostrarMensagemManutencao("Sem permissão para revalidar prazo.", true);
+    return;
+  }
+  if (!isPrazoMaximoExpirado(item)) {
+    mostrarMensagemManutencao("Prazo máximo ainda não expirou.", true);
+    return;
+  }
+  if (item.prazoMaximoRevalidacao && (item.prazoMaximoRevalidacao.registradoEm || item.prazoMaximoRevalidacao.motivo)) {
+    mostrarMensagemManutencao("Prazo já foi revalidado.", true);
+    return;
+  }
+  manutencaoEmRevalidacao = item.id;
+  mostrarMensagemRevalidarPrazo("");
+  if (revalidarPrazoId) {
+    revalidarPrazoId.value = item.id;
+  }
+  if (revalidarPrazoResumo) {
+    const resumoBase = buildManutencaoResumoTexto(item);
+    const prazoResumo = getPrazoMaximoResumo(getPrazoMaximoInfo(item));
+    revalidarPrazoResumo.textContent = prazoResumo ? `${resumoBase} · ${prazoResumo}` : resumoBase;
+  }
+  if (revalidarPrazoMotivo) {
+    revalidarPrazoMotivo.value = "";
+  }
+  if (revalidarPrazoObs) {
+    revalidarPrazoObs.value = "";
+  }
+  aplicarPrazoInputs(
+    item.prazoMaximo,
+    revalidarPrazoQtd,
+    revalidarPrazoUnidade,
+    revalidarPrazoErro
+  );
+  modalRevalidarPrazo.hidden = false;
+}
+
+function fecharRevalidarPrazo() {
+  if (!modalRevalidarPrazo) {
+    return;
+  }
+  modalRevalidarPrazo.hidden = true;
+  manutencaoEmRevalidacao = null;
+  mostrarMensagemRevalidarPrazo("");
+}
+
+function salvarRevalidarPrazo(event) {
+  event.preventDefault();
+  if (!manutencaoEmRevalidacao) {
+    mostrarMensagemRevalidarPrazo("Selecione uma manutenção.", true);
+    return;
+  }
+  const index = manutencoes.findIndex((item) => item.id === manutencaoEmRevalidacao);
+  if (index < 0) {
+    mostrarMensagemRevalidarPrazo("Manutenção não encontrada.", true);
+    return;
+  }
+  const item = manutencoes[index];
+  if (!canRevalidarPrazoManutencao(item)) {
+    mostrarMensagemRevalidarPrazo("Sem permissão para revalidar prazo.", true);
+    return;
+  }
+  if (!isPrazoMaximoExpirado(item)) {
+    mostrarMensagemRevalidarPrazo("Prazo máximo ainda não expirou.", true);
+    return;
+  }
+  if (item.prazoMaximoRevalidacao && (item.prazoMaximoRevalidacao.registradoEm || item.prazoMaximoRevalidacao.motivo)) {
+    mostrarMensagemRevalidarPrazo("Prazo já foi revalidado.", true);
+    return;
+  }
+  const motivo = revalidarPrazoMotivo ? revalidarPrazoMotivo.value.trim() : "";
+  if (!motivo) {
+    mostrarMensagemRevalidarPrazo("Informe o motivo da revalidação.", true);
+    return;
+  }
+  const observacao = revalidarPrazoObs ? revalidarPrazoObs.value.trim() : "";
+  const prazoNovo = buildPrazoFromInputs(
+    revalidarPrazoQtd,
+    revalidarPrazoUnidade,
+    revalidarPrazoErro
+  );
+  if (revalidarPrazoErro && !revalidarPrazoErro.hidden) {
+    mostrarMensagemRevalidarPrazo("Informe o novo prazo máximo.", true);
+    return;
+  }
+  if (!prazoNovo) {
+    mostrarMensagemRevalidarPrazo("Informe o novo prazo máximo.", true);
+    return;
+  }
+  const prazoAnterior = normalizePrazoMaximo(item.prazoMaximo);
+  const agora = new Date();
+  const agoraIso = toIsoUtc(agora);
+  const registro = {
+    motivo,
+    observacao,
+    registradoEm: agoraIso,
+    registradoPor: currentUser ? currentUser.id : SYSTEM_USER_ID,
+    prazoAnterior: prazoAnterior || null,
+    prazoNovo,
+  };
+  const atualizado = {
+    ...item,
+    prazoMaximo: prazoNovo,
+    prazoMaximoInicio: agoraIso,
+    prazoMaximoRevalidacao: registro,
+    updatedAt: agoraIso,
+    updatedBy: currentUser ? currentUser.id : SYSTEM_USER_ID,
+  };
+  manutencoes[index] = atualizado;
+  const resultado = normalizarManutencoes(manutencoes);
+  manutencoes = resultado.normalizadas;
+  salvarManutencoes(manutencoes);
+  logAction("revalidate", atualizado, {
+    motivo,
+    observacao,
+    prazoAnterior: prazoAnterior ? formatPrazoLabel(prazoAnterior) : "",
+    prazoNovo: formatPrazoLabel(prazoNovo),
+    resumo: `Prazo revalidado para ${formatPrazoLabel(prazoNovo)}.`,
+  });
+  renderTudo();
+  fecharRevalidarPrazo();
+  mostrarMensagemManutencao("Prazo revalidado.");
 }
 
 function collectDrawerPermissions() {
@@ -41591,8 +42254,6 @@ function fecharOverrideLiberacao() {
 }
 
 async function finalizarLiberacao(index, item, liberacaoBase, overrideJustificativa = "") {
-  const dataProgramada = parseDate(item.data);
-  const atrasada = dataProgramada && dataProgramada < startOfDay(new Date());
   const agoraIso = toIsoUtc(new Date());
   const liberacao = {
     ...liberacaoBase,
@@ -41622,7 +42283,7 @@ async function finalizarLiberacao(index, item, liberacaoBase, overrideJustificat
   const atualizado = {
     ...item,
     liberacao,
-    status: atrasada ? "backlog" : "liberada",
+    status: "liberada",
     equipamentoId: equipamentoFinal || item.equipamentoId,
     participantes: participantesFinal.length ? participantesFinal : item.participantes,
     executadaPor: executadoPorTime || item.executadaPor,
@@ -42045,6 +42706,10 @@ function salvarReagendamento(event) {
     );
     return;
   }
+  if (isPrazoMaximoExpirado(item)) {
+    mostrarMensagemReagendar(getPrazoExpiradoMensagem(item), true);
+    return;
+  }
   const motivo = reagendarMotivo.value.trim();
   if (!motivo) {
     mostrarMensagemReagendar("Selecione o motivo do reagendamento.", true);
@@ -42068,7 +42733,7 @@ function salvarReagendamento(event) {
   const hoje = startOfDay(new Date());
   if (novaData < hoje) {
     const confirmar = window.confirm(
-      "A nova data está no passado e a manutenção ficará em backlog. Deseja continuar?"
+      "A nova data está no passado e a manutenção ficará atrasada. Deseja continuar?"
     );
     if (!confirmar) {
       return;
@@ -42218,6 +42883,11 @@ function renderHistorico(item) {
       if (detalhes.observacao) {
         linhas.push(`Obs.: ${detalhes.observacao}`);
       }
+      if (detalhes.prazoAnterior || detalhes.prazoNovo) {
+        const anterior = detalhes.prazoAnterior || "-";
+        const novo = detalhes.prazoNovo || "-";
+        linhas.push(`Prazo: ${anterior} -> ${novo}`);
+      }
       if (detalhes.osNumero) {
         linhas.push(`OS: ${detalhes.osNumero}`);
       }
@@ -42340,6 +43010,8 @@ function exportarHistorico(item) {
       "data_nova",
       "motivo",
       "observacao",
+      "prazo_anterior",
+      "prazo_novo",
       "os_numero",
       "participantes",
       "critico",
@@ -42374,6 +43046,8 @@ function exportarHistorico(item) {
         detalhes.dataNova || "",
         detalhes.motivo || "",
         detalhes.observacao || "",
+        detalhes.prazoAnterior || "",
+        detalhes.prazoNovo || "",
         detalhes.osNumero || "",
         participantesTexto,
         detalhes.critico === undefined ? "" : detalhes.critico ? "Sim" : "Não",
@@ -42434,9 +43108,14 @@ function exportarHistoricoPdf(item) {
       if (entry.detalhes && entry.detalhes.motivo) {
         linhas.push(`Motivo: ${entry.detalhes.motivo}`);
       }
-        if (entry.detalhes && entry.detalhes.observacao) {
-          linhas.push(`Obs.: ${entry.detalhes.observacao}`);
-        }
+      if (entry.detalhes && entry.detalhes.observacao) {
+        linhas.push(`Obs.: ${entry.detalhes.observacao}`);
+      }
+      if (entry.detalhes && (entry.detalhes.prazoAnterior || entry.detalhes.prazoNovo)) {
+        const anterior = entry.detalhes.prazoAnterior || "-";
+        const novo = entry.detalhes.prazoNovo || "-";
+        linhas.push(`Prazo: ${anterior} -> ${novo}`);
+      }
         if (entry.detalhes && entry.detalhes.osNumero) {
           linhas.push(`OS: ${entry.detalhes.osNumero}`);
         }
@@ -43412,6 +44091,10 @@ function agirNaManutencao(event) {
   }
 
   const acao = botao.dataset.action;
+  if (isPrazoMaximoExpirado(manutencoes[index]) && acao !== "history" && acao !== "revalidate") {
+    mostrarMensagemManutencao(getPrazoExpiradoMensagem(manutencoes[index]), true);
+    return;
+  }
   if (acao === "edit") {
     editarManutencao(index);
   }
@@ -43441,6 +44124,9 @@ function agirNaManutencao(event) {
   }
   if (acao === "reopen") {
     reabrirManutencao(index);
+  }
+  if (acao === "revalidate") {
+    abrirRevalidarPrazo(manutencoes[index]);
   }
   if (acao === "history") {
     abrirHistorico(manutencoes[index]);
@@ -44067,6 +44753,19 @@ function getMaintenanceDueDate(item) {
   return parseDateOnly(item.prazo || item.data || item.dueDate || item.prazoManutencao);
 }
 
+function getMaintenanceMonthKey(item) {
+  if (!item) {
+    return "";
+  }
+  const due = getMaintenanceDueDate(item);
+  const created =
+    getItemCriacaoDate(item) ||
+    parseTimestamp(item.createdAt || item.abertaEm || item.criadaEm || "") ||
+    null;
+  const base = due || created;
+  return base ? formatMonthKey(startOfDay(base)) : "";
+}
+
 function getMaintenanceCompletedAt(item) {
   if (!item) {
     return null;
@@ -44151,10 +44850,6 @@ function buildLocalDashboardSummary(items, projectId) {
     if (hasExecucaoRegistradaCompleta(item)) {
       return false;
     }
-    const status = normalizeMaintenanceStatus(item && item.status);
-    if (status !== "backlog") {
-      return false;
-    }
     const due = getMaintenanceDueDate(item);
     return Boolean(due && due < today);
   }).length;
@@ -44212,18 +44907,8 @@ function buildLocalDashboardSummary(items, projectId) {
   }
 
   const backlogTotal = pendingItems.filter((item) => {
-    if (hasExecucaoRegistradaCompleta(item)) {
-      return false;
-    }
     const status = normalizeMaintenanceStatus(item && item.status);
-    if (status === "backlog") {
-      return true;
-    }
-    if (status === "em_execucao" || status === "encerramento") {
-      return false;
-    }
-    const due = getMaintenanceDueDate(item);
-    return due && due < today;
+    return status === "backlog";
   }).length;
 
   let concluidasTotal = 0;
@@ -44330,18 +45015,8 @@ function buildLocalDashboardSummary(items, projectId) {
   const miniSeries = {
     backlog: recentDays.map((day) => {
       return pendingItems.filter((item) => {
-        if (hasExecucaoRegistradaCompleta(item)) {
-          return false;
-        }
         const status = normalizeMaintenanceStatus(item && item.status);
-        if (status === "backlog") {
-          return true;
-        }
-        if (status === "em_execucao" || status === "encerramento") {
-          return false;
-        }
-        const due = getMaintenanceDueDate(item);
-        return due && due < day;
+        return status === "backlog";
       }).length;
     }),
     concluidas: recentDays.map((day) => {
@@ -46961,6 +47636,30 @@ if (btnFecharBacklogMotivo) {
 if (btnCancelarBacklogMotivo) {
   btnCancelarBacklogMotivo.addEventListener("click", fecharBacklogMotivo);
 }
+if (formRevalidarPrazo) {
+  formRevalidarPrazo.addEventListener("submit", salvarRevalidarPrazo);
+}
+if (btnFecharRevalidarPrazo) {
+  btnFecharRevalidarPrazo.addEventListener("click", fecharRevalidarPrazo);
+}
+if (btnCancelarRevalidarPrazo) {
+  btnCancelarRevalidarPrazo.addEventListener("click", fecharRevalidarPrazo);
+}
+if (revalidarPrazoMotivo) {
+  revalidarPrazoMotivo.addEventListener("input", () => {
+    mostrarMensagemRevalidarPrazo("");
+  });
+}
+if (revalidarPrazoQtd) {
+  revalidarPrazoQtd.addEventListener("input", () => {
+    setFieldError(revalidarPrazoErro, "");
+  });
+}
+if (revalidarPrazoUnidade) {
+  revalidarPrazoUnidade.addEventListener("change", () => {
+    setFieldError(revalidarPrazoErro, "");
+  });
+}
 if (backlogMotivoSelect) {
   backlogMotivoSelect.addEventListener("change", () => {
     mostrarMensagemBacklogMotivo("");
@@ -47053,6 +47752,16 @@ if (futuraManutencao) {
 if (participantesManutencao) {
   participantesManutencao.addEventListener("input", () => {
     setFieldError(participantesManutencaoErro, "");
+  });
+}
+if (manutencaoPrazoQtd) {
+  manutencaoPrazoQtd.addEventListener("input", () => {
+    setFieldError(manutencaoPrazoErro, "");
+  });
+}
+if (manutencaoPrazoUnidade) {
+  manutencaoPrazoUnidade.addEventListener("change", () => {
+    setFieldError(manutencaoPrazoErro, "");
   });
 }
 if (participantesManutencaoList) {
@@ -47176,6 +47885,16 @@ if (templateParticipanteExterno) {
       addTemplateParticipantesExternos(templateParticipanteExterno.value);
       templateParticipanteExterno.value = "";
     }
+  });
+}
+if (templatePrazoQtd) {
+  templatePrazoQtd.addEventListener("input", () => {
+    setFieldError(templatePrazoErro, "");
+  });
+}
+if (templatePrazoUnidade) {
+  templatePrazoUnidade.addEventListener("change", () => {
+    setFieldError(templatePrazoErro, "");
   });
 }
 if (templateResponsaveisToggle) {

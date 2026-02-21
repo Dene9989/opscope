@@ -160,6 +160,7 @@ const DATA_FILE_NAMES = [
   "maintenance.json",
   "maintenance_templates.json",
   "maintenance_tombstones.json",
+  "maintenance_monthly.json",
   "announcements.json",
   "feedbacks.json",
   "sst_docs.json",
@@ -202,6 +203,7 @@ const AUDIT_FILE = path.join(DATA_DIR, "audit.json");
 const MAINTENANCE_FILE = path.join(DATA_DIR, "maintenance.json");
 const MAINTENANCE_TEMPLATES_FILE = path.join(DATA_DIR, "maintenance_templates.json");
 const MAINTENANCE_TOMBSTONES_FILE = path.join(DATA_DIR, "maintenance_tombstones.json");
+const MAINTENANCE_MONTHLY_FILE = path.join(DATA_DIR, "maintenance_monthly.json");
 const ANNOUNCEMENTS_FILE = path.join(DATA_DIR, "announcements.json");
 const FEEDBACKS_FILE = path.join(DATA_DIR, "feedbacks.json");
 const SST_DOCS_FILE = path.join(DATA_DIR, "sst_docs.json");
@@ -248,6 +250,7 @@ const STORE_FILES = [
   MAINTENANCE_FILE,
   MAINTENANCE_TEMPLATES_FILE,
   MAINTENANCE_TOMBSTONES_FILE,
+  MAINTENANCE_MONTHLY_FILE,
   ANNOUNCEMENTS_FILE,
   FEEDBACKS_FILE,
   SST_DOCS_FILE,
@@ -332,6 +335,8 @@ const AUTOMATION_EMAIL_DEDUP_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const automationEmailDedup = new Map();
 const MAINTENANCE_TEAM_EMAIL_PERMISSION = "receberEmailNovaManutencao";
 const MAINTENANCE_TEAM_EMAIL_DEDUP_PREFIX = "maintenance_team_email";
+const MAINTENANCE_MONTHLY_STATE_DEFAULT = { lastWarnDate: "", lastBacklogMonth: "" };
+const MAINTENANCE_MONTHLY_CHECK_MS = 60 * 60 * 1000;
 
 const ALMOX_ITEM_TYPES = new Set(["FERRAMENTA", "EPI", "EPC", "CONSUMIVEL"]);
 const ALMOX_ITEM_UNITS = new Set(["UN", "PAR", "CX"]);
@@ -433,6 +438,7 @@ const GRANULAR_PERMISSION_CATALOG = [
   { key: "desativarUsuarios", label: "Desativar usuários" },
   { key: "limparCacheLocal", label: "Limpar cache local" },
   { key: "executarManutencaoTerceiros", label: "Executar manutenção de terceiros" },
+  { key: "revalidarPrazoManutencao", label: "Revalidar prazo de manuten��o" },
   { key: "verArquivos", label: "Ver arquivos" },
   { key: "uploadArquivos", label: "Enviar arquivos" },
   { key: "excluirArquivos", label: "Excluir arquivos" },
@@ -487,6 +493,7 @@ const GRANULAR_BASE_PERMISSIONS = {
   desativarUsuarios: false,
   limparCacheLocal: false,
   executarManutencaoTerceiros: false,
+  revalidarPrazoManutencao: false,
   verArquivos: false,
   uploadArquivos: false,
   excluirArquivos: false,
@@ -1396,6 +1403,22 @@ function writeJson(filePath, data, options = {}) {
   if (!options.skipDb) {
     queueDbWrite(filePath, data);
   }
+}
+
+function loadMaintenanceMonthlyState() {
+  const data = readJson(MAINTENANCE_MONTHLY_FILE, null);
+  if (!data || typeof data !== "object") {
+    return { ...MAINTENANCE_MONTHLY_STATE_DEFAULT };
+  }
+  return {
+    lastWarnDate: typeof data.lastWarnDate === "string" ? data.lastWarnDate : "",
+    lastBacklogMonth: typeof data.lastBacklogMonth === "string" ? data.lastBacklogMonth : "",
+  };
+}
+
+function saveMaintenanceMonthlyState(state) {
+  const payload = state && typeof state === "object" ? state : MAINTENANCE_MONTHLY_STATE_DEFAULT;
+  writeJson(MAINTENANCE_MONTHLY_FILE, payload);
 }
 
 function getStoreKey(filePath) {
@@ -3736,6 +3759,22 @@ function startOfDay(date) {
   return copy;
 }
 
+function addHours(date, hours) {
+  const copy = new Date(date);
+  copy.setHours(copy.getHours() + hours);
+  return copy;
+}
+
+function addMonths(date, months) {
+  const copy = new Date(date);
+  const currentDay = copy.getDate();
+  copy.setDate(1);
+  copy.setMonth(copy.getMonth() + months);
+  const lastDay = new Date(copy.getFullYear(), copy.getMonth() + 1, 0).getDate();
+  copy.setDate(Math.min(currentDay, lastDay));
+  return copy;
+}
+
 function addDays(date, days) {
   const copy = new Date(date);
   copy.setDate(copy.getDate() + days);
@@ -3763,6 +3802,23 @@ function formatDateISO(date) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function formatMonthKey(date) {
+  if (!date) {
+    return "";
+  }
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function getPenultimateDay(date) {
+  const base = date instanceof Date ? date : new Date();
+  const lastDay = new Date(base.getFullYear(), base.getMonth() + 1, 0);
+  const penultimate = new Date(lastDay);
+  penultimate.setDate(lastDay.getDate() - 1);
+  return startOfDay(penultimate);
 }
 
 function formatShortLabel(date) {
@@ -3880,6 +3936,8 @@ function getMaintenanceUpdatedAtValue(item) {
     item.doneAt,
     item.executionFinishedAt,
     item.executionStartedAt,
+    item.backlogAutoEm,
+    item.prazoMaximoRevalidacao ? item.prazoMaximoRevalidacao.registradoEm : "",
     item.concluidaEm,
     item.dataConclusao,
     item.createdAt,
@@ -4055,6 +4113,152 @@ function pickMaintenanceMerge(existing, incoming) {
 
 function getDueDate(item) {
   return parseDateOnly(item.prazo || item.data || item.dueDate || item.prazoManutencao);
+}
+
+function normalizePrazoUnidade(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) {
+    return "";
+  }
+  if (["h", "hora", "horas"].includes(raw)) {
+    return "h";
+  }
+  if (["d", "dia", "dias"].includes(raw)) {
+    return "d";
+  }
+  if (["w", "semana", "semanas", "week", "weeks"].includes(raw)) {
+    return "w";
+  }
+  if (["m", "mes", "meses", "month", "months"].includes(raw)) {
+    return "m";
+  }
+  return "";
+}
+
+function normalizePrazoQuantidade(value) {
+  const qtd = Number(value);
+  if (!Number.isFinite(qtd) || qtd <= 0) {
+    return null;
+  }
+  return Math.round(qtd);
+}
+
+function parsePrazoTexto(texto) {
+  if (!texto) {
+    return null;
+  }
+  const raw = String(texto).trim().toLowerCase();
+  if (!raw) {
+    return null;
+  }
+  const match = raw.match(/(\d+)\s*([a-z?]+)/i);
+  if (!match) {
+    return null;
+  }
+  const quantidade = normalizePrazoQuantidade(match[1]);
+  const unidade = normalizePrazoUnidade(match[2]);
+  if (!quantidade || !unidade) {
+    return null;
+  }
+  return { quantidade, unidade };
+}
+
+function normalizePrazoMaximo(value) {
+  if (!value) {
+    return null;
+  }
+  if (typeof value === "string") {
+    return parsePrazoTexto(value);
+  }
+  if (typeof value === "number") {
+    const quantidade = normalizePrazoQuantidade(value);
+    if (!quantidade) {
+      return null;
+    }
+    return { quantidade, unidade: "d" };
+  }
+  if (typeof value === "object") {
+    const quantidade = normalizePrazoQuantidade(
+      value.quantidade ?? value.qtd ?? value.valor ?? value.amount ?? value.total
+    );
+    const unidade = normalizePrazoUnidade(value.unidade ?? value.unit ?? value.tipo);
+    if (!quantidade || !unidade) {
+      return null;
+    }
+    return { quantidade, unidade };
+  }
+  return null;
+}
+
+function getPrazoMaximoInicio(item) {
+  if (!item) {
+    return null;
+  }
+  const inicio = parseDateTime(item.prazoMaximoInicio || item.prazoInicio || "");
+  if (inicio) {
+    return startOfDay(inicio);
+  }
+  const data = getDueDate(item);
+  if (data) {
+    return startOfDay(data);
+  }
+  const created = parseDateTime(item.createdAt || item.abertaEm || item.criadaEm || "");
+  return created ? startOfDay(created) : null;
+}
+
+function calcPrazoMaximoDeadline(inicio, prazo) {
+  if (!inicio || !prazo || !prazo.quantidade) {
+    return null;
+  }
+  const base = inicio instanceof Date ? inicio : new Date(inicio);
+  if (Number.isNaN(base.getTime())) {
+    return null;
+  }
+  if (prazo.unidade === "h") {
+    return addHours(base, prazo.quantidade);
+  }
+  if (prazo.unidade === "w") {
+    return addDays(base, prazo.quantidade * 7);
+  }
+  if (prazo.unidade === "m") {
+    return addMonths(base, prazo.quantidade);
+  }
+  return addDays(base, prazo.quantidade);
+}
+
+function isPrazoMaximoExpirado(item, now = new Date()) {
+  if (!item) {
+    return false;
+  }
+  const status = normalizeStatus(item.status);
+  if (status === "concluida" || status === "cancelada" || status === "backlog") {
+    return false;
+  }
+  const prazo = normalizePrazoMaximo(item.prazoMaximo);
+  if (!prazo) {
+    return false;
+  }
+  const inicio = getPrazoMaximoInicio(item);
+  if (!inicio) {
+    return false;
+  }
+  const deadline = calcPrazoMaximoDeadline(inicio, prazo);
+  if (!deadline || Number.isNaN(deadline.getTime())) {
+    return false;
+  }
+  const revalidacao = item.prazoMaximoRevalidacao || {};
+  const revalidado = Boolean(revalidacao.registradoEm || revalidacao.motivo);
+  return now > deadline && !revalidado;
+}
+
+function getMaintenanceMonthKey(item) {
+  if (!item) {
+    return "";
+  }
+  const due = getDueDate(item);
+  const created = parseDateTime(item.createdAt || item.abertaEm || item.criadaEm || "");
+  const base = due || created;
+  return base ? formatMonthKey(startOfDay(base)) : "";
 }
 
 function getCompletedAt(item) {
@@ -4714,6 +4918,16 @@ function canExecuteMaintenanceForUser(item, user) {
   return isUserResponsibleForMaintenance(item, user);
 }
 
+function canRevalidarPrazoManutencao(item, user) {
+  if (!user) {
+    return false;
+  }
+  if (hasGranularPermission(user, "revalidarPrazoManutencao")) {
+    return true;
+  }
+  return isUserResponsibleForMaintenance(item, user);
+}
+
 const MAINTENANCE_EXECUTION_FIELDS = [
   "status",
   "inicioExecucao",
@@ -4791,14 +5005,119 @@ function stripMaintenanceExecutionFields(item) {
   return cleaned;
 }
 
+function sanitizePrazoMaximoFields(item) {
+  if (!item || typeof item !== "object") {
+    return item;
+  }
+  const next = { ...item };
+  if (Object.prototype.hasOwnProperty.call(next, "prazoMaximo")) {
+    const normalized = normalizePrazoMaximo(next.prazoMaximo);
+    next.prazoMaximo = normalized || null;
+  }
+  if (Object.prototype.hasOwnProperty.call(next, "prazoMaximoInicio")) {
+    const parsed = parseDateTime(next.prazoMaximoInicio || "");
+    next.prazoMaximoInicio = parsed ? parsed.toISOString() : "";
+  }
+  return next;
+}
+
+function sanitizePrazoRevalidacao(item, current, user) {
+  if (!item || typeof item !== "object") {
+    return item;
+  }
+  const next = { ...item };
+  const hasIncoming = Object.prototype.hasOwnProperty.call(next, "prazoMaximoRevalidacao");
+  if (!hasIncoming) {
+    return next;
+  }
+  const existing =
+    current && current.prazoMaximoRevalidacao && typeof current.prazoMaximoRevalidacao === "object"
+      ? current.prazoMaximoRevalidacao
+      : null;
+  const alreadyRevalidated = Boolean(existing && (existing.registradoEm || existing.motivo));
+  const statusBase = normalizeStatus(
+    next.status || (current && current.status ? current.status : "")
+  );
+  const canRevalidate = canRevalidarPrazoManutencao(current || next, user);
+  if (
+    alreadyRevalidated ||
+    statusBase === "backlog" ||
+    statusBase === "concluida" ||
+    statusBase === "cancelada" ||
+    !canRevalidate
+  ) {
+    if (existing) {
+      next.prazoMaximoRevalidacao = existing;
+    } else {
+      delete next.prazoMaximoRevalidacao;
+    }
+    return next;
+  }
+  const incoming = next.prazoMaximoRevalidacao;
+  if (!incoming || typeof incoming !== "object") {
+    if (existing) {
+      next.prazoMaximoRevalidacao = existing;
+    } else {
+      delete next.prazoMaximoRevalidacao;
+    }
+    return next;
+  }
+  const motivo = String(incoming.motivo || "").trim();
+  if (!motivo) {
+    if (existing) {
+      next.prazoMaximoRevalidacao = existing;
+    } else {
+      delete next.prazoMaximoRevalidacao;
+    }
+    return next;
+  }
+  const prazoAnterior = normalizePrazoMaximo(
+    incoming.prazoAnterior || (current && current.prazoMaximo) || next.prazoMaximo
+  );
+  const prazoNovo = normalizePrazoMaximo(incoming.prazoNovo || next.prazoMaximo);
+  if (!prazoNovo) {
+    if (existing) {
+      next.prazoMaximoRevalidacao = existing;
+    } else {
+      delete next.prazoMaximoRevalidacao;
+    }
+    return next;
+  }
+  const registradoEmParsed = parseDateTime(incoming.registradoEm || "");
+  const registradoEm = registradoEmParsed ? registradoEmParsed.toISOString() : new Date().toISOString();
+  const registradoPor = String(
+    incoming.registradoPor || (user ? user.id : "") || ""
+  ).trim();
+  next.prazoMaximoRevalidacao = {
+    motivo,
+    observacao: String(incoming.observacao || "").trim(),
+    registradoEm,
+    registradoPor,
+    prazoAnterior: prazoAnterior || null,
+    prazoNovo,
+  };
+  next.prazoMaximo = prazoNovo;
+  next.prazoMaximoInicio = registradoEm;
+  return next;
+}
+
 function sanitizeMaintenanceIncoming(item, current, user) {
   if (!item || typeof item !== "object") {
     return item;
   }
   let next = normalizeMaintenanceResponsaveis(item);
+  next = sanitizePrazoMaximoFields(next);
+  next = sanitizePrazoRevalidacao(next, current, user);
   const reference = current || next;
   const canExecute = canExecuteMaintenanceForUser(reference, user);
   if (!canExecute) {
+    next = stripMaintenanceExecutionFields(next);
+    if (!current) {
+      next.status = "agendada";
+    }
+  }
+  const checkItem = mergePreferMeaningful(next, current || {});
+  if (isPrazoMaximoExpirado(checkItem)) {
     next = stripMaintenanceExecutionFields(next);
     if (!current) {
       next.status = "agendada";
@@ -5014,6 +5333,272 @@ function loadMaintenanceTemplates() {
 
 function saveMaintenanceTemplates(list) {
   writeJson(MAINTENANCE_TEMPLATES_FILE, Array.isArray(list) ? list : []);
+}
+
+function buildMaintenanceProgramacaoLink(item, projectId) {
+  const base = String(APP_BASE_URL || "").replace(/\/+$/g, "");
+  const maintenanceId = item && item.id ? String(item.id) : "";
+  const projectRef = projectId || (item && item.projectId ? String(item.projectId) : "");
+  if (!base || !maintenanceId) {
+    return "";
+  }
+  const focus = encodeURIComponent(maintenanceId);
+  const projectParam = projectRef ? `&projectId=${encodeURIComponent(projectRef)}` : "";
+  return `${base}/programacao?focus=${focus}${projectParam}`;
+}
+
+function getMaintenanceStatusLabel(status) {
+  const normalized = normalizeStatus(status);
+  const labels = {
+    agendada: "Agendada",
+    liberada: "Liberada",
+    em_execucao: "Em execução",
+    encerramento: "Encerramento",
+    backlog: "Backlog",
+    concluida: "Concluída",
+    cancelada: "Cancelada",
+  };
+  return labels[normalized] || "Agendada";
+}
+
+function groupMaintenanceAlertsByRecipient(items, projectId) {
+  const recipients = new Map();
+  items.forEach((item) => {
+    const responsavelIds = getMaintenanceResponsibleIds(item);
+    if (!responsavelIds.length) {
+      return;
+    }
+    responsavelIds.forEach((id) => {
+      const user = users.find((entry) => entry && String(entry.id) === String(id));
+      if (!user) {
+        return;
+      }
+      if (!canUserReceiveMaintenanceEmail(user)) {
+        return;
+      }
+      const key = String(user.id);
+      if (!recipients.has(key)) {
+        recipients.set(key, { user, items: [] });
+      }
+      recipients.get(key).items.push(item);
+    });
+  });
+  return recipients;
+}
+
+async function sendMaintenanceMonthlyAlertEmail({ to, subject, text, html, meta }) {
+  if (!isValidEmail(to)) {
+    return false;
+  }
+  const resendOk = await sendEmailViaResend({ to, subject, text, html });
+  if (resendOk) {
+    return true;
+  }
+  const smtpOk = await sendEmailViaSmtp({ to, subject, text, html });
+  if (smtpOk) {
+    return true;
+  }
+  console.warn("Aviso mensal de manutencao sem envio de email.");
+  console.log(`[maintenance-monthly] ${subject} -> ${to}`, meta || {});
+  return false;
+}
+
+async function notifyMaintenanceMonthlyAlerts(items, projectId, today, penultimateDay) {
+  if (!items.length) {
+    return 0;
+  }
+  const project = getProjectById(projectId);
+  const projectLabel = project ? getProjectLabel(project) : projectId;
+  const monthLabel = today.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  const penultimateLabel = penultimateDay.toLocaleDateString("pt-BR");
+  const recipients = groupMaintenanceAlertsByRecipient(items, projectId);
+  let sentCount = 0;
+
+  for (const { user, items: list } of recipients.values()) {
+    const to = getUserEmail(user);
+    if (!isValidEmail(to)) {
+      continue;
+    }
+    const nome = user.name || user.username || user.matricula || "Colaborador";
+    const linhas = [];
+    const htmlItems = list
+      .map((item) => {
+        const titulo = getItemTitle(item);
+        const equipamento = getEquipmentLabel(item, projectId);
+        const due = getDueDate(item);
+        const dueLabel = due ? due.toLocaleDateString("pt-BR") : "--";
+        const statusLabel = getMaintenanceStatusLabel(item.status);
+        const link = buildMaintenanceProgramacaoLink(item, projectId);
+        const lineText = link
+          ? `- ${titulo} | ${equipamento} | Prazo: ${dueLabel} | Status: ${statusLabel} | ${link}`
+          : `- ${titulo} | ${equipamento} | Prazo: ${dueLabel} | Status: ${statusLabel}`;
+        linhas.push(lineText);
+        const linkHtml = link
+          ? `<a href="${escapeHtml(link)}">Abrir manutenção</a>`
+          : "";
+        return `<li><strong>${escapeHtml(titulo)}</strong> | ${escapeHtml(
+          equipamento
+        )} | Prazo: ${escapeHtml(dueLabel)} | Status: ${escapeHtml(
+          statusLabel
+        )}${linkHtml ? ` | ${linkHtml}` : ""}</li>`;
+      })
+      .join("");
+    const subject = `Alerta de fechamento mensal (${monthLabel}) - ${projectLabel}`;
+    const text = [
+      `Olá ${nome},`,
+      "",
+      `Hoje é o penúltimo dia do mês (${penultimateLabel}). As manutenções abaixo ainda estão abertas no projeto ${projectLabel}:`,
+      "",
+      ...linhas,
+      "",
+      "Se não concluir até o fim do mês, elas serão movidas para backlog automaticamente no primeiro dia do próximo mês.",
+    ].join("\n");
+    const html = `
+      <p>Olá ${escapeHtml(nome)},</p>
+      <p>Hoje é o penúltimo dia do mês (${escapeHtml(penultimateLabel)}). As manutenções abaixo ainda estão abertas no projeto <strong>${escapeHtml(
+        projectLabel
+      )}</strong>:</p>
+      <ul>${htmlItems}</ul>
+      <p>Se não concluir até o fim do mês, elas serão movidas para backlog automaticamente no primeiro dia do próximo mês.</p>
+    `;
+    const sent = await sendMaintenanceMonthlyAlertEmail({
+      to,
+      subject,
+      text,
+      html,
+      meta: { userId: user.id, projectId, count: list.length },
+    });
+    if (sent) {
+      sentCount += 1;
+      appendAudit(
+        "maintenance_monthly_alert_sent",
+        user.id,
+        {
+          projectId,
+          manutencoes: list.map((item) => item.id),
+          email: to,
+          date: formatDateISO(today),
+        },
+        "system",
+        projectId
+      );
+    }
+  }
+
+  return sentCount;
+}
+
+function applyMonthlyBacklog(dataset, currentMonthKey) {
+  if (!Array.isArray(dataset) || !currentMonthKey) {
+    return { list: dataset || [], changed: false, updatedProjects: new Set() };
+  }
+  const nowIso = new Date().toISOString();
+  let changed = false;
+  const updatedProjects = new Set();
+  const list = dataset.map((item) => {
+    if (!item || typeof item !== "object") {
+      return item;
+    }
+    const status = normalizeStatus(item.status);
+    if (status === "concluida" || status === "cancelada" || status === "backlog") {
+      return item;
+    }
+    const itemMonth = getMaintenanceMonthKey(item);
+    if (!itemMonth || itemMonth >= currentMonthKey) {
+      return item;
+    }
+    changed = true;
+    if (item.projectId) {
+      updatedProjects.add(item.projectId);
+    }
+    return {
+      ...item,
+      status: "backlog",
+      backlogAutoEm: nowIso,
+      backlogAutoMonth: itemMonth,
+      updatedAt: nowIso,
+      updatedBy: "system",
+    };
+  });
+  return { list, changed, updatedProjects };
+}
+
+function runMaintenanceMonthlyScheduler() {
+  const today = startOfDay(new Date());
+  const currentMonthKey = formatMonthKey(today);
+  const penultimateDay = getPenultimateDay(today);
+  const warnDateKey = formatDateISO(penultimateDay);
+
+  if (isSameDay(today, penultimateDay) && maintenanceMonthlyState.lastWarnDate !== warnDateKey) {
+    const dataset = loadMaintenanceData();
+    const itemsByProject = new Map();
+    dataset.forEach((item) => {
+      if (!item || typeof item !== "object") {
+        return;
+      }
+      const status = normalizeStatus(item.status);
+      if (status === "concluida" || status === "cancelada" || status === "backlog") {
+        return;
+      }
+      const itemMonth = getMaintenanceMonthKey(item);
+      if (!itemMonth || itemMonth !== currentMonthKey) {
+        return;
+      }
+      const projectId = String(item.projectId || "").trim();
+      if (!projectId) {
+        return;
+      }
+      if (!itemsByProject.has(projectId)) {
+        itemsByProject.set(projectId, []);
+      }
+      itemsByProject.get(projectId).push(item);
+    });
+
+    const tasks = [];
+    itemsByProject.forEach((items, projectId) => {
+      tasks.push(notifyMaintenanceMonthlyAlerts(items, projectId, today, penultimateDay));
+    });
+    Promise.all(tasks)
+      .then(() => {
+        maintenanceMonthlyState.lastWarnDate = warnDateKey;
+        saveMaintenanceMonthlyState(maintenanceMonthlyState);
+      })
+      .catch(() => {
+        maintenanceMonthlyState.lastWarnDate = warnDateKey;
+        saveMaintenanceMonthlyState(maintenanceMonthlyState);
+      });
+  }
+
+  if (maintenanceMonthlyState.lastBacklogMonth !== currentMonthKey) {
+    const dataset = loadMaintenanceData();
+    const resultado = applyMonthlyBacklog(dataset, currentMonthKey);
+    if (resultado.changed) {
+      writeJson(MAINTENANCE_FILE, resultado.list);
+      resultado.updatedProjects.forEach((projectId) => {
+        touchCompat("maintenance", projectId);
+        broadcastSse("maintenance.updated", {
+          projectId,
+          count: 0,
+          source: "monthly-backlog",
+        });
+        appendAudit(
+          "maintenance_backlog_auto",
+          "system",
+          { projectId, month: currentMonthKey },
+          "system",
+          projectId
+        );
+      });
+      DASHBOARD_CACHE.clear();
+    }
+    maintenanceMonthlyState.lastBacklogMonth = currentMonthKey;
+    saveMaintenanceMonthlyState(maintenanceMonthlyState);
+  }
+}
+
+function startMaintenanceMonthlyScheduler() {
+  runMaintenanceMonthlyScheduler();
+  return setInterval(runMaintenanceMonthlyScheduler, MAINTENANCE_MONTHLY_CHECK_MS);
 }
 
 function normalizeMaintenanceTemplateRecord(record, projectId) {
@@ -6854,10 +7439,6 @@ function buildDashboardSummary(items, projectId) {
     if (hasExecucaoRegistrada(item)) {
       return false;
     }
-    const status = normalizeStatus(item.status);
-    if (status !== "backlog") {
-      return false;
-    }
     const due = getDueDate(item);
     return Boolean(due && due < today);
   }).length;
@@ -6919,14 +7500,7 @@ function buildDashboardSummary(items, projectId) {
       return false;
     }
     const status = normalizeStatus(item.status);
-    if (status === "backlog") {
-      return true;
-    }
-    if (status === "em_execucao" || status === "encerramento") {
-      return false;
-    }
-    const due = getDueDate(item);
-    return due && due < today;
+    return status === "backlog";
   }).length;
 
   let concluidasTotal = 0;
@@ -7043,14 +7617,7 @@ function buildDashboardSummary(items, projectId) {
           return false;
         }
         const status = normalizeStatus(item.status);
-        if (status === "backlog") {
-          return true;
-        }
-        if (status === "em_execucao" || status === "encerramento") {
-          return false;
-        }
-        const due = getDueDate(item);
-        return due && due < day;
+        return status === "backlog";
       }).length;
     }),
     concluidas: recentDays.map((day) => {
@@ -7149,6 +7716,7 @@ let verifications = [];
 let passwordResets = [];
 let apiLogs = [];
 let healthTasks = [];
+let maintenanceMonthlyState = { ...MAINTENANCE_MONTHLY_STATE_DEFAULT };
 let automations = [];
 let granularPermissions = null;
 let filesMeta = [];
@@ -7188,6 +7756,10 @@ async function bootstrap() {
   apiLogs = readJson(API_LOG_FILE, []);
   healthTasks = normalizeHealthTasks(readJson(HEALTH_TASKS_FILE, []));
   saveHealthTasks(healthTasks);
+  maintenanceMonthlyState = loadMaintenanceMonthlyState();
+  if (!fs.existsSync(MAINTENANCE_MONTHLY_FILE)) {
+    saveMaintenanceMonthlyState(maintenanceMonthlyState);
+  }
   automations = normalizeAutomations(readJson(AUTOMATIONS_FILE, []));
   saveAutomations(automations);
   granularPermissions = normalizeGranularPermissions(readJson(PERMISSOES_FILE, null));
@@ -7288,6 +7860,7 @@ async function bootstrap() {
     savePmpExecutions(pmpExecutions);
   }
   ensureProjectSeedData();
+  startMaintenanceMonthlyScheduler();
 }
 
 app.use(express.json({ limit: "20mb" }));

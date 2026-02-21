@@ -1502,6 +1502,21 @@
               <input id="dataManutencao" type="date" readonly />
             </div>
             <div class="field">
+              <label for="manutencaoPrazoQtd">Prazo máximo aberto</label>
+              <div class="input-group">
+                <input id="manutencaoPrazoQtd" type="number" min="1" step="1" placeholder="Ex: 3" />
+                <select id="manutencaoPrazoUnidade">
+                  <option value="">Unidade</option>
+                  <option value="h">Horas</option>
+                  <option value="d">Dias</option>
+                  <option value="w">Semanas</option>
+                  <option value="m">Meses</option>
+                </select>
+              </div>
+              <p class="hint">Opcional. Tempo máximo aberto antes de exigir revalidação.</p>
+              <p id="manutencaoPrazoErro" class="field-error" hidden></p>
+            </div>
+            <div class="field">
               <label for="categoriaManutencao">Categoria</label>
               <select id="categoriaManutencao" required>
                 <option value="">Selecione</option>
@@ -1873,6 +1888,21 @@
                 <input id="templateResponsaveisIds" type="hidden" />
                 <p class="hint">Opcional. Pode ajustar por manutenção.</p>
                 <p id="templateResponsaveisErro" class="field-error" hidden></p>
+              </div>
+              <div class="field" data-full>
+                <label for="templatePrazoQtd">Prazo máximo aberto</label>
+                <div class="input-group">
+                  <input id="templatePrazoQtd" type="number" min="1" step="1" placeholder="Ex: 3" />
+                  <select id="templatePrazoUnidade">
+                    <option value="">Unidade</option>
+                    <option value="h">Horas</option>
+                    <option value="d">Dias</option>
+                    <option value="w">Semanas</option>
+                    <option value="m">Meses</option>
+                  </select>
+                </div>
+                <p class="hint">Opcional. Define o prazo padrão para cada manutenção gerada.</p>
+                <p id="templatePrazoErro" class="field-error" hidden></p>
               </div>
             </div>
             <div class="template-section">
@@ -5523,6 +5553,50 @@
           <button id="btnCancelarBacklogMotivo" class="btn btn--ghost" type="button">Cancelar</button>
         </div>
         <p id="mensagemBacklogMotivo" class="mensagem" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalRevalidarPrazo" class="modal" hidden>
+    <div class="modal__content">
+      <div class="modal__header">
+        <h3>Revalidar prazo da manutenção</h3>
+        <button id="btnFecharRevalidarPrazo" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <form id="formRevalidarPrazo" class="modal__form">
+        <input id="revalidarPrazoId" type="hidden" />
+        <p id="revalidarPrazoResumo" class="modal__summary"></p>
+        <div class="form-grid">
+          <div class="field" data-full>
+            <label for="revalidarPrazoMotivo">Motivo da revalidação</label>
+            <textarea id="revalidarPrazoMotivo" rows="3" required></textarea>
+          </div>
+          <div class="field" data-full>
+            <label for="revalidarPrazoObs">Observação complementar</label>
+            <textarea id="revalidarPrazoObs" rows="3" placeholder="Detalhes adicionais"></textarea>
+          </div>
+          <div class="field" data-full>
+            <label for="revalidarPrazoQtd">Novo prazo máximo</label>
+            <div class="input-group">
+              <input id="revalidarPrazoQtd" type="number" min="1" step="1" placeholder="Ex: 3" required />
+              <select id="revalidarPrazoUnidade" required>
+                <option value="">Unidade</option>
+                <option value="h">Horas</option>
+                <option value="d">Dias</option>
+                <option value="w">Semanas</option>
+                <option value="m">Meses</option>
+              </select>
+            </div>
+            <p id="revalidarPrazoErro" class="field-error" hidden></p>
+          </div>
+        </div>
+        <div class="modal__actions">
+          <button class="btn btn--primary" type="submit">Salvar revalidação</button>
+          <button id="btnCancelarRevalidarPrazo" class="btn btn--ghost" type="button">Cancelar</button>
+        </div>
+        <p id="mensagemRevalidarPrazo" class="mensagem" aria-live="polite"></p>
       </form>
     </div>
   </div>
