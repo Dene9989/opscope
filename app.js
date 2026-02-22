@@ -45406,12 +45406,12 @@ function buildSolicitacaoServicoDocument(item) {
         <main class="sheet">
           <header class="doc-header">
             <div class="doc-header__top">
-              <img src="${escapeHtml(engelmigLogo)}" alt="Engelmig" />
+              <img src="${escapeHtml(opscopeLogo)}" alt="OPSCOPE" />
               <div class="doc-header__title">
                 <h1>SS - Solicitação de Serviço de Manutenção</h1>
                 <p>Documento operacional para solicitação, planejamento e rastreabilidade da atividade</p>
               </div>
-              <img src="${escapeHtml(opscopeLogo)}" alt="OPSCOPE" />
+              <img src="${escapeHtml(engelmigLogo)}" alt="Engelmig" />
             </div>
             <div class="doc-header__bar">
               <span><strong>Projeto:</strong> ${escapeHtml(projetoLabel)}</span>
