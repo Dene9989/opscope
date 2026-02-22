@@ -45355,31 +45355,31 @@ function buildSolicitacaoServicoDocument(item) {
         <title>${escapeHtml(documentTitle)}</title>
         <style>
           :root { color-scheme: light only; }
-          html, body { margin: 0; padding: 0; background: #ffffff !important; color: #0b1220 !important; }
-          body { font-family: "Segoe UI", Arial, sans-serif; background: #ffffff !important; color: #0b1220 !important; }
+          html, body { margin: 0; padding: 0; background: #f3f6fb !important; color: #0b1220 !important; }
+          body { font-family: "Segoe UI", Arial, sans-serif; background: #f3f6fb !important; color: #0b1220 !important; }
           .sheet { max-width: 1120px; margin: 0 auto; padding: 18px; display: grid; gap: 12px; }
-          .doc-header { border: 1px solid #d5dbe7; border-radius: 14px; overflow: hidden; background: #fff; }
-          .doc-header__top { display: grid; grid-template-columns: 140px 1fr 140px; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid #e4e9f3; }
+          .doc-header { border: 1px solid #c8d4e7; border-radius: 14px; overflow: hidden; background: #fdfefe; }
+          .doc-header__top { display: grid; grid-template-columns: 140px 1fr 140px; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid #d9e3f2; }
           .doc-header__top img { max-width: 116px; max-height: 42px; object-fit: contain; display: block; }
           .doc-header__top img.logo-opscope { max-width: 132px; max-height: 48px; }
           .doc-header__title { text-align: center; }
           .doc-header__title h1 { margin: 0; font-size: 21px; letter-spacing: .02em; color: #0b1220; }
           .doc-header__title p { margin: 2px 0 0; font-size: 12px; color: #475569; }
           .doc-header__bar { background: linear-gradient(90deg, #0f3a63, #166090); color: #f8fbff; padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; }
-          .doc-id { border: 1px solid #d5dbe7; border-radius: 14px; background: #fff; padding: 10px 12px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
-          .doc-id__item { border: 1px solid #e4e9f3; border-radius: 10px; padding: 8px; background: #f8fafc; }
+          .doc-id { border: 1px solid #c8d4e7; border-radius: 14px; background: #f9fcff; padding: 10px 12px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+          .doc-id__item { border: 1px solid #d9e3f2; border-radius: 10px; padding: 8px; background: #eef4fb; }
           .doc-id__item span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #64748b; margin-bottom: 3px; }
           .doc-id__item strong { font-size: 14px; color: #0b1220; }
-          .section { border: 1px solid #d5dbe7; border-radius: 14px; background: #fff; overflow: hidden; }
-          .section__head { padding: 8px 12px; border-bottom: 1px solid #e4e9f3; background: #f8fafc; display: flex; align-items: center; gap: 8px; }
+          .section { border: 1px solid #c8d4e7; border-radius: 14px; background: #fbfdff; overflow: hidden; }
+          .section__head { padding: 8px 12px; border-bottom: 1px solid #d9e3f2; background: #edf3fb; display: flex; align-items: center; gap: 8px; }
           .section__number { width: 24px; height: 24px; border-radius: 999px; background: #0f3a63; color: #fff; display: grid; place-items: center; font-size: 12px; font-weight: 700; }
           .section__title { margin: 0; font-size: 15px; color: #0b1220; }
           .section__body { padding: 10px 12px; display: grid; gap: 10px; }
           .kv-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
-          .kv { border-bottom: 1px dashed #dce2ed; padding-bottom: 6px; }
+          .kv { border-bottom: 1px dashed #cfdbec; padding-bottom: 6px; }
           .kv span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #64748b; }
           .kv strong { font-size: 13px; color: #0b1220; }
-          .text-block { border: 1px solid #e4e9f3; border-radius: 10px; padding: 10px; min-height: 60px; background: #fff; font-size: 13px; line-height: 1.45; }
+          .text-block { border: 1px solid #d9e3f2; border-radius: 10px; padding: 10px; min-height: 60px; background: #fdfefe; font-size: 13px; line-height: 1.45; }
           .chips { display: flex; flex-wrap: wrap; gap: 8px; }
           .chip { border: 1px solid #cdd7e8; border-radius: 999px; background: #f8fafc; color: #0f3a63; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
           .flags { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
@@ -45387,8 +45387,8 @@ function buildSolicitacaoServicoDocument(item) {
           .flag__box { width: 14px; height: 14px; border: 1px solid #94a3b8; border-radius: 3px; display: inline-block; }
           .flag__box.is-on { background: #0f3a63; border-color: #0f3a63; box-shadow: inset 0 0 0 2px #fff; }
           table { width: 100%; border-collapse: collapse; font-size: 12px; }
-          th, td { border: 1px solid #dbe2ee; padding: 6px; text-align: left; vertical-align: top; color: #0b1220; background: #fff; }
-          th { background: #f1f5f9; text-transform: uppercase; letter-spacing: .06em; font-size: 10px; }
+          th, td { border: 1px solid #d0ddef; padding: 6px; text-align: left; vertical-align: top; color: #0b1220; background: #fdfefe; }
+          th { background: #e7effa; text-transform: uppercase; letter-spacing: .06em; font-size: 10px; }
           a { color: #0f4f86; text-decoration: none; font-weight: 600; }
           a:hover { text-decoration: underline; }
           .muted { color: #64748b; }
