@@ -45303,10 +45303,20 @@ function buildSolicitacaoServicoDocument(item) {
   const evidenciasRows = evidencias.length
     ? evidencias
       .map((evidencia, index) => {
-        const name = String(evidencia.nome || `Evidência ${index + 1}`).trim();
+        const name = String(evidencia.nome || evidencia.name || `Evidência ${index + 1}`).trim();
         const type = String(evidencia.type || evidencia.mime || "-").trim();
-        const rawUrl = String(evidencia.url || evidencia.dataUrl || "").trim();
+        const rawUrl = String(
+          evidencia.url || evidencia.dataUrl || evidencia.path || evidencia.fileUrl || ""
+        ).trim();
         const url = rawUrl ? resolvePublicUrl(rawUrl) : "";
+        const isImage = isImageEvidence(evidencia) && Boolean(url);
+        const preview = isImage
+          ? `<img class="ss-evidence-thumb__img" src="${escapeHtml(url)}" alt="${escapeHtml(
+            name
+          )}" loading="lazy" />`
+          : `<span class="ss-evidence-thumb__placeholder">${
+            url ? "Arquivo" : "Sem arquivo"
+          }</span>`;
         const acao = url
           ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">Visualizar</a>`
           : "-";
@@ -45315,12 +45325,13 @@ function buildSolicitacaoServicoDocument(item) {
             <td>${index + 1}</td>
             <td>${escapeHtml(name)}</td>
             <td>${escapeHtml(type || "-")}</td>
+            <td><div class="ss-evidence-thumb">${preview}</div></td>
             <td>${acao}</td>
           </tr>
         `;
       })
       .join("")
-    : `<tr><td colspan="4">Sem evidências registradas.</td></tr>`;
+    : `<tr><td colspan="5">Sem evidências registradas.</td></tr>`;
 
   const historico = sortHistoricoAsc(getHistoricoManutencaoCompleto(item));
   const historicoRows = historico.length
@@ -45390,6 +45401,9 @@ function buildSolicitacaoServicoDocument(item) {
           table { width: 100%; border-collapse: collapse; font-size: 12px; }
           th, td { border: 1px solid #d0ddef; padding: 6px; text-align: left; vertical-align: top; color: #0b1220; background: #fdfefe; }
           th { background: #e7effa; text-transform: uppercase; letter-spacing: .06em; font-size: 10px; }
+          .ss-evidence-thumb { width: 84px; height: 60px; border: 1px solid #c8d4e7; border-radius: 8px; overflow: hidden; background: #eef4fb; display: grid; place-items: center; }
+          .ss-evidence-thumb__img { width: 100%; height: 100%; object-fit: cover; display: block; }
+          .ss-evidence-thumb__placeholder { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: .06em; text-align: center; padding: 4px; }
           a { color: #0f4f86; text-decoration: none; font-weight: 600; }
           a:hover { text-decoration: underline; }
           .muted { color: #64748b; }
@@ -45558,6 +45572,7 @@ function buildSolicitacaoServicoDocument(item) {
                     <th>#</th>
                     <th>Nome</th>
                     <th>Tipo</th>
+                    <th>Preview</th>
                     <th>Ação</th>
                   </tr>
                 </thead>
