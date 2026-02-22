@@ -45355,182 +45355,263 @@ function buildSolicitacaoServicoDocument(item) {
         <title>${escapeHtml(documentTitle)}</title>
         <style>
           :root { color-scheme: light only; }
-          html, body { margin: 0; padding: 0; background: #ffffff !important; color: #0f172a !important; }
-          body { font-family: "Segoe UI", Arial, sans-serif; margin: 18px; color: #0f172a !important; background: #ffffff !important; }
-          .doc { display: grid; gap: 14px; }
-          .head { border-bottom: 2px solid #cbd5e1; padding-bottom: 10px; display: grid; gap: 8px; }
-          .head__logos { display: grid; grid-template-columns: 140px 1fr 140px; align-items: center; gap: 12px; }
-          .head__logos img { max-width: 120px; max-height: 44px; object-fit: contain; display: block; }
-          .head__logos .logo--left { justify-self: start; }
-          .head__logos .logo--right { justify-self: end; }
-          .head__title { text-align: center; }
-          .head__title h1 { margin: 0; font-size: 22px; letter-spacing: 0.04em; }
-          .head__title p { margin: 2px 0 0; font-size: 12px; color: #334155; }
-          .head__meta { margin: 0; color: #475569; font-size: 12px; }
-          .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-          .cell { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; background: #ffffff; }
-          .cell span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #64748b; }
-          .cell strong { font-size: 13px; }
-          h2 { margin: 0; font-size: 15px; }
-          .block { border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px; background: #ffffff; }
-          p { margin: 0; font-size: 13px; line-height: 1.45; }
+          html, body { margin: 0; padding: 0; background: #ffffff !important; color: #0b1220 !important; }
+          body { font-family: "Segoe UI", Arial, sans-serif; background: #ffffff !important; color: #0b1220 !important; }
+          .sheet { max-width: 1120px; margin: 0 auto; padding: 18px; display: grid; gap: 12px; }
+          .doc-header { border: 1px solid #d5dbe7; border-radius: 14px; overflow: hidden; background: #fff; }
+          .doc-header__top { display: grid; grid-template-columns: 140px 1fr 140px; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid #e4e9f3; }
+          .doc-header__top img { max-width: 116px; max-height: 42px; object-fit: contain; display: block; }
+          .doc-header__title { text-align: center; }
+          .doc-header__title h1 { margin: 0; font-size: 21px; letter-spacing: .02em; color: #0b1220; }
+          .doc-header__title p { margin: 2px 0 0; font-size: 12px; color: #475569; }
+          .doc-header__bar { background: linear-gradient(90deg, #0f3a63, #166090); color: #f8fbff; padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; }
+          .doc-id { border: 1px solid #d5dbe7; border-radius: 14px; background: #fff; padding: 10px 12px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+          .doc-id__item { border: 1px solid #e4e9f3; border-radius: 10px; padding: 8px; background: #f8fafc; }
+          .doc-id__item span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #64748b; margin-bottom: 3px; }
+          .doc-id__item strong { font-size: 14px; color: #0b1220; }
+          .section { border: 1px solid #d5dbe7; border-radius: 14px; background: #fff; overflow: hidden; }
+          .section__head { padding: 8px 12px; border-bottom: 1px solid #e4e9f3; background: #f8fafc; display: flex; align-items: center; gap: 8px; }
+          .section__number { width: 24px; height: 24px; border-radius: 999px; background: #0f3a63; color: #fff; display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+          .section__title { margin: 0; font-size: 15px; color: #0b1220; }
+          .section__body { padding: 10px 12px; display: grid; gap: 10px; }
+          .kv-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
+          .kv { border-bottom: 1px dashed #dce2ed; padding-bottom: 6px; }
+          .kv span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #64748b; }
+          .kv strong { font-size: 13px; color: #0b1220; }
+          .text-block { border: 1px solid #e4e9f3; border-radius: 10px; padding: 10px; min-height: 60px; background: #fff; font-size: 13px; line-height: 1.45; }
+          .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+          .chip { border: 1px solid #cdd7e8; border-radius: 999px; background: #f8fafc; color: #0f3a63; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+          .flags { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+          .flag { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; }
+          .flag__box { width: 14px; height: 14px; border: 1px solid #94a3b8; border-radius: 3px; display: inline-block; }
+          .flag__box.is-on { background: #0f3a63; border-color: #0f3a63; box-shadow: inset 0 0 0 2px #fff; }
           table { width: 100%; border-collapse: collapse; font-size: 12px; }
-          th, td { border: 1px solid #cbd5e1; padding: 6px; text-align: left; vertical-align: top; background: #ffffff; color: #0f172a; }
+          th, td { border: 1px solid #dbe2ee; padding: 6px; text-align: left; vertical-align: top; color: #0b1220; background: #fff; }
           th { background: #f1f5f9; text-transform: uppercase; letter-spacing: .06em; font-size: 10px; }
-          .muted { color: #64748b; }
-          .signature { font-family: Consolas, monospace; font-size: 11px; word-break: break-all; }
-          a { color: #0c4a6e; text-decoration: none; font-weight: 600; }
+          a { color: #0f4f86; text-decoration: none; font-weight: 600; }
           a:hover { text-decoration: underline; }
+          .muted { color: #64748b; }
+          .signature { font-family: Consolas, "Courier New", monospace; font-size: 11px; word-break: break-all; color: #1e293b; }
+          .sign-line { margin-top: 18px; padding-top: 8px; border-top: 1px solid #94a3b8; font-size: 12px; color: #334155; max-width: 320px; }
           @media print {
-            body { margin: 8mm; }
-            .block, .cell, .head { break-inside: avoid; page-break-inside: avoid; }
+            body { margin: 0; }
+            .sheet { padding: 8mm; max-width: none; }
+            .section, .doc-header, .doc-id { break-inside: avoid; page-break-inside: avoid; }
             table { page-break-inside: auto; }
             tr { page-break-inside: avoid; page-break-after: auto; }
           }
         </style>
       </head>
       <body>
-        <div class="doc">
-          <header class="head">
-            <div class="head__logos">
-              <img class="logo--left" src="${escapeHtml(engelmigLogo)}" alt="Engelmig" />
-              <div class="head__title">
-                <h1>SS - Solicitação de Serviço</h1>
-                <p>Documento operacional para execução em campo</p>
+        <main class="sheet">
+          <header class="doc-header">
+            <div class="doc-header__top">
+              <img src="${escapeHtml(engelmigLogo)}" alt="Engelmig" />
+              <div class="doc-header__title">
+                <h1>SS - Solicitação de Serviço de Manutenção</h1>
+                <p>Documento operacional para solicitação, planejamento e rastreabilidade da atividade</p>
               </div>
-              <img class="logo--right" src="${escapeHtml(opscopeLogo)}" alt="OPSCOPE" />
+              <img src="${escapeHtml(opscopeLogo)}" alt="OPSCOPE" />
             </div>
-            <p class="head__meta"><strong>Projeto:</strong> ${escapeHtml(projetoLabel)}</p>
-            <p class="head__meta"><strong>Emitido em:</strong> ${escapeHtml(emitidoEm)}</p>
+            <div class="doc-header__bar">
+              <span><strong>Projeto:</strong> ${escapeHtml(projetoLabel)}</span>
+              <span><strong>Emitido em:</strong> ${escapeHtml(emitidoEm)}</span>
+              <span><strong>Status atual:</strong> ${escapeHtml(statusLabel)}</span>
+            </div>
           </header>
 
-          <section class="grid">
-            <div class="cell"><span>SS nº</span><strong>${escapeHtml(ssNumero)}</strong></div>
-            <div class="cell"><span>OS da cliente</span><strong>${escapeHtml(osNumero)}</strong></div>
-            <div class="cell"><span>Status</span><strong>${escapeHtml(statusLabel)}</strong></div>
-            <div class="cell"><span>Data programada</span><strong>${escapeHtml(dataProgramada)}</strong></div>
-            <div class="cell"><span>Resultado</span><strong>${escapeHtml(resultadoLabel)}</strong></div>
-            <div class="cell"><span>Atividade</span><strong>${escapeHtml(titulo)}</strong></div>
-            <div class="cell"><span>Local</span><strong>${escapeHtml(localLabel)}</strong></div>
-            <div class="cell"><span>Equipamento</span><strong>${escapeHtml(equipamentoLabel)}</strong></div>
-            <div class="cell"><span>Subequipamentos</span><strong>${escapeHtml(
-              subequipamentos.length ? subequipamentos.join(", ") : "-"
-            )}</strong></div>
-            <div class="cell"><span>Categoria</span><strong>${escapeHtml(item.categoria || "-")}</strong></div>
-            <div class="cell"><span>Prioridade</span><strong>${escapeHtml(item.prioridade || "-")}</strong></div>
-            <div class="cell"><span>Criada em</span><strong>${escapeHtml(
-              criadaEm ? formatDateTime(criadaEm) : "-"
-            )}</strong></div>
-            <div class="cell"><span>Criada por</span><strong>${escapeHtml(
-              getUserLabel(item.createdBy) || "-"
-            )}</strong></div>
-            <div class="cell"><span>Início da execução</span><strong>${escapeHtml(
-              inicioExec ? formatDateTime(inicioExec) : "-"
-            )}</strong></div>
-            <div class="cell"><span>Fim da execução</span><strong>${escapeHtml(
-              fimExec ? formatDateTime(fimExec) : "-"
-            )}</strong></div>
-            <div class="cell"><span>Responsáveis</span><strong>${escapeHtml(
-              responsaveis.length ? formatResponsavelLista(responsaveis) : "-"
-            )}</strong></div>
-            <div class="cell"><span>Participantes</span><strong>${escapeHtml(
-              getParticipantesLabel(participantes) || "-"
-            )}</strong></div>
+          <section class="doc-id">
+            <div class="doc-id__item"><span>SS nº</span><strong>${escapeHtml(ssNumero)}</strong></div>
+            <div class="doc-id__item"><span>OS da cliente</span><strong>${escapeHtml(osNumero)}</strong></div>
+            <div class="doc-id__item"><span>Data programada</span><strong>${escapeHtml(dataProgramada)}</strong></div>
+            <div class="doc-id__item"><span>Categoria</span><strong>${escapeHtml(item.categoria || "-")}</strong></div>
+            <div class="doc-id__item"><span>Prioridade</span><strong>${escapeHtml(item.prioridade || "-")}</strong></div>
           </section>
 
-          <section class="block">
-            <h2>Descrição técnica</h2>
-            <p>${escapeHtml(descricaoTecnica)}</p>
+          <section class="section">
+            <div class="section__head">
+              <span class="section__number">1</span>
+              <h2 class="section__title">Identificação da Solicitação</h2>
+            </div>
+            <div class="section__body">
+              <div class="kv-grid">
+                <div class="kv"><span>Atividade</span><strong>${escapeHtml(titulo)}</strong></div>
+                <div class="kv"><span>Local</span><strong>${escapeHtml(localLabel)}</strong></div>
+                <div class="kv"><span>Equipamento</span><strong>${escapeHtml(equipamentoLabel)}</strong></div>
+                <div class="kv"><span>Subequipamentos</span><strong>${escapeHtml(
+                  subequipamentos.length ? subequipamentos.join(", ") : "-"
+                )}</strong></div>
+                <div class="kv"><span>Criada em</span><strong>${escapeHtml(
+                  criadaEm ? formatDateTime(criadaEm) : "-"
+                )}</strong></div>
+                <div class="kv"><span>Criada por</span><strong>${escapeHtml(
+                  getUserLabel(item.createdBy) || "-"
+                )}</strong></div>
+              </div>
+            </div>
           </section>
 
-          <section class="block">
-            <h2>Observações de execução</h2>
-            <p>${escapeHtml(obsExecucao)}</p>
+          <section class="section">
+            <div class="section__head">
+              <span class="section__number">2</span>
+              <h2 class="section__title">Escopo Técnico da Manutenção</h2>
+            </div>
+            <div class="section__body">
+              <div class="text-block">${escapeHtml(descricaoTecnica)}</div>
+              <div class="flags">
+                <span class="flag">
+                  <span class="flag__box ${critico ? "is-on" : ""}"></span>
+                  Trabalho crítico
+                </span>
+                <span class="flag">
+                  <span class="flag__box ${critico ? "" : "is-on"}"></span>
+                  Trabalho não crítico
+                </span>
+              </div>
+            </div>
           </section>
 
-          <section class="block">
-            <h2>Procedimentos vinculados</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>Código</th>
-                  <th>Nome</th>
-                  <th>Arquivo PDF</th>
-                  <th>Ação</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${
-                  procedimentosRows ||
-                  '<tr><td colspan="4">Nenhum procedimento vinculado.</td></tr>'
-                }
-              </tbody>
-            </table>
+          <section class="section">
+            <div class="section__head">
+              <span class="section__number">3</span>
+              <h2 class="section__title">Planejamento e Equipe</h2>
+            </div>
+            <div class="section__body">
+              <div class="kv-grid">
+                <div class="kv"><span>Responsáveis</span><strong>${escapeHtml(
+                  responsaveis.length ? formatResponsavelLista(responsaveis) : "-"
+                )}</strong></div>
+                <div class="kv"><span>Participantes</span><strong>${escapeHtml(
+                  getParticipantesLabel(participantes) || "-"
+                )}</strong></div>
+                <div class="kv"><span>Início da execução</span><strong>${escapeHtml(
+                  inicioExec ? formatDateTime(inicioExec) : "-"
+                )}</strong></div>
+                <div class="kv"><span>Fim da execução</span><strong>${escapeHtml(
+                  fimExec ? formatDateTime(fimExec) : "-"
+                )}</strong></div>
+                <div class="kv"><span>Resultado</span><strong>${escapeHtml(resultadoLabel)}</strong></div>
+                <div class="kv"><span>Status</span><strong>${escapeHtml(statusLabel)}</strong></div>
+              </div>
+              <div>
+                <span class="muted" style="font-size:12px;">Observações de execução</span>
+                <div class="text-block">${escapeHtml(obsExecucao)}</div>
+              </div>
+            </div>
           </section>
 
-          <section class="block">
-            <h2>Documentações da execução</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>Documento</th>
-                  <th>Status</th>
-                  <th>Arquivo</th>
-                  <th>Ação</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${documentosRows}
-              </tbody>
-            </table>
+          <section class="section">
+            <div class="section__head">
+              <span class="section__number">4</span>
+              <h2 class="section__title">Procedimentos e Documentos Obrigatórios</h2>
+            </div>
+            <div class="section__body">
+              <div>
+                <span class="muted" style="font-size:12px;">Procedimentos vinculados</span>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Código</th>
+                      <th>Nome</th>
+                      <th>Arquivo PDF</th>
+                      <th>Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${
+                      procedimentosRows ||
+                      '<tr><td colspan="4">Nenhum procedimento vinculado.</td></tr>'
+                    }
+                  </tbody>
+                </table>
+              </div>
+              <div>
+                <span class="muted" style="font-size:12px;">Documentos da execução</span>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Documento</th>
+                      <th>Status</th>
+                      <th>Arquivo</th>
+                      <th>Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${documentosRows}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </section>
 
-          <section class="block">
-            <h2>Evidências</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Nome</th>
-                  <th>Tipo</th>
-                  <th>Ação</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${evidenciasRows}
-              </tbody>
-            </table>
+          <section class="section">
+            <div class="section__head">
+              <span class="section__number">5</span>
+              <h2 class="section__title">Evidências de Campo</h2>
+            </div>
+            <div class="section__body">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Nome</th>
+                    <th>Tipo</th>
+                    <th>Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${evidenciasRows}
+                </tbody>
+              </table>
+            </div>
           </section>
 
-          <section class="block">
-            <h2>Histórico rastreável</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>Data e hora</th>
-                  <th>Ação</th>
-                  <th>Usuário</th>
-                  <th>Detalhes</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${historicoRows}
-              </tbody>
-            </table>
+          <section class="section">
+            <div class="section__head">
+              <span class="section__number">6</span>
+              <h2 class="section__title">Rastreabilidade da Solicitação</h2>
+            </div>
+            <div class="section__body">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Data e hora</th>
+                    <th>Ação</th>
+                    <th>Usuário</th>
+                    <th>Detalhes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${historicoRows}
+                </tbody>
+              </table>
+            </div>
           </section>
 
-          <section class="block">
-            <h2>Assinatura de encerramento</h2>
-            <p><strong>Status:</strong> ${escapeHtml(assinaturaLabel)}</p>
-            <p class="muted"><strong>Usuário:</strong> ${escapeHtml(
-              getUserLabel(conclusao.encerradoPor || item.doneBy) || "-"
-            )}</p>
-            <p class="muted"><strong>Confirmada em:</strong> ${escapeHtml(
-              assinaturaConfirmedAt ? formatDateTime(assinaturaConfirmedAt) : "-"
-            )}</p>
-            <p class="signature"><strong>Hash:</strong> ${escapeHtml(assinaturaHash || "-")}</p>
+          <section class="section">
+            <div class="section__head">
+              <span class="section__number">7</span>
+              <h2 class="section__title">Encerramento e Assinatura</h2>
+            </div>
+            <div class="section__body">
+              <div class="chips">
+                <span class="chip">Assinatura: ${escapeHtml(assinaturaLabel)}</span>
+                <span class="chip">Confirmada em: ${escapeHtml(
+                  assinaturaConfirmedAt ? formatDateTime(assinaturaConfirmedAt) : "-"
+                )}</span>
+              </div>
+              <div class="kv-grid">
+                <div class="kv"><span>Usuário de encerramento</span><strong>${escapeHtml(
+                  getUserLabel(conclusao.encerradoPor || item.doneBy) || "-"
+                )}</strong></div>
+                <div class="kv"><span>Hash de assinatura</span><strong class="signature">${escapeHtml(
+                  assinaturaHash || "-"
+                )}</strong></div>
+              </div>
+              <div class="sign-line">Assinatura do responsável pela execução</div>
+            </div>
           </section>
-        </div>
+        </main>
       </body>
     </html>
   `;
