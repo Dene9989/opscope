@@ -11882,6 +11882,33 @@ app.get("/api/admin/files", requireAuth, requirePermission("verArquivos"), (req,
   return res.json({ files: list });
 });
 
+app.get("/api/files/:id", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const fileId = String(req.params.id || "").trim();
+  if (!fileId) {
+    return res.status(400).json({ message: "Arquivo inválido." });
+  }
+  const file = Array.isArray(filesMeta)
+    ? filesMeta.find((item) => item && String(item.id || "") === fileId)
+    : null;
+  if (!file) {
+    return res.status(404).json({ message: "Arquivo não encontrado." });
+  }
+  if (file.projectId && !userHasProjectAccess(user, file.projectId)) {
+    return res.status(403).json({ message: "Não autorizado." });
+  }
+  return res.json({
+    file: {
+      id: file.id,
+      url: file.url,
+      name: file.originalName || file.name || "Arquivo",
+      mime: file.mime || "",
+      type: file.type || "",
+      projectId: file.projectId || "",
+    },
+  });
+});
+
 app.post(
   "/api/maintenance/liberacao-doc",
   requireAuth,

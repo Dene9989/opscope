@@ -4664,6 +4664,7 @@ let idleBindingsReady = false;
 let idleLastActivityAt = 0;
 let idleDraftRestoreDoneFor = "";
 let idleDraftRestoreNotified = false;
+const ssEvidenceUrlCache = new Map();
 let auditHashChain = Promise.resolve("");
 let kpiDrilldown = null;
 let kpiSnapshot = null;
@@ -45158,6 +45159,93 @@ function getSsDocInfo(doc, fallbackLabel = "Arquivo") {
   };
 }
 
+function isLikelyEvidenceUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return false;
+  }
+  if (/^(data:|blob:|https?:)/i.test(raw)) {
+    return true;
+  }
+  if (raw.startsWith("/")) {
+    return true;
+  }
+  if (/^uploads\//i.test(raw)) {
+    return true;
+  }
+  return raw.includes("/uploads/files/");
+}
+
+function collectEvidenceUrlCandidates(evidencia) {
+  if (!evidencia) {
+    return [];
+  }
+  if (typeof evidencia === "string") {
+    return isLikelyEvidenceUrl(evidencia) ? [evidencia] : [];
+  }
+  const candidates = [];
+  const keys = [
+    "url",
+    "dataUrl",
+    "path",
+    "fileUrl",
+    "filePath",
+    "href",
+    "src",
+    "downloadUrl",
+    "previewUrl",
+    "publicUrl",
+    "uri",
+    "link",
+  ];
+  keys.forEach((key) => {
+    if (!Object.prototype.hasOwnProperty.call(evidencia, key)) {
+      return;
+    }
+    const value = evidencia[key];
+    if (typeof value === "string" && isLikelyEvidenceUrl(value)) {
+      candidates.push(value);
+    }
+  });
+  if (evidencia.file && typeof evidencia.file === "object") {
+    const fileUrl = evidencia.file.url || evidencia.file.path || evidencia.file.dataUrl;
+    if (typeof fileUrl === "string" && isLikelyEvidenceUrl(fileUrl)) {
+      candidates.push(fileUrl);
+    }
+  }
+  return candidates;
+}
+
+async function resolveSsEvidenceUrl(evidencia) {
+  const candidates = collectEvidenceUrlCandidates(evidencia);
+  if (candidates.length) {
+    return resolvePublicUrl(candidates[0]);
+  }
+  const fileId = String(
+    (evidencia &&
+      (evidencia.id || evidencia.fileId || evidencia.uploadId || evidencia.evidenceId || "")) ||
+      ""
+  ).trim();
+  if (!fileId) {
+    return "";
+  }
+  if (ssEvidenceUrlCache.has(fileId)) {
+    return ssEvidenceUrlCache.get(fileId) || "";
+  }
+  try {
+    const data = await apiRequest(`/api/files/${encodeURIComponent(fileId)}`);
+    const rawUrl =
+      data && data.file && typeof data.file.url === "string" ? String(data.file.url).trim() : "";
+    const resolved = rawUrl ? resolvePublicUrl(rawUrl) : "";
+    if (resolved) {
+      ssEvidenceUrlCache.set(fileId, resolved);
+    }
+    return resolved;
+  } catch (error) {
+    return "";
+  }
+}
+
 function buildSsHistoricoDetalhes(entry) {
   if (!entry || !entry.detalhes || typeof entry.detalhes !== "object") {
     return "-";
@@ -45216,7 +45304,7 @@ function buildSsHistoricoDetalhes(entry) {
   return linhas.length ? linhas.join(" | ") : "-";
 }
 
-function buildSolicitacaoServicoDocument(item) {
+async function buildSolicitacaoServicoDocument(item) {
   const projeto = getProjectById(item.projectId);
   const liberacao = getLiberacao(item) || {};
   const conclusao = item.conclusao || {};
@@ -45301,36 +45389,39 @@ function buildSolicitacaoServicoDocument(item) {
 
   const evidencias = Array.isArray(conclusao.evidencias) ? conclusao.evidencias : [];
   const evidenciasRows = evidencias.length
-    ? evidencias
-      .map((evidencia, index) => {
-        const name = String(evidencia.nome || evidencia.name || `Evidência ${index + 1}`).trim();
-        const type = String(evidencia.type || evidencia.mime || "-").trim();
-        const rawUrl = String(
-          evidencia.url || evidencia.dataUrl || evidencia.path || evidencia.fileUrl || ""
-        ).trim();
-        const url = rawUrl ? resolvePublicUrl(rawUrl) : "";
-        const isImage = isImageEvidence(evidencia) && Boolean(url);
-        const preview = isImage
-          ? `<img class="ss-evidence-thumb__img" src="${escapeHtml(url)}" alt="${escapeHtml(
-            name
-          )}" loading="lazy" />`
-          : `<span class="ss-evidence-thumb__placeholder">${
-            url ? "Arquivo" : "Sem arquivo"
-          }</span>`;
-        const acao = url
-          ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">Visualizar</a>`
-          : "-";
-        return `
-          <tr>
-            <td>${index + 1}</td>
-            <td>${escapeHtml(name)}</td>
-            <td>${escapeHtml(type || "-")}</td>
-            <td><div class="ss-evidence-thumb">${preview}</div></td>
-            <td>${acao}</td>
-          </tr>
-        `;
-      })
-      .join("")
+    ? (
+        await Promise.all(
+          evidencias.map(async (evidencia, index) => {
+            const name = String(evidencia.nome || evidencia.name || `Evidência ${index + 1}`).trim();
+            const type = String(evidencia.type || evidencia.mime || "-").trim();
+            const url = await resolveSsEvidenceUrl(evidencia);
+            const isImage = isImageEvidence(evidencia) && Boolean(url);
+            const preview = isImage
+              ? `<button class="ss-evidence-thumb ss-evidence-thumb--btn" type="button" data-ss-zoom="${escapeHtml(
+                  url
+                )}" data-ss-zoom-name="${escapeHtml(name)}" title="Clique para ampliar">
+                  <img class="ss-evidence-thumb__img" src="${escapeHtml(url)}" alt="${escapeHtml(
+                  name
+                )}" loading="eager" />
+                </button>`
+              : `<div class="ss-evidence-thumb"><span class="ss-evidence-thumb__placeholder">${
+                  url ? "Arquivo" : "Sem arquivo"
+                }</span></div>`;
+            const acao = url
+              ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">Visualizar</a>`
+              : "-";
+            return `
+              <tr>
+                <td>${index + 1}</td>
+                <td>${escapeHtml(name)}</td>
+                <td>${escapeHtml(type || "-")}</td>
+                <td>${preview}</td>
+                <td>${acao}</td>
+              </tr>
+            `;
+          })
+        )
+      ).join("")
     : `<tr><td colspan="5">Sem evidências registradas.</td></tr>`;
 
   const historico = sortHistoricoAsc(getHistoricoManutencaoCompleto(item));
@@ -45402,8 +45493,18 @@ function buildSolicitacaoServicoDocument(item) {
           th, td { border: 1px solid #d0ddef; padding: 6px; text-align: left; vertical-align: top; color: #0b1220; background: #fdfefe; }
           th { background: #e7effa; text-transform: uppercase; letter-spacing: .06em; font-size: 10px; }
           .ss-evidence-thumb { width: 84px; height: 60px; border: 1px solid #c8d4e7; border-radius: 8px; overflow: hidden; background: #eef4fb; display: grid; place-items: center; }
+          .ss-evidence-thumb--btn { cursor: zoom-in; padding: 0; }
+          button.ss-evidence-thumb--btn { appearance: none; -webkit-appearance: none; background: #eef4fb; }
           .ss-evidence-thumb__img { width: 100%; height: 100%; object-fit: cover; display: block; }
           .ss-evidence-thumb__placeholder { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: .06em; text-align: center; padding: 4px; }
+          .ss-lightbox { position: fixed; inset: 0; background: rgba(6, 12, 22, 0.84); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px; }
+          .ss-lightbox[hidden] { display: none !important; }
+          .ss-lightbox__dialog { width: min(94vw, 1080px); max-height: 92vh; background: #0f1729; border: 1px solid #34506f; border-radius: 12px; overflow: hidden; display: grid; grid-template-rows: auto 1fr; }
+          .ss-lightbox__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; color: #e7edf7; background: rgba(9, 19, 35, 0.9); }
+          .ss-lightbox__title { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90%; }
+          .ss-lightbox__close { border: 1px solid #4b6383; background: #1c2a40; color: #f8fbff; border-radius: 8px; width: 30px; height: 30px; cursor: pointer; font-weight: 700; }
+          .ss-lightbox__body { padding: 10px; display: grid; place-items: center; overflow: auto; background: #0a1322; }
+          .ss-lightbox__img { max-width: 100%; max-height: 78vh; object-fit: contain; display: block; border-radius: 8px; background: #fff; }
           a { color: #0f4f86; text-decoration: none; font-weight: 600; }
           a:hover { text-decoration: underline; }
           .muted { color: #64748b; }
@@ -45415,6 +45516,7 @@ function buildSolicitacaoServicoDocument(item) {
             .section, .doc-header, .doc-id { break-inside: avoid; page-break-inside: avoid; }
             table { page-break-inside: auto; }
             tr { page-break-inside: avoid; page-break-after: auto; }
+            .ss-lightbox { display: none !important; }
           }
         </style>
       </head>
@@ -45629,6 +45731,55 @@ function buildSolicitacaoServicoDocument(item) {
             </div>
           </section>
         </main>
+        <div id="ssEvidenceLightbox" class="ss-lightbox" hidden>
+          <div class="ss-lightbox__dialog">
+            <div class="ss-lightbox__head">
+              <div class="ss-lightbox__title" data-ss-lightbox-caption>Evidência</div>
+              <button class="ss-lightbox__close" type="button" data-ss-lightbox-close>×</button>
+            </div>
+            <div class="ss-lightbox__body">
+              <img class="ss-lightbox__img" src="" alt="Evidência ampliada" data-ss-lightbox-img />
+            </div>
+          </div>
+        </div>
+        <script>
+          (function () {
+            var lightbox = document.getElementById("ssEvidenceLightbox");
+            if (!lightbox) return;
+            var image = lightbox.querySelector("[data-ss-lightbox-img]");
+            var caption = lightbox.querySelector("[data-ss-lightbox-caption]");
+            function closeLightbox() {
+              lightbox.hidden = true;
+              if (image) image.removeAttribute("src");
+              if (caption) caption.textContent = "Evidência";
+            }
+            function openLightbox(url, name) {
+              if (!url || !image) return;
+              image.src = url;
+              image.alt = name || "Evidência ampliada";
+              if (caption) caption.textContent = name || "Evidência";
+              lightbox.hidden = false;
+            }
+            document.addEventListener("click", function (event) {
+              var trigger = event.target && event.target.closest ? event.target.closest("[data-ss-zoom]") : null;
+              if (trigger) {
+                event.preventDefault();
+                openLightbox(trigger.getAttribute("data-ss-zoom"), trigger.getAttribute("data-ss-zoom-name"));
+                return;
+              }
+              var closeBtn = event.target && event.target.closest ? event.target.closest("[data-ss-lightbox-close]") : null;
+              if (closeBtn || event.target === lightbox) {
+                event.preventDefault();
+                closeLightbox();
+              }
+            });
+            document.addEventListener("keydown", function (event) {
+              if (event.key === "Escape" && !lightbox.hidden) {
+                closeLightbox();
+              }
+            });
+          })();
+        </script>
       </body>
     </html>
   `;
@@ -45636,22 +45787,22 @@ function buildSolicitacaoServicoDocument(item) {
   return { html, title: documentTitle };
 }
 
-function abrirPreviewSolicitacaoServico(item) {
+async function abrirPreviewSolicitacaoServico(item) {
   if (!item) {
     return;
   }
-  const { html } = buildSolicitacaoServicoDocument(item);
+  const { html } = await buildSolicitacaoServicoDocument(item);
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
   const blobUrl = URL.createObjectURL(blob);
   abrirPreview(blobUrl, blobUrl, { title: "Pré-visualização da SS" });
 }
 
-function exportarSolicitacaoServico(item) {
+async function exportarSolicitacaoServico(item) {
   if (!item) {
     return;
   }
   try {
-    abrirPreviewSolicitacaoServico(item);
+    await abrirPreviewSolicitacaoServico(item);
   } catch (error) {
     const message = error && error.message ? error.message : String(error || "erro desconhecido");
     console.error("Falha ao exportar SS", error);
