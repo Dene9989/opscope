@@ -161,6 +161,7 @@ const DATA_FILE_NAMES = [
   "maintenance_templates.json",
   "maintenance_tombstones.json",
   "maintenance_monthly.json",
+  "maintenance_ss_counter.json",
   "announcements.json",
   "feedbacks.json",
   "sst_docs.json",
@@ -204,6 +205,7 @@ const MAINTENANCE_FILE = path.join(DATA_DIR, "maintenance.json");
 const MAINTENANCE_TEMPLATES_FILE = path.join(DATA_DIR, "maintenance_templates.json");
 const MAINTENANCE_TOMBSTONES_FILE = path.join(DATA_DIR, "maintenance_tombstones.json");
 const MAINTENANCE_MONTHLY_FILE = path.join(DATA_DIR, "maintenance_monthly.json");
+const MAINTENANCE_SS_COUNTER_FILE = path.join(DATA_DIR, "maintenance_ss_counter.json");
 const ANNOUNCEMENTS_FILE = path.join(DATA_DIR, "announcements.json");
 const FEEDBACKS_FILE = path.join(DATA_DIR, "feedbacks.json");
 const SST_DOCS_FILE = path.join(DATA_DIR, "sst_docs.json");
@@ -252,6 +254,7 @@ const STORE_FILES = [
   MAINTENANCE_TEMPLATES_FILE,
   MAINTENANCE_TOMBSTONES_FILE,
   MAINTENANCE_MONTHLY_FILE,
+  MAINTENANCE_SS_COUNTER_FILE,
   ANNOUNCEMENTS_FILE,
   FEEDBACKS_FILE,
   SST_DOCS_FILE,
@@ -5665,6 +5668,84 @@ async function notifyProjectTeamMaintenanceCreated(items, actor, ip, projectId) 
 function loadMaintenanceData() {
   const data = readJson(MAINTENANCE_FILE, []);
   return Array.isArray(data) ? data : [];
+}
+
+function parseMaintenanceSsNumber(value) {
+  const raw = String(value === null || value === undefined ? "" : value).trim();
+  if (!raw) {
+    return 0;
+  }
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function loadMaintenanceSsCounterState() {
+  const raw = readJson(MAINTENANCE_SS_COUNTER_FILE, null);
+  const next = raw && Number.isFinite(Number(raw.next)) ? Number(raw.next) : 1;
+  return { next: next > 0 ? Math.floor(next) : 1 };
+}
+
+function saveMaintenanceSsCounterState(state) {
+  const next = state && Number.isFinite(Number(state.next)) ? Number(state.next) : 1;
+  writeJson(MAINTENANCE_SS_COUNTER_FILE, { next: next > 0 ? Math.floor(next) : 1 });
+}
+
+function ensureMaintenanceSsNumbers(list) {
+  if (!Array.isArray(list) || list.length === 0) {
+    return { list: Array.isArray(list) ? list : [], changed: false };
+  }
+  const output = list.map((item) =>
+    item && typeof item === "object" ? { ...item } : item
+  );
+  const used = new Set();
+  const needsNumber = [];
+  let maxFound = 0;
+  let changed = false;
+
+  output.forEach((item, index) => {
+    if (!item || typeof item !== "object" || !item.id) {
+      return;
+    }
+    const number = parseMaintenanceSsNumber(
+      item.ssNumero || item.ssNumber || item.ssId || ""
+    );
+    if (!number || used.has(number)) {
+      needsNumber.push(index);
+      return;
+    }
+    used.add(number);
+    if (number > maxFound) {
+      maxFound = number;
+    }
+    if (item.ssNumero !== number) {
+      item.ssNumero = number;
+      changed = true;
+    }
+  });
+
+  const state = loadMaintenanceSsCounterState();
+  let next = Math.max(state.next || 1, maxFound + 1, 1);
+  needsNumber.forEach((index) => {
+    const item = output[index];
+    if (!item || typeof item !== "object" || !item.id) {
+      return;
+    }
+    while (used.has(next)) {
+      next += 1;
+    }
+    item.ssNumero = next;
+    used.add(next);
+    maxFound = Math.max(maxFound, next);
+    next += 1;
+    changed = true;
+  });
+
+  const stateNext = Math.max(next, maxFound + 1, 1);
+  if (state.next !== stateNext) {
+    saveMaintenanceSsCounterState({ next: stateNext });
+  }
+
+  return { list: output, changed };
 }
 
 function loadMaintenanceTemplates() {
@@ -12130,7 +12211,11 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
     mergedProject = deduped.list;
   }
   const filtered = existing.filter((item) => !(item && item.projectId === projectId));
-  const merged = [...filtered, ...mergedProject];
+  let merged = [...filtered, ...mergedProject];
+  const ssSequenced = ensureMaintenanceSsNumbers(merged);
+  if (ssSequenced.changed) {
+    merged = ssSequenced.list;
+  }
   writeJson(MAINTENANCE_FILE, merged);
   touchCompat("maintenance", projectId);
   DASHBOARD_CACHE.delete(projectId);
@@ -12215,7 +12300,12 @@ app.get("/api/maintenance", requireAuth, (req, res) => {
     return res.status(403).json({ message: "Nao autorizado." });
   }
   const tombstones = getMaintenanceTombstonesMap(projectId);
-  const dataset = loadMaintenanceData();
+  let dataset = loadMaintenanceData();
+  const ssSequenced = ensureMaintenanceSsNumbers(dataset);
+  if (ssSequenced.changed) {
+    dataset = ssSequenced.list;
+    writeJson(MAINTENANCE_FILE, dataset);
+  }
   let list = dataset.filter((item) => {
     if (!item || item.projectId !== projectId) {
       return false;

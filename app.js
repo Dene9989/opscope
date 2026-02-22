@@ -1185,6 +1185,8 @@ const btnHistoricoExportar = document.getElementById("btnHistoricoExportar");
 const btnHistoricoExportarPdf = document.getElementById("btnHistoricoExportarPdf");
 const modalPreview = document.getElementById("modalPreview");
 const previewFrame = document.getElementById("previewFrame");
+const previewTitle = document.getElementById("previewTitle");
+const btnImprimirPreview = document.getElementById("btnImprimirPreview");
 const btnAbrirPreview = document.getElementById("btnAbrirPreview");
 const btnFecharPreview = document.getElementById("btnFecharPreview");
 const formConclusao = document.getElementById("formConclusao");
@@ -15462,7 +15464,13 @@ function openInNewTab(url) {
   }
 }
 
-function abrirPreview(url, blobUrl = "") {
+function setPreviewModalTitle(texto = "Visualizar documento") {
+  if (previewTitle) {
+    previewTitle.textContent = texto || "Visualizar documento";
+  }
+}
+
+function abrirPreview(url, blobUrl = "", options = {}) {
   if (!modalPreview || !previewFrame) {
     return;
   }
@@ -15475,8 +15483,12 @@ function abrirPreview(url, blobUrl = "") {
   }
   previewCurrentUrl = resolvePublicUrl(url || "");
   previewFrame.src = previewCurrentUrl;
+  setPreviewModalTitle(options && options.title ? options.title : "Visualizar documento");
   if (btnAbrirPreview) {
     btnAbrirPreview.disabled = !previewCurrentUrl;
+  }
+  if (btnImprimirPreview) {
+    btnImprimirPreview.disabled = !previewCurrentUrl;
   }
   modalPreview.hidden = false;
 }
@@ -15488,8 +15500,12 @@ function fecharPreview() {
   modalPreview.hidden = true;
   previewFrame.src = "";
   previewCurrentUrl = "";
+  setPreviewModalTitle("Visualizar documento");
   if (btnAbrirPreview) {
     btnAbrirPreview.disabled = true;
+  }
+  if (btnImprimirPreview) {
+    btnImprimirPreview.disabled = true;
   }
   if (previewBlobUrl) {
     URL.revokeObjectURL(previewBlobUrl);
@@ -44668,7 +44684,12 @@ function getMaintenanceSsReferencia(item) {
   }
   const liberacao = getLiberacao(item) || {};
   const conclusao = item.conclusao || {};
+  const ssNumero = Number.parseInt(
+    String(item.ssNumero || item.ssNumber || item.ssId || "").trim(),
+    10
+  );
   return (
+    (Number.isFinite(ssNumero) && ssNumero > 0 ? String(ssNumero) : "") ||
     conclusao.referencia ||
     conclusao.osNumero ||
     liberacao.osNumero ||
@@ -44693,7 +44714,7 @@ function getSsDocInfo(doc, fallbackLabel = "Arquivo") {
     return {
       name: fallbackLabel,
       url,
-      hasLink: Boolean(url && !url.startsWith("data:")),
+      hasLink: Boolean(url),
       embedded: Boolean(url && url.startsWith("data:")),
     };
   }
@@ -44705,7 +44726,7 @@ function getSsDocInfo(doc, fallbackLabel = "Arquivo") {
   return {
     name,
     url,
-    hasLink: Boolean(url && !url.startsWith("data:")),
+    hasLink: Boolean(url),
     embedded: Boolean(url && url.startsWith("data:")),
   };
 }
@@ -44765,57 +44786,49 @@ function buildSsHistoricoDetalhes(entry) {
   return linhas.length ? linhas.join(" | ") : "-";
 }
 
-function exportarSolicitacaoServico(item) {
-  if (!item) {
-    return;
-  }
-  const popup = window.open("", "_blank");
-  if (!popup) {
-    mostrarMensagemManutencao("Popup bloqueado. Permita popups para exportar a SS.", true);
-    return;
-  }
-  try {
+function buildSolicitacaoServicoDocument(item) {
+  const projeto = getProjectById(item.projectId);
+  const liberacao = getLiberacao(item) || {};
+  const conclusao = item.conclusao || {};
+  const registro = item.registroExecucao || {};
+  const statusKey = normalizeMaintenanceStatus(item.status);
+  const statusLabel = STATUS_LABELS[statusKey] || item.status || "-";
+  const ssNumero = getMaintenanceSsReferencia(item);
+  const titulo = item.titulo || "-";
+  const projetoLabel = projeto
+    ? `${projeto.codigo || "-"} - ${projeto.nome || "-"}`
+    : item.projectId || "-";
+  const localLabel = item.local || "-";
+  const equipamentoLabel = getMaintenanceEquipamentoLabel(item) || "-";
+  const subequipamentos = getMaintenanceSubequipamentos(item);
+  const procedimentosIds = getMaintenanceProcedimentoIds(item);
+  const responsaveis = getMaintenanceResponsibleLabels(item);
+  const participantes = conclusao.participantes || liberacao.participantes || item.participantes || [];
+  const dataProgramadaDate = item.data ? parseDate(item.data) : null;
+  const dataProgramada = dataProgramadaDate ? formatDate(dataProgramadaDate) : "-";
+  const criadaEm = parseTimestamp(item.createdAt || item.abertaEm);
+  const inicioExec = parseTimestamp(
+    conclusao.inicio || item.executionStartedAt || item.inicioExecucao || registro.inicio
+  );
+  const fimExec = parseTimestamp(
+    conclusao.fim || item.executionFinishedAt || item.doneAt || registro.fim
+  );
+  const assinatura = conclusao.assinatura || null;
+  const assinaturaLabel = assinatura && assinatura.hash ? "Validada" : "Não registrada";
+  const assinaturaHash = assinatura && assinatura.hash ? String(assinatura.hash) : "";
+  const assinaturaConfirmedAt =
+    assinatura && assinatura.confirmedAt ? parseTimestamp(assinatura.confirmedAt) : null;
+  const docs = getItemDocs(item) || {};
+  const critico = isItemCritico(item);
+  const emitidoEm = formatDateTime(new Date());
+  const descricaoTecnica = conclusao.descricaoBreve || registro.comentario || item.observacao || "-";
+  const obsExecucao = conclusao.observacaoExecucao || registro.observacaoExecucao || "-";
+  const resultadoLabel = RESULTADO_LABELS[conclusao.resultado || registro.resultado] || "-";
+  const engelmigLogo = resolvePublicUrl("assets/engelmig-logo.png");
+  const opscopeLogo = resolvePublicUrl("assets/img/opscope-logo.png");
 
-    const projeto = getProjectById(item.projectId);
-    const liberacao = getLiberacao(item) || {};
-    const conclusao = item.conclusao || {};
-    const registro = item.registroExecucao || {};
-    const statusKey = normalizeMaintenanceStatus(item.status);
-    const statusLabel = STATUS_LABELS[statusKey] || item.status || "-";
-    const ssNumero = getMaintenanceSsReferencia(item);
-    const titulo = item.titulo || "-";
-    const projetoLabel = projeto
-      ? `${projeto.codigo || "-"} - ${projeto.nome || "-"}`
-      : item.projectId || "-";
-    const localLabel = item.local || "-";
-    const equipamentoLabel = getMaintenanceEquipamentoLabel(item) || "-";
-    const subequipamentos = getMaintenanceSubequipamentos(item);
-    const procedimentosIds = getMaintenanceProcedimentoIds(item);
-    const responsaveis = getMaintenanceResponsibleLabels(item);
-    const participantes = conclusao.participantes || liberacao.participantes || item.participantes || [];
-    const dataProgramadaDate = item.data ? parseDate(item.data) : null;
-    const dataProgramada = dataProgramadaDate ? formatDate(dataProgramadaDate) : "-";
-    const criadaEm = parseTimestamp(item.createdAt || item.abertaEm);
-    const inicioExec = parseTimestamp(
-      conclusao.inicio || item.executionStartedAt || item.inicioExecucao || registro.inicio
-    );
-    const fimExec = parseTimestamp(
-      conclusao.fim || item.executionFinishedAt || item.doneAt || registro.fim
-    );
-    const assinatura = conclusao.assinatura || null;
-    const assinaturaLabel = assinatura && assinatura.hash ? "Validada" : "Nao registrada";
-    const assinaturaHash = assinatura && assinatura.hash ? String(assinatura.hash) : "";
-    const assinaturaConfirmedAt =
-      assinatura && assinatura.confirmedAt ? parseTimestamp(assinatura.confirmedAt) : null;
-    const docs = getItemDocs(item) || {};
-    const critico = isItemCritico(item);
-    const emitidoEm = formatDateTime(new Date());
-    const descricaoTecnica = conclusao.descricaoBreve || registro.comentario || item.observacao || "-";
-    const obsExecucao = conclusao.observacaoExecucao || registro.observacaoExecucao || "-";
-    const resultadoLabel = RESULTADO_LABELS[conclusao.resultado || registro.resultado] || "-";
-
-    const procedimentosRows = procedimentosIds
-      .map((id) => {
+  const procedimentosRows = procedimentosIds
+    .map((id) => {
       const procedimento = getProcedimentoById(id);
       const codigo = procedimento ? String(procedimento.codigo || "").trim() : "";
       const nome = procedimento ? String(procedimento.nome || "").trim() : "";
@@ -44823,74 +44836,65 @@ function exportarSolicitacaoServico(item) {
       const doc = procedimento ? getProcedimentoPdfDoc(procedimento) : null;
       const docName = doc ? doc.originalName || doc.name || "PDF" : "-";
       const docUrl = doc && doc.url ? resolvePublicUrl(doc.url) : "";
-      const docCell = docUrl && !docUrl.startsWith("data:")
-        ? `<a href="${escapeHtml(docUrl)}" target="_blank" rel="noopener">Abrir PDF</a>`
-        : doc
-          ? "Anexo interno"
-          : "-";
+      const acao = docUrl
+        ? `<a href="${escapeHtml(docUrl)}" target="_blank" rel="noopener">Visualizar</a>`
+        : "-";
       return `
         <tr>
           <td>${escapeHtml(codigo || "-")}</td>
           <td>${escapeHtml(nome || label || "-")}</td>
           <td>${escapeHtml(docName || "-")}</td>
-          <td>${docCell}</td>
+          <td>${acao}</td>
         </tr>
       `;
-      })
-      .join("");
+    })
+    .join("");
 
-    const documentosRows = DOC_KEYS.map((key) => {
+  const documentosRows = DOC_KEYS.map((key) => {
     const labelRaw = key === "os" ? "SS" : DOC_LABELS[key] || key.toUpperCase();
     const doc = docs[key];
     const info = getSsDocInfo(doc, labelRaw);
     const status = key === "pt" && !critico ? "N/A" : doc ? "Anexado" : "Pendente";
-    let origem = "-";
-    if (info.hasLink) {
-      origem = `<a href="${escapeHtml(info.url)}" target="_blank" rel="noopener">Abrir</a>`;
-    } else if (info.embedded) {
-      origem = "Anexo interno";
-    } else if (doc) {
-      origem = "Anexo sem URL";
-    }
+    const acao = info.hasLink
+      ? `<a href="${escapeHtml(info.url)}" target="_blank" rel="noopener">Visualizar</a>`
+      : "-";
     return `
       <tr>
         <td>${escapeHtml(labelRaw)}</td>
         <td>${escapeHtml(status)}</td>
         <td>${escapeHtml(info.name || "-")}</td>
-        <td>${origem}</td>
+        <td>${acao}</td>
       </tr>
     `;
-    }).join("");
+  }).join("");
 
-    const evidencias = Array.isArray(conclusao.evidencias) ? conclusao.evidencias : [];
-    const evidenciasRows = evidencias.length
-      ? evidencias
-        .map((evidencia, index) => {
-        const name = String(evidencia.nome || `Evidencia ${index + 1}`).trim();
+  const evidencias = Array.isArray(conclusao.evidencias) ? conclusao.evidencias : [];
+  const evidenciasRows = evidencias.length
+    ? evidencias
+      .map((evidencia, index) => {
+        const name = String(evidencia.nome || `Evidência ${index + 1}`).trim();
         const type = String(evidencia.type || evidencia.mime || "-").trim();
         const rawUrl = String(evidencia.url || evidencia.dataUrl || "").trim();
         const url = rawUrl ? resolvePublicUrl(rawUrl) : "";
-        const origem = url && !url.startsWith("data:")
-          ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">Abrir</a>`
-          : url
-            ? "Anexo interno"
-            : "-";
+        const acao = url
+          ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">Visualizar</a>`
+          : "-";
         return `
           <tr>
             <td>${index + 1}</td>
             <td>${escapeHtml(name)}</td>
             <td>${escapeHtml(type || "-")}</td>
-            <td>${origem}</td>
+            <td>${acao}</td>
           </tr>
         `;
-        })
-        .join("")
-      : `<tr><td colspan="4">Sem evidencias registradas.</td></tr>`;
+      })
+      .join("")
+    : `<tr><td colspan="4">Sem evidências registradas.</td></tr>`;
 
-    const historico = sortHistoricoAsc(getHistoricoManutencaoCompleto(item));
-    const historicoRows = historico.length
-      ? historico
-        .map((entry) => {
+  const historico = sortHistoricoAsc(getHistoricoManutencaoCompleto(item));
+  const historicoRows = historico.length
+    ? historico
+      .map((entry) => {
         const when = parseTimestamp(entry.timestamp);
         const actionLabel = ACTION_LABELS[entry.action] || entry.action || "-";
         const userLabel = getUserLabel(entry.userId);
@@ -44903,42 +44907,49 @@ function exportarSolicitacaoServico(item) {
             <td>${escapeHtml(detalhes)}</td>
           </tr>
         `;
-        })
-        .join("")
-      : `<tr><td colspan="4">Sem historico registrado.</td></tr>`;
+      })
+      .join("")
+    : `<tr><td colspan="4">Sem histórico registrado.</td></tr>`;
 
-    const popupTitle = `SS ${String(ssNumero || item.id || "manutencao")
-      .replace(/[^\w\-]+/g, "_")
-      .slice(0, 64)}`;
+  const documentTitle = `SS-${String(ssNumero || item.id || "manutencao")
+    .replace(/[^\w\-]+/g, "_")
+    .slice(0, 64)}`;
 
-    popup.document.open();
-    popup.document.write(`
+  const html = `
     <!doctype html>
     <html lang="pt-BR">
       <head>
         <meta charset="utf-8" />
-        <title>${escapeHtml(popupTitle)}</title>
+        <title>${escapeHtml(documentTitle)}</title>
         <style>
-          body { font-family: Arial, sans-serif; margin: 20px; color: #1e293b; }
+          body { font-family: "Segoe UI", Arial, sans-serif; margin: 18px; color: #0f172a; }
           .doc { display: grid; gap: 14px; }
-          .head { border-bottom: 2px solid #cbd5e1; padding-bottom: 10px; display: grid; gap: 4px; }
-          .head h1 { margin: 0; font-size: 20px; }
-          .head p { margin: 0; color: #475569; font-size: 13px; }
+          .head { border-bottom: 2px solid #cbd5e1; padding-bottom: 10px; display: grid; gap: 8px; }
+          .head__logos { display: grid; grid-template-columns: 140px 1fr 140px; align-items: center; gap: 12px; }
+          .head__logos img { max-width: 120px; max-height: 44px; object-fit: contain; display: block; }
+          .head__logos .logo--left { justify-self: start; }
+          .head__logos .logo--right { justify-self: end; }
+          .head__title { text-align: center; }
+          .head__title h1 { margin: 0; font-size: 22px; letter-spacing: 0.04em; }
+          .head__title p { margin: 2px 0 0; font-size: 12px; color: #334155; }
+          .head__meta { margin: 0; color: #475569; font-size: 12px; }
           .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
           .cell { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; }
-          .cell span { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #64748b; }
+          .cell span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #64748b; }
           .cell strong { font-size: 13px; }
           h2 { margin: 0; font-size: 15px; }
           .block { border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px; }
-          p { margin: 0; font-size: 13px; line-height: 1.4; }
+          p { margin: 0; font-size: 13px; line-height: 1.45; }
           table { width: 100%; border-collapse: collapse; font-size: 12px; }
           th, td { border: 1px solid #cbd5e1; padding: 6px; text-align: left; vertical-align: top; }
           th { background: #f1f5f9; text-transform: uppercase; letter-spacing: .06em; font-size: 10px; }
           .muted { color: #64748b; }
           .signature { font-family: Consolas, monospace; font-size: 11px; word-break: break-all; }
+          a { color: #0c4a6e; text-decoration: none; font-weight: 600; }
+          a:hover { text-decoration: underline; }
           @media print {
-            body { margin: 10mm; }
-            .block, .cell { break-inside: avoid; page-break-inside: avoid; }
+            body { margin: 8mm; }
+            .block, .cell, .head { break-inside: avoid; page-break-inside: avoid; }
             table { page-break-inside: auto; }
             tr { page-break-inside: avoid; page-break-after: auto; }
           }
@@ -44947,20 +44958,27 @@ function exportarSolicitacaoServico(item) {
       <body>
         <div class="doc">
           <header class="head">
-            <h1>SS - Solicitacao de Servico</h1>
-            <p><strong>OPSCOPE</strong> | Emitido em ${escapeHtml(emitidoEm)}</p>
-            <p>Projeto: ${escapeHtml(projetoLabel)}</p>
+            <div class="head__logos">
+              <img class="logo--left" src="${escapeHtml(engelmigLogo)}" alt="Engelmig" />
+              <div class="head__title">
+                <h1>SS - Solicitação de Serviço</h1>
+                <p>Documento operacional para execução em campo</p>
+              </div>
+              <img class="logo--right" src="${escapeHtml(opscopeLogo)}" alt="OPSCOPE" />
+            </div>
+            <p class="head__meta"><strong>Projeto:</strong> ${escapeHtml(projetoLabel)}</p>
+            <p class="head__meta"><strong>Emitido em:</strong> ${escapeHtml(emitidoEm)}</p>
           </header>
 
           <section class="grid">
-            <div class="cell"><span>SS numero</span><strong>${escapeHtml(ssNumero)}</strong></div>
+            <div class="cell"><span>SS nº</span><strong>${escapeHtml(ssNumero)}</strong></div>
             <div class="cell"><span>Status</span><strong>${escapeHtml(statusLabel)}</strong></div>
             <div class="cell"><span>Data programada</span><strong>${escapeHtml(dataProgramada)}</strong></div>
             <div class="cell"><span>Resultado</span><strong>${escapeHtml(resultadoLabel)}</strong></div>
             <div class="cell"><span>Atividade</span><strong>${escapeHtml(titulo)}</strong></div>
             <div class="cell"><span>Local</span><strong>${escapeHtml(localLabel)}</strong></div>
             <div class="cell"><span>Equipamento</span><strong>${escapeHtml(equipamentoLabel)}</strong></div>
-            <div class="cell"><span>Sub-equipamentos</span><strong>${escapeHtml(
+            <div class="cell"><span>Subequipamentos</span><strong>${escapeHtml(
               subequipamentos.length ? subequipamentos.join(", ") : "-"
             )}</strong></div>
             <div class="cell"><span>Categoria</span><strong>${escapeHtml(item.categoria || "-")}</strong></div>
@@ -44971,13 +44989,13 @@ function exportarSolicitacaoServico(item) {
             <div class="cell"><span>Criada por</span><strong>${escapeHtml(
               getUserLabel(item.createdBy) || "-"
             )}</strong></div>
-            <div class="cell"><span>Inicio execucao</span><strong>${escapeHtml(
+            <div class="cell"><span>Início da execução</span><strong>${escapeHtml(
               inicioExec ? formatDateTime(inicioExec) : "-"
             )}</strong></div>
-            <div class="cell"><span>Fim execucao</span><strong>${escapeHtml(
+            <div class="cell"><span>Fim da execução</span><strong>${escapeHtml(
               fimExec ? formatDateTime(fimExec) : "-"
             )}</strong></div>
-            <div class="cell"><span>Responsaveis</span><strong>${escapeHtml(
+            <div class="cell"><span>Responsáveis</span><strong>${escapeHtml(
               responsaveis.length ? formatResponsavelLista(responsaveis) : "-"
             )}</strong></div>
             <div class="cell"><span>Participantes</span><strong>${escapeHtml(
@@ -44986,12 +45004,12 @@ function exportarSolicitacaoServico(item) {
           </section>
 
           <section class="block">
-            <h2>Descricao tecnica</h2>
+            <h2>Descrição técnica</h2>
             <p>${escapeHtml(descricaoTecnica)}</p>
           </section>
 
           <section class="block">
-            <h2>Observacao de execucao</h2>
+            <h2>Observações de execução</h2>
             <p>${escapeHtml(obsExecucao)}</p>
           </section>
 
@@ -45000,10 +45018,10 @@ function exportarSolicitacaoServico(item) {
             <table>
               <thead>
                 <tr>
-                  <th>Codigo</th>
+                  <th>Código</th>
                   <th>Nome</th>
-                  <th>PDF</th>
-                  <th>Arquivo</th>
+                  <th>Arquivo PDF</th>
+                  <th>Ação</th>
                 </tr>
               </thead>
               <tbody>
@@ -45016,14 +45034,14 @@ function exportarSolicitacaoServico(item) {
           </section>
 
           <section class="block">
-            <h2>Documentos de liberacao</h2>
+            <h2>Documentações da execução</h2>
             <table>
               <thead>
                 <tr>
                   <th>Documento</th>
                   <th>Status</th>
                   <th>Arquivo</th>
-                  <th>Origem</th>
+                  <th>Ação</th>
                 </tr>
               </thead>
               <tbody>
@@ -45033,14 +45051,14 @@ function exportarSolicitacaoServico(item) {
           </section>
 
           <section class="block">
-            <h2>Evidencias</h2>
+            <h2>Evidências</h2>
             <table>
               <thead>
                 <tr>
                   <th>#</th>
                   <th>Nome</th>
                   <th>Tipo</th>
-                  <th>Origem</th>
+                  <th>Ação</th>
                 </tr>
               </thead>
               <tbody>
@@ -45050,13 +45068,13 @@ function exportarSolicitacaoServico(item) {
           </section>
 
           <section class="block">
-            <h2>Historico rastreavel</h2>
+            <h2>Histórico rastreável</h2>
             <table>
               <thead>
                 <tr>
-                  <th>Data/Hora</th>
-                  <th>Acao</th>
-                  <th>Usuario</th>
+                  <th>Data e hora</th>
+                  <th>Ação</th>
+                  <th>Usuário</th>
                   <th>Detalhes</th>
                 </tr>
               </thead>
@@ -45069,7 +45087,7 @@ function exportarSolicitacaoServico(item) {
           <section class="block">
             <h2>Assinatura de encerramento</h2>
             <p><strong>Status:</strong> ${escapeHtml(assinaturaLabel)}</p>
-            <p class="muted"><strong>Usuario:</strong> ${escapeHtml(
+            <p class="muted"><strong>Usuário:</strong> ${escapeHtml(
               getUserLabel(conclusao.encerradoPor || item.doneBy) || "-"
             )}</p>
             <p class="muted"><strong>Confirmada em:</strong> ${escapeHtml(
@@ -45080,36 +45098,31 @@ function exportarSolicitacaoServico(item) {
         </div>
       </body>
     </html>
-    `);
-    popup.document.close();
-    popup.focus();
-    popup.print();
+  `;
+
+  return { html, title: documentTitle };
+}
+
+function abrirPreviewSolicitacaoServico(item) {
+  if (!item) {
+    return;
+  }
+  const { html } = buildSolicitacaoServicoDocument(item);
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const blobUrl = URL.createObjectURL(blob);
+  abrirPreview(blobUrl, blobUrl, { title: "Pré-visualização da SS" });
+}
+
+function exportarSolicitacaoServico(item) {
+  if (!item) {
+    return;
+  }
+  try {
+    abrirPreviewSolicitacaoServico(item);
   } catch (error) {
     const message = error && error.message ? error.message : String(error || "erro desconhecido");
     console.error("Falha ao exportar SS", error);
-    popup.document.open();
-    popup.document.write(`
-      <!doctype html>
-      <html lang="pt-BR">
-        <head>
-          <meta charset="utf-8" />
-          <title>Falha ao exportar SS</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 24px; color: #1f2937; }
-            h1 { font-size: 18px; margin-bottom: 8px; }
-            p { margin: 0 0 8px; }
-            code { background: #f3f4f6; padding: 2px 6px; border-radius: 6px; }
-          </style>
-        </head>
-        <body>
-          <h1>Não foi possível exportar a SS</h1>
-          <p>Detalhe técnico:</p>
-          <p><code>${escapeHtml(message)}</code></p>
-        </body>
-      </html>
-    `);
-    popup.document.close();
-    mostrarMensagemManutencao("Falha ao exportar SS. Veja o detalhe técnico na aba aberta.", true);
+    mostrarMensagemManutencao(`Falha ao exportar SS: ${message}`, true);
   }
 }
 
@@ -50285,6 +50298,16 @@ if (btnFecharHistorico) {
 }
 if (btnFecharPreview) {
   btnFecharPreview.addEventListener("click", fecharPreview);
+}
+if (btnImprimirPreview) {
+  btnImprimirPreview.addEventListener("click", () => {
+    if (!previewFrame || !previewFrame.contentWindow) {
+      return;
+    }
+    previewFrame.contentWindow.focus();
+    previewFrame.contentWindow.print();
+  });
+  btnImprimirPreview.disabled = true;
 }
 if (btnAbrirPreview) {
   btnAbrirPreview.addEventListener("click", () => {
