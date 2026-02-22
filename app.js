@@ -5725,10 +5725,20 @@ function addRecurrenceSuppression(templateId, dateStr) {
   if (!template || !date) {
     return;
   }
-  const key = `${template}|${date}`;
+  const projectRef = String(activeProjectId || "").trim();
+  const key = projectRef ? `${projectRef}|${template}|${date}` : `${template}|${date}`;
+  const legacyKey = `${template}|${date}`;
   const map = readRecurrenceSuppressions();
+  let changed = false;
   if (!map[key]) {
     map[key] = true;
+    changed = true;
+  }
+  if (!map[legacyKey]) {
+    map[legacyKey] = true;
+    changed = true;
+  }
+  if (changed) {
     writeRecurrenceSuppressions(map);
   }
 }
@@ -5741,7 +5751,10 @@ function removeRecurrenceSuppressionsByTemplate(templateId) {
   const map = readRecurrenceSuppressions();
   let changed = false;
   Object.keys(map).forEach((key) => {
-    if (key.startsWith(`${template}|`)) {
+    const parts = String(key || "").split("|");
+    const legacyMatch = parts.length === 2 && parts[0] === template;
+    const scopedMatch = parts.length === 3 && parts[1] === template;
+    if (legacyMatch || scopedMatch) {
       delete map[key];
       changed = true;
     }
@@ -29738,7 +29751,10 @@ function gerarManutencoesRecorrentes() {
   const existentes = new Set(
     manutencoes
       .filter((item) => item.templateId && item.data)
-      .map((item) => `${item.templateId}|${item.data}`)
+      .map((item) => {
+        const projectRef = String(item.projectId || activeProjectId || "").trim();
+        return `${projectRef}|${item.templateId}|${item.data}`;
+      })
   );
   const suppressions = readRecurrenceSuppressions();
 
@@ -29771,8 +29787,10 @@ function gerarManutencoesRecorrentes() {
         continue;
       }
       const dataStr = formatDateISO(atual);
-      const key = `${modelo.id}|${dataStr}`;
-      if (suppressions[key]) {
+      const projectRef = String(modelo.projectId || activeProjectId || "").trim();
+      const key = `${projectRef}|${modelo.id}|${dataStr}`;
+      const legacyKey = `${modelo.id}|${dataStr}`;
+      if (suppressions[key] || suppressions[legacyKey]) {
         continue;
       }
       if (existentes.has(key)) {
@@ -29797,6 +29815,7 @@ function gerarManutencoesRecorrentes() {
         : null;
       const nova = {
         id: criarId(),
+        projectId: projectRef,
         titulo: modelo.nome,
         local: modelo.subestacao,
         data: dataStr,
@@ -32093,6 +32112,18 @@ function closeAccessRoleModal() {
 
 function getActiveProject() {
   return availableProjects.find((project) => project.id === activeProjectId) || null;
+}
+
+function getProjectById(projectId) {
+  const id = String(projectId || "").trim();
+  if (!id) {
+    return null;
+  }
+  return (
+    availableProjects.find(
+      (project) => project && String(project.id || "").trim() === id
+    ) || null
+  );
 }
 
 function getProjectTeamName(projectId) {
