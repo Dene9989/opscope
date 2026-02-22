@@ -45362,6 +45362,7 @@ function buildSolicitacaoServicoDocument(item) {
           .doc-header__top { display: grid; grid-template-columns: 140px 1fr 140px; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid #d9e3f2; }
           .doc-header__top img { max-width: 116px; max-height: 42px; object-fit: contain; display: block; }
           .doc-header__top img.logo-opscope { max-width: 132px; max-height: 48px; }
+          .doc-header__top img.logo-engelmig { justify-self: end; margin-right: 4px; }
           .doc-header__title { text-align: center; }
           .doc-header__title h1 { margin: 0; font-size: 21px; letter-spacing: .02em; color: #0b1220; }
           .doc-header__title p { margin: 2px 0 0; font-size: 12px; color: #475569; }
@@ -45412,7 +45413,7 @@ function buildSolicitacaoServicoDocument(item) {
                 <h1>SS - Solicitação de Serviço de Manutenção</h1>
                 <p>Documento operacional para solicitação, planejamento e rastreabilidade da atividade</p>
               </div>
-              <img src="${escapeHtml(engelmigLogo)}" alt="Engelmig" />
+              <img class="logo-engelmig" src="${escapeHtml(engelmigLogo)}" alt="Engelmig" />
             </div>
             <div class="doc-header__bar">
               <span><strong>Projeto:</strong> ${escapeHtml(projetoLabel)}</span>
