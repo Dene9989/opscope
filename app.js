@@ -4665,6 +4665,7 @@ let idleLastActivityAt = 0;
 let idleDraftRestoreDoneFor = "";
 let idleDraftRestoreNotified = false;
 const ssEvidenceUrlCache = new Map();
+const ssEvidenceHeadCache = new Map();
 let auditHashChain = Promise.resolve("");
 let kpiDrilldown = null;
 let kpiSnapshot = null;
@@ -22390,12 +22391,42 @@ function isImageEvidence(evidencia) {
   if (!evidencia) {
     return false;
   }
-  const type = evidencia.type || evidencia.mime || "";
-  if (type && type.startsWith("image/")) {
+  if (typeof evidencia === "string") {
+    const raw = evidencia.trim();
+    if (!raw) {
+      return false;
+    }
+    if (raw.startsWith("data:image/")) {
+      return true;
+    }
+    return /\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?$/i.test(raw);
+  }
+  const type = String(evidencia.type || evidencia.mime || "").trim().toLowerCase();
+  if (type.startsWith("image/")) {
     return true;
   }
-  const dataUrl = evidencia.dataUrl || evidencia.url || "";
-  return dataUrl.startsWith("data:image/");
+  const dataUrl = String(
+    evidencia.dataUrl ||
+      evidencia.url ||
+      evidencia.path ||
+      evidencia.fileUrl ||
+      evidencia.src ||
+      ""
+  ).trim();
+  if (dataUrl.startsWith("data:image/")) {
+    return true;
+  }
+  if (/\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?$/i.test(dataUrl)) {
+    return true;
+  }
+  const name = String(
+    evidencia.nome ||
+      evidencia.name ||
+      evidencia.originalName ||
+      evidencia.fileName ||
+      ""
+  ).trim();
+  return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(name);
 }
 
 function blobToDataUrl(blob) {
@@ -39675,25 +39706,67 @@ async function atualizarSstDocStatus(status) {
   );
 }
 
-async function registrarSstDocumentacao(item, liberacao) {
-  if (!item || !liberacao || !liberacao.documentos) {
-    return;
+function getMaintenanceSstDocumentos(item, liberacao) {
+  const output = {};
+  const sources = [];
+  if (liberacao && liberacao.documentos && typeof liberacao.documentos === "object") {
+    sources.push(liberacao.documentos);
   }
-  const aprDoc = liberacao.documentos.apr || null;
-  if (!aprDoc) {
-    return;
+  if (item && item.documentos && typeof item.documentos === "object") {
+    sources.push(item.documentos);
   }
-  const attachments = [];
-  Object.keys(liberacao.documentos || {}).forEach((key) => {
-    if (key === "apr") {
-      return;
-    }
-    const doc = liberacao.documentos[key];
-    if (doc) {
-      attachments.push({ label: DOC_LABELS[key] || key.toUpperCase(), doc });
+  DOC_KEYS.forEach((key) => {
+    for (const source of sources) {
+      if (source && source[key]) {
+        output[key] = source[key];
+        break;
+      }
     }
   });
-  let responsavel = liberacao.liberadoPor || item.updatedBy || item.createdBy || "";
+  return output;
+}
+
+async function apiSstDocUpsertMaintenance(payload) {
+  return apiRequest("/api/sst/docs/upsert-maintenance", {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+function upsertSstDocInMemory(doc) {
+  const normalized = normalizeSstDoc(doc);
+  if (!normalized) {
+    return;
+  }
+  const index = sstDocs.findIndex((item) => String(item.id) === String(normalized.id));
+  if (index >= 0) {
+    sstDocs[index] = normalized;
+    return;
+  }
+  sstDocs.unshift(normalized);
+}
+
+async function registrarSstDocumentacao(item, liberacao) {
+  if (!item) {
+    return;
+  }
+  const documentos = getMaintenanceSstDocumentos(item, liberacao);
+  const docsEntries = DOC_KEYS.map((key) => {
+    const doc = documentos[key];
+    if (!doc) {
+      return null;
+    }
+    return { key, label: DOC_LABELS[key] || key.toUpperCase(), doc };
+  }).filter(Boolean);
+  if (!docsEntries.length) {
+    return;
+  }
+  const aprEntry = docsEntries.find((entry) => entry.key === "apr") || docsEntries[0];
+  const attachments = docsEntries
+    .filter((entry) => entry !== aprEntry)
+    .map((entry) => ({ label: entry.label, doc: entry.doc }));
+  const liberacaoBase = liberacao && typeof liberacao === "object" ? liberacao : {};
+  let responsavel = liberacaoBase.liberadoPor || item.updatedBy || item.createdBy || "";
   if (
     typeof responsavel === "string" &&
     (responsavel.startsWith("team:") || responsavel.startsWith("time:"))
@@ -39705,17 +39778,40 @@ async function registrarSstDocumentacao(item, liberacao) {
     activity: item.titulo || item.atividade || item.local || "Atividade",
     projectId: item.projectId || "",
     responsibleId: responsavel,
-    aprCode: liberacao.aprCode || "",
-    aprDoc,
+    aprCode: liberacaoBase.aprCode || liberacaoBase.osNumero || getMaintenanceOsReferencia(item) || "",
+    aprDoc: aprEntry ? aprEntry.doc : null,
     attachments,
     status: "PENDENTE",
-    createdAt: liberacao.liberadoEm || toIsoUtc(new Date()),
-    createdBy: liberacao.liberadoPor || (currentUser ? currentUser.id : ""),
-    source: "liberacao",
+    createdAt:
+      liberacaoBase.liberadoEm ||
+      item.executionStartedAt ||
+      item.updatedAt ||
+      toIsoUtc(new Date()),
+    createdBy:
+      liberacaoBase.liberadoPor ||
+      item.executionStartedBy ||
+      item.updatedBy ||
+      item.createdBy ||
+      (currentUser ? currentUser.id : ""),
+    source: liberacaoBase.liberadoEm ? "liberacao" : "execucao",
     relatedId: item.id || "",
   });
   if (!novo) {
     return;
+  }
+  if (USE_AUTH_API) {
+    try {
+      const data = await apiSstDocUpsertMaintenance(novo);
+      if (data && data.doc) {
+        upsertSstDocInMemory(data.doc);
+      }
+      if (currentUser && canViewSst(currentUser)) {
+        sstDocs = await dataProvider.sstDocs.list();
+      }
+      return;
+    } catch (error) {
+      // fallback local/provider abaixo
+    }
   }
   const result = await dataProvider.sstDocs.upsertByRelatedId(novo);
   sstDocs = result.list;
@@ -43490,7 +43586,7 @@ function fecharInicioExecucao() {
   }
 }
 
-function confirmarInicioExecucao() {
+async function confirmarInicioExecucao() {
   if (!requirePermission("complete")) {
     return;
   }
@@ -43548,6 +43644,11 @@ function confirmarInicioExecucao() {
     documentos: documentosLista,
     resumo: "Execução iniciada.",
   });
+  try {
+    await registrarSstDocumentacao(atualizado, liberacao);
+  } catch (error) {
+    console.warn("[sst-doc] Falha ao registrar documentação da execução.", error);
+  }
   renderTudo();
   fecharInicioExecucao();
   mostrarMensagemManutencao("Execução iniciada.");
@@ -45176,6 +45277,107 @@ function isLikelyEvidenceUrl(value) {
   return raw.includes("/uploads/files/");
 }
 
+function isLikelyFileId(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return false;
+  }
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(raw)) {
+    return true;
+  }
+  return /^[A-Za-z0-9_-]{12,}$/.test(raw);
+}
+
+function isLikelyImageFileName(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return false;
+  }
+  return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(raw);
+}
+
+function normalizeEvidenceFileName(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "";
+  }
+  const safe = raw.split("?")[0].split("#")[0];
+  const parts = safe.split(/[\\/]+/g).filter(Boolean);
+  return parts.length ? parts[parts.length - 1].trim() : "";
+}
+
+function getEvidenceFileId(evidencia) {
+  if (!evidencia) {
+    return "";
+  }
+  if (typeof evidencia === "string") {
+    return isLikelyFileId(evidencia) ? evidencia.trim() : "";
+  }
+  const direct = [
+    evidencia.fileId,
+    evidencia.uploadId,
+    evidencia.evidenceId,
+    evidencia.docId,
+  ];
+  for (const value of direct) {
+    const id = String(value || "").trim();
+    if (id) {
+      return id;
+    }
+  }
+  const objectId = String(evidencia.id || "").trim();
+  if (objectId && isLikelyFileId(objectId)) {
+    return objectId;
+  }
+  if (evidencia.file && typeof evidencia.file === "object") {
+    const nested = String(evidencia.file.id || evidencia.file.fileId || "").trim();
+    if (nested) {
+      return nested;
+    }
+  }
+  return "";
+}
+
+function getEvidenceFileName(evidencia) {
+  if (!evidencia) {
+    return "";
+  }
+  if (typeof evidencia === "string") {
+    const maybe = normalizeEvidenceFileName(evidencia);
+    return isLikelyImageFileName(maybe) ? maybe : "";
+  }
+  const keys = [
+    "nome",
+    "name",
+    "originalName",
+    "fileName",
+    "filename",
+    "path",
+    "filePath",
+    "url",
+    "fileUrl",
+    "downloadUrl",
+  ];
+  for (const key of keys) {
+    if (!Object.prototype.hasOwnProperty.call(evidencia, key)) {
+      continue;
+    }
+    const maybe = normalizeEvidenceFileName(evidencia[key]);
+    if (isLikelyImageFileName(maybe)) {
+      return maybe;
+    }
+  }
+  if (evidencia.file && typeof evidencia.file === "object") {
+    const nested = normalizeEvidenceFileName(
+      evidencia.file.name || evidencia.file.originalName || evidencia.file.fileName || evidencia.file.url
+    );
+    if (isLikelyImageFileName(nested)) {
+      return nested;
+    }
+  }
+  return "";
+}
+
 function collectEvidenceUrlCandidates(evidencia) {
   if (!evidencia) {
     return [];
@@ -45216,34 +45418,108 @@ function collectEvidenceUrlCandidates(evidencia) {
   return candidates;
 }
 
-async function resolveSsEvidenceUrl(evidencia) {
-  const candidates = collectEvidenceUrlCandidates(evidencia);
-  if (candidates.length) {
-    return resolvePublicUrl(candidates[0]);
+async function canLoadSsEvidenceUrl(url) {
+  const target = String(url || "").trim();
+  if (!target) {
+    return false;
   }
-  const fileId = String(
-    (evidencia &&
-      (evidencia.id || evidencia.fileId || evidencia.uploadId || evidencia.evidenceId || "")) ||
-      ""
-  ).trim();
-  if (!fileId) {
-    return "";
+  if (/^(data:|blob:)/i.test(target)) {
+    return true;
   }
-  if (ssEvidenceUrlCache.has(fileId)) {
-    return ssEvidenceUrlCache.get(fileId) || "";
+  if (ssEvidenceHeadCache.has(target)) {
+    return ssEvidenceHeadCache.get(target) === true;
   }
   try {
-    const data = await apiRequest(`/api/files/${encodeURIComponent(fileId)}`);
-    const rawUrl =
-      data && data.file && typeof data.file.url === "string" ? String(data.file.url).trim() : "";
-    const resolved = rawUrl ? resolvePublicUrl(rawUrl) : "";
-    if (resolved) {
-      ssEvidenceUrlCache.set(fileId, resolved);
-    }
-    return resolved;
+    const response = await fetch(target, {
+      method: "HEAD",
+      credentials: "include",
+      cache: "no-store",
+    });
+    const ok = Boolean(response && response.ok);
+    ssEvidenceHeadCache.set(target, ok);
+    return ok;
   } catch (error) {
-    return "";
+    ssEvidenceHeadCache.set(target, false);
+    return false;
   }
+}
+
+function dedupeEvidenceList(list) {
+  if (!Array.isArray(list) || !list.length) {
+    return [];
+  }
+  const output = [];
+  const seen = new Set();
+  list.forEach((evidencia) => {
+    if (!evidencia) {
+      return;
+    }
+    const fileId = getEvidenceFileId(evidencia);
+    const byUrl = collectEvidenceUrlCandidates(evidencia)[0] || "";
+    const byName = getEvidenceFileName(evidencia);
+    if (!fileId && !byUrl && !byName) {
+      output.push(evidencia);
+      return;
+    }
+    const key = `${fileId || ""}|${byUrl || ""}|${byName || ""}|${typeof evidencia}`;
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    output.push(evidencia);
+  });
+  return output;
+}
+
+async function resolveSsEvidenceUrl(evidencia) {
+  const candidates = collectEvidenceUrlCandidates(evidencia).map((url) => resolvePublicUrl(url));
+  const fileId = getEvidenceFileId(evidencia);
+  if (fileId) {
+    candidates.push(resolvePublicUrl(`/api/files/${encodeURIComponent(fileId)}/content`));
+    if (ssEvidenceUrlCache.has(fileId)) {
+      const cached = ssEvidenceUrlCache.get(fileId) || "";
+      if (cached) {
+        candidates.push(cached);
+      }
+    } else {
+      try {
+        const data = await apiRequest(`/api/files/${encodeURIComponent(fileId)}`);
+        const rawUrl =
+          data && data.file && typeof data.file.url === "string"
+            ? String(data.file.url).trim()
+            : "";
+        const resolved = rawUrl ? resolvePublicUrl(rawUrl) : "";
+        if (resolved) {
+          ssEvidenceUrlCache.set(fileId, resolved);
+          candidates.push(resolved);
+        }
+      } catch (error) {
+        // noop
+      }
+    }
+  }
+  const fileName = getEvidenceFileName(evidencia);
+  if (fileName) {
+    candidates.push(
+      resolvePublicUrl(`/uploads/files/evidencias/${encodeURIComponent(fileName)}`)
+    );
+  }
+  const ordered = [];
+  const unique = new Set();
+  candidates.forEach((url) => {
+    const target = String(url || "").trim();
+    if (!target || unique.has(target)) {
+      return;
+    }
+    unique.add(target);
+    ordered.push(target);
+  });
+  for (const candidate of ordered) {
+    if (await canLoadSsEvidenceUrl(candidate)) {
+      return candidate;
+    }
+  }
+  return ordered[0] || "";
 }
 
 function buildSsHistoricoDetalhes(entry) {
@@ -45387,7 +45663,7 @@ async function buildSolicitacaoServicoDocument(item) {
     `;
   }).join("");
 
-  const evidencias = Array.isArray(conclusao.evidencias) ? conclusao.evidencias : [];
+  const evidencias = dedupeEvidenceList(getMaintenanceEvidencias(item));
   const evidenciasRows = evidencias.length
     ? (
         await Promise.all(

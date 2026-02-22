@@ -1713,7 +1713,7 @@ async function fetchUploadBlobById(id) {
   }
   try {
     const result = await dbPool.query(
-      `SELECT id, name, mime, data FROM ${DB_UPLOADS_TABLE} WHERE id = $1`,
+      `SELECT id, name, mime, project_id, data FROM ${DB_UPLOADS_TABLE} WHERE id = $1`,
       [String(id)]
     );
     if (!result || !result.rowCount) {
@@ -1724,7 +1724,13 @@ async function fetchUploadBlobById(id) {
     if (!buffer) {
       return null;
     }
-    return { buffer, mime: row.mime || "", name: row.name || "", id: row.id || "" };
+    return {
+      buffer,
+      mime: row.mime || "",
+      name: row.name || "",
+      id: row.id || "",
+      projectId: row.project_id || "",
+    };
   } catch (error) {
     console.warn("[db] Falha ao buscar upload:", error.message || error);
     return null;
@@ -3719,6 +3725,23 @@ function canSyncMaintenance(user) {
     hasPermission(user, "reschedule") ||
     hasPermission(user, "complete") ||
     hasPermission(user, "remove")
+  );
+}
+
+function canUpsertSstDocFromMaintenance(user) {
+  if (!user) {
+    return false;
+  }
+  if (isMasterUser(user)) {
+    return true;
+  }
+  if (isFullAccessRole(user.rbacRole || user.role)) {
+    return true;
+  }
+  return (
+    hasGranularPermission(user, "gerenciarSST") ||
+    hasGranularPermission(user, "verSST") ||
+    canSyncMaintenance(user)
   );
 }
 
@@ -10644,6 +10667,95 @@ app.delete("/api/sst/vehicles/:id", requireAuth, requirePermission("gerenciarPro
   return res.json({ ok: true, vehicle: updated });
 });
 
+app.post(
+  "/api/sst/docs/upsert-maintenance",
+  requireAuth,
+  requireStorageWritable,
+  (req, res) => {
+    const user = req.currentUser || getSessionUser(req);
+    if (!canUpsertSstDocFromMaintenance(user)) {
+      return res.status(403).json({ message: "Nao autorizado." });
+    }
+    const payload = req.body && typeof req.body === "object" ? req.body : {};
+    const projectId = String(payload.projectId || "").trim();
+    const relatedId = String(payload.relatedId || payload.maintenanceId || "").trim();
+    if (!projectId) {
+      return res.status(400).json({ message: "Projeto obrigatorio." });
+    }
+    if (!relatedId) {
+      return res.status(400).json({ message: "relatedId obrigatorio." });
+    }
+    if (!userHasProjectAccess(user, projectId)) {
+      return res.status(403).json({ message: "Nao autorizado." });
+    }
+    const nowIso = new Date().toISOString();
+    const prepared = normalizeSstDoc({
+      ...payload,
+      projectId,
+      relatedId,
+      status: "PENDENTE",
+      reviewedAt: "",
+      reviewedBy: "",
+      reviewNotes: "",
+      correctionInstructions: "",
+      notifiedAt: "",
+      createdBy: payload.createdBy || (user ? user.id : ""),
+      createdAt: payload.createdAt || nowIso,
+      updatedAt: nowIso,
+      source: payload.source || "liberacao",
+    });
+    if (!prepared) {
+      return res.status(400).json({ message: "Documentacao invalida." });
+    }
+    let mode = "created";
+    const index = sstDocs.findIndex(
+      (item) =>
+        item &&
+        String(item.relatedId || "") === relatedId &&
+        String(item.projectId || "") === projectId
+    );
+    let record = prepared;
+    if (index >= 0) {
+      const current = sstDocs[index];
+      const updated = normalizeSstDoc({
+        ...current,
+        ...prepared,
+        id: current.id,
+        projectId: current.projectId,
+        relatedId: current.relatedId || relatedId,
+        createdAt: current.createdAt,
+        createdBy: current.createdBy,
+        status: "PENDENTE",
+        reviewedAt: "",
+        reviewedBy: "",
+        reviewNotes: "",
+        correctionInstructions: "",
+        notifiedAt: "",
+        updatedAt: nowIso,
+      });
+      if (!updated) {
+        return res.status(400).json({ message: "Documentacao invalida." });
+      }
+      record = updated;
+      sstDocs[index] = updated;
+      mode = "updated";
+    } else {
+      sstDocs = sstDocs.concat(record);
+    }
+    saveSstDocs(sstDocs);
+    touchCompat("sstDocs", projectId);
+    appendAudit(
+      "sst_doc_upsert_maintenance",
+      user ? user.id : null,
+      { docId: record.id, projectId, relatedId, mode },
+      getClientIp(req),
+      projectId
+    );
+    broadcastSse("sst.docs.updated", { projectId, mode, relatedId, docId: record.id });
+    return res.json({ doc: record, mode });
+  }
+);
+
 app.get("/api/sst/docs", requireAuth, requirePermission("verSST"), (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   const projectId = String(req.query.projectId || "").trim();
@@ -11907,6 +12019,48 @@ app.get("/api/files/:id", requireAuth, (req, res) => {
       projectId: file.projectId || "",
     },
   });
+});
+
+app.get("/api/files/:id/content", requireAuth, async (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const fileId = String(req.params.id || "").trim();
+  if (!fileId) {
+    return res.status(400).json({ message: "Arquivo inválido." });
+  }
+  const file = Array.isArray(filesMeta)
+    ? filesMeta.find((item) => item && String(item.id || "") === fileId)
+    : null;
+  if (file && file.projectId && !userHasProjectAccess(user, file.projectId)) {
+    return res.status(403).json({ message: "Não autorizado." });
+  }
+  const blob = await fetchUploadBlobById(fileId);
+  if (!file && blob && blob.projectId && !userHasProjectAccess(user, blob.projectId)) {
+    return res.status(403).json({ message: "Não autorizado." });
+  }
+  if (blob && blob.buffer) {
+    const fileName = file && file.name ? file.name : blob.name || `arquivo-${fileId}`;
+    const mime = (file && file.mime) || blob.mime || "application/octet-stream";
+    res.setHeader("Content-Type", mime);
+    res.setHeader("Content-Length", blob.buffer.length);
+    res.setHeader("Content-Disposition", `inline; filename="${path.basename(fileName)}"`);
+    return res.end(blob.buffer);
+  }
+  if (!file) {
+    return res.status(404).json({ message: "Arquivo não encontrado." });
+  }
+  const typeConfig = getFileTypeConfig(file.type);
+  if (!typeConfig) {
+    return res.status(404).json({ message: "Arquivo não encontrado." });
+  }
+  const filePath = path.join(FILES_DIR, typeConfig.dir, file.name);
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+  const legacyPath = path.join(LEGACY_UPLOADS_DIR, "files", typeConfig.dir, file.name);
+  if (fs.existsSync(legacyPath)) {
+    return res.sendFile(legacyPath);
+  }
+  return res.status(404).json({ message: "Arquivo não encontrado." });
 });
 
 app.post(
