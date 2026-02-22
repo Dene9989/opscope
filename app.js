@@ -17678,6 +17678,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
   }
   if (permite("history")) {
     actions.append(criarBotaoAcao("Histórico", "history"));
+    actions.append(criarBotaoAcao("Exportar SS", "export_ss"));
   }
 
   const podeExcluir = canDeleteMaintenance(currentUser);
@@ -44630,6 +44631,427 @@ function exportarHistoricoPdf(item) {
   popup.print();
 }
 
+function getMaintenanceSsReferencia(item) {
+  if (!item || typeof item !== "object") {
+    return "-";
+  }
+  const liberacao = getLiberacao(item) || {};
+  const conclusao = item.conclusao || {};
+  return (
+    conclusao.referencia ||
+    conclusao.osNumero ||
+    liberacao.osNumero ||
+    item.osReferencia ||
+    item.id ||
+    "-"
+  );
+}
+
+function getSsDocInfo(doc, fallbackLabel = "Arquivo") {
+  if (!doc) {
+    return {
+      name: fallbackLabel,
+      url: "",
+      hasLink: false,
+      embedded: false,
+    };
+  }
+  if (typeof doc === "string") {
+    const raw = doc.trim();
+    const url = raw ? resolvePublicUrl(raw) : "";
+    return {
+      name: fallbackLabel,
+      url,
+      hasLink: Boolean(url && !url.startsWith("data:")),
+      embedded: Boolean(url && url.startsWith("data:")),
+    };
+  }
+  const name =
+    String(doc.originalName || doc.name || doc.fileName || fallbackLabel || "Arquivo").trim() ||
+    fallbackLabel;
+  const rawUrl = String(doc.url || doc.dataUrl || doc.path || "").trim();
+  const url = rawUrl ? resolvePublicUrl(rawUrl) : "";
+  return {
+    name,
+    url,
+    hasLink: Boolean(url && !url.startsWith("data:")),
+    embedded: Boolean(url && url.startsWith("data:")),
+  };
+}
+
+function buildSsHistoricoDetalhes(entry) {
+  if (!entry || !entry.detalhes || typeof entry.detalhes !== "object") {
+    return "-";
+  }
+  const detalhes = entry.detalhes;
+  const linhas = [];
+  if (detalhes.dataAnterior || detalhes.dataNova) {
+    const de = detalhes.dataAnterior ? formatDataCurta(detalhes.dataAnterior) : "-";
+    const para = detalhes.dataNova ? formatDataCurta(detalhes.dataNova) : "-";
+    linhas.push(`Data: ${de} -> ${para}`);
+  }
+  if (detalhes.motivo) {
+    linhas.push(`Motivo: ${detalhes.motivo}`);
+  }
+  if (detalhes.observacao) {
+    linhas.push(`Obs: ${detalhes.observacao}`);
+  }
+  if (detalhes.osNumero) {
+    linhas.push(`SS: ${detalhes.osNumero}`);
+  }
+  if (detalhes.referencia) {
+    linhas.push(`Referencia: ${detalhes.referencia}`);
+  }
+  if (detalhes.resultado) {
+    const resultadoLabel = RESULTADO_LABELS[detalhes.resultado] || detalhes.resultado;
+    linhas.push(`Resultado: ${resultadoLabel}`);
+  }
+  if (detalhes.participantes) {
+    const participantesTexto = Array.isArray(detalhes.participantes)
+      ? getParticipantesLabel(detalhes.participantes)
+      : String(detalhes.participantes || "");
+    if (participantesTexto) {
+      linhas.push(`Participantes: ${participantesTexto}`);
+    }
+  }
+  if (detalhes.documentos) {
+    const docsTexto = Array.isArray(detalhes.documentos)
+      ? detalhes.documentos.join(", ")
+      : Object.keys(detalhes.documentos).join(", ");
+    if (docsTexto) {
+      linhas.push(`Documentos: ${docsTexto}`);
+    }
+  }
+  if (detalhes.inicioExecucao) {
+    linhas.push(`Inicio: ${formatHistoricoData(detalhes.inicioExecucao)}`);
+  }
+  if (detalhes.fimExecucao) {
+    linhas.push(`Fim: ${formatHistoricoData(detalhes.fimExecucao)}`);
+  }
+  if (detalhes.resumo) {
+    linhas.push(String(detalhes.resumo));
+  }
+  return linhas.length ? linhas.join(" | ") : "-";
+}
+
+function exportarSolicitacaoServico(item) {
+  if (!item) {
+    return;
+  }
+  const popup = window.open("", "_blank");
+  if (!popup) {
+    mostrarMensagemManutencao("Popup bloqueado. Permita popups para exportar a SS.", true);
+    return;
+  }
+
+  const projeto = getProjectById(item.projectId);
+  const liberacao = getLiberacao(item) || {};
+  const conclusao = item.conclusao || {};
+  const registro = item.registroExecucao || {};
+  const statusKey = normalizeMaintenanceStatus(item.status);
+  const statusLabel = STATUS_LABELS[statusKey] || item.status || "-";
+  const ssNumero = getMaintenanceSsReferencia(item);
+  const titulo = item.titulo || "-";
+  const projetoLabel = projeto
+    ? `${projeto.codigo || "-"} - ${projeto.nome || "-"}`
+    : item.projectId || "-";
+  const localLabel = item.local || "-";
+  const equipamentoLabel = getMaintenanceEquipamentoLabel(item) || "-";
+  const subequipamentos = getMaintenanceSubequipamentos(item);
+  const procedimentosIds = getMaintenanceProcedimentoIds(item);
+  const responsaveis = getMaintenanceResponsibleLabels(item);
+  const participantes = conclusao.participantes || liberacao.participantes || item.participantes || [];
+  const dataProgramada = item.data ? formatDate(parseDate(item.data)) : "-";
+  const criadaEm = parseTimestamp(item.createdAt || item.abertaEm);
+  const inicioExec = parseTimestamp(
+    conclusao.inicio || item.executionStartedAt || item.inicioExecucao || registro.inicio
+  );
+  const fimExec = parseTimestamp(
+    conclusao.fim || item.executionFinishedAt || item.doneAt || registro.fim
+  );
+  const assinatura = conclusao.assinatura || null;
+  const assinaturaLabel = assinatura && assinatura.hash ? "Validada" : "Nao registrada";
+  const assinaturaHash = assinatura && assinatura.hash ? String(assinatura.hash) : "";
+  const assinaturaConfirmedAt =
+    assinatura && assinatura.confirmedAt ? parseTimestamp(assinatura.confirmedAt) : null;
+  const docs = getItemDocs(item) || {};
+  const critico = isItemCritico(item);
+  const emitidoEm = formatDateTime(new Date());
+  const descricaoTecnica = conclusao.descricaoBreve || registro.comentario || item.observacao || "-";
+  const obsExecucao = conclusao.observacaoExecucao || registro.observacaoExecucao || "-";
+  const resultadoLabel = RESULTADO_LABELS[conclusao.resultado || registro.resultado] || "-";
+
+  const procedimentosRows = procedimentosIds
+    .map((id) => {
+      const procedimento = getProcedimentoById(id);
+      const codigo = procedimento ? String(procedimento.codigo || "").trim() : "";
+      const nome = procedimento ? String(procedimento.nome || "").trim() : "";
+      const label = procedimento ? getProcedimentoLabel(procedimento) : id;
+      const doc = procedimento ? getProcedimentoPdfDoc(procedimento) : null;
+      const docName = doc ? doc.originalName || doc.name || "PDF" : "-";
+      const docUrl = doc && doc.url ? resolvePublicUrl(doc.url) : "";
+      const docCell = docUrl && !docUrl.startsWith("data:")
+        ? `<a href="${escapeHtml(docUrl)}" target="_blank" rel="noopener">Abrir PDF</a>`
+        : doc
+          ? "Anexo interno"
+          : "-";
+      return `
+        <tr>
+          <td>${escapeHtml(codigo || "-")}</td>
+          <td>${escapeHtml(nome || label || "-")}</td>
+          <td>${escapeHtml(docName || "-")}</td>
+          <td>${docCell}</td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  const documentosRows = DOC_KEYS.map((key) => {
+    const labelRaw = key === "os" ? "SS" : DOC_LABELS[key] || key.toUpperCase();
+    const doc = docs[key];
+    const info = getSsDocInfo(doc, labelRaw);
+    const status = key === "pt" && !critico ? "N/A" : doc ? "Anexado" : "Pendente";
+    let origem = "-";
+    if (info.hasLink) {
+      origem = `<a href="${escapeHtml(info.url)}" target="_blank" rel="noopener">Abrir</a>`;
+    } else if (info.embedded) {
+      origem = "Anexo interno";
+    } else if (doc) {
+      origem = "Anexo sem URL";
+    }
+    return `
+      <tr>
+        <td>${escapeHtml(labelRaw)}</td>
+        <td>${escapeHtml(status)}</td>
+        <td>${escapeHtml(info.name || "-")}</td>
+        <td>${origem}</td>
+      </tr>
+    `;
+  }).join("");
+
+  const evidencias = Array.isArray(conclusao.evidencias) ? conclusao.evidencias : [];
+  const evidenciasRows = evidencias.length
+    ? evidencias
+      .map((evidencia, index) => {
+        const name = String(evidencia.nome || `Evidencia ${index + 1}`).trim();
+        const type = String(evidencia.type || evidencia.mime || "-").trim();
+        const rawUrl = String(evidencia.url || evidencia.dataUrl || "").trim();
+        const url = rawUrl ? resolvePublicUrl(rawUrl) : "";
+        const origem = url && !url.startsWith("data:")
+          ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">Abrir</a>`
+          : url
+            ? "Anexo interno"
+            : "-";
+        return `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${escapeHtml(name)}</td>
+            <td>${escapeHtml(type || "-")}</td>
+            <td>${origem}</td>
+          </tr>
+        `;
+      })
+      .join("")
+    : `<tr><td colspan="4">Sem evidencias registradas.</td></tr>`;
+
+  const historico = sortHistoricoAsc(getHistoricoManutencaoCompleto(item));
+  const historicoRows = historico.length
+    ? historico
+      .map((entry) => {
+        const when = parseTimestamp(entry.timestamp);
+        const actionLabel = ACTION_LABELS[entry.action] || entry.action || "-";
+        const userLabel = getUserLabel(entry.userId);
+        const detalhes = buildSsHistoricoDetalhes(entry);
+        return `
+          <tr>
+            <td>${escapeHtml(when ? formatDateTime(when) : "-")}</td>
+            <td>${escapeHtml(actionLabel)}</td>
+            <td>${escapeHtml(userLabel || "-")}</td>
+            <td>${escapeHtml(detalhes)}</td>
+          </tr>
+        `;
+      })
+      .join("")
+    : `<tr><td colspan="4">Sem historico registrado.</td></tr>`;
+
+  const popupTitle = `SS ${String(ssNumero || item.id || "manutencao")
+    .replace(/[^\w\-]+/g, "_")
+    .slice(0, 64)}`;
+
+  popup.document.write(`
+    <!doctype html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="utf-8" />
+        <title>${escapeHtml(popupTitle)}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; color: #1e293b; }
+          .doc { display: grid; gap: 14px; }
+          .head { border-bottom: 2px solid #cbd5e1; padding-bottom: 10px; display: grid; gap: 4px; }
+          .head h1 { margin: 0; font-size: 20px; }
+          .head p { margin: 0; color: #475569; font-size: 13px; }
+          .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+          .cell { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; }
+          .cell span { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #64748b; }
+          .cell strong { font-size: 13px; }
+          h2 { margin: 0; font-size: 15px; }
+          .block { border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px; }
+          p { margin: 0; font-size: 13px; line-height: 1.4; }
+          table { width: 100%; border-collapse: collapse; font-size: 12px; }
+          th, td { border: 1px solid #cbd5e1; padding: 6px; text-align: left; vertical-align: top; }
+          th { background: #f1f5f9; text-transform: uppercase; letter-spacing: .06em; font-size: 10px; }
+          .muted { color: #64748b; }
+          .signature { font-family: Consolas, monospace; font-size: 11px; word-break: break-all; }
+          @media print {
+            body { margin: 10mm; }
+            .block, .cell { break-inside: avoid; page-break-inside: avoid; }
+            table { page-break-inside: auto; }
+            tr { page-break-inside: avoid; page-break-after: auto; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="doc">
+          <header class="head">
+            <h1>SS - Solicitacao de Servico</h1>
+            <p><strong>OPSCOPE</strong> | Emitido em ${escapeHtml(emitidoEm)}</p>
+            <p>Projeto: ${escapeHtml(projetoLabel)}</p>
+          </header>
+
+          <section class="grid">
+            <div class="cell"><span>SS numero</span><strong>${escapeHtml(ssNumero)}</strong></div>
+            <div class="cell"><span>Status</span><strong>${escapeHtml(statusLabel)}</strong></div>
+            <div class="cell"><span>Data programada</span><strong>${escapeHtml(dataProgramada)}</strong></div>
+            <div class="cell"><span>Resultado</span><strong>${escapeHtml(resultadoLabel)}</strong></div>
+            <div class="cell"><span>Atividade</span><strong>${escapeHtml(titulo)}</strong></div>
+            <div class="cell"><span>Local</span><strong>${escapeHtml(localLabel)}</strong></div>
+            <div class="cell"><span>Equipamento</span><strong>${escapeHtml(equipamentoLabel)}</strong></div>
+            <div class="cell"><span>Sub-equipamentos</span><strong>${escapeHtml(
+              subequipamentos.length ? subequipamentos.join(", ") : "-"
+            )}</strong></div>
+            <div class="cell"><span>Categoria</span><strong>${escapeHtml(item.categoria || "-")}</strong></div>
+            <div class="cell"><span>Prioridade</span><strong>${escapeHtml(item.prioridade || "-")}</strong></div>
+            <div class="cell"><span>Criada em</span><strong>${escapeHtml(
+              criadaEm ? formatDateTime(criadaEm) : "-"
+            )}</strong></div>
+            <div class="cell"><span>Criada por</span><strong>${escapeHtml(
+              getUserLabel(item.createdBy) || "-"
+            )}</strong></div>
+            <div class="cell"><span>Inicio execucao</span><strong>${escapeHtml(
+              inicioExec ? formatDateTime(inicioExec) : "-"
+            )}</strong></div>
+            <div class="cell"><span>Fim execucao</span><strong>${escapeHtml(
+              fimExec ? formatDateTime(fimExec) : "-"
+            )}</strong></div>
+            <div class="cell"><span>Responsaveis</span><strong>${escapeHtml(
+              responsaveis.length ? formatResponsavelLista(responsaveis) : "-"
+            )}</strong></div>
+            <div class="cell"><span>Participantes</span><strong>${escapeHtml(
+              getParticipantesLabel(participantes) || "-"
+            )}</strong></div>
+          </section>
+
+          <section class="block">
+            <h2>Descricao tecnica</h2>
+            <p>${escapeHtml(descricaoTecnica)}</p>
+          </section>
+
+          <section class="block">
+            <h2>Observacao de execucao</h2>
+            <p>${escapeHtml(obsExecucao)}</p>
+          </section>
+
+          <section class="block">
+            <h2>Procedimentos vinculados</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Codigo</th>
+                  <th>Nome</th>
+                  <th>PDF</th>
+                  <th>Arquivo</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${
+                  procedimentosRows ||
+                  '<tr><td colspan="4">Nenhum procedimento vinculado.</td></tr>'
+                }
+              </tbody>
+            </table>
+          </section>
+
+          <section class="block">
+            <h2>Documentos de liberacao</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Documento</th>
+                  <th>Status</th>
+                  <th>Arquivo</th>
+                  <th>Origem</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${documentosRows}
+              </tbody>
+            </table>
+          </section>
+
+          <section class="block">
+            <h2>Evidencias</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Nome</th>
+                  <th>Tipo</th>
+                  <th>Origem</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${evidenciasRows}
+              </tbody>
+            </table>
+          </section>
+
+          <section class="block">
+            <h2>Historico rastreavel</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Data/Hora</th>
+                  <th>Acao</th>
+                  <th>Usuario</th>
+                  <th>Detalhes</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${historicoRows}
+              </tbody>
+            </table>
+          </section>
+
+          <section class="block">
+            <h2>Assinatura de encerramento</h2>
+            <p><strong>Status:</strong> ${escapeHtml(assinaturaLabel)}</p>
+            <p class="muted"><strong>Usuario:</strong> ${escapeHtml(
+              getUserLabel(conclusao.encerradoPor || item.doneBy) || "-"
+            )}</p>
+            <p class="muted"><strong>Confirmada em:</strong> ${escapeHtml(
+              assinaturaConfirmedAt ? formatDateTime(assinaturaConfirmedAt) : "-"
+            )}</p>
+            <p class="signature"><strong>Hash:</strong> ${escapeHtml(assinaturaHash || "-")}</p>
+          </section>
+        </div>
+      </body>
+    </html>
+  `);
+  popup.document.close();
+  popup.focus();
+  popup.print();
+}
+
 function getConclusaoInicioDate() {
   if (!conclusaoInicio) {
     return null;
@@ -45570,7 +45992,12 @@ function agirNaManutencao(event) {
   }
 
   const acao = botao.dataset.action;
-  if (isPrazoMaximoExpirado(manutencoes[index]) && acao !== "history" && acao !== "revalidate") {
+  if (
+    isPrazoMaximoExpirado(manutencoes[index]) &&
+    acao !== "history" &&
+    acao !== "revalidate" &&
+    acao !== "export_ss"
+  ) {
     mostrarMensagemManutencao(getPrazoExpiradoMensagem(manutencoes[index]), true);
     return;
   }
@@ -45609,6 +46036,9 @@ function agirNaManutencao(event) {
   }
   if (acao === "history") {
     abrirHistorico(manutencoes[index]);
+  }
+  if (acao === "export_ss") {
+    exportarSolicitacaoServico(manutencoes[index]);
   }
   if (acao === "remove") {
     removerManutencao(index);
