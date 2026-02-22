@@ -29727,7 +29727,7 @@ async function duplicarPmpPlano() {
 }
 
 function gerarManutencoesRecorrentes() {
-  if (USE_AUTH_API) {
+  if (USE_AUTH_API && (!currentUser || !activeProjectId)) {
     return false;
   }
   if (!templates.length) {
@@ -44743,46 +44743,48 @@ function exportarSolicitacaoServico(item) {
     mostrarMensagemManutencao("Popup bloqueado. Permita popups para exportar a SS.", true);
     return;
   }
+  try {
 
-  const projeto = getProjectById(item.projectId);
-  const liberacao = getLiberacao(item) || {};
-  const conclusao = item.conclusao || {};
-  const registro = item.registroExecucao || {};
-  const statusKey = normalizeMaintenanceStatus(item.status);
-  const statusLabel = STATUS_LABELS[statusKey] || item.status || "-";
-  const ssNumero = getMaintenanceSsReferencia(item);
-  const titulo = item.titulo || "-";
-  const projetoLabel = projeto
-    ? `${projeto.codigo || "-"} - ${projeto.nome || "-"}`
-    : item.projectId || "-";
-  const localLabel = item.local || "-";
-  const equipamentoLabel = getMaintenanceEquipamentoLabel(item) || "-";
-  const subequipamentos = getMaintenanceSubequipamentos(item);
-  const procedimentosIds = getMaintenanceProcedimentoIds(item);
-  const responsaveis = getMaintenanceResponsibleLabels(item);
-  const participantes = conclusao.participantes || liberacao.participantes || item.participantes || [];
-  const dataProgramada = item.data ? formatDate(parseDate(item.data)) : "-";
-  const criadaEm = parseTimestamp(item.createdAt || item.abertaEm);
-  const inicioExec = parseTimestamp(
-    conclusao.inicio || item.executionStartedAt || item.inicioExecucao || registro.inicio
-  );
-  const fimExec = parseTimestamp(
-    conclusao.fim || item.executionFinishedAt || item.doneAt || registro.fim
-  );
-  const assinatura = conclusao.assinatura || null;
-  const assinaturaLabel = assinatura && assinatura.hash ? "Validada" : "Nao registrada";
-  const assinaturaHash = assinatura && assinatura.hash ? String(assinatura.hash) : "";
-  const assinaturaConfirmedAt =
-    assinatura && assinatura.confirmedAt ? parseTimestamp(assinatura.confirmedAt) : null;
-  const docs = getItemDocs(item) || {};
-  const critico = isItemCritico(item);
-  const emitidoEm = formatDateTime(new Date());
-  const descricaoTecnica = conclusao.descricaoBreve || registro.comentario || item.observacao || "-";
-  const obsExecucao = conclusao.observacaoExecucao || registro.observacaoExecucao || "-";
-  const resultadoLabel = RESULTADO_LABELS[conclusao.resultado || registro.resultado] || "-";
+    const projeto = getProjectById(item.projectId);
+    const liberacao = getLiberacao(item) || {};
+    const conclusao = item.conclusao || {};
+    const registro = item.registroExecucao || {};
+    const statusKey = normalizeMaintenanceStatus(item.status);
+    const statusLabel = STATUS_LABELS[statusKey] || item.status || "-";
+    const ssNumero = getMaintenanceSsReferencia(item);
+    const titulo = item.titulo || "-";
+    const projetoLabel = projeto
+      ? `${projeto.codigo || "-"} - ${projeto.nome || "-"}`
+      : item.projectId || "-";
+    const localLabel = item.local || "-";
+    const equipamentoLabel = getMaintenanceEquipamentoLabel(item) || "-";
+    const subequipamentos = getMaintenanceSubequipamentos(item);
+    const procedimentosIds = getMaintenanceProcedimentoIds(item);
+    const responsaveis = getMaintenanceResponsibleLabels(item);
+    const participantes = conclusao.participantes || liberacao.participantes || item.participantes || [];
+    const dataProgramadaDate = item.data ? parseDate(item.data) : null;
+    const dataProgramada = dataProgramadaDate ? formatDate(dataProgramadaDate) : "-";
+    const criadaEm = parseTimestamp(item.createdAt || item.abertaEm);
+    const inicioExec = parseTimestamp(
+      conclusao.inicio || item.executionStartedAt || item.inicioExecucao || registro.inicio
+    );
+    const fimExec = parseTimestamp(
+      conclusao.fim || item.executionFinishedAt || item.doneAt || registro.fim
+    );
+    const assinatura = conclusao.assinatura || null;
+    const assinaturaLabel = assinatura && assinatura.hash ? "Validada" : "Nao registrada";
+    const assinaturaHash = assinatura && assinatura.hash ? String(assinatura.hash) : "";
+    const assinaturaConfirmedAt =
+      assinatura && assinatura.confirmedAt ? parseTimestamp(assinatura.confirmedAt) : null;
+    const docs = getItemDocs(item) || {};
+    const critico = isItemCritico(item);
+    const emitidoEm = formatDateTime(new Date());
+    const descricaoTecnica = conclusao.descricaoBreve || registro.comentario || item.observacao || "-";
+    const obsExecucao = conclusao.observacaoExecucao || registro.observacaoExecucao || "-";
+    const resultadoLabel = RESULTADO_LABELS[conclusao.resultado || registro.resultado] || "-";
 
-  const procedimentosRows = procedimentosIds
-    .map((id) => {
+    const procedimentosRows = procedimentosIds
+      .map((id) => {
       const procedimento = getProcedimentoById(id);
       const codigo = procedimento ? String(procedimento.codigo || "").trim() : "";
       const nome = procedimento ? String(procedimento.nome || "").trim() : "";
@@ -44803,10 +44805,10 @@ function exportarSolicitacaoServico(item) {
           <td>${docCell}</td>
         </tr>
       `;
-    })
-    .join("");
+      })
+      .join("");
 
-  const documentosRows = DOC_KEYS.map((key) => {
+    const documentosRows = DOC_KEYS.map((key) => {
     const labelRaw = key === "os" ? "SS" : DOC_LABELS[key] || key.toUpperCase();
     const doc = docs[key];
     const info = getSsDocInfo(doc, labelRaw);
@@ -44827,12 +44829,12 @@ function exportarSolicitacaoServico(item) {
         <td>${origem}</td>
       </tr>
     `;
-  }).join("");
+    }).join("");
 
-  const evidencias = Array.isArray(conclusao.evidencias) ? conclusao.evidencias : [];
-  const evidenciasRows = evidencias.length
-    ? evidencias
-      .map((evidencia, index) => {
+    const evidencias = Array.isArray(conclusao.evidencias) ? conclusao.evidencias : [];
+    const evidenciasRows = evidencias.length
+      ? evidencias
+        .map((evidencia, index) => {
         const name = String(evidencia.nome || `Evidencia ${index + 1}`).trim();
         const type = String(evidencia.type || evidencia.mime || "-").trim();
         const rawUrl = String(evidencia.url || evidencia.dataUrl || "").trim();
@@ -44850,14 +44852,14 @@ function exportarSolicitacaoServico(item) {
             <td>${origem}</td>
           </tr>
         `;
-      })
-      .join("")
-    : `<tr><td colspan="4">Sem evidencias registradas.</td></tr>`;
+        })
+        .join("")
+      : `<tr><td colspan="4">Sem evidencias registradas.</td></tr>`;
 
-  const historico = sortHistoricoAsc(getHistoricoManutencaoCompleto(item));
-  const historicoRows = historico.length
-    ? historico
-      .map((entry) => {
+    const historico = sortHistoricoAsc(getHistoricoManutencaoCompleto(item));
+    const historicoRows = historico.length
+      ? historico
+        .map((entry) => {
         const when = parseTimestamp(entry.timestamp);
         const actionLabel = ACTION_LABELS[entry.action] || entry.action || "-";
         const userLabel = getUserLabel(entry.userId);
@@ -44870,15 +44872,16 @@ function exportarSolicitacaoServico(item) {
             <td>${escapeHtml(detalhes)}</td>
           </tr>
         `;
-      })
-      .join("")
-    : `<tr><td colspan="4">Sem historico registrado.</td></tr>`;
+        })
+        .join("")
+      : `<tr><td colspan="4">Sem historico registrado.</td></tr>`;
 
-  const popupTitle = `SS ${String(ssNumero || item.id || "manutencao")
-    .replace(/[^\w\-]+/g, "_")
-    .slice(0, 64)}`;
+    const popupTitle = `SS ${String(ssNumero || item.id || "manutencao")
+      .replace(/[^\w\-]+/g, "_")
+      .slice(0, 64)}`;
 
-  popup.document.write(`
+    popup.document.open();
+    popup.document.write(`
     <!doctype html>
     <html lang="pt-BR">
       <head>
@@ -45046,10 +45049,37 @@ function exportarSolicitacaoServico(item) {
         </div>
       </body>
     </html>
-  `);
-  popup.document.close();
-  popup.focus();
-  popup.print();
+    `);
+    popup.document.close();
+    popup.focus();
+    popup.print();
+  } catch (error) {
+    const message = error && error.message ? error.message : String(error || "erro desconhecido");
+    console.error("Falha ao exportar SS", error);
+    popup.document.open();
+    popup.document.write(`
+      <!doctype html>
+      <html lang="pt-BR">
+        <head>
+          <meta charset="utf-8" />
+          <title>Falha ao exportar SS</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 24px; color: #1f2937; }
+            h1 { font-size: 18px; margin-bottom: 8px; }
+            p { margin: 0 0 8px; }
+            code { background: #f3f4f6; padding: 2px 6px; border-radius: 6px; }
+          </style>
+        </head>
+        <body>
+          <h1>Não foi possível exportar a SS</h1>
+          <p>Detalhe técnico:</p>
+          <p><code>${escapeHtml(message)}</code></p>
+        </body>
+      </html>
+    `);
+    popup.document.close();
+    mostrarMensagemManutencao("Falha ao exportar SS. Veja o detalhe técnico na aba aberta.", true);
+  }
 }
 
 function getConclusaoInicioDate() {
