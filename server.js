@@ -4888,6 +4888,220 @@ function touchCompat(dataset, projectId = "") {
   });
 }
 
+function normalizeSstDocTypeKey(value) {
+  const normalized = normalizeSearchValue(value || "");
+  if (!normalized) {
+    return "";
+  }
+  if (/\bapr\b/.test(normalized)) {
+    return "apr";
+  }
+  if (/\bpte\b/.test(normalized)) {
+    return "pte";
+  }
+  if (/\bpt\b/.test(normalized)) {
+    return "pt";
+  }
+  if (/\bos\b/.test(normalized) || normalized.includes("ordem de servico")) {
+    return "os";
+  }
+  return "";
+}
+
+function normalizeSstDocFile(file) {
+  if (!file || typeof file !== "object") {
+    return null;
+  }
+  const url = typeof file.url === "string" ? file.url.trim() : "";
+  const dataUrl = typeof file.dataUrl === "string" ? file.dataUrl.trim() : "";
+  const docId = typeof file.docId === "string" ? file.docId.trim() : "";
+  const id = typeof file.id === "string" ? file.id.trim() : "";
+  const fileId = typeof file.fileId === "string" ? file.fileId.trim() : "";
+  const nameRaw = file.name || file.nome || file.fileName || file.originalName || "";
+  const name = String(nameRaw || "").trim();
+  if (!url && !dataUrl && !docId && !id && !fileId && !name) {
+    return null;
+  }
+  const mime = String(file.mime || file.type || file.fileType || "").trim();
+  return {
+    ...file,
+    id,
+    fileId,
+    docId,
+    url,
+    dataUrl,
+    mime,
+    name: name || "Documento",
+    nome: name || "Documento",
+  };
+}
+
+function inferSstDocTypeFromEntry(entry, doc) {
+  const candidates = [
+    entry && entry.key,
+    entry && entry.type,
+    entry && entry.docType,
+    entry && entry.label,
+    entry && entry.name,
+    entry && entry.nome,
+    doc && doc.docType,
+    doc && doc.name,
+    doc && doc.nome,
+  ];
+  for (const value of candidates) {
+    const key = normalizeSstDocTypeKey(value);
+    if (key) {
+      return key;
+    }
+  }
+  return "";
+}
+
+function normalizeSstDocAttachment(entry) {
+  if (!entry) {
+    return null;
+  }
+  const rawDoc = entry && entry.doc && typeof entry.doc === "object" ? entry.doc : entry;
+  const doc = normalizeSstDocFile(rawDoc);
+  if (!doc) {
+    return null;
+  }
+  const type = inferSstDocTypeFromEntry(entry, doc);
+  const label =
+    String(
+      (entry && (entry.label || entry.nome || entry.name)) ||
+        (type ? type.toUpperCase() : "") ||
+        doc.name ||
+        doc.nome ||
+        "Anexo"
+    ).trim() || "Anexo";
+  return {
+    key: type || "",
+    label,
+    doc,
+  };
+}
+
+function extractSstDocDocuments(source) {
+  const docs = { apr: null, os: null, pte: null, pt: null };
+  const extras = [];
+  const applyDoc = (rawType, rawDoc, fallbackLabel = "") => {
+    const type = normalizeSstDocTypeKey(rawType);
+    const doc = normalizeSstDocFile(rawDoc);
+    if (!doc) {
+      return;
+    }
+    if (type && !docs[type]) {
+      docs[type] = doc;
+      return;
+    }
+    const label = String(fallbackLabel || (type ? type.toUpperCase() : "") || doc.name || "Anexo")
+      .trim() || "Anexo";
+    extras.push({ key: type || "", label, doc });
+  };
+  if (source && typeof source === "object") {
+    const buckets = [source.docs, source.documents, source.documentos, source.filesByType];
+    buckets.forEach((bucket) => {
+      if (!bucket || typeof bucket !== "object" || Array.isArray(bucket)) {
+        return;
+      }
+      Object.keys(bucket).forEach((key) => applyDoc(key, bucket[key]));
+    });
+    applyDoc("apr", source.aprDoc || source.apr || source.aprFile);
+    applyDoc("os", source.osDoc || source.os || source.osFile);
+    applyDoc("pte", source.pteDoc || source.pte || source.pteFile);
+    applyDoc("pt", source.ptDoc || source.pt || source.ptFile);
+    const arrays = [];
+    if (Array.isArray(source.attachments)) {
+      arrays.push(source.attachments);
+    }
+    if (Array.isArray(source.anexos)) {
+      arrays.push(source.anexos);
+    }
+    arrays.forEach((list) => {
+      list.forEach((entry) => {
+        const attachment = normalizeSstDocAttachment(entry);
+        if (!attachment || !attachment.doc) {
+          return;
+        }
+        if (attachment.key && !docs[attachment.key]) {
+          docs[attachment.key] = attachment.doc;
+          return;
+        }
+        extras.push(attachment);
+      });
+    });
+  }
+  return { docs, attachments: extras };
+}
+
+function getSstDocFileFingerprint(file) {
+  if (!file || typeof file !== "object") {
+    return "";
+  }
+  const id = String(file.id || file.fileId || file.docId || "").trim();
+  const url = String(file.url || "").trim();
+  const dataUrl = String(file.dataUrl || "").trim();
+  const name = String(file.name || file.nome || "").trim();
+  const mime = String(file.mime || file.type || file.fileType || "").trim();
+  return `${id}|${url}|${dataUrl}|${name}|${mime}`;
+}
+
+function areSstDocDocumentsEquivalent(a, b) {
+  const left = extractSstDocDocuments(a || {});
+  const right = extractSstDocDocuments(b || {});
+  const hasSameTyped = ["apr", "os", "pte", "pt"].every(
+    (type) =>
+      getSstDocFileFingerprint(left.docs[type]) === getSstDocFileFingerprint(right.docs[type])
+  );
+  if (!hasSameTyped) {
+    return false;
+  }
+  const leftExtras = Array.isArray(left.attachments) ? left.attachments : [];
+  const rightExtras = Array.isArray(right.attachments) ? right.attachments : [];
+  if (leftExtras.length !== rightExtras.length) {
+    return false;
+  }
+  for (let i = 0; i < leftExtras.length; i += 1) {
+    const leftItem = leftExtras[i];
+    const rightItem = rightExtras[i];
+    const leftKey = `${leftItem.key || ""}|${String(leftItem.label || "").trim()}|${getSstDocFileFingerprint(leftItem.doc)}`;
+    const rightKey = `${rightItem.key || ""}|${String(rightItem.label || "").trim()}|${getSstDocFileFingerprint(rightItem.doc)}`;
+    if (leftKey !== rightKey) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function getSstDocSearchBlob(doc) {
+  if (!doc || typeof doc !== "object") {
+    return "";
+  }
+  const extracted = extractSstDocDocuments(doc);
+  const names = [];
+  ["apr", "os", "pte", "pt"].forEach((type) => {
+    const file = extracted.docs[type];
+    if (!file) {
+      return;
+    }
+    const name = String(file.name || file.nome || "").trim();
+    if (name) {
+      names.push(name);
+    }
+  });
+  (extracted.attachments || []).forEach((entry) => {
+    if (!entry || !entry.doc) {
+      return;
+    }
+    const name = String(entry.doc.name || entry.doc.nome || "").trim();
+    if (name) {
+      names.push(name);
+    }
+  });
+  return names.join(" ");
+}
+
 function normalizeSstDoc(record) {
   if (!record || typeof record !== "object") {
     return null;
@@ -4899,14 +5113,20 @@ function normalizeSstDoc(record) {
   if (!projectId || !activity) {
     return null;
   }
+  const extracted = extractSstDocDocuments(record);
+  const docs = extracted.docs;
   return {
     id: record.id ? String(record.id) : crypto.randomUUID(),
     activity,
     projectId,
     responsibleId: record.responsibleId || record.createdBy || "",
     aprCode: record.aprCode || "",
-    aprDoc: record.aprDoc || record.apr || null,
-    attachments: Array.isArray(record.attachments) ? record.attachments.filter(Boolean) : [],
+    docs,
+    aprDoc: docs.apr,
+    osDoc: docs.os,
+    pteDoc: docs.pte,
+    ptDoc: docs.pt,
+    attachments: extracted.attachments,
     status,
     notes: record.notes || "",
     createdAt,
@@ -4920,6 +5140,195 @@ function normalizeSstDoc(record) {
     relatedId: record.relatedId || "",
     updatedAt: record.updatedAt || createdAt,
   };
+}
+
+function extractMaintenanceSstDocumentos(item, liberacao) {
+  const output = {};
+  const applyDoc = (type, file) => {
+    const key = normalizeSstDocTypeKey(type);
+    const doc = normalizeSstDocFile(file);
+    if (!key || !doc || output[key]) {
+      return;
+    }
+    output[key] = doc;
+  };
+  const parseObject = (source) => {
+    if (!source || typeof source !== "object" || Array.isArray(source)) {
+      return;
+    }
+    Object.keys(source).forEach((key) => {
+      applyDoc(key, source[key]);
+    });
+  };
+  const parseList = (list) => {
+    if (!Array.isArray(list)) {
+      return;
+    }
+    list.forEach((entry) => {
+      const attachment = normalizeSstDocAttachment(entry);
+      if (!attachment || !attachment.doc || !attachment.key) {
+        return;
+      }
+      applyDoc(attachment.key, attachment.doc);
+    });
+  };
+  const targets = [liberacao, item];
+  targets.forEach((target) => {
+    if (!target || typeof target !== "object") {
+      return;
+    }
+    parseObject(target.documentos);
+    parseObject(target.docs);
+    parseObject(target.documents);
+    parseList(target.attachments);
+    parseList(target.anexos);
+    applyDoc("apr", target.aprDoc || target.apr || target.docApr);
+    applyDoc("os", target.osDoc || target.os || target.docOs);
+    applyDoc("pte", target.pteDoc || target.pte || target.docPte);
+    applyDoc("pt", target.ptDoc || target.pt || target.docPt);
+  });
+  return output;
+}
+
+function buildSstDocFromMaintenanceRecord(item, userId = "") {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+  const projectId = String(item.projectId || "").trim();
+  const relatedId = String(item.id || "").trim();
+  if (!projectId || !relatedId) {
+    return null;
+  }
+  const liberacao =
+    item.liberacao && typeof item.liberacao === "object" ? item.liberacao : {};
+  const documentos = extractMaintenanceSstDocumentos(item, liberacao);
+  const docs = {};
+  ["apr", "os", "pte", "pt"].forEach((key) => {
+    if (documentos[key]) {
+      docs[key] = documentos[key];
+    }
+  });
+  const hasDocs = ["apr", "os", "pte", "pt"].some((key) => Boolean(docs[key]));
+  if (!hasDocs) {
+    return null;
+  }
+  let responsibleId =
+    liberacao.liberadoPor ||
+    item.executionStartedBy ||
+    item.updatedBy ||
+    item.createdBy ||
+    userId ||
+    "";
+  if (
+    typeof responsibleId === "string" &&
+    (responsibleId.startsWith("team:") || responsibleId.startsWith("time:"))
+  ) {
+    responsibleId = userId || "";
+  }
+  const createdAt =
+    liberacao.liberadoEm ||
+    item.executionStartedAt ||
+    item.updatedAt ||
+    item.createdAt ||
+    new Date().toISOString();
+  const aprCode =
+    String(
+      liberacao.aprCode ||
+        liberacao.osNumero ||
+        item.osReferencia ||
+        item.osNumero ||
+        item.referencia ||
+        ""
+    ).trim();
+  return normalizeSstDoc({
+    id: crypto.randomUUID(),
+    activity: item.titulo || item.atividade || item.local || "Atividade",
+    projectId,
+    responsibleId,
+    aprCode,
+    docs,
+    aprDoc: docs.apr || null,
+    osDoc: docs.os || null,
+    pteDoc: docs.pte || null,
+    ptDoc: docs.pt || null,
+    attachments: [],
+    status: "PENDENTE",
+    createdAt,
+    createdBy:
+      liberacao.liberadoPor ||
+      item.executionStartedBy ||
+      item.updatedBy ||
+      item.createdBy ||
+      userId ||
+      "",
+    source: liberacao.liberadoEm ? "liberacao" : "execucao",
+    relatedId,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+function upsertSstDocRecord(prepared, options = {}) {
+  if (!prepared || !prepared.projectId || !prepared.relatedId) {
+    return { record: null, mode: "", changed: false, skipped: true };
+  }
+  const nowIso = new Date().toISOString();
+  const onlyMissing = Boolean(options.onlyMissing);
+  const index = sstDocs.findIndex(
+    (item) =>
+      item &&
+      String(item.relatedId || "") === String(prepared.relatedId) &&
+      String(item.projectId || "") === String(prepared.projectId)
+  );
+  if (index >= 0) {
+    if (onlyMissing) {
+      return { record: sstDocs[index], mode: "skipped", changed: false, skipped: true };
+    }
+    const current = sstDocs[index];
+    const docsChanged = !areSstDocDocumentsEquivalent(current, prepared);
+    const codeChanged =
+      String(current.aprCode || "").trim() !== String(prepared.aprCode || "").trim();
+    const shouldResetReview = docsChanged || codeChanged;
+    const updated = normalizeSstDoc({
+      ...current,
+      ...prepared,
+      id: current.id,
+      projectId: current.projectId,
+      relatedId: current.relatedId || prepared.relatedId,
+      createdAt: current.createdAt,
+      createdBy: current.createdBy,
+      status: shouldResetReview ? "PENDENTE" : current.status,
+      reviewedAt: shouldResetReview ? "" : current.reviewedAt || "",
+      reviewedBy: shouldResetReview ? "" : current.reviewedBy || "",
+      reviewNotes: shouldResetReview ? "" : current.reviewNotes || "",
+      correctionInstructions: shouldResetReview ? "" : current.correctionInstructions || "",
+      notifiedAt: shouldResetReview ? "" : current.notifiedAt || "",
+      updatedAt: nowIso,
+    });
+    if (!updated) {
+      return { record: null, mode: "", changed: false, skipped: true };
+    }
+    const changed = JSON.stringify(updated) !== JSON.stringify(current);
+    if (changed) {
+      sstDocs[index] = updated;
+    }
+    return {
+      record: changed ? updated : current,
+      mode: changed ? "updated" : "unchanged",
+      changed,
+      skipped: false,
+    };
+  }
+  const created = normalizeSstDoc({
+    ...prepared,
+    id: prepared.id || crypto.randomUUID(),
+    createdAt: prepared.createdAt || nowIso,
+    updatedAt: nowIso,
+  });
+  if (!created) {
+    return { record: null, mode: "", changed: false, skipped: true };
+  }
+  sstDocs = sstDocs.concat(created);
+  return { record: created, mode: "created", changed: true, skipped: false };
 }
 
 function loadSstDocs() {
@@ -10707,41 +11116,15 @@ app.post(
     if (!prepared) {
       return res.status(400).json({ message: "Documentacao invalida." });
     }
-    let mode = "created";
-    const index = sstDocs.findIndex(
-      (item) =>
-        item &&
-        String(item.relatedId || "") === relatedId &&
-        String(item.projectId || "") === projectId
-    );
-    let record = prepared;
-    if (index >= 0) {
-      const current = sstDocs[index];
-      const updated = normalizeSstDoc({
-        ...current,
-        ...prepared,
-        id: current.id,
-        projectId: current.projectId,
-        relatedId: current.relatedId || relatedId,
-        createdAt: current.createdAt,
-        createdBy: current.createdBy,
-        status: "PENDENTE",
-        reviewedAt: "",
-        reviewedBy: "",
-        reviewNotes: "",
-        correctionInstructions: "",
-        notifiedAt: "",
-        updatedAt: nowIso,
-      });
-      if (!updated) {
-        return res.status(400).json({ message: "Documentacao invalida." });
-      }
-      record = updated;
-      sstDocs[index] = updated;
-      mode = "updated";
-    } else {
-      sstDocs = sstDocs.concat(record);
+    const result = upsertSstDocRecord(prepared, { onlyMissing: false });
+    if (!result.record) {
+      return res.status(400).json({ message: "Documentacao invalida." });
     }
+    if (!result.changed && result.mode !== "created") {
+      return res.json({ doc: result.record, mode: "unchanged" });
+    }
+    const mode = result.mode || "updated";
+    const record = result.record;
     saveSstDocs(sstDocs);
     touchCompat("sstDocs", projectId);
     appendAudit(
@@ -10753,6 +11136,71 @@ app.post(
     );
     broadcastSse("sst.docs.updated", { projectId, mode, relatedId, docId: record.id });
     return res.json({ doc: record, mode });
+  }
+);
+
+app.post(
+  "/api/sst/docs/backfill-maintenance",
+  requireAuth,
+  requireStorageWritable,
+  (req, res) => {
+    const user = req.currentUser || getSessionUser(req);
+    if (!canUpsertSstDocFromMaintenance(user)) {
+      return res.status(403).json({ message: "Nao autorizado." });
+    }
+    const payload = req.body && typeof req.body === "object" ? req.body : {};
+    const projectId = String(payload.projectId || getActiveProjectId(req, user) || "").trim();
+    if (!projectId) {
+      return res.status(400).json({ message: "Projeto obrigatorio." });
+    }
+    if (!userHasProjectAccess(user, projectId)) {
+      return res.status(403).json({ message: "Nao autorizado." });
+    }
+    const tombstones = getMaintenanceTombstonesMap(projectId);
+    const maintenanceList = loadMaintenanceData().filter((item) => {
+      if (!item || item.projectId !== projectId) {
+        return false;
+      }
+      return !tombstones.has(String(item.id || ""));
+    });
+    let created = 0;
+    let skipped = 0;
+    let scanned = 0;
+    let changed = false;
+    maintenanceList.forEach((item) => {
+      const prepared = buildSstDocFromMaintenanceRecord(item, user ? user.id : "");
+      if (!prepared) {
+        return;
+      }
+      scanned += 1;
+      const result = upsertSstDocRecord(prepared, { onlyMissing: true });
+      if (result.changed && result.mode === "created") {
+        created += 1;
+        changed = true;
+        return;
+      }
+      skipped += 1;
+    });
+    if (changed) {
+      saveSstDocs(sstDocs);
+      touchCompat("sstDocs", projectId);
+      appendAudit(
+        "sst_doc_backfill_maintenance",
+        user ? user.id : null,
+        { projectId, scanned, created, skipped },
+        getClientIp(req),
+        projectId
+      );
+      broadcastSse("sst.docs.updated", { projectId, mode: "backfill", created });
+    }
+    return res.json({
+      ok: true,
+      projectId,
+      scanned,
+      created,
+      skipped,
+      changed,
+    });
   }
 );
 
@@ -10782,7 +11230,8 @@ app.get("/api/sst/docs", requireAuth, requirePermission("verSST"), (req, res) =>
     list = list.filter(
       (item) =>
         normalizeSearchValue(item.activity || "").includes(term) ||
-        normalizeSearchValue(item.aprCode || "").includes(term)
+        normalizeSearchValue(item.aprCode || "").includes(term) ||
+        normalizeSearchValue(getSstDocSearchBlob(item)).includes(term)
     );
   }
   list = list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));

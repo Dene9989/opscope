@@ -4618,6 +4618,7 @@ let sstNonconformities = [];
 let sstIncidents = [];
 let sstDocs = [];
 let sstLoaded = false;
+const sstDocsBackfillProjects = new Set();
 let pendingSstDocAprPreview = null;
 let sstDocReviewingId = null;
 let sstWizardState = null;
@@ -6789,7 +6790,7 @@ function createLocalProvider() {
             reviewNotes: "",
             correctionInstructions: "",
             notifiedAt: "",
-            updatedAt: item.createdAt || list[index].createdAt,
+            updatedAt: toIsoUtc(new Date()),
           };
         } else {
           list.unshift(item);
@@ -36038,20 +36039,253 @@ function getSstDocStatusBadge(status) {
   return `<span class="badge badge--warn">Pendente</span>`;
 }
 
+function normalizeSstDocTypeKey(value) {
+  const normalized = normalizeSearchValue(value || "");
+  if (!normalized) {
+    return "";
+  }
+  if (/\bapr\b/.test(normalized)) {
+    return "apr";
+  }
+  if (/\bpte\b/.test(normalized)) {
+    return "pte";
+  }
+  if (/\bpt\b/.test(normalized)) {
+    return "pt";
+  }
+  if (/\bos\b/.test(normalized) || normalized.includes("ordem de servico")) {
+    return "os";
+  }
+  return "";
+}
+
+function normalizeSstDocFile(file) {
+  if (!file || typeof file !== "object") {
+    return null;
+  }
+  const url = typeof file.url === "string" ? file.url.trim() : "";
+  const dataUrl = typeof file.dataUrl === "string" ? file.dataUrl.trim() : "";
+  const docId = typeof file.docId === "string" ? file.docId.trim() : "";
+  const id = typeof file.id === "string" ? file.id.trim() : "";
+  const fileId = typeof file.fileId === "string" ? file.fileId.trim() : "";
+  const nameRaw = file.name || file.nome || file.fileName || file.originalName || "";
+  const name = String(nameRaw || "").trim();
+  if (!url && !dataUrl && !docId && !id && !fileId && !name) {
+    return null;
+  }
+  const mime = String(file.mime || file.type || file.fileType || "").trim();
+  return {
+    ...file,
+    id,
+    fileId,
+    docId,
+    url,
+    dataUrl,
+    mime,
+    name: name || "Documento",
+    nome: name || "Documento",
+  };
+}
+
+function inferSstDocTypeFromEntry(entry, doc) {
+  const candidates = [
+    entry && entry.key,
+    entry && entry.type,
+    entry && entry.docType,
+    entry && entry.label,
+    entry && entry.name,
+    entry && entry.nome,
+    doc && doc.docType,
+    doc && doc.name,
+    doc && doc.nome,
+  ];
+  for (const value of candidates) {
+    const key = normalizeSstDocTypeKey(value);
+    if (key) {
+      return key;
+    }
+  }
+  return "";
+}
+
+function normalizeSstDocAttachment(entry) {
+  if (!entry) {
+    return null;
+  }
+  const rawDoc = entry && entry.doc && typeof entry.doc === "object" ? entry.doc : entry;
+  const doc = normalizeSstDocFile(rawDoc);
+  if (!doc) {
+    return null;
+  }
+  const type = inferSstDocTypeFromEntry(entry, doc);
+  const label =
+    String(
+      (entry && (entry.label || entry.nome || entry.name)) ||
+        (type ? DOC_LABELS[type] || type.toUpperCase() : "") ||
+        doc.name ||
+        doc.nome ||
+        "Anexo"
+    ).trim() || "Anexo";
+  return {
+    key: type || "",
+    label,
+    doc,
+  };
+}
+
+function extractSstDocDocuments(source) {
+  const docs = { apr: null, os: null, pte: null, pt: null };
+  const extras = [];
+  const applyDoc = (rawType, rawDoc, fallbackLabel = "") => {
+    const type = normalizeSstDocTypeKey(rawType);
+    const doc = normalizeSstDocFile(rawDoc);
+    if (!doc) {
+      return;
+    }
+    if (type && !docs[type]) {
+      docs[type] = doc;
+      return;
+    }
+    const label =
+      String(fallbackLabel || (type ? DOC_LABELS[type] : "") || doc.name || doc.nome || "Anexo")
+        .trim() || "Anexo";
+    extras.push({ key: type || "", label, doc });
+  };
+  if (source && typeof source === "object") {
+    const buckets = [source.docs, source.documents, source.documentos, source.filesByType];
+    buckets.forEach((bucket) => {
+      if (!bucket || typeof bucket !== "object" || Array.isArray(bucket)) {
+        return;
+      }
+      Object.keys(bucket).forEach((key) => applyDoc(key, bucket[key]));
+    });
+    applyDoc("apr", source.aprDoc || source.apr || source.aprFile);
+    applyDoc("os", source.osDoc || source.os || source.osFile);
+    applyDoc("pte", source.pteDoc || source.pte || source.pteFile);
+    applyDoc("pt", source.ptDoc || source.pt || source.ptFile);
+    const arrays = [];
+    if (Array.isArray(source.attachments)) {
+      arrays.push(source.attachments);
+    }
+    if (Array.isArray(source.anexos)) {
+      arrays.push(source.anexos);
+    }
+    arrays.forEach((list) => {
+      list.forEach((entry) => {
+        const attachment = normalizeSstDocAttachment(entry);
+        if (!attachment || !attachment.doc) {
+          return;
+        }
+        if (attachment.key && !docs[attachment.key]) {
+          docs[attachment.key] = attachment.doc;
+          return;
+        }
+        extras.push(attachment);
+      });
+    });
+  }
+  return { docs, attachments: extras };
+}
+
+function getSstDocDocuments(doc) {
+  const normalized = extractSstDocDocuments(doc || {});
+  return normalized.docs;
+}
+
+function getSstDocFileName(file) {
+  if (!file || typeof file !== "object") {
+    return "-";
+  }
+  const name = String(file.name || file.nome || file.fileName || file.originalName || "").trim();
+  return name || "-";
+}
+
+function getSstDocTypeLabel(type) {
+  const key = normalizeSstDocTypeKey(type);
+  if (!key) {
+    return "Anexo";
+  }
+  return DOC_LABELS[key] || key.toUpperCase();
+}
+
+function getSstDocDocumentNames(doc) {
+  const names = [];
+  const docs = getSstDocDocuments(doc);
+  DOC_KEYS.forEach((key) => {
+    const name = getSstDocFileName(docs[key]);
+    if (name !== "-") {
+      names.push(name);
+    }
+  });
+  if (Array.isArray(doc && doc.attachments)) {
+    doc.attachments.forEach((entry) => {
+      const attachment = normalizeSstDocAttachment(entry);
+      if (!attachment || !attachment.doc) {
+        return;
+      }
+      if (attachment.key && docs[attachment.key]) {
+        return;
+      }
+      const name = getSstDocFileName(attachment.doc);
+      if (name !== "-") {
+        names.push(name);
+      }
+    });
+  }
+  return names;
+}
+
+function renderSstDocTypeCell(doc, type) {
+  const key = normalizeSstDocTypeKey(type);
+  const docs = getSstDocDocuments(doc);
+  const target = key ? docs[key] : null;
+  if (!target) {
+    return "<span>-</span>";
+  }
+  const fileName = getSstDocFileName(target);
+  const shortName = fileName.length > 48 ? `${fileName.slice(0, 45)}...` : fileName;
+  return `
+    <button
+      class="btn btn--ghost btn--small sst-doc-view-btn"
+      type="button"
+      data-action="view-doc"
+      data-doc-type="${escapeHtml(key)}"
+      title="${escapeHtml(fileName)}"
+    >
+      ${escapeHtml(shortName)}
+    </button>
+  `;
+}
+
+function getSstDocTypeSummary(doc) {
+  const docs = getSstDocDocuments(doc);
+  const labels = DOC_KEYS.filter((key) => Boolean(docs[key])).map((key) => DOC_LABELS[key] || key);
+  if (!labels.length) {
+    return "Sem documentos";
+  }
+  return labels.join(" • ");
+}
+
 function normalizeSstDoc(doc) {
   if (!doc || typeof doc !== "object") {
     return null;
   }
   const createdAt = doc.createdAt || toIsoUtc(new Date());
   const status = doc.status ? String(doc.status).toUpperCase() : "PENDENTE";
+  const extracted = extractSstDocDocuments(doc);
+  const docs = extracted.docs;
   return {
     id: doc.id || criarId(),
     activity: doc.activity || doc.activityName || "",
     projectId: doc.projectId || "",
     responsibleId: doc.responsibleId || doc.createdBy || "",
     aprCode: doc.aprCode || "",
-    aprDoc: doc.aprDoc || doc.apr || null,
-    attachments: Array.isArray(doc.attachments) ? doc.attachments.filter(Boolean) : [],
+    docs,
+    aprDoc: docs.apr,
+    osDoc: docs.os,
+    pteDoc: docs.pte,
+    ptDoc: docs.pt,
+    attachments: extracted.attachments,
     status,
     notes: doc.notes || "",
     createdAt,
@@ -37382,9 +37616,9 @@ function getSstDocsFiltered() {
       const project = availableProjects.find((item) => item.id === doc.projectId);
       const projectLabel = project ? getProjectLabel(project) : doc.projectId || "";
       const responsavel = getUserLabel(doc.responsibleId);
-      const aprLabel =
-        doc.aprCode || (doc.aprDoc && (doc.aprDoc.name || doc.aprDoc.nome)) || "";
-      const base = `${doc.activity || ""} ${projectLabel} ${responsavel} ${aprLabel}`;
+      const docsLabel = getSstDocDocumentNames(doc).join(" ");
+      const aprLabel = doc.aprCode || "";
+      const base = `${doc.activity || ""} ${projectLabel} ${responsavel} ${aprLabel} ${docsLabel}`;
       return normalizeSearchValue(base).includes(termo);
     });
   }
@@ -37440,12 +37674,16 @@ function renderSstDocQueue(scopedDocs) {
       const projectLabel = project ? getProjectLabel(project) : doc.projectId || "-";
       const responsavel = getUserLabel(doc.responsibleId);
       const enviadoEm = doc.createdAt ? formatDateTime(parseTimestamp(doc.createdAt)) : "-";
+      const docsResumo = getSstDocTypeSummary(doc);
       return `
         <div class="doc-queue-item" data-doc-id="${escapeHtml(String(doc.id))}">
           <div>
             <strong>${escapeHtml(doc.activity || "Atividade")}</strong>
             <div class="doc-queue-meta">
               ${escapeHtml(projectLabel)} · ${escapeHtml(responsavel)} · ${escapeHtml(enviadoEm)}
+            </div>
+            <div class="doc-queue-meta">
+              Documentos: ${escapeHtml(docsResumo)}
             </div>
           </div>
           <button class="btn btn--ghost btn--small" type="button" data-action="review">
@@ -37482,6 +37720,7 @@ function renderSstDocArchive(scopedDocs) {
           ? formatDateTime(parseTimestamp(doc.updatedAt))
           : "-";
       const revisadoPor = doc.reviewedBy ? getUserLabel(doc.reviewedBy) : "Sistema";
+      const docsResumo = getSstDocTypeSummary(doc);
       return `
         <div class="doc-queue-item" data-doc-id="${escapeHtml(String(doc.id))}">
           <div>
@@ -37491,6 +37730,9 @@ function renderSstDocArchive(scopedDocs) {
             </div>
             <div class="doc-queue-meta">
               Revisado por ${escapeHtml(revisadoPor)}
+            </div>
+            <div class="doc-queue-meta">
+              Documentos: ${escapeHtml(docsResumo)}
             </div>
           </div>
           <button class="btn btn--ghost btn--small" type="button" data-action="review">
@@ -37527,15 +37769,16 @@ function renderSstAprPt() {
       const projectLabel = project ? getProjectLabel(project) : doc.projectId || "-";
       const responsavel = getUserLabel(doc.responsibleId);
       const envio = doc.createdAt ? formatDateTime(parseTimestamp(doc.createdAt)) : "-";
-      const aprLabel =
-        doc.aprCode || (doc.aprDoc && (doc.aprDoc.name || doc.aprDoc.nome)) || "-";
       return `
         <tr data-doc-id="${escapeHtml(String(doc.id))}">
           <td>${getSstDocStatusBadge(doc.status)}</td>
           <td>${escapeHtml(doc.activity || "-")}</td>
           <td>${escapeHtml(projectLabel)}</td>
           <td>${escapeHtml(responsavel)}</td>
-          <td>${escapeHtml(aprLabel)}</td>
+          <td>${renderSstDocTypeCell(doc, "apr")}</td>
+          <td>${renderSstDocTypeCell(doc, "os")}</td>
+          <td>${renderSstDocTypeCell(doc, "pte")}</td>
+          <td>${renderSstDocTypeCell(doc, "pt")}</td>
           <td>${escapeHtml(envio)}</td>
           <td>
             <div class="table-actions">
@@ -37640,7 +37883,8 @@ async function carregarSst(force = false) {
   } catch (error) {
     sstIncidents = [];
   }
-  sstDocs = await dataProvider.sstDocs.list();
+  sstDocs = await dataProvider.sstDocs.list({ projectId: activeProjectId });
+  await backfillSstDocumentacaoProjeto();
   sstLoaded = true;
   renderSstDashboard();
   renderSstTreinamentos();
@@ -39538,7 +39782,12 @@ async function handleSstDocSubmit(event) {
   for (const file of extraFiles) {
     const doc = await salvarSstDocArquivo(file);
     if (doc) {
-      attachments.push({ label: file.name || "Anexo", doc });
+      const type = normalizeSstDocTypeKey(file.name || "");
+      attachments.push({
+        key: type || "",
+        label: type ? DOC_LABELS[type] || type.toUpperCase() : file.name || "Anexo",
+        doc,
+      });
     }
   }
   const novo = normalizeSstDoc({
@@ -39601,14 +39850,28 @@ function abrirSstDocReview(docId) {
   if (sstDocReviewAttachments) {
     sstDocReviewAttachments.innerHTML = "";
     const lista = [];
-    if (doc.aprDoc) {
-      lista.push({ label: "APR", doc: doc.aprDoc });
-    }
+    const docs = getSstDocDocuments(doc);
+    DOC_KEYS.forEach((key) => {
+      lista.push({
+        key,
+        label: DOC_LABELS[key] || key.toUpperCase(),
+        doc: docs[key] || null,
+      });
+    });
     if (Array.isArray(doc.attachments)) {
       doc.attachments.forEach((item) => {
-        if (item && item.doc) {
-          lista.push({ label: item.label || "Anexo", doc: item.doc });
+        const attachment = normalizeSstDocAttachment(item);
+        if (!attachment || !attachment.doc) {
+          return;
         }
+        if (attachment.key && docs[attachment.key]) {
+          return;
+        }
+        lista.push({
+          key: attachment.key || "",
+          label: attachment.label || getSstDocTypeLabel(attachment.key),
+          doc: attachment.doc,
+        });
       });
     }
     if (!lista.length) {
@@ -39623,12 +39886,18 @@ function abrirSstDocReview(docId) {
         const label = document.createElement("span");
         label.textContent = item.label;
         const action = document.createElement("div");
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "btn btn--ghost btn--small";
-        btn.textContent = "Visualizar";
-        btn.addEventListener("click", () => abrirDocumento(item.doc));
-        action.append(btn);
+        if (item.doc) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "btn btn--ghost btn--small";
+          btn.textContent = "Visualizar";
+          btn.addEventListener("click", () => abrirDocumento(item.doc));
+          action.append(btn);
+        } else {
+          const pending = document.createElement("small");
+          pending.textContent = "Nao enviado";
+          action.append(pending);
+        }
         row.append(label, action);
         sstDocReviewAttachments.append(row);
       });
@@ -39708,26 +39977,61 @@ async function atualizarSstDocStatus(status) {
 
 function getMaintenanceSstDocumentos(item, liberacao) {
   const output = {};
-  const sources = [];
-  if (liberacao && liberacao.documentos && typeof liberacao.documentos === "object") {
-    sources.push(liberacao.documentos);
-  }
-  if (item && item.documentos && typeof item.documentos === "object") {
-    sources.push(item.documentos);
-  }
-  DOC_KEYS.forEach((key) => {
-    for (const source of sources) {
-      if (source && source[key]) {
-        output[key] = source[key];
-        break;
-      }
+  const applyDoc = (type, file) => {
+    const key = normalizeSstDocTypeKey(type);
+    const doc = normalizeSstDocFile(file);
+    if (!key || !doc || output[key]) {
+      return;
     }
+    output[key] = doc;
+  };
+  const parseDocumentObject = (source) => {
+    if (!source || typeof source !== "object" || Array.isArray(source)) {
+      return;
+    }
+    Object.keys(source).forEach((key) => {
+      applyDoc(key, source[key]);
+    });
+  };
+  const parseDocumentList = (list) => {
+    if (!Array.isArray(list)) {
+      return;
+    }
+    list.forEach((entry) => {
+      const attachment = normalizeSstDocAttachment(entry);
+      if (!attachment || !attachment.doc || !attachment.key) {
+        return;
+      }
+      applyDoc(attachment.key, attachment.doc);
+    });
+  };
+  const targets = [liberacao, item];
+  targets.forEach((target) => {
+    if (!target || typeof target !== "object") {
+      return;
+    }
+    parseDocumentObject(target.documentos);
+    parseDocumentObject(target.docs);
+    parseDocumentObject(target.documents);
+    parseDocumentList(target.attachments);
+    parseDocumentList(target.anexos);
+    applyDoc("apr", target.aprDoc || target.apr || target.docApr);
+    applyDoc("os", target.osDoc || target.os || target.docOs);
+    applyDoc("pte", target.pteDoc || target.pte || target.docPte);
+    applyDoc("pt", target.ptDoc || target.pt || target.docPt);
   });
   return output;
 }
 
 async function apiSstDocUpsertMaintenance(payload) {
   return apiRequest("/api/sst/docs/upsert-maintenance", {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiSstDocBackfillMaintenance(payload = {}) {
+  return apiRequest("/api/sst/docs/backfill-maintenance", {
     method: "POST",
     body: JSON.stringify(payload || {}),
   });
@@ -39746,25 +40050,21 @@ function upsertSstDocInMemory(doc) {
   sstDocs.unshift(normalized);
 }
 
-async function registrarSstDocumentacao(item, liberacao) {
+function buildSstDocFromMaintenance(item, liberacao) {
   if (!item) {
-    return;
+    return null;
   }
   const documentos = getMaintenanceSstDocumentos(item, liberacao);
-  const docsEntries = DOC_KEYS.map((key) => {
-    const doc = documentos[key];
-    if (!doc) {
-      return null;
+  const docs = {};
+  DOC_KEYS.forEach((key) => {
+    if (documentos[key]) {
+      docs[key] = documentos[key];
     }
-    return { key, label: DOC_LABELS[key] || key.toUpperCase(), doc };
-  }).filter(Boolean);
-  if (!docsEntries.length) {
-    return;
+  });
+  const hasAnyDoc = DOC_KEYS.some((key) => Boolean(docs[key]));
+  if (!hasAnyDoc) {
+    return null;
   }
-  const aprEntry = docsEntries.find((entry) => entry.key === "apr") || docsEntries[0];
-  const attachments = docsEntries
-    .filter((entry) => entry !== aprEntry)
-    .map((entry) => ({ label: entry.label, doc: entry.doc }));
   const liberacaoBase = liberacao && typeof liberacao === "object" ? liberacao : {};
   let responsavel = liberacaoBase.liberadoPor || item.updatedBy || item.createdBy || "";
   if (
@@ -39773,20 +40073,30 @@ async function registrarSstDocumentacao(item, liberacao) {
   ) {
     responsavel = currentUser ? currentUser.id : "";
   }
-  const novo = normalizeSstDoc({
+  const createdAtBase =
+    liberacaoBase.liberadoEm ||
+    item.executionStartedAt ||
+    item.updatedAt ||
+    item.createdAt ||
+    toIsoUtc(new Date());
+  return normalizeSstDoc({
     id: criarId(),
     activity: item.titulo || item.atividade || item.local || "Atividade",
     projectId: item.projectId || "",
     responsibleId: responsavel,
-    aprCode: liberacaoBase.aprCode || liberacaoBase.osNumero || getMaintenanceOsReferencia(item) || "",
-    aprDoc: aprEntry ? aprEntry.doc : null,
-    attachments,
+    aprCode:
+      liberacaoBase.aprCode ||
+      liberacaoBase.osNumero ||
+      getMaintenanceOsReferencia(item) ||
+      "",
+    docs,
+    aprDoc: docs.apr || null,
+    osDoc: docs.os || null,
+    pteDoc: docs.pte || null,
+    ptDoc: docs.pt || null,
+    attachments: [],
     status: "PENDENTE",
-    createdAt:
-      liberacaoBase.liberadoEm ||
-      item.executionStartedAt ||
-      item.updatedAt ||
-      toIsoUtc(new Date()),
+    createdAt: createdAtBase,
     createdBy:
       liberacaoBase.liberadoPor ||
       item.executionStartedBy ||
@@ -39796,6 +40106,10 @@ async function registrarSstDocumentacao(item, liberacao) {
     source: liberacaoBase.liberadoEm ? "liberacao" : "execucao",
     relatedId: item.id || "",
   });
+}
+
+async function registrarSstDocumentacao(item, liberacao) {
+  const novo = buildSstDocFromMaintenance(item, liberacao);
   if (!novo) {
     return;
   }
@@ -39817,6 +40131,49 @@ async function registrarSstDocumentacao(item, liberacao) {
   sstDocs = result.list;
 }
 
+async function backfillSstDocumentacaoProjeto() {
+  if (!activeProjectId || sstDocsBackfillProjects.has(activeProjectId)) {
+    return;
+  }
+  const maintenanceList = Array.isArray(manutencoes)
+    ? manutencoes.filter((item) => item && item.projectId === activeProjectId)
+    : [];
+  if (!maintenanceList.length) {
+    sstDocsBackfillProjects.add(activeProjectId);
+    return;
+  }
+  if (USE_AUTH_API) {
+    try {
+      await apiSstDocBackfillMaintenance({ projectId: activeProjectId });
+      sstDocs = await dataProvider.sstDocs.list({ projectId: activeProjectId });
+      sstDocsBackfillProjects.add(activeProjectId);
+      return;
+    } catch (error) {
+      // fallback local abaixo
+    }
+  }
+  const existingRelatedIds = new Set(
+    (Array.isArray(sstDocs) ? sstDocs : [])
+      .map((item) => String(item && item.relatedId ? item.relatedId : "").trim())
+      .filter(Boolean)
+  );
+  for (const item of maintenanceList) {
+    const relatedId = String(item && item.id ? item.id : "").trim();
+    if (!relatedId || existingRelatedIds.has(relatedId)) {
+      continue;
+    }
+    const liberacao = getLiberacao(item) || (item && item.liberacao ? item.liberacao : null);
+    const novo = buildSstDocFromMaintenance(item, liberacao);
+    if (!novo) {
+      continue;
+    }
+    const result = await dataProvider.sstDocs.upsertByRelatedId(novo);
+    sstDocs = result.list;
+    existingRelatedIds.add(relatedId);
+  }
+  sstDocsBackfillProjects.add(activeProjectId);
+}
+
 function handleSstDocContainerClick(event) {
   const target = event.target;
   if (!target) {
@@ -39832,6 +40189,19 @@ function handleSstDocContainerClick(event) {
   }
   const docId = row.dataset.docId;
   if (!docId) {
+    return;
+  }
+  const action = button.dataset.action || "";
+  if (action === "view-doc") {
+    const doc = sstDocs.find((item) => String(item.id) === String(docId));
+    const docType = normalizeSstDocTypeKey(button.dataset.docType || "");
+    if (!doc || !docType) {
+      return;
+    }
+    const docs = getSstDocDocuments(doc);
+    if (docs[docType]) {
+      abrirDocumento(docs[docType]);
+    }
     return;
   }
   abrirSstDocReview(docId);

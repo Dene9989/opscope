@@ -10864,7 +10864,7 @@ textarea:focus {
 }
 
 #sst-apr-pt .data-table {
-  min-width: 1120px;
+  min-width: 1480px;
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
@@ -10895,38 +10895,61 @@ textarea:focus {
 
 #sst-apr-pt .data-table th:nth-child(2),
 #sst-apr-pt .data-table td:nth-child(2) {
-  width: 24%;
+  width: 21%;
 }
 
 #sst-apr-pt .data-table th:nth-child(3),
 #sst-apr-pt .data-table td:nth-child(3) {
-  width: 19%;
+  width: 17%;
 }
 
 #sst-apr-pt .data-table th:nth-child(4),
 #sst-apr-pt .data-table td:nth-child(4) {
-  width: 16%;
+  width: 15%;
 }
 
 #sst-apr-pt .data-table th:nth-child(5),
 #sst-apr-pt .data-table td:nth-child(5) {
-  width: 23%;
+  width: 13%;
 }
 
 #sst-apr-pt .data-table th:nth-child(6),
 #sst-apr-pt .data-table td:nth-child(6) {
-  width: 150px;
-  white-space: nowrap;
+  width: 13%;
 }
 
 #sst-apr-pt .data-table th:nth-child(7),
 #sst-apr-pt .data-table td:nth-child(7) {
+  width: 13%;
+}
+
+#sst-apr-pt .data-table th:nth-child(8),
+#sst-apr-pt .data-table td:nth-child(8) {
+  width: 13%;
+}
+
+#sst-apr-pt .data-table th:nth-child(9),
+#sst-apr-pt .data-table td:nth-child(9) {
+  width: 150px;
+  white-space: nowrap;
+}
+
+#sst-apr-pt .data-table th:nth-child(10),
+#sst-apr-pt .data-table td:nth-child(10) {
   width: 120px;
   text-align: center;
 }
 
-#sst-apr-pt .data-table td:nth-child(7) .table-actions {
+#sst-apr-pt .data-table td:nth-child(10) .table-actions {
   justify-content: center;
+}
+
+#sst-apr-pt .sst-doc-view-btn {
+  width: 100%;
+  justify-content: flex-start;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #sst-apr-pt .doc-queue {
