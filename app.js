@@ -1189,6 +1189,9 @@ const previewTitle = document.getElementById("previewTitle");
 const btnImprimirPreview = document.getElementById("btnImprimirPreview");
 const btnAbrirPreview = document.getElementById("btnAbrirPreview");
 const btnFecharPreview = document.getElementById("btnFecharPreview");
+const modalIdleReconnect = document.getElementById("modalIdleReconnect");
+const btnIdleSaveReload = document.getElementById("btnIdleSaveReload");
+const btnIdleReloadNow = document.getElementById("btnIdleReloadNow");
 const formConclusao = document.getElementById("formConclusao");
 const mensagemConclusao = document.getElementById("mensagemConclusao");
 const conclusaoId = document.getElementById("conclusaoId");
@@ -1297,6 +1300,17 @@ const PROJECTS_SYNC_KEY = "opscope.projects.sync";
 const OPSCOPE_DB_VERSION = 4;
 const SESSION_KEY = "denemanu.session";
 const ACTIVE_PROJECT_KEY = "opscope.activeProjectId";
+const IDLE_TIMEOUT_MS = 10 * 60 * 1000;
+const IDLE_DRAFT_KEY_PREFIX = "opscope.idle.draft";
+const IDLE_DRAFT_VERSION = 1;
+const IDLE_DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
+const IDLE_DRAFT_ROOT_SELECTORS = [
+  "#nova-manutencao",
+  "#templateForm",
+  "#formLiberacao",
+  "#formConclusao",
+  "#formRegistroExecucao",
+];
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ACCESS_BOOTSTRAP_USER = {
   matricula: "35269",
@@ -4643,6 +4657,13 @@ let liberacaoDocsBase = {};
 let liberacaoDocsPreview = {};
 let previewBlobUrl = "";
 let previewCurrentUrl = "";
+let idleTimeoutHandle = null;
+let idleExpired = false;
+let idleReconnectOpen = false;
+let idleBindingsReady = false;
+let idleLastActivityAt = 0;
+let idleDraftRestoreDoneFor = "";
+let idleDraftRestoreNotified = false;
 let auditHashChain = Promise.resolve("");
 let kpiDrilldown = null;
 let kpiSnapshot = null;
@@ -4959,6 +4980,408 @@ function writeJson(key, value) {
     lastStorageError = error;
     console.error(`Falha ao salvar ${key} no storage.`, error);
     return false;
+  }
+}
+
+function getIdleDraftStorageKey(userId = currentUser && currentUser.id) {
+  const normalized = String(userId || "").trim();
+  if (!normalized) {
+    return "";
+  }
+  return `${IDLE_DRAFT_KEY_PREFIX}.${normalized}`;
+}
+
+function getIdleDraftRoots() {
+  return IDLE_DRAFT_ROOT_SELECTORS.map((selector) => document.querySelector(selector)).filter(Boolean);
+}
+
+function shouldCaptureIdleField(field) {
+  if (!field || !field.id) {
+    return false;
+  }
+  if (field.disabled) {
+    return false;
+  }
+  if (field.matches && field.matches("[data-ignore-idle-draft]")) {
+    return false;
+  }
+  if (field.tagName === "INPUT") {
+    const type = String(field.type || "text").toLowerCase();
+    if (
+      type === "password" ||
+      type === "file" ||
+      type === "submit" ||
+      type === "button" ||
+      type === "reset" ||
+      type === "image"
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function captureIdleFieldValue(field) {
+  if (!shouldCaptureIdleField(field)) {
+    return null;
+  }
+  const tag = field.tagName;
+  if (tag === "INPUT") {
+    const type = String(field.type || "text").toLowerCase();
+    if (type === "checkbox" || type === "radio") {
+      return { kind: "checked", checked: Boolean(field.checked) };
+    }
+    return { kind: "value", value: String(field.value || "") };
+  }
+  if (tag === "SELECT") {
+    if (field.multiple) {
+      const values = Array.from(field.options || [])
+        .filter((option) => option.selected)
+        .map((option) => String(option.value || ""));
+      return { kind: "multi", values };
+    }
+    return { kind: "value", value: String(field.value || "") };
+  }
+  if (tag === "TEXTAREA") {
+    return { kind: "value", value: String(field.value || "") };
+  }
+  if (field.isContentEditable) {
+    return { kind: "html", html: String(field.innerHTML || "") };
+  }
+  return null;
+}
+
+function collectIdleDraftSnapshot() {
+  if (!currentUser || !currentUser.id) {
+    return null;
+  }
+  const fields = {};
+  const roots = getIdleDraftRoots();
+  roots.forEach((root) => {
+    root
+      .querySelectorAll("input, select, textarea, [contenteditable='true']")
+      .forEach((field) => {
+        if (!field || !field.id) {
+          return;
+        }
+        const state = captureIdleFieldValue(field);
+        if (state) {
+          fields[field.id] = state;
+        }
+      });
+  });
+  if (!Object.keys(fields).length) {
+    return null;
+  }
+  return {
+    version: IDLE_DRAFT_VERSION,
+    userId: String(currentUser.id || ""),
+    projectId: String(activeProjectId || ""),
+    tab: String(getActiveTabKey() || ""),
+    savedAt: new Date().toISOString(),
+    fields,
+  };
+}
+
+function saveIdleDraftSnapshot() {
+  const key = getIdleDraftStorageKey();
+  if (!key) {
+    return false;
+  }
+  const snapshot = collectIdleDraftSnapshot();
+  if (!snapshot) {
+    localStorage.removeItem(key);
+    return false;
+  }
+  return writeJson(key, snapshot);
+}
+
+function loadIdleDraftSnapshot(userId = currentUser && currentUser.id) {
+  const key = getIdleDraftStorageKey(userId);
+  if (!key) {
+    return null;
+  }
+  const snapshot = readJson(key, null);
+  if (!snapshot || typeof snapshot !== "object") {
+    return null;
+  }
+  return snapshot;
+}
+
+function removeIdleDraftSnapshot(userId = currentUser && currentUser.id) {
+  const key = getIdleDraftStorageKey(userId);
+  if (!key) {
+    return;
+  }
+  localStorage.removeItem(key);
+}
+
+function dispatchFieldInputEvents(field, kind = "value") {
+  if (!field || !field.dispatchEvent) {
+    return;
+  }
+  if (kind === "checked") {
+    field.dispatchEvent(new Event("change", { bubbles: true }));
+    return;
+  }
+  field.dispatchEvent(new Event("input", { bubbles: true }));
+  field.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function applyIdleDraftFieldState(fieldId, state) {
+  const field = document.getElementById(fieldId);
+  if (!field || !state || typeof state !== "object") {
+    return false;
+  }
+  if (field.tagName === "INPUT") {
+    const type = String(field.type || "text").toLowerCase();
+    if (type === "checkbox" || type === "radio") {
+      field.checked = Boolean(state.checked);
+      dispatchFieldInputEvents(field, "checked");
+      return true;
+    }
+    field.value = String(state.value || "");
+    dispatchFieldInputEvents(field);
+    return true;
+  }
+  if (field.tagName === "SELECT") {
+    if (field.multiple) {
+      const selectedValues = Array.isArray(state.values)
+        ? new Set(state.values.map((value) => String(value || "")))
+        : new Set();
+      Array.from(field.options || []).forEach((option) => {
+        option.selected = selectedValues.has(String(option.value || ""));
+      });
+      dispatchFieldInputEvents(field);
+      return true;
+    }
+    field.value = String(state.value || "");
+    dispatchFieldInputEvents(field);
+    return true;
+  }
+  if (field.tagName === "TEXTAREA") {
+    field.value = String(state.value || "");
+    dispatchFieldInputEvents(field);
+    return true;
+  }
+  if (field.isContentEditable) {
+    field.innerHTML = String(state.html || "");
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  }
+  return false;
+}
+
+function restoreIdleDraftSnapshot() {
+  if (!currentUser || !currentUser.id) {
+    return false;
+  }
+  const snapshot = loadIdleDraftSnapshot(currentUser.id);
+  if (!snapshot) {
+    return false;
+  }
+  const savedAtMs = Date.parse(String(snapshot.savedAt || ""));
+  if (!Number.isFinite(savedAtMs) || Date.now() - savedAtMs > IDLE_DRAFT_TTL_MS) {
+    removeIdleDraftSnapshot(currentUser.id);
+    return false;
+  }
+  if (String(snapshot.userId || "") !== String(currentUser.id || "")) {
+    removeIdleDraftSnapshot(currentUser.id);
+    return false;
+  }
+  const fieldStates =
+    snapshot.fields && typeof snapshot.fields === "object" ? snapshot.fields : {};
+  let appliedCount = 0;
+  Object.keys(fieldStates).forEach((fieldId) => {
+    if (applyIdleDraftFieldState(fieldId, fieldStates[fieldId])) {
+      appliedCount += 1;
+    }
+  });
+  removeIdleDraftSnapshot(currentUser.id);
+  if (appliedCount > 0 && !idleDraftRestoreNotified) {
+    idleDraftRestoreNotified = true;
+    showAuthToast("Rascunho restaurado. Revise anexos antes de salvar.");
+  }
+  return appliedCount > 0;
+}
+
+function maybeRestoreIdleDraftForCurrentUser() {
+  if (!currentUser || !currentUser.id) {
+    idleDraftRestoreDoneFor = "";
+    idleDraftRestoreNotified = false;
+    return;
+  }
+  const userId = String(currentUser.id || "");
+  if (idleDraftRestoreDoneFor === userId) {
+    return;
+  }
+  idleDraftRestoreDoneFor = userId;
+  restoreIdleDraftSnapshot();
+}
+
+function closeIdleReconnectModal() {
+  if (!modalIdleReconnect) {
+    idleReconnectOpen = false;
+    return;
+  }
+  modalIdleReconnect.hidden = true;
+  idleReconnectOpen = false;
+}
+
+function reloadPageNow() {
+  window.location.reload();
+}
+
+function handleIdleSaveAndReload() {
+  const saved = saveIdleDraftSnapshot();
+  if (saved) {
+    showAuthToast("Rascunho salvo. Recarregando...");
+  }
+  closeIdleReconnectModal();
+  reloadPageNow();
+}
+
+function handleIdleReloadWithoutSave() {
+  closeIdleReconnectModal();
+  reloadPageNow();
+}
+
+function openIdleReconnectModal() {
+  if (idleReconnectOpen) {
+    return;
+  }
+  if (!modalIdleReconnect) {
+    handleIdleSaveAndReload();
+    return;
+  }
+  idleReconnectOpen = true;
+  modalIdleReconnect.hidden = false;
+  if (btnIdleSaveReload) {
+    btnIdleSaveReload.focus();
+  }
+}
+
+function clearIdleTimeout() {
+  if (idleTimeoutHandle) {
+    clearTimeout(idleTimeoutHandle);
+    idleTimeoutHandle = null;
+  }
+}
+
+function markIdleExpired() {
+  idleExpired = true;
+}
+
+function resetIdleTimeout() {
+  if (!currentUser || bootInProgress) {
+    return;
+  }
+  clearIdleTimeout();
+  idleLastActivityAt = Date.now();
+  idleExpired = false;
+  idleTimeoutHandle = setTimeout(markIdleExpired, IDLE_TIMEOUT_MS);
+}
+
+function stopIdleSessionWatch() {
+  clearIdleTimeout();
+  idleExpired = false;
+  idleLastActivityAt = 0;
+  closeIdleReconnectModal();
+}
+
+function startIdleSessionWatch() {
+  if (!currentUser || bootInProgress) {
+    return;
+  }
+  if (idleExpired) {
+    return;
+  }
+  resetIdleTimeout();
+}
+
+function shouldInterceptIdleAction(event) {
+  if (!currentUser || bootInProgress) {
+    return false;
+  }
+  if (
+    !idleExpired &&
+    Number.isFinite(idleLastActivityAt) &&
+    idleLastActivityAt > 0 &&
+    Date.now() - idleLastActivityAt >= IDLE_TIMEOUT_MS
+  ) {
+    idleExpired = true;
+  }
+  if (!idleExpired) {
+    return false;
+  }
+  const target = event && event.target;
+  if (!target || !target.closest) {
+    return false;
+  }
+  if (target.closest("#modalIdleReconnect")) {
+    return false;
+  }
+  if (target.closest(".auth-layout")) {
+    return false;
+  }
+  return Boolean(target.closest(".app"));
+}
+
+function handleIdleGuardEvent(event) {
+  if (!shouldInterceptIdleAction(event)) {
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  if (typeof event.stopImmediatePropagation === "function") {
+    event.stopImmediatePropagation();
+  }
+  openIdleReconnectModal();
+}
+
+function handleIdleActivityEvent(event) {
+  if (!currentUser || bootInProgress) {
+    return;
+  }
+  if (idleExpired) {
+    return;
+  }
+  if (event && event.target && event.target.closest && event.target.closest("#modalIdleReconnect")) {
+    return;
+  }
+  resetIdleTimeout();
+}
+
+function bindIdleReconnectHandlers() {
+  if (idleBindingsReady) {
+    return;
+  }
+  idleBindingsReady = true;
+  document.addEventListener("click", handleIdleGuardEvent, true);
+  document.addEventListener("submit", handleIdleGuardEvent, true);
+  document.addEventListener("keydown", (event) => {
+    const key = String((event && event.key) || "").toLowerCase();
+    if (key === "shift" || key === "control" || key === "alt" || key === "meta") {
+      return;
+    }
+    handleIdleGuardEvent(event);
+  }, true);
+  document.addEventListener("pointerdown", handleIdleActivityEvent, { passive: true });
+  document.addEventListener("touchstart", handleIdleActivityEvent, { passive: true });
+  document.addEventListener("keydown", handleIdleActivityEvent);
+  window.addEventListener("focus", () => {
+    if (!currentUser || bootInProgress || !idleLastActivityAt || idleExpired) {
+      return;
+    }
+    if (Date.now() - idleLastActivityAt >= IDLE_TIMEOUT_MS) {
+      idleExpired = true;
+    }
+  });
+  if (btnIdleSaveReload) {
+    btnIdleSaveReload.addEventListener("click", handleIdleSaveAndReload);
+  }
+  if (btnIdleReloadNow) {
+    btnIdleReloadNow.addEventListener("click", handleIdleReloadWithoutSave);
   }
 }
 
@@ -11892,6 +12315,7 @@ async function carregarSessaoServidor() {
           mostrarAuthPanel("login");
         }
         if (currentUser) {
+          maybeRestoreIdleDraftForCurrentUser();
           startSyncEvents();
           startSyncPolling();
         } else {
@@ -11903,6 +12327,11 @@ async function carregarSessaoServidor() {
   } finally {
     if (bootStarted) {
       finishBootOverlay();
+    }
+    if (currentUser) {
+      startIdleSessionWatch();
+    } else {
+      stopIdleSessionWatch();
     }
   }
 }
@@ -39836,6 +40265,9 @@ function renderAuthUI() {
   document.body.classList.toggle("is-visitor", !autenticado);
 
   if (!autenticado) {
+    stopIdleSessionWatch();
+    idleDraftRestoreDoneFor = "";
+    idleDraftRestoreNotified = false;
     clearProfileTargetUserId();
     fecharPainelLembretes();
     fecharUserMenu();
@@ -39859,6 +40291,7 @@ function renderAuthUI() {
   }
 
   if (autenticado) {
+    startIdleSessionWatch();
     const displayName = getDisplayName(currentUser);
     usuarioAtual.textContent = displayName;
     usuarioAtual.hidden = false;
@@ -44682,18 +45115,12 @@ function getMaintenanceSsReferencia(item) {
   if (!item || typeof item !== "object") {
     return "-";
   }
-  const liberacao = getLiberacao(item) || {};
-  const conclusao = item.conclusao || {};
   const ssNumero = Number.parseInt(
     String(item.ssNumero || item.ssNumber || item.ssId || "").trim(),
     10
   );
   return (
     (Number.isFinite(ssNumero) && ssNumero > 0 ? String(ssNumero) : "") ||
-    conclusao.referencia ||
-    conclusao.osNumero ||
-    liberacao.osNumero ||
-    item.osReferencia ||
     item.id ||
     "-"
   );
@@ -44749,10 +45176,13 @@ function buildSsHistoricoDetalhes(entry) {
     linhas.push(`Obs: ${detalhes.observacao}`);
   }
   if (detalhes.osNumero) {
-    linhas.push(`SS: ${detalhes.osNumero}`);
+    linhas.push(`OS: ${detalhes.osNumero}`);
+  }
+  if (detalhes.ssNumero) {
+    linhas.push(`SS: ${detalhes.ssNumero}`);
   }
   if (detalhes.referencia) {
-    linhas.push(`Referencia: ${detalhes.referencia}`);
+    linhas.push(`Referência: ${detalhes.referencia}`);
   }
   if (detalhes.resultado) {
     const resultadoLabel = RESULTADO_LABELS[detalhes.resultado] || detalhes.resultado;
@@ -44794,6 +45224,7 @@ function buildSolicitacaoServicoDocument(item) {
   const statusKey = normalizeMaintenanceStatus(item.status);
   const statusLabel = STATUS_LABELS[statusKey] || item.status || "-";
   const ssNumero = getMaintenanceSsReferencia(item);
+  const osNumero = getMaintenanceOsReferencia(item) || "-";
   const titulo = item.titulo || "-";
   const projetoLabel = projeto
     ? `${projeto.codigo || "-"} - ${projeto.nome || "-"}`
@@ -44851,7 +45282,7 @@ function buildSolicitacaoServicoDocument(item) {
     .join("");
 
   const documentosRows = DOC_KEYS.map((key) => {
-    const labelRaw = key === "os" ? "SS" : DOC_LABELS[key] || key.toUpperCase();
+    const labelRaw = DOC_LABELS[key] || key.toUpperCase();
     const doc = docs[key];
     const info = getSsDocInfo(doc, labelRaw);
     const status = key === "pt" && !critico ? "N/A" : doc ? "Anexado" : "Pendente";
@@ -44920,9 +45351,12 @@ function buildSolicitacaoServicoDocument(item) {
     <html lang="pt-BR">
       <head>
         <meta charset="utf-8" />
+        <meta name="color-scheme" content="light only" />
         <title>${escapeHtml(documentTitle)}</title>
         <style>
-          body { font-family: "Segoe UI", Arial, sans-serif; margin: 18px; color: #0f172a; }
+          :root { color-scheme: light only; }
+          html, body { margin: 0; padding: 0; background: #ffffff !important; color: #0f172a !important; }
+          body { font-family: "Segoe UI", Arial, sans-serif; margin: 18px; color: #0f172a !important; background: #ffffff !important; }
           .doc { display: grid; gap: 14px; }
           .head { border-bottom: 2px solid #cbd5e1; padding-bottom: 10px; display: grid; gap: 8px; }
           .head__logos { display: grid; grid-template-columns: 140px 1fr 140px; align-items: center; gap: 12px; }
@@ -44934,14 +45368,14 @@ function buildSolicitacaoServicoDocument(item) {
           .head__title p { margin: 2px 0 0; font-size: 12px; color: #334155; }
           .head__meta { margin: 0; color: #475569; font-size: 12px; }
           .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-          .cell { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; }
+          .cell { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; background: #ffffff; }
           .cell span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #64748b; }
           .cell strong { font-size: 13px; }
           h2 { margin: 0; font-size: 15px; }
-          .block { border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px; }
+          .block { border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px; background: #ffffff; }
           p { margin: 0; font-size: 13px; line-height: 1.45; }
           table { width: 100%; border-collapse: collapse; font-size: 12px; }
-          th, td { border: 1px solid #cbd5e1; padding: 6px; text-align: left; vertical-align: top; }
+          th, td { border: 1px solid #cbd5e1; padding: 6px; text-align: left; vertical-align: top; background: #ffffff; color: #0f172a; }
           th { background: #f1f5f9; text-transform: uppercase; letter-spacing: .06em; font-size: 10px; }
           .muted { color: #64748b; }
           .signature { font-family: Consolas, monospace; font-size: 11px; word-break: break-all; }
@@ -44972,6 +45406,7 @@ function buildSolicitacaoServicoDocument(item) {
 
           <section class="grid">
             <div class="cell"><span>SS nº</span><strong>${escapeHtml(ssNumero)}</strong></div>
+            <div class="cell"><span>OS da cliente</span><strong>${escapeHtml(osNumero)}</strong></div>
             <div class="cell"><span>Status</span><strong>${escapeHtml(statusLabel)}</strong></div>
             <div class="cell"><span>Data programada</span><strong>${escapeHtml(dataProgramada)}</strong></div>
             <div class="cell"><span>Resultado</span><strong>${escapeHtml(resultadoLabel)}</strong></div>
@@ -51913,6 +52348,7 @@ initRichEditors();
 initConclusaoModelos();
 initFontGroups();
 initSyncDebug();
+bindIdleReconnectHandlers();
 carregarSessaoServidor();
 preencherInicioExecucaoNova();
 
