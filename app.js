@@ -13579,6 +13579,29 @@ function hasExecucaoRegistradaCompleta(item) {
   return Boolean(executadoPor && comentarioNormalizado.length >= MIN_RESUMO_RDO_CHARS);
 }
 
+function hasRegistroExecucaoBloqueante(item) {
+  if (!item || !item.registroExecucao || typeof item.registroExecucao !== "object") {
+    return false;
+  }
+  const registro = item.registroExecucao || {};
+  const registradoEm =
+    registro.registradoEm ||
+    registro.registrado_em ||
+    registro.executadoEm ||
+    registro.executedAt;
+  const comentario = registro.comentario || registro.descricao || registro.resumo;
+  const observacao = registro.observacaoExecucao || registro.observacao;
+  const resultado = registro.resultado || registro.status;
+  const evidencias = Array.isArray(registro.evidencias) && registro.evidencias.length > 0;
+  return Boolean(
+    String(registradoEm || "").trim() ||
+      String(comentario || "").trim() ||
+      String(observacao || "").trim() ||
+      String(resultado || "").trim() ||
+      evidencias
+  );
+}
+
 function buildManutencaoResumoTexto(item) {
   if (!item) {
     return "-";
@@ -47025,7 +47048,7 @@ function abrirCancelarInicio(item) {
     mostrarMensagemManutencao("A manutenção precisa estar em execução.", true);
     return;
   }
-  if (item.registroExecucao) {
+  if (hasRegistroExecucaoBloqueante(item)) {
     mostrarMensagemManutencao("Registro já iniciado. Não é possível cancelar.", true);
     return;
   }
