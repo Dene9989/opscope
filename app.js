@@ -25450,12 +25450,12 @@ function getKpiGaugeProgress(spec, valor) {
     if (target <= 0) {
       return valor > 0 ? 1 : 0;
     }
-    return clamp(valor / target, 0, 1);
+    return Math.max(0, Math.min(1, valor / target));
   }
   if (target <= 0) {
     return valor <= 0 ? 1 : 0;
   }
-  return clamp(target / Math.max(target, valor), 0, 1);
+  return Math.max(0, Math.min(1, target / Math.max(target, valor)));
 }
 
 function renderKpiGauges(kpis) {
@@ -27034,7 +27034,17 @@ function handleKpiDrilldownClick(event) {
 
 function renderGrafico() {
   if (kpiCards || kpiTrendChart || kpiAgingChart || kpiSlaChart) {
-    renderPainelKpiGerencial();
+    try {
+      renderPainelKpiGerencial();
+    } catch (error) {
+      console.error("Falha ao renderizar painel de KPIs:", error);
+      if (kpiCards) {
+        kpiCards.innerHTML = "";
+      }
+      if (kpiSemaforo) {
+        kpiSemaforo.innerHTML = '<p class="hint">Falha ao carregar KPIs. Tente sincronizar novamente.</p>';
+      }
+    }
     return;
   }
   if (!graficoKpi) {
