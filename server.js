@@ -12835,27 +12835,46 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
   );
   const createdItems = [];
   const mergedMap = new Map(existingMap);
+  const recurrenceIndex = new Map();
+  mergedMap.forEach((item, id) => {
+    const recurrenceKey = getMaintenanceRecurrenceKey(item);
+    if (recurrenceKey) {
+      recurrenceIndex.set(recurrenceKey, id);
+    }
+  });
   incomingList.forEach((item) => {
     if (!item || !item.id) {
       return;
     }
-    const key = String(item.id);
-    if (tombstones.has(key)) {
+    const incomingId = String(item.id);
+    if (tombstones.has(incomingId)) {
       if (shouldLogMaintenanceSync(item, projectId)) {
         logMaintenanceSync("skip.tombstone", {
           projectId,
           userId: user ? user.id : "",
-          id: key,
+          id: incomingId,
         });
       }
       return;
     }
-    const current = mergedMap.get(key) || null;
+    const recurrenceKey = getMaintenanceRecurrenceKey(item);
+    let targetId = incomingId;
+    let current = mergedMap.get(targetId) || null;
+    if (!current && recurrenceKey) {
+      const recurrenceId = recurrenceIndex.get(recurrenceKey);
+      if (recurrenceId) {
+        targetId = recurrenceId;
+        current = mergedMap.get(targetId) || null;
+      }
+    }
     const sanitizedItem = sanitizeMaintenanceIncoming(item, current, user);
     if (!current) {
       createdItems.push(sanitizedItem);
     }
-    const mergedItem = pickMaintenanceMerge(current, sanitizedItem);
+    let mergedItem = pickMaintenanceMerge(current, sanitizedItem);
+    if (current && current.id && String(mergedItem.id || "") !== String(current.id)) {
+      mergedItem = { ...mergedItem, id: current.id };
+    }
     if (
       shouldLogMaintenanceSync(sanitizedItem, projectId) ||
       shouldLogMaintenanceSync(current, projectId)
@@ -12868,7 +12887,14 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
         merged: summarizeMaintenanceSyncItem(mergedItem),
       });
     }
-    mergedMap.set(key, mergedItem);
+    if (targetId !== incomingId) {
+      mergedMap.delete(incomingId);
+    }
+    mergedMap.set(targetId, mergedItem);
+    const mergedRecurrenceKey = getMaintenanceRecurrenceKey(mergedItem) || recurrenceKey;
+    if (mergedRecurrenceKey) {
+      recurrenceIndex.set(mergedRecurrenceKey, targetId);
+    }
   });
   let mergedProject = Array.from(mergedMap.values()).filter(Boolean);
   const deduped = dedupeMaintenanceRecords(mergedProject, projectId);

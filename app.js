@@ -12255,7 +12255,9 @@ function reloadProjectState() {
   iniciarAuditChain();
   carregarConfiguracoes();
   manutencoes = carregarManutencoes();
-  gerarManutencoesRecorrentes();
+  if (!USE_AUTH_API || maintenanceLoadedProjects.has(activeProjectId)) {
+    gerarManutencoesRecorrentes();
+  }
   const resultado = normalizarManutencoes(manutencoes);
   manutencoes = resultado.normalizadas;
   salvarManutencoes(manutencoes);
@@ -12289,7 +12291,6 @@ async function setActiveProjectId(nextId, options = {}) {
     }
   }
   reloadProjectState();
-  loadDashboardSummary(true);
   renderProjectSelector();
   renderProjectPanel();
   renderPmpModule();
@@ -12298,7 +12299,9 @@ async function setActiveProjectId(nextId, options = {}) {
   await carregarProcedimentosProjeto();
   await carregarManutencoesServidor(true);
   await carregarTemplatesServidor(true);
+  gerarManutencoesRecorrentes();
   await carregarPmpDados();
+  loadDashboardSummary(true);
   restartSyncEvents();
   scheduleExecucaoRegistradaAlerts();
   updateSyncStatusLabel();
