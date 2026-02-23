@@ -26352,15 +26352,18 @@ function renderKpiSemaforo(kpis) {
   }
   kpiSemaforo.innerHTML = "";
   const wrap = document.createElement("div");
-  wrap.className = "kpi-table-wrap";
+  wrap.className = "kpi-table-wrap kpi-table-wrap--semaforo";
   const table = document.createElement("table");
-  table.className = "kpi-table kpi-table--compact";
+  table.className = "kpi-table kpi-table--compact kpi-table--semaforo";
 
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
-  ["Indicador", "Atual", "Meta", "Gap", "Status"].forEach((label) => {
+  ["Indicador", "Atual", "Meta", "Gap", "Status"].forEach((label, index) => {
     const th = document.createElement("th");
     th.textContent = label;
+    if (index > 0) {
+      th.className = "is-center";
+    }
     headRow.append(th);
   });
   thead.append(headRow);
@@ -26380,17 +26383,18 @@ function renderKpiSemaforo(kpis) {
 
     const atual = document.createElement("td");
     atual.textContent = formatKpiValor(valor, spec.format);
-    atual.className = "is-num";
+    atual.className = "is-center";
 
     const meta = document.createElement("td");
     meta.textContent = formatKpiValor(spec.target, spec.format);
-    meta.className = "is-num";
+    meta.className = "is-center";
 
     const gap = document.createElement("td");
     gap.textContent = avaliacao.gap;
-    gap.className = "is-num";
+    gap.className = "is-center";
 
     const status = document.createElement("td");
+    status.className = "is-center";
     const badge = document.createElement("span");
     badge.className = `kpi-status kpi-status--${avaliacao.status}`;
     badge.textContent = avaliacao.label;

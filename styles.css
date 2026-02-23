@@ -9883,6 +9883,31 @@ textarea:focus {
   color: var(--kpi-text);
 }
 
+.panel-kpi .kpi-table--semaforo th,
+.panel-kpi .kpi-table--semaforo td {
+  vertical-align: middle;
+}
+
+.panel-kpi .kpi-table--semaforo th:first-child,
+.panel-kpi .kpi-table--semaforo td:first-child {
+  width: 34%;
+  min-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panel-kpi .kpi-table--semaforo th.is-center,
+.panel-kpi .kpi-table--semaforo td.is-center {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.panel-kpi .kpi-table--semaforo td .kpi-status {
+  margin-inline: auto;
+}
+
 .panel-kpi .status-badge {
   border: 1px solid rgba(129, 171, 205, 0.35);
 }
