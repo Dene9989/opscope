@@ -14455,6 +14455,71 @@ function mergePreferLocal(remote, local) {
   return merged;
 }
 
+const MAINTENANCE_EXECUTION_RESET_FIELDS = [
+  "inicioExecucao",
+  "executionStartedAt",
+  "executionStartedBy",
+  "executionFinishedAt",
+  "doneAt",
+  "doneBy",
+  "concluidaEm",
+  "dataConclusao",
+  "execucaoRegistradaEm",
+  "executionRegisteredAt",
+  "execucaoRegistradaAt",
+  "registroExecucao",
+  "conclusao",
+  "encerramento",
+  "encerramentoEm",
+  "encerramentoPor",
+  "canceladoEm",
+  "canceladoPor",
+];
+
+function isExecutionStatus(status) {
+  return status === "em_execucao" || status === "encerramento";
+}
+
+function shouldKeepLocalExecutionReset(local, remote) {
+  if (!local || !remote) {
+    return false;
+  }
+  const localStatus = normalizeMaintenanceStatus(local.status);
+  const remoteStatus = normalizeMaintenanceStatus(remote.status);
+  const localHasExec = hasExecucaoRegistrada(local) || isExecutionStatus(localStatus);
+  const remoteHasExec = hasExecucaoRegistrada(remote) || isExecutionStatus(remoteStatus);
+  if (localHasExec || !remoteHasExec) {
+    return false;
+  }
+  const localTime = getMaintenanceUpdatedAtValue(local);
+  const remoteTime = getMaintenanceUpdatedAtValue(remote);
+  if (!localTime) {
+    return false;
+  }
+  return !remoteTime || localTime >= remoteTime - 1000;
+}
+
+function applyLocalExecutionReset(merged, local) {
+  const next = { ...(merged || {}) };
+  MAINTENANCE_EXECUTION_RESET_FIELDS.forEach((key) => {
+    if (Object.prototype.hasOwnProperty.call(local, key)) {
+      next[key] = local[key];
+    } else {
+      delete next[key];
+    }
+  });
+  if (Object.prototype.hasOwnProperty.call(local, "status")) {
+    next.status = local.status;
+  }
+  if (Object.prototype.hasOwnProperty.call(local, "updatedAt")) {
+    next.updatedAt = local.updatedAt;
+  }
+  if (Object.prototype.hasOwnProperty.call(local, "updatedBy")) {
+    next.updatedBy = local.updatedBy;
+  }
+  return next;
+}
+
 function getMaintenanceUpdatedAtValue(item) {
   if (!item || typeof item !== "object") {
     return 0;
@@ -14597,6 +14662,12 @@ function pickMaintenanceMerge(remote, local) {
   const localTime = getMaintenanceUpdatedAtValue(local);
   const remoteConcluida = isMaintenanceConcluded(remote);
   const localConcluida = isMaintenanceConcluded(local);
+  if (shouldKeepLocalExecutionReset(local, remote)) {
+    return {
+      item: applyLocalExecutionReset(mergePreferLocal(local, remote), local),
+      source: "local",
+    };
+  }
 
   if (localConcluida && !remoteConcluida && (!remoteTime || localTime >= remoteTime)) {
     return { item: mergePreferLocal(local, remote), source: "local" };
@@ -14626,6 +14697,9 @@ function mergeLocalExecucaoRegistro(remote, local) {
   const remoteTime = getMaintenanceUpdatedAtValue(remote);
   const localStatus = normalizeMaintenanceStatus(local.status);
   const remoteStatus = normalizeMaintenanceStatus(remote.status);
+  if (shouldKeepLocalExecutionReset(local, remote)) {
+    return applyLocalExecutionReset(mergePreferLocal(local, remote), local);
+  }
   if (localDirty && (!remoteTime || localTime >= remoteTime)) {
     return mergePreferLocal(local, remote);
   }
@@ -47103,12 +47177,37 @@ function salvarCancelarInicio(event) {
     return;
   }
   const inicioAnterior = item.executionStartedAt || "";
+  const liberacaoAtual = getLiberacao(item) || {};
+  const liberacaoReset = {
+    ...liberacaoAtual,
+    osNumero: "",
+    documentos: {},
+    liberadoEm: "",
+    liberadoPor: "",
+    overrideJustificativa: "",
+    overrideRole: "",
+    overrideAt: "",
+  };
   const atualizado = {
     ...item,
-    status: isLiberacaoOk(item) ? "liberada" : "agendada",
-    executionStartedAt: null,
-    executionStartedBy: null,
-    executionFinishedAt: null,
+    status: "agendada",
+    liberacao: liberacaoReset,
+    inicioExecucao: "",
+    executionStartedAt: "",
+    executionStartedBy: "",
+    executionFinishedAt: "",
+    execucaoRegistradaEm: "",
+    executionRegisteredAt: "",
+    execucaoRegistradaAt: "",
+    doneAt: "",
+    doneBy: "",
+    concluidaEm: "",
+    dataConclusao: "",
+    conclusao: null,
+    encerramento: "",
+    encerramentoEm: "",
+    encerramentoPor: "",
+    prazoMaximoInicio: "",
     registroExecucao: null,
     updatedAt: toIsoUtc(new Date()),
     updatedBy: currentUser.id,

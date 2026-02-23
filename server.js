@@ -4387,6 +4387,71 @@ function mergePreferMeaningful(primary, fallback) {
   return merged;
 }
 
+const MAINTENANCE_EXECUTION_RESET_FIELDS = [
+  "inicioExecucao",
+  "executionStartedAt",
+  "executionStartedBy",
+  "executionFinishedAt",
+  "doneAt",
+  "doneBy",
+  "concluidaEm",
+  "dataConclusao",
+  "execucaoRegistradaEm",
+  "executionRegisteredAt",
+  "execucaoRegistradaAt",
+  "registroExecucao",
+  "conclusao",
+  "encerramento",
+  "encerramentoEm",
+  "encerramentoPor",
+  "canceladoEm",
+  "canceladoPor",
+];
+
+function isExecutionStatus(status) {
+  return status === "em_execucao" || status === "encerramento";
+}
+
+function shouldPreserveIncomingExecutionReset(incoming, existing) {
+  if (!incoming || !existing) {
+    return false;
+  }
+  const incomingStatus = normalizeStatus(incoming.status);
+  const existingStatus = normalizeStatus(existing.status);
+  const incomingHasExec = hasExecucaoRegistrada(incoming) || isExecutionStatus(incomingStatus);
+  const existingHasExec = hasExecucaoRegistrada(existing) || isExecutionStatus(existingStatus);
+  if (incomingHasExec || !existingHasExec) {
+    return false;
+  }
+  const incomingTime = getMaintenanceUpdatedAtValue(incoming);
+  const existingTime = getMaintenanceUpdatedAtValue(existing);
+  if (!incomingTime) {
+    return false;
+  }
+  return !existingTime || incomingTime >= existingTime - 1000;
+}
+
+function applyIncomingExecutionReset(merged, incoming) {
+  const next = { ...(merged || {}) };
+  MAINTENANCE_EXECUTION_RESET_FIELDS.forEach((key) => {
+    if (Object.prototype.hasOwnProperty.call(incoming, key)) {
+      next[key] = incoming[key];
+    } else {
+      delete next[key];
+    }
+  });
+  if (Object.prototype.hasOwnProperty.call(incoming, "status")) {
+    next.status = incoming.status;
+  }
+  if (Object.prototype.hasOwnProperty.call(incoming, "updatedAt")) {
+    next.updatedAt = incoming.updatedAt;
+  }
+  if (Object.prototype.hasOwnProperty.call(incoming, "updatedBy")) {
+    next.updatedBy = incoming.updatedBy;
+  }
+  return next;
+}
+
 function pickMaintenanceMerge(existing, incoming) {
   if (!existing && !incoming) {
     return null;
@@ -4403,6 +4468,7 @@ function pickMaintenanceMerge(existing, incoming) {
   const incomingTime = getMaintenanceUpdatedAtValue(incoming);
   const mergedIncoming = mergePreferMeaningful(incoming, existing);
   const mergedExisting = mergePreferMeaningful(existing, incoming);
+  const forceIncomingExecutionReset = shouldPreserveIncomingExecutionReset(incoming, existing);
   const incomingHasResponsavel =
     Object.prototype.hasOwnProperty.call(incoming, "responsavelIds") ||
     Object.prototype.hasOwnProperty.call(incoming, "responsavelId") ||
@@ -4411,7 +4477,10 @@ function pickMaintenanceMerge(existing, incoming) {
     Object.prototype.hasOwnProperty.call(incoming, "responsavel");
   let result = mergedIncoming;
   let usedIncoming = true;
-  if (existingStatus === "concluida" && incomingStatus !== "concluida") {
+  if (forceIncomingExecutionReset) {
+    result = applyIncomingExecutionReset(mergedIncoming, incoming);
+    usedIncoming = true;
+  } else if (existingStatus === "concluida" && incomingStatus !== "concluida") {
     const reopened = Boolean(incoming.reopenedAt || incoming.reopenedBy);
     if (!reopened) {
       result = mergedExisting;
