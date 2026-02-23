@@ -45788,16 +45788,24 @@ function collectEvidenceUrlCandidates(evidencia) {
   return candidates;
 }
 
-async function canLoadSsEvidenceUrl(url) {
+async function canLoadSsEvidenceUrl(url, options = {}) {
   const target = String(url || "").trim();
   if (!target) {
     return false;
   }
-  if (/^(data:|blob:)/i.test(target)) {
+  const expectImage = Boolean(options.expectImage);
+  if (/^data:/i.test(target)) {
+    if (!expectImage) {
+      return true;
+    }
+    return /^data:image\//i.test(target);
+  }
+  if (/^blob:/i.test(target)) {
     return true;
   }
-  if (ssEvidenceHeadCache.has(target)) {
-    return ssEvidenceHeadCache.get(target) === true;
+  const cacheKey = `${expectImage ? "img" : "any"}::${target}`;
+  if (ssEvidenceHeadCache.has(cacheKey)) {
+    return ssEvidenceHeadCache.get(cacheKey) === true;
   }
   try {
     const response = await fetch(target, {
@@ -45805,11 +45813,17 @@ async function canLoadSsEvidenceUrl(url) {
       credentials: "include",
       cache: "no-store",
     });
-    const ok = Boolean(response && response.ok);
-    ssEvidenceHeadCache.set(target, ok);
+    let ok = Boolean(response && response.ok);
+    if (ok && expectImage) {
+      const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+      if (contentType.includes("text/html") || contentType.includes("application/json")) {
+        ok = false;
+      }
+    }
+    ssEvidenceHeadCache.set(cacheKey, ok);
     return ok;
   } catch (error) {
-    ssEvidenceHeadCache.set(target, false);
+    ssEvidenceHeadCache.set(cacheKey, false);
     return false;
   }
 }
@@ -45841,7 +45855,8 @@ function dedupeEvidenceList(list) {
   return output;
 }
 
-async function resolveSsEvidenceUrl(evidencia) {
+async function resolveSsEvidenceUrl(evidencia, options = {}) {
+  const expectImage = Boolean(options.expectImage);
   const candidates = collectEvidenceUrlCandidates(evidencia).map((url) => resolvePublicUrl(url));
   const fileId = getEvidenceFileId(evidencia);
   if (fileId) {
@@ -45885,11 +45900,11 @@ async function resolveSsEvidenceUrl(evidencia) {
     ordered.push(target);
   });
   for (const candidate of ordered) {
-    if (await canLoadSsEvidenceUrl(candidate)) {
+    if (await canLoadSsEvidenceUrl(candidate, { expectImage })) {
       return candidate;
     }
   }
-  return ordered[0] || "";
+  return expectImage ? "" : ordered[0] || "";
 }
 
 function buildSsHistoricoDetalhes(entry) {
@@ -46040,13 +46055,15 @@ async function buildSolicitacaoServicoDocument(item) {
           evidencias.map(async (evidencia, index) => {
             const name = String(evidencia.nome || evidencia.name || `Evidência ${index + 1}`).trim();
             const type = String(evidencia.type || evidencia.mime || "-").trim();
-            const url = await resolveSsEvidenceUrl(evidencia);
-            const isImage = isImageEvidence(evidencia) && Boolean(url);
+            const expectImage = isImageEvidence(evidencia);
+            const imageUrl = await resolveSsEvidenceUrl(evidencia, { expectImage });
+            const url = imageUrl || (expectImage ? await resolveSsEvidenceUrl(evidencia) : "");
+            const isImage = expectImage && Boolean(imageUrl);
             const preview = isImage
               ? `<button class="ss-evidence-thumb ss-evidence-thumb--btn" type="button" data-ss-zoom="${escapeHtml(
-                  url
+                  imageUrl
                 )}" data-ss-zoom-name="${escapeHtml(name)}" title="Clique para ampliar">
-                  <img class="ss-evidence-thumb__img" src="${escapeHtml(url)}" alt="${escapeHtml(
+                  <img class="ss-evidence-thumb__img" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(
                   name
                 )}" loading="eager" />
                 </button>`
