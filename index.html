@@ -3089,13 +3089,17 @@
         </div>
       </section>
     </section>
-
-    <section class="panel" id="tendencias" data-panel="tendencias">
-      <section class="card">
-        <h2>KPIs e tendencias</h2>
+    <section class="panel panel-kpi" id="tendencias" data-panel="tendencias">
+      <section class="card card-kpi card-kpi--filters">
+        <div class="card-kpi__head">
+          <div>
+            <h2>KPIs e tendencias</h2>
+            <p class="hint">Painel gerencial com foco em backlog, SLA, risco e produtividade.</p>
+          </div>
+        </div>
         <div class="programacao-toolbar">
           <div class="field">
-            <label for="kpiPeriodo">Período</label>
+            <label for="kpiPeriodo">Periodo</label>
             <select id="kpiPeriodo">
               <option value="7">7d</option>
               <option value="30" selected>30d</option>
@@ -3103,7 +3107,14 @@
             </select>
           </div>
           <div class="field">
-            <label for="kpiSubestacao">Subestação</label>
+            <label for="kpiTrendEscala">Escala de tendencia</label>
+            <select id="kpiTrendEscala">
+              <option value="semanal" selected>Semanal</option>
+              <option value="mensal">Mensal</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="kpiSubestacao">Subestacao</label>
             <select id="kpiSubestacao">
               <option value="">Todas</option>
             </select>
@@ -3121,15 +3132,16 @@
             </select>
           </div>
         </div>
-        <p class="hint">Painel somente leitura para acompanhamento gerencial.</p>
       </section>
-      <section class="card">
-        <h2>Resumo gerencial</h2>
+
+      <section class="card card-kpi">
+        <h2>Resumo executivo</h2>
         <div id="kpiCards" class="kpi-grid kpi-grid--gerencial"></div>
       </section>
-      <section class="card">
-        <h2>Governança e metas</h2>
-        <p class="hint">Semáforo de indicadores para reunião gerencial e priorização de ação.</p>
+
+      <section class="card card-kpi">
+        <h2>Governanca e metas</h2>
+        <p class="hint">Semaforo de indicadores para reuniao gerencial e priorizacao de acao.</p>
         <div id="kpiSemaforo"></div>
         <div class="kpi-alertas">
           <h3>Alertas gerenciais</h3>
@@ -3137,28 +3149,48 @@
           <p id="kpiAlertasVazio" class="empty-state" hidden>Nenhum alerta para o filtro atual.</p>
         </div>
       </section>
-      <section class="card">
-        <h2>Tendencias semanais</h2>
-        <div class="account-grid">
-          <div>
-            <h3>Concluidas vs Backlog</h3>
-            <div id="kpiTrendChart" class="chart"></div>
-          </div>
-          <div>
-            <h3>Backlog aging</h3>
-            <div id="kpiAgingChart" class="chart"></div>
-          </div>
-          <div>
-            <h3>SLA compliance</h3>
-            <div id="kpiSlaChart" class="chart"></div>
-          </div>
+
+      <section class="card card-kpi">
+        <h2>Tendencias dinamicas</h2>
+        <div class="kpi-trend-grid">
+          <article class="kpi-chart-card">
+            <header class="kpi-chart-card__head">
+              <div>
+                <h3>Concluidas x Backlog</h3>
+                <p class="hint">Compara entrega e acumulacao por janela.</p>
+              </div>
+              <span id="kpiTrendMeta" class="kpi-chart-meta">-</span>
+            </header>
+            <div id="kpiTrendChart" class="chart chart--interactive"></div>
+          </article>
+          <article class="kpi-chart-card">
+            <header class="kpi-chart-card__head">
+              <div>
+                <h3>Backlog aging</h3>
+                <p class="hint">Distribuicao por faixa de atraso.</p>
+              </div>
+              <span id="kpiAgingMeta" class="kpi-chart-meta">-</span>
+            </header>
+            <div id="kpiAgingChart" class="chart chart--interactive"></div>
+          </article>
+          <article class="kpi-chart-card">
+            <header class="kpi-chart-card__head">
+              <div>
+                <h3>SLA compliance</h3>
+                <p class="hint">Tendencia de cumprimento no prazo.</p>
+              </div>
+              <span id="kpiSlaMeta" class="kpi-chart-meta">-</span>
+            </header>
+            <div id="kpiSlaChart" class="chart chart--interactive"></div>
+          </article>
         </div>
       </section>
-      <section class="card">
+
+      <section class="card card-kpi">
         <h2>Pareto e gargalos</h2>
         <div class="account-grid">
           <div>
-            <h3>Subestações com maior risco</h3>
+            <h3>Subestacoes com maior risco</h3>
             <div id="kpiGargalos"></div>
             <p id="kpiGargalosVazio" class="empty-state" hidden>Nenhum risco encontrado.</p>
           </div>
@@ -3169,11 +3201,12 @@
           </div>
         </div>
       </section>
-      <section class="card">
-        <h2>Gestao por usuário</h2>
+
+      <section class="card card-kpi">
+        <h2>Gestao por usuario</h2>
         <div class="programacao-toolbar">
           <div class="field">
-            <label for="kpiUsuarioFiltro">Usuário</label>
+            <label for="kpiUsuarioFiltro">Usuario</label>
             <select id="kpiUsuarioFiltro">
               <option value="">Todos</option>
             </select>
@@ -3182,7 +3215,8 @@
         <div id="kpiRanking"></div>
         <p id="kpiRankingVazio" class="empty-state" hidden>Nenhum dado para o filtro.</p>
       </section>
-      <section class="card">
+
+      <section class="card card-kpi">
         <h2>Drill-down</h2>
         <div class="programacao-toolbar">
           <div class="field">
@@ -3194,12 +3228,11 @@
             </select>
           </div>
         </div>
-        <p id="kpiDrilldownTitulo" class="hint">Clique em um KPI ou grafico para listar.</p>
+        <p id="kpiDrilldownTitulo" class="hint">Clique em um KPI, tabela ou ponto do grafico para listar.</p>
         <div id="kpiDrilldownTabela"></div>
         <p id="kpiDrilldownVazio" class="empty-state" hidden>Nenhum item encontrado.</p>
       </section>
     </section>
-
     <section class="panel page-relatorios" id="relatorios" data-panel="relatorios">
       <section class="card">
         <div class="report-header">

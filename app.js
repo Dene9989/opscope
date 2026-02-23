@@ -197,6 +197,7 @@ const kpiBacklog = document.getElementById("kpiBacklog");
 const kpiPontual = document.getElementById("kpiPontual");
 const kpiAtraso = document.getElementById("kpiAtraso");
 const kpiPeriodo = document.getElementById("kpiPeriodo");
+const kpiTrendEscala = document.getElementById("kpiTrendEscala");
 const kpiSubestacao = document.getElementById("kpiSubestacao");
 const kpiCategoria = document.getElementById("kpiCategoria");
 const kpiPrioridade = document.getElementById("kpiPrioridade");
@@ -206,8 +207,11 @@ const kpiSemaforo = document.getElementById("kpiSemaforo");
 const kpiAlertas = document.getElementById("kpiAlertas");
 const kpiAlertasVazio = document.getElementById("kpiAlertasVazio");
 const kpiTrendChart = document.getElementById("kpiTrendChart");
+const kpiTrendMeta = document.getElementById("kpiTrendMeta");
 const kpiAgingChart = document.getElementById("kpiAgingChart");
+const kpiAgingMeta = document.getElementById("kpiAgingMeta");
 const kpiSlaChart = document.getElementById("kpiSlaChart");
+const kpiSlaMeta = document.getElementById("kpiSlaMeta");
 const kpiGargalos = document.getElementById("kpiGargalos");
 const kpiGargalosVazio = document.getElementById("kpiGargalosVazio");
 const kpiBacklogMotivos = document.getElementById("kpiBacklogMotivos");
@@ -24707,6 +24711,19 @@ function startOfWeek(date) {
   return inicio;
 }
 
+function startOfMonth(date) {
+  const inicio = startOfDay(date);
+  inicio.setDate(1);
+  return inicio;
+}
+
+function endOfMonth(date) {
+  const inicio = startOfMonth(date);
+  inicio.setMonth(inicio.getMonth() + 1);
+  inicio.setDate(0);
+  return startOfDay(inicio);
+}
+
 function addHours(date, hours) {
   const copia = new Date(date);
   copia.setHours(copia.getHours() + hours);
@@ -25050,6 +25067,7 @@ function getKpiFiltros() {
   const periodo = kpiPeriodo ? Number(kpiPeriodo.value) || 30 : 30;
   return {
     periodo,
+    escala: kpiTrendEscala ? kpiTrendEscala.value : "semanal",
     subestacao: kpiSubestacao ? kpiSubestacao.value : "",
     categoria: kpiCategoria ? kpiCategoria.value : "",
     prioridade: kpiPrioridade ? kpiPrioridade.value : "",
@@ -25884,53 +25902,119 @@ function renderKpiBacklogMotivos(itens) {
   kpiBacklogMotivos.append(table);
 }
 
-function buildLineChart(container, labels, series, maxValor, tooltipLabels) {
+function buildLineChart(container, labels, series, maxValor, tooltipLabels, options = {}) {
   if (!container) {
     return;
   }
   container.innerHTML = "";
-  const width = 600;
-  const height = 160;
-  const padX = 24;
-  const padY = 18;
-  const plotWidth = width - padX * 2;
-  const plotHeight = height - padY * 2;
-  const baseline = padY + plotHeight;
-  const step = labels.length > 1 ? plotWidth / (labels.length - 1) : plotWidth;
-  const pulse = Math.max(6, step * 0.14);
+  const safeLabels = Array.isArray(labels) ? labels : [];
+  const safeSeries = Array.isArray(series) ? series.filter(Boolean) : [];
+  if (!safeLabels.length || !safeSeries.length) {
+    const empty = document.createElement("p");
+    empty.className = "hint";
+    empty.textContent = "Sem dados para exibir no periodo atual.";
+    container.append(empty);
+    return;
+  }
+
+  const width = 740;
+  const height = 210;
+  const padLeft = 44;
+  const padRight = 18;
+  const padTop = 12;
+  const padBottom = 34;
+  const plotWidth = width - padLeft - padRight;
+  const plotHeight = height - padTop - padBottom;
+  const baseline = padTop + plotHeight;
+  const step = safeLabels.length > 1 ? plotWidth / (safeLabels.length - 1) : 0;
+  const max = Math.max(1, Number(maxValor) || 1);
+  const yTicks = Number(options.yTicks) > 2 ? Number(options.yTicks) : 4;
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "chart__wrap";
 
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
   svg.classList.add("chart__svg");
 
-  const baselineLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  baselineLine.setAttribute("x1", padX);
-  baselineLine.setAttribute("x2", width - padX);
-  baselineLine.setAttribute("y1", baseline);
-  baselineLine.setAttribute("y2", baseline);
-  baselineLine.classList.add("chart__baseline");
-  svg.append(baselineLine);
+  for (let i = 0; i <= yTicks; i += 1) {
+    const ratio = i / yTicks;
+    const y = baseline - ratio * plotHeight;
+    const value = Math.round(max * ratio);
+    const gridLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    gridLine.setAttribute("x1", padLeft);
+    gridLine.setAttribute("x2", width - padRight);
+    gridLine.setAttribute("y1", y);
+    gridLine.setAttribute("y2", y);
+    gridLine.classList.add("chart__grid-line");
+    svg.append(gridLine);
 
-  const max = Math.max(1, maxValor || 1);
+    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    text.setAttribute("x", padLeft - 8);
+    text.setAttribute("y", y + 4);
+    text.setAttribute("text-anchor", "end");
+    text.classList.add("chart__grid-label");
+    text.textContent = String(value);
+    svg.append(text);
+  }
 
-  series.forEach((serie) => {
-    const points = serie.values.map((valor, index) => {
-      const safeValor = Number.isFinite(valor) ? valor : 0;
-      const x = padX + index * step;
-      const y = padY + plotHeight - (safeValor / max) * plotHeight;
-      return { x, y, valor: safeValor };
+  safeLabels.forEach((_, index) => {
+    if (safeLabels.length <= 1) {
+      return;
+    }
+    const x = padLeft + index * step;
+    const vline = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    vline.setAttribute("x1", x);
+    vline.setAttribute("x2", x);
+    vline.setAttribute("y1", padTop);
+    vline.setAttribute("y2", baseline);
+    vline.classList.add("chart__grid-vline");
+    svg.append(vline);
+  });
+
+  const focusLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  focusLine.classList.add("chart__focus-line");
+  focusLine.setAttribute("y1", padTop);
+  focusLine.setAttribute("y2", baseline);
+  focusLine.setAttribute("x1", padLeft);
+  focusLine.setAttribute("x2", padLeft);
+  focusLine.style.display = "none";
+  svg.append(focusLine);
+
+  const pointsByIndex = new Map();
+  safeSeries.forEach((serie, serieIndex) => {
+    const points = safeLabels.map((_, index) => {
+      const raw = Array.isArray(serie.values) ? serie.values[index] : null;
+      const valor = Number.isFinite(raw) ? raw : 0;
+      const x = padLeft + index * step;
+      const y = padTop + plotHeight - (valor / max) * plotHeight;
+      return { x, y, valor, raw };
     });
+
+    if (serie.areaClass) {
+      const area = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      const first = points[0];
+      const last = points[points.length - 1];
+      const areaPath = [
+        `M ${first.x} ${baseline}`,
+        ...points.map((point) => `L ${point.x} ${point.y}`),
+        `L ${last.x} ${baseline}`,
+        "Z",
+      ].join(" ");
+      area.setAttribute("d", areaPath);
+      area.classList.add("chart__area");
+      area.classList.add(serie.areaClass);
+      svg.append(area);
+    }
+
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    const d = points
-      .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
-      .join(" ");
-    path.setAttribute("d", d);
+    path.setAttribute(
+      "d",
+      points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ")
+    );
     path.classList.add("chart__line");
     if (serie.lineClass) {
       path.classList.add(serie.lineClass);
-    }
-    if (serie.stroke) {
-      path.setAttribute("stroke", serie.stroke);
     }
     svg.append(path);
 
@@ -25938,26 +26022,67 @@ function buildLineChart(container, labels, series, maxValor, tooltipLabels) {
       const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
       dot.setAttribute("cx", point.x);
       dot.setAttribute("cy", point.y);
-      dot.setAttribute("r", pulse * 0.35);
+      dot.setAttribute("r", 3.8);
       dot.classList.add("chart__dot");
       if (serie.dotClass) {
         dot.classList.add(serie.dotClass);
       }
+      dot.dataset.pointIndex = String(index);
       if (serie.drilldown) {
         dot.dataset.drilldown = serie.drilldown;
         dot.dataset.week = serie.weekKeys[index];
         dot.style.cursor = "pointer";
       }
-      if (tooltipLabels && tooltipLabels[index]) {
+      const pointLabel =
+        serie.label || `Serie ${serieIndex + 1}`;
+      if (!pointsByIndex.has(index)) {
+        pointsByIndex.set(index, []);
+      }
+      const tooltipValue =
+        tooltipLabels && tooltipLabels[index] && serieIndex === 0
+          ? tooltipLabels[index]
+          : point.valor;
+      pointsByIndex.get(index).push({
+        label: pointLabel,
+        valor: tooltipValue,
+        colorClass:
+          (serie.dotClass && serie.dotClass.replace("chart__dot", "chart__legend-item")) ||
+          "chart__legend-item--done",
+      });
+      if (tooltipLabels && tooltipLabels[index] && serieIndex === 0) {
         dot.setAttribute("title", tooltipLabels[index]);
       }
+      dot.addEventListener("mouseenter", () => {
+        focusLine.style.display = "block";
+        focusLine.setAttribute("x1", point.x);
+        focusLine.setAttribute("x2", point.x);
+        showTooltip(index, point.x);
+      });
+      dot.addEventListener("focus", () => {
+        focusLine.style.display = "block";
+        focusLine.setAttribute("x1", point.x);
+        focusLine.setAttribute("x2", point.x);
+        showTooltip(index, point.x);
+      });
       svg.append(dot);
     });
   });
 
+  const tooltip = document.createElement("div");
+  tooltip.className = "chart__tooltip";
+  tooltip.hidden = true;
+
+  const labelsRow = document.createElement("div");
+  labelsRow.className = "chart__labels";
+  safeLabels.forEach((label) => {
+    const span = document.createElement("span");
+    span.textContent = label;
+    labelsRow.append(span);
+  });
+
   const legend = document.createElement("div");
   legend.className = "chart__legend";
-  series.forEach((serie) => {
+  safeSeries.forEach((serie) => {
     const item = document.createElement("span");
     item.className = "chart__legend-item";
     if (serie.legendClass) {
@@ -25970,15 +26095,57 @@ function buildLineChart(container, labels, series, maxValor, tooltipLabels) {
     legend.append(item);
   });
 
-  const labelsRow = document.createElement("div");
-  labelsRow.className = "chart__labels";
-  labels.forEach((label) => {
-    const span = document.createElement("span");
-    span.textContent = label;
-    labelsRow.append(span);
-  });
+  function showTooltip(index, pointX) {
+    const rows = pointsByIndex.get(index) || [];
+    const label = safeLabels[index] || "-";
+    const lines = rows
+      .map((row) => `<li><strong>${escapeHtml(row.label)}:</strong> ${escapeHtml(String(row.valor))}</li>`)
+      .join("");
+    tooltip.innerHTML = `
+      <strong class="chart__tooltip-title">${escapeHtml(label)}</strong>
+      <ul class="chart__tooltip-list">${lines}</ul>
+    `;
+    tooltip.hidden = false;
+    const ratio = (pointX - padLeft) / Math.max(1, plotWidth);
+    tooltip.classList.toggle("is-right", ratio < 0.55);
+    tooltip.classList.toggle("is-left", ratio >= 0.55);
+  }
 
-  container.append(svg, legend, labelsRow);
+  wrapper.append(svg, tooltip);
+  container.append(wrapper, legend, labelsRow);
+  container.onmouseleave = () => {
+    tooltip.hidden = true;
+    focusLine.style.display = "none";
+  };
+}
+
+function buildKpiBuckets(escala) {
+  const mode = escala === "mensal" ? "mensal" : "semanal";
+  const count = mode === "mensal" ? 6 : 8;
+  const hoje = startOfDay(new Date());
+  const buckets = [];
+  if (mode === "mensal") {
+    const atual = startOfMonth(hoje);
+    for (let i = count - 1; i >= 0; i -= 1) {
+      const inicio = addMonths(atual, -i);
+      const fim = endOfMonth(inicio);
+      const label = inicio.toLocaleDateString("pt-BR", { month: "2-digit", year: "2-digit" });
+      buckets.push({ inicio, fim, label, key: formatDateISO(inicio) });
+    }
+  } else {
+    const ultimaSemana = startOfWeek(hoje);
+    for (let i = count - 1; i >= 0; i -= 1) {
+      const inicio = addDays(ultimaSemana, -7 * i);
+      const fim = addDays(inicio, 6);
+      buckets.push({
+        inicio,
+        fim,
+        label: weekLabelFormatter.format(inicio),
+        key: formatDateISO(inicio),
+      });
+    }
+  }
+  return { mode, buckets };
 }
 
 // KPI: graficos
@@ -25986,49 +26153,41 @@ function renderKpiGraficos(itens, filtros) {
   if (!kpiTrendChart || !kpiAgingChart || !kpiSlaChart) {
     return;
   }
-  const semanasCount = 6;
-  const ultimaSemana = startOfWeek(new Date());
-  const semanas = [];
-  for (let i = semanasCount - 1; i >= 0; i -= 1) {
-    const inicio = addDays(ultimaSemana, -7 * i);
-    const fim = addDays(inicio, 6);
-    semanas.push({ inicio, fim });
-  }
+  const bucketConfig = buildKpiBuckets(filtros.escala);
+  const buckets = bucketConfig.buckets;
+  const labels = buckets.map((bucket) => bucket.label);
+  const keys = buckets.map((bucket) => bucket.key);
+  const periodLabel = bucketConfig.mode === "mensal" ? "ultimos 6 meses" : "ultimas 8 semanas";
 
-  const weekLabels = semanas.map((semana) => weekLabelFormatter.format(semana.inicio));
-  const weekKeys = semanas.map((semana) => formatDateISO(semana.inicio));
-
-  const concluidasSeries = semanas.map((semana) => {
+  const concluidasSeries = buckets.map((bucket) => {
     return itens.filter((item) => {
       if (normalizeMaintenanceStatus(item && item.status) !== "concluida") {
         return false;
       }
       const feito = getItemConclusaoDate(item);
-      if (!feito) {
-        return false;
-      }
-      return inRange(startOfDay(feito), semana.inicio, semana.fim);
+      return feito ? inRange(startOfDay(feito), bucket.inicio, bucket.fim) : false;
     }).length;
   });
 
-  const backlogSeries = semanas.map((semana) => {
+  const backlogSeries = buckets.map((bucket) => {
     return itens.filter((item) => {
       if (normalizeMaintenanceStatus(item && item.status) !== "backlog") {
         return false;
       }
       const data = parseDate(item.data);
-      if (!data) {
-        return false;
-      }
-      return inRange(startOfDay(data), semana.inicio, semana.fim);
+      return data ? inRange(startOfDay(data), bucket.inicio, bucket.fim) : false;
     }).length;
   });
 
-  const maxTrend = Math.max(1, ...concluidasSeries, ...backlogSeries);
-  const trendPeriodo = `últimas ${semanasCount} semanas`;
+  const totalConcluidasSerie = concluidasSeries.reduce((acc, value) => acc + value, 0);
+  const totalBacklogSerie = backlogSeries.reduce((acc, value) => acc + value, 0);
+  if (kpiTrendMeta) {
+    kpiTrendMeta.textContent = `Concluidas ${totalConcluidasSerie} | Backlog ${totalBacklogSerie}`;
+  }
+
   buildLineChart(
     kpiTrendChart,
-    weekLabels,
+    labels,
     [
       {
         label: "Concluidas",
@@ -26036,13 +26195,10 @@ function renderKpiGraficos(itens, filtros) {
         lineClass: "chart__line--done",
         dotClass: "chart__dot--done",
         legendClass: "chart__legend-item--done",
+        areaClass: "chart__area--done",
         drilldown: "trend_concluidas",
-        weekKeys,
-        tooltip: buildKpiTooltip(
-          "Concluidas",
-          "Manutenções concluídas por semana.",
-          trendPeriodo
-        ),
+        weekKeys: keys,
+        tooltip: buildKpiTooltip("Concluidas", "Manutencoes concluidas por janela.", periodLabel),
       },
       {
         label: "Backlog",
@@ -26051,15 +26207,13 @@ function renderKpiGraficos(itens, filtros) {
         dotClass: "chart__dot--backlog",
         legendClass: "chart__legend-item--backlog",
         drilldown: "trend_backlog",
-        weekKeys,
-        tooltip: buildKpiTooltip(
-          "Backlog",
-          "Manutenções em backlog por semana.",
-          trendPeriodo
-        ),
+        weekKeys: keys,
+        tooltip: buildKpiTooltip("Backlog", "Manutencoes em backlog por janela.", periodLabel),
       },
     ],
-    maxTrend
+    Math.max(1, ...concluidasSeries, ...backlogSeries),
+    null,
+    { yTicks: 4 }
   );
 
   const agingBuckets = [
@@ -26086,84 +26240,78 @@ function renderKpiGraficos(itens, filtros) {
       return atraso >= bucket.min && atraso <= bucket.max;
     }).length;
   });
-  const maxAging = Math.max(1, ...agingCounts);
+  const totalAging = agingCounts.reduce((acc, value) => acc + value, 0);
+  const maiorAging = Math.max(1, ...agingCounts);
+  if (kpiAgingMeta) {
+    const acima30 = agingCounts[agingCounts.length - 1] || 0;
+    kpiAgingMeta.textContent = `Backlog ${totalAging} | >30d ${acima30}`;
+  }
   kpiAgingChart.innerHTML = "";
-  const agingContainer = document.createElement("div");
-  agingContainer.style.display = "grid";
-  agingContainer.style.gap = "10px";
+  const agingList = document.createElement("div");
+  agingList.className = "kpi-aging-list";
   agingBuckets.forEach((bucket, index) => {
-    const linha = document.createElement("div");
-    linha.style.display = "grid";
-    linha.style.gridTemplateColumns = "80px 1fr 40px";
-    linha.style.alignItems = "center";
-    linha.dataset.drilldown = "aging";
-    linha.dataset.range = bucket.label;
-    linha.style.cursor = "pointer";
-    linha.title = buildKpiTooltip(
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "kpi-aging-row";
+    row.dataset.drilldown = "aging";
+    row.dataset.range = bucket.label;
+    row.title = buildKpiTooltip(
       `Backlog aging ${bucket.label}`,
       "Dias em atraso desde a data programada.",
       "Status backlog atual"
     );
-    const label = document.createElement("span");
-    label.textContent = bucket.label;
-    const bar = document.createElement("div");
-    bar.style.height = "10px";
-    bar.style.borderRadius = "999px";
-    bar.style.background = "rgba(192, 84, 47, 0.7)";
-    bar.style.width = `${Math.round((agingCounts[index] / maxAging) * 100)}%`;
-    const valor = document.createElement("strong");
-    valor.textContent = agingCounts[index];
-    linha.append(label, bar, valor);
-    agingContainer.append(linha);
+    const percent = Math.round((agingCounts[index] / maiorAging) * 100);
+    row.innerHTML = `
+      <span class="kpi-aging-row__label">${bucket.label}</span>
+      <span class="kpi-aging-row__bar"><span style="width:${percent}%"></span></span>
+      <span class="kpi-aging-row__value">${agingCounts[index]}</span>
+    `;
+    agingList.append(row);
   });
-  kpiAgingChart.append(agingContainer);
+  kpiAgingChart.append(agingList);
 
-  const slaSeries = semanas.map((semana) => {
-    const concluidasSemana = itens.filter((item) => {
+  const slaSeries = buckets.map((bucket) => {
+    const concluidasBucket = itens.filter((item) => {
       if (normalizeMaintenanceStatus(item && item.status) !== "concluida") {
         return false;
       }
       const feito = getItemConclusaoDate(item);
-      if (!feito) {
-        return false;
-      }
-      return inRange(startOfDay(feito), semana.inicio, semana.fim);
+      return feito ? inRange(startOfDay(feito), bucket.inicio, bucket.fim) : false;
     });
-    const resultados = concluidasSemana
+    const resultados = concluidasBucket
       .map((item) => isSlaCompliant(item))
-      .filter((valor) => valor !== null);
+      .filter((value) => value !== null);
     if (!resultados.length) {
       return null;
     }
-    return Math.round(
-      (resultados.filter(Boolean).length / resultados.length) * 100
-    );
+    return Math.round((resultados.filter(Boolean).length / resultados.length) * 100);
   });
-  const slaTooltip = buildKpiTooltip(
-    "SLA compliance",
-    "Concluídas no prazo / concluídas na semana.",
-    trendPeriodo
-  );
-  const slaLabels = slaSeries.map((valor) =>
-    valor === null ? "Sem dados" : `${valor}%`
-  );
+  const slaNumerico = slaSeries.filter((value) => Number.isFinite(value));
+  const slaMedia = slaNumerico.length
+    ? Math.round(slaNumerico.reduce((acc, value) => acc + value, 0) / slaNumerico.length)
+    : null;
+  if (kpiSlaMeta) {
+    kpiSlaMeta.textContent = slaMedia === null ? "Sem base" : `Media ${slaMedia}%`;
+  }
   buildLineChart(
     kpiSlaChart,
-    weekLabels,
+    labels,
     [
       {
         label: "SLA",
-        values: slaSeries.map((valor) => (valor === null ? 0 : valor)),
-        lineClass: "chart__line--done",
-        dotClass: "chart__dot--done",
-        legendClass: "chart__legend-item--done",
+        values: slaSeries.map((value) => (value === null ? 0 : value)),
+        lineClass: "chart__line--sla",
+        dotClass: "chart__dot--sla",
+        legendClass: "chart__legend-item--sla",
+        areaClass: "chart__area--sla",
         drilldown: "sla_semana",
-        weekKeys,
-        tooltip: slaTooltip,
+        weekKeys: keys,
+        tooltip: buildKpiTooltip("SLA compliance", "Concluidas no prazo por janela.", periodLabel),
       },
     ],
     100,
-    slaLabels
+    slaSeries.map((value) => (value === null ? "Sem dados" : `${value}%`)),
+    { yTicks: 4 }
   );
 }
 
@@ -26410,11 +26558,12 @@ function renderKpiDrilldown() {
   const subestacaoLabel = filtros.subestacao || "Todas";
   const categoriaLabel = filtros.categoria || "Todas";
   const prioridadeLabel = filtros.prioridade || "Todas";
+  const escalaLabel = filtros.escala === "mensal" ? "Mensal" : "Semanal";
   const usuarioLabel = filtros.usuario ? getUserLabel(filtros.usuario) : "Todos";
   const limite = kpiDrilldownLimite ? Number(kpiDrilldownLimite.value) || 25 : 25;
   const itensVisiveis = kpiDrilldown.items.slice(0, limite);
   // header drill-down
-  kpiDrilldownTitulo.textContent = `Métrica: ${kpiDrilldown.titulo} | Itens: ${itensVisiveis.length} | Período: ${periodoLabel} | Subestação: ${subestacaoLabel} | Categoria: ${categoriaLabel} | Prioridade: ${prioridadeLabel} | Usuário: ${usuarioLabel}`;
+  kpiDrilldownTitulo.textContent = `Métrica: ${kpiDrilldown.titulo} | Itens: ${itensVisiveis.length} | Período: ${periodoLabel} | Escala: ${escalaLabel} | Subestação: ${subestacaoLabel} | Categoria: ${categoriaLabel} | Prioridade: ${prioridadeLabel} | Usuário: ${usuarioLabel}`;
 
   const table = document.createElement("table");
   table.className = "kpi-table kpi-table--compact";
@@ -26621,7 +26770,9 @@ function handleKpiDrilldownClick(event) {
   } else if (tipo === "trend_concluidas" || tipo === "trend_backlog" || tipo === "sla_semana") {
     const weekStart = parseDate(alvo.dataset.week);
     if (weekStart) {
-      const weekEnd = addDays(weekStart, 6);
+      const escala = kpiSnapshot && kpiSnapshot.filtros ? kpiSnapshot.filtros.escala : "semanal";
+      const weekEnd = escala === "mensal" ? endOfMonth(weekStart) : addDays(weekStart, 6);
+      const periodoNome = escala === "mensal" ? "mes" : "semana";
       if (tipo === "trend_concluidas") {
         filtrados = itens.filter((item) => {
           if (normalizeMaintenanceStatus(item && item.status) !== "concluida") {
@@ -26630,7 +26781,7 @@ function handleKpiDrilldownClick(event) {
           const feito = getItemConclusaoDate(item);
           return feito ? inRange(startOfDay(feito), weekStart, weekEnd) : false;
         });
-        titulo = `Concluidas - semana ${formatDate(weekStart)}`;
+        titulo = `Concluidas - ${periodoNome} ${formatDate(weekStart)}`;
       } else if (tipo === "trend_backlog") {
         filtrados = itens.filter((item) => {
           if (normalizeMaintenanceStatus(item && item.status) !== "backlog") {
@@ -26639,7 +26790,7 @@ function handleKpiDrilldownClick(event) {
           const data = parseDate(item.data);
           return data ? inRange(startOfDay(data), weekStart, weekEnd) : false;
         });
-        titulo = `Backlog - semana ${formatDate(weekStart)}`;
+        titulo = `Backlog - ${periodoNome} ${formatDate(weekStart)}`;
       } else {
         filtrados = itens.filter((item) => {
           if (normalizeMaintenanceStatus(item && item.status) !== "concluida") {
@@ -26648,7 +26799,7 @@ function handleKpiDrilldownClick(event) {
           const feito = getItemConclusaoDate(item);
           return feito ? inRange(startOfDay(feito), weekStart, weekEnd) : false;
         });
-        titulo = `SLA compliance - semana ${formatDate(weekStart)}`;
+        titulo = `SLA compliance - ${periodoNome} ${formatDate(weekStart)}`;
       }
     }
   } else if (tipo === "aging") {
@@ -50977,6 +51128,12 @@ if (filtroProgramacaoPeriodo) {
 }
 if (kpiPeriodo) {
   kpiPeriodo.addEventListener("change", () => {
+    kpiDrilldown = null;
+    renderGrafico();
+  });
+}
+if (kpiTrendEscala) {
+  kpiTrendEscala.addEventListener("change", () => {
     kpiDrilldown = null;
     renderGrafico();
   });
