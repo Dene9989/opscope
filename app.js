@@ -203,15 +203,18 @@ const kpiCategoria = document.getElementById("kpiCategoria");
 const kpiPrioridade = document.getElementById("kpiPrioridade");
 const kpiUsuarioFiltro = document.getElementById("kpiUsuarioFiltro");
 const kpiCards = document.getElementById("kpiCards");
+const kpiGauges = document.getElementById("kpiGauges");
 const kpiSemaforo = document.getElementById("kpiSemaforo");
 const kpiAlertas = document.getElementById("kpiAlertas");
 const kpiAlertasVazio = document.getElementById("kpiAlertasVazio");
+const kpiThemeToggle = document.getElementById("kpiThemeToggle");
 const kpiTrendChart = document.getElementById("kpiTrendChart");
 const kpiTrendMeta = document.getElementById("kpiTrendMeta");
 const kpiAgingChart = document.getElementById("kpiAgingChart");
 const kpiAgingMeta = document.getElementById("kpiAgingMeta");
 const kpiSlaChart = document.getElementById("kpiSlaChart");
 const kpiSlaMeta = document.getElementById("kpiSlaMeta");
+const tendenciasPanel = document.getElementById("tendencias");
 const kpiGargalos = document.getElementById("kpiGargalos");
 const kpiGargalosVazio = document.getElementById("kpiGargalosVazio");
 const kpiBacklogMotivos = document.getElementById("kpiBacklogMotivos");
@@ -4776,6 +4779,10 @@ let rdoUI = {
   btnDeleteCancel: null,
 };
 let kpiRankingSort = { key: "concluidas", dir: "desc" };
+const KPI_THEME_STORAGE_KEY = "opscope.kpi.theme";
+const KPI_THEME_EXECUTIVO = "executivo";
+const KPI_THEME_NEON = "neon";
+const KPI_THEMES = [KPI_THEME_EXECUTIVO, KPI_THEME_NEON];
 const KPI_EXECUTIVE_TARGETS = [
   {
     key: "sla_compliance",
@@ -4828,6 +4835,7 @@ const KPI_EXECUTIVE_TARGETS = [
     format: "duration",
   },
 ];
+let kpiThemeMode = KPI_THEME_EXECUTIVO;
 let homeTipsTimer = null;
 let homeTipIndex = 0;
 const SYNC_POLL_MS = 10 * 60 * 1000;
@@ -25380,6 +25388,126 @@ function getKpiCardHealth(cardKey, kpis) {
   return "neutral";
 }
 
+function readKpiThemeMode() {
+  try {
+    const saved = String(localStorage.getItem(KPI_THEME_STORAGE_KEY) || "").trim().toLowerCase();
+    if (KPI_THEMES.includes(saved)) {
+      return saved;
+    }
+  } catch (error) {
+    // noop
+  }
+  return KPI_THEME_EXECUTIVO;
+}
+
+function persistKpiThemeMode(mode) {
+  try {
+    localStorage.setItem(KPI_THEME_STORAGE_KEY, mode);
+  } catch (error) {
+    // noop
+  }
+}
+
+function updateKpiThemeButtonLabel(mode) {
+  if (!kpiThemeToggle) {
+    return;
+  }
+  const isNeon = mode === KPI_THEME_NEON;
+  kpiThemeToggle.textContent = isNeon ? "Neon" : "Executivo";
+  kpiThemeToggle.title = isNeon
+    ? "Tema atual: Neon. Clique para voltar ao Executivo."
+    : "Tema atual: Executivo. Clique para ativar Neon.";
+}
+
+function applyKpiTheme(mode, options = {}) {
+  const persist = options.persist !== false;
+  const nextMode = KPI_THEMES.includes(mode) ? mode : KPI_THEME_EXECUTIVO;
+  kpiThemeMode = nextMode;
+  if (tendenciasPanel) {
+    tendenciasPanel.classList.remove("kpi-theme--executivo", "kpi-theme--neon");
+    tendenciasPanel.classList.add(`kpi-theme--${nextMode}`);
+  }
+  updateKpiThemeButtonLabel(nextMode);
+  if (persist) {
+    persistKpiThemeMode(nextMode);
+  }
+}
+
+function toggleKpiThemeMode() {
+  const nextMode = kpiThemeMode === KPI_THEME_NEON ? KPI_THEME_EXECUTIVO : KPI_THEME_NEON;
+  applyKpiTheme(nextMode, { persist: true });
+}
+
+function getKpiGaugeProgress(spec, valor) {
+  if (!spec || valor === null || valor === undefined || Number.isNaN(valor)) {
+    return null;
+  }
+  const target = Number(spec.target);
+  if (!Number.isFinite(target)) {
+    return null;
+  }
+  if (spec.comparator === "gte") {
+    if (target <= 0) {
+      return valor > 0 ? 1 : 0;
+    }
+    return clamp(valor / target, 0, 1);
+  }
+  if (target <= 0) {
+    return valor <= 0 ? 1 : 0;
+  }
+  return clamp(target / Math.max(target, valor), 0, 1);
+}
+
+function renderKpiGauges(kpis) {
+  if (!kpiGauges) {
+    return;
+  }
+  kpiGauges.innerHTML = "";
+  const specs = KPI_EXECUTIVE_TARGETS.slice(0, 6);
+  specs.forEach((spec) => {
+    const valor = getKpiMetricValue(kpis, spec.key);
+    const avaliacao = avaliarMetaKpi(spec, valor);
+    const progress = getKpiGaugeProgress(spec, valor);
+    const percent = progress === null ? 0 : Math.round(progress * 100);
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = `kpi-gauge-card kpi-gauge-card--${avaliacao.status}`;
+    card.dataset.drilldown = spec.key;
+    card.title = spec.tooltip;
+
+    const title = document.createElement("span");
+    title.className = "kpi-gauge-card__title";
+    title.textContent = spec.label;
+
+    const gauge = document.createElement("span");
+    gauge.className = "kpi-gauge";
+    gauge.style.setProperty("--kpi-gauge-progress", `${percent}%`);
+
+    const gaugeValue = document.createElement("span");
+    gaugeValue.className = "kpi-gauge__value";
+    gaugeValue.textContent = progress === null ? "\u2014" : `${percent}%`;
+    gauge.append(gaugeValue);
+
+    const meta = document.createElement("span");
+    meta.className = "kpi-gauge-card__meta";
+
+    const valorAtual = document.createElement("strong");
+    valorAtual.textContent = formatKpiValor(valor, spec.format);
+
+    const valorMeta = document.createElement("small");
+    valorMeta.textContent = `Meta ${formatKpiValor(spec.target, spec.format)}`;
+
+    meta.append(valorAtual, valorMeta);
+
+    const status = document.createElement("span");
+    status.className = `kpi-status kpi-status--${avaliacao.status}`;
+    status.textContent = avaliacao.label;
+
+    card.append(title, gauge, meta, status);
+    kpiGauges.append(card);
+  });
+}
+
 // KPI: renderizacao cards
 function renderKpiCards(itens, itensAnterior, filtros, atualBase, anteriorBase) {
   if (!kpiCards) {
@@ -25607,6 +25735,8 @@ function renderKpiSemaforo(kpis) {
     return;
   }
   kpiSemaforo.innerHTML = "";
+  const wrap = document.createElement("div");
+  wrap.className = "kpi-table-wrap";
   const table = document.createElement("table");
   table.className = "kpi-table kpi-table--compact";
 
@@ -25654,7 +25784,8 @@ function renderKpiSemaforo(kpis) {
     tbody.append(tr);
   });
   table.append(tbody);
-  kpiSemaforo.append(table);
+  wrap.append(table);
+  kpiSemaforo.append(wrap);
 }
 
 function renderKpiAlertas(kpis, itens, filtros) {
@@ -25807,39 +25938,55 @@ function renderKpiGargalos(itens) {
     return;
   }
   kpiGargalosVazio.hidden = true;
-
-  const table = document.createElement("table");
-  table.className = "kpi-table kpi-table--compact";
-  table.innerHTML = `
-    <thead>
-      <tr>
-        <th class="is-wide">Subestação</th>
-        <th class="is-num">Abertas</th>
-        <th class="is-num">Overdue</th>
-        <th class="is-num">Backlog</th>
-        <th class="is-num">Críticas</th>
-        <th class="is-num">Score</th>
-      </tr>
-    </thead>
-  `;
-  const tbody = document.createElement("tbody");
+  const maxScore = Math.max(1, ...linhas.map((entry) => entry.score));
+  const list = document.createElement("div");
+  list.className = "kpi-pareto-list";
   linhas.forEach((entry) => {
-    const tr = document.createElement("tr");
-    tr.dataset.drilldown = "gargalo_subestacao";
-    tr.dataset.subestacao = entry.subestacao;
-    tr.style.cursor = "pointer";
-    tr.innerHTML = `
-      <td class="is-wide" title="${escapeHtml(entry.subestacao)}">${escapeHtml(entry.subestacao)}</td>
-      <td class="is-num">${entry.abertas}</td>
-      <td class="is-num">${entry.overdue}</td>
-      <td class="is-num">${entry.backlog}</td>
-      <td class="is-num">${entry.criticos}</td>
-      <td class="is-num">${entry.score}</td>
-    `;
-    tbody.append(tr);
+    const width = Math.max(10, Math.round((entry.score / maxScore) * 100));
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "kpi-pareto-item";
+    item.dataset.drilldown = "gargalo_subestacao";
+    item.dataset.subestacao = entry.subestacao;
+
+    const head = document.createElement("div");
+    head.className = "kpi-pareto-item__head";
+
+    const title = document.createElement("strong");
+    title.className = "kpi-pareto-item__title";
+    title.textContent = entry.subestacao;
+    title.title = entry.subestacao;
+
+    const score = document.createElement("span");
+    score.className = "kpi-pareto-item__score";
+    score.textContent = `Score ${entry.score}`;
+
+    head.append(title, score);
+
+    const bar = document.createElement("span");
+    bar.className = "kpi-pareto-item__bar";
+    const barFill = document.createElement("span");
+    barFill.style.width = `${width}%`;
+    bar.append(barFill);
+
+    const stats = document.createElement("div");
+    stats.className = "kpi-pareto-item__stats";
+    [
+      `Abertas: ${entry.abertas}`,
+      `Overdue: ${entry.overdue}`,
+      `Backlog: ${entry.backlog}`,
+      `Criticas: ${entry.criticos}`,
+    ].forEach((label) => {
+      const chip = document.createElement("span");
+      chip.className = "kpi-pareto-chip";
+      chip.textContent = label;
+      stats.append(chip);
+    });
+
+    item.append(head, bar, stats);
+    list.append(item);
   });
-  table.append(tbody);
-  kpiGargalos.append(table);
+  kpiGargalos.append(list);
 }
 
 function renderKpiBacklogMotivos(itens) {
@@ -25870,36 +26017,51 @@ function renderKpiBacklogMotivos(itens) {
     return;
   }
   kpiBacklogMotivosVazio.hidden = true;
-
-  const table = document.createElement("table");
-  table.className = "kpi-table kpi-table--compact";
-  table.innerHTML = `
-    <thead>
-      <tr>
-        <th class="is-wide">Motivo</th>
-        <th class="is-num">Qtd</th>
-        <th class="is-num">% backlog</th>
-        <th class="is-center">Ação</th>
-      </tr>
-    </thead>
-  `;
-  const tbody = document.createElement("tbody");
+  const maxTotal = Math.max(1, ...linhas.map((entry) => entry.total));
+  const list = document.createElement("div");
+  list.className = "kpi-pareto-list";
   linhas.forEach((entry) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="is-wide" title="${escapeHtml(entry.motivo)}">${escapeHtml(entry.motivo)}</td>
-      <td class="is-num">${entry.total}</td>
-      <td class="is-num">${entry.percent}%</td>
-      <td class="is-center">
-        <button type="button" class="btn btn--ghost btn--small" data-drilldown="motivo_backlog" data-motivo="${escapeHtml(entry.motivo)}">
-          Ver itens
-        </button>
-      </td>
-    `;
-    tbody.append(tr);
+    const width = Math.max(10, Math.round((entry.total / maxTotal) * 100));
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "kpi-pareto-item";
+    item.dataset.drilldown = "motivo_backlog";
+    item.dataset.motivo = entry.motivo;
+
+    const head = document.createElement("div");
+    head.className = "kpi-pareto-item__head";
+
+    const title = document.createElement("strong");
+    title.className = "kpi-pareto-item__title";
+    title.textContent = entry.motivo;
+    title.title = entry.motivo;
+
+    const qtd = document.createElement("span");
+    qtd.className = "kpi-pareto-item__score";
+    qtd.textContent = `${entry.total} item(ns)`;
+
+    head.append(title, qtd);
+
+    const bar = document.createElement("span");
+    bar.className = "kpi-pareto-item__bar";
+    const barFill = document.createElement("span");
+    barFill.style.width = `${width}%`;
+    bar.append(barFill);
+
+    const stats = document.createElement("div");
+    stats.className = "kpi-pareto-item__stats";
+    const chipPercent = document.createElement("span");
+    chipPercent.className = "kpi-pareto-chip";
+    chipPercent.textContent = `${entry.percent}% do backlog`;
+    const chipAction = document.createElement("span");
+    chipAction.className = "kpi-pareto-chip";
+    chipAction.textContent = "Clique para detalhar";
+    stats.append(chipPercent, chipAction);
+
+    item.append(head, bar, stats);
+    list.append(item);
   });
-  table.append(tbody);
-  kpiBacklogMotivos.append(table);
+  kpiBacklogMotivos.append(list);
 }
 
 function buildLineChart(container, labels, series, maxValor, tooltipLabels, options = {}) {
@@ -26538,7 +26700,10 @@ function renderKpiRanking(itens, filtros) {
     tbody.append(tr);
   });
   table.append(tbody);
-  kpiRanking.append(table);
+  const wrap = document.createElement("div");
+  wrap.className = "kpi-table-wrap";
+  wrap.append(table);
+  kpiRanking.append(wrap);
 }
 
 // KPI: drilldown
@@ -26631,7 +26796,10 @@ function renderKpiDrilldown() {
     tbody.append(tr);
   });
   table.append(tbody);
-  kpiDrilldownTabela.append(table);
+  const wrap = document.createElement("div");
+  wrap.className = "kpi-table-wrap";
+  wrap.append(table);
+  kpiDrilldownTabela.append(wrap);
 }
 
 function atualizarKpiDrilldown(tipo, itens, titulo) {
@@ -26672,6 +26840,7 @@ function renderPainelKpiGerencial() {
   const kpisAnterior = calcularKpisBase(itensAnterior, filtros.periodo);
   kpiSnapshot = { itensPeriodo, filtros, kpisAtual, kpisAnterior };
   renderKpiCards(itensPeriodo, itensAnterior, filtros, kpisAtual, kpisAnterior);
+  renderKpiGauges(kpisAtual);
   renderKpiSemaforo(kpisAtual);
   renderKpiAlertas(kpisAtual, itensPeriodo, filtros);
   renderKpiGraficos(itensPeriodo, filtros);
@@ -51168,6 +51337,9 @@ if (kpiDrilldownLimite) {
 if (kpiCards) {
   kpiCards.addEventListener("click", handleKpiDrilldownClick);
 }
+if (kpiGauges) {
+  kpiGauges.addEventListener("click", handleKpiDrilldownClick);
+}
 if (kpiTrendChart) {
   kpiTrendChart.addEventListener("click", handleKpiDrilldownClick);
 }
@@ -51193,6 +51365,12 @@ if (kpiRanking) {
   kpiRanking.addEventListener("click", handleKpiDrilldownClick);
   kpiRanking.addEventListener("click", handleKpiRankingSort);
 }
+if (kpiThemeToggle) {
+  kpiThemeToggle.addEventListener("click", () => {
+    toggleKpiThemeMode();
+  });
+}
+applyKpiTheme(readKpiThemeMode(), { persist: false });
 
 if (btnAdicionarManutencao) {
   btnAdicionarManutencao.addEventListener("click", adicionarManutencao);

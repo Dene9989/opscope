@@ -3096,6 +3096,10 @@
             <h2>KPIs e tendencias</h2>
             <p class="hint">Painel gerencial com foco em backlog, SLA, risco e produtividade.</p>
           </div>
+          <div class="kpi-theme-switch">
+            <span>Tema visual</span>
+            <button id="kpiThemeToggle" class="btn btn--ghost btn--small" type="button">Executivo</button>
+          </div>
         </div>
         <div class="programacao-toolbar">
           <div class="field">
@@ -3137,6 +3141,11 @@
       <section class="card card-kpi">
         <h2>Resumo executivo</h2>
         <div id="kpiCards" class="kpi-grid kpi-grid--gerencial"></div>
+      </section>
+
+      <section class="card card-kpi">
+        <h2>Progresso vs meta</h2>
+        <div id="kpiGauges" class="kpi-gauge-grid"></div>
       </section>
 
       <section class="card card-kpi">
