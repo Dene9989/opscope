@@ -26913,7 +26913,8 @@ function buildColumnChart(container, labels, values, maxValor, options = {}) {
   }
   const max = Math.max(1, Number(maxValor) || 1);
   const set = document.createElement("div");
-  set.className = "chart__bar-set";
+  set.className = "chart__bar-set chart__bar-set--fixed";
+  set.style.setProperty("--chart-bar-count", String(safeValues.length));
   safeValues.forEach((rawValue, index) => {
     const numeric = Number(rawValue);
     const value = Number.isFinite(numeric) ? numeric : 0;
@@ -26936,10 +26937,12 @@ function buildColumnChart(container, labels, values, maxValor, options = {}) {
     set.append(bar);
   });
   const labelsRow = document.createElement("div");
-  labelsRow.className = "chart__labels";
+  labelsRow.className = "chart__labels chart__labels--bars";
+  labelsRow.style.setProperty("--chart-bar-count", String(safeLabels.length));
   safeLabels.forEach((label) => {
     const span = document.createElement("span");
     span.textContent = label;
+    span.title = label;
     labelsRow.append(span);
   });
   container.append(set, labelsRow);

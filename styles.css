@@ -8390,6 +8390,8 @@ textarea:focus {
   padding: 12px 14px;
   display: grid;
   gap: 6px;
+  align-content: start;
+  min-height: 108px;
 }
 
 .perf-card span {
@@ -8402,6 +8404,12 @@ textarea:focus {
 .perf-card strong {
   font-size: 1.3rem;
   color: var(--ink);
+  line-height: 1.1;
+}
+
+.perf-card small {
+  line-height: 1.35;
+  min-height: 1.2em;
 }
 
 .performance-panel .perf-card {
@@ -8464,10 +8472,14 @@ textarea:focus {
 .performance-panel .report__table td {
   padding: 10px 12px;
   vertical-align: middle;
+  white-space: nowrap;
 }
 
 .performance-panel .report__table td:first-child {
   font-weight: 600;
+  white-space: normal;
+  word-break: break-word;
+  min-width: 220px;
 }
 
 .performance-panel .report__table td:last-child,
@@ -8540,11 +8552,24 @@ textarea:focus {
 
 .performance-insight li {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   font-size: 0.85rem;
   color: rgba(234, 240, 246, 0.8);
+}
+
+.performance-insight li strong {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.performance-insight li span {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .panel-performance-projects {
@@ -9813,6 +9838,21 @@ textarea:focus {
 .panel-kpi .kpi-table td {
   border-bottom-color: rgba(129, 171, 205, 0.24);
   color: var(--kpi-text);
+  vertical-align: middle;
+  line-height: 1.35;
+}
+
+.panel-kpi .kpi-table th:first-child,
+.panel-kpi .kpi-table td:first-child {
+  min-width: 220px;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.panel-kpi .kpi-table .is-num,
+.panel-kpi .kpi-table .is-center,
+.panel-kpi .kpi-table .is-date {
+  white-space: nowrap;
 }
 
 .panel-kpi .kpi-table thead th {
@@ -11289,6 +11329,11 @@ textarea:focus {
   gap: 8px;
 }
 
+.chart__bar-set--fixed {
+  grid-template-columns: repeat(var(--chart-bar-count, 4), minmax(0, 1fr));
+  gap: 10px;
+}
+
 .chart__bar {
   border: 1px solid rgba(118, 186, 233, 0.35);
   border-radius: 10px;
@@ -11299,6 +11344,7 @@ textarea:focus {
   justify-items: center;
   padding: 6px 5px 7px;
   min-height: 72px;
+  width: 100%;
   cursor: pointer;
 }
 
@@ -11319,6 +11365,27 @@ textarea:focus {
   color: rgba(232, 244, 255, 0.9);
   margin-top: 5px;
   letter-spacing: 0.03em;
+  width: 100%;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chart__labels--bars {
+  display: grid;
+  grid-template-columns: repeat(var(--chart-bar-count, 4), minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.chart__labels--bars span {
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  width: 100%;
 }
 
 .panel-desempenho .performance-item {
