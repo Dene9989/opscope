@@ -129,6 +129,13 @@ const perfPessoaTotalApr = document.getElementById("perfPessoaTotalApr");
 const perfPessoaTotalOs = document.getElementById("perfPessoaTotalOs");
 const perfPessoaTotalPte = document.getElementById("perfPessoaTotalPte");
 const perfPessoaTotalPt = document.getElementById("perfPessoaTotalPt");
+const perfPessoaStatusBadge = document.getElementById("perfPessoaStatusBadge");
+const perfPessoaTrendChart = document.getElementById("perfPessoaTrendChart");
+const perfPessoaTrendMeta = document.getElementById("perfPessoaTrendMeta");
+const perfPessoaSlaChart = document.getElementById("perfPessoaSlaChart");
+const perfPessoaSlaMeta = document.getElementById("perfPessoaSlaMeta");
+const perfPessoaDocsChart = document.getElementById("perfPessoaDocsChart");
+const perfPessoaDocsMeta = document.getElementById("perfPessoaDocsMeta");
 const feedbackTo = document.getElementById("feedbackTo");
 const feedbackScore = document.getElementById("feedbackScore");
 const feedbackMessage = document.getElementById("feedbackMessage");
@@ -19748,11 +19755,132 @@ function renderPerformanceProjetos() {
   }
 }
 
+function compactPessoaLabel(value, maxLength = 18) {
+  const texto = String(value || "").replace(/\s+/g, " ").trim();
+  if (!texto) {
+    return "-";
+  }
+  const semParenteses = texto.replace(/\s*\([^)]*\)\s*/g, " ").trim();
+  if (semParenteses.length <= maxLength) {
+    return semParenteses;
+  }
+  return `${semParenteses.slice(0, Math.max(6, maxLength - 3)).trim()}...`;
+}
+
+function renderPerformancePessoasCharts(lista, pessoas, pessoasOrdenadas, periodoDias) {
+  if (!perfPessoaTrendChart && !perfPessoaSlaChart && !perfPessoaDocsChart) {
+    return;
+  }
+  const buckets = buildDesempenhoBuckets(periodoDias);
+  const labels = buckets.map((bucket) => bucket.label);
+
+  const concluidasSeries = buckets.map((bucket) => {
+    return lista.filter((item) => {
+      if (normalizeMaintenanceStatus(item && item.status) !== "concluida") {
+        return false;
+      }
+      const concluidaEm = getItemConclusaoDate(item);
+      return concluidaEm ? inRange(startOfDay(concluidaEm), bucket.inicio, bucket.fim) : false;
+    }).length;
+  });
+  const backlogSeries = buckets.map((bucket) => {
+    return lista.filter((item) => {
+      if (normalizeMaintenanceStatus(item && item.status) !== "backlog") {
+        return false;
+      }
+      const data = parseDate(item && item.data);
+      return data ? inRange(startOfDay(data), bucket.inicio, bucket.fim) : false;
+    }).length;
+  });
+
+  if (perfPessoaTrendMeta) {
+    const totalConcluidas = concluidasSeries.reduce((sum, value) => sum + value, 0);
+    const totalBacklog = backlogSeries.reduce((sum, value) => sum + value, 0);
+    perfPessoaTrendMeta.textContent = `Concluidas ${totalConcluidas} | Backlog ${totalBacklog}`;
+  }
+  if (perfPessoaTrendChart) {
+    buildLineChart(
+      perfPessoaTrendChart,
+      labels,
+      [
+        {
+          label: "Concluidas",
+          values: concluidasSeries,
+          lineClass: "chart__line--done",
+          dotClass: "chart__dot--done",
+          legendClass: "chart__legend-item--done",
+          areaClass: "chart__area--done",
+        },
+        {
+          label: "Backlog",
+          values: backlogSeries,
+          lineClass: "chart__line--backlog",
+          dotClass: "chart__dot--backlog",
+          legendClass: "chart__legend-item--backlog",
+        },
+      ],
+      Math.max(1, ...concluidasSeries, ...backlogSeries),
+      null,
+      { yTicks: 4 }
+    );
+  }
+
+  const rankingSla = pessoasOrdenadas
+    .map((key) => {
+      const stats = pessoas[key];
+      const sla = calcPercent(stats.noPrazo, stats.concluida);
+      return { key, sla };
+    })
+    .sort((a, b) => b.sla - a.sla)
+    .slice(0, 8);
+  if (perfPessoaSlaMeta) {
+    const mediaSla = rankingSla.length
+      ? Math.round(rankingSla.reduce((sum, item) => sum + item.sla, 0) / rankingSla.length)
+      : 0;
+    perfPessoaSlaMeta.textContent = `Media ${mediaSla}%`;
+  }
+  if (perfPessoaSlaChart) {
+    buildColumnChart(
+      perfPessoaSlaChart,
+      rankingSla.map((item) => compactPessoaLabel(item.key, 18)),
+      rankingSla.map((item) => item.sla),
+      100,
+      { suffix: "%" }
+    );
+  }
+
+  const docsTotais = lista.reduce(
+    (acc, item) => {
+      const docs = contarDocsItem(item);
+      acc.apr += docs.apr;
+      acc.os += docs.os;
+      acc.pte += docs.pte;
+      acc.pt += docs.pt;
+      return acc;
+    },
+    { apr: 0, os: 0, pte: 0, pt: 0 }
+  );
+  const docsValues = [docsTotais.apr, docsTotais.os, docsTotais.pte, docsTotais.pt];
+  const docsTotal = docsValues.reduce((sum, value) => sum + value, 0);
+  if (perfPessoaDocsMeta) {
+    perfPessoaDocsMeta.textContent = `Total ${docsTotal}`;
+  }
+  if (perfPessoaDocsChart) {
+    buildColumnChart(
+      perfPessoaDocsChart,
+      ["APR", "OS", "PTE", "PT"],
+      docsValues,
+      Math.max(1, ...docsValues)
+    );
+  }
+}
+
 function renderPerformancePessoas() {
   if (!perfPessoaCards || !perfPessoaTabela) {
     return;
   }
-  const periodo = getPeriodoFiltro(perfPessoaPeriodo ? perfPessoaPeriodo.value : "30");
+  const periodoDias = perfPessoaPeriodo ? Number(perfPessoaPeriodo.value) || 30 : 30;
+  const periodo = getPeriodoFiltro(periodoDias);
   const filtroPessoa = perfPessoaFiltro ? perfPessoaFiltro.value : "";
   const lista = manutencoes.filter((item) => {
     const dataRef = getRelatorioItemDate(item);
@@ -19810,7 +19938,8 @@ function renderPerformancePessoas() {
     if (item.createdBy && getUserLabel(item.createdBy) === responsavel) {
       stats.abertas += 1;
     }
-    if (item.status === "concluida") {
+    const statusNormalizado = normalizeMaintenanceStatus(item && item.status);
+    if (statusNormalizado === "concluida") {
       stats.concluida += 1;
       const data = parseDate(item.data);
       const doneAt = parseTimestamp(item.doneAt);
@@ -19818,7 +19947,7 @@ function renderPerformancePessoas() {
         stats.noPrazo += 1;
       }
     }
-    if (item.status === "backlog") {
+    if (statusNormalizado === "backlog") {
       stats.backlog += 1;
     }
     if (isItemCritico(item)) {
@@ -19899,6 +20028,21 @@ function renderPerformancePessoas() {
       <small>Por colaborador</small>
     </div>
   `;
+  if (perfPessoaStatusBadge) {
+    const classe =
+      totalBacklogRate > 12 || totalSla < 80
+        ? "badge--danger"
+        : totalBacklogRate > 5 || totalSla < 92
+          ? "badge--warn"
+          : "badge--ok";
+    const label =
+      classe === "badge--danger"
+        ? "Risco alto"
+        : classe === "badge--warn"
+          ? "Atencao"
+          : "Controlado";
+    setBadgeState(perfPessoaStatusBadge, classe, label);
+  }
 
   const tbody = perfPessoaTabela.querySelector("tbody");
   tbody.innerHTML = "";
@@ -19933,6 +20077,7 @@ function renderPerformancePessoas() {
   if (perfPessoaTotalOs) perfPessoaTotalOs.textContent = String(total.os);
   if (perfPessoaTotalPte) perfPessoaTotalPte.textContent = String(total.pte);
   if (perfPessoaTotalPt) perfPessoaTotalPt.textContent = String(total.pt);
+  renderPerformancePessoasCharts(lista, pessoas, pessoasOrdenadas, periodoDias);
 
   if (perfPessoaInsights) {
     const rankingEntrega = pessoasOrdenadas
@@ -19947,23 +20092,31 @@ function renderPerformancePessoas() {
       <div class="performance-insight">
         <h3>Top entregas</h3>
         <ul>
-          ${rankingEntrega
-            .map(
-              (item) =>
-                `<li><strong>${escapeHtml(item.key)}</strong><span>${item.concluida} concluídas</span></li>`
-            )
-            .join("")}
+          ${
+            rankingEntrega.length
+              ? rankingEntrega
+                  .map(
+                    (item) =>
+                      `<li><strong>${escapeHtml(item.key)}</strong><span>${item.concluida} concluidas</span></li>`
+                  )
+                  .join("")
+              : "<li><strong>Sem dados</strong><span>Nenhuma conclusao no periodo.</span></li>"
+          }
         </ul>
       </div>
       <div class="performance-insight">
         <h3>Maior backlog</h3>
         <ul>
-          ${rankingBacklog
-            .map(
-              (item) =>
-                `<li><strong>${escapeHtml(item.key)}</strong><span>${item.backlog} pendências</span></li>`
-            )
-            .join("")}
+          ${
+            rankingBacklog.length
+              ? rankingBacklog
+                  .map(
+                    (item) =>
+                      `<li><strong>${escapeHtml(item.key)}</strong><span>${item.backlog} pendencias</span></li>`
+                  )
+                  .join("")
+              : "<li><strong>Sem dados</strong><span>Nenhum backlog no periodo.</span></li>"
+          }
         </ul>
       </div>
     `;

@@ -340,6 +340,7 @@ const AUTOMATION_DEFAULTS = [
 ];
 const AUTOMATION_EMAIL_DEDUP_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const automationEmailDedup = new Map();
+const maintenanceEmailInFlight = new Set();
 const MAINTENANCE_TEAM_EMAIL_PERMISSION = "receberEmailNovaManutencao";
 const MAINTENANCE_TEAM_EMAIL_DEDUP_PREFIX = "maintenance_team_email";
 const MAINTENANCE_MONTHLY_STATE_DEFAULT = { lastWarnDate: "", lastBacklogMonth: "" };
@@ -5980,11 +5981,38 @@ async function sendMaintenanceCreatedEmail({ to, subject, text, html, meta }) {
   return false;
 }
 
+function hasMaintenanceCreatedEmailAudit(itemId, recipientId, to) {
+  const maintenanceId = String(itemId || "").trim();
+  const userId = String(recipientId || "").trim();
+  const normalizedEmail = normalizeVerificationEmail(to || "");
+  if (!maintenanceId || (!userId && !normalizedEmail)) {
+    return false;
+  }
+  for (let i = auditLog.length - 1; i >= 0; i -= 1) {
+    const entry = auditLog[i];
+    if (!entry || entry.action !== "maintenance_email_sent") {
+      continue;
+    }
+    const details = entry.details && typeof entry.details === "object" ? entry.details : {};
+    if (String(details.manutencaoId || "") !== maintenanceId) {
+      continue;
+    }
+    const detailsRecipientId = String(details.recipientId || details.userId || "").trim();
+    if (userId && detailsRecipientId && detailsRecipientId === userId) {
+      return true;
+    }
+    const detailsEmail = normalizeVerificationEmail(details.to || details.email || "");
+    if (normalizedEmail && detailsEmail && detailsEmail === normalizedEmail) {
+      return true;
+    }
+  }
+  return false;
+}
+
 async function notifyProjectTeamMaintenanceCreated(items, actor, ip, projectId) {
   if (!Array.isArray(items) || !items.length) {
     return;
   }
-  const recipientsCache = new Map();
   for (const item of items) {
     if (!item || typeof item !== "object") {
       continue;
@@ -5993,11 +6021,6 @@ async function notifyProjectTeamMaintenanceCreated(items, actor, ip, projectId) 
     if (!itemProjectId) {
       continue;
     }
-    let recipients = recipientsCache.get(itemProjectId);
-    if (!recipients) {
-      recipients = getProjectParticipantUsers(itemProjectId);
-      recipientsCache.set(itemProjectId, recipients);
-    }
     const project = getProjectById(itemProjectId);
     const projectLabel = project ? getProjectLabel(project) : itemProjectId;
     const projectTeam = project
@@ -6005,15 +6028,14 @@ async function notifyProjectTeamMaintenanceCreated(items, actor, ip, projectId) 
       : "";
     const teamName = getMaintenanceTeamName(item) || projectTeam;
     const responsavelIds = getMaintenanceResponsibleIds(item);
-    const responsavelSet = new Set(responsavelIds.map((id) => String(id)));
+    if (!responsavelIds.length) {
+      continue;
+    }
     const responsavelLabels = getMaintenanceResponsibleLabels(item);
     const responsavelTexto = responsavelLabels.length ? responsavelLabels.join(", ") : "";
     const responsavelUsers = responsavelIds
       .map((id) => users.find((user) => user && String(user.id) === String(id)))
       .filter(Boolean);
-    if (!teamName && !responsavelIds.length) {
-      continue;
-    }
     const title = getItemTitle(item);
     const due = getDueDate(item);
     const dueLabel = due ? due.toLocaleDateString("pt-BR") : "-";
@@ -6025,13 +6047,6 @@ async function notifyProjectTeamMaintenanceCreated(items, actor, ip, projectId) 
         ? getUserLabel(actor.id)
         : "-";
     const destinatarios = new Map();
-    if (Array.isArray(recipients) && recipients.length) {
-      recipients.forEach((user) => {
-        if (user && user.id) {
-          destinatarios.set(String(user.id), user);
-        }
-      });
-    }
     responsavelUsers.forEach((user) => {
       if (user && user.id) {
         destinatarios.set(String(user.id), user);
@@ -6059,10 +6074,6 @@ async function notifyProjectTeamMaintenanceCreated(items, actor, ip, projectId) 
       if (!recipient || getUserStatus(recipient) === "INATIVO") {
         continue;
       }
-      const isResponsavel = responsavelSet.has(String(recipient.id || ""));
-      if (!isResponsavel && !canUserReceiveMaintenanceEmail(recipient)) {
-        continue;
-      }
       const to = getUserEmail(recipient);
       if (!isValidEmail(to)) {
         continue;
@@ -6073,22 +6084,46 @@ async function notifyProjectTeamMaintenanceCreated(items, actor, ip, projectId) 
         itemId && userId
           ? `${MAINTENANCE_TEAM_EMAIL_DEDUP_PREFIX}:${itemId}:${userId}`
           : "";
-      if (dedupKey && shouldSkipAutomationEmail(dedupKey)) {
+      if (hasMaintenanceCreatedEmailAudit(itemId, userId, to)) {
         continue;
       }
-      const sent = await sendMaintenanceCreatedEmail({
-        to,
-        subject,
-        text,
-        html,
-        meta: { itemId, userId, projectId: itemProjectId },
-      });
-      if (sent && dedupKey) {
-        markAutomationEmailSent(dedupKey);
+      if (
+        dedupKey &&
+        (maintenanceEmailInFlight.has(dedupKey) || shouldSkipAutomationEmail(dedupKey))
+      ) {
+        continue;
+      }
+      if (dedupKey) {
+        maintenanceEmailInFlight.add(dedupKey);
+      }
+      let sent = false;
+      try {
+        sent = await sendMaintenanceCreatedEmail({
+          to,
+          subject,
+          text,
+          html,
+          meta: { itemId, userId, projectId: itemProjectId },
+        });
+      } finally {
+        if (dedupKey) {
+          maintenanceEmailInFlight.delete(dedupKey);
+        }
+      }
+      if (sent) {
+        if (dedupKey) {
+          markAutomationEmailSent(dedupKey);
+        }
         appendAudit(
           "maintenance_email_sent",
           actor ? actor.id : null,
-          { manutencaoId: itemId, projectId: itemProjectId, to },
+          {
+            manutencaoId: itemId,
+            projectId: itemProjectId,
+            recipientId: userId,
+            email: to,
+            to,
+          },
           ip || "unknown",
           itemProjectId
         );
@@ -12840,6 +12875,13 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
   if (deduped.changed) {
     mergedProject = deduped.list;
   }
+  const mergedProjectIds = new Set(
+    mergedProject.map((item) => String((item && item.id) || "")).filter(Boolean)
+  );
+  const persistedCreatedItems = createdItems.filter((item) => {
+    const id = String((item && item.id) || "").trim();
+    return Boolean(id) && mergedProjectIds.has(id);
+  });
   const filtered = existing.filter((item) => !(item && item.projectId === projectId));
   let merged = [...filtered, ...mergedProject];
   const ssSequenced = ensureMaintenanceSsNumbers(merged);
@@ -12849,15 +12891,15 @@ app.post("/api/maintenance/sync", requireAuth, (req, res) => {
   writeJson(MAINTENANCE_FILE, merged);
   touchCompat("maintenance", projectId);
   DASHBOARD_CACHE.delete(projectId);
-  if (createdItems.length) {
+  if (persistedCreatedItems.length) {
     const ip = getClientIp(req);
-    runAutomationsForItems("maintenance_created", createdItems, user, ip).catch((error) => {
+    runAutomationsForItems("maintenance_created", persistedCreatedItems, user, ip).catch((error) => {
       console.warn(
         "Automacoes falharam.",
         error && error.message ? error.message : error
       );
     });
-    notifyProjectTeamMaintenanceCreated(createdItems, user, ip, projectId).catch((error) => {
+    notifyProjectTeamMaintenanceCreated(persistedCreatedItems, user, ip, projectId).catch((error) => {
       console.warn(
         "Aviso de nova manutencao falhou.",
         error && error.message ? error.message : error
