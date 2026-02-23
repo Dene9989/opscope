@@ -13715,6 +13715,37 @@ function normalizarManutencoes(lista) {
         conclusao,
       };
     }
+    const autoRecorrenteSemInicio =
+      Boolean(item.templateId) &&
+      (statusOriginal === "em_execucao" || statusOriginal === "encerramento") &&
+      !executionStartedAt &&
+      !item.inicioExecucao &&
+      !executionFinishedAt &&
+      !doneAt &&
+      !item.executionStartedBy &&
+      !(conclusao && typeof conclusao === "object");
+    if (autoRecorrenteSemInicio) {
+      const statusCorrigido = isLiberacaoOk(item) ? "liberada" : "agendada";
+      if (statusCorrigido !== statusOriginal) {
+        changes.push({ id: item.id, from: statusOriginal, to: statusCorrigido });
+      }
+      return {
+        ...item,
+        status: statusCorrigido,
+        subequipamentos,
+        procedimentoIds: procedimentos,
+        registroExecucao: null,
+        conclusao: null,
+        executionStartedAt: "",
+        executionStartedBy: "",
+        executionFinishedAt: "",
+        inicioExecucao: "",
+        updatedAt: toIsoUtc(new Date()),
+        updatedBy: SYSTEM_USER_ID,
+        createdAt,
+        doneAt,
+      };
+    }
     if (statusOriginal === "em_execucao" || statusOriginal === "encerramento") {
       if (
         fallbackExecutionStartedAt !== executionStartedAt ||
@@ -32228,9 +32259,6 @@ function gerarManutencoesRecorrentes() {
               .map((item) => normalizeParticipantName(item))
               .filter(Boolean)
           : [];
-      const executadoPorTime = modelo.equipeResponsavel
-        ? `team:${modelo.equipeResponsavel}`
-        : "";
       const responsavelIds = getMaintenanceResponsibleIds(modelo);
       const responsavelTexto = responsavelIds.length ? buildResponsavelTexto(responsavelIds) : "";
       const prazoMaximo = modelo.prazoMaximo
@@ -32254,7 +32282,12 @@ function gerarManutencoesRecorrentes() {
         participantes: participantesModelo,
         responsavelIds: responsavelIds.length ? responsavelIds : [],
         responsavel: responsavelIds.length ? responsavelTexto : "",
-        executadaPor: executadoPorTime,
+        executadaPor: "",
+        inicioExecucao: "",
+        executionStartedAt: "",
+        executionStartedBy: "",
+        executionFinishedAt: "",
+        registroExecucao: null,
         prazoMaximo: prazoMaximo || null,
         status: "agendada",
         createdAt: agoraIso,

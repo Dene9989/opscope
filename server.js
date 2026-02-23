@@ -5997,6 +5997,20 @@ function sanitizeMaintenanceIncoming(item, current, user) {
   next = sanitizeMaintenanceLinkedData(next);
   next = sanitizePrazoMaximoFields(next);
   next = sanitizePrazoRevalidacao(next, current, user);
+  const statusBeforeSanitize = normalizeStatus(next.status);
+  const autoRecorrenteSemInicio =
+    Boolean(next.templateId) &&
+    (statusBeforeSanitize === "em_execucao" || statusBeforeSanitize === "encerramento") &&
+    !hasExecucaoRegistrada(next) &&
+    !next.executionStartedAt &&
+    !next.inicioExecucao &&
+    !next.executionFinishedAt &&
+    !next.doneAt &&
+    !(next.conclusao && typeof next.conclusao === "object");
+  if (autoRecorrenteSemInicio) {
+    next = stripMaintenanceExecutionFields(next);
+    next.status = "agendada";
+  }
   const reference = current || next;
   const canExecute = canExecuteMaintenanceForUser(reference, user);
   if (!canExecute) {
