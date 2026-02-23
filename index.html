@@ -1531,9 +1531,9 @@
               <select id="prioridadeManutencao" required>
                 <option value="">Selecione</option>
                 <option value="Baixa">Baixa</option>
-                <option value="Media">Média</option>
+                <option value="Media">M&eacute;dia</option>
                 <option value="Alta">Alta</option>
-                <option value="Critica">Crítica</option>
+                <option value="Critica">Cr&iacute;tica</option>
               </select>
             </div>
             <div class="field">
@@ -5937,6 +5937,27 @@
             <input id="liberacaoOs" type="text" required />
           </div>
           <div class="field">
+            <label for="liberacaoCategoria">Categoria</label>
+            <select id="liberacaoCategoria" required>
+              <option value="">Selecione</option>
+              <option value="Preventiva">Preventiva</option>
+              <option value="Corretiva">Corretiva</option>
+              <option value="Preditiva">Preditiva</option>
+              <option value="Melhoria">Melhoria</option>
+              <option value="Emergencial">Emergencial</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="liberacaoPrioridade">Prioridade</label>
+            <select id="liberacaoPrioridade" required>
+              <option value="">Selecione</option>
+              <option value="Baixa">Baixa</option>
+              <option value="Media">M&eacute;dia</option>
+              <option value="Alta">Alta</option>
+              <option value="Critica">Cr&iacute;tica</option>
+            </select>
+          </div>
+          <div class="field">
             <label for="liberacaoEquipamento">Equipamento</label>
             <select id="liberacaoEquipamento" required>
               <option value="">Selecione um equipamento</option>
@@ -7443,4 +7464,5 @@
     <script src="app.js"></script>
   </body>
 </html>
+
 

@@ -1191,6 +1191,8 @@ const modalLiberacao = document.getElementById("modalLiberacao");
 const formLiberacao = document.getElementById("formLiberacao");
 const liberacaoId = document.getElementById("liberacaoId");
 const liberacaoOs = document.getElementById("liberacaoOs");
+const liberacaoCategoria = document.getElementById("liberacaoCategoria");
+const liberacaoPrioridade = document.getElementById("liberacaoPrioridade");
 const liberacaoEquipamento = document.getElementById("liberacaoEquipamento");
 const liberacaoCritico = document.getElementById("liberacaoCritico");
 const liberacaoParticipantes = document.getElementById("liberacaoParticipantes");
@@ -14317,6 +14319,11 @@ function getLiberacao(item) {
 function isLiberacaoOk(item) {
   const liberacao = getLiberacao(item);
   if (!liberacao) {
+    return false;
+  }
+  const categoria = String(liberacao.categoria || item.categoria || "").trim();
+  const prioridade = String(liberacao.prioridade || item.prioridade || "").trim();
+  if (!categoria || !prioridade) {
     return false;
   }
   const critico = isCriticoValor(liberacao.critico);
@@ -46466,6 +46473,8 @@ function atualizarLiberacaoChecklist() {
     return;
   }
   const osNumero = liberacaoOs ? liberacaoOs.value.trim() : "";
+  const categoria = liberacaoCategoria ? liberacaoCategoria.value.trim() : "";
+  const prioridade = liberacaoPrioridade ? liberacaoPrioridade.value.trim() : "";
   const participantes = getLiberacaoParticipantesFromForm();
   const equipamentoValor = liberacaoEquipamento ? liberacaoEquipamento.value.trim() : "";
   const criticoSelecionado = liberacaoCritico ? liberacaoCritico.value : "";
@@ -46477,6 +46486,8 @@ function atualizarLiberacaoChecklist() {
   const itens = [
     { label: "Trabalho crítico definido", ok: Boolean(criticoSelecionado) },
     { label: "OS / referência", ok: Boolean(osNumero) },
+    { label: "Categoria", ok: Boolean(categoria) },
+    { label: "Prioridade", ok: Boolean(prioridade) },
     { label: "Participantes", ok: participantes.length > 0 },
     ...(liberacaoEquipamento
       ? [{ label: "Equipamento", ok: Boolean(equipamentoValor) }]
@@ -46559,6 +46570,28 @@ function abrirLiberacao(item) {
   }
   if (liberacaoOs) {
     liberacaoOs.value = liberacao.osNumero || "";
+  }
+  if (liberacaoCategoria) {
+    const categoriaAtual = String(item.categoria || "").trim();
+    if (categoriaAtual) {
+      const match = Array.from(liberacaoCategoria.options || []).find(
+        (opt) => normalizeSearchValue(opt.value) === normalizeSearchValue(categoriaAtual)
+      );
+      liberacaoCategoria.value = match ? match.value : "";
+    } else {
+      liberacaoCategoria.value = "";
+    }
+  }
+  if (liberacaoPrioridade) {
+    const prioridadeAtual = String(item.prioridade || "").trim();
+    if (prioridadeAtual) {
+      const match = Array.from(liberacaoPrioridade.options || []).find(
+        (opt) => normalizeSearchValue(opt.value) === normalizeSearchValue(prioridadeAtual)
+      );
+      liberacaoPrioridade.value = match ? match.value : "";
+    } else {
+      liberacaoPrioridade.value = "";
+    }
   }
   if (liberacaoCritico) {
     const criticoValor = liberacao.critico;
@@ -46671,6 +46704,15 @@ async function finalizarLiberacao(index, item, liberacaoBase, overrideJustificat
     ...item,
     liberacao,
     status: "liberada",
+    categoria: liberacao.categoria || item.categoria || "",
+    prioridade: liberacao.prioridade || item.prioridade || "",
+    osReferencia: liberacao.osNumero || item.osReferencia || "",
+    criticidade:
+      liberacao.critico === true || liberacao.critico === "sim"
+        ? "sim"
+        : liberacao.critico === false || liberacao.critico === "nao"
+          ? "nao"
+          : item.criticidade || "",
     equipamentoId: equipamentoFinal || item.equipamentoId,
     participantes: participantesFinal.length ? participantesFinal : item.participantes,
     executadaPor: executadoPorTime || item.executadaPor,
@@ -46685,6 +46727,8 @@ async function finalizarLiberacao(index, item, liberacaoBase, overrideJustificat
   ).map((key) => DOC_LABELS[key] || key);
   logAction("release", atualizado, {
     osNumero: liberacao.osNumero,
+    categoria: liberacao.categoria || atualizado.categoria || "",
+    prioridade: liberacao.prioridade || atualizado.prioridade || "",
     participantes: liberacao.participantes,
     critico: liberacao.critico,
     documentos: documentosLista,
@@ -46767,6 +46811,16 @@ async function salvarLiberacao(event) {
     mostrarMensagemLiberacao("Informe o Nº OS / referência.", true);
     return;
   }
+  const categoria = liberacaoCategoria ? liberacaoCategoria.value.trim() : "";
+  if (!categoria) {
+    mostrarMensagemLiberacao("Informe a categoria da manutenção.", true);
+    return;
+  }
+  const prioridade = liberacaoPrioridade ? liberacaoPrioridade.value.trim() : "";
+  if (!prioridade) {
+    mostrarMensagemLiberacao("Informe a prioridade da manutenção.", true);
+    return;
+  }
   const participantes = getLiberacaoParticipantesFromForm();
   setFieldError(liberacaoParticipantesErro, "");
   if (!participantes.length) {
@@ -46844,6 +46898,8 @@ async function salvarLiberacao(event) {
     }
     const liberacaoBase = {
       osNumero,
+      categoria,
+      prioridade,
       participantes,
       critico,
       documentos,
@@ -53505,6 +53561,12 @@ if (cancelarInicioMotivo) {
 }
 if (liberacaoOs) {
   liberacaoOs.addEventListener("input", atualizarLiberacaoChecklist);
+}
+if (liberacaoCategoria) {
+  liberacaoCategoria.addEventListener("change", atualizarLiberacaoChecklist);
+}
+if (liberacaoPrioridade) {
+  liberacaoPrioridade.addEventListener("change", atualizarLiberacaoChecklist);
 }
 if (liberacaoParticipantes) {
   liberacaoParticipantes.addEventListener("change", atualizarLiberacaoChecklist);
