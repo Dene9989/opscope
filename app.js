@@ -240,6 +240,19 @@ const perfReopenProgress = document.getElementById("perfReopenProgress");
 const perfReopenProgressValue = document.getElementById("perfReopenProgressValue");
 const perfReopenUltimos = document.getElementById("perfReopenUltimos");
 const perfReopenImpacto = document.getElementById("perfReopenImpacto");
+const desempenhoPanel = document.getElementById("desempenho");
+const perfResumoPeriodo = document.getElementById("perfResumoPeriodo");
+const perfThemeToggle = document.getElementById("perfThemeToggle");
+const perfTrendChart = document.getElementById("perfTrendChart");
+const perfTrendMeta = document.getElementById("perfTrendMeta");
+const perfSlaTrendChart = document.getElementById("perfSlaTrendChart");
+const perfSlaTrendMeta = document.getElementById("perfSlaTrendMeta");
+const perfFilaCriticaText = document.getElementById("perfFilaCriticaText");
+const perfFilaCriticaBadge = document.getElementById("perfFilaCriticaBadge");
+const perfEquipeDestaqueText = document.getElementById("perfEquipeDestaqueText");
+const perfEquipeDestaqueBadge = document.getElementById("perfEquipeDestaqueBadge");
+const perfPicoText = document.getElementById("perfPicoText");
+const perfPicoBadge = document.getElementById("perfPicoBadge");
 const homeHoje = document.getElementById("homeHoje");
 const homeAtrasadas = document.getElementById("homeAtrasadas");
 const homeCriticas = document.getElementById("homeCriticas");
@@ -4783,6 +4796,10 @@ const KPI_THEME_STORAGE_KEY = "opscope.kpi.theme";
 const KPI_THEME_EXECUTIVO = "executivo";
 const KPI_THEME_NEON = "neon";
 const KPI_THEMES = [KPI_THEME_EXECUTIVO, KPI_THEME_NEON];
+const PERF_THEME_STORAGE_KEY = "opscope.perf.theme";
+const PERF_THEME_EXECUTIVO = "executivo";
+const PERF_THEME_NEON = "neon";
+const PERF_THEMES = [PERF_THEME_EXECUTIVO, PERF_THEME_NEON];
 const KPI_EXECUTIVE_TARGETS = [
   {
     key: "sla_compliance",
@@ -4836,6 +4853,7 @@ const KPI_EXECUTIVE_TARGETS = [
   },
 ];
 let kpiThemeMode = KPI_THEME_EXECUTIVO;
+let perfThemeMode = PERF_THEME_EXECUTIVO;
 let homeTipsTimer = null;
 let homeTipIndex = 0;
 const SYNC_POLL_MS = 10 * 60 * 1000;
@@ -18979,6 +18997,116 @@ function getReopenEvents() {
   return events;
 }
 
+function buildDesempenhoBuckets(periodoDias) {
+  const weeksCount = periodoDias <= 14 ? 4 : periodoDias <= 45 ? 6 : 8;
+  const ultimaSemana = startOfWeek(startOfDay(new Date()));
+  const buckets = [];
+  for (let i = weeksCount - 1; i >= 0; i -= 1) {
+    const inicio = addDays(ultimaSemana, -7 * i);
+    const fim = addDays(inicio, 6);
+    buckets.push({
+      inicio,
+      fim,
+      key: formatDateISO(inicio),
+      label: weekLabelFormatter.format(inicio),
+    });
+  }
+  return buckets;
+}
+
+function renderDesempenhoTendencias(itens, periodoDias) {
+  if (!perfTrendChart && !perfSlaTrendChart) {
+    return;
+  }
+  const buckets = buildDesempenhoBuckets(periodoDias);
+  const labels = buckets.map((bucket) => bucket.label);
+  const keys = buckets.map((bucket) => bucket.key);
+
+  const concluidasSeries = buckets.map((bucket) => {
+    return itens.filter((item) => {
+      if (normalizeMaintenanceStatus(item && item.status) !== "concluida") {
+        return false;
+      }
+      const concluidaEm = getItemConclusaoDate(item);
+      return concluidaEm ? inRange(startOfDay(concluidaEm), bucket.inicio, bucket.fim) : false;
+    }).length;
+  });
+  const backlogSeries = buckets.map((bucket) => {
+    return itens.filter((item) => {
+      if (normalizeMaintenanceStatus(item && item.status) !== "backlog") {
+        return false;
+      }
+      const data = parseDate(item.data);
+      return data ? inRange(startOfDay(data), bucket.inicio, bucket.fim) : false;
+    }).length;
+  });
+  if (perfTrendMeta) {
+    const totalConcluidas = concluidasSeries.reduce((sum, value) => sum + value, 0);
+    const totalBacklog = backlogSeries.reduce((sum, value) => sum + value, 0);
+    perfTrendMeta.textContent = `Concluídas ${totalConcluidas} | Backlog ${totalBacklog}`;
+  }
+  if (perfTrendChart) {
+    buildLineChart(
+      perfTrendChart,
+      labels,
+      [
+        {
+          label: "Concluídas",
+          values: concluidasSeries,
+          lineClass: "chart__line--done",
+          dotClass: "chart__dot--done",
+          legendClass: "chart__legend-item--done",
+          areaClass: "chart__area--done",
+          drilldown: "trend_concluidas",
+          weekKeys: keys,
+        },
+        {
+          label: "Backlog",
+          values: backlogSeries,
+          lineClass: "chart__line--backlog",
+          dotClass: "chart__dot--backlog",
+          legendClass: "chart__legend-item--backlog",
+          drilldown: "trend_backlog",
+          weekKeys: keys,
+        },
+      ],
+      Math.max(1, ...concluidasSeries, ...backlogSeries),
+      null,
+      { yTicks: 4 }
+    );
+  }
+
+  const slaSeries = buckets.map((bucket) => {
+    const concluidas = itens.filter((item) => {
+      if (normalizeMaintenanceStatus(item && item.status) !== "concluida") {
+        return false;
+      }
+      const concluidaEm = getItemConclusaoDate(item);
+      return concluidaEm ? inRange(startOfDay(concluidaEm), bucket.inicio, bucket.fim) : false;
+    });
+    const resultados = concluidas.map((item) => isSlaCompliant(item)).filter((value) => value !== null);
+    if (!resultados.length) {
+      return 0;
+    }
+    return Math.round((resultados.filter(Boolean).length / resultados.length) * 100);
+  });
+  if (perfSlaTrendMeta) {
+    const media = slaSeries.length
+      ? Math.round(slaSeries.reduce((sum, value) => sum + value, 0) / slaSeries.length)
+      : 0;
+    perfSlaTrendMeta.textContent = `Média ${media}%`;
+  }
+  if (perfSlaTrendChart) {
+    buildColumnChart(
+      perfSlaTrendChart,
+      labels,
+      slaSeries,
+      100,
+      { suffix: "%", drilldown: "sla_semana", keys }
+    );
+  }
+}
+
 function renderDesempenho() {
   if (
     !perfExecProgressValue &&
@@ -18987,10 +19115,24 @@ function renderDesempenho() {
   ) {
     return;
   }
-  const periodo = getPeriodoFiltro("30");
+  const periodoDias = perfResumoPeriodo ? Number(perfResumoPeriodo.value) || 30 : 30;
+  const periodo = getPeriodoFiltro(periodoDias);
   const semana = getPeriodoFiltro("7");
+  const hoje = startOfDay(new Date());
+
+  const itensPeriodo = manutencoes.filter((item) => {
+    const referencia =
+      getItemConclusaoDate(item) ||
+      getItemCriacaoDate(item) ||
+      parseDate(item && item.data);
+    if (!referencia) {
+      return false;
+    }
+    return inRange(startOfDay(referencia), periodo.inicio, periodo.fim);
+  });
+
   const concluidasPeriodo = manutencoes.filter((item) => {
-    if (item.status !== "concluida") {
+    if (normalizeMaintenanceStatus(item && item.status) !== "concluida") {
       return false;
     }
     const concluidaEm = getItemConclusaoDate(item);
@@ -19000,7 +19142,7 @@ function renderDesempenho() {
     return inRange(startOfDay(concluidaEm), periodo.inicio, periodo.fim);
   });
   const concluidasSemana = manutencoes.filter((item) => {
-    if (item.status !== "concluida") {
+    if (normalizeMaintenanceStatus(item && item.status) !== "concluida") {
       return false;
     }
     const concluidaEm = getItemConclusaoDate(item);
@@ -19099,6 +19241,103 @@ function renderDesempenho() {
     const variant = reopensPct <= 10 ? "progress--cool" : "progress--warn";
     setProgressVariant(perfReopenProgress, variant);
   }
+
+  const cutoff48h = addHours(new Date(), -48);
+  const filaCritica = manutencoes.filter((item) => {
+    const status = normalizeMaintenanceStatus(item && item.status);
+    if (status === "concluida" || status === "cancelada") {
+      return false;
+    }
+    const ultimaMov = parseAnyDate(
+      (item && item.updatedAt) ||
+      (item && item.lastActionAt) ||
+      (item && item.executionStartedAt) ||
+      (item && item.createdAt) ||
+      ""
+    );
+    if (!ultimaMov) {
+      return false;
+    }
+    return ultimaMov.getTime() < cutoff48h.getTime();
+  });
+  if (perfFilaCriticaText) {
+    perfFilaCriticaText.textContent = "Atividades em aberto sem movimentação > 48h.";
+  }
+  if (perfFilaCriticaBadge) {
+    const qtd = filaCritica.length;
+    perfFilaCriticaBadge.textContent = `${qtd} ${qtd === 1 ? "item" : "itens"}`;
+    setBadgeState(
+      perfFilaCriticaBadge,
+      qtd === 0 ? "badge--ok" : qtd <= 3 ? "badge--warn" : "badge--danger",
+      perfFilaCriticaBadge.textContent
+    );
+  }
+
+  const destaqueMap = new Map();
+  concluidasPeriodo.forEach((item) => {
+    const duracao = getExecucaoDuracaoMin(item);
+    if (!Number.isFinite(duracao)) {
+      return;
+    }
+    const responsavel = getResponsavelLabel(item);
+    if (!destaqueMap.has(responsavel)) {
+      destaqueMap.set(responsavel, []);
+    }
+    destaqueMap.get(responsavel).push(duracao);
+  });
+  let destaque = null;
+  destaqueMap.forEach((duracoes, responsavel) => {
+    if (!duracoes.length) {
+      return;
+    }
+    const media = duracoes.reduce((sum, value) => sum + value, 0) / duracoes.length;
+    if (!destaque || media < destaque.media) {
+      destaque = { responsavel, media, total: duracoes.length };
+    }
+  });
+  if (perfEquipeDestaqueText) {
+    perfEquipeDestaqueText.textContent = destaque
+      ? `${destaque.responsavel} com média ${formatDuracaoMin(destaque.media)} em ${destaque.total} atividade(s).`
+      : "Sem base suficiente no período selecionado.";
+  }
+  if (perfEquipeDestaqueBadge) {
+    setBadgeState(
+      perfEquipeDestaqueBadge,
+      destaque ? "badge--ok" : "badge--warn",
+      destaque ? "TOP 1" : "SEM BASE"
+    );
+  }
+
+  const semanaNomes = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+  const picoMap = new Map();
+  itensPeriodo.forEach((item) => {
+    const data = parseDate(item && item.data);
+    if (!data) {
+      return;
+    }
+    const day = data.getDay();
+    picoMap.set(day, (picoMap.get(day) || 0) + 1);
+  });
+  let pico = null;
+  picoMap.forEach((total, day) => {
+    if (!pico || total > pico.total) {
+      pico = { day, total };
+    }
+  });
+  if (perfPicoText) {
+    perfPicoText.textContent = pico
+      ? `${semanaNomes[pico.day]} com ${pico.total} atividade(s) no período.`
+      : "Aguardando histórico para tendência.";
+  }
+  if (perfPicoBadge) {
+    setBadgeState(
+      perfPicoBadge,
+      pico && pico.total >= 5 ? "badge--danger" : pico ? "badge--warn" : "badge--ok",
+      pico ? "Monitorar" : "Estável"
+    );
+  }
+
+  renderDesempenhoTendencias(itensPeriodo, periodoDias);
 }
 
 function parseTimeToMinutes(value) {
@@ -24661,9 +24900,25 @@ function renderKPIs() {
   if (!kpiTotal || !kpiConclusao || !kpiConcluidas || !kpiBacklog || !kpiPontual || !kpiAtraso) {
     return;
   }
-  const total = manutencoes.length;
-  const concluidas = manutencoes.filter((item) => item.status === "concluida");
-  const backlog = manutencoes.filter((item) => item.status === "backlog");
+  const periodoDias = perfResumoPeriodo ? Number(perfResumoPeriodo.value) || 30 : 30;
+  const janela = getPeriodoFiltro(periodoDias);
+  const itensPeriodo = manutencoes.filter((item) => {
+    const referencia =
+      getItemConclusaoDate(item) ||
+      getItemCriacaoDate(item) ||
+      parseDate(item && item.data);
+    if (!referencia) {
+      return false;
+    }
+    return inRange(startOfDay(referencia), janela.inicio, janela.fim);
+  });
+  const total = itensPeriodo.length;
+  const concluidas = itensPeriodo.filter(
+    (item) => normalizeMaintenanceStatus(item && item.status) === "concluida"
+  );
+  const backlog = itensPeriodo.filter(
+    (item) => normalizeMaintenanceStatus(item && item.status) === "backlog"
+  );
   const hoje = startOfDay(new Date());
 
   const taxaConclusao = total ? Math.round((concluidas.length / total) * 100) : 0;
@@ -24680,18 +24935,18 @@ function renderKPIs() {
     : 0;
 
   const atrasos = [];
-  manutencoes.forEach((item) => {
+  itensPeriodo.forEach((item) => {
     const data = parseDate(item.data);
     if (!data) {
       return;
     }
-    if (item.status === "backlog") {
+    if (normalizeMaintenanceStatus(item.status) === "backlog") {
       const diff = diffInDays(data, hoje);
       if (diff > 0) {
         atrasos.push(diff);
       }
     }
-    if (item.status === "concluida" && item.doneAt) {
+    if (normalizeMaintenanceStatus(item.status) === "concluida" && item.doneAt) {
       const doneAt = parseTimestamp(item.doneAt);
       const diff = doneAt ? diffInDays(data, startOfDay(doneAt)) : null;
       if (diff > 0) {
@@ -25436,6 +25691,56 @@ function applyKpiTheme(mode, options = {}) {
 function toggleKpiThemeMode() {
   const nextMode = kpiThemeMode === KPI_THEME_NEON ? KPI_THEME_EXECUTIVO : KPI_THEME_NEON;
   applyKpiTheme(nextMode, { persist: true });
+}
+
+function readPerfThemeMode() {
+  try {
+    const saved = String(localStorage.getItem(PERF_THEME_STORAGE_KEY) || "").trim().toLowerCase();
+    if (PERF_THEMES.includes(saved)) {
+      return saved;
+    }
+  } catch (error) {
+    // noop
+  }
+  return PERF_THEME_EXECUTIVO;
+}
+
+function persistPerfThemeMode(mode) {
+  try {
+    localStorage.setItem(PERF_THEME_STORAGE_KEY, mode);
+  } catch (error) {
+    // noop
+  }
+}
+
+function updatePerfThemeButtonLabel(mode) {
+  if (!perfThemeToggle) {
+    return;
+  }
+  const isNeon = mode === PERF_THEME_NEON;
+  perfThemeToggle.textContent = isNeon ? "Neon" : "Executivo";
+  perfThemeToggle.title = isNeon
+    ? "Tema atual: Neon. Clique para voltar ao Executivo."
+    : "Tema atual: Executivo. Clique para ativar Neon.";
+}
+
+function applyPerfTheme(mode, options = {}) {
+  const persist = options.persist !== false;
+  const nextMode = PERF_THEMES.includes(mode) ? mode : PERF_THEME_EXECUTIVO;
+  perfThemeMode = nextMode;
+  if (desempenhoPanel) {
+    desempenhoPanel.classList.remove("perf-theme--executivo", "perf-theme--neon");
+    desempenhoPanel.classList.add(`perf-theme--${nextMode}`);
+  }
+  updatePerfThemeButtonLabel(nextMode);
+  if (persist) {
+    persistPerfThemeMode(nextMode);
+  }
+}
+
+function togglePerfThemeMode() {
+  const nextMode = perfThemeMode === PERF_THEME_NEON ? PERF_THEME_EXECUTIVO : PERF_THEME_NEON;
+  applyPerfTheme(nextMode, { persist: true });
 }
 
 function getKpiGaugeProgress(spec, valor) {
@@ -26279,6 +26584,54 @@ function buildLineChart(container, labels, series, maxValor, tooltipLabels, opti
     tooltip.hidden = true;
     focusLine.style.display = "none";
   };
+}
+
+function buildColumnChart(container, labels, values, maxValor, options = {}) {
+  if (!container) {
+    return;
+  }
+  container.innerHTML = "";
+  const safeLabels = Array.isArray(labels) ? labels : [];
+  const safeValues = Array.isArray(values) ? values : [];
+  if (!safeLabels.length || !safeValues.length) {
+    const empty = document.createElement("p");
+    empty.className = "hint";
+    empty.textContent = "Sem dados para exibir no periodo atual.";
+    container.append(empty);
+    return;
+  }
+  const max = Math.max(1, Number(maxValor) || 1);
+  const set = document.createElement("div");
+  set.className = "chart__bar-set";
+  safeValues.forEach((rawValue, index) => {
+    const numeric = Number(rawValue);
+    const value = Number.isFinite(numeric) ? numeric : 0;
+    const pct = Math.max(0, Math.min(100, Math.round((value / max) * 100)));
+    const bar = document.createElement("button");
+    bar.type = "button";
+    bar.className = "chart__bar";
+    bar.title = `${safeLabels[index] || "-"}: ${value}${options.suffix || ""}`;
+    if (options.drilldown && Array.isArray(options.keys) && options.keys[index]) {
+      bar.dataset.drilldown = options.drilldown;
+      bar.dataset.week = options.keys[index];
+    }
+    const fill = document.createElement("span");
+    fill.className = "chart__bar-fill";
+    fill.style.height = `${Math.max(6, pct)}%`;
+    const valueLabel = document.createElement("span");
+    valueLabel.className = "chart__bar-value";
+    valueLabel.textContent = `${value}${options.suffix || ""}`;
+    bar.append(fill, valueLabel);
+    set.append(bar);
+  });
+  const labelsRow = document.createElement("div");
+  labelsRow.className = "chart__labels";
+  safeLabels.forEach((label) => {
+    const span = document.createElement("span");
+    span.textContent = label;
+    labelsRow.append(span);
+  });
+  container.append(set, labelsRow);
 }
 
 function buildKpiBuckets(escala) {
@@ -51381,6 +51734,18 @@ if (kpiThemeToggle) {
   });
 }
 applyKpiTheme(readKpiThemeMode(), { persist: false });
+if (perfResumoPeriodo) {
+  perfResumoPeriodo.addEventListener("change", () => {
+    renderKPIs();
+    renderDesempenho();
+  });
+}
+if (perfThemeToggle) {
+  perfThemeToggle.addEventListener("click", () => {
+    togglePerfThemeMode();
+  });
+}
+applyPerfTheme(readPerfThemeMode(), { persist: false });
 
 if (btnAdicionarManutencao) {
   btnAdicionarManutencao.addEventListener("click", adicionarManutencao);

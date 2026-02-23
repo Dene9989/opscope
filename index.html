@@ -2854,32 +2854,48 @@
         </div>
       </section>
     </section>
-<section class="panel" id="desempenho" data-panel="desempenho">
-      <section class="card">
-        <h2>Acompanhar desempenho</h2>
+<section class="panel panel-desempenho" id="desempenho" data-panel="desempenho">
+      <section class="card card-desempenho">
+        <div class="desempenho-head">
+          <div>
+            <h2>Acompanhar desempenho</h2>
+            <p class="hint">Painel t&aacute;tico com produtividade, SLA e tend&ecirc;ncia operacional.</p>
+          </div>
+          <div class="desempenho-head__actions">
+            <div class="field">
+              <label for="perfResumoPeriodo">Per&iacute;odo</label>
+              <select id="perfResumoPeriodo">
+                <option value="7">7d</option>
+                <option value="30" selected>30d</option>
+                <option value="90">90d</option>
+              </select>
+            </div>
+            <button id="perfThemeToggle" class="btn btn--ghost btn--small" type="button">Executivo</button>
+          </div>
+        </div>
         <div class="kpi-grid">
-          <div class="kpi-card">
+          <div class="kpi-card desempenho-kpi-card">
             <span>Total</span>
             <strong id="kpiTotal">0</strong>
-            <small>Manutenções</small>
+            <small>Manuten&ccedil;&otilde;es</small>
           </div>
-          <div class="kpi-card">
-            <span>Conclusão</span>
+          <div class="kpi-card desempenho-kpi-card">
+            <span>Conclus&atilde;o</span>
             <strong id="kpiConclusao">0%</strong>
-            <small id="kpiConcluidas">0 concluídas</small>
+            <small id="kpiConcluidas">0 conclu&iacute;das</small>
           </div>
-          <div class="kpi-card">
+          <div class="kpi-card desempenho-kpi-card">
             <span>Backlog</span>
             <strong id="kpiBacklog">0</strong>
-            <small>Pendências</small>
+            <small>Pend&ecirc;ncias</small>
           </div>
-          <div class="kpi-card">
+          <div class="kpi-card desempenho-kpi-card">
             <span>Pontualidade</span>
             <strong id="kpiPontual">0%</strong>
-            <small>Concluidas no prazo</small>
+            <small>Conclu&iacute;das no prazo</small>
           </div>
-          <div class="kpi-card">
-            <span>Média de atraso</span>
+          <div class="kpi-card desempenho-kpi-card">
+            <span>M&eacute;dia de atraso</span>
             <strong id="kpiAtraso">0</strong>
             <small>Dias</small>
           </div>
@@ -2888,11 +2904,11 @@
           <div class="performance-card">
             <div class="performance-card__header">
               <div class="performance-card__title">
-                <h3>Velocidade de execução</h3>
+                <h3>Velocidade de execu&ccedil;&atilde;o</h3>
                 <span
                   class="kpi-info kpi-info--dark"
-                  data-tooltip="O que é: percentual de execuções concluídas em até 24h.&#10;Como calcula: concluídas no período com duração <= 24h / concluídas com duração registrada.&#10;Resultado: barra mostra %, tempo médio e última semana mostram a média de duração."
-                  aria-label="Detalhes da velocidade de execução"
+                  data-tooltip="O que &eacute;: percentual de execu&ccedil;&otilde;es conclu&iacute;das em at&eacute; 24h.&#10;Como calcula: conclu&iacute;das no per&iacute;odo com dura&ccedil;&atilde;o &lt;= 24h / conclu&iacute;das com dura&ccedil;&atilde;o registrada.&#10;Resultado: barra mostra %, tempo m&eacute;dio e &uacute;ltima semana mostram a m&eacute;dia de dura&ccedil;&atilde;o."
+                  aria-label="Detalhes da velocidade de execu&ccedil;&atilde;o"
                 >i</span>
               </div>
               <span class="badge badge--ok" id="perfExecBadge">Meta 24h</span>
@@ -2901,8 +2917,8 @@
               <span id="perfExecProgressValue" style="width: 0%;">0%</span>
             </div>
             <div class="performance-meta">
-              <span id="perfExecTempoMedio">Tempo médio: -</span>
-              <span id="perfExecSemana">última semana: -</span>
+              <span id="perfExecTempoMedio">Tempo m&eacute;dio: -</span>
+              <span id="perfExecSemana">&Uacute;ltima semana: -</span>
             </div>
           </div>
           <div class="performance-card">
@@ -2911,11 +2927,11 @@
                 <h3>SLA operacional</h3>
                 <span
                   class="kpi-info kpi-info--dark"
-                  data-tooltip="O que é: percentual de manutenções concluídas no prazo programado.&#10;Como calcula: concluídas no período com data de conclusão <= data programada / concluídas com data programada.&#10;Resultado: barra mostra %, contadores indicam no prazo e fora do prazo."
+                  data-tooltip="O que &eacute;: percentual de manuten&ccedil;&otilde;es conclu&iacute;das no prazo programado.&#10;Como calcula: conclu&iacute;das no per&iacute;odo com data de conclus&atilde;o &lt;= data programada / conclu&iacute;das com data programada.&#10;Resultado: barra mostra %, contadores indicam no prazo e fora do prazo."
                   aria-label="Detalhes do SLA operacional"
                 >i</span>
               </div>
-              <span class="badge badge--warn" id="perfSlaBadge">Atenção</span>
+              <span class="badge badge--warn" id="perfSlaBadge">Aten&ccedil;&atilde;o</span>
             </div>
             <div class="progress progress--warn" id="perfSlaProgress">
               <span id="perfSlaProgressValue" style="width: 0%;">0%</span>
@@ -2931,7 +2947,7 @@
                 <h3>Reaberturas</h3>
                 <span
                   class="kpi-info kpi-info--dark"
-                  data-tooltip="O que é: reaberturas de execução (novo início após conclusão).&#10;Como calcula: conta reinícios de execução após concluir; percentual usa concluídas no período.&#10;Resultado: barra mostra a taxa, últimos 7 dias mostra volume recente."
+                  data-tooltip="O que &eacute;: reaberturas de execu&ccedil;&atilde;o (novo in&iacute;cio ap&oacute;s conclus&atilde;o).&#10;Como calcula: conta rein&iacute;cios de execu&ccedil;&atilde;o ap&oacute;s concluir; percentual usa conclu&iacute;das no per&iacute;odo.&#10;Resultado: barra mostra a taxa, &uacute;ltimos 7 dias mostra volume recente."
                   aria-label="Detalhes das reaberturas"
                 >i</span>
               </div>
@@ -2941,36 +2957,53 @@
               <span id="perfReopenProgressValue" style="width: 0%;">0%</span>
             </div>
             <div class="performance-meta">
-              <span id="perfReopenUltimos">últimos 7 dias: 0</span>
+              <span id="perfReopenUltimos">&Uacute;ltimos 7 dias: 0</span>
               <span id="perfReopenImpacto">Impacto: baixo</span>
             </div>
           </div>
         </div>
+        <div class="performance-trends">
+          <article class="performance-trend-card">
+            <header class="performance-trend-card__head">
+              <h3>Conclu&iacute;das x Backlog</h3>
+              <span id="perfTrendMeta" class="kpi-chart-meta">-</span>
+            </header>
+            <div id="perfTrendChart" class="chart chart--interactive chart--compact"></div>
+          </article>
+          <article class="performance-trend-card">
+            <header class="performance-trend-card__head">
+              <h3>SLA semanal</h3>
+              <span id="perfSlaTrendMeta" class="kpi-chart-meta">-</span>
+            </header>
+            <div id="perfSlaTrendChart" class="chart chart--interactive chart--compact"></div>
+          </article>
+        </div>
         <div class="performance-list">
           <div class="performance-item">
             <div>
-              <strong>Fila crítica</strong>
-              <p>Atividades acima de 48h sem resposta.</p>
+              <strong>Fila cr&iacute;tica</strong>
+              <p id="perfFilaCriticaText">Atividades acima de 48h sem resposta.</p>
             </div>
-            <span class="badge badge--danger">2 itens</span>
+            <span id="perfFilaCriticaBadge" class="badge badge--danger">0 itens</span>
           </div>
           <div class="performance-item">
             <div>
               <strong>Equipe em destaque</strong>
-              <p>GMG BSO2 com melhor tempo médio.</p>
+              <p id="perfEquipeDestaqueText">Sem base suficiente no per&iacute;odo.</p>
             </div>
-            <span class="badge badge--ok">Top 1</span>
+            <span id="perfEquipeDestaqueBadge" class="badge badge--ok">TOP</span>
           </div>
           <div class="performance-item">
             <div>
-              <strong>Previsão de pico</strong>
-              <p>Quarta-feira com maior volume de OS.</p>
+              <strong>Previs&atilde;o de pico</strong>
+              <p id="perfPicoText">Aguardando hist&oacute;rico para tend&ecirc;ncia.</p>
             </div>
-            <span class="badge badge--warn">Planejar</span>
+            <span id="perfPicoBadge" class="badge badge--warn">Planejar</span>
           </div>
         </div>
       </section>
     </section>
+
 
     <section class="panel performance-panel" id="performance-projects" data-panel="performance-projects">
       <section class="card">
