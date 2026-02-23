@@ -34719,16 +34719,25 @@ function getPrazoMaximoInicio(item) {
   if (!item) {
     return null;
   }
-  const inicio = parseTimestamp(item.prazoMaximoInicio || item.prazoInicio || "");
-  if (inicio) {
-    return inicio;
+  const explicit = parseTimestamp(item.prazoMaximoInicio || item.prazoInicio || "");
+  if (explicit) {
+    return explicit;
   }
-  const data = parseDate(item.data);
-  if (data) {
-    return startOfDay(data);
+  const status = normalizeMaintenanceStatus(item.status);
+  const inicioExecucao = parseTimestamp(
+    item.executionStartedAt || item.inicioExecucao || item.inicio || ""
+  );
+  if (inicioExecucao) {
+    return inicioExecucao;
   }
-  const created = parseTimestamp(item.createdAt || "");
-  return created || null;
+  const liberacao = item.liberacao && typeof item.liberacao === "object" ? item.liberacao : null;
+  const liberadoEm = parseTimestamp(
+    liberacao ? liberacao.liberadoEm || liberacao.liberado_em || "" : ""
+  );
+  if (status === "em_execucao" || status === "encerramento" || status === "concluida") {
+    return liberadoEm || null;
+  }
+  return null;
 }
 
 function calcPrazoMaximoDeadline(inicio, prazo) {
@@ -34754,18 +34763,34 @@ function calcPrazoMaximoDeadline(inicio, prazo) {
 function getPrazoMaximoInfo(item, now = new Date()) {
   const prazo = normalizePrazoMaximo(item && item.prazoMaximo);
   if (!prazo) {
-    return { enabled: false, expired: false, revalidado: false };
+    return { enabled: false, expired: false, revalidado: false, pendingStart: false };
   }
+  const revalidacao = item && item.prazoMaximoRevalidacao;
+  const revalidado = Boolean(revalidacao && (revalidacao.registradoEm || revalidacao.motivo));
   const inicio = getPrazoMaximoInicio(item);
   if (!inicio) {
-    return { enabled: false, expired: false, revalidado: false };
+    return {
+      enabled: true,
+      prazo,
+      inicio: null,
+      deadline: null,
+      expired: false,
+      revalidado,
+      pendingStart: true,
+    };
   }
   const deadline = calcPrazoMaximoDeadline(inicio, prazo);
   const validDeadline = deadline && !Number.isNaN(deadline.getTime());
   const expired = validDeadline ? now > deadline : false;
-  const revalidacao = item && item.prazoMaximoRevalidacao;
-  const revalidado = Boolean(revalidacao && (revalidacao.registradoEm || revalidacao.motivo));
-  return { enabled: true, prazo, inicio, deadline: validDeadline ? deadline : null, expired, revalidado };
+  return {
+    enabled: true,
+    prazo,
+    inicio,
+    deadline: validDeadline ? deadline : null,
+    expired,
+    revalidado,
+    pendingStart: false,
+  };
 }
 
 function isPrazoMaximoExpirado(item) {
@@ -34795,6 +34820,9 @@ function getPrazoMaximoResumo(info) {
     return "";
   }
   const prazoLabel = formatPrazoLabel(info.prazo);
+  if (info.pendingStart) {
+    return `Prazo m\u00e1ximo: ${prazoLabel} (contagem inicia ao abrir a execu\u00e7\u00e3o).`;
+  }
   const deadlineLabel = info.deadline
     ? (info.prazo.unidade === "h" ? formatDateTime(info.deadline) : formatDate(info.deadline))
     : "-";
@@ -43839,6 +43867,7 @@ async function adicionarManutencao() {
       responsavelIds: responsaveisAtivos ? responsavelIds : [],
       responsavel: responsaveisAtivos ? responsavelTexto : "",
       prazoMaximo: prazoMaximo || null,
+      ...(prazoMaximo ? { prazoMaximoInicio: autoExecutar ? agoraIso : "" } : {}),
       documentos,
       liberacao,
       abertaEm: agoraIso,
@@ -45881,6 +45910,7 @@ async function confirmarInicioExecucao() {
     status: "em_execucao",
     executionStartedAt: inicioIso,
     executionStartedBy: currentUser.id,
+    ...(item.prazoMaximo && !item.prazoMaximoInicio ? { prazoMaximoInicio: inicioIso } : {}),
     updatedAt: inicioIso,
     updatedBy: currentUser.id,
   };
