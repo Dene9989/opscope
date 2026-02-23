@@ -265,6 +265,8 @@ const perfFilaCriticaText = document.getElementById("perfFilaCriticaText");
 const perfFilaCriticaBadge = document.getElementById("perfFilaCriticaBadge");
 const perfEquipeDestaqueText = document.getElementById("perfEquipeDestaqueText");
 const perfEquipeDestaqueBadge = document.getElementById("perfEquipeDestaqueBadge");
+const perfColaboradorDestaqueText = document.getElementById("perfColaboradorDestaqueText");
+const perfColaboradorDestaqueBadge = document.getElementById("perfColaboradorDestaqueBadge");
 const perfPicoText = document.getElementById("perfPicoText");
 const perfPicoBadge = document.getElementById("perfPicoBadge");
 const homeHoje = document.getElementById("homeHoje");
@@ -4592,7 +4594,11 @@ let templatesSyncEnabled = false;
 let templatesSyncInFlight = false;
 let templatesSyncQueued = false;
 let templatesSyncPayload = null;
+let rdoSyncInFlight = false;
+let rdoSyncQueued = false;
+let rdoSyncPayload = null;
 const templatesLoadedProjects = new Set();
+const rdoLoadedProjects = new Set();
 let users = [];
 let accessUsers = [];
 let accessRoles = [];
@@ -5969,6 +5975,9 @@ async function runAutoSyncTick() {
     tasks.push(carregarUsuariosServidor());
     tasks.push(carregarAnuncios(true, { auto: true }));
     tasks.push(carregarFeedbacks(true));
+    if (currentUser && canViewRdo(currentUser)) {
+      tasks.push(carregarRdoSnapshotsServidor(true));
+    }
     const activeTab = getActiveTabKey();
     if (activeTab && activeTab.startsWith("sst")) {
       tasks.push(carregarSst(true));
@@ -6036,6 +6045,10 @@ function handleSyncEvent(eventName, payload = {}) {
   }
   if (eventName === "templates.updated") {
     carregarTemplatesServidor(true);
+    return;
+  }
+  if (eventName === "rdo.updated") {
+    carregarRdoSnapshotsServidor(true);
     return;
   }
   if (eventName === "announcements.updated" || eventName === "announcement.created") {
@@ -6109,6 +6122,7 @@ function startSyncEvents() {
   [
     "maintenance.updated",
     "templates.updated",
+    "rdo.updated",
     "projects.updated",
     "project.team.updated",
     "project.equipamentos.updated",
@@ -10618,6 +10632,9 @@ function getTabFromPathname(pathname) {
   if (path === "/" || path === "/inicio") {
     return "inicio";
   }
+  if (path === "/contas") {
+    return "acessos";
+  }
   const candidate = path.slice(1);
   if (!candidate) {
     return "inicio";
@@ -10627,7 +10644,8 @@ function getTabFromPathname(pathname) {
 
 function resolveTabFromLocation() {
   const params = new URLSearchParams(window.location.search);
-  const queryTab = params.get("tab");
+  const queryRaw = params.get("tab");
+  const queryTab = queryRaw === "contas" ? "acessos" : queryRaw;
   const path = normalizeUrlPath(window.location.pathname);
   if ((path === "/" || path === "/inicio") && queryTab && getTabButton(queryTab)) {
     return queryTab;
@@ -11998,8 +12016,84 @@ function carregarRdoSnapshots() {
   return data.filter((item) => item && typeof item === "object");
 }
 
-function salvarRdoSnapshots(lista) {
+function normalizeRdoSnapshotsForSync(list) {
+  const projectId = String(activeProjectId || "").trim();
+  if (!projectId) {
+    return [];
+  }
+  return (Array.isArray(list) ? list : [])
+    .filter((item) => item && typeof item === "object")
+    .map((item) => ({
+      ...item,
+      projectId,
+    }));
+}
+
+async function syncRdoSnapshotsNow(payload = rdoSnapshots) {
+  if (
+    !USE_AUTH_API ||
+    !currentUser ||
+    !activeProjectId ||
+    (!canGerarRelatorio(currentUser) && !canExcluirRdo(currentUser))
+  ) {
+    return;
+  }
+  const items = normalizeRdoSnapshotsForSync(payload);
+  if (rdoSyncInFlight) {
+    rdoSyncQueued = true;
+    rdoSyncPayload = items;
+    return;
+  }
+  rdoSyncInFlight = true;
+  try {
+    await apiRdoSync(items, activeProjectId);
+  } catch (error) {
+    console.warn("[rdo] Falha ao sincronizar snapshots:", error && error.message ? error.message : error);
+  } finally {
+    rdoSyncInFlight = false;
+  }
+  if (rdoSyncQueued) {
+    rdoSyncQueued = false;
+    const next = rdoSyncPayload || items;
+    rdoSyncPayload = null;
+    syncRdoSnapshotsNow(next);
+  }
+}
+
+async function carregarRdoSnapshotsServidor(force = false) {
+  if (!USE_AUTH_API || !currentUser || !activeProjectId || !canViewRdo(currentUser)) {
+    return false;
+  }
+  if (!force && rdoLoadedProjects.has(activeProjectId)) {
+    return true;
+  }
+  try {
+    const localItems = Array.isArray(rdoSnapshots)
+      ? rdoSnapshots.filter((item) => item && typeof item === "object")
+      : [];
+    const data = await apiRdoList(activeProjectId);
+    const serverItems = Array.isArray(data && data.items) ? data.items : [];
+    const normalizedServer = serverItems.filter((item) => item && typeof item === "object");
+    const shouldBackfillServer = !normalizedServer.length && localItems.length > 0;
+    rdoSnapshots = shouldBackfillServer ? localItems : normalizedServer;
+    salvarRdoSnapshots(rdoSnapshots, { skipSync: true });
+    rdoLoadedProjects.add(activeProjectId);
+    if (shouldBackfillServer) {
+      syncRdoSnapshotsNow(rdoSnapshots);
+    }
+    renderRdoList();
+    return true;
+  } catch (error) {
+    console.warn("[rdo] Falha ao carregar snapshots do servidor:", error && error.message ? error.message : error);
+    return false;
+  }
+}
+
+function salvarRdoSnapshots(lista, options = {}) {
   writeJson(getProjectStorageKey(RDO_KEY), lista);
+  if (USE_AUTH_API && !options.skipSync) {
+    syncRdoSnapshotsNow(lista);
+  }
 }
 
 function garantirTemplatesPadrao() {
@@ -12299,6 +12393,7 @@ async function setActiveProjectId(nextId, options = {}) {
   await carregarProcedimentosProjeto();
   await carregarManutencoesServidor(true);
   await carregarTemplatesServidor(true);
+  await carregarRdoSnapshotsServidor(true);
   gerarManutencoesRecorrentes();
   await carregarPmpDados();
   loadDashboardSummary(true);
@@ -13923,6 +14018,8 @@ function buildSyntheticMaintenanceHistory(item, baseHistory) {
   const liberacao = getLiberacao(item) || {};
   const liberadoEm = liberacao.liberadoEm || liberacao.liberado_em || "";
   const liberadoPor = liberacao.liberadoPor || liberacao.liberado_por || "";
+  const execStartAt = pickItemValue(item, ["executionStartedAt", "inicioExecucao", "inicio"]);
+  const execStartBy = pickItemValue(item, ["executionStartedBy", "executadaPor"]);
   const participantes = normalizeHistoricoParticipantes(liberacao.participantes);
   const documentos = liberacao.documentos || item.documentos || {};
   const documentosLista = DOC_KEYS.filter((key) => documentos && documentos[key]).map(
@@ -13941,14 +14038,29 @@ function buildSyntheticMaintenanceHistory(item, baseHistory) {
     documentos: documentosLista,
     resumo: "Liberação registrada.",
   };
-  if (liberadoEm || liberadoPor || isLiberacaoOk(item) || normalizeMaintenanceStatus(item.status) === "liberada") {
+  const statusNormalizado = normalizeMaintenanceStatus(item.status);
+  const fallbackLiberadoEm =
+    liberadoEm ||
+    (statusNormalizado === "em_execucao" ||
+    statusNormalizado === "encerramento" ||
+    statusNormalizado === "concluida"
+      ? execStartAt || item.updatedAt || item.createdAt || createdAt
+      : item.updatedAt || item.createdAt || createdAt);
+  const fallbackLiberadoPor =
+    liberadoPor ||
+    (statusNormalizado === "em_execucao" ||
+    statusNormalizado === "encerramento" ||
+    statusNormalizado === "concluida"
+      ? execStartBy || item.updatedBy || item.createdBy
+      : item.updatedBy || item.createdBy);
+  if (liberadoEm || liberadoPor || isLiberacaoOk(item) || statusNormalizado === "liberada") {
     addEntry(
       "release",
-      liberadoEm || item.updatedAt || item.createdAt || createdAt,
-      liberadoPor || item.updatedBy || item.createdBy,
+      fallbackLiberadoEm,
+      fallbackLiberadoPor,
       liberacaoDetalhes
     );
-  } else {
+  } else if (statusNormalizado === "agendada" || statusNormalizado === "backlog") {
     const dataProgramada = item.data ? parseDate(item.data) : null;
     if (dataProgramada) {
       const hoje = startOfDay(new Date());
@@ -13964,8 +14076,6 @@ function buildSyntheticMaintenanceHistory(item, baseHistory) {
     }
   }
 
-  const execStartAt = pickItemValue(item, ["executionStartedAt", "inicioExecucao", "inicio"]);
-  const execStartBy = pickItemValue(item, ["executionStartedBy", "executadaPor"]);
   if (execStartAt) {
     addEntry("execute", execStartAt, execStartBy, {
       inicioExecucao: execStartAt,
@@ -18873,6 +18983,20 @@ function getResponsavelLabel(item) {
   return getUserLabel(id) || "Sistema";
 }
 
+function isOperationalCollaboratorLabel(value) {
+  const normalized = normalizeSearchValue(value);
+  if (!normalized) {
+    return false;
+  }
+  if (normalized === "admin" || normalized.includes("administrador")) {
+    return false;
+  }
+  if (normalized.includes("sistema")) {
+    return false;
+  }
+  return true;
+}
+
 function contarDocsItem(item) {
   const docs = getItemDocs(item) || {};
   const critico = isItemCritico(item);
@@ -19290,38 +19414,86 @@ function renderDesempenho() {
     );
   }
 
-  const destaqueMap = new Map();
+  const destaqueEquipeMap = new Map();
+  const destaqueColaboradorMap = new Map();
   concluidasPeriodo.forEach((item) => {
     const duracao = getExecucaoDuracaoMin(item);
     if (!Number.isFinite(duracao)) {
       return;
     }
-    const responsavel = getResponsavelLabel(item);
-    if (!destaqueMap.has(responsavel)) {
-      destaqueMap.set(responsavel, []);
+
+    const equipeLabel = normalizeTeamName(
+      (item && item.liberacao && item.liberacao.equipeResponsavel) ||
+        getMaintenanceTeamNameFromItem(item) ||
+        ""
+    );
+    if (equipeLabel) {
+      if (!destaqueEquipeMap.has(equipeLabel)) {
+        destaqueEquipeMap.set(equipeLabel, []);
+      }
+      destaqueEquipeMap.get(equipeLabel).push(duracao);
     }
-    destaqueMap.get(responsavel).push(duracao);
+
+    const responsaveis = getMaintenanceResponsibleLabels(item).filter(
+      isOperationalCollaboratorLabel
+    );
+    const fallbackResponsavel = [
+      item && item.doneBy,
+      item && item.executionStartedBy,
+      item && item.updatedBy,
+      item && item.createdBy,
+    ]
+      .map((id) => getUserLabel(id))
+      .filter(isOperationalCollaboratorLabel);
+    const colaboradores = Array.from(new Set(responsaveis.length ? responsaveis : fallbackResponsavel));
+    colaboradores.forEach((colaborador) => {
+      if (!destaqueColaboradorMap.has(colaborador)) {
+        destaqueColaboradorMap.set(colaborador, []);
+      }
+      destaqueColaboradorMap.get(colaborador).push(duracao);
+    });
   });
-  let destaque = null;
-  destaqueMap.forEach((duracoes, responsavel) => {
-    if (!duracoes.length) {
-      return;
-    }
-    const media = duracoes.reduce((sum, value) => sum + value, 0) / duracoes.length;
-    if (!destaque || media < destaque.media) {
-      destaque = { responsavel, media, total: duracoes.length };
-    }
-  });
+
+  const buildDestaque = (map) => {
+    let melhor = null;
+    map.forEach((duracoes, nome) => {
+      if (!duracoes || !duracoes.length) {
+        return;
+      }
+      const media = duracoes.reduce((sum, value) => sum + value, 0) / duracoes.length;
+      if (!melhor || media < melhor.media) {
+        melhor = { nome, media, total: duracoes.length };
+      }
+    });
+    return melhor;
+  };
+
+  const destaqueEquipe = buildDestaque(destaqueEquipeMap);
+  const destaqueColaborador = buildDestaque(destaqueColaboradorMap);
+
   if (perfEquipeDestaqueText) {
-    perfEquipeDestaqueText.textContent = destaque
-      ? `${destaque.responsavel} com média ${formatDuracaoMin(destaque.media)} em ${destaque.total} atividade(s).`
+    perfEquipeDestaqueText.textContent = destaqueEquipe
+      ? `${destaqueEquipe.nome} com média ${formatDuracaoMin(destaqueEquipe.media)} em ${destaqueEquipe.total} atividade(s).`
       : "Sem base suficiente no período selecionado.";
   }
   if (perfEquipeDestaqueBadge) {
     setBadgeState(
       perfEquipeDestaqueBadge,
-      destaque ? "badge--ok" : "badge--warn",
-      destaque ? "TOP 1" : "SEM BASE"
+      destaqueEquipe ? "badge--ok" : "badge--warn",
+      destaqueEquipe ? "TOP EQUIPE" : "SEM BASE"
+    );
+  }
+
+  if (perfColaboradorDestaqueText) {
+    perfColaboradorDestaqueText.textContent = destaqueColaborador
+      ? `${destaqueColaborador.nome} com média ${formatDuracaoMin(destaqueColaborador.media)} em ${destaqueColaborador.total} atividade(s).`
+      : "Sem base suficiente no período selecionado.";
+  }
+  if (perfColaboradorDestaqueBadge) {
+    setBadgeState(
+      perfColaboradorDestaqueBadge,
+      destaqueColaborador ? "badge--ok" : "badge--warn",
+      destaqueColaborador ? "TOP COLAB" : "SEM BASE"
     );
   }
 
@@ -19902,10 +20074,12 @@ function renderPerformancePessoas() {
 
   const pessoas = {};
   const usuariosBase = filtroPessoa
-    ? [filtroPessoa]
-    : users
+    ? [filtroPessoa].filter(isOperationalCollaboratorLabel)
+    : getOperationalUsers()
         .filter((user) => user && (user.name || user.username))
+        .filter((user) => isUserFromActiveProject(user))
         .map((user) => getUserLabel(user.id))
+        .filter(isOperationalCollaboratorLabel)
         .filter(Boolean);
   usuariosBase.forEach((label) => {
     if (!pessoas[label]) {
@@ -19924,6 +20098,9 @@ function renderPerformancePessoas() {
   });
   lista.forEach((item) => {
     const responsavel = getResponsavelLabel(item);
+    if (!isOperationalCollaboratorLabel(responsavel)) {
+      return;
+    }
     if (!pessoas[responsavel]) {
       pessoas[responsavel] = {
         abertas: 0,
@@ -22672,7 +22849,7 @@ function renderRdoJornadas(manual = {}) {
     jornadasValidas.map((item) => [String(item.userId || item.nome || item.label || ""), item])
   );
   const colaboradores = collectActiveProjectMembers(jornadasValidas, {
-    includeAdmins: true,
+    includeAdmins: false,
     requireProjectInfo: true,
   });
 
@@ -34324,7 +34501,7 @@ function normalizeTeamName(value) {
 }
 
 function getMaintenanceParticipantCandidates() {
-  const list = collectActiveProjectMembers([], { includeAdmins: true }).map((user) =>
+  const list = collectActiveProjectMembers([], { includeAdmins: false }).map((user) =>
     normalizeParticipantName(user.name || user.username || user.label || "")
   );
   return Array.from(new Set(list.filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
@@ -34410,7 +34587,7 @@ const PRAZO_UNIDADE_LABELS = {
   h: "hora",
   d: "dia",
   w: "semana",
-  m: "m?s",
+  m: "m\u00eas",
 };
 
 function normalizePrazoUnidade(value) {
@@ -34622,18 +34799,18 @@ function getPrazoMaximoResumo(info) {
     ? (info.prazo.unidade === "h" ? formatDateTime(info.deadline) : formatDate(info.deadline))
     : "-";
   if (info.expired && !info.revalidado) {
-    return `Prazo m?ximo expirado (${prazoLabel}) em ${deadlineLabel}.`;
+    return `Prazo m\u00e1ximo expirado (${prazoLabel}) em ${deadlineLabel}.`;
   }
-  return `Prazo m?ximo: ${prazoLabel} (vence em ${deadlineLabel}).`;
+  return `Prazo m\u00e1ximo: ${prazoLabel} (vence em ${deadlineLabel}).`;
 }
 
 function getPrazoExpiradoMensagem(item) {
   const info = getPrazoMaximoInfo(item);
   if (!info || !info.enabled) {
-    return "Prazo m?ximo expirado. Revalide para continuar.";
+    return "Prazo m\u00e1ximo expirado. Revalide para continuar.";
   }
   const prazoLabel = formatPrazoLabel(info.prazo);
-  return `Prazo m?ximo expirado (${prazoLabel}). Revalide para continuar.`;
+  return `Prazo m\u00e1ximo expirado (${prazoLabel}). Revalide para continuar.`;
 }
 
 function formatResponsavelLista(labels = []) {
@@ -34690,7 +34867,7 @@ function updateManutencaoSubmitLabel() {
 }
 
 function getResponsibleCandidates() {
-  return collectActiveProjectMembers([], { includeAdmins: true });
+  return collectActiveProjectMembers([], { includeAdmins: false });
 }
 
 function formatResponsibleLabel(user) {
@@ -36074,12 +36251,15 @@ function renderProcedimentosTable() {
         '<button type="button" class="btn btn--ghost btn--small btn--danger" data-action="delete-procedure">Excluir</button>'
       );
     }
+    const codigo = procedimento.codigo || "-";
+    const nome = procedimento.nome || "-";
+    const pdfNome = (pdfDoc && (pdfDoc.originalName || pdfDoc.name)) || "-";
     tr.dataset.procedureId = procedimento.id;
     tr.innerHTML = `
-      <td>${escapeHtml(procedimento.codigo || "-")}</td>
-      <td>${escapeHtml(procedimento.nome || "-")}</td>
-      <td>${escapeHtml((pdfDoc && (pdfDoc.originalName || pdfDoc.name)) || "-")}</td>
-      <td class="table-actions">${actions.join(" ")}</td>
+      <td><span class="procedure-code" title="${escapeHtml(codigo)}">${escapeHtml(codigo)}</span></td>
+      <td><span class="procedure-text" title="${escapeHtml(nome)}">${escapeHtml(nome)}</span></td>
+      <td><span class="procedure-text procedure-text--pdf" title="${escapeHtml(pdfNome)}">${escapeHtml(pdfNome)}</span></td>
+      <td class="table-actions procedure-actions">${actions.join(" ")}</td>
     `;
     procedimentoTableBody.append(tr);
   });
@@ -49173,25 +49353,26 @@ function agirNaManutencao(event) {
 }
 
 function ativarTab(nome, options = {}) {
+  const tabName = nome === "contas" ? "acessos" : nome;
   tabButtons.forEach((botao) => {
-    const ativo = botao.dataset.tab === nome;
+    const ativo = botao.dataset.tab === tabName;
     botao.classList.toggle("is-active", ativo);
     botao.classList.toggle("active", ativo);
   });
   panels.forEach((panel) => {
-    panel.classList.toggle("is-active", panel.dataset.panel === nome);
+    panel.classList.toggle("is-active", panel.dataset.panel === tabName);
   });
   if (crumbs) {
     renderBreadcrumb();
   }
-  atualizarTituloPagina(nome);
+  atualizarTituloPagina(tabName);
   if (options.updateUrl !== false) {
-    updateUrlForTab(nome, { push: options.pushUrl });
+    updateUrlForTab(tabName, { push: options.pushUrl });
   }
-  if (currentUser && nome && nome.startsWith("sst")) {
+  if (currentUser && tabName && tabName.startsWith("sst")) {
     carregarSst(true);
   }
-  if (currentUser && nome === "feedbacks") {
+  if (currentUser && tabName === "feedbacks") {
     carregarFeedbacks(true);
   }
 }
@@ -49701,6 +49882,21 @@ async function apiRdoGenerateText(payload) {
   return apiRequest("/api/rdo/generate-text", {
     method: "POST",
     body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiRdoList(projectId) {
+  const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
+  return apiRequest(`/api/rdo${query}`);
+}
+
+async function apiRdoSync(items, projectId) {
+  return apiRequest("/api/rdo/sync", {
+    method: "POST",
+    body: JSON.stringify({
+      projectId: projectId || "",
+      items: Array.isArray(items) ? items : [],
+    }),
   });
 }
 

@@ -161,6 +161,7 @@ const DATA_FILE_NAMES = [
   "maintenance_templates.json",
   "maintenance_tombstones.json",
   "maintenance_monthly.json",
+  "rdo_snapshots.json",
   "maintenance_ss_counter.json",
   "announcements.json",
   "feedbacks.json",
@@ -205,6 +206,7 @@ const MAINTENANCE_FILE = path.join(DATA_DIR, "maintenance.json");
 const MAINTENANCE_TEMPLATES_FILE = path.join(DATA_DIR, "maintenance_templates.json");
 const MAINTENANCE_TOMBSTONES_FILE = path.join(DATA_DIR, "maintenance_tombstones.json");
 const MAINTENANCE_MONTHLY_FILE = path.join(DATA_DIR, "maintenance_monthly.json");
+const RDO_SNAPSHOTS_FILE = path.join(DATA_DIR, "rdo_snapshots.json");
 const MAINTENANCE_SS_COUNTER_FILE = path.join(DATA_DIR, "maintenance_ss_counter.json");
 const ANNOUNCEMENTS_FILE = path.join(DATA_DIR, "announcements.json");
 const FEEDBACKS_FILE = path.join(DATA_DIR, "feedbacks.json");
@@ -254,6 +256,7 @@ const STORE_FILES = [
   MAINTENANCE_TEMPLATES_FILE,
   MAINTENANCE_TOMBSTONES_FILE,
   MAINTENANCE_MONTHLY_FILE,
+  RDO_SNAPSHOTS_FILE,
   MAINTENANCE_SS_COUNTER_FILE,
   ANNOUNCEMENTS_FILE,
   FEEDBACKS_FILE,
@@ -4794,6 +4797,40 @@ function saveAnnouncements(list) {
   writeJson(ANNOUNCEMENTS_FILE, Array.isArray(list) ? list : []);
 }
 
+function normalizeRdoSnapshotRecord(record, forcedProjectId = "") {
+  if (!record || typeof record !== "object") {
+    return null;
+  }
+  const projectId = String(forcedProjectId || record.projectId || "").trim();
+  if (!projectId) {
+    return null;
+  }
+  const id = String(record.id || "").trim() || crypto.randomUUID();
+  const createdAtParsed = parseDateTime(record.createdAt || record.updatedAt || "");
+  const createdAt = createdAtParsed ? createdAtParsed.toISOString() : new Date().toISOString();
+  return {
+    ...record,
+    id,
+    projectId,
+    createdAt,
+  };
+}
+
+function loadRdoSnapshots() {
+  const data = readJson(RDO_SNAPSHOTS_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data
+    .map((item) => normalizeRdoSnapshotRecord(item))
+    .filter(Boolean)
+    .sort((a, b) => (getTimeValue(parseDateTime(b.createdAt)) || 0) - (getTimeValue(parseDateTime(a.createdAt)) || 0));
+}
+
+function saveRdoSnapshots(list) {
+  writeJson(RDO_SNAPSHOTS_FILE, Array.isArray(list) ? list : []);
+}
+
 function normalizeFeedbackRecord(record) {
   if (!record || typeof record !== "object") {
     return null;
@@ -5706,15 +5743,6 @@ function stripMaintenanceExecutionFields(item) {
       delete cleaned[key];
     }
   });
-  if (cleaned.liberacao && typeof cleaned.liberacao === "object") {
-    const liberacao = { ...cleaned.liberacao };
-    ["liberadoEm", "liberado_em", "liberadoPor", "liberado_por"].forEach((key) => {
-      if (key in liberacao) {
-        delete liberacao[key];
-      }
-    });
-    cleaned.liberacao = liberacao;
-  }
   return cleaned;
 }
 
@@ -13320,6 +13348,70 @@ app.post("/api/feedbacks/read", requireAuth, requireStorageWritable, (req, res) 
   }
   return res.json({ ok: true, updated: changed ? normalized.length : 0 });
 });
+
+app.get(
+  "/api/rdo",
+  requireAuth,
+  requirePermission("verRDOs"),
+  (req, res) => {
+    const user = req.currentUser || getSessionUser(req);
+    const projectId = String(req.query.projectId || "").trim() || getActiveProjectId(req, user);
+    if (!projectId) {
+      return res.status(400).json({ message: "Projeto ativo obrigat\u00f3rio." });
+    }
+    if (!userHasProjectAccess(user, projectId)) {
+      return res.status(403).json({ message: "Nao autorizado." });
+    }
+    const list = loadRdoSnapshots().filter((item) => item && item.projectId === projectId);
+    return res.json({ items: list, projectId });
+  }
+);
+
+app.post(
+  "/api/rdo/sync",
+  requireAuth,
+  requirePermission("gerarRDOs"),
+  requireStorageWritable,
+  (req, res) => {
+    const user = req.currentUser || getSessionUser(req);
+    const fromQuery = String(req.query.projectId || "").trim();
+    const fromBody = String(req.body.projectId || "").trim();
+    const projectId = fromBody || fromQuery || getActiveProjectId(req, user);
+    if (!projectId) {
+      return res.status(400).json({ message: "Projeto ativo obrigat\u00f3rio." });
+    }
+    if (!userHasProjectAccess(user, projectId)) {
+      return res.status(403).json({ message: "Nao autorizado." });
+    }
+
+    const incoming = Array.isArray(req.body.items)
+      ? req.body.items
+          .map((item) => normalizeRdoSnapshotRecord(item, projectId))
+          .filter(Boolean)
+      : [];
+
+    const existing = loadRdoSnapshots();
+    const sameProject = existing.filter((item) => item && item.projectId === projectId);
+    const mergedMap = new Map();
+    sameProject.forEach((item) => {
+      mergedMap.set(String(item.id || ""), item);
+    });
+    incoming.forEach((item) => {
+      mergedMap.set(String(item.id || ""), item);
+    });
+    const mergedProject = Array.from(mergedMap.values()).sort(
+      (a, b) => (getTimeValue(parseDateTime(b.createdAt)) || 0) - (getTimeValue(parseDateTime(a.createdAt)) || 0)
+    );
+    const otherProjects = existing.filter((item) => !(item && item.projectId === projectId));
+    saveRdoSnapshots([...otherProjects, ...mergedProject]);
+    broadcastSse("rdo.updated", {
+      projectId,
+      count: incoming.length,
+      source: "sync",
+    });
+    return res.json({ ok: true, count: incoming.length, projectId });
+  }
+);
 
 app.post(
   "/api/rdo/generate-text",
