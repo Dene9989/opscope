@@ -107,6 +107,13 @@ const perfProjetoTotalApr = document.getElementById("perfProjetoTotalApr");
 const perfProjetoTotalOs = document.getElementById("perfProjetoTotalOs");
 const perfProjetoTotalPte = document.getElementById("perfProjetoTotalPte");
 const perfProjetoTotalPt = document.getElementById("perfProjetoTotalPt");
+const perfProjetoStatusBadge = document.getElementById("perfProjetoStatusBadge");
+const perfProjetoTrendChart = document.getElementById("perfProjetoTrendChart");
+const perfProjetoTrendMeta = document.getElementById("perfProjetoTrendMeta");
+const perfProjetoSlaChart = document.getElementById("perfProjetoSlaChart");
+const perfProjetoSlaMeta = document.getElementById("perfProjetoSlaMeta");
+const perfProjetoDocsChart = document.getElementById("perfProjetoDocsChart");
+const perfProjetoDocsMeta = document.getElementById("perfProjetoDocsMeta");
 const perfPessoaPeriodo = document.getElementById("perfPessoaPeriodo");
 const perfPessoaFiltro = document.getElementById("perfPessoaFiltro");
 const perfPessoaCards = document.getElementById("perfPessoaCards");
@@ -19379,11 +19386,137 @@ function calcOverlapMinutes(startA, endA, startB, endB) {
   return Math.max(0, fim - inicio);
 }
 
+function compactProjetoLabel(value, maxLength = 18) {
+  const texto = String(value || "").replace(/\s+/g, " ").trim();
+  if (!texto) {
+    return "-";
+  }
+  const semParenteses = texto.replace(/\s*\([^)]*\)\s*/g, " ").trim();
+  if (semParenteses.length <= maxLength) {
+    return semParenteses;
+  }
+  const prefixo = semParenteses.split(" - ")[0] || semParenteses;
+  if (prefixo.length <= maxLength) {
+    return prefixo;
+  }
+  return `${prefixo.slice(0, Math.max(6, maxLength - 3)).trim()}...`;
+}
+
+function renderPerformanceProjetosCharts(lista, projetos, projetosOrdenados, periodoDias) {
+  if (!perfProjetoTrendChart && !perfProjetoSlaChart && !perfProjetoDocsChart) {
+    return;
+  }
+
+  const buckets = buildDesempenhoBuckets(periodoDias);
+  const labels = buckets.map((bucket) => bucket.label);
+
+  const concluidasSeries = buckets.map((bucket) => {
+    return lista.filter((item) => {
+      if (normalizeMaintenanceStatus(item && item.status) !== "concluida") {
+        return false;
+      }
+      const concluidaEm = getItemConclusaoDate(item);
+      return concluidaEm ? inRange(startOfDay(concluidaEm), bucket.inicio, bucket.fim) : false;
+    }).length;
+  });
+  const backlogSeries = buckets.map((bucket) => {
+    return lista.filter((item) => {
+      if (normalizeMaintenanceStatus(item && item.status) !== "backlog") {
+        return false;
+      }
+      const data = parseDate(item && item.data);
+      return data ? inRange(startOfDay(data), bucket.inicio, bucket.fim) : false;
+    }).length;
+  });
+
+  if (perfProjetoTrendMeta) {
+    const totalConcluidas = concluidasSeries.reduce((sum, value) => sum + value, 0);
+    const totalBacklog = backlogSeries.reduce((sum, value) => sum + value, 0);
+    perfProjetoTrendMeta.textContent = `Concluidas ${totalConcluidas} | Backlog ${totalBacklog}`;
+  }
+  if (perfProjetoTrendChart) {
+    buildLineChart(
+      perfProjetoTrendChart,
+      labels,
+      [
+        {
+          label: "Concluidas",
+          values: concluidasSeries,
+          lineClass: "chart__line--done",
+          dotClass: "chart__dot--done",
+          legendClass: "chart__legend-item--done",
+          areaClass: "chart__area--done",
+        },
+        {
+          label: "Backlog",
+          values: backlogSeries,
+          lineClass: "chart__line--backlog",
+          dotClass: "chart__dot--backlog",
+          legendClass: "chart__legend-item--backlog",
+        },
+      ],
+      Math.max(1, ...concluidasSeries, ...backlogSeries),
+      null,
+      { yTicks: 4 }
+    );
+  }
+
+  const rankingSla = projetosOrdenados
+    .map((key) => {
+      const stats = projetos[key];
+      const sla = calcPercent(stats.noPrazo, stats.concluida);
+      return { key, sla };
+    })
+    .sort((a, b) => b.sla - a.sla)
+    .slice(0, 8);
+  if (perfProjetoSlaMeta) {
+    const mediaSla = rankingSla.length
+      ? Math.round(rankingSla.reduce((sum, item) => sum + item.sla, 0) / rankingSla.length)
+      : 0;
+    perfProjetoSlaMeta.textContent = `Media ${mediaSla}%`;
+  }
+  if (perfProjetoSlaChart) {
+    buildColumnChart(
+      perfProjetoSlaChart,
+      rankingSla.map((item) => compactProjetoLabel(item.key, 18)),
+      rankingSla.map((item) => item.sla),
+      100,
+      { suffix: "%" }
+    );
+  }
+
+  const docsTotais = lista.reduce(
+    (acc, item) => {
+      const docs = contarDocsItem(item);
+      acc.apr += docs.apr;
+      acc.os += docs.os;
+      acc.pte += docs.pte;
+      acc.pt += docs.pt;
+      return acc;
+    },
+    { apr: 0, os: 0, pte: 0, pt: 0 }
+  );
+  const docsValues = [docsTotais.apr, docsTotais.os, docsTotais.pte, docsTotais.pt];
+  const docsTotal = docsValues.reduce((sum, value) => sum + value, 0);
+  if (perfProjetoDocsMeta) {
+    perfProjetoDocsMeta.textContent = `Total ${docsTotal}`;
+  }
+  if (perfProjetoDocsChart) {
+    buildColumnChart(
+      perfProjetoDocsChart,
+      ["APR", "OS", "PTE", "PT"],
+      docsValues,
+      Math.max(1, ...docsValues)
+    );
+  }
+}
+
 function renderPerformanceProjetos() {
   if (!perfProjetoCards || !perfProjetoTabela) {
     return;
   }
-  const periodo = getPeriodoFiltro(perfProjetoPeriodo ? perfProjetoPeriodo.value : "30");
+  const periodoDias = perfProjetoPeriodo ? Number(perfProjetoPeriodo.value) || 30 : 30;
+  const periodo = getPeriodoFiltro(periodoDias);
   const filtroProjeto = perfProjetoFiltro ? perfProjetoFiltro.value : "";
   const lista = manutencoes.filter((item) => {
     const dataRef = getRelatorioItemDate(item);
@@ -19416,7 +19549,8 @@ function renderPerformanceProjetos() {
       };
     }
     const stats = projetos[projeto];
-    if (item.status === "concluida") {
+    const statusNormalizado = normalizeMaintenanceStatus(item && item.status);
+    if (statusNormalizado === "concluida") {
       stats.concluida += 1;
       const data = parseDate(item.data);
       const doneAt = parseTimestamp(item.doneAt);
@@ -19424,7 +19558,7 @@ function renderPerformanceProjetos() {
         stats.noPrazo += 1;
       }
     }
-    if (item.status === "backlog") {
+    if (statusNormalizado === "backlog") {
       stats.backlog += 1;
     }
     if (isItemCritico(item)) {
@@ -19496,6 +19630,21 @@ function renderPerformanceProjetos() {
       <small>APR, OS, PTE, PT</small>
     </div>
   `;
+  if (perfProjetoStatusBadge) {
+    const classe =
+      totalBacklogRate > 12 || totalSla < 80
+        ? "badge--danger"
+        : totalBacklogRate > 5 || totalSla < 92
+          ? "badge--warn"
+          : "badge--ok";
+    const label =
+      classe === "badge--danger"
+        ? "Risco alto"
+        : classe === "badge--warn"
+          ? "Atencao"
+          : "Controlado";
+    setBadgeState(perfProjetoStatusBadge, classe, label);
+  }
 
   const tbody = perfProjetoTabela.querySelector("tbody");
   tbody.innerHTML = "";
@@ -19528,6 +19677,7 @@ function renderPerformanceProjetos() {
   if (perfProjetoTotalOs) perfProjetoTotalOs.textContent = String(total.os);
   if (perfProjetoTotalPte) perfProjetoTotalPte.textContent = String(total.pte);
   if (perfProjetoTotalPt) perfProjetoTotalPt.textContent = String(total.pt);
+  renderPerformanceProjetosCharts(lista, projetos, projetosOrdenados, periodoDias);
 
   if (perfProjetoInsights) {
     const rankingSla = projetosOrdenados
@@ -19553,23 +19703,31 @@ function renderPerformanceProjetos() {
       <div class="performance-insight">
         <h3>Destaques de SLA</h3>
         <ul>
-          ${rankingSla
-            .map(
-              (item) =>
-                `<li><strong>${escapeHtml(item.key)}</strong><span>${item.sla}% no prazo</span></li>`
-            )
-            .join("")}
+          ${
+            rankingSla.length
+              ? rankingSla
+                  .map(
+                    (item) =>
+                      `<li><strong>${escapeHtml(item.key)}</strong><span>${item.sla}% no prazo</span></li>`
+                  )
+                  .join("")
+              : "<li><strong>Sem dados</strong><span>Nenhum projeto concluido no periodo.</span></li>"
+          }
         </ul>
       </div>
       <div class="performance-insight">
         <h3>Risco de backlog</h3>
         <ul>
-          ${rankingBacklog
-            .map(
-              (item) =>
-                `<li><strong>${escapeHtml(item.key)}</strong><span>${item.backlog} pendências</span></li>`
-            )
-            .join("")}
+          ${
+            rankingBacklog.length
+              ? rankingBacklog
+                  .map(
+                    (item) =>
+                      `<li><strong>${escapeHtml(item.key)}</strong><span>${item.backlog} pendencias</span></li>`
+                  )
+                  .join("")
+              : "<li><strong>Sem dados</strong><span>Nenhum backlog no periodo.</span></li>"
+          }
         </ul>
       </div>
     `;

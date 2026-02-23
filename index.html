@@ -3005,17 +3005,22 @@
     </section>
 
 
-    <section class="panel performance-panel" id="performance-projects" data-panel="performance-projects">
-      <section class="card">
-        <h2>Desempenho por projeto</h2>
-        <p class="hint">Acompanhe produtividade, backlog, criticidades e documentações por projeto.</p>
-        <div class="programacao-toolbar">
+    <section class="panel performance-panel panel-performance-projects" id="performance-projects" data-panel="performance-projects">
+      <section class="card card-performance-projects">
+        <div class="performance-projects-head">
+          <div>
+            <h2>Desempenho por projeto</h2>
+            <p class="hint">Acompanhe produtividade, backlog, criticidades e documenta&ccedil;&otilde;es por projeto.</p>
+          </div>
+          <span id="perfProjetoStatusBadge" class="badge badge--ok">Vis&atilde;o t&aacute;tica</span>
+        </div>
+        <div class="programacao-toolbar performance-projects-toolbar">
           <div class="field">
-            <label for="perfProjetoPeriodo">Período</label>
+            <label for="perfProjetoPeriodo">Per&iacute;odo</label>
             <select id="perfProjetoPeriodo">
-              <option value="7">últimos 7 dias</option>
-              <option value="30" selected>últimos 30 dias</option>
-              <option value="90">últimos 90 dias</option>
+              <option value="7">&uacute;ltimos 7 dias</option>
+              <option value="30" selected>&uacute;ltimos 30 dias</option>
+              <option value="90">&uacute;ltimos 90 dias</option>
             </select>
           </div>
           <div class="field">
@@ -3025,18 +3030,41 @@
             </select>
           </div>
         </div>
-        <div class="perf-grid" id="perfProjetoCards"></div>
-        <div class="performance-insights" id="perfProjetoInsights"></div>
-        <div class="report-table__wrap">
+        <div class="perf-grid perf-grid--projects" id="perfProjetoCards"></div>
+        <div class="performance-projects-trends">
+          <article class="performance-projects-trend-card">
+            <header class="performance-projects-trend-card__head">
+              <h3>Conclu&iacute;das x Backlog</h3>
+              <span id="perfProjetoTrendMeta" class="kpi-chart-meta">-</span>
+            </header>
+            <div id="perfProjetoTrendChart" class="chart chart--interactive chart--compact"></div>
+          </article>
+          <article class="performance-projects-trend-card">
+            <header class="performance-projects-trend-card__head">
+              <h3>SLA por projeto</h3>
+              <span id="perfProjetoSlaMeta" class="kpi-chart-meta">-</span>
+            </header>
+            <div id="perfProjetoSlaChart" class="chart chart--interactive chart--compact"></div>
+          </article>
+          <article class="performance-projects-trend-card">
+            <header class="performance-projects-trend-card__head">
+              <h3>Documenta&ccedil;&otilde;es no per&iacute;odo</h3>
+              <span id="perfProjetoDocsMeta" class="kpi-chart-meta">-</span>
+            </header>
+            <div id="perfProjetoDocsChart" class="chart chart--interactive chart--compact"></div>
+          </article>
+        </div>
+        <div class="performance-insights performance-insights--projects" id="perfProjetoInsights"></div>
+        <div class="report-table__wrap report-table__wrap--projects">
           <table class="report__table" id="perfProjetoTabela">
             <thead>
                 <tr>
                   <th>Projeto</th>
-                  <th>Concluidas</th>
+                  <th>Conclu&iacute;das</th>
                   <th>No prazo</th>
                   <th>SLA %</th>
                   <th>Backlog</th>
-                  <th>Críticas</th>
+                  <th>Cr&iacute;ticas</th>
                   <th>APR</th>
                   <th>OS</th>
                   <th>PTE</th>

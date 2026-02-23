@@ -8547,6 +8547,197 @@ textarea:focus {
   color: rgba(234, 240, 246, 0.8);
 }
 
+.panel-performance-projects {
+  --pproj-bg-1: #0c2c48;
+  --pproj-bg-2: #08233d;
+  --pproj-soft: #123c62;
+  --pproj-border: rgba(104, 170, 220, 0.28);
+  --pproj-border-strong: rgba(125, 206, 255, 0.5);
+  --pproj-text: #eaf5ff;
+  --pproj-text-soft: rgba(234, 245, 255, 0.72);
+  --pproj-grid: rgba(169, 206, 236, 0.25);
+  --pproj-vgrid: rgba(169, 206, 236, 0.14);
+}
+
+.card-performance-projects {
+  background: linear-gradient(170deg, var(--pproj-bg-1), var(--pproj-bg-2));
+  border: 1px solid var(--pproj-border);
+  box-shadow: inset 0 0 0 1px rgba(13, 33, 52, 0.45);
+  display: grid;
+  gap: 14px;
+}
+
+.performance-projects-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.panel-performance-projects h2,
+.panel-performance-projects h3,
+.panel-performance-projects label,
+.panel-performance-projects strong {
+  color: var(--pproj-text);
+}
+
+.panel-performance-projects .hint,
+.panel-performance-projects .perf-card span,
+.panel-performance-projects .perf-card small {
+  color: var(--pproj-text-soft);
+}
+
+.panel-performance-projects .performance-projects-toolbar {
+  margin-top: -4px;
+}
+
+.panel-performance-projects .performance-projects-toolbar select {
+  border-color: var(--pproj-border);
+  background: rgba(11, 36, 58, 0.88);
+  color: var(--pproj-text);
+}
+
+.panel-performance-projects .perf-grid--projects {
+  margin: 0;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.panel-performance-projects .perf-grid--projects .perf-card {
+  border-color: var(--pproj-border);
+  background: linear-gradient(170deg, rgba(7, 26, 43, 0.94), rgba(5, 20, 33, 0.92));
+  min-height: 106px;
+}
+
+.panel-performance-projects .perf-grid--projects .perf-card strong {
+  color: var(--pproj-text);
+}
+
+.performance-projects-trends {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.performance-projects-trend-card {
+  border-radius: 14px;
+  border: 1px solid var(--pproj-border);
+  background: linear-gradient(165deg, rgba(7, 26, 43, 0.94), rgba(5, 20, 33, 0.94));
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.performance-projects-trend-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.performance-projects-trend-card__head h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.panel-performance-projects .kpi-chart-meta {
+  border-color: var(--pproj-border-strong);
+  background: rgba(44, 191, 255, 0.18);
+  color: var(--pproj-text);
+}
+
+.panel-performance-projects .chart {
+  min-height: 178px;
+  background: linear-gradient(170deg, rgba(6, 23, 38, 0.96), rgba(4, 18, 31, 0.96));
+  border-color: var(--pproj-border);
+}
+
+.panel-performance-projects .chart--compact {
+  min-height: 166px;
+}
+
+.panel-performance-projects .chart__svg {
+  height: 152px;
+}
+
+.panel-performance-projects .chart__grid-line {
+  stroke: var(--pproj-grid);
+}
+
+.panel-performance-projects .chart__grid-vline {
+  stroke: var(--pproj-vgrid);
+}
+
+.panel-performance-projects .chart__baseline {
+  stroke: var(--pproj-grid);
+}
+
+.panel-performance-projects .chart__grid-label {
+  fill: rgba(234, 245, 255, 0.78);
+}
+
+.panel-performance-projects .chart__line--done {
+  stroke: #44f0a5;
+  filter: drop-shadow(0 0 7px rgba(68, 240, 165, 0.35));
+}
+
+.panel-performance-projects .chart__line--backlog {
+  stroke: #ff6a8f;
+  filter: drop-shadow(0 0 7px rgba(255, 106, 143, 0.35));
+}
+
+.panel-performance-projects .chart__dot--done {
+  fill: #44f0a5;
+}
+
+.panel-performance-projects .chart__dot--backlog {
+  fill: #ff6a8f;
+}
+
+.panel-performance-projects .chart__legend,
+.panel-performance-projects .chart__labels {
+  color: rgba(234, 245, 255, 0.72);
+}
+
+.panel-performance-projects .chart__tooltip {
+  border-color: var(--pproj-border-strong);
+  background: rgba(7, 19, 34, 0.96);
+  color: var(--pproj-text);
+}
+
+.panel-performance-projects .performance-insights--projects {
+  margin: 0;
+}
+
+.panel-performance-projects .performance-insights--projects .performance-insight {
+  border-color: var(--pproj-border);
+  background: linear-gradient(165deg, rgba(7, 26, 43, 0.9), rgba(5, 20, 33, 0.9));
+}
+
+.panel-performance-projects .performance-insights--projects li strong {
+  max-width: 72%;
+}
+
+.panel-performance-projects .report-table__wrap--projects {
+  margin-top: 2px;
+  border-color: var(--pproj-border);
+  background: rgba(7, 24, 39, 0.72);
+}
+
+@media (max-width: 1120px) {
+  .performance-projects-trends {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .performance-projects-head {
+    flex-direction: column;
+  }
+  .performance-projects-trends {
+    grid-template-columns: 1fr;
+  }
+}
+
 .perf-badge {
   display: inline-flex;
   align-items: center;
