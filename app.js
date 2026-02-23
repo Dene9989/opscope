@@ -11401,6 +11401,40 @@ async function hashSha256(text) {
   return hash.toString(16).padStart(8, "0");
 }
 
+function normalizeSignatureRecordId(value) {
+  const raw = String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9-]/g, "");
+  if (!raw) {
+    return "";
+  }
+  return raw.slice(0, 80);
+}
+
+function buildMaintenanceSignatureRecordId(item, confirmedAt, userId, signatureHash) {
+  const when = parseTimestamp(confirmedAt || "") || new Date();
+  const ymd = formatDateISO(startOfDay(when)).replace(/-/g, "");
+  const manutPart =
+    String((item && item.id) || "MANUT")
+      .replace(/[^A-Za-z0-9]/g, "")
+      .toUpperCase()
+      .slice(-10) || "MANUT";
+  const userPart =
+    String(userId || "")
+      .replace(/[^A-Za-z0-9]/g, "")
+      .toUpperCase()
+      .slice(-8) || "USER";
+  const hashPart =
+    String(signatureHash || "")
+      .replace(/[^A-Fa-f0-9]/g, "")
+      .toUpperCase()
+      .slice(0, 12) ||
+    String(criarId()).replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 12) ||
+    "ASSINATURA";
+  return normalizeSignatureRecordId(`SIG-${ymd}-${manutPart}-${userPart}-${hashPart}`);
+}
+
 function buildAuditPayload(entry, prevHash) {
   const payload = {
     timestamp: entry.timestamp,
@@ -47972,11 +48006,45 @@ async function buildSolicitacaoServicoDocument(item) {
   const fimExec = parseTimestamp(
     conclusao.fim || item.executionFinishedAt || item.doneAt || registro.fim
   );
-  const assinatura = conclusao.assinatura || null;
+  const assinatura =
+    (conclusao.assinatura && typeof conclusao.assinatura === "object"
+      ? conclusao.assinatura
+      : conclusao.signature && typeof conclusao.signature === "object"
+        ? conclusao.signature
+        : null) || null;
   const assinaturaLabel = assinatura && assinatura.hash ? "Validada" : "Não registrada";
   const assinaturaHash = assinatura && assinatura.hash ? String(assinatura.hash) : "";
+  const assinaturaUserId = assinatura ? String(assinatura.userId || assinatura.user || "").trim() : "";
+  const assinaturaIdRaw = assinatura
+    ? assinatura.id || assinatura.signatureId || assinatura.recordId || ""
+    : "";
+  const assinaturaId =
+    normalizeSignatureRecordId(assinaturaIdRaw) ||
+    (assinaturaHash
+      ? buildMaintenanceSignatureRecordId(
+          item,
+          assinatura && assinatura.confirmedAt ? assinatura.confirmedAt : item.doneAt || "",
+          assinaturaUserId || conclusao.encerradoPor || item.doneBy || "",
+          assinaturaHash
+        )
+      : "");
   const assinaturaConfirmedAt =
     assinatura && assinatura.confirmedAt ? parseTimestamp(assinatura.confirmedAt) : null;
+  const assinaturaImg =
+    (assinatura && String(assinatura.dataUrl || assinatura.url || "").trim()) ||
+    (() => {
+      const usuarioAssinatura =
+        getUserById(assinaturaUserId || conclusao.encerradoPor || item.doneBy) || null;
+      const signature = getUserSignatureValue(usuarioAssinatura);
+      if (
+        assinaturaHash &&
+        signature.hash &&
+        String(signature.hash).trim() !== String(assinaturaHash).trim()
+      ) {
+        return "";
+      }
+      return signature.dataUrl || "";
+    })();
   const docs = getItemDocs(item) || {};
   const critico = isItemCritico(item);
   const emitidoEm = formatDateTime(new Date());
@@ -48151,7 +48219,11 @@ async function buildSolicitacaoServicoDocument(item) {
           a:hover { text-decoration: underline; }
           .muted { color: #64748b; }
           .signature { font-family: Consolas, "Courier New", monospace; font-size: 11px; word-break: break-all; color: #1e293b; }
-          .sign-line { margin-top: 18px; padding-top: 8px; border-top: 1px solid #94a3b8; font-size: 12px; color: #334155; max-width: 320px; }
+          .signature-id { font-family: "Segoe UI", Arial, sans-serif; font-size: 12px; letter-spacing: .03em; color: #0f3a63; }
+          .signature-preview { margin-top: 8px; border: 1px dashed #94a3b8; border-radius: 10px; min-height: 92px; background: #ffffff; display: grid; place-items: center; padding: 8px; }
+          .signature-preview img { max-width: 100%; max-height: 82px; object-fit: contain; display: block; }
+          .signature-preview__empty { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: .08em; }
+          .sign-line { margin-top: 8px; padding-top: 8px; border-top: 1px solid #94a3b8; font-size: 12px; color: #334155; max-width: 320px; }
           @media print {
             body { margin: 0; }
             .sheet { padding: 8mm; max-width: none; }
@@ -48365,9 +48437,19 @@ async function buildSolicitacaoServicoDocument(item) {
                 <div class="kv"><span>Usuário de encerramento</span><strong>${escapeHtml(
                   getUserLabel(conclusao.encerradoPor || item.doneBy) || "-"
                 )}</strong></div>
+                <div class="kv"><span>ID da assinatura</span><strong class="signature-id">${escapeHtml(
+                  assinaturaId || "-"
+                )}</strong></div>
                 <div class="kv"><span>Hash de assinatura</span><strong class="signature">${escapeHtml(
                   assinaturaHash || "-"
                 )}</strong></div>
+              </div>
+              <div class="signature-preview">
+                ${
+                  assinaturaImg
+                    ? `<img src="${escapeHtml(assinaturaImg)}" alt="Assinatura digital do responsável" loading="eager" />`
+                    : '<span class="signature-preview__empty">Assinatura não disponível</span>'
+                }
               </div>
               <div class="sign-line">Assinatura do responsável pela execução</div>
             </div>
@@ -49000,6 +49082,13 @@ async function salvarConclusao(event) {
     setConclusaoAssinaturaErro("Falha na validação da assinatura.");
     return;
   }
+  const assinaturaConfirmedAt = toIsoUtc(new Date());
+  const assinaturaId = buildMaintenanceSignatureRecordId(
+    item,
+    assinaturaConfirmedAt,
+    currentUser.id,
+    assinaturaHash
+  );
   const inicioValor = conclusaoInicio ? conclusaoInicio.value : "";
   const inicioDate =
     parseDateTimeInput(inicioValor) ||
@@ -49091,11 +49180,14 @@ async function salvarConclusao(event) {
       observacaoExecucao,
       descricaoBreve,
       assinatura: {
+        id: assinaturaId,
+        signatureId: assinaturaId,
         userId: currentUser.id,
         hash: assinaturaHash,
+        dataUrl: assinaturaUsuario.dataUrl || "",
         mode: assinaturaUsuario.mode || "draw",
         updatedAt: assinaturaUsuario.updatedAt || "",
-        confirmedAt: toIsoUtc(new Date()),
+        confirmedAt: assinaturaConfirmedAt,
       },
       evidencias,
     };
@@ -49143,6 +49235,7 @@ async function salvarConclusao(event) {
       documentos: documentosLista,
       observacaoExecucao,
       descricaoBreve: truncarTexto(descricaoBreve, 180),
+      assinaturaId: assinaturaId,
       assinaturaHash: assinaturaHash,
       evidenciasCount: evidencias.length,
       inicioExecucao: inicioIso,

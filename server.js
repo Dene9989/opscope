@@ -2107,6 +2107,75 @@ function normalizeUserSignature(value) {
   };
 }
 
+function normalizeSignatureRecordId(value) {
+  const raw = String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9-]/g, "");
+  if (!raw) {
+    return "";
+  }
+  return raw.slice(0, 80);
+}
+
+function buildMaintenanceSignatureRecordId(item, confirmedAt, userId, signatureHash) {
+  const when = parseDateTime(confirmedAt || "") || new Date();
+  const ymd = formatDateISO(startOfDay(when)).replace(/-/g, "");
+  const manutPart =
+    String((item && item.id) || "MANUT")
+      .replace(/[^A-Za-z0-9]/g, "")
+      .toUpperCase()
+      .slice(-10) || "MANUT";
+  const userPart =
+    String(userId || "")
+      .replace(/[^A-Za-z0-9]/g, "")
+      .toUpperCase()
+      .slice(-8) || "USER";
+  const hashPart =
+    String(signatureHash || "")
+      .replace(/[^A-Fa-f0-9]/g, "")
+      .toUpperCase()
+      .slice(0, 12) ||
+    crypto.randomUUID().replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 12);
+  return normalizeSignatureRecordId(`SIG-${ymd}-${manutPart}-${userPart}-${hashPart}`);
+}
+
+function normalizeMaintenanceConclusionSignature(conclusao, item, user) {
+  if (!conclusao || typeof conclusao !== "object") {
+    return null;
+  }
+  const signature =
+    conclusao.assinatura && typeof conclusao.assinatura === "object"
+      ? conclusao.assinatura
+      : conclusao.signature && typeof conclusao.signature === "object"
+        ? conclusao.signature
+        : null;
+  if (!signature) {
+    return null;
+  }
+  const userSignature = normalizeUserSignature(user && user.signature);
+  if (!userSignature.dataUrl || !userSignature.hash) {
+    return null;
+  }
+  const actorId = String((user && user.id) || "").trim();
+  const userId = String(signature.userId || signature.user || actorId).trim() || actorId;
+  const confirmedParsed = parseDateTime(signature.confirmedAt || signature.confirmed_at || "");
+  const confirmedAt = confirmedParsed ? confirmedParsed.toISOString() : new Date().toISOString();
+  const signatureId =
+    normalizeSignatureRecordId(signature.id || signature.signatureId || signature.recordId || "") ||
+    buildMaintenanceSignatureRecordId(item, confirmedAt, userId, userSignature.hash);
+  return {
+    id: signatureId,
+    signatureId,
+    userId,
+    hash: userSignature.hash,
+    dataUrl: userSignature.dataUrl,
+    mode: userSignature.mode || "draw",
+    updatedAt: userSignature.updatedAt || "",
+    confirmedAt,
+  };
+}
+
 function hasUserRegisteredSignature(user) {
   const signature = normalizeUserSignature(user && user.signature);
   return Boolean(signature.dataUrl);
@@ -5799,6 +5868,13 @@ function sanitizeConclusionSignature(item, current, user) {
     return next;
   }
   if (hasMaintenanceConclusionSignature(next.conclusao, user)) {
+    const normalizedSignature = normalizeMaintenanceConclusionSignature(next.conclusao, next, user);
+    if (normalizedSignature) {
+      const conclusao = { ...(next.conclusao || {}) };
+      conclusao.assinatura = normalizedSignature;
+      delete conclusao.signature;
+      next.conclusao = conclusao;
+    }
     return next;
   }
   const fallbackStatus = currentStatus && currentStatus !== "concluida" ? currentStatus : "encerramento";
