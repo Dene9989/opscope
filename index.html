@@ -3128,6 +3128,16 @@
         <div id="kpiCards" class="kpi-grid kpi-grid--gerencial"></div>
       </section>
       <section class="card">
+        <h2>Governança e metas</h2>
+        <p class="hint">Semáforo de indicadores para reunião gerencial e priorização de ação.</p>
+        <div id="kpiSemaforo"></div>
+        <div class="kpi-alertas">
+          <h3>Alertas gerenciais</h3>
+          <ul id="kpiAlertas" class="kpi-alertas__list"></ul>
+          <p id="kpiAlertasVazio" class="empty-state" hidden>Nenhum alerta para o filtro atual.</p>
+        </div>
+      </section>
+      <section class="card">
         <h2>Tendencias semanais</h2>
         <div class="account-grid">
           <div>
@@ -3141,6 +3151,21 @@
           <div>
             <h3>SLA compliance</h3>
             <div id="kpiSlaChart" class="chart"></div>
+          </div>
+        </div>
+      </section>
+      <section class="card">
+        <h2>Pareto e gargalos</h2>
+        <div class="account-grid">
+          <div>
+            <h3>Subestações com maior risco</h3>
+            <div id="kpiGargalos"></div>
+            <p id="kpiGargalosVazio" class="empty-state" hidden>Nenhum risco encontrado.</p>
+          </div>
+          <div>
+            <h3>Motivos de backlog</h3>
+            <div id="kpiBacklogMotivos"></div>
+            <p id="kpiBacklogMotivosVazio" class="empty-state" hidden>Nenhum motivo registrado.</p>
           </div>
         </div>
       </section>

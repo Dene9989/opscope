@@ -202,9 +202,16 @@ const kpiCategoria = document.getElementById("kpiCategoria");
 const kpiPrioridade = document.getElementById("kpiPrioridade");
 const kpiUsuarioFiltro = document.getElementById("kpiUsuarioFiltro");
 const kpiCards = document.getElementById("kpiCards");
+const kpiSemaforo = document.getElementById("kpiSemaforo");
+const kpiAlertas = document.getElementById("kpiAlertas");
+const kpiAlertasVazio = document.getElementById("kpiAlertasVazio");
 const kpiTrendChart = document.getElementById("kpiTrendChart");
 const kpiAgingChart = document.getElementById("kpiAgingChart");
 const kpiSlaChart = document.getElementById("kpiSlaChart");
+const kpiGargalos = document.getElementById("kpiGargalos");
+const kpiGargalosVazio = document.getElementById("kpiGargalosVazio");
+const kpiBacklogMotivos = document.getElementById("kpiBacklogMotivos");
+const kpiBacklogMotivosVazio = document.getElementById("kpiBacklogMotivosVazio");
 const kpiRanking = document.getElementById("kpiRanking");
 const kpiRankingVazio = document.getElementById("kpiRankingVazio");
 const kpiDrilldownTitulo = document.getElementById("kpiDrilldownTitulo");
@@ -4765,6 +4772,58 @@ let rdoUI = {
   btnDeleteCancel: null,
 };
 let kpiRankingSort = { key: "concluidas", dir: "desc" };
+const KPI_EXECUTIVE_TARGETS = [
+  {
+    key: "sla_compliance",
+    label: "SLA compliance",
+    tooltip:
+      "Percentual de manutenções concluídas no prazo. Referência gerencial: mínimo de 95%.",
+    target: 95,
+    comparator: "gte",
+    format: "percent",
+  },
+  {
+    key: "docs_compliance",
+    label: "Compliance documental",
+    tooltip:
+      "APR/OS/PTE e PT (quando crítico) anexados conforme exigência de segurança.",
+    target: 95,
+    comparator: "gte",
+    format: "percent",
+  },
+  {
+    key: "overdue_total",
+    label: "Overdue aberto",
+    tooltip: "Quantidade de manutenções abertas com data programada vencida.",
+    target: 2,
+    comparator: "lte",
+    format: "count",
+  },
+  {
+    key: "backlog_30plus",
+    label: "Backlog >30d",
+    tooltip: "Itens em backlog com atraso superior a 30 dias.",
+    target: 0,
+    comparator: "lte",
+    format: "count",
+  },
+  {
+    key: "criticos_abertos",
+    label: "Críticos em aberto",
+    tooltip: "Atividades críticas não concluídas que exigem ação prioritária.",
+    target: 0,
+    comparator: "lte",
+    format: "count",
+  },
+  {
+    key: "mttr",
+    label: "MTTR médio",
+    tooltip: "Tempo médio entre início e fim da execução.",
+    target: 8 * 60,
+    comparator: "lte",
+    format: "duration",
+  },
+];
 let homeTipsTimer = null;
 let homeTipIndex = 0;
 const SYNC_POLL_MS = 10 * 60 * 1000;
@@ -24923,7 +24982,7 @@ function aplicarFiltroPeriodo(items, janela) {
 }
 
 function isItemOverdue(item, hoje) {
-  if (!item || item.status === "concluida") {
+  if (!item || normalizeMaintenanceStatus(item.status) === "concluida") {
     return false;
   }
   const data = parseDate(item.data);
@@ -24940,6 +24999,50 @@ function isSlaCompliant(item) {
     return null;
   }
   return startOfDay(concluidaEm) <= startOfDay(data);
+}
+
+function isItemAbertoParaKpi(item) {
+  const status = normalizeMaintenanceStatus(item ? item.status : "");
+  return status !== "concluida" && status !== "cancelada";
+}
+
+function getItemBacklogDias(item, hoje) {
+  if (!item || normalizeMaintenanceStatus(item.status) !== "backlog") {
+    return null;
+  }
+  const data = parseDate(item.data);
+  if (!data) {
+    return null;
+  }
+  return diffInDays(startOfDay(data), hoje || startOfDay(new Date()));
+}
+
+function getItemBacklogMotivo(item) {
+  if (!item) {
+    return "";
+  }
+  const motivoDireto =
+    (item.backlogMotivo && item.backlogMotivo.motivo) ||
+    item.backlogReason ||
+    item.motivoNaoExecutada ||
+    "";
+  return String(motivoDireto).trim();
+}
+
+function calcularPercentil(valores, percentil) {
+  if (!Array.isArray(valores) || !valores.length) {
+    return null;
+  }
+  const ordenado = valores
+    .filter((valor) => Number.isFinite(valor))
+    .slice()
+    .sort((a, b) => a - b);
+  if (!ordenado.length) {
+    return null;
+  }
+  const clamped = Math.max(0, Math.min(1, Number(percentil) || 0));
+  const index = Math.min(ordenado.length - 1, Math.max(0, Math.ceil(ordenado.length * clamped) - 1));
+  return ordenado[index];
 }
 
 // KPI: filtros globais
@@ -25025,14 +25128,17 @@ function atualizarFiltrosKpi(baseItems) {
 }
 
 // KPI: calculo base
-function calcularKpisBase(items) {
+function calcularKpisBase(items, periodoDias) {
   const hoje = startOfDay(new Date());
-  const concluidas = items.filter((item) => item.status === "concluida");
-  const backlog = items.filter((item) => item.status === "backlog");
-  const overdue = items.filter((item) => isItemOverdue(item, hoje));
-  const criticosAbertos = items.filter(
-    (item) => item.status !== "concluida" && isItemCritico(item)
+  const concluidas = items.filter(
+    (item) => normalizeMaintenanceStatus(item && item.status) === "concluida"
   );
+  const abertas = items.filter((item) => isItemAbertoParaKpi(item));
+  const backlog = items.filter(
+    (item) => normalizeMaintenanceStatus(item && item.status) === "backlog"
+  );
+  const overdue = abertas.filter((item) => isItemOverdue(item, hoje));
+  const criticosAbertos = abertas.filter((item) => isItemCritico(item));
 
   const slaResultados = [];
   concluidas.forEach((item) => {
@@ -25044,6 +25150,13 @@ function calcularKpisBase(items) {
   });
   const slaCompliance = slaResultados.length
     ? Math.round((slaResultados.filter(Boolean).length / slaResultados.length) * 100)
+    : null;
+
+  const docsResultados = items
+    .map((item) => getDocCompliance(item))
+    .filter((valor) => valor !== null);
+  const docsCompliance = docsResultados.length
+    ? Math.round((docsResultados.filter(Boolean).length / docsResultados.length) * 100)
     : null;
 
   const leadTimes = concluidas
@@ -25059,6 +25172,7 @@ function calcularKpisBase(items) {
   const leadTimeMedio = leadTimes.length
     ? leadTimes.reduce((acc, val) => acc + val, 0) / leadTimes.length
     : null;
+  const leadTimeP90 = calcularPercentil(leadTimes, 0.9);
 
   const mttrMinutos = concluidas
     .map((item) => {
@@ -25074,13 +25188,46 @@ function calcularKpisBase(items) {
     ? mttrMinutos.reduce((acc, val) => acc + val, 0) / mttrMinutos.length
     : null;
 
+  const backlog30plus = backlog.filter((item) => {
+    const atraso = getItemBacklogDias(item, hoje);
+    return Number.isFinite(atraso) && atraso >= 31;
+  }).length;
+  const backlog30plusPercent = backlog.length
+    ? Math.round((backlog30plus / backlog.length) * 100)
+    : null;
+
+  const iniciadas = items.filter((item) => Boolean(getItemInicioExecucaoDate(item)));
+  const iniciadasComData = iniciadas.filter((item) => parseDate(item.data));
+  const iniciadasNoPrazo = iniciadasComData.filter((item) => {
+    const inicio = getItemInicioExecucaoDate(item);
+    const programada = parseDate(item.data);
+    if (!inicio || !programada) {
+      return false;
+    }
+    return startOfDay(inicio) <= startOfDay(programada);
+  });
+  const startAdherence = iniciadasComData.length
+    ? Math.round((iniciadasNoPrazo.length / iniciadasComData.length) * 100)
+    : null;
+
+  const periodo = Number(periodoDias) || 30;
+  const throughputSemanal = Math.round((concluidas.length / Math.max(1, periodo / 7)) * 10) / 10;
+
   return {
+    abertasTotal: abertas.length,
+    concluidasTotal: concluidas.length,
     backlogTotal: backlog.length,
     overdueTotal: overdue.length,
     slaCompliance,
+    docsCompliance,
     leadTimeMedio,
+    leadTimeP90,
     mttrMedio,
     criticosAbertos: criticosAbertos.length,
+    backlog30plus,
+    backlog30plusPercent,
+    startAdherence,
+    throughputSemanal,
   };
 }
 
@@ -25107,6 +25254,9 @@ function formatKpiValor(valor, tipo) {
   if (tipo === "duration") {
     return formatDuracaoKpi(valor);
   }
+  if (tipo === "decimal") {
+    return Number(valor).toFixed(1);
+  }
   return String(Math.round(valor));
 }
 
@@ -25129,17 +25279,97 @@ function formatKpiDelta(atual, anterior, tipo, periodoDias) {
     const texto = diff > 0 ? `+${diff.toFixed(1)}` : `${diff.toFixed(1)}`;
     return `${texto}d vs ${periodoDias}d`;
   }
+  if (tipo === "decimal") {
+    const texto = diff > 0 ? `+${diff.toFixed(1)}` : `${diff.toFixed(1)}`;
+    return `${texto} vs ${periodoDias}d`;
+  }
   return `${textoBase} vs ${periodoDias}d`;
 }
 
+function getKpiMetricValue(kpis, key) {
+  if (!kpis) {
+    return null;
+  }
+  const map = {
+    backlog_total: kpis.backlogTotal,
+    overdue_total: kpis.overdueTotal,
+    sla_compliance: kpis.slaCompliance,
+    docs_compliance: kpis.docsCompliance,
+    lead_time: kpis.leadTimeMedio,
+    lead_time_p90: kpis.leadTimeP90,
+    mttr: kpis.mttrMedio,
+    criticos_abertos: kpis.criticosAbertos,
+    backlog_30plus: kpis.backlog30plus,
+    start_adherence: kpis.startAdherence,
+    throughput_semanal: kpis.throughputSemanal,
+  };
+  return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : null;
+}
+
+function avaliarMetaKpi(spec, valor) {
+  if (!spec || valor === null || valor === undefined || Number.isNaN(valor)) {
+    return { status: "na", label: "Sem base", gap: "\u2014" };
+  }
+  const target = Number(spec.target);
+  if (!Number.isFinite(target)) {
+    return { status: "na", label: "Sem meta", gap: "\u2014" };
+  }
+  const comparator = spec.comparator === "lte" ? "lte" : "gte";
+  if (comparator === "gte") {
+    const ratio = target > 0 ? valor / target : 1;
+    if (valor >= target) {
+      return { status: "ok", label: "OK", gap: `+${formatKpiValor(valor - target, spec.format)}` };
+    }
+    if (ratio >= 0.9) {
+      return {
+        status: "warning",
+        label: "Atenção",
+        gap: `-${formatKpiValor(target - valor, spec.format)}`,
+      };
+    }
+    return { status: "risk", label: "Crítico", gap: `-${formatKpiValor(target - valor, spec.format)}` };
+  }
+  if (valor <= target) {
+    return { status: "ok", label: "OK", gap: `-${formatKpiValor(target - valor, spec.format)}` };
+  }
+  const ratio = target > 0 ? valor / target : valor;
+  if (ratio <= 1.25) {
+    return {
+      status: "warning",
+      label: "Atenção",
+      gap: `+${formatKpiValor(valor - target, spec.format)}`,
+    };
+  }
+  return { status: "risk", label: "Crítico", gap: `+${formatKpiValor(valor - target, spec.format)}` };
+}
+
+function getKpiCardHealth(cardKey, kpis) {
+  const spec = KPI_EXECUTIVE_TARGETS.find((item) => item.key === cardKey);
+  if (!spec) {
+    return "neutral";
+  }
+  const valor = getKpiMetricValue(kpis, cardKey);
+  const avaliacao = avaliarMetaKpi(spec, valor);
+  if (avaliacao.status === "ok") {
+    return "ok";
+  }
+  if (avaliacao.status === "warning") {
+    return "warning";
+  }
+  if (avaliacao.status === "risk") {
+    return "risk";
+  }
+  return "neutral";
+}
+
 // KPI: renderizacao cards
-function renderKpiCards(itens, itensAnterior, filtros) {
+function renderKpiCards(itens, itensAnterior, filtros, atualBase, anteriorBase) {
   if (!kpiCards) {
     return;
   }
   kpiCards.innerHTML = "";
-  const atual = calcularKpisBase(itens);
-  const anterior = calcularKpisBase(itensAnterior);
+  const atual = atualBase || calcularKpisBase(itens, filtros.periodo);
+  const anterior = anteriorBase || calcularKpisBase(itensAnterior, filtros.periodo);
   const periodoLabel = `últimos ${filtros.periodo} dias`;
   const cards = [
     {
@@ -25194,6 +25424,23 @@ function renderKpiCards(itens, itensAnterior, filtros) {
       ),
     },
     {
+      key: "docs_compliance",
+      label: "Compliance docs",
+      valor: atual.docsCompliance,
+      delta: formatKpiDelta(
+        atual.docsCompliance,
+        anterior.docsCompliance,
+        "percent",
+        filtros.periodo
+      ),
+      formato: "percent",
+      tooltip: buildKpiTooltip(
+        "Compliance docs",
+        "APR/OS/PTE e PT (quando crítico) anexados corretamente.",
+        periodoLabel
+      ),
+    },
+    {
       key: "lead_time",
       label: "Lead time médio",
       valor: atual.leadTimeMedio,
@@ -25207,6 +25454,23 @@ function renderKpiCards(itens, itensAnterior, filtros) {
       tooltip: buildKpiTooltip(
         "Lead time",
         "Conclusão - criação (dias).",
+        periodoLabel
+      ),
+    },
+    {
+      key: "lead_time_p90",
+      label: "Lead time P90",
+      valor: atual.leadTimeP90,
+      delta: formatKpiDelta(
+        atual.leadTimeP90,
+        anterior.leadTimeP90,
+        "days",
+        filtros.periodo
+      ),
+      formato: "days",
+      tooltip: buildKpiTooltip(
+        "Lead time P90",
+        "90% das manutenções concluídas em até este tempo.",
         periodoLabel
       ),
     },
@@ -25239,11 +25503,63 @@ function renderKpiCards(itens, itensAnterior, filtros) {
         periodoLabel
       ),
     },
+    {
+      key: "backlog_30plus",
+      label: "Backlog >30d",
+      valor: atual.backlog30plus,
+      delta: formatKpiDelta(
+        atual.backlog30plus,
+        anterior.backlog30plus,
+        "count",
+        filtros.periodo
+      ),
+      formato: "count",
+      tooltip: buildKpiTooltip(
+        "Backlog >30d",
+        "Itens em backlog com atraso acima de 30 dias.",
+        periodoLabel
+      ),
+    },
+    {
+      key: "start_adherence",
+      label: "Início no prazo",
+      valor: atual.startAdherence,
+      delta: formatKpiDelta(
+        atual.startAdherence,
+        anterior.startAdherence,
+        "percent",
+        filtros.periodo
+      ),
+      formato: "percent",
+      tooltip: buildKpiTooltip(
+        "Início no prazo",
+        "Execuções iniciadas até a data programada.",
+        periodoLabel
+      ),
+    },
+    {
+      key: "throughput_semanal",
+      label: "Throughput semanal",
+      valor: atual.throughputSemanal,
+      delta: formatKpiDelta(
+        atual.throughputSemanal,
+        anterior.throughputSemanal,
+        "decimal",
+        filtros.periodo
+      ),
+      formato: "decimal",
+      tooltip: buildKpiTooltip(
+        "Throughput semanal",
+        "Média de concluídas por semana no período filtrado.",
+        periodoLabel
+      ),
+    },
   ];
 
   cards.forEach((card) => {
     const item = document.createElement("div");
     item.className = "kpi-card kpi-card--metric";
+    item.classList.add(`kpi-card--${getKpiCardHealth(card.key, atual)}`);
     item.dataset.drilldown = card.key;
     item.style.cursor = "pointer";
     const head = document.createElement("div");
@@ -25266,6 +25582,306 @@ function renderKpiCards(itens, itensAnterior, filtros) {
     item.append(head, valor, delta);
     kpiCards.append(item);
   });
+}
+
+function renderKpiSemaforo(kpis) {
+  if (!kpiSemaforo) {
+    return;
+  }
+  kpiSemaforo.innerHTML = "";
+  const table = document.createElement("table");
+  table.className = "kpi-table kpi-table--compact";
+
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  ["Indicador", "Atual", "Meta", "Gap", "Status"].forEach((label) => {
+    const th = document.createElement("th");
+    th.textContent = label;
+    headRow.append(th);
+  });
+  thead.append(headRow);
+  table.append(thead);
+
+  const tbody = document.createElement("tbody");
+  KPI_EXECUTIVE_TARGETS.forEach((spec) => {
+    const valor = getKpiMetricValue(kpis, spec.key);
+    const avaliacao = avaliarMetaKpi(spec, valor);
+    const tr = document.createElement("tr");
+    tr.dataset.drilldown = spec.key;
+    tr.style.cursor = "pointer";
+
+    const indicador = document.createElement("td");
+    indicador.textContent = spec.label;
+    indicador.title = spec.tooltip;
+
+    const atual = document.createElement("td");
+    atual.textContent = formatKpiValor(valor, spec.format);
+    atual.className = "is-num";
+
+    const meta = document.createElement("td");
+    meta.textContent = formatKpiValor(spec.target, spec.format);
+    meta.className = "is-num";
+
+    const gap = document.createElement("td");
+    gap.textContent = avaliacao.gap;
+    gap.className = "is-num";
+
+    const status = document.createElement("td");
+    const badge = document.createElement("span");
+    badge.className = `kpi-status kpi-status--${avaliacao.status}`;
+    badge.textContent = avaliacao.label;
+    status.append(badge);
+
+    tr.append(indicador, atual, meta, gap, status);
+    tbody.append(tr);
+  });
+  table.append(tbody);
+  kpiSemaforo.append(table);
+}
+
+function renderKpiAlertas(kpis, itens, filtros) {
+  if (!kpiAlertas || !kpiAlertasVazio) {
+    return;
+  }
+  kpiAlertas.innerHTML = "";
+  const alertas = [];
+  const periodoTexto = `${filtros.periodo} dias`;
+
+  if (kpis.slaCompliance !== null && kpis.slaCompliance < 95) {
+    alertas.push({
+      nivel: "risk",
+      texto: `SLA em ${kpis.slaCompliance}% no período (${periodoTexto}). Priorizar itens atrasados e críticos.`,
+      drilldown: "sla_compliance",
+    });
+  }
+  if (kpis.docsCompliance !== null && kpis.docsCompliance < 95) {
+    alertas.push({
+      nivel: "warning",
+      texto: `Compliance documental em ${kpis.docsCompliance}%. Há execução sem APR/OS/PTE/PT completos.`,
+      drilldown: "docs_compliance",
+    });
+  }
+  if (kpis.backlog30plus > 0) {
+    alertas.push({
+      nivel: "risk",
+      texto: `${kpis.backlog30plus} item(ns) em backlog acima de 30 dias. Recomenda-se plano de choque.`,
+      drilldown: "backlog_30plus",
+    });
+  }
+  if (kpis.criticosAbertos > 0) {
+    alertas.push({
+      nivel: "risk",
+      texto: `${kpis.criticosAbertos} manutenção(ões) crítica(s) aberta(s). Escalonar imediatamente.`,
+      drilldown: "criticos_abertos",
+    });
+  }
+  if (kpis.overdueTotal > 2) {
+    alertas.push({
+      nivel: "warning",
+      texto: `${kpis.overdueTotal} itens overdue em aberto. Revisar janela de execução com os responsáveis.`,
+      drilldown: "overdue_total",
+    });
+  }
+  if (kpis.startAdherence !== null && kpis.startAdherence < 85) {
+    alertas.push({
+      nivel: "info",
+      texto: `Início no prazo em ${kpis.startAdherence}%. Há risco de estourar backlog no fechamento do mês.`,
+      drilldown: "start_adherence",
+    });
+  }
+
+  const backlogComMotivo = itens
+    .filter((item) => normalizeMaintenanceStatus(item && item.status) === "backlog")
+    .map((item) => getItemBacklogMotivo(item))
+    .filter(Boolean);
+  if (backlogComMotivo.length) {
+    const agrupado = backlogComMotivo.reduce((acc, motivo) => {
+      acc[motivo] = (acc[motivo] || 0) + 1;
+      return acc;
+    }, {});
+    const top = Object.entries(agrupado).sort((a, b) => b[1] - a[1])[0];
+    if (top) {
+      alertas.push({
+        nivel: "info",
+        texto: `Principal motivo de backlog: "${top[0]}" (${top[1]} ocorrência(s)).`,
+        drilldown: "motivo_backlog",
+        motivo: top[0],
+      });
+    }
+  }
+
+  if (!alertas.length) {
+    kpiAlertasVazio.hidden = false;
+    return;
+  }
+  kpiAlertasVazio.hidden = true;
+
+  alertas.forEach((alerta) => {
+    const li = document.createElement("li");
+    li.className = `kpi-alerta kpi-alerta--${alerta.nivel}`;
+
+    const dot = document.createElement("span");
+    dot.className = "kpi-alerta__dot";
+
+    const texto = document.createElement("span");
+    texto.className = "kpi-alerta__text";
+    texto.textContent = alerta.texto;
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn--ghost btn--small";
+    btn.textContent = "Ver itens";
+    btn.dataset.drilldown = alerta.drilldown;
+    if (alerta.motivo) {
+      btn.dataset.motivo = alerta.motivo;
+    }
+
+    li.append(dot, texto, btn);
+    kpiAlertas.append(li);
+  });
+}
+
+function renderKpiGargalos(itens) {
+  if (!kpiGargalos || !kpiGargalosVazio) {
+    return;
+  }
+  kpiGargalos.innerHTML = "";
+  const hoje = startOfDay(new Date());
+  const mapa = new Map();
+  itens.forEach((item) => {
+    const subestacao = getItemSubestacao(item) || "Não informado";
+    if (!mapa.has(subestacao)) {
+      mapa.set(subestacao, {
+        subestacao,
+        abertas: 0,
+        overdue: 0,
+        backlog: 0,
+        criticos: 0,
+      });
+    }
+    const entry = mapa.get(subestacao);
+    const status = normalizeMaintenanceStatus(item && item.status);
+    if (status !== "concluida" && status !== "cancelada") {
+      entry.abertas += 1;
+    }
+    if (status === "backlog") {
+      entry.backlog += 1;
+    }
+    if (isItemOverdue(item, hoje)) {
+      entry.overdue += 1;
+    }
+    if (isItemCritico(item) && status !== "concluida") {
+      entry.criticos += 1;
+    }
+  });
+
+  const linhas = Array.from(mapa.values())
+    .map((entry) => ({
+      ...entry,
+      score: entry.abertas + entry.overdue * 2 + entry.backlog * 3 + entry.criticos * 4,
+    }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score || b.backlog - a.backlog)
+    .slice(0, 8);
+
+  if (!linhas.length) {
+    kpiGargalosVazio.hidden = false;
+    return;
+  }
+  kpiGargalosVazio.hidden = true;
+
+  const table = document.createElement("table");
+  table.className = "kpi-table kpi-table--compact";
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th class="is-wide">Subestação</th>
+        <th class="is-num">Abertas</th>
+        <th class="is-num">Overdue</th>
+        <th class="is-num">Backlog</th>
+        <th class="is-num">Críticas</th>
+        <th class="is-num">Score</th>
+      </tr>
+    </thead>
+  `;
+  const tbody = document.createElement("tbody");
+  linhas.forEach((entry) => {
+    const tr = document.createElement("tr");
+    tr.dataset.drilldown = "gargalo_subestacao";
+    tr.dataset.subestacao = entry.subestacao;
+    tr.style.cursor = "pointer";
+    tr.innerHTML = `
+      <td class="is-wide" title="${escapeHtml(entry.subestacao)}">${escapeHtml(entry.subestacao)}</td>
+      <td class="is-num">${entry.abertas}</td>
+      <td class="is-num">${entry.overdue}</td>
+      <td class="is-num">${entry.backlog}</td>
+      <td class="is-num">${entry.criticos}</td>
+      <td class="is-num">${entry.score}</td>
+    `;
+    tbody.append(tr);
+  });
+  table.append(tbody);
+  kpiGargalos.append(table);
+}
+
+function renderKpiBacklogMotivos(itens) {
+  if (!kpiBacklogMotivos || !kpiBacklogMotivosVazio) {
+    return;
+  }
+  kpiBacklogMotivos.innerHTML = "";
+  const backlog = itens.filter(
+    (item) => normalizeMaintenanceStatus(item && item.status) === "backlog"
+  );
+  const totalBacklog = backlog.length;
+  const agrupado = backlog.reduce((acc, item) => {
+    const motivo = getItemBacklogMotivo(item) || "Sem motivo informado";
+    acc[motivo] = (acc[motivo] || 0) + 1;
+    return acc;
+  }, {});
+  const linhas = Object.entries(agrupado)
+    .map(([motivo, total]) => ({
+      motivo,
+      total,
+      percent: totalBacklog ? Math.round((total / totalBacklog) * 100) : 0,
+    }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 8);
+
+  if (!linhas.length) {
+    kpiBacklogMotivosVazio.hidden = false;
+    return;
+  }
+  kpiBacklogMotivosVazio.hidden = true;
+
+  const table = document.createElement("table");
+  table.className = "kpi-table kpi-table--compact";
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th class="is-wide">Motivo</th>
+        <th class="is-num">Qtd</th>
+        <th class="is-num">% backlog</th>
+        <th class="is-center">Ação</th>
+      </tr>
+    </thead>
+  `;
+  const tbody = document.createElement("tbody");
+  linhas.forEach((entry) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="is-wide" title="${escapeHtml(entry.motivo)}">${escapeHtml(entry.motivo)}</td>
+      <td class="is-num">${entry.total}</td>
+      <td class="is-num">${entry.percent}%</td>
+      <td class="is-center">
+        <button type="button" class="btn btn--ghost btn--small" data-drilldown="motivo_backlog" data-motivo="${escapeHtml(entry.motivo)}">
+          Ver itens
+        </button>
+      </td>
+    `;
+    tbody.append(tr);
+  });
+  table.append(tbody);
+  kpiBacklogMotivos.append(table);
 }
 
 function buildLineChart(container, labels, series, maxValor, tooltipLabels) {
@@ -25384,7 +26000,7 @@ function renderKpiGraficos(itens, filtros) {
 
   const concluidasSeries = semanas.map((semana) => {
     return itens.filter((item) => {
-      if (item.status !== "concluida") {
+      if (normalizeMaintenanceStatus(item && item.status) !== "concluida") {
         return false;
       }
       const feito = getItemConclusaoDate(item);
@@ -25397,7 +26013,7 @@ function renderKpiGraficos(itens, filtros) {
 
   const backlogSeries = semanas.map((semana) => {
     return itens.filter((item) => {
-      if (item.status !== "backlog") {
+      if (normalizeMaintenanceStatus(item && item.status) !== "backlog") {
         return false;
       }
       const data = parseDate(item.data);
@@ -25456,7 +26072,7 @@ function renderKpiGraficos(itens, filtros) {
   const hoje = startOfDay(new Date());
   const agingCounts = agingBuckets.map((bucket) => {
     return itens.filter((item) => {
-      if (item.status !== "backlog") {
+      if (normalizeMaintenanceStatus(item && item.status) !== "backlog") {
         return false;
       }
       const data = parseDate(item.data);
@@ -25504,7 +26120,7 @@ function renderKpiGraficos(itens, filtros) {
 
   const slaSeries = semanas.map((semana) => {
     const concluidasSemana = itens.filter((item) => {
-      if (item.status !== "concluida") {
+      if (normalizeMaintenanceStatus(item && item.status) !== "concluida") {
         return false;
       }
       const feito = getItemConclusaoDate(item);
@@ -25572,7 +26188,7 @@ function renderKpiRanking(itens, filtros) {
       });
     }
     const registro = agrupado.get(userId);
-    if (item.status === "concluida") {
+    if (normalizeMaintenanceStatus(item && item.status) === "concluida") {
       registro.concluidas += 1;
       const criadoEm = getItemCriacaoDate(item);
       const concluidoEm = getItemConclusaoDate(item);
@@ -25830,7 +26446,7 @@ function renderKpiDrilldown() {
     const programada = programadaDate ? formatDate(programadaDate) : "-";
     const inicio = getItemInicioExecucaoDate(item);
     const fim = getItemFimExecucaoDate(item) || getItemConclusaoDate(item);
-    const statusKeyRaw = item.status ? String(item.status).toLowerCase() : "";
+    const statusKeyRaw = normalizeMaintenanceStatus(item && item.status);
     const statusLabel =
       STATUS_LABELS[statusKeyRaw] || (statusKeyRaw === "cancelada" ? "Cancelada" : item.status) || "-";
     const statusClass = statusKeyRaw ? statusKeyRaw.replace(/[^a-z0-9]+/g, "_") : "default";
@@ -25903,9 +26519,15 @@ function renderPainelKpiGerencial() {
     inicio: janela.anteriorInicio,
     fim: janela.anteriorFim,
   });
-  kpiSnapshot = { itensPeriodo, filtros };
-  renderKpiCards(itensPeriodo, itensAnterior, filtros);
+  const kpisAtual = calcularKpisBase(itensPeriodo, filtros.periodo);
+  const kpisAnterior = calcularKpisBase(itensAnterior, filtros.periodo);
+  kpiSnapshot = { itensPeriodo, filtros, kpisAtual, kpisAnterior };
+  renderKpiCards(itensPeriodo, itensAnterior, filtros, kpisAtual, kpisAnterior);
+  renderKpiSemaforo(kpisAtual);
+  renderKpiAlertas(kpisAtual, itensPeriodo, filtros);
   renderKpiGraficos(itensPeriodo, filtros);
+  renderKpiGargalos(itensPeriodo);
+  renderKpiBacklogMotivos(itensPeriodo);
   renderKpiRanking(itensPeriodo, filtros);
   renderKpiDrilldown();
 }
@@ -25922,34 +26544,87 @@ function handleKpiDrilldownClick(event) {
   let titulo = "";
 
   if (tipo === "backlog_total") {
-    filtrados = itens.filter((item) => item.status === "backlog");
+    filtrados = itens.filter(
+      (item) => normalizeMaintenanceStatus(item && item.status) === "backlog"
+    );
     titulo = "Backlog total";
   } else if (tipo === "overdue_total") {
     filtrados = itens.filter((item) => isItemOverdue(item, hoje));
     titulo = "Overdue / Vencidas";
   } else if (tipo === "sla_compliance") {
-    filtrados = itens.filter((item) => item.status === "concluida");
+    filtrados = itens.filter(
+      (item) => normalizeMaintenanceStatus(item && item.status) === "concluida"
+    );
     titulo = "SLA compliance";
+  } else if (tipo === "docs_compliance") {
+    filtrados = itens.filter((item) => {
+      const status = normalizeMaintenanceStatus(item && item.status);
+      const exigeDocs = ["em_execucao", "encerramento", "concluida", "backlog"].includes(status);
+      if (!exigeDocs) {
+        return false;
+      }
+      return getDocCompliance(item) !== true;
+    });
+    titulo = "Compliance documental - pendências";
   } else if (tipo === "lead_time") {
     filtrados = itens.filter(
-      (item) => item.status === "concluida" && getItemCriacaoDate(item) && getItemConclusaoDate(item)
+      (item) =>
+        normalizeMaintenanceStatus(item && item.status) === "concluida" &&
+        getItemCriacaoDate(item) &&
+        getItemConclusaoDate(item)
     );
     titulo = "Lead time médio";
+  } else if (tipo === "lead_time_p90") {
+    filtrados = itens.filter(
+      (item) =>
+        normalizeMaintenanceStatus(item && item.status) === "concluida" &&
+        getItemCriacaoDate(item) &&
+        getItemConclusaoDate(item)
+    );
+    titulo = "Lead time P90";
   } else if (tipo === "mttr") {
     filtrados = itens.filter(
-      (item) => item.status === "concluida" && getItemInicioExecucaoDate(item) && getItemFimExecucaoDate(item)
+      (item) =>
+        normalizeMaintenanceStatus(item && item.status) === "concluida" &&
+        getItemInicioExecucaoDate(item) &&
+        getItemFimExecucaoDate(item)
     );
     titulo = "MTTR médio";
   } else if (tipo === "criticos_abertos") {
-    filtrados = itens.filter((item) => item.status !== "concluida" && isItemCritico(item));
+    filtrados = itens.filter(
+      (item) =>
+        normalizeMaintenanceStatus(item && item.status) !== "concluida" &&
+        isItemCritico(item)
+    );
     titulo = "Criticos em aberto";
+  } else if (tipo === "backlog_30plus") {
+    filtrados = itens.filter((item) => {
+      const atraso = getItemBacklogDias(item, hoje);
+      return Number.isFinite(atraso) && atraso >= 31;
+    });
+    titulo = "Backlog >30d";
+  } else if (tipo === "start_adherence") {
+    filtrados = itens.filter((item) => {
+      const inicio = getItemInicioExecucaoDate(item);
+      const programada = parseDate(item ? item.data : null);
+      if (!inicio || !programada) {
+        return false;
+      }
+      return startOfDay(inicio) > startOfDay(programada);
+    });
+    titulo = "Início fora do prazo";
+  } else if (tipo === "throughput_semanal") {
+    filtrados = itens.filter(
+      (item) => normalizeMaintenanceStatus(item && item.status) === "concluida"
+    );
+    titulo = "Concluídas no período";
   } else if (tipo === "trend_concluidas" || tipo === "trend_backlog" || tipo === "sla_semana") {
     const weekStart = parseDate(alvo.dataset.week);
     if (weekStart) {
       const weekEnd = addDays(weekStart, 6);
       if (tipo === "trend_concluidas") {
         filtrados = itens.filter((item) => {
-          if (item.status !== "concluida") {
+          if (normalizeMaintenanceStatus(item && item.status) !== "concluida") {
             return false;
           }
           const feito = getItemConclusaoDate(item);
@@ -25958,7 +26633,7 @@ function handleKpiDrilldownClick(event) {
         titulo = `Concluidas - semana ${formatDate(weekStart)}`;
       } else if (tipo === "trend_backlog") {
         filtrados = itens.filter((item) => {
-          if (item.status !== "backlog") {
+          if (normalizeMaintenanceStatus(item && item.status) !== "backlog") {
             return false;
           }
           const data = parseDate(item.data);
@@ -25967,7 +26642,7 @@ function handleKpiDrilldownClick(event) {
         titulo = `Backlog - semana ${formatDate(weekStart)}`;
       } else {
         filtrados = itens.filter((item) => {
-          if (item.status !== "concluida") {
+          if (normalizeMaintenanceStatus(item && item.status) !== "concluida") {
             return false;
           }
           const feito = getItemConclusaoDate(item);
@@ -25988,7 +26663,7 @@ function handleKpiDrilldownClick(event) {
     const bucket = ranges[range];
     if (bucket) {
       filtrados = itens.filter((item) => {
-        if (item.status !== "backlog") {
+        if (normalizeMaintenanceStatus(item && item.status) !== "backlog") {
           return false;
         }
         const data = parseDate(item.data);
@@ -26003,6 +26678,24 @@ function handleKpiDrilldownClick(event) {
       });
       titulo = `Backlog aging ${range}`;
     }
+  } else if (tipo === "gargalo_subestacao") {
+    const subestacao = alvo.dataset.subestacao || "";
+    if (subestacao) {
+      filtrados = itens.filter((item) => getItemSubestacao(item) === subestacao);
+      titulo = `Subestação ${subestacao}`;
+    }
+  } else if (tipo === "motivo_backlog") {
+    const motivo = (alvo.dataset.motivo || "").trim();
+    filtrados = itens.filter((item) => {
+      if (normalizeMaintenanceStatus(item && item.status) !== "backlog") {
+        return false;
+      }
+      if (!motivo) {
+        return true;
+      }
+      return getItemBacklogMotivo(item) === motivo;
+    });
+    titulo = motivo ? `Backlog - motivo: ${motivo}` : "Backlog por motivo";
   } else if (tipo === "user") {
     const userId = alvo.dataset.userId;
     if (userId) {
@@ -50326,6 +51019,18 @@ if (kpiAgingChart) {
 }
 if (kpiSlaChart) {
   kpiSlaChart.addEventListener("click", handleKpiDrilldownClick);
+}
+if (kpiSemaforo) {
+  kpiSemaforo.addEventListener("click", handleKpiDrilldownClick);
+}
+if (kpiAlertas) {
+  kpiAlertas.addEventListener("click", handleKpiDrilldownClick);
+}
+if (kpiGargalos) {
+  kpiGargalos.addEventListener("click", handleKpiDrilldownClick);
+}
+if (kpiBacklogMotivos) {
+  kpiBacklogMotivos.addEventListener("click", handleKpiDrilldownClick);
 }
 if (kpiRanking) {
   kpiRanking.addEventListener("click", handleKpiDrilldownClick);
