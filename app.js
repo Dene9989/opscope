@@ -37929,6 +37929,15 @@ function getSstDocDocumentNames(doc) {
   return names;
 }
 
+function compactMiddleText(value, maxLength = 34) {
+  const text = String(value || "").trim();
+  if (!text || text.length <= maxLength) {
+    return text;
+  }
+  const keep = Math.max(8, Math.floor((maxLength - 3) / 2));
+  return `${text.slice(0, keep)}...${text.slice(-keep)}`;
+}
+
 function renderSstDocTypeCell(doc, type) {
   const key = normalizeSstDocTypeKey(type);
   const docs = getSstDocDocuments(doc);
@@ -37937,7 +37946,7 @@ function renderSstDocTypeCell(doc, type) {
     return "<span>-</span>";
   }
   const fileName = getSstDocFileName(target);
-  const shortName = fileName.length > 48 ? `${fileName.slice(0, 45)}...` : fileName;
+  const shortName = compactMiddleText(fileName, 36);
   return `
     <button
       class="btn btn--ghost btn--small sst-doc-view-btn"
@@ -37946,7 +37955,7 @@ function renderSstDocTypeCell(doc, type) {
       data-doc-type="${escapeHtml(key)}"
       title="${escapeHtml(fileName)}"
     >
-      ${escapeHtml(shortName)}
+      <span class="sst-doc-view-btn__text">${escapeHtml(shortName)}</span>
     </button>
   `;
 }
@@ -39476,7 +39485,7 @@ function renderSstAprPt() {
           <td>${escapeHtml(envio)}</td>
           <td>
             <div class="table-actions">
-              <button class="btn btn--ghost btn--small" type="button" data-action="review">
+              <button class="btn btn--ghost btn--small sst-doc-action-btn" type="button" data-action="review">
                 ${currentUser && canManageSst(currentUser) ? "Revisar" : "Detalhes"}
               </button>
             </div>
