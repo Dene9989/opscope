@@ -13580,7 +13580,29 @@ function normalizarManutencoes(lista) {
     const updatedAt = normalizeIso(item.updatedAt);
     const doneAt = normalizeIso(item.doneAt);
     const executionStartedAt = normalizeIso(item.executionStartedAt);
+    const executionStartedByBase = item.executionStartedBy || "";
     const executionFinishedAt = normalizeIso(item.executionFinishedAt);
+    const liberacao = item.liberacao && typeof item.liberacao === "object" ? item.liberacao : null;
+    const registroBase = item.registroExecucao && typeof item.registroExecucao === "object"
+      ? item.registroExecucao
+      : {};
+    const fallbackExecutionStartedAt = normalizeIso(
+      executionStartedAt ||
+        (liberacao ? liberacao.liberadoEm || liberacao.liberado_em || "" : "") ||
+        registroBase.registradoEm ||
+        registroBase.registrado_em ||
+        item.updatedAt ||
+        item.createdAt ||
+        ""
+    );
+    const fallbackExecutionStartedBy =
+      executionStartedByBase ||
+      registroBase.executadoPor ||
+      registroBase.executedBy ||
+      (liberacao ? liberacao.liberadoPor || liberacao.liberado_por || "" : "") ||
+      item.updatedBy ||
+      item.createdBy ||
+      "";
     let conclusao = item.conclusao;
     if (conclusao && typeof conclusao === "object") {
       const inicio = normalizeIso(conclusao.inicio);
@@ -13651,12 +13673,19 @@ function normalizarManutencoes(lista) {
         updatedBy: statusEsperado !== statusOriginal ? SYSTEM_USER_ID : item.updatedBy,
         createdAt,
         doneAt,
-        executionStartedAt,
+        executionStartedAt: fallbackExecutionStartedAt,
+        executionStartedBy: fallbackExecutionStartedBy || item.executionStartedBy,
         executionFinishedAt,
         conclusao,
       };
     }
     if (statusOriginal === "em_execucao" || statusOriginal === "encerramento") {
+      if (
+        fallbackExecutionStartedAt !== executionStartedAt ||
+        (fallbackExecutionStartedBy && fallbackExecutionStartedBy !== executionStartedByBase)
+      ) {
+        mudouTempo = true;
+      }
       return {
         ...item,
         status: statusOriginal,
@@ -13665,7 +13694,8 @@ function normalizarManutencoes(lista) {
         createdAt,
         updatedAt,
         doneAt,
-        executionStartedAt,
+        executionStartedAt: fallbackExecutionStartedAt,
+        executionStartedBy: fallbackExecutionStartedBy || item.executionStartedBy,
         executionFinishedAt,
         conclusao,
       };
@@ -45954,16 +45984,49 @@ function abrirRegistroExecucao(item) {
   if (!ensureExecucaoPermitida(item, mostrarMensagemManutencao)) {
     return;
   }
-  const inicio = parseTimestamp(item.executionStartedAt);
+  let itemAtual = item;
+  let inicio = parseTimestamp(itemAtual.executionStartedAt);
+  if (!inicio) {
+    const liberacao = getLiberacao(itemAtual) || {};
+    const fallbackInicio =
+      parseTimestamp(liberacao.liberadoEm || liberacao.liberado_em || "") ||
+      parseTimestamp(itemAtual.updatedAt || "") ||
+      parseTimestamp(itemAtual.createdAt || "");
+    if (fallbackInicio) {
+      const fallbackIso = toIsoUtc(fallbackInicio);
+      const fallbackBy =
+        itemAtual.executionStartedBy ||
+        liberacao.liberadoPor ||
+        liberacao.liberado_por ||
+        itemAtual.updatedBy ||
+        itemAtual.createdBy ||
+        currentUser.id;
+      const atualizado = {
+        ...itemAtual,
+        executionStartedAt: fallbackIso,
+        executionStartedBy: fallbackBy,
+        updatedAt: toIsoUtc(new Date()),
+        updatedBy: currentUser.id,
+      };
+      const idx = manutencoes.findIndex((entry) => entry && entry.id === itemAtual.id);
+      if (idx >= 0) {
+        manutencoes[idx] = atualizado;
+        salvarManutencoes(manutencoes);
+        scheduleMaintenanceSync(manutencoes, true);
+      }
+      itemAtual = atualizado;
+      inicio = parseTimestamp(itemAtual.executionStartedAt);
+    }
+  }
   if (!inicio) {
     mostrarMensagemManutencao("Início da execução não encontrado.", true);
     return;
   }
-  manutencaoEmRegistro = item.id;
+  manutencaoEmRegistro = itemAtual.id;
   mostrarMensagemRegistroExecucao("");
   mostrarMensagemCancelarExecucao("");
   if (registroResumo) {
-    registroResumo.textContent = buildManutencaoResumoTexto(item);
+    registroResumo.textContent = buildManutencaoResumoTexto(itemAtual);
   }
   if (formRegistroExecucao) {
     formRegistroExecucao.hidden = false;
@@ -45976,31 +46039,31 @@ function abrirRegistroExecucao(item) {
     cancelarExecucaoMotivo.required = false;
   }
   if (btnCancelarExecucao) {
-    btnCancelarExecucao.hidden = item.status !== "em_execucao";
+    btnCancelarExecucao.hidden = itemAtual.status !== "em_execucao";
   }
   if (registroId) {
-    registroId.value = item.id;
+    registroId.value = itemAtual.id;
   }
   if (registroTipo) {
-    registroTipo.value = item.titulo || "";
+    registroTipo.value = itemAtual.titulo || "";
   }
   if (registroSubestacao) {
-    registroSubestacao.value = item.local || "";
+    registroSubestacao.value = itemAtual.local || "";
   }
   if (registroCodigo) {
-    registroCodigo.value = item.id;
+    registroCodigo.value = itemAtual.id;
   }
   if (registroAbertaPor) {
-    registroAbertaPor.value = getUserLabel(item.createdBy);
+    registroAbertaPor.value = getUserLabel(itemAtual.createdBy);
   }
   if (registroAbertaEm) {
-    const createdAt = parseTimestamp(item.createdAt);
+    const createdAt = parseTimestamp(itemAtual.createdAt);
     registroAbertaEm.value = createdAt ? formatDateTime(createdAt) : "-";
   }
   if (registroInicio) {
     registroInicio.value = formatDateTime(inicio);
   }
-  const liberacao = getLiberacao(item) || {};
+  const liberacao = getLiberacao(itemAtual) || {};
   if (registroOsNumero) {
     registroOsNumero.value = liberacao.osNumero || "-";
   }
@@ -46008,17 +46071,17 @@ function abrirRegistroExecucao(item) {
     registroParticipantes.value = getParticipantesLabel(liberacao.participantes);
   }
   if (registroDocs) {
-    const docs = liberacao.documentos || item.documentos || {};
-    renderDocList(registroDocs, docs, isItemCritico(item));
+    const docs = liberacao.documentos || itemAtual.documentos || {};
+    renderDocList(registroDocs, docs, isItemCritico(itemAtual));
   }
-  const registroSalvo = item.registroExecucao || {};
+  const registroSalvo = itemAtual.registroExecucao || {};
   if (registroExecutadaPor) {
     registroExecutadaPor.innerHTML = "";
     const placeholder = document.createElement("option");
     placeholder.value = "";
     placeholder.textContent = "Selecione";
     registroExecutadaPor.append(placeholder);
-    const teamName = getProjectTeamName(item.projectId);
+    const teamName = getProjectTeamName(itemAtual.projectId);
     const teamValue = teamName ? `team:${teamName}` : "";
     if (teamName) {
       const teamOption = document.createElement("option");
@@ -46043,7 +46106,7 @@ function abrirRegistroExecucao(item) {
   if (registroResultado) {
     const resultadoField = registroResultado.closest(".field");
     const mostrarResultado =
-      item.status !== "em_execucao" || Boolean(registroSalvo.resultado);
+      itemAtual.status !== "em_execucao" || Boolean(registroSalvo.resultado);
     if (resultadoField) {
       resultadoField.hidden = !mostrarResultado;
     }

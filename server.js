@@ -4486,16 +4486,25 @@ function getPrazoMaximoInicio(item) {
   if (!item) {
     return null;
   }
-  const inicio = parseDateTime(item.prazoMaximoInicio || item.prazoInicio || "");
-  if (inicio) {
-    return startOfDay(inicio);
+  const explicit = parseDateTime(item.prazoMaximoInicio || item.prazoInicio || "");
+  if (explicit) {
+    return explicit;
   }
-  const data = getDueDate(item);
-  if (data) {
-    return startOfDay(data);
+  const inicioExecucao = parseDateTime(
+    item.executionStartedAt || item.inicioExecucao || item.inicio || ""
+  );
+  if (inicioExecucao) {
+    return inicioExecucao;
   }
-  const created = parseDateTime(item.createdAt || item.abertaEm || item.criadaEm || "");
-  return created ? startOfDay(created) : null;
+  const status = normalizeStatus(item.status);
+  const liberacao = item.liberacao && typeof item.liberacao === "object" ? item.liberacao : null;
+  const liberadoEm = parseDateTime(
+    liberacao ? liberacao.liberadoEm || liberacao.liberado_em || "" : ""
+  );
+  if (status === "em_execucao" || status === "encerramento" || status === "concluida") {
+    return liberadoEm || null;
+  }
+  return null;
 }
 
 function calcPrazoMaximoDeadline(inicio, prazo) {
