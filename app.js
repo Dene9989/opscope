@@ -18767,6 +18767,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
   actions.className = "manutencao-actions";
   const allowed = options.allowedActions || null;
   const podeExecutarItem = canExecuteMaintenanceForUser(item, currentUser);
+  const podeConcluirItem = canConcludeMaintenanceForUser(item, currentUser);
   const permite = (key) => {
     if (key === "revalidate") {
       return (
@@ -18789,8 +18790,11 @@ function criarCardManutencao(item, permissoes, options = {}) {
       key === "register" || key === "finish" || key === "release" || key === "cancel_start"
         ? permissoes.execute
         : permissoes[key];
+    if (key === "finish") {
+      return (allowed ? allowed.includes(key) : true) && base && podeConcluirItem;
+    }
     const executaAcao =
-      key === "execute" || key === "register" || key === "finish" || key === "release" || key === "cancel_start";
+      key === "execute" || key === "register" || key === "release" || key === "cancel_start";
     if (executaAcao && !podeExecutarItem) {
       return false;
     }
@@ -18840,14 +18844,14 @@ function criarCardManutencao(item, permissoes, options = {}) {
     if (permite("execute") && !execucaoRegistrada) {
       actions.append(criarBotaoAcao("Cancelar início", "cancel_start"));
     }
-    if (permite("execute") && execucaoRegistrada) {
+    if (permite("finish") && execucaoRegistrada) {
       actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
     }
   } else if (statusNormalized === "encerramento") {
     if (permite("execute") && !execucaoRegistrada) {
       actions.append(criarBotaoAcao("Registrar execução", "register"));
     }
-    if (permite("execute") && execucaoRegistrada) {
+    if (permite("finish") && execucaoRegistrada) {
       actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
     }
   } else if (statusNormalized === "concluida") {
@@ -35513,10 +35517,88 @@ function canExecuteMaintenanceForUser(item, user = currentUser) {
   if (!user) {
     return false;
   }
+  if (isSystemTemplateMaintenance(item)) {
+    return true;
+  }
   if (hasGranularPermission(user, "executarManutencaoTerceiros")) {
     return true;
   }
   return isUserResponsibleForMaintenance(item, user);
+}
+
+function isSystemTemplateMaintenance(item) {
+  if (!item || typeof item !== "object") {
+    return false;
+  }
+  const templateId = String(item.templateId || "").trim();
+  if (!templateId) {
+    return false;
+  }
+  const createdBy = String(item.createdBy || "").trim();
+  if (createdBy && isSystemUserId(createdBy)) {
+    return true;
+  }
+  const source = normalizeUserIdentity(
+    item.source || item.origem || item.createdFrom || item.createdVia || item.origemCadastro || ""
+  );
+  if (!source) {
+    return false;
+  }
+  return (
+    source.includes("recorrenc") ||
+    source.includes("modelo") ||
+    source.includes("template") ||
+    source.includes("sistema")
+  );
+}
+
+function isMaintenanceCreator(item, user) {
+  if (!item || !user) {
+    return false;
+  }
+  const createdBy = String(item.createdBy || "").trim();
+  if (!createdBy) {
+    return false;
+  }
+  const actorKeys = new Set(getUserIdentityKeys(user));
+  if (!actorKeys.size) {
+    return false;
+  }
+  if (actorKeys.has(normalizeUserIdentity(createdBy))) {
+    return true;
+  }
+  const createdByUser = resolveUserByIdentity(createdBy);
+  if (createdByUser) {
+    const createdKeys = getUserIdentityKeys(createdByUser);
+    if (createdKeys.some((key) => actorKeys.has(key))) {
+      return true;
+    }
+  }
+  const actorNumeric = new Set(
+    extractIdentityNumericTokens(user.matricula || user.id || "").map((token) =>
+      normalizeUserIdentity(token)
+    )
+  );
+  if (!actorNumeric.size) {
+    return false;
+  }
+  return extractIdentityNumericTokens(createdBy).some((token) =>
+    actorNumeric.has(normalizeUserIdentity(token))
+  );
+}
+
+function canConcludeMaintenanceForUser(item, user = currentUser) {
+  if (!item || !user) {
+    return false;
+  }
+  if (isSystemTemplateMaintenance(item)) {
+    return true;
+  }
+  const createdBy = String(item.createdBy || "").trim();
+  if (!createdBy || isSystemUserId(createdBy)) {
+    return canExecuteMaintenanceForUser(item, user);
+  }
+  return isMaintenanceCreator(item, user);
 }
 
 const PRAZO_UNIDADE_LABELS = {
@@ -35795,6 +35877,21 @@ function getResponsavelRestricaoMensagem(item) {
   return "Apenas responsáveis podem executar esta manutenção.";
 }
 
+function getConclusaoRestricaoMensagem(item) {
+  if (isSystemTemplateMaintenance(item)) {
+    return "";
+  }
+  const createdBy = String((item && item.createdBy) || "").trim();
+  if (!createdBy || isSystemUserId(createdBy)) {
+    return "Você não tem permissão para concluir esta manutenção.";
+  }
+  const criadorLabel = getUserLabel(createdBy);
+  if (criadorLabel && criadorLabel !== "Desconhecido") {
+    return `Somente quem criou esta manutenção pode concluir (${criadorLabel}).`;
+  }
+  return "Somente quem criou esta manutenção pode concluir.";
+}
+
 function ensureExecucaoPermitida(
   item,
   mostrarMensagem = mostrarMensagemManutencao,
@@ -35814,6 +35911,30 @@ function ensureExecucaoPermitida(
   }
   if (mostrarMensagem) {
     mostrarMensagem(getResponsavelRestricaoMensagem(item), true);
+  }
+  return false;
+}
+
+function ensureConclusaoPermitida(
+  item,
+  mostrarMensagem = mostrarMensagemManutencao,
+  options = {}
+) {
+  const ignorePrazoExpirado = Boolean(
+    options && typeof options === "object" && options.ignorePrazoExpirado
+  );
+  if (!ignorePrazoExpirado && isPrazoMaximoExpirado(item)) {
+    if (mostrarMensagem) {
+      mostrarMensagem(getPrazoExpiradoMensagem(item), true);
+    }
+    return false;
+  }
+  if (canConcludeMaintenanceForUser(item, currentUser)) {
+    return true;
+  }
+  if (mostrarMensagem) {
+    const msg = getConclusaoRestricaoMensagem(item);
+    mostrarMensagem(msg || "Você não tem permissão para concluir esta manutenção.", true);
   }
   return false;
 }
@@ -46897,7 +47018,7 @@ function abrirRegistroExecucao(item) {
     return;
   }
   if (
-    !ensureExecucaoPermitida(item, mostrarMensagemManutencao, {
+    !ensureConclusaoPermitida(item, mostrarMensagemManutencao, {
       ignorePrazoExpirado: true,
     })
   ) {
@@ -50222,7 +50343,7 @@ async function salvarConclusao(event) {
 
   const item = manutencoes[index];
   if (
-    !ensureExecucaoPermitida(item, mostrarMensagemConclusao, {
+    !ensureConclusaoPermitida(item, mostrarMensagemConclusao, {
       ignorePrazoExpirado: true,
     })
   ) {
