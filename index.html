@@ -1960,8 +1960,12 @@
             <div class="template-section">
               <div class="section-title">
                 <h3>Regras de recorrencia</h3>
-                <p>Defina periodicidade e regras por ciclo.</p>
+                <p>Defina quando o modelo gera manuten&ccedil;&otilde;es autom&aacute;ticas.</p>
               </div>
+              <p class="hint hint--compact">
+                1) Escolha a frequ&ecirc;ncia base (di&aacute;ria, semanal ou mensal). 2) Opcionalmente limite por meses e ano.
+                A manuten&ccedil;&atilde;o s&oacute; ser&aacute; criada quando todas as regras forem atendidas.
+              </p>
               <div class="field" id="templatePresets">
                 <label>Presets rapidos</label>
                 <div class="preset-row">
@@ -2013,6 +2017,9 @@
                     <span>Domingo</span>
                   </label>
                 </div>
+                <p class="hint hint--compact">
+                  Se marcado, gera no(s) dia(s) selecionado(s), respeitando a data de in&iacute;cio e a janela de meses/ano.
+                </p>
                 <p id="templateDailyErro" class="field-error" hidden></p>
               </div>
               <div class="field" id="templateWeeklyDayField" hidden>
@@ -2026,10 +2033,16 @@
                   <option value="6">Sabado</option>
                   <option value="0">Domingo</option>
                 </select>
+                <p class="hint hint--compact">
+                  Escolhe em qual dia da semana a recorr&ecirc;ncia semanal ser&aacute; gerada.
+                </p>
               </div>
               <div class="field" id="templateWeeklyIntervalField" hidden>
                 <label for="templateWeeklyInterval">Intervalo em semanas</label>
                 <input id="templateWeeklyInterval" type="number" min="1" max="52" value="1" />
+                <p class="hint hint--compact">
+                  Ex.: 1 = toda semana, 2 = quinzenal, 4 = a cada 4 semanas.
+                </p>
                 <p id="templateWeeklyIntervalErro" class="field-error" hidden></p>
               </div>
               <div class="field" id="templateMonthlyModeField" hidden>
@@ -2044,17 +2057,65 @@
                     <span>Dias especificos</span>
                   </label>
                 </div>
+                <p class="hint hint--compact">
+                  Dia fixo: uma ocorr&ecirc;ncia por m&ecirc;s. Dias espec&iacute;ficos: m&uacute;ltiplas ocorr&ecirc;ncias no mesmo m&ecirc;s.
+                </p>
               </div>
               <div class="field" id="templateMonthlyDayField" hidden>
                 <label for="templateMonthlyDay">Dia do mês</label>
                 <input id="templateMonthlyDay" type="number" min="1" max="31" value="10" />
+                <p class="hint hint--compact">
+                  Ex.: 10 = todo m&ecirc;s no dia 10. Se o m&ecirc;s n&atilde;o tiver esse dia, n&atilde;o gera naquele m&ecirc;s.
+                </p>
                 <p id="templateMonthlyDayErro" class="field-error" hidden></p>
               </div>
               <div class="field" id="templateMonthlyDaysField" data-full hidden>
                 <label>Dias do mês</label>
                 <input id="templateMonthlyDaysInput" type="text" placeholder="Ex.: 10, 25" />
                 <div id="templateMonthlyDaysChips" class="chip-row"></div>
+                <p class="hint hint--compact">
+                  Informe uma lista de dias (1 a 31), separados por v&iacute;rgula.
+                </p>
                 <p id="templateMonthlyDaysErro" class="field-error" hidden></p>
+              </div>
+              <div class="field" id="templateActiveMonthsField" data-full>
+                <div class="field-head">
+                  <label>Meses ativos</label>
+                  <div class="preset-row">
+                    <button id="btnTemplateMonthsAll" class="btn btn--ghost btn--small" type="button">
+                      Todos os meses
+                    </button>
+                    <button id="btnTemplateMonthsClear" class="btn btn--ghost btn--small" type="button">
+                      Limpar
+                    </button>
+                  </div>
+                </div>
+                <div class="month-grid">
+                  <label class="day-chip day-chip--small"><input type="checkbox" value="1" data-template-active-month checked /><span>Jan</span></label>
+                  <label class="day-chip day-chip--small"><input type="checkbox" value="2" data-template-active-month checked /><span>Fev</span></label>
+                  <label class="day-chip day-chip--small"><input type="checkbox" value="3" data-template-active-month checked /><span>Mar</span></label>
+                  <label class="day-chip day-chip--small"><input type="checkbox" value="4" data-template-active-month checked /><span>Abr</span></label>
+                  <label class="day-chip day-chip--small"><input type="checkbox" value="5" data-template-active-month checked /><span>Mai</span></label>
+                  <label class="day-chip day-chip--small"><input type="checkbox" value="6" data-template-active-month checked /><span>Jun</span></label>
+                  <label class="day-chip day-chip--small"><input type="checkbox" value="7" data-template-active-month checked /><span>Jul</span></label>
+                  <label class="day-chip day-chip--small"><input type="checkbox" value="8" data-template-active-month checked /><span>Ago</span></label>
+                  <label class="day-chip day-chip--small"><input type="checkbox" value="9" data-template-active-month checked /><span>Set</span></label>
+                  <label class="day-chip day-chip--small"><input type="checkbox" value="10" data-template-active-month checked /><span>Out</span></label>
+                  <label class="day-chip day-chip--small"><input type="checkbox" value="11" data-template-active-month checked /><span>Nov</span></label>
+                  <label class="day-chip day-chip--small"><input type="checkbox" value="12" data-template-active-month checked /><span>Dez</span></label>
+                </div>
+                <p class="hint hint--compact">A recorr&ecirc;ncia s&oacute; roda nos meses marcados.</p>
+              </div>
+              <div class="field" id="templateYearRangeField" data-full>
+                <label for="templateYearStart">Janela por ano (opcional)</label>
+                <div class="template-year-range">
+                  <input id="templateYearStart" type="number" min="2000" max="2100" placeholder="Ano inicial (ex.: 2026)" />
+                  <input id="templateYearEnd" type="number" min="2000" max="2100" placeholder="Ano final (ex.: 2028)" />
+                </div>
+                <p class="hint hint--compact">
+                  Deixe em branco para sem limite. Se preencher os dois, o ano final deve ser maior ou igual ao inicial.
+                </p>
+                <p id="templateCalendarErro" class="field-error" hidden></p>
               </div>
             </div>
             <div class="template-section">

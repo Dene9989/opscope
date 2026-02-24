@@ -3576,6 +3576,18 @@ body.is-visitor .container.auth-only {
   gap: 8px;
 }
 
+.template-year-range {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 680px) {
+  .template-year-range {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .day-chip {
   display: inline-flex;
   align-items: center;

@@ -959,6 +959,7 @@ const templateDailyErro = document.getElementById("templateDailyErro");
 const templateWeeklyIntervalErro = document.getElementById("templateWeeklyIntervalErro");
 const templateMonthlyDayErro = document.getElementById("templateMonthlyDayErro");
 const templateMonthlyDaysErro = document.getElementById("templateMonthlyDaysErro");
+const templateCalendarErro = document.getElementById("templateCalendarErro");
 const templateDailyField = document.getElementById("templateDailyField");
 const templateDailyDays = document.querySelectorAll("[data-template-daily-day]");
 const btnPresetDiasUteis = document.getElementById("btnPresetDiasUteis");
@@ -974,6 +975,13 @@ const templateMonthlyDay = document.getElementById("templateMonthlyDay");
 const templateMonthlyDaysField = document.getElementById("templateMonthlyDaysField");
 const templateMonthlyDaysInput = document.getElementById("templateMonthlyDaysInput");
 const templateMonthlyDaysChips = document.getElementById("templateMonthlyDaysChips");
+const templateActiveMonthsField = document.getElementById("templateActiveMonthsField");
+const templateActiveMonthChecks = document.querySelectorAll("[data-template-active-month]");
+const btnTemplateMonthsAll = document.getElementById("btnTemplateMonthsAll");
+const btnTemplateMonthsClear = document.getElementById("btnTemplateMonthsClear");
+const templateYearRangeField = document.getElementById("templateYearRangeField");
+const templateYearStart = document.getElementById("templateYearStart");
+const templateYearEnd = document.getElementById("templateYearEnd");
 const templateResumo = document.getElementById("templateResumo");
 const templateResumoLinhas = document.getElementById("templateResumoLinhas");
 const templateInicioField = document.getElementById("templateInicioField");
@@ -1461,6 +1469,9 @@ const SST_CHECKLIST_TYPE_LABELS = {
 const WEEKDAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 const WEEKDAYS_SHORT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
 const DEFAULT_DAILY_DAYS = [1, 2, 3, 4, 5];
+const DEFAULT_ACTIVE_MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+const RECURRENCE_YEAR_MIN = 2000;
+const RECURRENCE_YEAR_MAX = 2100;
 const PMP_TOLERANCE_DAYS = 3;
 const PMP_MONTH_LABELS = [
   "Jan",
@@ -10604,6 +10615,7 @@ function clearTemplateErrors() {
   setFieldError(templateWeeklyIntervalErro, "");
   setFieldError(templateMonthlyDayErro, "");
   setFieldError(templateMonthlyDaysErro, "");
+  setFieldError(templateCalendarErro, "");
   setFieldError(templateParticipantesErro, "");
 }
 
@@ -10621,6 +10633,10 @@ function clearTemplateFieldError(target) {
     setFieldError(templateMonthlyDayErro, "");
   } else if (target === templateMonthlyDaysInput) {
     setFieldError(templateMonthlyDaysErro, "");
+  } else if (target === templateYearStart || target === templateYearEnd) {
+    setFieldError(templateCalendarErro, "");
+  } else if (target.matches && target.matches("[data-template-active-month]")) {
+    setFieldError(templateCalendarErro, "");
   } else if (target.matches && target.matches("[data-template-daily-day]")) {
     setFieldError(templateDailyErro, "");
   }
@@ -29132,6 +29148,41 @@ function normalizeMonthlyDays(list) {
   return normalizeNumberList(list, 1, 31);
 }
 
+function normalizeActiveMonths(list) {
+  const months = normalizeNumberList(list, 1, 12);
+  return months.length ? months : [...DEFAULT_ACTIVE_MONTHS];
+}
+
+function normalizeTemplateYearValue(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return null;
+  }
+  const year = Math.trunc(numeric);
+  if (year < RECURRENCE_YEAR_MIN || year > RECURRENCE_YEAR_MAX) {
+    return null;
+  }
+  return year;
+}
+
+function parseTemplateYearInput(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return { valid: true, value: null };
+  }
+  if (!/^\d{4}$/.test(raw)) {
+    return { valid: false, value: null };
+  }
+  const year = normalizeTemplateYearValue(raw);
+  if (year === null) {
+    return { valid: false, value: null };
+  }
+  return { valid: true, value: year };
+}
+
 function validateMonthlyDaysInput(value) {
   const raw = String(value || "").trim();
   if (!raw) {
@@ -29152,6 +29203,172 @@ function validateMonthlyDaysInput(value) {
 function parseMonthlyDaysInputValue(value) {
   const result = validateMonthlyDaysInput(value);
   return result.valid ? result.dias : [];
+}
+
+function getTemplateActiveMonthsFromForm() {
+  const selected = Array.from(templateActiveMonthChecks || [])
+    .filter((checkbox) => checkbox.checked)
+    .map((checkbox) => Number(checkbox.value));
+  return normalizeNumberList(selected, 1, 12);
+}
+
+function setTemplateActiveMonths(list) {
+  if (!templateActiveMonthChecks || !templateActiveMonthChecks.length) {
+    return;
+  }
+  const months = normalizeActiveMonths(list);
+  const selected = new Set(months.map((value) => Number(value)));
+  templateActiveMonthChecks.forEach((checkbox) => {
+    const month = Number(checkbox.value);
+    checkbox.checked = selected.has(month);
+  });
+}
+
+function applyTemplateMonthsPreset(mode) {
+  if (!templateActiveMonthChecks || !templateActiveMonthChecks.length) {
+    return;
+  }
+  if (mode === "none") {
+    templateActiveMonthChecks.forEach((checkbox) => {
+      checkbox.checked = false;
+    });
+    getTemplateCalendarConfigFromForm(true);
+  } else {
+    setTemplateActiveMonths(DEFAULT_ACTIVE_MONTHS);
+    setFieldError(templateCalendarErro, "");
+  }
+  updateTemplateResumo();
+}
+
+function formatTemplateMonthsRange(months) {
+  const normalized = normalizeActiveMonths(months);
+  if (normalized.length === 12) {
+    return "todos os meses";
+  }
+  return normalized
+    .map((month) => PMP_MONTH_LABELS[month - 1] || String(month))
+    .join(", ");
+}
+
+function getTemplateCalendarConfigFromForm(showErrors = false) {
+  const months = getTemplateActiveMonthsFromForm();
+  const startParse = parseTemplateYearInput(templateYearStart ? templateYearStart.value : "");
+  const endParse = parseTemplateYearInput(templateYearEnd ? templateYearEnd.value : "");
+  if (!showErrors) {
+    return {
+      valid:
+        months.length > 0 &&
+        startParse.valid &&
+        endParse.valid &&
+        !(
+          startParse.valid &&
+          endParse.valid &&
+          startParse.value !== null &&
+          endParse.value !== null &&
+          endParse.value < startParse.value
+        ),
+      months,
+      activeYearStart: startParse.value,
+      activeYearEnd: endParse.value,
+    };
+  }
+  setFieldError(templateCalendarErro, "");
+  if (!months.length) {
+    setFieldError(templateCalendarErro, "Selecione ao menos 1 mês ativo.");
+    return { valid: false, months, activeYearStart: null, activeYearEnd: null };
+  }
+  if (!startParse.valid || !endParse.valid) {
+    setFieldError(
+      templateCalendarErro,
+      `Informe anos válidos entre ${RECURRENCE_YEAR_MIN} e ${RECURRENCE_YEAR_MAX}.`
+    );
+    return { valid: false, months, activeYearStart: null, activeYearEnd: null };
+  }
+  if (
+    startParse.value !== null &&
+    endParse.value !== null &&
+    endParse.value < startParse.value
+  ) {
+    setFieldError(templateCalendarErro, "Ano final deve ser maior ou igual ao ano inicial.");
+    return { valid: false, months, activeYearStart: null, activeYearEnd: null };
+  }
+  return {
+    valid: true,
+    months,
+    activeYearStart: startParse.value,
+    activeYearEnd: endParse.value,
+  };
+}
+
+function isTemplateRecurrenceDateAllowed(template, date) {
+  const target = startOfDay(date);
+  const months = normalizeActiveMonths(
+    template && (template.activeMonths || template.mesesAtivos || template.months)
+  );
+  const monthValue = target.getMonth() + 1;
+  if (!months.includes(monthValue)) {
+    return false;
+  }
+  const year = target.getFullYear();
+  const activeYearStart = normalizeTemplateYearValue(
+    template && (template.activeYearStart ?? template.yearStart ?? template.anoInicio)
+  );
+  const activeYearEnd = normalizeTemplateYearValue(
+    template && (template.activeYearEnd ?? template.yearEnd ?? template.anoFim)
+  );
+  if (activeYearStart !== null && year < activeYearStart) {
+    return false;
+  }
+  if (activeYearEnd !== null && year > activeYearEnd) {
+    return false;
+  }
+  return true;
+}
+
+function formatTemplateCalendarWindow(template) {
+  const months = normalizeActiveMonths(
+    template && (template.activeMonths || template.mesesAtivos || template.months)
+  );
+  const monthsLabel = formatTemplateMonthsRange(months);
+  const activeYearStart = normalizeTemplateYearValue(
+    template && (template.activeYearStart ?? template.yearStart ?? template.anoInicio)
+  );
+  const activeYearEnd = normalizeTemplateYearValue(
+    template && (template.activeYearEnd ?? template.yearEnd ?? template.anoFim)
+  );
+  if (activeYearStart !== null && activeYearEnd !== null) {
+    return `Meses: ${monthsLabel} | Anos: ${activeYearStart}-${activeYearEnd}`;
+  }
+  if (activeYearStart !== null) {
+    return `Meses: ${monthsLabel} | Anos: a partir de ${activeYearStart}`;
+  }
+  if (activeYearEnd !== null) {
+    return `Meses: ${monthsLabel} | Anos: até ${activeYearEnd}`;
+  }
+  return `Meses: ${monthsLabel}`;
+}
+
+function formatTemplateCalendarWindowCompact(template) {
+  const months = normalizeActiveMonths(
+    template && (template.activeMonths || template.mesesAtivos || template.months)
+  );
+  const monthsLabel = formatTemplateMonthsRange(months);
+  const activeYearStart = normalizeTemplateYearValue(
+    template && (template.activeYearStart ?? template.yearStart ?? template.anoInicio)
+  );
+  const activeYearEnd = normalizeTemplateYearValue(
+    template && (template.activeYearEnd ?? template.yearEnd ?? template.anoFim)
+  );
+  if (activeYearStart !== null && activeYearEnd !== null) {
+    return `meses ${monthsLabel}; anos ${activeYearStart}-${activeYearEnd}`;
+  }
+  if (activeYearStart !== null) {
+    return `meses ${monthsLabel}; anos a partir de ${activeYearStart}`;
+  }
+  if (activeYearEnd !== null) {
+    return `meses ${monthsLabel}; anos até ${activeYearEnd}`;
+  }
+  return `meses ${monthsLabel}`;
 }
 
 function updateMonthlyDaysChips() {
@@ -29193,6 +29410,22 @@ function updateTemplateResumo() {
   const inicioStr = templateInicio ? templateInicio.value : "";
   const inicioDate = parseDate(inicioStr);
   const inicioLabel = inicioDate ? formatDate(inicioDate) : "-";
+  const calendarConfig = getTemplateCalendarConfigFromForm(false);
+  const monthsLabel = calendarConfig.months.length
+    ? formatTemplateMonthsRange(calendarConfig.months)
+    : "nenhum mês selecionado";
+  const yearStartParse = parseTemplateYearInput(templateYearStart ? templateYearStart.value : "");
+  const yearEndParse = parseTemplateYearInput(templateYearEnd ? templateYearEnd.value : "");
+  let yearsLabel = "sem limite";
+  if (!yearStartParse.valid || !yearEndParse.valid) {
+    yearsLabel = "ano inválido";
+  } else if (yearStartParse.value !== null && yearEndParse.value !== null) {
+    yearsLabel = `${yearStartParse.value} até ${yearEndParse.value}`;
+  } else if (yearStartParse.value !== null) {
+    yearsLabel = `a partir de ${yearStartParse.value}`;
+  } else if (yearEndParse.value !== null) {
+    yearsLabel = `até ${yearEndParse.value}`;
+  }
 
   const linhas = [];
   const linhaTitulo = `${nome || "Nome do modelo"} - ${subestacaoLabel}`;
@@ -29208,6 +29441,9 @@ function updateTemplateResumo() {
     linhas.push(
       `Este modelo irá gerar manutenções DIÁRIAS nos dias: [${lista}], a partir de ${inicioLabel}, para: ${subestacaoLabel}.`
     );
+    linhas.push(
+      "Campo 'Dias da semana': define em quais dias a manutenção pode ser criada."
+    );
   } else if (tipo === "weekly") {
     const diaSemana = templateWeeklyDay ? getWeekdayLabel(templateWeeklyDay.value) : "";
     const intervaloRaw = templateWeeklyInterval ? Number(templateWeeklyInterval.value) : 1;
@@ -29215,6 +29451,9 @@ function updateTemplateResumo() {
     const diaLabel = diaSemana || "Dia não definido";
     linhas.push(
       `Este modelo irá gerar manutenções SEMANAIS toda(o) ${diaLabel}, a cada ${intervalo} semana(s), a partir de ${inicioLabel}, para: ${subestacaoLabel}.`
+    );
+    linhas.push(
+      "Campos semanais: 'Dia da semana' escolhe o dia; 'Intervalo' define de quantas em quantas semanas."
     );
   } else if (tipo === "monthly") {
     const modo = templateMonthlyMulti && templateMonthlyMulti.checked ? "multi" : "fixed";
@@ -29224,16 +29463,25 @@ function updateTemplateResumo() {
       linhas.push(
         `Este modelo irá gerar manutenções MENSAIS nos dias ${lista} de cada mês, a partir de ${inicioLabel}, para: ${subestacaoLabel}.`
       );
+      linhas.push("Campo 'Dias do mês': permite múltiplos dias no mesmo mês.");
     } else {
       const dia = templateMonthlyDay ? templateMonthlyDay.value : "";
       const diaLabel = dia || "-";
       linhas.push(
         `Este modelo irá gerar manutenções MENSAIS no dia ${diaLabel} de cada mês, a partir de ${inicioLabel}, para: ${subestacaoLabel}.`
       );
+      linhas.push("Campo 'Dia do mês': gera uma ocorrência mensal no dia informado.");
     }
     linhas.push(
       "Obs.: quando o mês não possuir o dia configurado, a ocorrência será IGNORADA."
     );
+  }
+
+  if (tipo !== "none") {
+    linhas.push(`Calendário ativo: meses ${monthsLabel}; anos ${yearsLabel}.`);
+    if (!calendarConfig.valid) {
+      linhas.push("Atenção: ajuste meses/anos para evitar bloqueio de geração.");
+    }
   }
 
   templateResumoLinhas.innerHTML = "";
@@ -29268,6 +29516,15 @@ function handleTemplateFormChange(event) {
     if (event.type === "change" && validacao.valid) {
       templateMonthlyDaysInput.value = validacao.dias.length ? validacao.dias.join(", ") : "";
     }
+  }
+  const calendarTarget = Boolean(
+    event &&
+      (event.target === templateYearStart ||
+        event.target === templateYearEnd ||
+        (event.target.matches && event.target.matches("[data-template-active-month]")))
+  );
+  if (calendarTarget) {
+    getTemplateCalendarConfigFromForm(true);
   }
   updateMonthlyDaysChips();
   updateTemplateResumo();
@@ -29378,6 +29635,55 @@ function normalizarTemplate(template) {
   } else {
     resultado.monthlyDays = normalizeMonthlyDays(resultado.monthlyDays);
     resultado.monthlyMode = resultado.monthlyMode || "fixed";
+  }
+
+  const activeMonthsCandidate = Array.isArray(resultado.activeMonths)
+    ? resultado.activeMonths
+    : Array.isArray(resultado.mesesAtivos)
+      ? resultado.mesesAtivos
+      : Array.isArray(resultado.months)
+        ? resultado.months
+        : [];
+  const activeMonths = normalizeActiveMonths(activeMonthsCandidate);
+  const activeMonthsCurrent = Array.isArray(resultado.activeMonths)
+    ? normalizeNumberList(resultado.activeMonths, 1, 12)
+    : [];
+  if (
+    !Array.isArray(resultado.activeMonths) ||
+    activeMonthsCurrent.length !== activeMonths.length ||
+    activeMonths.some((value, index) => value !== activeMonthsCurrent[index])
+  ) {
+    resultado.activeMonths = activeMonths;
+    mudou = true;
+  }
+
+  const activeYearStartRaw = Object.prototype.hasOwnProperty.call(resultado, "activeYearStart")
+    ? resultado.activeYearStart
+    : Object.prototype.hasOwnProperty.call(resultado, "yearStart")
+      ? resultado.yearStart
+      : resultado.anoInicio;
+  const activeYearEndRaw = Object.prototype.hasOwnProperty.call(resultado, "activeYearEnd")
+    ? resultado.activeYearEnd
+    : Object.prototype.hasOwnProperty.call(resultado, "yearEnd")
+      ? resultado.yearEnd
+      : resultado.anoFim;
+  let activeYearStart = normalizeTemplateYearValue(activeYearStartRaw);
+  let activeYearEnd = normalizeTemplateYearValue(activeYearEndRaw);
+  if (
+    activeYearStart !== null &&
+    activeYearEnd !== null &&
+    activeYearEnd < activeYearStart
+  ) {
+    activeYearEnd = activeYearStart;
+    mudou = true;
+  }
+  if (resultado.activeYearStart !== activeYearStart) {
+    resultado.activeYearStart = activeYearStart;
+    mudou = true;
+  }
+  if (resultado.activeYearEnd !== activeYearEnd) {
+    resultado.activeYearEnd = activeYearEnd;
+    mudou = true;
   }
 
   const participantesRaw = Array.isArray(resultado.participantes)
@@ -29503,32 +29809,34 @@ function formatIntervalo(template) {
   if (!template || !template.frequencia || template.frequencia === "none") {
     return "Sem recorrência";
   }
-
+  let baseLabel = "Sem recorrência";
   if (template.frequencia === "daily") {
     const dias = normalizeDailyDays(template.dailyDays);
     const lista = dias.map(getWeekdayLabel).filter(Boolean).join(", ");
-    return lista ? `Diaria (${lista})` : "Diaria";
+    baseLabel = lista ? `Diaria (${lista})` : "Diaria";
   }
-
   if (template.frequencia === "weekly") {
     const dia = getWeekdayLabel(template.weeklyDay);
     const intervalo = Number(template.weeklyInterval || 1);
     if (intervalo > 1) {
-      return dia ? `Semanal (${dia}, a cada ${intervalo} semanas)` : `Semanal (a cada ${intervalo} semanas)`;
+      baseLabel = dia
+        ? `Semanal (${dia}, a cada ${intervalo} semanas)`
+        : `Semanal (a cada ${intervalo} semanas)`;
+    } else {
+      baseLabel = dia ? `Semanal (${dia})` : "Semanal";
     }
-    return dia ? `Semanal (${dia})` : "Semanal";
   }
-
   if (template.frequencia === "monthly") {
     if (template.monthlyMode === "multi") {
       const dias = normalizeMonthlyDays(template.monthlyDays);
-      return dias.length ? `Mensal (dias ${dias.join(", ")})` : "Mensal (dias)";
+      baseLabel = dias.length ? `Mensal (dias ${dias.join(", ")})` : "Mensal (dias)";
+    } else {
+      const dia = Number(template.monthlyDay);
+      baseLabel = Number.isFinite(dia) ? `Mensal (dia ${dia})` : "Mensal";
     }
-    const dia = Number(template.monthlyDay);
-    return Number.isFinite(dia) ? `Mensal (dia ${dia})` : "Mensal";
   }
-
-  return "Sem recorrência";
+  const calendar = formatTemplateCalendarWindowCompact(template);
+  return `${baseLabel} | ${calendar}`;
 }
 
 function matchesRecorrencia(template, data) {
@@ -29540,6 +29848,9 @@ function matchesRecorrencia(template, data) {
   const inicio = parseDate(template.inicio);
   const base = inicio ? startOfDay(inicio) : null;
   if (base && dia < base) {
+    return false;
+  }
+  if (!isTemplateRecurrenceDateAllowed(template, dia)) {
     return false;
   }
 
@@ -29583,7 +29894,21 @@ function getNextOccurrenceDate(template, fromDate = new Date()) {
   if (inicio && inicio > base) {
     base = startOfDay(inicio);
   }
-  const limite = addDays(base, 370);
+  const activeYearStart = normalizeTemplateYearValue(normalizado.activeYearStart);
+  const activeYearEnd = normalizeTemplateYearValue(normalizado.activeYearEnd);
+  if (activeYearStart !== null && activeYearStart > base.getFullYear()) {
+    base = startOfDay(new Date(activeYearStart, 0, 1));
+  }
+  if (activeYearEnd !== null && base.getFullYear() > activeYearEnd) {
+    return null;
+  }
+  let limite = addDays(base, 370);
+  if (activeYearEnd !== null) {
+    const endOfYear = startOfDay(new Date(activeYearEnd, 11, 31));
+    if (endOfYear < limite) {
+      limite = endOfYear;
+    }
+  }
   for (let atual = base; atual <= limite; atual = addDays(atual, 1)) {
     if (matchesRecorrencia(normalizado, atual)) {
       return atual;
@@ -29624,6 +29949,14 @@ function resetTemplateFieldsForTipo(tipo) {
   if (templateMonthlyDaysInput) {
     templateMonthlyDaysInput.value = "";
   }
+  setTemplateActiveMonths(DEFAULT_ACTIVE_MONTHS);
+  if (templateYearStart) {
+    templateYearStart.value = "";
+  }
+  if (templateYearEnd) {
+    templateYearEnd.value = "";
+  }
+  setFieldError(templateCalendarErro, "");
   if (templatePrazoQtd) {
     templatePrazoQtd.value = "";
   }
@@ -29748,6 +30081,12 @@ function atualizarTemplateFrequenciaUI(limparCampos = false) {
   if (templateInicioField) {
     templateInicioField.hidden = false;
   }
+  if (templateActiveMonthsField) {
+    templateActiveMonthsField.hidden = tipo === "none";
+  }
+  if (templateYearRangeField) {
+    templateYearRangeField.hidden = tipo === "none";
+  }
   atualizarTemplateMonthlyUI();
   updateTemplateResumo();
 }
@@ -29804,6 +30143,13 @@ function limparTemplateForm() {
   }
   if (templateMonthlyDaysInput) {
     templateMonthlyDaysInput.value = "";
+  }
+  setTemplateActiveMonths(DEFAULT_ACTIVE_MONTHS);
+  if (templateYearStart) {
+    templateYearStart.value = "";
+  }
+  if (templateYearEnd) {
+    templateYearEnd.value = "";
   }
   updateMonthlyDaysChips();
   atualizarTemplateFrequenciaUI();
@@ -29911,6 +30257,21 @@ function preencherTemplateForm(template) {
     const diasMes = normalizeMonthlyDays(template.monthlyDays);
     templateMonthlyDaysInput.value = diasMes.length ? diasMes.join(", ") : "";
   }
+  setTemplateActiveMonths(
+    template.activeMonths || template.mesesAtivos || template.months || DEFAULT_ACTIVE_MONTHS
+  );
+  if (templateYearStart) {
+    const value = normalizeTemplateYearValue(
+      template.activeYearStart ?? template.yearStart ?? template.anoInicio
+    );
+    templateYearStart.value = value !== null ? String(value) : "";
+  }
+  if (templateYearEnd) {
+    const value = normalizeTemplateYearValue(
+      template.activeYearEnd ?? template.yearEnd ?? template.anoFim
+    );
+    templateYearEnd.value = value !== null ? String(value) : "";
+  }
   if (templateInicio) {
     templateInicio.value = template.inicio || formatDateISO(new Date());
   }
@@ -30002,6 +30363,18 @@ function salvarModelo(event) {
     templateMonthlyDaysInput ? templateMonthlyDaysInput.value : ""
   );
   const monthlyDays = monthlyValidation.valid ? monthlyValidation.dias : [];
+  const calendarConfig = getTemplateCalendarConfigFromForm(frequencia !== "none");
+  if (frequencia !== "none" && !calendarConfig.valid) {
+    return;
+  }
+  const activeMonths =
+    frequencia === "none"
+      ? [...DEFAULT_ACTIVE_MONTHS]
+      : calendarConfig.months.length
+        ? calendarConfig.months
+        : [...DEFAULT_ACTIVE_MONTHS];
+  const activeYearStart = frequencia === "none" ? null : calendarConfig.activeYearStart;
+  const activeYearEnd = frequencia === "none" ? null : calendarConfig.activeYearEnd;
 
   if (!parseDate(inicio)) {
     setFieldError(templateInicioErro, "Data de início inválida.");
@@ -30071,6 +30444,9 @@ function salvarModelo(event) {
     monthlyMode: frequencia === "monthly" ? monthlyMode : "fixed",
     monthlyDay: frequencia === "monthly" ? monthlyDay : null,
     monthlyDays: frequencia === "monthly" && monthlyMode === "multi" ? monthlyDays : [],
+    activeMonths,
+    activeYearStart,
+    activeYearEnd,
     inicio,
     proximaData: "",
     observacao: templateObs ? templateObs.value.trim() : "",
@@ -54074,6 +54450,12 @@ mostrarFormularioRegistro();
 
 if (btnPresetDiasUteis) {
   btnPresetDiasUteis.addEventListener("click", aplicarPresetDiasUteis);
+}
+if (btnTemplateMonthsAll) {
+  btnTemplateMonthsAll.addEventListener("click", () => applyTemplateMonthsPreset("all"));
+}
+if (btnTemplateMonthsClear) {
+  btnTemplateMonthsClear.addEventListener("click", () => applyTemplateMonthsPreset("none"));
 }
 
 if (templatePresets) {
