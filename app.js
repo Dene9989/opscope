@@ -18640,7 +18640,14 @@ function criarCardManutencao(item, permissoes, options = {}) {
         canRevalidarPrazoManutencao(item)
       );
     }
-    if (prazoExpirado && key !== "history") {
+    const acoesPermitidasComPrazoExpirado = new Set([
+      "history",
+      "register",
+      "finish",
+      "cancel_start",
+      "revalidate",
+    ]);
+    if (prazoExpirado && !acoesPermitidasComPrazoExpirado.has(key)) {
       return false;
     }
     const base =
@@ -35618,8 +35625,15 @@ function getResponsavelRestricaoMensagem(item) {
   return "Apenas responsáveis podem executar esta manutenção.";
 }
 
-function ensureExecucaoPermitida(item, mostrarMensagem = mostrarMensagemManutencao) {
-  if (isPrazoMaximoExpirado(item)) {
+function ensureExecucaoPermitida(
+  item,
+  mostrarMensagem = mostrarMensagemManutencao,
+  options = {}
+) {
+  const ignorePrazoExpirado = Boolean(
+    options && typeof options === "object" && options.ignorePrazoExpirado
+  );
+  if (!ignorePrazoExpirado && isPrazoMaximoExpirado(item)) {
     if (mostrarMensagem) {
       mostrarMensagem(getPrazoExpiradoMensagem(item), true);
     }
@@ -46712,7 +46726,11 @@ function abrirRegistroExecucao(item) {
     mostrarMensagemManutencao("Inicie a execução antes de registrar.", true);
     return;
   }
-  if (!ensureExecucaoPermitida(item, mostrarMensagemManutencao)) {
+  if (
+    !ensureExecucaoPermitida(item, mostrarMensagemManutencao, {
+      ignorePrazoExpirado: true,
+    })
+  ) {
     return;
   }
   let itemAtual = item;
@@ -46974,7 +46992,11 @@ function salvarRegistroExecucao(event) {
     return;
   }
   const item = manutencoes[index];
-  if (!ensureExecucaoPermitida(item, mostrarMensagemRegistroExecucao)) {
+  if (
+    !ensureExecucaoPermitida(item, mostrarMensagemRegistroExecucao, {
+      ignorePrazoExpirado: true,
+    })
+  ) {
     return;
   }
   if (item.status !== "em_execucao" && item.status !== "encerramento") {
@@ -49801,7 +49823,11 @@ function abrirConclusao(item) {
     mostrarMensagemManutencao("Inicie a execução antes de concluir.", true);
     return;
   }
-  if (!ensureExecucaoPermitida(item, mostrarMensagemManutencao)) {
+  if (
+    !ensureExecucaoPermitida(item, mostrarMensagemManutencao, {
+      ignorePrazoExpirado: true,
+    })
+  ) {
     return;
   }
   if (!hasUserSignatureConfigured(currentUser)) {
@@ -49996,7 +50022,11 @@ async function salvarConclusao(event) {
   }
 
   const item = manutencoes[index];
-  if (!ensureExecucaoPermitida(item, mostrarMensagemConclusao)) {
+  if (
+    !ensureExecucaoPermitida(item, mostrarMensagemConclusao, {
+      ignorePrazoExpirado: true,
+    })
+  ) {
     return;
   }
   if (item.status !== "em_execucao" && item.status !== "encerramento") {
@@ -50596,7 +50626,10 @@ function agirNaManutencao(event) {
     isPrazoMaximoExpirado(manutencoes[index]) &&
     acao !== "history" &&
     acao !== "revalidate" &&
-    acao !== "export_ss"
+    acao !== "export_ss" &&
+    acao !== "register" &&
+    acao !== "cancel_start" &&
+    acao !== "finish"
   ) {
     mostrarMensagemManutencao(getPrazoExpiradoMensagem(manutencoes[index]), true);
     return;
