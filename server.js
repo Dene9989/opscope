@@ -111,12 +111,18 @@ function broadcastSse(event, payload = {}) {
     emittedAt: new Date().toISOString(),
   };
   const projectId = String(payload.projectId || "").trim();
+  const total = sseClients.size;
+  let delivered = 0;
+  let skipped = 0;
+  let disconnected = 0;
   for (const [clientId, client] of sseClients.entries()) {
     if (projectId && client.projectId && client.projectId !== projectId) {
+      skipped += 1;
       continue;
     }
     try {
       sendSse(client.res, event, data);
+      delivered += 1;
     } catch (error) {
       try {
         client.res.end();
@@ -124,8 +130,17 @@ function broadcastSse(event, payload = {}) {
         // noop
       }
       sseClients.delete(clientId);
+      disconnected += 1;
     }
   }
+  return {
+    event,
+    projectId,
+    total,
+    delivered,
+    skipped,
+    disconnected,
+  };
 }
 
 const LEGACY_DATA_DIR = path.join(__dirname, "data");
@@ -165,6 +180,7 @@ let dbWriteQueue = Promise.resolve();
 let dbWritesPausedUntil = 0;
 let dbReconnectTimer = null;
 let dbLastConnectivityLogAt = 0;
+let storageWriteFailure = null;
 const DATA_FILE_NAMES = [
   "invites.json",
   "audit.json",
@@ -1422,15 +1438,60 @@ function readJson(filePath, fallback) {
   }
 }
 
-function writeJson(filePath, data, options = {}) {
-  const dir = path.dirname(filePath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+function getStorageWriteFailureSnapshot() {
+  if (!storageWriteFailure) {
+    return null;
   }
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  return { ...storageWriteFailure };
+}
+
+function markStorageWriteFailure(filePath, error) {
+  const fileName = filePath ? path.basename(filePath) : "";
+  const next = {
+    fileName,
+    code: String((error && (error.code || error.errno)) || ""),
+    message: String((error && error.message) || error || "Falha de escrita"),
+    at: new Date().toISOString(),
+  };
+  const changed =
+    !storageWriteFailure ||
+    storageWriteFailure.fileName !== next.fileName ||
+    storageWriteFailure.code !== next.code ||
+    storageWriteFailure.message !== next.message;
+  storageWriteFailure = next;
+  if (changed) {
+    console.error("[storage] Falha ao gravar arquivo JSON.", next);
+  }
+}
+
+function clearStorageWriteFailure(filePath) {
+  if (!storageWriteFailure) {
+    return;
+  }
+  const recoveredFile = filePath ? path.basename(filePath) : storageWriteFailure.fileName || "";
+  console.warn("[storage] Escrita em disco restabelecida.", {
+    fileName: recoveredFile,
+    recoveredAt: new Date().toISOString(),
+  });
+  storageWriteFailure = null;
+}
+
+function writeJson(filePath, data, options = {}) {
+  try {
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+    clearStorageWriteFailure(filePath);
+  } catch (error) {
+    markStorageWriteFailure(filePath, error);
+    return false;
+  }
   if (!options.skipDb) {
     queueDbWrite(filePath, data);
   }
+  return true;
 }
 
 function loadMaintenanceMonthlyState() {
@@ -1729,6 +1790,9 @@ function getStorageSnapshot() {
   return {
     dbEnabled: DB_ENABLED,
     dbReady,
+    writeBlocked: isStorageWriteBlocked(),
+    writeBlockReason: getStorageWriteBlockReason(),
+    localWriteFailure: getStorageWriteFailureSnapshot(),
     dbHost: dbInfo.host,
     dbDatabase: dbInfo.database,
     storeUploads: STORE_UPLOADS,
@@ -4388,6 +4452,59 @@ function summarizeMaintenanceSyncItem(item) {
   };
 }
 
+function markMaintenanceSyncResponse(res, patch = {}) {
+  if (!res || !res.locals) {
+    return;
+  }
+  const current = res.locals.maintenanceSync || {};
+  res.locals.maintenanceSync = {
+    ...current,
+    ...patch,
+  };
+}
+
+function maintenanceSyncAudit(req, res, next) {
+  const startedAt = Date.now();
+  const requestedProjectId =
+    String((req.body && req.body.projectId) || req.query.projectId || "").trim();
+  const requestedCount = Array.isArray(req.body && req.body.items) ? req.body.items.length : 0;
+  markMaintenanceSyncResponse(res, {
+    requestedProjectId,
+    requestedCount,
+  });
+  res.on("finish", () => {
+    const syncMeta = (res.locals && res.locals.maintenanceSync) || {};
+    const inferredReason =
+      syncMeta.reason ||
+      (res.statusCode === 200
+        ? "ok"
+        : res.statusCode === 401
+          ? "unauthenticated"
+          : res.statusCode === 403
+            ? "forbidden"
+            : res.statusCode === 503
+              ? syncMeta.writeBlockReason || "storage_unavailable"
+              : "failed");
+    const payload = {
+      status: res.statusCode,
+      reason: inferredReason,
+      userId: syncMeta.userId || "",
+      requestedProjectId: syncMeta.requestedProjectId || "",
+      projectId: syncMeta.projectId || "",
+      count: Number.isFinite(syncMeta.count) ? syncMeta.count : syncMeta.requestedCount || 0,
+      sseDelivered: Number.isFinite(syncMeta.sseDelivered) ? syncMeta.sseDelivered : 0,
+      sseClients: Number.isFinite(syncMeta.sseClients) ? syncMeta.sseClients : undefined,
+      durationMs: Date.now() - startedAt,
+    };
+    if (res.statusCode >= 400) {
+      console.warn("[maintenance-sync] response", payload);
+      return;
+    }
+    console.info("[maintenance-sync] response", payload);
+  });
+  return next();
+}
+
 function getMaintenanceUpdatedAtValue(item) {
   if (!item || typeof item !== "object") {
     return 0;
@@ -5154,23 +5271,40 @@ function loadCompatState() {
 }
 
 function saveCompatState(state) {
-  writeJson(COMPAT_FILE, normalizeCompatState(state));
+  return writeJson(COMPAT_FILE, normalizeCompatState(state));
 }
 
 function touchCompat(dataset, projectId = "") {
   if (!dataset) {
-    return;
+    return { saved: false, version: 0, sse: null };
   }
   const next = normalizeCompatState(compatState);
   next.datasets[dataset] = Number(next.datasets[dataset] || 0) + 1;
   next.updatedAt = new Date().toISOString();
   compatState = next;
-  saveCompatState(next);
-  broadcastSse("compat.updated", {
+  const saved = saveCompatState(next);
+  if (!saved) {
+    console.warn("[compat] Falha ao persistir versao de compatibilidade.", {
+      dataset,
+      projectId: projectId || "",
+      version: next.datasets[dataset],
+    });
+    return {
+      saved: false,
+      version: next.datasets[dataset],
+      sse: null,
+    };
+  }
+  const sse = broadcastSse("compat.updated", {
     dataset,
     version: next.datasets[dataset],
     projectId: projectId || "",
   });
+  return {
+    saved: true,
+    version: next.datasets[dataset],
+    sse,
+  };
 }
 
 function normalizeSstDocTypeKey(value) {
@@ -8807,16 +8941,47 @@ function requireAccessManage(req, res, next) {
   return next();
 }
 
+function getStorageWriteBlockReason() {
+  if (DB_ENABLED && !dbReady) {
+    return "db_unavailable";
+  }
+  if (storageWriteFailure) {
+    return "storage_write_failed";
+  }
+  return "";
+}
+
 function isStorageWriteBlocked() {
-  return DB_ENABLED && !dbReady;
+  return Boolean(getStorageWriteBlockReason());
 }
 
 function requireStorageWritable(req, res, next) {
-  if (!isStorageWriteBlocked()) {
+  const reason = getStorageWriteBlockReason();
+  if (!reason) {
     return next();
   }
+  markMaintenanceSyncResponse(res, {
+    reason,
+    writeBlockReason: reason,
+  });
+  const localFailure = getStorageWriteFailureSnapshot();
+  console.warn("[storage] Escrita bloqueada.", {
+    reason,
+    path: req.originalUrl.split("?")[0],
+    method: req.method,
+    localFailure: localFailure
+      ? {
+          fileName: localFailure.fileName,
+          code: localFailure.code,
+          at: localFailure.at,
+        }
+      : null,
+  });
   res.setHeader("Retry-After", "60");
-  return res.status(503).json({ message: STORAGE_READONLY_MESSAGE });
+  return res.status(503).json({
+    message: STORAGE_READONLY_MESSAGE,
+    reason,
+  });
 }
 
 function requireProjectAccess(req, res, next) {
@@ -9372,8 +9537,27 @@ app.get("/api/compat", requireAuth, (req, res) => {
 
 app.get("/api/events", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
-  const projectId =
-    String(req.query.projectId || "").trim() || String(getActiveProjectId(req, user) || "").trim();
+  const requestedProjectId = String(req.query.projectId || "").trim();
+  let projectId = String(getActiveProjectId(req, user) || "").trim();
+  let projectSource = "active";
+  if (requestedProjectId) {
+    if (userHasProjectAccess(user, requestedProjectId)) {
+      projectId = requestedProjectId;
+      projectSource = "query";
+      if (req.session && req.session.activeProjectId !== projectId) {
+        req.session.activeProjectId = projectId;
+      }
+    } else {
+      console.warn("[sse] Projeto solicitado sem acesso. Mantendo projeto ativo.", {
+        userId: user ? user.id : "",
+        requestedProjectId,
+        fallbackProjectId: projectId || "",
+      });
+    }
+  }
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+  }
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
@@ -9388,6 +9572,13 @@ app.get("/api/events", requireAuth, (req, res) => {
     projectId,
   };
   sseClients.set(clientId, client);
+  console.info("[sse] connected", {
+    clientId,
+    userId: client.userId,
+    projectId,
+    source: projectSource,
+    clients: sseClients.size,
+  });
   sendSse(res, "hello", {
     ok: true,
     buildId: BUILD_ID,
@@ -9404,6 +9595,12 @@ app.get("/api/events", requireAuth, (req, res) => {
   req.on("close", () => {
     clearInterval(pingTimer);
     sseClients.delete(clientId);
+    console.info("[sse] disconnected", {
+      clientId,
+      userId: client.userId,
+      projectId,
+      clients: sseClients.size,
+    });
   });
 });
 
@@ -12114,6 +12311,8 @@ app.get("/api/admin/access/storage", requireAuth, requireAccessView, (req, res) 
     dbEnabled: DB_ENABLED,
     dbReady,
     writeBlocked: isStorageWriteBlocked(),
+    writeBlockReason: getStorageWriteBlockReason(),
+    localWriteFailure: getStorageWriteFailureSnapshot(),
   });
 });
 
@@ -13304,148 +13503,234 @@ app.delete("/api/admin/files/:id", requireAuth, requirePermission("excluirArquiv
   return res.json({ ok: true });
 });
 
-app.post("/api/maintenance/sync", requireAuth, (req, res) => {
-  const user = req.currentUser || getSessionUser(req);
-  const projectId = getActiveProjectId(req, user);
-  if (!projectId) {
-    return res.status(400).json({ message: "Projeto ativo obrigatório." });
-  }
-  if (!canSyncMaintenance(user)) {
-    logMaintenanceSync("denied", {
-      projectId,
+app.post(
+  "/api/maintenance/sync",
+  maintenanceSyncAudit,
+  requireAuth,
+  requireStorageWritable,
+  (req, res) => {
+    const user = req.currentUser || getSessionUser(req);
+    const requestedBodyProjectId = String(req.body.projectId || "").trim();
+    const requestedQueryProjectId = String(req.query.projectId || "").trim();
+    const requestedProjectId = requestedBodyProjectId || requestedQueryProjectId;
+    markMaintenanceSyncResponse(res, {
       userId: user ? user.id : "",
-      role: user ? user.role || user.cargo || "" : "",
-      accessPermissions: user ? user.accessPermissions || [] : [],
+      requestedProjectId,
     });
-    return res.status(403).json({ message: "Sem permissão para editar manutenções." });
-  }
-  const incoming = Array.isArray(req.body.items) ? req.body.items : [];
-  const incomingList = incoming
-    .filter((item) => item && typeof item === "object")
-    .map((item) => ({
-      ...item,
-      projectId,
-    }));
-  logMaintenanceSync("request", {
-    projectId,
-    userId: user ? user.id : "",
-    count: incomingList.length,
-  });
-  const existing = loadMaintenanceData();
-  const tombstones = getMaintenanceTombstonesMap(projectId);
-  const existingProject = existing
-    .filter((item) => item && item.projectId === projectId)
-    .filter((item) => !tombstones.has(String(item.id || "")));
-  const existingMap = new Map(
-    existingProject.map((item) => [String(item.id || ""), item]).filter(([id]) => id)
-  );
-  const createdItems = [];
-  const mergedMap = new Map(existingMap);
-  const recurrenceIndex = new Map();
-  mergedMap.forEach((item, id) => {
-    const recurrenceKey = getMaintenanceRecurrenceKey(item);
-    if (recurrenceKey) {
-      recurrenceIndex.set(recurrenceKey, id);
-    }
-  });
-  incomingList.forEach((item) => {
-    if (!item || !item.id) {
-      return;
-    }
-    const incomingId = String(item.id);
-    if (tombstones.has(incomingId)) {
-      if (shouldLogMaintenanceSync(item, projectId)) {
-        logMaintenanceSync("skip.tombstone", {
-          projectId,
-          userId: user ? user.id : "",
-          id: incomingId,
-        });
-      }
-      return;
-    }
-    const recurrenceKey = getMaintenanceRecurrenceKey(item);
-    let targetId = incomingId;
-    let current = mergedMap.get(targetId) || null;
-    if (!current && recurrenceKey) {
-      const recurrenceId = recurrenceIndex.get(recurrenceKey);
-      if (recurrenceId) {
-        targetId = recurrenceId;
-        current = mergedMap.get(targetId) || null;
-      }
-    }
-    const sanitizedItem = sanitizeMaintenanceIncoming(item, current, user);
-    if (!current) {
-      createdItems.push(sanitizedItem);
-    }
-    let mergedItem = pickMaintenanceMerge(current, sanitizedItem);
-    if (current && current.id && String(mergedItem.id || "") !== String(current.id)) {
-      mergedItem = { ...mergedItem, id: current.id };
-    }
-    if (
-      shouldLogMaintenanceSync(sanitizedItem, projectId) ||
-      shouldLogMaintenanceSync(current, projectId)
-    ) {
-      logMaintenanceSync("merge", {
-        projectId,
+    const respondSyncError = (statusCode, reason, message, extra = {}) => {
+      const payload = {
+        status: statusCode,
+        reason,
         userId: user ? user.id : "",
-        incoming: summarizeMaintenanceSyncItem(sanitizedItem),
-        current: summarizeMaintenanceSyncItem(current),
-        merged: summarizeMaintenanceSyncItem(mergedItem),
+        requestedProjectId,
+        projectId: extra.projectId || "",
+        count: Number.isFinite(extra.count) ? extra.count : undefined,
+      };
+      if (extra.storageFailure) {
+        payload.storage = {
+          fileName: extra.storageFailure.fileName,
+          code: extra.storageFailure.code,
+          at: extra.storageFailure.at,
+        };
+      }
+      markMaintenanceSyncResponse(res, {
+        reason,
+        projectId: payload.projectId,
+        count: Number.isFinite(payload.count) ? payload.count : undefined,
+      });
+      console.warn("[maintenance-sync] reject", payload);
+      return res.status(statusCode).json({ message, reason });
+    };
+
+    if (requestedProjectId && !userHasProjectAccess(user, requestedProjectId)) {
+      return respondSyncError(403, "project_access_denied", "Nao autorizado.", {
+        projectId: requestedProjectId,
       });
     }
-    if (targetId !== incomingId) {
-      mergedMap.delete(incomingId);
-    }
-    mergedMap.set(targetId, mergedItem);
-    const mergedRecurrenceKey = getMaintenanceRecurrenceKey(mergedItem) || recurrenceKey;
-    if (mergedRecurrenceKey) {
-      recurrenceIndex.set(mergedRecurrenceKey, targetId);
-    }
-  });
-  let mergedProject = Array.from(mergedMap.values()).filter(Boolean);
-  const deduped = dedupeMaintenanceRecords(mergedProject, projectId);
-  if (deduped.changed) {
-    mergedProject = deduped.list;
-  }
-  const mergedProjectIds = new Set(
-    mergedProject.map((item) => String((item && item.id) || "")).filter(Boolean)
-  );
-  const persistedCreatedItems = createdItems.filter((item) => {
-    const id = String((item && item.id) || "").trim();
-    return Boolean(id) && mergedProjectIds.has(id);
-  });
-  const filtered = existing.filter((item) => !(item && item.projectId === projectId));
-  let merged = [...filtered, ...mergedProject];
-  const ssSequenced = ensureMaintenanceSsNumbers(merged);
-  if (ssSequenced.changed) {
-    merged = ssSequenced.list;
-  }
-  writeJson(MAINTENANCE_FILE, merged);
-  touchCompat("maintenance", projectId);
-  DASHBOARD_CACHE.delete(projectId);
-  if (persistedCreatedItems.length) {
-    const ip = getClientIp(req);
-    runAutomationsForItems("maintenance_created", persistedCreatedItems, user, ip).catch((error) => {
-      console.warn(
-        "Automacoes falharam.",
-        error && error.message ? error.message : error
-      );
-    });
-    notifyProjectTeamMaintenanceCreated(persistedCreatedItems, user, ip, projectId).catch((error) => {
-      console.warn(
-        "Aviso de nova manutencao falhou.",
-        error && error.message ? error.message : error
-      );
-    });
-  }
-  broadcastSse("maintenance.updated", {
-    projectId,
-    count: incomingList.length,
-    source: "sync",
-  });
-  return res.json({ ok: true, count: incomingList.length, project: projectId });
-});
 
+    const projectId = requestedProjectId || getActiveProjectId(req, user);
+    markMaintenanceSyncResponse(res, { projectId: projectId || "" });
+    if (!projectId) {
+      return respondSyncError(400, "missing_active_project", "Projeto ativo obrigatorio.");
+    }
+    if (!userHasProjectAccess(user, projectId)) {
+      return respondSyncError(403, "project_access_denied", "Nao autorizado.", { projectId });
+    }
+    if (req.session && req.session.activeProjectId !== projectId) {
+      req.session.activeProjectId = projectId;
+    }
+    if (!canSyncMaintenance(user)) {
+      logMaintenanceSync("denied", {
+        projectId,
+        userId: user ? user.id : "",
+        role: user ? user.role || user.cargo || "" : "",
+        accessPermissions: user ? user.accessPermissions || [] : [],
+      });
+      return respondSyncError(
+        403,
+        "sync_permission_denied",
+        "Sem permissao para editar manutencoes.",
+        { projectId }
+      );
+    }
+
+    const incoming = Array.isArray(req.body.items) ? req.body.items : [];
+    const incomingList = incoming
+      .filter((item) => item && typeof item === "object")
+      .map((item) => ({
+        ...item,
+        projectId,
+      }));
+    markMaintenanceSyncResponse(res, { count: incomingList.length });
+    logMaintenanceSync("request", {
+      projectId,
+      requestedProjectId: requestedProjectId || "",
+      userId: user ? user.id : "",
+      count: incomingList.length,
+    });
+
+    const existing = loadMaintenanceData();
+    const tombstones = getMaintenanceTombstonesMap(projectId);
+    const existingProject = existing
+      .filter((item) => item && item.projectId === projectId)
+      .filter((item) => !tombstones.has(String(item.id || "")));
+    const existingMap = new Map(
+      existingProject.map((item) => [String(item.id || ""), item]).filter(([id]) => id)
+    );
+    const createdItems = [];
+    const mergedMap = new Map(existingMap);
+    const recurrenceIndex = new Map();
+    mergedMap.forEach((item, id) => {
+      const recurrenceKey = getMaintenanceRecurrenceKey(item);
+      if (recurrenceKey) {
+        recurrenceIndex.set(recurrenceKey, id);
+      }
+    });
+
+    incomingList.forEach((item) => {
+      if (!item || !item.id) {
+        return;
+      }
+      const incomingId = String(item.id);
+      if (tombstones.has(incomingId)) {
+        if (shouldLogMaintenanceSync(item, projectId)) {
+          logMaintenanceSync("skip.tombstone", {
+            projectId,
+            userId: user ? user.id : "",
+            id: incomingId,
+          });
+        }
+        return;
+      }
+      const recurrenceKey = getMaintenanceRecurrenceKey(item);
+      let targetId = incomingId;
+      let current = mergedMap.get(targetId) || null;
+      if (!current && recurrenceKey) {
+        const recurrenceId = recurrenceIndex.get(recurrenceKey);
+        if (recurrenceId) {
+          targetId = recurrenceId;
+          current = mergedMap.get(targetId) || null;
+        }
+      }
+      const sanitizedItem = sanitizeMaintenanceIncoming(item, current, user);
+      if (!current) {
+        createdItems.push(sanitizedItem);
+      }
+      let mergedItem = pickMaintenanceMerge(current, sanitizedItem);
+      if (current && current.id && String(mergedItem.id || "") !== String(current.id)) {
+        mergedItem = { ...mergedItem, id: current.id };
+      }
+      if (
+        shouldLogMaintenanceSync(sanitizedItem, projectId) ||
+        shouldLogMaintenanceSync(current, projectId)
+      ) {
+        logMaintenanceSync("merge", {
+          projectId,
+          userId: user ? user.id : "",
+          incoming: summarizeMaintenanceSyncItem(sanitizedItem),
+          current: summarizeMaintenanceSyncItem(current),
+          merged: summarizeMaintenanceSyncItem(mergedItem),
+        });
+      }
+      if (targetId !== incomingId) {
+        mergedMap.delete(incomingId);
+      }
+      mergedMap.set(targetId, mergedItem);
+      const mergedRecurrenceKey = getMaintenanceRecurrenceKey(mergedItem) || recurrenceKey;
+      if (mergedRecurrenceKey) {
+        recurrenceIndex.set(mergedRecurrenceKey, targetId);
+      }
+    });
+
+    let mergedProject = Array.from(mergedMap.values()).filter(Boolean);
+    const deduped = dedupeMaintenanceRecords(mergedProject, projectId);
+    if (deduped.changed) {
+      mergedProject = deduped.list;
+    }
+    const mergedProjectIds = new Set(
+      mergedProject.map((item) => String((item && item.id) || "")).filter(Boolean)
+    );
+    const persistedCreatedItems = createdItems.filter((item) => {
+      const id = String((item && item.id) || "").trim();
+      return Boolean(id) && mergedProjectIds.has(id);
+    });
+    const filtered = existing.filter((item) => !(item && item.projectId === projectId));
+    let merged = [...filtered, ...mergedProject];
+    const ssSequenced = ensureMaintenanceSsNumbers(merged);
+    if (ssSequenced.changed) {
+      merged = ssSequenced.list;
+    }
+
+    const writeOk = writeJson(MAINTENANCE_FILE, merged);
+    if (!writeOk) {
+      return respondSyncError(503, "storage_write_failed", STORAGE_READONLY_MESSAGE, {
+        projectId,
+        count: incomingList.length,
+        storageFailure: getStorageWriteFailureSnapshot(),
+      });
+    }
+
+    const compatResult = touchCompat("maintenance", projectId);
+    DASHBOARD_CACHE.delete(projectId);
+    if (persistedCreatedItems.length) {
+      const ip = getClientIp(req);
+      runAutomationsForItems("maintenance_created", persistedCreatedItems, user, ip).catch((error) => {
+        console.warn(
+          "Automacoes falharam.",
+          error && error.message ? error.message : error
+        );
+      });
+      notifyProjectTeamMaintenanceCreated(persistedCreatedItems, user, ip, projectId).catch((error) => {
+        console.warn(
+          "Aviso de nova manutencao falhou.",
+          error && error.message ? error.message : error
+        );
+      });
+    }
+
+    const sseResult = broadcastSse("maintenance.updated", {
+      projectId,
+      count: incomingList.length,
+      source: "sync",
+    });
+    markMaintenanceSyncResponse(res, {
+      reason: "ok",
+      projectId,
+      count: incomingList.length,
+      sseDelivered: sseResult.delivered,
+      sseClients: sseResult.total,
+    });
+    console.info("[maintenance-sync] ok", {
+      userId: user ? user.id : "",
+      projectId,
+      count: incomingList.length,
+      compatSaved: Boolean(compatResult && compatResult.saved),
+      sseDelivered: sseResult.delivered,
+      sseClients: sseResult.total,
+    });
+    return res.json({ ok: true, count: incomingList.length, project: projectId });
+  }
+);
 app.get("/api/maintenance/templates", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   const fromQuery = String(req.query.projectId || "").trim();
@@ -13526,7 +13811,7 @@ app.get("/api/maintenance", requireAuth, (req, res) => {
   return res.json({ items: list, projectId });
 });
 
-app.delete("/api/maintenance/:id", requireAuth, (req, res) => {
+app.delete("/api/maintenance/:id", requireAuth, requireStorageWritable, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   const maintenanceId = String(req.params.id || "").trim();
   const fromQuery = String(req.query.projectId || "").trim();
@@ -13551,7 +13836,13 @@ app.delete("/api/maintenance/:id", requireAuth, (req, res) => {
     return res.status(404).json({ message: "Manutenção não encontrada." });
   }
   dataset.splice(index, 1);
-  writeJson(MAINTENANCE_FILE, dataset);
+  const writeOk = writeJson(MAINTENANCE_FILE, dataset);
+  if (!writeOk) {
+    return res.status(503).json({
+      message: STORAGE_READONLY_MESSAGE,
+      reason: "storage_write_failed",
+    });
+  }
   touchCompat("maintenance", projectId);
   addMaintenanceTombstone(projectId, maintenanceId, user ? user.id : null);
   DASHBOARD_CACHE.delete(projectId);
@@ -13570,7 +13861,7 @@ app.delete("/api/maintenance/:id", requireAuth, (req, res) => {
   return res.json({ ok: true, removedId: maintenanceId, projectId });
 });
 
-app.post("/api/maintenance/reopen", requireAuth, (req, res) => {
+app.post("/api/maintenance/reopen", requireAuth, requireStorageWritable, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   const projectId = getActiveProjectId(req, user);
   if (!projectId) {
@@ -13622,7 +13913,13 @@ app.post("/api/maintenance/reopen", requireAuth, (req, res) => {
     updated.executionStartedAt = now;
   }
   dataset[index] = updated;
-  writeJson(MAINTENANCE_FILE, dataset);
+  const writeOk = writeJson(MAINTENANCE_FILE, dataset);
+  if (!writeOk) {
+    return res.status(503).json({
+      message: STORAGE_READONLY_MESSAGE,
+      reason: "storage_write_failed",
+    });
+  }
   touchCompat("maintenance", projectId);
   DASHBOARD_CACHE.delete(projectId);
   appendAudit(

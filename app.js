@@ -12543,7 +12543,11 @@ async function setActiveProjectId(nextId, options = {}) {
     try {
       await apiProjetosSetActive(trimmed);
     } catch (error) {
-      // noop: fallback local
+      logSyncDebug("project.active.sync.error", {
+        projectId: trimmed,
+        status: error && error.status ? error.status : null,
+        message: error && error.message ? error.message : String(error || ""),
+      });
     }
   }
   reloadProjectState();
@@ -51726,10 +51730,10 @@ async function apiDeleteAvatar() {
   });
 }
 
-async function apiMaintenanceSync(items) {
+async function apiMaintenanceSync(items, projectId = activeProjectId) {
   return apiRequest("/api/maintenance/sync", {
     method: "POST",
-    body: JSON.stringify({ items }),
+    body: JSON.stringify({ projectId: projectId || "", items }),
   });
 }
 
@@ -52691,7 +52695,7 @@ async function syncMaintenanceNow(items, force) {
     });
     return { ok: true, skipped: true };
   }
-  maintenanceSyncPromise = apiMaintenanceSync(payloadItems);
+  maintenanceSyncPromise = apiMaintenanceSync(payloadItems, activeProjectId);
   try {
     await maintenanceSyncPromise;
     maintenanceLastSync = Date.now();
