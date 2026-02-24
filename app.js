@@ -1225,6 +1225,9 @@ const modalHistorico = document.getElementById("modalHistorico");
 const listaHistorico = document.getElementById("listaHistorico");
 const historicoVazio = document.getElementById("historicoVazio");
 const historicoResumo = document.getElementById("historicoResumo");
+const historicoTitulo = modalHistorico
+  ? modalHistorico.querySelector(".modal__header h3")
+  : null;
 const btnFecharHistorico = document.getElementById("btnFecharHistorico");
 const btnHistoricoMais = document.getElementById("btnHistoricoMais");
 const btnHistoricoExportar = document.getElementById("btnHistoricoExportar");
@@ -4731,6 +4734,8 @@ let loadingOverlayShownAt = 0;
 let loadingMessageTimer = null;
 let historicoAtualId = null;
 let historicoLimite = HISTORY_PAGE_SIZE;
+let historicoMode = "all";
+let historicoIssueId = "";
 let manutencaoEmLiberacao = null;
 let pendingLiberacaoOverride = null;
 let manutencaoEmBacklogMotivo = null;
@@ -14430,6 +14435,27 @@ function getHistoricoSectionLabel(entry) {
   return "Outros";
 }
 
+function isHistoricoIntercorrenciaEntry(entry, issueId = "") {
+  if (!entry || typeof entry !== "object") {
+    return false;
+  }
+  const action = String(entry.action || "").trim();
+  if (action !== "issue_register" && action !== "issue_status") {
+    return false;
+  }
+  const targetIssueId = String(issueId || "").trim();
+  if (!targetIssueId) {
+    return true;
+  }
+  const detalhes = entry.detalhes && typeof entry.detalhes === "object" ? entry.detalhes : {};
+  return String(detalhes.issueId || "").trim() === targetIssueId;
+}
+
+function getHistoricoIntercorrencia(item, issueId = "") {
+  const historico = sortHistoricoAsc(getHistoricoManutencaoCompleto(item));
+  return historico.filter((entry) => isHistoricoIntercorrenciaEntry(entry, issueId));
+}
+
 function getUltimaAcao(item) {
   if (!item) {
     return null;
@@ -16778,13 +16804,14 @@ function renderDashboardHome() {
     proximasAtividades,
     miniSeries: summaryMiniSeries,
   } = dashboardSummary;
-  const useLocalSummary = !STRICT_SERVER_SYNC;
-  const scopedManutencoes = useLocalSummary && Array.isArray(manutencoes)
+  const scopedManutencoes = Array.isArray(manutencoes)
     ? manutencoes.filter(
         (item) =>
           item && (!activeProjectId || !item.projectId || item.projectId === activeProjectId)
       )
     : [];
+  const hasLocalSummaryData = scopedManutencoes.length > 0;
+  const useLocalSummary = hasLocalSummaryData || !STRICT_SERVER_SYNC;
   const localSummary = useLocalSummary
     ? buildLocalDashboardSummary(scopedManutencoes, activeProjectId)
     : null;
@@ -16867,15 +16894,26 @@ function renderDashboardHome() {
   const sortedAtividades = Array.isArray(proximasAtividades)
     ? proximasAtividades
         .map((item) => {
-          const parsed = parseTimestamp(item.prazo);
-          const date = parsed ? startOfDay(parsed) : null;
+          const date = parseDateOnly(item && item.prazo ? item.prazo : "");
+          let status = "Em dia";
+          if (date && date.getTime() === today.getTime()) {
+            status = "Hoje";
+          } else if (date && date < today) {
+            status = "Atrasada";
+          }
           let bucket = 1;
           if (date && date.getTime() === today.getTime()) {
             bucket = 0;
           } else if (date && date < today) {
             bucket = 2;
           }
-          return { ...item, _bucket: bucket, _date: date };
+          return {
+            ...item,
+            status,
+            prazo: date ? formatDateISO(date) : item.prazo || "-",
+            _bucket: bucket,
+            _date: date,
+          };
         })
         .sort((a, b) => {
           if (a._bucket !== b._bucket) {
@@ -19323,13 +19361,20 @@ async function abrirPreviewIntercorrenciaFotos(row) {
       .issue-photo-card { border: 1px solid #c8d4e4; border-radius: 12px; background: #ffffff; overflow: hidden; display: grid; gap: 8px; }
       .issue-photo-card__head { background: #eef4fb; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #20456d; padding: 8px 10px; }
       .issue-photo-card__name { padding: 0 10px 10px; font-size: 0.84rem; color: #2e4158; word-break: break-word; }
-      .issue-photo-card img { width: 100%; height: 180px; object-fit: cover; display: block; background: #e9eef5; }
+      .issue-photo-card a { display: block; background: #e9eef5; }
+      .issue-photo-card img { width: 100%; max-height: 430px; object-fit: contain; display: block; background: #e9eef5; }
       .issue-photo-card__empty { padding: 16px 10px; font-size: 0.84rem; color: #6a7b90; }
+      .issue-info { margin-top: 12px; padding: 12px; border: 1px solid #c8d4e4; border-radius: 12px; background: #fff; display: grid; gap: 8px; }
+      .issue-info b { color: #173d66; }
     </style>
   </head>
   <body>
     <h1>${escapeHtml(row.atividade)}</h1>
     <p>${escapeHtml(row.projeto)} · ${escapeHtml(INTERCORRENCIA_STATUS_LABELS[row.status] || row.status)}</p>
+    <div class="issue-info">
+      <div><b>Descrição da falha:</b> ${escapeHtml(row.issue && row.issue.descricao ? row.issue.descricao : "-")}</div>
+      <div><b>Ação imediata:</b> ${escapeHtml(row.issue && row.issue.acaoImediata ? row.issue.acaoImediata : "-")}</div>
+    </div>
     <div class="grid">${cards}</div>
   </body>
 </html>`;
@@ -19356,8 +19401,8 @@ function renderIntercorrencias() {
     const statusLabel = INTERCORRENCIA_STATUS_LABELS[row.status] || row.status;
     const criticidadeLabel = INTERCORRENCIA_CRITICIDADE_LABELS[row.criticidade] || row.criticidade;
     const registroDataTexto = row.registroDate ? formatDateTime(row.registroDate) : "-";
-    const detalhes = row.issue.descricao || "-";
-    const acao = row.issue.acaoImediata || "";
+    const descricaoFalha = row.issue.descricao || "-";
+    const acaoImediata = row.issue.acaoImediata || "-";
     const fotosCount = Array.isArray(row.issue.fotos) ? row.issue.fotos.length : 0;
     const podeGerenciar = canManageIntercorrencia(row.manutencao);
     const statusActions = [];
@@ -19387,20 +19432,12 @@ function renderIntercorrencias() {
     tr.innerHTML = `
       <td><span class="status-badge ${getIntercorrenciaStatusClass(row.status)}">${escapeHtml(statusLabel)}</span></td>
       <td><span class="badge ${getIntercorrenciaCriticidadeClass(row.criticidade)}">${escapeHtml(criticidadeLabel)}</span></td>
-      <td>${escapeHtml(row.atividade)}</td>
+      <td><div class="intercorrencia-text">${escapeHtml(row.atividade)}</div></td>
       <td>${escapeHtml(row.projeto)}</td>
       <td>${escapeHtml(row.responsavel)}</td>
       <td>${escapeHtml(registroDataTexto)}<br /><small>${escapeHtml(row.registroBy)}</small></td>
-      <td>
-        <div class="intercorrencia-detail">${escapeHtml(truncarTexto(detalhes, 220))}</div>
-        ${
-          acao
-            ? `<small class="intercorrencia-detail__sub">Ação imediata: ${escapeHtml(
-                truncarTexto(acao, 160)
-              )}</small>`
-            : ""
-        }
-      </td>
+      <td><div class="intercorrencia-detail">${escapeHtml(descricaoFalha)}</div></td>
+      <td><div class="intercorrencia-detail">${escapeHtml(acaoImediata)}</div></td>
       <td>${fotosCount ? `${fotosCount} foto(s)` : "-"}</td>
       <td><div class="table-actions">${statusActions.join("")}</div></td>
     `;
@@ -48013,9 +48050,19 @@ function renderHistorico(item) {
     return;
   }
   listaHistorico.innerHTML = "";
-  const historico = sortHistoricoAsc(getHistoricoManutencaoCompleto(item));
+  const issueMode = historicoMode === "issue";
+  const historico = issueMode
+    ? getHistoricoIntercorrencia(item, historicoIssueId)
+    : sortHistoricoAsc(getHistoricoManutencaoCompleto(item));
+  if (historicoTitulo) {
+    historicoTitulo.textContent = issueMode
+      ? "Histórico da intercorrência/falha"
+      : "Histórico da manutenção";
+  }
   if (historicoResumo) {
-    historicoResumo.textContent = buildManutencaoResumoTexto(item);
+    historicoResumo.textContent = issueMode
+      ? `${buildManutencaoResumoTexto(item)} | Intercorrência rastreada`
+      : buildManutencaoResumoTexto(item);
   }
 
   if (!historico.length) {
@@ -48155,10 +48202,10 @@ function renderHistorico(item) {
     btnHistoricoMais.hidden = limite >= historico.length;
   }
   if (btnHistoricoExportar) {
-    btnHistoricoExportar.hidden = false;
+    btnHistoricoExportar.hidden = issueMode;
   }
   if (btnHistoricoExportarPdf) {
-    btnHistoricoExportarPdf.hidden = false;
+    btnHistoricoExportarPdf.hidden = issueMode;
   }
 }
 
@@ -48166,6 +48213,20 @@ function abrirHistorico(item) {
   if (!modalHistorico || !listaHistorico || !historicoVazio) {
     return;
   }
+  historicoMode = "all";
+  historicoIssueId = "";
+  historicoAtualId = item.id;
+  historicoLimite = HISTORY_PAGE_SIZE;
+  renderHistorico(item);
+  modalHistorico.hidden = false;
+}
+
+function abrirHistoricoIntercorrencia(item, issueId = "") {
+  if (!modalHistorico || !listaHistorico || !historicoVazio) {
+    return;
+  }
+  historicoMode = "issue";
+  historicoIssueId = String(issueId || "").trim();
   historicoAtualId = item.id;
   historicoLimite = HISTORY_PAGE_SIZE;
   renderHistorico(item);
@@ -48179,6 +48240,11 @@ function fecharHistorico() {
   modalHistorico.hidden = true;
   historicoAtualId = null;
   historicoLimite = HISTORY_PAGE_SIZE;
+  historicoMode = "all";
+  historicoIssueId = "";
+  if (historicoTitulo) {
+    historicoTitulo.textContent = "Histórico da manutenção";
+  }
 }
 
 function escapeCsv(valor) {
@@ -54256,7 +54322,7 @@ if (intercorrenciaTableBody) {
     const issueRow = getIntercorrenciaRows().find((entry) => entry.maintenanceId === maintenanceId);
     const action = actionBtn.dataset.intercorrenciaAction || "";
     if (action === "historico") {
-      abrirHistorico(item);
+      abrirHistoricoIntercorrencia(item, issueRow && issueRow.issue ? issueRow.issue.id : "");
       return;
     }
     if (action === "fotos") {
