@@ -12828,7 +12828,8 @@ function isAdminUser(user) {
 }
 
 function isSystemUserId(id) {
-  return String(id || "") === SYSTEM_USER_ID;
+  const normalized = normalizeUserIdentity(id);
+  return normalized === normalizeUserIdentity(SYSTEM_USER_ID) || normalized === "sistema";
 }
 
 function isTeamUserId(id) {
@@ -35553,12 +35554,16 @@ function isSystemTemplateMaintenance(item) {
     return false;
   }
   const createdBy = String(item.createdBy || "").trim();
+  const createdByName = String(item.createdByName || item.autorNome || "").trim();
   if (createdBy && isSystemUserId(createdBy)) {
     return true;
   }
-  const templateId = String(item.templateId || "").trim();
-  if (!templateId) {
-    return false;
+  if (createdByName && isSystemUserId(createdByName)) {
+    return true;
+  }
+  const templateId = String(item.templateId || item.template || item.modeloId || "").trim();
+  if (templateId) {
+    return true;
   }
   const source = normalizeUserIdentity(
     item.source || item.origem || item.createdFrom || item.createdVia || item.origemCadastro || ""
@@ -47040,7 +47045,7 @@ function abrirRegistroExecucao(item) {
     return;
   }
   if (
-    !ensureConclusaoPermitida(item, mostrarMensagemManutencao, {
+    !ensureExecucaoPermitida(item, mostrarMensagemManutencao, {
       ignorePrazoExpirado: true,
     })
   ) {
@@ -50166,27 +50171,15 @@ function abrirConclusao(item) {
     return;
   }
   if (
-    !ensureExecucaoPermitida(item, mostrarMensagemManutencao, {
+    !ensureConclusaoPermitida(item, mostrarMensagemManutencao, {
       ignorePrazoExpirado: true,
     })
   ) {
     return;
   }
-  if (!hasUserSignatureConfigured(currentUser)) {
-    mostrarMensagemManutencao(
-      "Cadastre sua assinatura no Perfil para concluir a manutenção.",
-      true
-    );
-    return;
-  }
   const executionStartedIso = getExecutionStartedIso(item);
   if (!executionStartedIso) {
     mostrarMensagemManutencao("Início da execução não encontrado.", true);
-    return;
-  }
-  if (!hasExecucaoRegistradaCompleta(item)) {
-    mostrarMensagemManutencao("Registre a execução antes de concluir.", true);
-    abrirRegistroExecucao(item);
     return;
   }
   const registro = item.registroExecucao || {};
@@ -50248,6 +50241,13 @@ function abrirConclusao(item) {
   }
   renderConclusaoAssinatura(currentUser);
   setConclusaoAssinaturaErro("");
+  if (!hasUserSignatureConfigured(currentUser)) {
+    mostrarMensagemConclusao("Cadastre sua assinatura no Perfil antes de concluir.");
+  } else if (!hasExecucaoRegistradaCompleta(item)) {
+    mostrarMensagemConclusao("Finalize o registro da execução antes de concluir.");
+  } else {
+    mostrarMensagemConclusao("");
+  }
   if (conclusaoObsExecucao) {
     conclusaoObsExecucao.value = registro.observacaoExecucao || "";
   }
@@ -50959,8 +50959,10 @@ function agirNaManutencao(event) {
     return;
   }
 
-  const id = card.dataset.id;
-  const index = manutencoes.findIndex((item) => item.id === id);
+  const id = String(card.dataset.id || "");
+  const index = manutencoes.findIndex(
+    (item) => String((item && item.id) || "") === id
+  );
   if (index < 0) {
     return;
   }

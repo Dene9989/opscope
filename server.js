@@ -5858,6 +5858,106 @@ function normalizeResponsavelIds(list) {
   return Array.from(new Set(ids.filter(Boolean)));
 }
 
+const MAINTENANCE_SYSTEM_USER_IDS = new Set(["system", "sistema"]);
+
+function normalizeMaintenanceIdentity(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function extractMaintenanceIdentityNumericTokens(value) {
+  const raw = String(value || "");
+  if (!raw) {
+    return [];
+  }
+  const tokens = raw.match(/\b\d{3,}\b/g) || [];
+  return Array.from(new Set(tokens.map((item) => item.trim()).filter(Boolean)));
+}
+
+function getMaintenanceUserIdentityKeys(user) {
+  if (!user || typeof user !== "object") {
+    return [];
+  }
+  const values = [
+    user.id,
+    user.matricula,
+    user.username,
+    user.email,
+    user.name,
+    user.nome,
+  ];
+  if (user.name && user.matricula) {
+    values.push(`${user.name} (${user.matricula})`);
+  }
+  return Array.from(
+    new Set(values.map((entry) => normalizeMaintenanceIdentity(entry)).filter(Boolean))
+  );
+}
+
+function resolveMaintenanceUserByIdentity(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return null;
+  }
+  const normalized = normalizeMaintenanceIdentity(raw);
+  const list = Array.isArray(users) ? users : [];
+  const byIdentity = list.find((entry) =>
+    getMaintenanceUserIdentityKeys(entry).includes(normalized)
+  );
+  if (byIdentity) {
+    return byIdentity;
+  }
+  const numericTokens = extractMaintenanceIdentityNumericTokens(raw);
+  if (!numericTokens.length) {
+    return null;
+  }
+  const numericSet = new Set(
+    numericTokens.map((token) => normalizeMaintenanceIdentity(token))
+  );
+  return (
+    list.find((entry) =>
+      numericSet.has(normalizeMaintenanceIdentity(entry && entry.matricula))
+    ) || null
+  );
+}
+
+function isSystemMaintenanceActor(value) {
+  return MAINTENANCE_SYSTEM_USER_IDS.has(normalizeMaintenanceIdentity(value));
+}
+
+function isSystemTemplateMaintenance(item) {
+  if (!item || typeof item !== "object") {
+    return false;
+  }
+  const createdBy = String(item.createdBy || "").trim();
+  const createdByName = String(item.createdByName || item.autorNome || "").trim();
+  if (createdBy && isSystemMaintenanceActor(createdBy)) {
+    return true;
+  }
+  if (createdByName && isSystemMaintenanceActor(createdByName)) {
+    return true;
+  }
+  const templateId = String(item.templateId || item.template || item.modeloId || "").trim();
+  if (templateId) {
+    return true;
+  }
+  const source = normalizeMaintenanceIdentity(
+    item.source || item.origem || item.createdFrom || item.createdVia || item.origemCadastro || ""
+  );
+  if (!source) {
+    return false;
+  }
+  return (
+    source.includes("recorrenc") ||
+    source.includes("modelo") ||
+    source.includes("template") ||
+    source.includes("sistema")
+  );
+}
+
 function getMaintenanceResponsibleIds(item) {
   if (!item || typeof item !== "object") {
     return [];
@@ -5887,12 +5987,48 @@ function isUserResponsibleForMaintenance(item, user) {
   if (!ids.length) {
     return true;
   }
-  return ids.some((id) => String(id) === String(user.id));
+  const actorIdentitySet = new Set(getMaintenanceUserIdentityKeys(user));
+  const actorNumericSet = new Set(
+    extractMaintenanceIdentityNumericTokens(user.matricula || user.id || "").map((token) =>
+      normalizeMaintenanceIdentity(token)
+    )
+  );
+  return ids.some((id) => {
+    const raw = String(id || "").trim();
+    if (!raw) {
+      return false;
+    }
+    const normalized = normalizeMaintenanceIdentity(raw);
+    if (actorIdentitySet.has(normalized)) {
+      return true;
+    }
+    const numericTokens = extractMaintenanceIdentityNumericTokens(raw);
+    if (
+      numericTokens.some((token) =>
+        actorNumericSet.has(normalizeMaintenanceIdentity(token))
+      )
+    ) {
+      return true;
+    }
+    const resolved = resolveMaintenanceUserByIdentity(raw);
+    if (!resolved) {
+      return false;
+    }
+    return getMaintenanceUserIdentityKeys(resolved).some((token) =>
+      actorIdentitySet.has(token)
+    );
+  });
 }
 
 function canExecuteMaintenanceForUser(item, user) {
   if (!user) {
     return false;
+  }
+  if (!hasPermission(user, "complete")) {
+    return false;
+  }
+  if (isSystemTemplateMaintenance(item)) {
+    return true;
   }
   if (hasGranularPermission(user, "executarManutencaoTerceiros")) {
     return true;
