@@ -14369,7 +14369,7 @@ function buildSyntheticMaintenanceHistory(item, baseHistory) {
   const execStartAt = pickItemValue(item, ["executionStartedAt", "inicioExecucao", "inicio"]);
   const execStartBy = pickItemValue(item, ["executionStartedBy", "executadaPor"]);
   const participantes = normalizeHistoricoParticipantes(liberacao.participantes);
-  const documentos = liberacao.documentos || item.documentos || {};
+  const documentos = getMaintenanceDocsMap(item);
   const documentosLista = DOC_KEYS.filter((key) => documentos && documentos[key]).map(
     (key) => DOC_LABELS[key] || key
   );
@@ -14639,6 +14639,45 @@ function getLiberacao(item) {
   return item.liberacao;
 }
 
+function getMaintenanceDocsMap(item) {
+  if (!item || typeof item !== "object") {
+    return {};
+  }
+  const liberacao = getLiberacao(item) || {};
+  const merged = {};
+  const fromMaintenance = getMaintenanceSstDocumentos(item, liberacao);
+  DOC_KEYS.forEach((key) => {
+    const normalized = normalizeSstDocFile(fromMaintenance[key]);
+    if (normalized) {
+      merged[key] = normalized;
+    }
+  });
+  const relatedId = item.id ? String(item.id) : "";
+  if (!relatedId || !Array.isArray(sstDocs) || !sstDocs.length) {
+    return merged;
+  }
+  const relatedDocs = sstDocs
+    .filter((doc) => doc && String(doc.relatedId || "") === relatedId)
+    .sort((a, b) => {
+      const dateA = getTimeValue(a && (a.updatedAt || a.createdAt));
+      const dateB = getTimeValue(b && (b.updatedAt || b.createdAt));
+      return (dateB || 0) - (dateA || 0);
+    });
+  relatedDocs.forEach((doc) => {
+    const docs = getSstDocDocuments(doc);
+    DOC_KEYS.forEach((key) => {
+      if (merged[key]) {
+        return;
+      }
+      const normalized = normalizeSstDocFile(docs[key]);
+      if (normalized) {
+        merged[key] = normalized;
+      }
+    });
+  });
+  return merged;
+}
+
 function isLiberacaoOk(item) {
   const liberacao = getLiberacao(item);
   if (!liberacao) {
@@ -14663,7 +14702,7 @@ function isLiberacaoOk(item) {
   if (critico && participantes.length < 2) {
     return false;
   }
-  const documentos = liberacao.documentos || {};
+  const documentos = getMaintenanceDocsMap(item);
   if (!documentos.apr || !documentos.os || !documentos.pte) {
     return false;
   }
@@ -16661,22 +16700,50 @@ async function abrirDocumento(doc) {
   if (!doc) {
     return;
   }
-  const dataUrl = doc.dataUrl || "";
+  const normalized =
+    normalizeSstDocFile(doc) ||
+    (typeof doc === "string"
+      ? normalizeSstDocFile(
+          /^(data:|blob:|https?:|\/)/i.test(doc.trim())
+            ? { url: doc.trim(), name: doc.trim().split("/").pop() || "Documento" }
+            : { name: doc.trim() }
+        )
+      : null);
+  if (!normalized) {
+    return;
+  }
+  const dataUrl = normalized.dataUrl || "";
   if (dataUrl && dataUrl.startsWith("data:")) {
     abrirPreview(dataUrl);
     return;
   }
-  if (doc.docId) {
-    const registro = await getDocById(doc.docId);
+  const fileId = normalized.docId || normalized.id || normalized.fileId || "";
+  if (fileId) {
+    const registro = await getDocById(fileId);
     if (registro && registro.blob) {
       const blobUrl = URL.createObjectURL(registro.blob);
       abrirPreview(blobUrl, blobUrl);
       return;
     }
-    window.alert("Documento não encontrado.");
-    return;
+    const directContentUrl = resolvePublicUrl(`/api/files/${encodeURIComponent(fileId)}/content`);
+    if (directContentUrl) {
+      abrirPreview(directContentUrl);
+      return;
+    }
+    try {
+      const data = await apiRequest(`/api/files/${encodeURIComponent(fileId)}`);
+      const rawUrl =
+        data && data.file && typeof data.file.url === "string" ? String(data.file.url).trim() : "";
+      const resolved = rawUrl ? resolvePublicUrl(rawUrl) : "";
+      if (resolved) {
+        abrirPreview(resolved);
+        return;
+      }
+    } catch (error) {
+      // noop
+    }
   }
-  const url = resolvePublicUrl(doc.url || "");
+  const url = resolvePublicUrl(normalized.url || "");
   if (!url) {
     window.alert("Documento não encontrado.");
     return;
@@ -16702,14 +16769,28 @@ function renderDocList(container, documentos, critico = false) {
     const label = document.createElement("span");
     label.textContent = DOC_LABELS[key] || key;
     const action = document.createElement("div");
-    const doc = docs[key];
-    if (doc && (doc.dataUrl || doc.url || doc.docId)) {
+    const rawDoc = docs[key];
+    const doc =
+      normalizeSstDocFile(rawDoc) ||
+      (typeof rawDoc === "string"
+        ? normalizeSstDocFile(
+            /^(data:|blob:|https?:|\/)/i.test(rawDoc.trim())
+              ? { url: rawDoc.trim(), name: rawDoc.trim().split("/").pop() || "Documento" }
+              : { name: rawDoc.trim() }
+          )
+        : null);
+    if (doc && (doc.dataUrl || doc.url || doc.docId || doc.id || doc.fileId)) {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "btn btn--ghost btn--small";
       btn.textContent = "Visualizar";
       btn.addEventListener("click", () => abrirDocumento(doc));
       action.append(btn);
+    } else if (doc) {
+      row.classList.add("is-attached");
+      const attached = document.createElement("small");
+      attached.textContent = "Anexado";
+      action.append(attached);
     } else {
       row.classList.add("is-pending");
       const pending = document.createElement("small");
@@ -26614,13 +26695,8 @@ function isItemCritico(item) {
 }
 
 function getItemDocs(item) {
-  if (!item) {
-    return null;
-  }
-  if (item.liberacao && item.liberacao.documentos) {
-    return item.liberacao.documentos;
-  }
-  return item.documentos || item.docs || null;
+  const docs = getMaintenanceDocsMap(item);
+  return Object.keys(docs).length ? docs : null;
 }
 
 function getDocCompliance(item) {
@@ -47011,7 +47087,8 @@ async function confirmarInicioExecucao() {
   salvarManutencoes(manutencoes);
   scheduleMaintenanceSync(manutencoes, true);
   const liberacao = getLiberacao(item) || {};
-  const documentosLista = DOC_KEYS.filter((key) => liberacao.documentos && liberacao.documentos[key]).map(
+  const docsExecucao = getMaintenanceDocsMap(item);
+  const documentosLista = DOC_KEYS.filter((key) => docsExecucao[key]).map(
     (key) => DOC_LABELS[key] || key
   );
   logAction("execute", atualizado, {
@@ -47138,7 +47215,7 @@ function abrirRegistroExecucao(item) {
     registroParticipantes.value = getParticipantesLabel(liberacao.participantes);
   }
   if (registroDocs) {
-    const docs = liberacao.documentos || itemAtual.documentos || {};
+    const docs = getMaintenanceDocsMap(itemAtual);
     renderDocList(registroDocs, docs, isItemCritico(itemAtual));
   }
   const registroSalvo = itemAtual.registroExecucao || {};
@@ -47365,7 +47442,8 @@ function salvarRegistroExecucao(event) {
   manutencoes[index] = atualizado;
   salvarManutencoes(manutencoes);
   const liberacao = getLiberacao(item) || {};
-  const documentosLista = DOC_KEYS.filter((key) => liberacao.documentos && liberacao.documentos[key]).map(
+  const docsRegistro = getMaintenanceDocsMap(item);
+  const documentosLista = DOC_KEYS.filter((key) => docsRegistro[key]).map(
     (key) => DOC_LABELS[key] || key
   );
   logAction("execute_register", atualizado, {
@@ -47752,9 +47830,10 @@ async function finalizarLiberacao(index, item, liberacaoBase, overrideJustificat
   };
   manutencoes[index] = atualizado;
   salvarManutencoes(manutencoes);
-  const documentosLista = DOC_KEYS.filter(
-    (key) => liberacao.documentos && liberacao.documentos[key]
-  ).map((key) => DOC_LABELS[key] || key);
+  const docsLiberacao = getMaintenanceDocsMap(atualizado);
+  const documentosLista = DOC_KEYS.filter((key) => docsLiberacao[key]).map(
+    (key) => DOC_LABELS[key] || key
+  );
   logAction("release", atualizado, {
     osNumero: liberacao.osNumero,
     categoria: liberacao.categoria || atualizado.categoria || "",
@@ -48115,9 +48194,10 @@ function salvarCancelarInicio(event) {
   manutencoes[index] = atualizado;
   salvarManutencoes(manutencoes);
   const liberacao = getLiberacao(item) || {};
-  const documentosLista = DOC_KEYS.filter(
-    (key) => liberacao.documentos && liberacao.documentos[key]
-  ).map((key) => DOC_LABELS[key] || key);
+  const docsCancelamento = getMaintenanceDocsMap(atualizado);
+  const documentosLista = DOC_KEYS.filter((key) => docsCancelamento[key]).map(
+    (key) => DOC_LABELS[key] || key
+  );
   logAction("cancel_start", atualizado, {
     motivo,
     observacao,
@@ -50323,7 +50403,7 @@ function abrirConclusao(item) {
     conclusaoParticipantes.value = getParticipantesLabel(liberacao.participantes);
   }
   if (conclusaoDocs) {
-    const docs = liberacao.documentos || item.documentos || {};
+    const docs = getMaintenanceDocsMap(item);
     renderDocList(conclusaoDocs, docs, isItemCritico(item));
   }
   atualizarDuracaoConclusao();
@@ -50688,9 +50768,10 @@ async function salvarConclusao(event) {
       dataProgramada && fimDate
         ? diffInDays(startOfDay(dataProgramada), startOfDay(fimDate))
         : null;
-    const documentosLista = DOC_KEYS.filter(
-      (key) => liberacao && liberacao.documentos && liberacao.documentos[key]
-    ).map((key) => DOC_LABELS[key] || key);
+    const docsConclusao = getMaintenanceDocsMap(atualizado);
+    const documentosLista = DOC_KEYS.filter((key) => docsConclusao[key]).map(
+      (key) => DOC_LABELS[key] || key
+    );
     logAction("complete", atualizado, {
       dataProgramada: item.data || "",
       dataConclusao: formatDateISO(startOfDay(fimDate)),
