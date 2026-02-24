@@ -597,6 +597,36 @@
                   <span class="badge badge--neutral" id="badgeBacklog">0</span>
                 </span>
               </button>
+              <button
+                class="nav-item"
+                type="button"
+                data-tab="intercorrencias"
+                data-tooltip="Intercorr&ecirc;ncias/Falhas Registradas"
+              >
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M12 3 2 20h20L12 3Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M12 9v5"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                    />
+                    <circle cx="12" cy="17" r="1" fill="currentColor" />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Intercorr&ecirc;ncias/Falhas</span>
+                <span class="nav-item__meta">
+                  <span class="badge badge--warn" id="badgeIntercorrencias">0</span>
+                </span>
+              </button>
             </div>
           </section>
 
@@ -2552,6 +2582,70 @@
         <p class="hint">Itens atrasados aparecem aqui automaticamente para replanejamento.</p>
         <div id="listaBacklog" class="manutencoes"></div>
         <p id="listaBacklogVazia" class="empty-state">Nenhuma manutenção em backlog.</p>
+      </section>
+    </section>
+
+    <section class="panel" id="intercorrencias" data-panel="intercorrencias">
+      <section class="card">
+        <div class="section-title">
+          <div>
+            <h2>Intercorr&ecirc;ncias / Falhas registradas</h2>
+            <p class="hint">
+              Monitoramento rastre&aacute;vel de falhas encontradas na conclus&atilde;o de manuten&ccedil;&otilde;es.
+            </p>
+          </div>
+        </div>
+        <div id="intercorrenciaKpis" class="intercorrencia-kpis"></div>
+        <div class="form-grid intercorrencia-filtros">
+          <div class="field">
+            <label for="intercorrenciaStatusFiltro">Status</label>
+            <select id="intercorrenciaStatusFiltro">
+              <option value="">Todos</option>
+              <option value="ABERTA">Aberta</option>
+              <option value="EM_TRATATIVA">Em tratativa</option>
+              <option value="CORRIGIDA">Corrigida</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="intercorrenciaCriticidadeFiltro">Criticidade</label>
+            <select id="intercorrenciaCriticidadeFiltro">
+              <option value="">Todas</option>
+              <option value="BAIXA">Baixa</option>
+              <option value="MEDIA">M&eacute;dia</option>
+              <option value="ALTA">Alta</option>
+              <option value="CRITICA">Cr&iacute;tica</option>
+            </select>
+          </div>
+          <div class="field" data-full>
+            <label for="intercorrenciaBusca">Buscar</label>
+            <input
+              id="intercorrenciaBusca"
+              type="text"
+              placeholder="Atividade, projeto, respons&aacute;vel, descri&ccedil;&atilde;o"
+            />
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table intercorrencia-table">
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>Criticidade</th>
+                <th>Atividade</th>
+                <th>Projeto</th>
+                <th>Respons&aacute;vel</th>
+                <th>Registro</th>
+                <th>Detalhes</th>
+                <th>Fotos</th>
+                <th>A&ccedil;&otilde;es</th>
+              </tr>
+            </thead>
+            <tbody id="intercorrenciaTableBody"></tbody>
+          </table>
+        </div>
+        <p id="intercorrenciaEmpty" class="empty-state">
+          Nenhuma intercorr&ecirc;ncia/falha registrada para os filtros atuais.
+        </p>
       </section>
     </section>
 
@@ -6779,6 +6873,102 @@
               <span>Confirmo minha assinatura para encerrar esta manutenção.</span>
             </label>
             <p id="conclusaoAssinaturaErro" class="field-error" hidden></p>
+          </div>
+          <div class="field" data-full>
+            <label class="checkbox-field">
+              <input id="conclusaoFalhaToggle" type="checkbox" />
+              <span>Registrar intercorr&ecirc;ncia/falha encontrada?</span>
+            </label>
+            <p class="hint">
+              Se houver intercorr&ecirc;ncia, descreva abaixo para rastreio e acompanhamento at&eacute; corre&ccedil;&atilde;o.
+            </p>
+          </div>
+          <div class="field" data-full id="conclusaoFalhaField" hidden>
+            <div class="form-grid">
+              <div class="field">
+                <label for="conclusaoFalhaCriticidade">Criticidade da falha</label>
+                <select id="conclusaoFalhaCriticidade">
+                  <option value="MEDIA">M&eacute;dia</option>
+                  <option value="BAIXA">Baixa</option>
+                  <option value="ALTA">Alta</option>
+                  <option value="CRITICA">Cr&iacute;tica</option>
+                </select>
+              </div>
+              <div class="field" data-full>
+                <label for="conclusaoFalhaDescricao">Detalhes da falha *</label>
+                <textarea
+                  id="conclusaoFalhaDescricao"
+                  rows="3"
+                  placeholder="Descreva o que ocorreu, impacto, local exato e contexto operacional."
+                ></textarea>
+              </div>
+              <div class="field" data-full>
+                <label for="conclusaoFalhaAcao">A&ccedil;&atilde;o imediata adotada (opcional)</label>
+                <textarea
+                  id="conclusaoFalhaAcao"
+                  rows="2"
+                  placeholder="Ex.: Isolamento da &aacute;rea, bloqueio operacional, comunica&ccedil;&atilde;o do respons&aacute;vel."
+                ></textarea>
+              </div>
+              <div class="field" data-full id="conclusaoFalhaFotosField">
+                <label for="conclusaoFalhaFoto1">Fotos da falha (at&eacute; 4)</label>
+                <div class="evidence-picker evidence-picker--mini">
+                  <div class="photo-slot">
+                    <button class="btn btn--icon btn--ghost btn--camera" type="button" data-falha-foto-btn="1" aria-label="Adicionar foto da falha 1">
+                      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="3" y="3" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+                        <circle cx="8" cy="8" r="1.5" fill="none" stroke="currentColor" stroke-width="2" />
+                        <path d="M5.5 14.5l3-3 2.2 2.2 2.5-2.5 2.8 2.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        <circle cx="18" cy="18" r="3.5" fill="none" stroke="currentColor" stroke-width="2" />
+                        <path d="M18 16.8v2.4m-1.2-1.2h2.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                      </svg>
+                    </button>
+                    <span class="photo-label" data-falha-photo-slot="1">Falha 1</span>
+                    <input id="conclusaoFalhaFoto1" type="file" accept="image/*" data-falha-foto-input="1" hidden />
+                  </div>
+                  <div class="photo-slot">
+                    <button class="btn btn--icon btn--ghost btn--camera" type="button" data-falha-foto-btn="2" aria-label="Adicionar foto da falha 2">
+                      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="3" y="3" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+                        <circle cx="8" cy="8" r="1.5" fill="none" stroke="currentColor" stroke-width="2" />
+                        <path d="M5.5 14.5l3-3 2.2 2.2 2.5-2.5 2.8 2.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        <circle cx="18" cy="18" r="3.5" fill="none" stroke="currentColor" stroke-width="2" />
+                        <path d="M18 16.8v2.4m-1.2-1.2h2.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                      </svg>
+                    </button>
+                    <span class="photo-label" data-falha-photo-slot="2">Falha 2</span>
+                    <input id="conclusaoFalhaFoto2" type="file" accept="image/*" data-falha-foto-input="2" hidden />
+                  </div>
+                  <div class="photo-slot">
+                    <button class="btn btn--icon btn--ghost btn--camera" type="button" data-falha-foto-btn="3" aria-label="Adicionar foto da falha 3">
+                      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="3" y="3" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+                        <circle cx="8" cy="8" r="1.5" fill="none" stroke="currentColor" stroke-width="2" />
+                        <path d="M5.5 14.5l3-3 2.2 2.2 2.5-2.5 2.8 2.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        <circle cx="18" cy="18" r="3.5" fill="none" stroke="currentColor" stroke-width="2" />
+                        <path d="M18 16.8v2.4m-1.2-1.2h2.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                      </svg>
+                    </button>
+                    <span class="photo-label" data-falha-photo-slot="3">Falha 3</span>
+                    <input id="conclusaoFalhaFoto3" type="file" accept="image/*" data-falha-foto-input="3" hidden />
+                  </div>
+                  <div class="photo-slot">
+                    <button class="btn btn--icon btn--ghost btn--camera" type="button" data-falha-foto-btn="4" aria-label="Adicionar foto da falha 4">
+                      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="3" y="3" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+                        <circle cx="8" cy="8" r="1.5" fill="none" stroke="currentColor" stroke-width="2" />
+                        <path d="M5.5 14.5l3-3 2.2 2.2 2.5-2.5 2.8 2.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        <circle cx="18" cy="18" r="3.5" fill="none" stroke="currentColor" stroke-width="2" />
+                        <path d="M18 16.8v2.4m-1.2-1.2h2.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                      </svg>
+                    </button>
+                    <span class="photo-label" data-falha-photo-slot="4">Falha 4</span>
+                    <input id="conclusaoFalhaFoto4" type="file" accept="image/*" data-falha-foto-input="4" hidden />
+                  </div>
+                </div>
+                <div id="conclusaoFalhaFotosLista" class="file-list"></div>
+              </div>
+            </div>
           </div>
           <div class="field" data-full>
             <label class="checkbox-field">

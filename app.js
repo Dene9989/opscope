@@ -199,6 +199,7 @@ const countAgendadas = document.getElementById("countAgendadas");
 const countLiberadas = document.getElementById("countLiberadas");
 const countBacklog = document.getElementById("countBacklog");
 const badgeBacklog = document.getElementById("badgeBacklog");
+const badgeIntercorrencias = document.getElementById("badgeIntercorrencias");
 const countEmExecucao = document.getElementById("countEmExecucao");
 const countEncerramento = document.getElementById("countEncerramento");
 const countConcluidas = document.getElementById("countConcluidas");
@@ -1262,6 +1263,15 @@ const conclusaoReferencia = document.getElementById("conclusaoReferencia");
 const conclusaoFotosToggle = document.getElementById("conclusaoFotosToggle");
 const conclusaoEvidenciasField = document.getElementById("conclusaoEvidenciasField");
 const conclusaoEvidenciasLista = document.getElementById("conclusaoEvidenciasLista");
+const conclusaoFalhaToggle = document.getElementById("conclusaoFalhaToggle");
+const conclusaoFalhaField = document.getElementById("conclusaoFalhaField");
+const conclusaoFalhaCriticidade = document.getElementById("conclusaoFalhaCriticidade");
+const conclusaoFalhaDescricao = document.getElementById("conclusaoFalhaDescricao");
+const conclusaoFalhaAcao = document.getElementById("conclusaoFalhaAcao");
+const conclusaoFalhaFotosLista = document.getElementById("conclusaoFalhaFotosLista");
+const falhaFotoInputs = Array.from(document.querySelectorAll("[data-falha-foto-input]"));
+const falhaFotoButtons = Array.from(document.querySelectorAll("[data-falha-foto-btn]"));
+const falhaFotoSlots = Array.from(document.querySelectorAll("[data-falha-photo-slot]"));
 const evidenciaInputs = Array.from(document.querySelectorAll("[data-evidencia-input]"));
 const evidenciaButtons = Array.from(document.querySelectorAll("[data-evidencia-btn]"));
 const fotoSlots = Array.from(document.querySelectorAll("[data-photo-slot]"));
@@ -1285,6 +1295,12 @@ const relatorioEmitidoEm = document.getElementById("relatorioEmitidoEm");
 const relatorioDescricao = document.getElementById("relatorioDescricao");
 const relatorioObsExecucao = document.getElementById("relatorioObsExecucao");
 const relatorioEvidencias = document.getElementById("relatorioEvidencias");
+const intercorrenciaKpis = document.getElementById("intercorrenciaKpis");
+const intercorrenciaStatusFiltro = document.getElementById("intercorrenciaStatusFiltro");
+const intercorrenciaCriticidadeFiltro = document.getElementById("intercorrenciaCriticidadeFiltro");
+const intercorrenciaBusca = document.getElementById("intercorrenciaBusca");
+const intercorrenciaTableBody = document.getElementById("intercorrenciaTableBody");
+const intercorrenciaEmpty = document.getElementById("intercorrenciaEmpty");
 const btnImprimirRelatorio = document.getElementById("btnImprimirRelatorio");
 const btnExportarPDF = document.getElementById("btnExportarPDF");
 const btnFecharRelatorio = document.getElementById("btnFecharRelatorio");
@@ -1496,6 +1512,7 @@ const SECTION_LABELS = {
   pmp: "PMP / Cronograma",
   execucao: "Execução do dia",
   backlog: "Backlog",
+  intercorrencias: "Intercorrências/Falhas",
   projetos: "Gerenciar projeto",
   desempenho: "Desempenho",
   "performance-projects": "Desempenho por projeto",
@@ -1532,6 +1549,19 @@ const STATUS_LABELS = {
   em_execucao: "Em execução",
   encerramento: "Encerramento",
   concluida: "Concluída",
+};
+
+const INTERCORRENCIA_STATUS_LABELS = {
+  ABERTA: "Aberta",
+  EM_TRATATIVA: "Em tratativa",
+  CORRIGIDA: "Corrigida",
+};
+
+const INTERCORRENCIA_CRITICIDADE_LABELS = {
+  BAIXA: "Baixa",
+  MEDIA: "Média",
+  ALTA: "Alta",
+  CRITICA: "Crítica",
 };
 
 const PERMISSIONS = {
@@ -4559,6 +4589,8 @@ const ACTION_LABELS = {
   cancel_start: "Início cancelado",
   execute_register: "Registro de execução",
   complete: "Concluir",
+  issue_register: "Intercorrência registrada",
+  issue_status: "Status da intercorrência",
   reopen: "Reaberta",
   note: "Observação",
   revalidate: "Revalidar prazo",
@@ -5547,6 +5579,23 @@ function compactEvidencias(list) {
           };
           changedItem = true;
         }
+        if (item.conclusao && item.conclusao.intercorrencia && Array.isArray(item.conclusao.intercorrencia.fotos)) {
+          updated.conclusao = {
+            ...(updated.conclusao && typeof updated.conclusao === "object" ? updated.conclusao : item.conclusao),
+            intercorrencia: {
+              ...item.conclusao.intercorrencia,
+              fotos: sanitizeList(item.conclusao.intercorrencia.fotos),
+            },
+          };
+          changedItem = true;
+        }
+        if (item.intercorrencia && Array.isArray(item.intercorrencia.fotos)) {
+          updated.intercorrencia = {
+            ...item.intercorrencia,
+            fotos: sanitizeList(item.intercorrencia.fotos),
+          };
+          changedItem = true;
+        }
         return changedItem ? updated : item;
       })
     : list;
@@ -5609,7 +5658,21 @@ function stripMaintenanceDataUrls(item) {
     if (Array.isArray(conclusao.evidencias)) {
       conclusao.evidencias = stripEvidenceDataUrls(conclusao.evidencias);
     }
+    if (conclusao.intercorrencia && typeof conclusao.intercorrencia === "object") {
+      const issue = { ...conclusao.intercorrencia };
+      if (Array.isArray(issue.fotos)) {
+        issue.fotos = stripEvidenceDataUrls(issue.fotos);
+      }
+      conclusao.intercorrencia = issue;
+    }
     updated.conclusao = conclusao;
+  }
+  if (updated.intercorrencia && typeof updated.intercorrencia === "object") {
+    const issue = { ...updated.intercorrencia };
+    if (Array.isArray(issue.fotos)) {
+      issue.fotos = stripEvidenceDataUrls(issue.fotos);
+    }
+    updated.intercorrencia = issue;
   }
   if (updated.liberacao && typeof updated.liberacao === "object") {
     const liberacao = { ...updated.liberacao };
@@ -5697,6 +5760,40 @@ function buildMaintenanceLiteItem(item) {
       resultado: conclusao.resultado || "",
       referencia: conclusao.referencia || "",
       osNumero: conclusao.osNumero || "",
+    };
+    if (conclusao.intercorrencia && typeof conclusao.intercorrencia === "object") {
+      const issue = conclusao.intercorrencia;
+      lite.conclusao.intercorrencia = {
+        id: issue.id || "",
+        status: normalizeIntercorrenciaStatus(issue.status),
+        criticidade: normalizeIntercorrenciaCriticidade(issue.criticidade),
+        descricao: issue.descricao || "",
+        acaoImediata: issue.acaoImediata || "",
+        fotos: Array.isArray(issue.fotos) ? stripEvidenceDataUrls(issue.fotos) : [],
+        criadaEm: issue.criadaEm || "",
+        criadaPor: issue.criadaPor || "",
+        atualizadaEm: issue.atualizadaEm || "",
+        atualizadaPor: issue.atualizadaPor || "",
+        corrigidaEm: issue.corrigidaEm || "",
+        corrigidaPor: issue.corrigidaPor || "",
+      };
+    }
+  }
+  if (item.intercorrencia && typeof item.intercorrencia === "object") {
+    const issue = item.intercorrencia;
+    lite.intercorrencia = {
+      id: issue.id || "",
+      status: normalizeIntercorrenciaStatus(issue.status),
+      criticidade: normalizeIntercorrenciaCriticidade(issue.criticidade),
+      descricao: issue.descricao || "",
+      acaoImediata: issue.acaoImediata || "",
+      fotos: Array.isArray(issue.fotos) ? stripEvidenceDataUrls(issue.fotos) : [],
+      criadaEm: issue.criadaEm || "",
+      criadaPor: issue.criadaPor || "",
+      atualizadaEm: issue.atualizadaEm || "",
+      atualizadaPor: issue.atualizadaPor || "",
+      corrigidaEm: issue.corrigidaEm || "",
+      corrigidaPor: issue.corrigidaPor || "",
     };
   }
   if (item.prazoMaximoRevalidacao && typeof item.prazoMaximoRevalidacao === "object") {
@@ -12723,6 +12820,7 @@ const TAB_LABELS = {
   pmp: "PMP / Cronograma",
   execucao: "Execu\u00e7\u00e3o do Dia",
   backlog: "Backlog",
+  intercorrencias: "Intercorr\u00eancias/Falhas",
   solicitacoes: "Solicita\u00e7\u00f5es Pendentes",
   projetos: "Locais de Trabalho",
   desempenho: "Desempenho Geral",
@@ -13938,6 +14036,9 @@ function getMaintenanceItemScore(item) {
   if (item.conclusao) {
     score += 4;
   }
+  if (getMaintenanceIntercorrencia(item)) {
+    score += 3;
+  }
   if (item.documentos && Object.keys(item.documentos || {}).length) {
     score += 2;
   }
@@ -14031,7 +14132,9 @@ function shouldKeepLocalOnlyMaintenance(item, lastFetchAt) {
       item.registroExecucao ||
       item.documentos ||
       item.participantes ||
-      item.osReferencia
+      item.osReferencia ||
+      item.intercorrencia ||
+      (item.conclusao && item.conclusao.intercorrencia)
   );
   if (isSystem && !hasUserPayload) {
     return false;
@@ -14250,6 +14353,23 @@ function buildSyntheticMaintenanceHistory(item, baseHistory) {
     });
   }
 
+  const intercorrencia = getMaintenanceIntercorrencia(item);
+  if (intercorrencia) {
+    addEntry(
+      "issue_register",
+      intercorrencia.atualizadaEm || intercorrencia.criadaEm || item.updatedAt || "",
+      intercorrencia.atualizadaPor || intercorrencia.criadaPor || item.updatedBy || "",
+      {
+        issueId: intercorrencia.id || "",
+        issueStatus: intercorrencia.status || "ABERTA",
+        criticidade: intercorrencia.criticidade || "MEDIA",
+        descricao: intercorrencia.descricao || "",
+        fotosCount: Array.isArray(intercorrencia.fotos) ? intercorrencia.fotos.length : 0,
+        resumo: "Intercorrência registrada.",
+      }
+    );
+  }
+
   return extras;
 }
 
@@ -14300,6 +14420,9 @@ function getHistoricoSectionLabel(entry) {
   }
   if (action === "revalidate") {
     return "Prazo";
+  }
+  if (action === "issue_register" || action === "issue_status") {
+    return "Intercorrência";
   }
   return "Outros";
 }
@@ -14555,6 +14678,7 @@ function getMaintenanceItemFingerprint(item) {
   const registro = item.registroExecucao || {};
   const conclusao = item.conclusao || {};
   const backlogMotivo = item.backlogMotivo || {};
+  const intercorrencia = getMaintenanceIntercorrencia(item) || {};
   const prazoMaximo = normalizePrazoMaximo(item.prazoMaximo);
   const prazoRevalidacao = item.prazoMaximoRevalidacao || {};
   const execMark =
@@ -14600,6 +14724,13 @@ function getMaintenanceItemFingerprint(item) {
       : "",
     item.backlogAutoEm || "",
     item.backlogAutoMonth || "",
+    normalizeIntercorrenciaStatus(intercorrencia.status || ""),
+    normalizeIntercorrenciaCriticidade(intercorrencia.criticidade || ""),
+    intercorrencia.descricao || "",
+    intercorrencia.acaoImediata || "",
+    intercorrencia.atualizadaEm || intercorrencia.criadaEm || "",
+    intercorrencia.atualizadaPor || intercorrencia.criadaPor || "",
+    Array.isArray(intercorrencia.fotos) ? intercorrencia.fotos.length : 0,
   ].join("|");
 }
 
@@ -14639,6 +14770,26 @@ function getMaintenanceListFingerprint(list) {
       prazoRevalidadoEm:
         (item.prazoMaximoRevalidacao && item.prazoMaximoRevalidacao.registradoEm) || "",
       backlogAutoMonth: item.backlogAutoMonth || "",
+      issueStatus: normalizeIntercorrenciaStatus(
+        (item.intercorrencia && item.intercorrencia.status) ||
+          (item.conclusao &&
+          item.conclusao.intercorrencia &&
+          item.conclusao.intercorrencia.status) ||
+          ""
+      ),
+      issueCriticality: normalizeIntercorrenciaCriticidade(
+        (item.intercorrencia && item.intercorrencia.criticidade) ||
+          (item.conclusao &&
+          item.conclusao.intercorrencia &&
+          item.conclusao.intercorrencia.criticidade) ||
+          ""
+      ),
+      issueUpdatedAt:
+        (item.intercorrencia && (item.intercorrencia.atualizadaEm || item.intercorrencia.criadaEm)) ||
+        (item.conclusao &&
+        item.conclusao.intercorrencia &&
+        (item.conclusao.intercorrencia.atualizadaEm || item.conclusao.intercorrencia.criadaEm)) ||
+        "",
     }))
     .sort((a, b) => a.id.localeCompare(b.id));
   return hashString(JSON.stringify(snapshot));
@@ -16506,6 +16657,17 @@ function atualizarResumo() {
     }
     contagem.agendada += 1;
   });
+  const intercorrenciasAbertas = manutencoes.reduce((acc, item) => {
+    const issue = getMaintenanceIntercorrencia(item);
+    if (!issue) {
+      return acc;
+    }
+    const statusIssue = normalizeIntercorrenciaStatus(issue.status);
+    if (statusIssue === "CORRIGIDA") {
+      return acc;
+    }
+    return acc + 1;
+  }, 0);
   const execucoesRegistradas = manutencoes.filter((item) => {
     if (!hasExecucaoRegistradaCompleta(item)) {
       return false;
@@ -16521,6 +16683,9 @@ function atualizarResumo() {
   countBacklog.textContent = contagem.backlog;
   if (badgeBacklog) {
     badgeBacklog.textContent = contagem.backlog;
+  }
+  if (badgeIntercorrencias) {
+    badgeIntercorrencias.textContent = String(intercorrenciasAbertas);
   }
   if (countEmExecucao) {
     const emExecucaoAtivas = manutencoes.filter((item) => {
@@ -18916,6 +19081,390 @@ function renderExecucao() {
   ]);
 }
 
+function getIntercorrenciaSortScore(status) {
+  if (status === "ABERTA") {
+    return 0;
+  }
+  if (status === "EM_TRATATIVA") {
+    return 1;
+  }
+  if (status === "CORRIGIDA") {
+    return 2;
+  }
+  return 3;
+}
+
+function getIntercorrenciaStatusClass(status) {
+  if (status === "ABERTA") {
+    return "status-badge--inter-open";
+  }
+  if (status === "EM_TRATATIVA") {
+    return "status-badge--inter-progress";
+  }
+  if (status === "CORRIGIDA") {
+    return "status-badge--inter-done";
+  }
+  return "status-badge--agendada";
+}
+
+function getIntercorrenciaCriticidadeClass(criticidade) {
+  if (criticidade === "CRITICA") {
+    return "badge--danger";
+  }
+  if (criticidade === "ALTA") {
+    return "badge--warn";
+  }
+  if (criticidade === "BAIXA") {
+    return "badge--neutral";
+  }
+  return "badge--neutral";
+}
+
+function getIntercorrenciaRows() {
+  return manutencoes
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+      const issue = getMaintenanceIntercorrencia(item);
+      if (!issue) {
+        return null;
+      }
+      const project = getProjectById(item.projectId);
+      const projectLabel = project ? getProjectLabel(project) : item.local || "-";
+      const responsavelLabels = getMaintenanceResponsibleLabels(item);
+      const responsavel = responsavelLabels.length
+        ? formatResponsavelLista(responsavelLabels)
+        : getUserLabel(issue.criadaPor || item.createdBy || "");
+      const registroDate =
+        parseTimestamp(issue.atualizadaEm || issue.criadaEm || item.updatedAt || item.createdAt) || null;
+      return {
+        manutencao: item,
+        issue,
+        maintenanceId: String(item.id || "").trim(),
+        status: normalizeIntercorrenciaStatus(issue.status),
+        criticidade: normalizeIntercorrenciaCriticidade(issue.criticidade),
+        atividade: getMaintenanceTitle(item),
+        projeto: projectLabel || "-",
+        responsavel: responsavel || "-",
+        registroDate,
+        registroBy: getUserLabel(issue.atualizadaPor || issue.criadaPor || item.updatedBy || item.createdBy),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => {
+      const statusDelta = getIntercorrenciaSortScore(a.status) - getIntercorrenciaSortScore(b.status);
+      if (statusDelta !== 0) {
+        return statusDelta;
+      }
+      const timeA = a.registroDate ? a.registroDate.getTime() : 0;
+      const timeB = b.registroDate ? b.registroDate.getTime() : 0;
+      if (timeA !== timeB) {
+        return timeB - timeA;
+      }
+      return a.atividade.localeCompare(b.atividade, "pt-BR");
+    });
+}
+
+function canManageIntercorrencia(item) {
+  if (!item || !currentUser) {
+    return false;
+  }
+  if (!can("edit") && !can("complete")) {
+    return false;
+  }
+  return canExecuteMaintenanceForUser(item, currentUser) || hasGranularPermission(currentUser, "executarManutencaoTerceiros");
+}
+
+function renderIntercorrenciaKpiCards(rows) {
+  if (!intercorrenciaKpis) {
+    return;
+  }
+  const total = rows.length;
+  const abertas = rows.filter((row) => row.status === "ABERTA").length;
+  const tratativas = rows.filter((row) => row.status === "EM_TRATATIVA").length;
+  const corrigidas = rows.filter((row) => row.status === "CORRIGIDA").length;
+  const criticas = rows.filter((row) => row.criticidade === "CRITICA").length;
+  intercorrenciaKpis.innerHTML = `
+    <article class="kpi-card intercorrencia-kpi">
+      <span>Total registradas</span>
+      <strong>${total}</strong>
+      <small>Falhas rastreáveis</small>
+    </article>
+    <article class="kpi-card intercorrencia-kpi">
+      <span>Abertas</span>
+      <strong>${abertas}</strong>
+      <small>Aguardando ação</small>
+    </article>
+    <article class="kpi-card intercorrencia-kpi">
+      <span>Em tratativa</span>
+      <strong>${tratativas}</strong>
+      <small>Correção em andamento</small>
+    </article>
+    <article class="kpi-card intercorrencia-kpi">
+      <span>Corrigidas</span>
+      <strong>${corrigidas}</strong>
+      <small>Pendências resolvidas</small>
+    </article>
+    <article class="kpi-card intercorrencia-kpi">
+      <span>Críticas</span>
+      <strong>${criticas}</strong>
+      <small>Prioridade máxima</small>
+    </article>
+  `;
+}
+
+function filterIntercorrenciaRows(rows) {
+  const statusFiltro = intercorrenciaStatusFiltro ? normalizeIntercorrenciaStatus(intercorrenciaStatusFiltro.value) : "";
+  const criticidadeFiltro = intercorrenciaCriticidadeFiltro
+    ? normalizeIntercorrenciaCriticidade(intercorrenciaCriticidadeFiltro.value)
+    : "";
+  const busca = normalizeSearchValue(intercorrenciaBusca ? intercorrenciaBusca.value : "");
+  return rows.filter((row) => {
+    if (intercorrenciaStatusFiltro && intercorrenciaStatusFiltro.value && row.status !== statusFiltro) {
+      return false;
+    }
+    if (
+      intercorrenciaCriticidadeFiltro &&
+      intercorrenciaCriticidadeFiltro.value &&
+      row.criticidade !== criticidadeFiltro
+    ) {
+      return false;
+    }
+    if (busca) {
+      const haystack = normalizeSearchValue(
+        [
+          row.atividade,
+          row.projeto,
+          row.responsavel,
+          row.issue && row.issue.descricao,
+          row.issue && row.issue.acaoImediata,
+        ]
+          .filter(Boolean)
+          .join(" ")
+      );
+      if (!haystack.includes(busca)) {
+        return false;
+      }
+    }
+    return true;
+  });
+}
+
+async function abrirPreviewIntercorrenciaFotos(row) {
+  if (!row || !row.issue || !Array.isArray(row.issue.fotos)) {
+    mostrarMensagemManutencao("Sem fotos registradas para esta intercorrência.", true);
+    return;
+  }
+  const fotos = dedupeEvidenceList(row.issue.fotos).slice(0, 4);
+  if (!fotos.length) {
+    mostrarMensagemManutencao("Sem fotos registradas para esta intercorrência.", true);
+    return;
+  }
+  mostrarCarregando();
+  try {
+    const resolved = [];
+    for (let index = 0; index < fotos.length; index += 1) {
+      const foto = fotos[index];
+      const imageUrl = await resolveSsEvidenceUrl(foto, { expectImage: true });
+      const fallbackUrl = imageUrl || (await resolveSsEvidenceUrl(foto, { expectImage: false }));
+      resolved.push({
+        index: index + 1,
+        nome: foto && (foto.name || foto.nome) ? foto.name || foto.nome : `Falha ${index + 1}`,
+        url: fallbackUrl || "",
+      });
+    }
+    const cards = resolved
+      .map((foto) => {
+        const title = escapeHtml(foto.nome || `Falha ${foto.index}`);
+        const label = `Foto ${foto.index}`;
+        if (!foto.url) {
+          return `
+            <article class="issue-photo-card">
+              <div class="issue-photo-card__head">${escapeHtml(label)}</div>
+              <div class="issue-photo-card__empty">Arquivo indisponível para visualização.</div>
+            </article>
+          `;
+        }
+        const url = escapeHtml(foto.url);
+        return `
+          <article class="issue-photo-card">
+            <div class="issue-photo-card__head">${escapeHtml(label)}</div>
+            <a href="${url}" target="_blank" rel="noopener">
+              <img src="${url}" alt="${title}" loading="lazy" />
+            </a>
+            <div class="issue-photo-card__name">${title}</div>
+          </article>
+        `;
+      })
+      .join("");
+    const html = `<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fotos da intercorrência - ${escapeHtml(row.atividade)}</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      :root { color-scheme: light; }
+      body { margin: 0; padding: 20px; font-family: "Segoe UI", Arial, sans-serif; background: #f4f7fb; color: #112034; }
+      h1 { margin: 0; font-size: 1.3rem; }
+      p { margin: 8px 0 0; color: #405067; }
+      .grid { margin-top: 16px; display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+      .issue-photo-card { border: 1px solid #c8d4e4; border-radius: 12px; background: #ffffff; overflow: hidden; display: grid; gap: 8px; }
+      .issue-photo-card__head { background: #eef4fb; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #20456d; padding: 8px 10px; }
+      .issue-photo-card__name { padding: 0 10px 10px; font-size: 0.84rem; color: #2e4158; word-break: break-word; }
+      .issue-photo-card img { width: 100%; height: 180px; object-fit: cover; display: block; background: #e9eef5; }
+      .issue-photo-card__empty { padding: 16px 10px; font-size: 0.84rem; color: #6a7b90; }
+    </style>
+  </head>
+  <body>
+    <h1>${escapeHtml(row.atividade)}</h1>
+    <p>${escapeHtml(row.projeto)} · ${escapeHtml(INTERCORRENCIA_STATUS_LABELS[row.status] || row.status)}</p>
+    <div class="grid">${cards}</div>
+  </body>
+</html>`;
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const blobUrl = URL.createObjectURL(blob);
+    abrirPreview(blobUrl, blobUrl, { title: "Fotos da intercorrência" });
+  } finally {
+    esconderCarregando();
+  }
+}
+
+function renderIntercorrencias() {
+  if (!intercorrenciaTableBody || !intercorrenciaEmpty) {
+    return;
+  }
+  const rows = getIntercorrenciaRows();
+  renderIntercorrenciaKpiCards(rows);
+  const filtrados = filterIntercorrenciaRows(rows);
+  intercorrenciaTableBody.innerHTML = "";
+  filtrados.forEach((row) => {
+    const tr = document.createElement("tr");
+    tr.dataset.intercorrenciaMaintenanceId = row.maintenanceId;
+    tr.dataset.intercorrenciaIssueId = row.issue.id || "";
+    const statusLabel = INTERCORRENCIA_STATUS_LABELS[row.status] || row.status;
+    const criticidadeLabel = INTERCORRENCIA_CRITICIDADE_LABELS[row.criticidade] || row.criticidade;
+    const registroDataTexto = row.registroDate ? formatDateTime(row.registroDate) : "-";
+    const detalhes = row.issue.descricao || "-";
+    const acao = row.issue.acaoImediata || "";
+    const fotosCount = Array.isArray(row.issue.fotos) ? row.issue.fotos.length : 0;
+    const podeGerenciar = canManageIntercorrencia(row.manutencao);
+    const statusActions = [];
+    if (podeGerenciar && row.status === "ABERTA") {
+      statusActions.push(
+        '<button class="btn btn--ghost btn--small" type="button" data-intercorrencia-action="status" data-next-status="EM_TRATATIVA">Em tratativa</button>'
+      );
+    }
+    if (podeGerenciar && row.status === "EM_TRATATIVA") {
+      statusActions.push(
+        '<button class="btn btn--ghost btn--small" type="button" data-intercorrencia-action="status" data-next-status="CORRIGIDA">Marcar corrigida</button>'
+      );
+    }
+    if (podeGerenciar && row.status === "CORRIGIDA") {
+      statusActions.push(
+        '<button class="btn btn--ghost btn--small" type="button" data-intercorrencia-action="status" data-next-status="ABERTA">Reabrir</button>'
+      );
+    }
+    if (fotosCount > 0) {
+      statusActions.push(
+        '<button class="btn btn--ghost btn--small" type="button" data-intercorrencia-action="fotos">Ver fotos</button>'
+      );
+    }
+    statusActions.push(
+      '<button class="btn btn--ghost btn--small" type="button" data-intercorrencia-action="historico">Histórico</button>'
+    );
+    tr.innerHTML = `
+      <td><span class="status-badge ${getIntercorrenciaStatusClass(row.status)}">${escapeHtml(statusLabel)}</span></td>
+      <td><span class="badge ${getIntercorrenciaCriticidadeClass(row.criticidade)}">${escapeHtml(criticidadeLabel)}</span></td>
+      <td>${escapeHtml(row.atividade)}</td>
+      <td>${escapeHtml(row.projeto)}</td>
+      <td>${escapeHtml(row.responsavel)}</td>
+      <td>${escapeHtml(registroDataTexto)}<br /><small>${escapeHtml(row.registroBy)}</small></td>
+      <td>
+        <div class="intercorrencia-detail">${escapeHtml(truncarTexto(detalhes, 220))}</div>
+        ${
+          acao
+            ? `<small class="intercorrencia-detail__sub">Ação imediata: ${escapeHtml(
+                truncarTexto(acao, 160)
+              )}</small>`
+            : ""
+        }
+      </td>
+      <td>${fotosCount ? `${fotosCount} foto(s)` : "-"}</td>
+      <td><div class="table-actions">${statusActions.join("")}</div></td>
+    `;
+    intercorrenciaTableBody.append(tr);
+  });
+  intercorrenciaEmpty.hidden = filtrados.length > 0;
+}
+
+function atualizarIntercorrenciaStatus(maintenanceId, nextStatus) {
+  const maintenanceKey = String(maintenanceId || "").trim();
+  if (!maintenanceKey) {
+    return;
+  }
+  const statusFinal = normalizeIntercorrenciaStatus(nextStatus);
+  const index = manutencoes.findIndex((item) => String(item && item.id || "").trim() === maintenanceKey);
+  if (index < 0) {
+    return;
+  }
+  const item = manutencoes[index];
+  if (!canManageIntercorrencia(item)) {
+    mostrarMensagemManutencao("Sem permissão para atualizar esta intercorrência.", true);
+    return;
+  }
+  const issueAtual = getMaintenanceIntercorrencia(item);
+  if (!issueAtual) {
+    return;
+  }
+  if (normalizeIntercorrenciaStatus(issueAtual.status) === statusFinal) {
+    return;
+  }
+  const agoraIso = toIsoUtc(new Date());
+  const atualizadoIssue = {
+    ...issueAtual,
+    status: statusFinal,
+    atualizadaEm: agoraIso,
+    atualizadaPor: currentUser ? currentUser.id : SYSTEM_USER_ID,
+    corrigidaEm:
+      statusFinal === "CORRIGIDA" ? agoraIso : issueAtual.corrigidaEm || "",
+    corrigidaPor:
+      statusFinal === "CORRIGIDA"
+        ? currentUser
+          ? currentUser.id
+          : SYSTEM_USER_ID
+        : issueAtual.corrigidaPor || "",
+  };
+  const atualizado = {
+    ...item,
+    intercorrencia: atualizadoIssue,
+    conclusao:
+      item.conclusao && typeof item.conclusao === "object"
+        ? { ...item.conclusao, intercorrencia: atualizadoIssue }
+        : item.conclusao,
+    updatedAt: (() => {
+      const now = new Date();
+      const last = getMaintenanceUpdatedAtValue(item);
+      if (last && last > now.getTime()) {
+        return toIsoUtc(new Date(last + 1000));
+      }
+      return toIsoUtc(now);
+    })(),
+    updatedBy: currentUser ? currentUser.id : SYSTEM_USER_ID,
+  };
+  manutencoes[index] = atualizado;
+  salvarManutencoes(manutencoes);
+  logAction("issue_status", atualizado, {
+    issueId: atualizadoIssue.id || "",
+    from: issueAtual.status || "ABERTA",
+    to: statusFinal,
+    criticidade: atualizadoIssue.criticidade || "MEDIA",
+    resumo: `Intercorrência atualizada para ${INTERCORRENCIA_STATUS_LABELS[statusFinal] || statusFinal}.`,
+  });
+  renderTudo();
+}
+
 function getRelatorioItemDate(item) {
   return (
     parseAnyDate(item && item.doneAt) ||
@@ -19000,6 +19549,15 @@ function contarEvidencias(item) {
   }
   if (item.conclusao && Array.isArray(item.conclusao.evidencias)) {
     grupos.push(item.conclusao.evidencias);
+  }
+  if (item.intercorrencia && Array.isArray(item.intercorrencia.fotos)) {
+    grupos.push(item.intercorrencia.fotos);
+  } else if (
+    item.conclusao &&
+    item.conclusao.intercorrencia &&
+    Array.isArray(item.conclusao.intercorrencia.fotos)
+  ) {
+    grupos.push(item.conclusao.intercorrencia.fotos);
   }
   if (Array.isArray(item.anexos)) {
     grupos.push(item.anexos);
@@ -43802,6 +44360,7 @@ function renderTudo() {
     allowedActions: ["history", "reopen", "remove", "revalidate"],
   });
   renderExecucao();
+  renderIntercorrencias();
   renderKPIs();
   renderDesempenho();
   renderGrafico();
@@ -44127,6 +44686,7 @@ async function adicionarManutencao() {
 
 let manutencaoEmConclusao = null;
 let conclusaoItemAtual = null;
+let conclusaoFalhaFotosAtual = [];
 let manutencaoEmRegistro = null;
 let manutencaoEmEdicao = null;
 let manutencaoEditSnapshot = null;
@@ -48849,6 +49409,200 @@ function atualizarListaEvidencias() {
   });
 }
 
+function normalizeIntercorrenciaStatus(value) {
+  const normalized = normalizeSearchValue(value || "").replace(/\s+/g, "_");
+  if (!normalized) {
+    return "ABERTA";
+  }
+  if (["aberta", "aberto", "open", "nova", "pendente"].includes(normalized)) {
+    return "ABERTA";
+  }
+  if (["em_tratativa", "tratativa", "analise", "em_analise", "investigacao"].includes(normalized)) {
+    return "EM_TRATATIVA";
+  }
+  if (["corrigida", "corrigido", "resolvida", "resolvido", "closed", "finalizada"].includes(normalized)) {
+    return "CORRIGIDA";
+  }
+  return "ABERTA";
+}
+
+function normalizeIntercorrenciaCriticidade(value) {
+  const normalized = normalizeSearchValue(value || "").replace(/\s+/g, "_");
+  if (!normalized) {
+    return "MEDIA";
+  }
+  if (["baixa", "baixo", "low"].includes(normalized)) {
+    return "BAIXA";
+  }
+  if (["media", "medio", "med", "normal", "moderada"].includes(normalized)) {
+    return "MEDIA";
+  }
+  if (["alta", "alto", "high"].includes(normalized)) {
+    return "ALTA";
+  }
+  if (["critica", "critico", "critical", "grave"].includes(normalized)) {
+    return "CRITICA";
+  }
+  return "MEDIA";
+}
+
+function normalizeIntercorrenciaData(value, item = null) {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const fotosRaw = Array.isArray(value.fotos)
+    ? value.fotos
+    : Array.isArray(value.evidencias)
+      ? value.evidencias
+      : [];
+  const fotos = dedupeEvidenceList(fotosRaw);
+  const descricao = String(value.descricao || value.detalhes || value.descricaoFalha || "").trim();
+  const acaoImediata = String(
+    value.acaoImediata || value.acao || value.acaoAdotada || value.mitigacao || ""
+  ).trim();
+  if (!descricao && !acaoImediata && !fotos.length) {
+    return null;
+  }
+  return {
+    id: String(value.id || "").trim() || `issue:${item && item.id ? item.id : criarId()}`,
+    status: normalizeIntercorrenciaStatus(value.status || value.estado),
+    criticidade: normalizeIntercorrenciaCriticidade(value.criticidade || value.severidade),
+    descricao,
+    acaoImediata,
+    fotos,
+    criadaEm: normalizeIso(value.criadaEm || value.createdAt || value.registradaEm || value.registeredAt || ""),
+    criadaPor: String(value.criadaPor || value.createdBy || value.registradaPor || value.registeredBy || "").trim(),
+    atualizadaEm: normalizeIso(
+      value.atualizadaEm || value.updatedAt || value.statusAtualizadoEm || value.lastStatusAt || ""
+    ),
+    atualizadaPor: String(value.atualizadaPor || value.updatedBy || value.statusAtualizadoPor || "").trim(),
+    corrigidaEm: normalizeIso(value.corrigidaEm || value.resolvidaEm || ""),
+    corrigidaPor: String(value.corrigidaPor || value.resolvidaPor || "").trim(),
+  };
+}
+
+function getMaintenanceIntercorrencia(item) {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+  const source = item.intercorrencia || (item.conclusao && item.conclusao.intercorrencia) || null;
+  return normalizeIntercorrenciaData(source, item);
+}
+
+function getFalhaFotoFiles() {
+  if (!falhaFotoInputs.length) {
+    return [];
+  }
+  const files = [];
+  falhaFotoInputs.forEach((input, index) => {
+    if (!input) {
+      return;
+    }
+    const slotValue = Number.parseInt(input.dataset.falhaFotoInput, 10);
+    const slotIndex = Number.isFinite(slotValue) && slotValue > 0 ? slotValue - 1 : index;
+    files[slotIndex] = input.files && input.files[0] ? input.files[0] : null;
+  });
+  return files;
+}
+
+function atualizarSlotsFalhaFoto(arquivos) {
+  if (!falhaFotoSlots.length) {
+    return;
+  }
+  falhaFotoSlots.forEach((slot, index) => {
+    const slotValue = Number.parseInt(slot.dataset.falhaPhotoSlot, 10);
+    const labelIndex = Number.isFinite(slotValue) && slotValue > 0 ? slotValue : index + 1;
+    const fileIndex = Number.isFinite(slotValue) && slotValue > 0 ? slotValue - 1 : index;
+    const baseLabel = `Falha ${labelIndex}`;
+    const file = arquivos[fileIndex];
+    if (file) {
+      if (file.name) {
+        slot.textContent = `${baseLabel} - ${file.name}`;
+      } else {
+        slot.textContent = baseLabel;
+      }
+      slot.classList.add("is-filled");
+      const invalido = !(file.type && file.type.startsWith("image/"));
+      slot.classList.toggle("is-invalid", invalido);
+      return;
+    }
+    slot.textContent = baseLabel;
+    slot.classList.remove("is-filled");
+    slot.classList.remove("is-invalid");
+  });
+}
+
+function atualizarListaFalhaFotos() {
+  const arquivos = getFalhaFotoFiles();
+  const temNovoArquivo = arquivos.some(Boolean);
+  const exibicaoSlots = temNovoArquivo
+    ? arquivos
+    : conclusaoFalhaFotosAtual.slice(0, 4).map((foto) => ({
+        name: foto && (foto.name || foto.nome) ? foto.name || foto.nome : "Foto registrada",
+        type: foto && (foto.mime || foto.type) ? foto.mime || foto.type : "image/*",
+      }));
+  atualizarSlotsFalhaFoto(exibicaoSlots);
+  if (!conclusaoFalhaFotosLista) {
+    return;
+  }
+  conclusaoFalhaFotosLista.innerHTML = "";
+  const baseList = temNovoArquivo ? arquivos : conclusaoFalhaFotosAtual;
+  baseList.forEach((file, index) => {
+    if (!file) {
+      return;
+    }
+    const item = document.createElement("span");
+    item.className = "file-chip";
+    const nome = file.name || file.nome || `Foto ${index + 1}`;
+    item.textContent = `Falha ${index + 1}: ${nome}`;
+    const mime = file.mime || file.type || "";
+    if (mime && !mime.startsWith("image/")) {
+      item.classList.add("file-chip--invalid");
+    }
+    conclusaoFalhaFotosLista.append(item);
+  });
+}
+
+function toggleConclusaoFalhaUI() {
+  const ativo = Boolean(conclusaoFalhaToggle && conclusaoFalhaToggle.checked);
+  if (conclusaoFalhaField) {
+    conclusaoFalhaField.hidden = !ativo;
+  }
+  if (conclusaoFalhaCriticidade) {
+    conclusaoFalhaCriticidade.disabled = !ativo;
+  }
+  if (conclusaoFalhaDescricao) {
+    conclusaoFalhaDescricao.disabled = !ativo;
+    if (!ativo) {
+      conclusaoFalhaDescricao.value = "";
+    }
+  }
+  if (conclusaoFalhaAcao) {
+    conclusaoFalhaAcao.disabled = !ativo;
+    if (!ativo) {
+      conclusaoFalhaAcao.value = "";
+    }
+  }
+  falhaFotoInputs.forEach((input) => {
+    if (!input) {
+      return;
+    }
+    input.disabled = !ativo;
+    if (!ativo) {
+      input.value = "";
+    }
+  });
+  falhaFotoButtons.forEach((button) => {
+    if (button) {
+      button.disabled = !ativo;
+    }
+  });
+  if (!ativo) {
+    conclusaoFalhaFotosAtual = [];
+  }
+  atualizarListaFalhaFotos();
+}
+
 function lerDocumentoFile(file) {
   return new Promise((resolve) => {
     if (!file) {
@@ -49141,6 +49895,31 @@ function abrirConclusao(item) {
     conclusaoReferencia.value = osNumero;
     conclusaoReferencia.readOnly = Boolean(osNumero);
   }
+  const intercorrenciaAtual = getMaintenanceIntercorrencia(item);
+  conclusaoFalhaFotosAtual =
+    intercorrenciaAtual && Array.isArray(intercorrenciaAtual.fotos)
+      ? dedupeEvidenceList(intercorrenciaAtual.fotos)
+      : [];
+  if (conclusaoFalhaToggle) {
+    conclusaoFalhaToggle.checked = Boolean(intercorrenciaAtual);
+  }
+  if (conclusaoFalhaCriticidade) {
+    conclusaoFalhaCriticidade.value = intercorrenciaAtual
+      ? normalizeIntercorrenciaCriticidade(intercorrenciaAtual.criticidade)
+      : "MEDIA";
+  }
+  if (conclusaoFalhaDescricao) {
+    conclusaoFalhaDescricao.value = intercorrenciaAtual ? intercorrenciaAtual.descricao || "" : "";
+  }
+  if (conclusaoFalhaAcao) {
+    conclusaoFalhaAcao.value = intercorrenciaAtual ? intercorrenciaAtual.acaoImediata || "" : "";
+  }
+  falhaFotoInputs.forEach((input) => {
+    if (input) {
+      input.value = "";
+    }
+  });
+  toggleConclusaoFalhaUI();
   evidenciaInputs.forEach((input) => {
     if (input) {
       input.value = "";
@@ -49192,6 +49971,11 @@ function fecharConclusao() {
   if (conclusaoAssinaturaConfirm) {
     conclusaoAssinaturaConfirm.checked = false;
   }
+  conclusaoFalhaFotosAtual = [];
+  if (conclusaoFalhaToggle) {
+    conclusaoFalhaToggle.checked = false;
+  }
+  toggleConclusaoFalhaUI();
   manutencaoEmConclusao = null;
   conclusaoItemAtual = null;
 }
@@ -49327,6 +50111,31 @@ async function salvarConclusao(event) {
       return;
     }
   }
+  const intercorrenciaAnterior = getMaintenanceIntercorrencia(item);
+  const registrarFalha = Boolean(conclusaoFalhaToggle && conclusaoFalhaToggle.checked);
+  const falhaCriticidade = normalizeIntercorrenciaCriticidade(
+    conclusaoFalhaCriticidade ? conclusaoFalhaCriticidade.value : ""
+  );
+  const falhaDescricao = conclusaoFalhaDescricao ? conclusaoFalhaDescricao.value.trim() : "";
+  const falhaAcao = conclusaoFalhaAcao ? conclusaoFalhaAcao.value.trim() : "";
+  const falhaArquivos = registrarFalha ? getFalhaFotoFiles() : [];
+  const falhaArquivosValidos = falhaArquivos.filter(Boolean);
+  if (registrarFalha) {
+    if (!falhaDescricao || falhaDescricao.length < 15) {
+      mostrarMensagemConclusao(
+        "Descreva a falha com pelo menos 15 caracteres para rastreabilidade.",
+        true
+      );
+      return;
+    }
+    const falhaArquivosInvalidos = falhaArquivosValidos.filter(
+      (file) => !file.type || !file.type.startsWith("image/")
+    );
+    if (falhaArquivosInvalidos.length) {
+      mostrarMensagemConclusao("As fotos da falha devem ser arquivos de imagem.", true);
+      return;
+    }
+  }
   const fotosObrigatorias = !conclusaoFotosToggle || conclusaoFotosToggle.checked;
   const arquivos = fotosObrigatorias ? getEvidenciaFiles() : [];
   const arquivosValidos = arquivos.filter(Boolean);
@@ -49364,10 +50173,68 @@ async function salvarConclusao(event) {
       mostrarMensagemConclusao("Não foi possível ler as evidências.", true);
       return;
     }
+    let fotosFalha = intercorrenciaAnterior && Array.isArray(intercorrenciaAnterior.fotos)
+      ? dedupeEvidenceList(intercorrenciaAnterior.fotos)
+      : [];
+    if (registrarFalha && falhaArquivosValidos.length) {
+      mostrarMensagemConclusao("Enviando fotos da intercorrência...");
+      try {
+        const uploadedFalha = await lerEvidencias(falhaArquivosValidos);
+        fotosFalha = dedupeEvidenceList([...(fotosFalha || []), ...uploadedFalha]).slice(0, 4);
+      } catch (error) {
+        mostrarMensagemConclusao(
+          error && error.message ? error.message : "Falha ao enviar fotos da intercorrência.",
+          true
+        );
+        return;
+      }
+    }
 
     const minutos = (fimDate.getTime() - inicioDate.getTime()) / 60000;
     const inicioIso = toIsoUtc(inicioDate);
     const fimIso = toIsoUtc(fimDate);
+    let intercorrenciaAtualizada = intercorrenciaAnterior;
+    if (registrarFalha) {
+      const statusAnterior = intercorrenciaAnterior
+        ? normalizeIntercorrenciaStatus(intercorrenciaAnterior.status)
+        : "ABERTA";
+      const statusAtual = statusAnterior === "CORRIGIDA" ? "ABERTA" : statusAnterior;
+      const agoraIso = toIsoUtc(new Date());
+      intercorrenciaAtualizada = {
+        id:
+          (intercorrenciaAnterior && intercorrenciaAnterior.id) ||
+          `issue:${item.id}:${agoraIso || criarId()}`,
+        status: statusAtual,
+        criticidade: falhaCriticidade,
+        descricao: falhaDescricao,
+        acaoImediata: falhaAcao,
+        fotos: fotosFalha,
+        criadaEm:
+          (intercorrenciaAnterior && intercorrenciaAnterior.criadaEm) ||
+          (item.conclusao &&
+          item.conclusao.intercorrencia &&
+          item.conclusao.intercorrencia.criadaEm
+            ? item.conclusao.intercorrencia.criadaEm
+            : agoraIso),
+        criadaPor:
+          (intercorrenciaAnterior && intercorrenciaAnterior.criadaPor) ||
+          (item.conclusao &&
+          item.conclusao.intercorrencia &&
+          item.conclusao.intercorrencia.criadaPor
+            ? item.conclusao.intercorrencia.criadaPor
+            : currentUser.id),
+        atualizadaEm: agoraIso,
+        atualizadaPor: currentUser.id,
+        corrigidaEm:
+          statusAtual === "CORRIGIDA" && intercorrenciaAnterior
+            ? intercorrenciaAnterior.corrigidaEm || ""
+            : "",
+        corrigidaPor:
+          statusAtual === "CORRIGIDA" && intercorrenciaAnterior
+            ? intercorrenciaAnterior.corrigidaPor || ""
+            : "",
+      };
+    }
     const conclusao = {
       executadoPor,
       encerradoPor: currentUser.id,
@@ -49401,6 +50268,22 @@ async function salvarConclusao(event) {
         confirmedAt: assinaturaConfirmedAt,
       },
       evidencias,
+      intercorrencia: intercorrenciaAtualizada
+        ? {
+            id: intercorrenciaAtualizada.id,
+            status: intercorrenciaAtualizada.status,
+            criticidade: intercorrenciaAtualizada.criticidade,
+            descricao: intercorrenciaAtualizada.descricao,
+            acaoImediata: intercorrenciaAtualizada.acaoImediata,
+            fotos: dedupeEvidenceList(intercorrenciaAtualizada.fotos || []),
+            criadaEm: intercorrenciaAtualizada.criadaEm || "",
+            criadaPor: intercorrenciaAtualizada.criadaPor || "",
+            atualizadaEm: intercorrenciaAtualizada.atualizadaEm || "",
+            atualizadaPor: intercorrenciaAtualizada.atualizadaPor || "",
+            corrigidaEm: intercorrenciaAtualizada.corrigidaEm || "",
+            corrigidaPor: intercorrenciaAtualizada.corrigidaPor || "",
+          }
+        : null,
     };
 
     const atualizado = {
@@ -49421,6 +50304,7 @@ async function salvarConclusao(event) {
       })(),
       updatedBy: currentUser.id,
       conclusao,
+      intercorrencia: intercorrenciaAtualizada || null,
     };
 
     manutencoes[index] = atualizado;
@@ -49453,6 +50337,18 @@ async function salvarConclusao(event) {
       fimExecucao: fimIso,
       resumo: `Executada por ${getUserLabel(executadoPor)} | ${formatDuracaoMin(minutos)}`,
     });
+    if (registrarFalha && intercorrenciaAtualizada) {
+      logAction("issue_register", atualizado, {
+        issueId: intercorrenciaAtualizada.id || "",
+        issueStatus: intercorrenciaAtualizada.status || "ABERTA",
+        criticidade: intercorrenciaAtualizada.criticidade || "MEDIA",
+        descricao: truncarTexto(intercorrenciaAtualizada.descricao || "", 220),
+        fotosCount: Array.isArray(intercorrenciaAtualizada.fotos)
+          ? intercorrenciaAtualizada.fotos.length
+          : 0,
+        resumo: "Intercorrência registrada na conclusão.",
+      });
+    }
     renderTudo();
     fecharConclusao();
     mostrarMensagemManutencao("Manutenção concluída.");
@@ -53287,6 +54183,57 @@ if (equipeTable) {
     }
   });
 }
+if (intercorrenciaStatusFiltro) {
+  intercorrenciaStatusFiltro.addEventListener("change", renderIntercorrencias);
+}
+if (intercorrenciaCriticidadeFiltro) {
+  intercorrenciaCriticidadeFiltro.addEventListener("change", renderIntercorrencias);
+}
+if (intercorrenciaBusca) {
+  intercorrenciaBusca.addEventListener("input", renderIntercorrencias);
+}
+if (intercorrenciaTableBody) {
+  intercorrenciaTableBody.addEventListener("click", async (event) => {
+    const actionBtn = event.target.closest("button[data-intercorrencia-action]");
+    if (!actionBtn) {
+      return;
+    }
+    const rowEl = actionBtn.closest("tr[data-intercorrencia-maintenance-id]");
+    if (!rowEl) {
+      return;
+    }
+    const maintenanceId = rowEl.dataset.intercorrenciaMaintenanceId || "";
+    if (!maintenanceId) {
+      return;
+    }
+    const item = manutencoes.find((registro) => String(registro && registro.id || "") === maintenanceId);
+    if (!item) {
+      return;
+    }
+    const issueRow = getIntercorrenciaRows().find((entry) => entry.maintenanceId === maintenanceId);
+    const action = actionBtn.dataset.intercorrenciaAction || "";
+    if (action === "historico") {
+      abrirHistorico(item);
+      return;
+    }
+    if (action === "fotos") {
+      await abrirPreviewIntercorrenciaFotos(issueRow);
+      return;
+    }
+    if (action === "status") {
+      const nextStatus = normalizeIntercorrenciaStatus(actionBtn.dataset.nextStatus || "");
+      if (!nextStatus) {
+        return;
+      }
+      const statusLabel = INTERCORRENCIA_STATUS_LABELS[nextStatus] || nextStatus;
+      const confirmar = window.confirm(`Confirmar alteração para "${statusLabel}"?`);
+      if (!confirmar) {
+        return;
+      }
+      atualizarIntercorrenciaStatus(maintenanceId, nextStatus);
+    }
+  });
+}
 if (btnEnviarFeedback) {
   btnEnviarFeedback.addEventListener("click", enviarFeedback);
 }
@@ -54054,6 +55001,26 @@ if (btnHistoricoExportarPdf) {
     }
     exportarHistoricoPdf(item);
   });
+}
+if (falhaFotoButtons.length) {
+  falhaFotoButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const alvo = button.dataset.falhaFotoBtn;
+      const input = falhaFotoInputs.find((item) => item.dataset.falhaFotoInput === alvo);
+      if (input) {
+        input.click();
+      }
+    });
+  });
+}
+if (falhaFotoInputs.length) {
+  falhaFotoInputs.forEach((input) => {
+    input.addEventListener("change", atualizarListaFalhaFotos);
+  });
+}
+if (conclusaoFalhaToggle) {
+  conclusaoFalhaToggle.addEventListener("change", toggleConclusaoFalhaUI);
+  toggleConclusaoFalhaUI();
 }
 if (evidenciaButtons.length) {
   evidenciaButtons.forEach((button) => {

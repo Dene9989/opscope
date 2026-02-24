@@ -6974,6 +6974,60 @@ textarea:focus {
   color: #4b5966;
 }
 
+.status-badge--inter-open {
+  background: rgba(176, 74, 38, 0.2);
+  color: #8f2f20;
+}
+
+.status-badge--inter-progress {
+  background: rgba(246, 196, 83, 0.2);
+  color: #7a5b1e;
+}
+
+.status-badge--inter-done {
+  background: rgba(43, 122, 120, 0.2);
+  color: #1f5759;
+}
+
+.intercorrencia-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin: 14px 0 10px;
+}
+
+.intercorrencia-kpis .kpi-card {
+  min-height: 98px;
+}
+
+.intercorrencia-filtros {
+  margin-bottom: 10px;
+}
+
+.intercorrencia-table td {
+  vertical-align: top;
+}
+
+.intercorrencia-table .table-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.intercorrencia-table td small {
+  color: var(--ink-soft);
+}
+
+.intercorrencia-detail {
+  white-space: normal;
+  line-height: 1.35;
+}
+
+.intercorrencia-detail__sub {
+  display: block;
+  margin-top: 4px;
+  line-height: 1.35;
+}
+
 .rdo-head {
   display: flex;
   flex-wrap: wrap;
@@ -12496,6 +12550,10 @@ textarea:focus {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 12px;
+}
+
+.evidence-picker--mini {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .photo-slot {
