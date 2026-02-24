@@ -12852,6 +12852,16 @@ function isAdminUser(user) {
   );
 }
 
+function isGenericAdminAccount(user) {
+  if (!user) {
+    return false;
+  }
+  const username = String(user.username || "").trim().toLowerCase();
+  const matricula = String(user.matricula || "").trim().toLowerCase();
+  const nome = String(user.name || "").trim().toLowerCase();
+  return username === "admin" || matricula === "admin" || nome === "administrador";
+}
+
 function isSystemUserId(id) {
   const normalized = normalizeUserIdentity(id);
   return normalized === normalizeUserIdentity(SYSTEM_USER_ID) || normalized === "sistema";
@@ -23761,6 +23771,7 @@ function hasUserProjectInfo(user) {
 function collectActiveProjectMembers(jornadas = [], options = {}) {
   const includeAdmins = Boolean(options && options.includeAdmins);
   const requireProjectInfo = Boolean(options && options.requireProjectInfo);
+  const equipeIds = getActiveProjectEquipeIds();
   const members = new Map();
   const addUser = (user, labelOverride = "") => {
     if (!user) {
@@ -23773,7 +23784,11 @@ function collectActiveProjectMembers(jornadas = [], options = {}) {
     if (normalizeAccessUserStatus(user.status, user.active) === "INATIVO") {
       return;
     }
-    if (!includeAdmins && isAdminUser(user)) {
+    const isAdmin = isAdminUser(user);
+    const isTeamMember = equipeIds.has(id);
+    // Admins continuam ocultos por padrao, exceto quando fazem parte da equipe do projeto ativo
+    // e nao sao a conta administrativa generica.
+    if (!includeAdmins && isAdmin && (!isTeamMember || isGenericAdminAccount(user))) {
       return;
     }
     if (requireProjectInfo && !hasUserProjectInfo(user)) {
@@ -37688,7 +37703,14 @@ function renderEquipeSelectOptions() {
   const termo = equipeSearch ? normalizeSearchValue(equipeSearch.value || "") : "";
   const vinculados = new Set(projectEquipe.map((entry) => entry.userId));
   users.forEach((user) => {
-    if (!isRealUser(user)) {
+    const id = String(user && user.id ? user.id : "").trim();
+    if (!id || isSystemUserId(id)) {
+      return;
+    }
+    if (normalizeAccessUserStatus(user.status, user.active) === "INATIVO") {
+      return;
+    }
+    if (isAdminUser(user) && isGenericAdminAccount(user)) {
       return;
     }
     if (vinculados.has(user.id)) {
