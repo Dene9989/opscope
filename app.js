@@ -12107,6 +12107,9 @@ async function syncTemplatesNow(list) {
   if (!USE_AUTH_API || !templatesSyncEnabled || !currentUser || !activeProjectId) {
     return;
   }
+  if (!can("edit") && !can("create")) {
+    return;
+  }
   const payload = Array.isArray(list)
     ? list.map((item) => ({ ...item, projectId: item.projectId || activeProjectId }))
     : [];
@@ -33630,6 +33633,13 @@ async function refreshAccessUsers() {
 }
 
 async function refreshAccessData(options = {}) {
+  if (!currentUser || !canManageAccess(currentUser)) {
+    accessRoles = [];
+    accessUsers = [];
+    renderAccessRoles();
+    renderAccessUsers();
+    return;
+  }
   const force = Boolean(options.force);
   const now = Date.now();
   if (accessRefreshInFlight) {

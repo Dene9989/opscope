@@ -151,9 +151,20 @@ const STORAGE_READONLY_MESSAGE =
   "Armazenamento indisponivel. O sistema esta em modo somente leitura para evitar perda de dados.";
 const DB_STORE_TABLE = "opscope_store";
 const DB_UPLOADS_TABLE = "opscope_uploads";
+const DB_WRITE_PAUSE_MS = Math.max(
+  5000,
+  Number(process.env.OPSCOPE_DB_WRITE_PAUSE_MS) || 30000
+);
+const DB_PROBE_INTERVAL_MS = Math.max(
+  5000,
+  Number(process.env.OPSCOPE_DB_PROBE_INTERVAL_MS) || 15000
+);
 let dbPool = null;
 let dbReady = false;
 let dbWriteQueue = Promise.resolve();
+let dbWritesPausedUntil = 0;
+let dbReconnectTimer = null;
+let dbLastConnectivityLogAt = 0;
 const DATA_FILE_NAMES = [
   "invites.json",
   "audit.json",
@@ -1561,8 +1572,91 @@ async function fetchStorePayload(key) {
   }
 }
 
+function isDbConnectivityError(error) {
+  if (!error) {
+    return false;
+  }
+  const code = String(error.code || error.errno || "").trim().toUpperCase();
+  const message = String(error.message || "").trim().toUpperCase();
+  if (
+    code === "ECONNREFUSED" ||
+    code === "ECONNRESET" ||
+    code === "ETIMEDOUT" ||
+    code === "ENOTFOUND" ||
+    code === "EHOSTUNREACH" ||
+    code === "EPIPE" ||
+    code.startsWith("08") ||
+    code === "57P01"
+  ) {
+    return true;
+  }
+  return (
+    message.includes("ECONNREFUSED") ||
+    message.includes("CONNECTION TERMINATED") ||
+    message.includes("CONNECTION ENDED")
+  );
+}
+
+function scheduleDbRecovery(delayMs = DB_PROBE_INTERVAL_MS) {
+  if (dbReconnectTimer || !dbPool || !shouldUseDb()) {
+    return;
+  }
+  const waitMs = Math.max(1000, Number(delayMs) || DB_PROBE_INTERVAL_MS);
+  dbReconnectTimer = setTimeout(async () => {
+    dbReconnectTimer = null;
+    if (!dbPool || !shouldUseDb()) {
+      return;
+    }
+    if (Date.now() < dbWritesPausedUntil) {
+      scheduleDbRecovery(dbWritesPausedUntil - Date.now());
+      return;
+    }
+    try {
+      await dbPool.query("SELECT 1");
+      if (dbWritesPausedUntil > 0) {
+        console.warn("[db] Conexao restabelecida. Escritas remotas reativadas.");
+      }
+      dbWritesPausedUntil = 0;
+      dbReady = true;
+      warnedUploadsDisabled = false;
+    } catch (error) {
+      dbWritesPausedUntil = Date.now() + DB_WRITE_PAUSE_MS;
+      const now = Date.now();
+      if (now - dbLastConnectivityLogAt > DB_WRITE_PAUSE_MS) {
+        dbLastConnectivityLogAt = now;
+        console.warn("[db] Banco indisponivel. Escritas remotas seguem pausadas.");
+      }
+      scheduleDbRecovery(DB_PROBE_INTERVAL_MS);
+    }
+  }, waitMs);
+  if (typeof dbReconnectTimer.unref === "function") {
+    dbReconnectTimer.unref();
+  }
+}
+
+function handleDbWriteFailure(key, error) {
+  if (!isDbConnectivityError(error)) {
+    return false;
+  }
+  const now = Date.now();
+  dbWritesPausedUntil = now + DB_WRITE_PAUSE_MS;
+  if (now - dbLastConnectivityLogAt > DB_WRITE_PAUSE_MS) {
+    dbLastConnectivityLogAt = now;
+    console.warn(
+      `[db] Conexao com DB indisponivel. Escritas remotas pausadas por ${Math.round(
+        DB_WRITE_PAUSE_MS / 1000
+      )}s. Dados locais continuam ativos (${key}).`
+    );
+  }
+  scheduleDbRecovery(DB_PROBE_INTERVAL_MS);
+  return true;
+}
+
 function queueDbWrite(filePath, data) {
   if (!dbReady || !dbPool) {
+    return;
+  }
+  if (Date.now() < dbWritesPausedUntil) {
     return;
   }
   const key = getStoreKey(filePath);
@@ -1572,6 +1666,9 @@ function queueDbWrite(filePath, data) {
   dbWriteQueue = dbWriteQueue
     .then(() => upsertStorePayload(key, data))
     .catch((error) => {
+      if (handleDbWriteFailure(key, error)) {
+        return;
+      }
       console.warn("[db] Falha ao salvar", key, error.message || error);
     });
 }
@@ -1643,7 +1740,7 @@ function getStorageSnapshot() {
 }
 
 function shouldStoreUploads() {
-  return STORE_UPLOADS && dbReady && dbPool;
+  return STORE_UPLOADS && dbReady && dbPool && Date.now() >= dbWritesPausedUntil;
 }
 
 function normalizeDbBuffer(value) {
@@ -1707,6 +1804,9 @@ async function upsertUploadBlob(entry, buffer) {
     );
     console.log("[storage] Upload salvo no DB:", entry.name, entry.id, buffer.length);
   } catch (error) {
+    if (handleDbWriteFailure(entry && entry.name ? entry.name : "upload", error)) {
+      return;
+    }
     console.warn("[db] Falha ao salvar upload:", error.message || error);
   }
 }
