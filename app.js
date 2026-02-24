@@ -14643,11 +14643,35 @@ function getMaintenanceDocsMap(item) {
   if (!item || typeof item !== "object") {
     return {};
   }
+  const normalizeDocCandidate = (value) => {
+    if (!value) {
+      return null;
+    }
+    if (value === true) {
+      return normalizeSstDocFile({ name: "Documento anexado" });
+    }
+    const direct = normalizeSstDocFile(value);
+    if (direct) {
+      return direct;
+    }
+    if (typeof value === "string") {
+      const text = value.trim();
+      if (!text) {
+        return null;
+      }
+      return normalizeSstDocFile(
+        /^(data:|blob:|https?:|\/)/i.test(text)
+          ? { url: text, name: text.split("/").pop() || "Documento" }
+          : { name: text }
+      );
+    }
+    return null;
+  };
   const liberacao = getLiberacao(item) || {};
   const merged = {};
   const fromMaintenance = getMaintenanceSstDocumentos(item, liberacao);
   DOC_KEYS.forEach((key) => {
-    const normalized = normalizeSstDocFile(fromMaintenance[key]);
+    const normalized = normalizeDocCandidate(fromMaintenance[key]);
     if (normalized) {
       merged[key] = normalized;
     }
@@ -14669,7 +14693,7 @@ function getMaintenanceDocsMap(item) {
       if (merged[key]) {
         return;
       }
-      const normalized = normalizeSstDocFile(docs[key]);
+      const normalized = normalizeDocCandidate(docs[key]);
       if (normalized) {
         merged[key] = normalized;
       }
@@ -15033,8 +15057,22 @@ function mergeLocalExecucaoRegistro(remote, local) {
   const remoteTime = getMaintenanceUpdatedAtValue(remote);
   const localStatus = normalizeMaintenanceStatus(local.status);
   const remoteStatus = normalizeMaintenanceStatus(remote.status);
+  const remoteConcluida = remoteStatus === "concluida";
+  const localConcluida = localStatus === "concluida";
+  const localReopened = Boolean(local.reopenedAt || local.reopenedBy);
   if (shouldKeepLocalExecutionReset(local, remote)) {
     return applyLocalExecutionReset(mergePreferLocal(local, remote), local);
+  }
+  if (remoteConcluida && !localConcluida) {
+    if (!localReopened) {
+      return mergePreferLocal(remote, local);
+    }
+    if (!localTime || (remoteTime && remoteTime >= localTime - 1000)) {
+      return mergePreferLocal(remote, local);
+    }
+  }
+  if (localConcluida && !remoteConcluida && (!remoteTime || localTime >= remoteTime)) {
+    return mergePreferLocal(local, remote);
   }
   if (localDirty && (!remoteTime || localTime >= remoteTime)) {
     return mergePreferLocal(local, remote);
@@ -16771,6 +16809,7 @@ function renderDocList(container, documentos, critico = false) {
     const action = document.createElement("div");
     const rawDoc = docs[key];
     const doc =
+      (rawDoc === true ? normalizeSstDocFile({ name: "Documento anexado" }) : null) ||
       normalizeSstDocFile(rawDoc) ||
       (typeof rawDoc === "string"
         ? normalizeSstDocFile(
@@ -39132,22 +39171,58 @@ function normalizeSstDocTypeKey(value) {
 }
 
 function normalizeSstDocFile(file) {
-  if (!file || typeof file !== "object") {
+  if (!file) {
     return null;
   }
-  const url = typeof file.url === "string" ? file.url.trim() : "";
-  const dataUrl = typeof file.dataUrl === "string" ? file.dataUrl.trim() : "";
-  const docId = typeof file.docId === "string" ? file.docId.trim() : "";
-  const id = typeof file.id === "string" ? file.id.trim() : "";
-  const fileId = typeof file.fileId === "string" ? file.fileId.trim() : "";
-  const nameRaw = file.name || file.nome || file.fileName || file.originalName || "";
+  if (typeof file === "string") {
+    const raw = file.trim();
+    if (!raw) {
+      return null;
+    }
+    return normalizeSstDocFile(
+      /^(data:|blob:|https?:|\/)/i.test(raw)
+        ? { url: raw, name: raw.split("/").pop() || "Documento" }
+        : { name: raw }
+    );
+  }
+  if (typeof file !== "object") {
+    return null;
+  }
+  const nested =
+    (file.file && typeof file.file === "object" ? file.file : null) ||
+    (file.arquivo && typeof file.arquivo === "object" ? file.arquivo : null) ||
+    (file.document && typeof file.document === "object" ? file.document : null);
+  const source = nested || file;
+  const url =
+    typeof source.url === "string"
+      ? source.url.trim()
+      : typeof source.path === "string"
+        ? source.path.trim()
+        : typeof source.src === "string"
+          ? source.src.trim()
+          : "";
+  const dataUrl = typeof source.dataUrl === "string" ? source.dataUrl.trim() : "";
+  const docId = typeof source.docId === "string" ? source.docId.trim() : "";
+  const id = typeof source.id === "string" ? source.id.trim() : "";
+  const fileId = typeof source.fileId === "string" ? source.fileId.trim() : "";
+  const nameRaw =
+    source.name ||
+    source.nome ||
+    source.fileName ||
+    source.originalName ||
+    source.filename ||
+    source.nomeArquivo ||
+    file.name ||
+    file.nome ||
+    "";
   const name = String(nameRaw || "").trim();
   if (!url && !dataUrl && !docId && !id && !fileId && !name) {
     return null;
   }
-  const mime = String(file.mime || file.type || file.fileType || "").trim();
+  const mime = String(source.mime || source.type || source.fileType || file.mime || file.type || "").trim();
   return {
     ...file,
+    ...(nested ? nested : {}),
     id,
     fileId,
     docId,
@@ -43094,12 +43169,47 @@ function getMaintenanceSstDocumentos(item, liberacao) {
     parseDocumentObject(target.documentos);
     parseDocumentObject(target.docs);
     parseDocumentObject(target.documents);
+    if (target.registroExecucao && typeof target.registroExecucao === "object") {
+      parseDocumentObject(target.registroExecucao.documentos);
+      parseDocumentObject(target.registroExecucao.docs);
+      parseDocumentObject(target.registroExecucao.documents);
+    }
     parseDocumentList(target.attachments);
     parseDocumentList(target.anexos);
+    if (target.registroExecucao && typeof target.registroExecucao === "object") {
+      parseDocumentList(target.registroExecucao.attachments);
+      parseDocumentList(target.registroExecucao.anexos);
+    }
     applyDoc("apr", target.aprDoc || target.apr || target.docApr);
     applyDoc("os", target.osDoc || target.os || target.docOs);
     applyDoc("pte", target.pteDoc || target.pte || target.docPte);
     applyDoc("pt", target.ptDoc || target.pt || target.docPt);
+    if (target.registroExecucao && typeof target.registroExecucao === "object") {
+      applyDoc(
+        "apr",
+        target.registroExecucao.aprDoc ||
+          target.registroExecucao.apr ||
+          target.registroExecucao.docApr
+      );
+      applyDoc(
+        "os",
+        target.registroExecucao.osDoc ||
+          target.registroExecucao.os ||
+          target.registroExecucao.docOs
+      );
+      applyDoc(
+        "pte",
+        target.registroExecucao.pteDoc ||
+          target.registroExecucao.pte ||
+          target.registroExecucao.docPte
+      );
+      applyDoc(
+        "pt",
+        target.registroExecucao.ptDoc ||
+          target.registroExecucao.pt ||
+          target.registroExecucao.docPt
+      );
+    }
   });
   return output;
 }

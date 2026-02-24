@@ -5194,22 +5194,58 @@ function normalizeSstDocTypeKey(value) {
 }
 
 function normalizeSstDocFile(file) {
-  if (!file || typeof file !== "object") {
+  if (!file) {
     return null;
   }
-  const url = typeof file.url === "string" ? file.url.trim() : "";
-  const dataUrl = typeof file.dataUrl === "string" ? file.dataUrl.trim() : "";
-  const docId = typeof file.docId === "string" ? file.docId.trim() : "";
-  const id = typeof file.id === "string" ? file.id.trim() : "";
-  const fileId = typeof file.fileId === "string" ? file.fileId.trim() : "";
-  const nameRaw = file.name || file.nome || file.fileName || file.originalName || "";
+  if (typeof file === "string") {
+    const raw = file.trim();
+    if (!raw) {
+      return null;
+    }
+    return normalizeSstDocFile(
+      /^(data:|blob:|https?:|\/)/i.test(raw)
+        ? { url: raw, name: raw.split("/").pop() || "Documento" }
+        : { name: raw }
+    );
+  }
+  if (typeof file !== "object") {
+    return null;
+  }
+  const nested =
+    (file.file && typeof file.file === "object" ? file.file : null) ||
+    (file.arquivo && typeof file.arquivo === "object" ? file.arquivo : null) ||
+    (file.document && typeof file.document === "object" ? file.document : null);
+  const source = nested || file;
+  const url =
+    typeof source.url === "string"
+      ? source.url.trim()
+      : typeof source.path === "string"
+        ? source.path.trim()
+        : typeof source.src === "string"
+          ? source.src.trim()
+          : "";
+  const dataUrl = typeof source.dataUrl === "string" ? source.dataUrl.trim() : "";
+  const docId = typeof source.docId === "string" ? source.docId.trim() : "";
+  const id = typeof source.id === "string" ? source.id.trim() : "";
+  const fileId = typeof source.fileId === "string" ? source.fileId.trim() : "";
+  const nameRaw =
+    source.name ||
+    source.nome ||
+    source.fileName ||
+    source.originalName ||
+    source.filename ||
+    source.nomeArquivo ||
+    file.name ||
+    file.nome ||
+    "";
   const name = String(nameRaw || "").trim();
   if (!url && !dataUrl && !docId && !id && !fileId && !name) {
     return null;
   }
-  const mime = String(file.mime || file.type || file.fileType || "").trim();
+  const mime = String(source.mime || source.type || source.fileType || file.mime || file.type || "").trim();
   return {
     ...file,
+    ...(nested ? nested : {}),
     id,
     fileId,
     docId,
@@ -5465,12 +5501,47 @@ function extractMaintenanceSstDocumentos(item, liberacao) {
     parseObject(target.documentos);
     parseObject(target.docs);
     parseObject(target.documents);
+    if (target.registroExecucao && typeof target.registroExecucao === "object") {
+      parseObject(target.registroExecucao.documentos);
+      parseObject(target.registroExecucao.docs);
+      parseObject(target.registroExecucao.documents);
+    }
     parseList(target.attachments);
     parseList(target.anexos);
+    if (target.registroExecucao && typeof target.registroExecucao === "object") {
+      parseList(target.registroExecucao.attachments);
+      parseList(target.registroExecucao.anexos);
+    }
     applyDoc("apr", target.aprDoc || target.apr || target.docApr);
     applyDoc("os", target.osDoc || target.os || target.docOs);
     applyDoc("pte", target.pteDoc || target.pte || target.docPte);
     applyDoc("pt", target.ptDoc || target.pt || target.docPt);
+    if (target.registroExecucao && typeof target.registroExecucao === "object") {
+      applyDoc(
+        "apr",
+        target.registroExecucao.aprDoc ||
+          target.registroExecucao.apr ||
+          target.registroExecucao.docApr
+      );
+      applyDoc(
+        "os",
+        target.registroExecucao.osDoc ||
+          target.registroExecucao.os ||
+          target.registroExecucao.docOs
+      );
+      applyDoc(
+        "pte",
+        target.registroExecucao.pteDoc ||
+          target.registroExecucao.pte ||
+          target.registroExecucao.docPte
+      );
+      applyDoc(
+        "pt",
+        target.registroExecucao.ptDoc ||
+          target.registroExecucao.pt ||
+          target.registroExecucao.docPt
+      );
+    }
   });
   return output;
 }
