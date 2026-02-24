@@ -7632,6 +7632,9 @@ function buildPermissions(role, explicitPermissions) {
         permissions[key] = Boolean(explicitPermissions[key]);
       }
     });
+    if (!("complete" in explicitPermissions) && "execute" in explicitPermissions) {
+      permissions.complete = Boolean(explicitPermissions.execute);
+    }
   }
   return permissions;
 }

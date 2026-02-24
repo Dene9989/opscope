@@ -3406,7 +3406,7 @@ function deriveMaintenancePermissions(rolePermissions, accountPermissions, acces
     typeof accountPermissions === "object" &&
     !Array.isArray(accountPermissions)
   ) {
-    return accountPermissions;
+    return normalizeMaintenancePermissionObject(accountPermissions);
   }
   return getDefaultPermissions();
 }
@@ -12722,11 +12722,89 @@ async function carregarPermissoesAdmin() {
   }
 }
 
-function getUserById(id) {
-  if (currentUser && currentUser.id === id) {
-    return currentUser;
+function normalizeUserIdentity(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function extractIdentityNumericTokens(value) {
+  const raw = String(value || "");
+  if (!raw) {
+    return [];
   }
-  return users.find((user) => user.id === id);
+  const tokens = raw.match(/\b\d{3,}\b/g) || [];
+  return Array.from(new Set(tokens.map((item) => item.trim()).filter(Boolean)));
+}
+
+function getUserIdentityKeys(user) {
+  if (!user || typeof user !== "object") {
+    return [];
+  }
+  const values = [
+    user.id,
+    user.matricula,
+    user.username,
+    user.email,
+    user.name,
+    user.nome,
+  ];
+  if (user.name && user.matricula) {
+    values.push(`${user.name} (${user.matricula})`);
+  }
+  return Array.from(
+    new Set(values.map((entry) => normalizeUserIdentity(entry)).filter(Boolean))
+  );
+}
+
+function resolveUserByIdentity(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return null;
+  }
+  const normalized = normalizeUserIdentity(raw);
+  const candidates = [];
+  if (currentUser) {
+    candidates.push(currentUser);
+  }
+  if (Array.isArray(users) && users.length) {
+    candidates.push(...users);
+  }
+  const dedupe = new Set();
+  const unique = candidates.filter((user) => {
+    if (!user || typeof user !== "object") {
+      return false;
+    }
+    const key = `${normalizeUserIdentity(user.id)}|${normalizeUserIdentity(
+      user.matricula
+    )}|${normalizeUserIdentity(user.username)}|${normalizeUserIdentity(user.email)}`;
+    if (dedupe.has(key)) {
+      return false;
+    }
+    dedupe.add(key);
+    return true;
+  });
+  const byIdentity = unique.find((user) => getUserIdentityKeys(user).includes(normalized));
+  if (byIdentity) {
+    return byIdentity;
+  }
+  const numericTokens = extractIdentityNumericTokens(raw);
+  if (numericTokens.length) {
+    const numericSet = new Set(numericTokens.map((token) => normalizeUserIdentity(token)));
+    const byMatricula = unique.find((user) =>
+      numericSet.has(normalizeUserIdentity(user && user.matricula))
+    );
+    if (byMatricula) {
+      return byMatricula;
+    }
+  }
+  return null;
+}
+
+function getUserById(id) {
+  return resolveUserByIdentity(id);
 }
 
 function isAdminUser(user) {
@@ -13596,6 +13674,22 @@ function isAdmin() {
   return Boolean(currentUser && isFullAccessUser(currentUser));
 }
 
+function normalizeMaintenancePermissionObject(rawPermissions) {
+  const base = getEmptyPermissions();
+  if (!rawPermissions || typeof rawPermissions !== "object" || Array.isArray(rawPermissions)) {
+    return base;
+  }
+  Object.keys(base).forEach((key) => {
+    if (key in rawPermissions) {
+      base[key] = Boolean(rawPermissions[key]);
+    }
+  });
+  if (!("complete" in rawPermissions) && "execute" in rawPermissions) {
+    base.complete = Boolean(rawPermissions.execute);
+  }
+  return base;
+}
+
 function getMaintenancePermissionsForUser(user) {
   if (!user) {
     return getEmptyPermissions();
@@ -13607,7 +13701,7 @@ function getMaintenancePermissionsForUser(user) {
     return deriveMaintenancePermissions(permissionList, user.permissions, true);
   }
   if (user.permissions && typeof user.permissions === "object" && !Array.isArray(user.permissions)) {
-    return user.permissions;
+    return normalizeMaintenancePermissionObject(user.permissions);
   }
   return getEmptyPermissions();
 }
@@ -35383,7 +35477,36 @@ function isUserResponsibleForMaintenance(item, user) {
   if (!ids.length) {
     return true;
   }
-  return ids.some((id) => String(id) === String(user.id));
+  const userIdentitySet = new Set(getUserIdentityKeys(user));
+  const userNumericSet = new Set(
+    extractIdentityNumericTokens(user.matricula || user.id || "").map((token) =>
+      normalizeUserIdentity(token)
+    )
+  );
+  return ids.some((entry) => {
+    const raw = String(entry || "").trim();
+    if (!raw) {
+      return false;
+    }
+    const normalized = normalizeUserIdentity(raw);
+    if (userIdentitySet.has(normalized)) {
+      return true;
+    }
+    const numericTokens = extractIdentityNumericTokens(raw);
+    if (
+      numericTokens.some((token) => userNumericSet.has(normalizeUserIdentity(token)))
+    ) {
+      return true;
+    }
+    const resolved = resolveUserByIdentity(raw);
+    if (!resolved) {
+      return false;
+    }
+    return (
+      normalizeUserIdentity(resolved.id) === normalizeUserIdentity(user.id) ||
+      normalizeUserIdentity(resolved.matricula) === normalizeUserIdentity(user.matricula)
+    );
+  });
 }
 
 function canExecuteMaintenanceForUser(item, user = currentUser) {
