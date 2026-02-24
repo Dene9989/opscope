@@ -1331,6 +1331,8 @@ const MAINT_DIRTY_KEY = "opscope.maintenance.dirty";
 const MAINT_MONTHLY_KEY = "opscope.maintenance.monthly";
 const MAINT_TOMBSTONE_KEY = "opscope.maintenance.tombstones";
 const MAINT_STORAGE_MODE_KEY = "opscope.maintenance.storageMode";
+const MAINT_DIRTY_RETENTION_MS = 30 * 60 * 1000;
+const MAINT_LOCAL_SHADOW_RETENTION_MS = 15 * 60 * 1000;
 const MAINT_CACHE_USER_KEY = "opscope.maintenance.cache.user";
 const TEMPLATE_KEY = "denemanu.templates";
 const USER_KEY = "denemanu.users";
@@ -11822,10 +11824,29 @@ function carregarManutencoes() {
 function readMaintenanceDirtyMap() {
   const raw = readJson(getProjectStorageKey(MAINT_DIRTY_KEY), {});
   const stored = raw && typeof raw === "object" ? { ...raw } : {};
-  if (maintenanceDirtyMemory && typeof maintenanceDirtyMemory === "object") {
-    return { ...stored, ...maintenanceDirtyMemory };
+  const merged =
+    maintenanceDirtyMemory && typeof maintenanceDirtyMemory === "object"
+      ? { ...stored, ...maintenanceDirtyMemory }
+      : stored;
+  const now = Date.now();
+  const cleaned = {};
+  let changed = false;
+  Object.entries(merged).forEach(([key, value]) => {
+    const ts = Number(value || 0);
+    const isFresh = Number.isFinite(ts) && ts > 0 && now - ts <= MAINT_DIRTY_RETENTION_MS;
+    if (isFresh) {
+      cleaned[key] = ts;
+      return;
+    }
+    changed = true;
+  });
+  if (changed) {
+    maintenanceDirtyMemory = { ...cleaned };
+    if (!maintenanceDirtyPersistFailed && maintenanceStorageMode !== "disabled") {
+      writeJson(getProjectStorageKey(MAINT_DIRTY_KEY), cleaned);
+    }
   }
-  return stored;
+  return cleaned;
 }
 
 function writeMaintenanceDirtyMap(map) {
@@ -14238,8 +14259,16 @@ function shouldKeepLocalOnlyMaintenance(item, lastFetchAt) {
   if (!dirty) {
     return false;
   }
+  const dirtyMap = readMaintenanceDirtyMap();
+  const dirtyAt = Number(dirtyMap[String(item.id)] || 0);
+  const dirtyAgeMs = dirtyAt > 0 ? Date.now() - dirtyAt : Number.POSITIVE_INFINITY;
+  // Evita ressuscitar registros antigos do cache local quando o servidor já não os possui.
+  if (dirtyAgeMs > MAINT_LOCAL_SHADOW_RETENTION_MS) {
+    clearMaintenanceDirtyIds(item.id);
+    return false;
+  }
   const updatedAt = getMaintenanceUpdatedAtValue(item);
-  if (lastFetchAt > 0 && updatedAt <= lastFetchAt && !dirty) {
+  if (lastFetchAt > 0 && updatedAt <= lastFetchAt) {
     return false;
   }
   if (!USE_AUTH_API) {
@@ -52604,20 +52633,37 @@ async function syncMaintenanceNow(items, force) {
   }
   maintenancePendingSync = true;
   const dirtyMap = readMaintenanceDirtyMap();
+  const staleDirtyIds = [];
+  const now = Date.now();
+  const isFreshDirty = (id) => {
+    const key = String(id || "");
+    const ts = Number(dirtyMap[key] || 0);
+    if (!Number.isFinite(ts) || ts <= 0) {
+      return false;
+    }
+    const fresh = now - ts <= MAINT_DIRTY_RETENTION_MS;
+    if (!fresh) {
+      staleDirtyIds.push(key);
+    }
+    return fresh;
+  };
   const serverIds = maintenanceServerIdsByProject.get(activeProjectId) || null;
   const payloadItems = dedupeMaintenanceList(items).filter((item) => {
     if (!item || !item.id) {
       return false;
     }
+    const id = String(item.id);
     if (!serverIds) {
-      return true;
+      return isFreshDirty(id);
     }
     if (serverIds.size === 0) {
-      return Boolean(dirtyMap[String(item.id)]);
+      return isFreshDirty(id);
     }
-    const id = String(item.id);
-    return serverIds.has(id) || Boolean(dirtyMap[id]);
+    return serverIds.has(id) || isFreshDirty(id);
   });
+  if (staleDirtyIds.length) {
+    clearMaintenanceDirtyIds(staleDirtyIds);
+  }
   if (syncDebugEnabled) {
     const summarized = payloadItems.map((item) => ({
       id: String(item.id || ""),

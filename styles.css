@@ -1230,10 +1230,11 @@ body.is-authenticated .app-shell.auth-only {
 .sidebar__nav {
   flex: 1;
   overflow: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 8px;
+  padding: 8px 12px 8px 8px;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
@@ -1321,16 +1322,18 @@ body.is-authenticated .app-shell.auth-only {
   min-height: 44px;
   border: 0;
   border-radius: 12px;
-  padding: 6px 12px;
+  padding: 6px 10px;
   background: transparent;
   color: var(--sb-text);
-  display: flex;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   font-size: 0.9rem;
   text-align: left;
   cursor: pointer;
   position: relative;
+  overflow: hidden;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
@@ -1378,44 +1381,49 @@ body.is-authenticated .app-shell.auth-only {
 }
 
 .nav-item__label {
-  flex: 1;
   min-width: 0;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  padding-right: 2px;
 }
 
 .nav-item__meta {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-left: auto;
+  justify-self: end;
   flex: 0 0 auto;
+  min-width: 24px;
+  margin-right: 2px;
 }
 
-.badge {
-  min-width: 20px;
-  height: 20px;
-  padding: 0 8px;
+.sidebar .badge {
+  min-width: 22px;
+  height: 19px;
+  padding: 0 6px;
   border-radius: 999px;
-  font-size: 0.72rem;
+  font-size: 0.66rem;
+  letter-spacing: 0;
+  text-transform: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.14);
 }
 
-.badge--neutral {
+.sidebar .badge--neutral {
   background: rgba(255, 255, 255, 0.1);
   color: var(--sb-text);
 }
 
-.badge--warn {
+.sidebar .badge--warn {
   background: rgba(217, 138, 59, 0.22);
   color: #ffd9b0;
 }
 
-.badge--danger {
+.sidebar .badge--danger {
   background: rgba(232, 68, 68, 0.2);
   color: #ffd1d1;
 }
@@ -5890,12 +5898,14 @@ label {
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   overflow: auto;
-  max-height: 420px;
+  max-height: 460px;
+  padding-right: 6px;
+  scrollbar-gutter: stable;
 }
 
 .page-procedimentos #procedimentoTable {
   width: 100%;
-  min-width: 940px;
+  min-width: 1160px;
   table-layout: fixed;
 }
 
@@ -5906,28 +5916,29 @@ label {
 
 .page-procedimentos #procedimentoTable th:nth-child(1),
 .page-procedimentos #procedimentoTable td:nth-child(1) {
-  width: 18%;
+  width: 16%;
 }
 
 .page-procedimentos #procedimentoTable th:nth-child(2),
 .page-procedimentos #procedimentoTable td:nth-child(2) {
-  width: 34%;
+  width: 31%;
 }
 
 .page-procedimentos #procedimentoTable th:nth-child(3),
 .page-procedimentos #procedimentoTable td:nth-child(3) {
-  width: 38%;
+  width: 37%;
 }
 
 .page-procedimentos #procedimentoTable th:nth-child(4),
 .page-procedimentos #procedimentoTable td:nth-child(4) {
-  width: 10%;
+  width: 16%;
 }
 
 .page-procedimentos #procedimentoTable td {
   color: #e9f1ff;
   font-weight: 500;
   vertical-align: top;
+  padding: 10px 12px;
 }
 
 .page-procedimentos #procedimentoTable td:nth-child(3) {
@@ -5952,6 +5963,7 @@ label {
   line-height: 1.35;
   white-space: normal;
   word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .page-procedimentos #procedimentoTable .procedure-code {
@@ -5964,16 +5976,24 @@ label {
 }
 
 .page-procedimentos #procedimentoTable .procedure-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 7px;
+  align-content: start;
+  justify-items: stretch;
+  width: 100%;
+  max-width: 110px;
+  margin-left: auto;
 }
 
 .page-procedimentos #procedimentoTable .procedure-actions .btn {
-  min-width: 72px;
-  padding-inline: 10px;
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 6px 8px;
+  font-size: 0.78rem;
   white-space: nowrap;
+  justify-content: center;
 }
 
 .procedure-links {

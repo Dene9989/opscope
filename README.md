@@ -36,7 +36,7 @@ Sistema web para gestao operacional e manutencao.
    - `SESSION_SECRET=<segredo-forte>`
    - `ADMIN_PASSWORD=<senha-admin>`
    - `MASTER_PASSWORD=<senha-master>`
-4. Faça o deploy e depois importe o pacote de acessos.
+4. Faï¿½a o deploy e depois importe o pacote de acessos.
 
 ## Opcional: banco de dados
 
