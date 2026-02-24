@@ -13779,6 +13779,28 @@ function hasExecucaoRegistradaCompleta(item) {
   return Boolean(executadoPor && comentarioNormalizado.length >= MIN_RESUMO_RDO_CHARS);
 }
 
+function getExecutionStartedIso(item) {
+  if (!item || typeof item !== "object") {
+    return "";
+  }
+  const registro = item.registroExecucao && typeof item.registroExecucao === "object"
+    ? item.registroExecucao
+    : {};
+  return (
+    normalizeIso(
+      item.executionStartedAt ||
+        item.inicioExecucao ||
+        registro.inicio ||
+        registro.inicioExecucao ||
+        registro.registradoEm ||
+        registro.registrado_em ||
+        item.updatedAt ||
+        item.createdAt ||
+        ""
+    ) || ""
+  );
+}
+
 function hasRegistroExecucaoBloqueante(item) {
   if (!item || !item.registroExecucao || typeof item.registroExecucao !== "object") {
     return false;
@@ -35530,13 +35552,13 @@ function isSystemTemplateMaintenance(item) {
   if (!item || typeof item !== "object") {
     return false;
   }
-  const templateId = String(item.templateId || "").trim();
-  if (!templateId) {
-    return false;
-  }
   const createdBy = String(item.createdBy || "").trim();
   if (createdBy && isSystemUserId(createdBy)) {
     return true;
+  }
+  const templateId = String(item.templateId || "").trim();
+  if (!templateId) {
+    return false;
   }
   const source = normalizeUserIdentity(
     item.source || item.origem || item.createdFrom || item.createdVia || item.origemCadastro || ""
@@ -50157,7 +50179,8 @@ function abrirConclusao(item) {
     );
     return;
   }
-  if (!item.executionStartedAt) {
+  const executionStartedIso = getExecutionStartedIso(item);
+  if (!executionStartedIso) {
     mostrarMensagemManutencao("Início da execução não encontrado.", true);
     return;
   }
@@ -50279,10 +50302,10 @@ function abrirConclusao(item) {
   }
   toggleConclusaoFotosUI();
 
-  const inicio = parseTimestamp(item.executionStartedAt);
+  const inicio = parseTimestamp(executionStartedIso);
   if (conclusaoInicio) {
     conclusaoInicio.value = inicio ? formatDateTimeInput(inicio) : "";
-    conclusaoInicio.dataset.iso = item.executionStartedAt || "";
+    conclusaoInicio.dataset.iso = executionStartedIso || "";
   }
   if (conclusaoFim) {
     const agora = new Date();
@@ -50435,9 +50458,10 @@ async function salvarConclusao(event) {
     assinaturaHash
   );
   const inicioValor = conclusaoInicio ? conclusaoInicio.value : "";
+  const inicioIso = getExecutionStartedIso(item);
   const inicioDate =
     parseDateTimeInput(inicioValor) ||
-    (item.executionStartedAt ? parseTimestamp(item.executionStartedAt) : null);
+    (inicioIso ? parseTimestamp(inicioIso) : null);
   if (!inicioDate) {
     mostrarMensagemConclusao("Informe o horário de início da execução.", true);
     return;
