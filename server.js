@@ -4509,12 +4509,32 @@ function getMaintenanceUpdatedAtValue(item) {
   if (!item || typeof item !== "object") {
     return 0;
   }
+  const registroExecucao =
+    item.registroExecucao && typeof item.registroExecucao === "object"
+      ? item.registroExecucao
+      : {};
+  const liberacao =
+    item.liberacao && typeof item.liberacao === "object" ? item.liberacao : {};
+  const backlogMotivo =
+    item.backlogMotivo && typeof item.backlogMotivo === "object"
+      ? item.backlogMotivo
+      : {};
   const candidates = [
     item.updatedAt,
     item.doneAt,
     item.executionFinishedAt,
     item.executionStartedAt,
+    item.execucaoRegistradaEm,
+    item.executionRegisteredAt,
+    registroExecucao.registradoEm,
+    registroExecucao.registrado_em,
+    registroExecucao.executedAt,
+    registroExecucao.executadoEm,
+    liberacao.liberadoEm,
+    liberacao.liberado_em,
     item.backlogAutoEm,
+    backlogMotivo.registradoEm,
+    item.reopenedAt,
     item.prazoMaximoRevalidacao ? item.prazoMaximoRevalidacao.registradoEm : "",
     item.concluidaEm,
     item.dataConclusao,
@@ -4648,6 +4668,80 @@ function shouldPreserveIncomingExecutionReset(incoming, existing) {
   return !existingTime || incomingTime >= existingTime - 1000;
 }
 
+function hasMaintenanceReleaseData(item) {
+  if (!item || typeof item !== "object") {
+    return false;
+  }
+  const liberacao =
+    item.liberacao && typeof item.liberacao === "object" ? item.liberacao : {};
+  const docsCandidates = [
+    item.documentos,
+    item.docs,
+    item.documents,
+    liberacao.documentos,
+    liberacao.docs,
+    liberacao.documents,
+  ].filter((entry) => entry && typeof entry === "object");
+  const hasDocs = docsCandidates.some((docs) =>
+    ["apr", "os", "pte", "pt"].some((key) => Boolean(docs[key]))
+  );
+  const hasOs = Boolean(
+    String(
+      item.osReferencia ||
+        item.osNumero ||
+        item.referencia ||
+        liberacao.osNumero ||
+        liberacao.osReferencia ||
+        ""
+    ).trim()
+  );
+  const hasParticipants = Boolean(
+    (Array.isArray(item.participantes) && item.participantes.filter(Boolean).length) ||
+      (Array.isArray(liberacao.participantes) && liberacao.participantes.filter(Boolean).length)
+  );
+  const hasReleaseMark = Boolean(
+    liberacao.liberadoEm ||
+      liberacao.liberado_em ||
+      liberacao.liberadoPor ||
+      liberacao.liberado_por
+  );
+  return hasDocs || hasOs || hasParticipants || hasReleaseMark;
+}
+
+function shouldKeepExistingSyncState(existing, incoming, existingTime, incomingTime) {
+  if (!existing || !incoming) {
+    return false;
+  }
+  if (incoming.reopenedAt || incoming.reopenedBy) {
+    return false;
+  }
+  if (incomingTime && existingTime && incomingTime > existingTime + 1000) {
+    return false;
+  }
+  const existingStatus = normalizeStatus(existing.status);
+  const incomingStatus = normalizeStatus(incoming.status);
+  const existingHasExecution =
+    hasExecucaoRegistrada(existing) ||
+    isExecutionStatus(existingStatus) ||
+    existingStatus === "concluida";
+  const incomingHasExecution =
+    hasExecucaoRegistrada(incoming) ||
+    isExecutionStatus(incomingStatus) ||
+    incomingStatus === "concluida";
+  if (existingHasExecution && !incomingHasExecution) {
+    return true;
+  }
+  if (
+    existingStatus === "liberada" &&
+    incomingStatus === "agendada" &&
+    hasMaintenanceReleaseData(existing) &&
+    !hasMaintenanceReleaseData(incoming)
+  ) {
+    return true;
+  }
+  return false;
+}
+
 function applyIncomingExecutionReset(merged, incoming) {
   const next = { ...(merged || {}) };
   MAINTENANCE_EXECUTION_RESET_FIELDS.forEach((key) => {
@@ -4732,6 +4826,10 @@ function pickMaintenanceMerge(existing, incoming) {
   } else {
     result = mergedIncoming;
     usedIncoming = true;
+  }
+  if (usedIncoming && shouldKeepExistingSyncState(existing, incoming, existingTime, incomingTime)) {
+    result = mergedExisting;
+    usedIncoming = false;
   }
   if (usedIncoming && incomingHasResponsavel) {
     const responsavelIds = normalizeResponsavelIds(
@@ -6858,7 +6956,7 @@ function loadMaintenanceTemplates() {
 }
 
 function saveMaintenanceTemplates(list) {
-  writeJson(MAINTENANCE_TEMPLATES_FILE, Array.isArray(list) ? list : []);
+  return writeJson(MAINTENANCE_TEMPLATES_FILE, Array.isArray(list) ? list : []);
 }
 
 function buildMaintenanceProgramacaoLink(item, projectId) {
@@ -13746,7 +13844,7 @@ app.get("/api/maintenance/templates", requireAuth, (req, res) => {
   return res.json({ items: list, projectId });
 });
 
-app.post("/api/maintenance/templates/sync", requireAuth, (req, res) => {
+app.post("/api/maintenance/templates/sync", requireAuth, requireStorageWritable, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   const fromQuery = String(req.query.projectId || "").trim();
   const fromBody = String(req.body.projectId || "").trim();
@@ -13768,7 +13866,13 @@ app.post("/api/maintenance/templates/sync", requireAuth, (req, res) => {
   const existing = loadMaintenanceTemplates();
   const filtered = existing.filter((item) => !(item && item.projectId === projectId));
   const merged = [...filtered, ...sanitized];
-  saveMaintenanceTemplates(merged);
+  const writeOk = saveMaintenanceTemplates(merged);
+  if (!writeOk) {
+    return res.status(503).json({
+      message: STORAGE_READONLY_MESSAGE,
+      reason: "storage_write_failed",
+    });
+  }
   touchCompat("templates", projectId);
   broadcastSse("templates.updated", {
     projectId,

@@ -4928,7 +4928,7 @@ let kpiThemeMode = KPI_THEME_EXECUTIVO;
 let perfThemeMode = PERF_THEME_EXECUTIVO;
 let homeTipsTimer = null;
 let homeTipIndex = 0;
-const SYNC_POLL_MS = 10 * 60 * 1000;
+const SYNC_POLL_MS = 45 * 1000;
 const SYNC_DEBUG_KEY = "opscope.debugSync";
 const COMPAT_SCHEMA_VERSION = 1;
 const COMPAT_STATE_KEY = "opscope.compat.state";
@@ -12510,7 +12510,8 @@ function ensureMaintenanceCacheOwnership() {
   localStorage.setItem(MAINT_CACHE_USER_KEY, currentId);
 }
 
-function reloadProjectState() {
+function reloadProjectState(options = {}) {
+  const skipMaintenanceSync = Boolean(options.skipMaintenanceSync);
   templates = carregarTemplates();
   if (!isDefaultProjectActive() && shouldClearDefaultTemplates(templates)) {
     templates = [];
@@ -12532,7 +12533,12 @@ function reloadProjectState() {
   }
   const resultado = normalizarManutencoes(manutencoes);
   manutencoes = resultado.normalizadas;
-  salvarManutencoes(manutencoes);
+  salvarManutencoes(
+    manutencoes,
+    skipMaintenanceSync
+      ? { skipSync: true, skipDirty: true }
+      : {}
+  );
   rdoSnapshots = carregarRdoSnapshots();
   carregarFeedbacks();
   montarRdoUI();
@@ -12566,7 +12572,7 @@ async function setActiveProjectId(nextId, options = {}) {
       });
     }
   }
-  reloadProjectState();
+  reloadProjectState({ skipMaintenanceSync: USE_AUTH_API });
   renderProjectSelector();
   renderProjectPanel();
   renderPmpModule();
