@@ -19048,7 +19048,21 @@ function criarCardManutencao(item, permissoes, options = {}) {
     podeEditarEncerramento ||
     podeEditarConcluida;
   if (permite("edit") && podeEditar) {
-    actions.append(criarBotaoAcao("Abrir tela de edição", "edit"));
+    const botaoEditar = criarBotaoAcao("Abrir tela de edição", "edit");
+    botaoEditar.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const maintenanceId = String(item.id || "");
+      const index = manutencoes.findIndex(
+        (entry) => String((entry && entry.id) || "") === maintenanceId
+      );
+      if (index < 0) {
+        mostrarMensagemManutencao("Manutenção não encontrada para edição.", true);
+        return;
+      }
+      void editarManutencao(index);
+    });
+    actions.append(botaoEditar);
   }
 
   const podeRegistrarObservacao =
