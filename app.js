@@ -17185,10 +17185,57 @@ function renderDashboardHome() {
     }
     return String(value);
   };
-  const renderKpiCard = (label, value) =>
-    `<article class="kpi-card"><span>${label}</span><strong>${escapeHtml(
-      safeKpiValue(value)
-    )}</strong></article>`;
+  const toNumericValue = (value) => {
+    if (value === null || value === undefined || value === "") {
+      return NaN;
+    }
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : NaN;
+    }
+    const normalized = String(value)
+      .replace(",", ".")
+      .replace(/[^\d.-]/g, "");
+    const numeric = Number(normalized);
+    return Number.isFinite(numeric) ? numeric : NaN;
+  };
+  const resolveCountTone = (
+    value,
+    { warnThreshold = 1, dangerThreshold = 3, zeroTone = "success" } = {}
+  ) => {
+    const numeric = toNumericValue(value);
+    if (!Number.isFinite(numeric)) {
+      return "neutral";
+    }
+    if (numeric >= dangerThreshold) {
+      return "danger";
+    }
+    if (numeric >= warnThreshold) {
+      return "warn";
+    }
+    return zeroTone;
+  };
+  const resolveRiskTone = (value) => {
+    const normalized = normalizeSearchValue(value || "");
+    if (!normalized) {
+      return "neutral";
+    }
+    if (normalized.includes("crit") || normalized.includes("alto")) {
+      return "danger";
+    }
+    if (normalized.includes("med")) {
+      return "warn";
+    }
+    if (normalized.includes("baix")) {
+      return "success";
+    }
+    return "info";
+  };
+  const renderKpiCard = (label, value, tone = "neutral", context = "") =>
+    `<article class="kpi-card kpi-card--compact kpi-card--${tone}">
+      <span>${label}</span>
+      <strong>${escapeHtml(safeKpiValue(value))}</strong>
+      ${context ? `<small>${escapeHtml(context)}</small>` : ""}
+    </article>`;
 
   const pontualidadePct = clampPercent(Number(saudeFinal.pontualidadePct || 0));
   const atrasoMedioDias = Number(saudeFinal.atrasoMedioDias) || 0;
@@ -17361,27 +17408,85 @@ function renderDashboardHome() {
   const updatedAt = dashboardSummary.generatedAt
     ? formatDateTime(parseTimestamp(dashboardSummary.generatedAt) || new Date())
     : formatDateTime(new Date());
+  const kpiCardsMarkup = [
+    {
+      label: "Vence hoje",
+      value: kpisFinal.venceHoje,
+      tone: resolveCountTone(kpisFinal.venceHoje, {
+        warnThreshold: 1,
+        dangerThreshold: 4,
+        zeroTone: "success",
+      }),
+      context: "prazos do dia",
+    },
+    {
+      label: "Atrasadas",
+      value: kpisFinal.atrasadas,
+      tone: resolveCountTone(kpisFinal.atrasadas, {
+        warnThreshold: 1,
+        dangerThreshold: 2,
+        zeroTone: "success",
+      }),
+      context: "fora do prazo",
+    },
+    {
+      label: "Aguardando conclusão",
+      value: kpisFinal.aguardandoConclusao,
+      tone: resolveCountTone(kpisFinal.aguardandoConclusao, {
+        warnThreshold: 1,
+        dangerThreshold: 4,
+        zeroTone: "info",
+      }),
+      context: "pendentes de fechamento",
+    },
+    {
+      label: "Críticas",
+      value: kpisFinal.criticas,
+      tone: resolveCountTone(kpisFinal.criticas, {
+        warnThreshold: 1,
+        dangerThreshold: 1,
+        zeroTone: "success",
+      }),
+      context: "exigem prioridade",
+    },
+    {
+      label: "Risco imediato",
+      value: kpisFinal.riscoImediato,
+      tone: resolveRiskTone(kpisFinal.riscoImediato),
+      context: "nível geral",
+    },
+  ]
+    .map((item) => renderKpiCard(item.label, item.value, item.tone, item.context))
+    .join("");
 
   dashboardHome.innerHTML = `
     <div class="home-shell">
-      <div class="home-header">
-        <div class="home-header__title">
-          <h2>Centro de controle operacional</h2>
-          <p class="hint">Visão tático-operacional com indicadores críticos e foco no dia.</p>
+      <section class="home-tactical">
+        <div class="home-tactical__top">
+          <div class="home-tactical__title">
+            <span class="home-tactical__eyebrow">Início operacional</span>
+            <h2>Painel tático do turno</h2>
+            <p class="hint">
+              Visão direta do que precisa ser tratado agora, sem repetir informações do topo global.
+            </p>
+          </div>
+          <div class="home-tactical__meta">
+            <span class="home-tactical__updated">Atualizado em ${escapeHtml(updatedAt)}</span>
+            <div class="home-tactical__actions">
+              <button class="btn btn--primary btn--small" type="button" data-open-tab="nova">
+                Nova manutenção
+              </button>
+              <button class="btn btn--ghost btn--small" type="button" data-open-tab="programacao">
+                Abrir programação
+              </button>
+              <button class="btn btn--ghost btn--small" type="button" data-open-tab="execucao">
+                Ver execução
+              </button>
+            </div>
+          </div>
         </div>
-        <div class="home-header__meta">
-          <span class="hint">${updatedAt}</span>
-        </div>
-      </div>
-
-      <section class="home-section">
-        <h3 class="home-section__title">Indicadores do dia</h3>
-        <div class="kpi-grid">
-          ${renderKpiCard("VENCE HOJE", kpisFinal.venceHoje)}
-          ${renderKpiCard("ATRASADAS", kpisFinal.atrasadas)}
-          ${renderKpiCard("AGUARDANDO CONCLUSÃO", kpisFinal.aguardandoConclusao)}
-          ${renderKpiCard("CRÍTICAS", kpisFinal.criticas)}
-          ${renderKpiCard("RISCO IMEDIATO", kpisFinal.riscoImediato)}
+        <div class="home-kpi-grid">
+          ${kpiCardsMarkup}
         </div>
       </section>
 
