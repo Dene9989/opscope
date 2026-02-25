@@ -5072,29 +5072,74 @@ body.is-visitor .container.auth-only {
 }
 
 .home-tactical__actions .btn {
-  border-radius: 12px;
-  min-height: 34px;
-  transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  position: relative;
+  border-radius: 999px;
+  min-height: 36px;
+  padding: 0 16px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
+  text-shadow: 0 1px 0 rgba(7, 16, 24, 0.32);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease,
+    background-color 0.22s ease,
+    color 0.22s ease;
 }
 
 .home-tactical__actions .btn:hover {
   transform: translateY(-1px);
 }
 
+.home-tactical__actions .btn:active {
+  transform: translateY(0);
+}
+
+.home-tactical__actions .btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px rgba(17, 38, 58, 0.8),
+    0 0 0 4px rgba(118, 185, 241, 0.45);
+}
+
 .home-tactical__actions .btn--primary {
-  border-color: rgba(238, 180, 86, 0.72);
-  box-shadow: 0 8px 18px rgba(218, 163, 73, 0.28);
+  border-color: rgba(241, 193, 107, 0.78);
+  color: #fff5de;
+  background: linear-gradient(135deg, #d9a042 0%, #c98a2c 50%, #a96a17 100%);
+  box-shadow:
+    0 10px 20px rgba(206, 145, 48, 0.35),
+    inset 0 1px 0 rgba(255, 233, 186, 0.3);
+}
+
+.home-tactical__actions .btn--primary:hover {
+  border-color: rgba(248, 213, 142, 0.86);
+  color: #fffaf0;
+  background: linear-gradient(135deg, #e1ab4c 0%, #d09234 50%, #b5751f 100%);
+  box-shadow:
+    0 12px 24px rgba(210, 151, 57, 0.42),
+    inset 0 1px 0 rgba(255, 239, 202, 0.36);
 }
 
 .home-tactical__actions .btn--ghost {
-  border-color: rgba(121, 153, 183, 0.35);
-  background: rgba(17, 38, 57, 0.55);
-  color: #d7e7f6;
+  border-color: rgba(126, 162, 193, 0.46);
+  background: linear-gradient(150deg, rgba(24, 51, 75, 0.78), rgba(15, 37, 58, 0.72));
+  color: #dceafb;
+  box-shadow:
+    inset 0 1px 0 rgba(184, 212, 235, 0.13),
+    0 8px 16px rgba(5, 16, 27, 0.28);
 }
 
 .home-tactical__actions .btn--ghost:hover {
-  border-color: rgba(138, 176, 211, 0.56);
-  box-shadow: 0 8px 16px rgba(6, 18, 29, 0.35);
+  border-color: rgba(164, 199, 232, 0.72);
+  background: linear-gradient(150deg, rgba(30, 61, 90, 0.86), rgba(20, 45, 69, 0.82));
+  color: #eff7ff;
+  box-shadow:
+    inset 0 1px 0 rgba(200, 224, 244, 0.2),
+    0 10px 18px rgba(5, 16, 27, 0.34);
 }
 
 .home-kpi-grid {
