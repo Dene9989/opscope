@@ -4948,19 +4948,51 @@ body.is-visitor .container.auth-only {
 
 .home-shell {
   display: grid;
-  gap: 18px;
+  gap: 22px;
 }
 
 .home-tactical {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   display: grid;
   gap: 14px;
-  padding: 18px 20px;
+  padding: 20px 22px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   background:
-    radial-gradient(circle at 85% 20%, rgba(77, 172, 255, 0.14), transparent 38%),
+    radial-gradient(circle at 82% 14%, rgba(88, 210, 255, 0.2), transparent 42%),
+    radial-gradient(circle at 20% 80%, rgba(42, 111, 196, 0.18), transparent 36%),
     linear-gradient(135deg, rgba(10, 24, 39, 0.98), rgba(11, 30, 48, 0.9));
-  box-shadow: 0 18px 30px rgba(6, 14, 22, 0.35);
+  box-shadow: 0 20px 34px rgba(6, 14, 22, 0.42);
+  animation: homeRiseIn 0.55s ease both;
+}
+
+.home-tactical::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: linear-gradient(180deg, #f6d08a 0%, #59d2ff 50%, #19bfa6 100%);
+  opacity: 0.92;
+  z-index: 0;
+}
+
+.home-tactical::after {
+  content: "";
+  position: absolute;
+  right: -120px;
+  top: -120px;
+  width: 260px;
+  height: 260px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(107, 189, 255, 0.16), transparent 68%);
+  z-index: 0;
+}
+
+.home-tactical > * {
+  position: relative;
+  z-index: 1;
 }
 
 .home-tactical__top {
@@ -4978,23 +5010,26 @@ body.is-visitor .container.auth-only {
 .home-tactical__eyebrow {
   margin: 0;
   font-size: 0.66rem;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.26em;
   text-transform: uppercase;
   color: rgba(246, 208, 138, 0.88);
+  font-weight: 700;
 }
 
 .home-tactical__title h2 {
   margin: 0;
-  font-size: 1.22rem;
-  letter-spacing: 0.08em;
+  font-size: 1.36rem;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #f4f8ff;
+  color: #f7fbff;
+  text-wrap: balance;
 }
 
 .home-tactical .hint {
   margin: 0;
-  font-size: 0.87rem;
-  color: rgba(207, 219, 231, 0.84);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: rgba(213, 226, 239, 0.87);
   max-width: 65ch;
 }
 
@@ -5007,14 +5042,25 @@ body.is-visitor .container.auth-only {
 .home-tactical__updated {
   display: inline-flex;
   align-items: center;
+  gap: 8px;
   justify-content: center;
-  padding: 5px 11px;
+  padding: 6px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(123, 162, 196, 0.42);
-  background: rgba(7, 22, 36, 0.7);
-  color: #d7e7f7;
+  border: 1px solid rgba(123, 162, 196, 0.46);
+  background: rgba(8, 26, 42, 0.76);
+  color: #dceafb;
   font-size: 0.72rem;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.03em;
+  box-shadow: inset 0 0 0 1px rgba(153, 190, 224, 0.12);
+}
+
+.home-tactical__updated::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.8);
 }
 
 .home-tactical__actions {
@@ -5025,10 +5071,67 @@ body.is-visitor .container.auth-only {
   gap: 8px;
 }
 
+.home-tactical__actions .btn {
+  border-radius: 12px;
+  min-height: 34px;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.home-tactical__actions .btn:hover {
+  transform: translateY(-1px);
+}
+
+.home-tactical__actions .btn--primary {
+  border-color: rgba(238, 180, 86, 0.72);
+  box-shadow: 0 8px 18px rgba(218, 163, 73, 0.28);
+}
+
+.home-tactical__actions .btn--ghost {
+  border-color: rgba(121, 153, 183, 0.35);
+  background: rgba(17, 38, 57, 0.55);
+  color: #d7e7f6;
+}
+
+.home-tactical__actions .btn--ghost:hover {
+  border-color: rgba(138, 176, 211, 0.56);
+  box-shadow: 0 8px 16px rgba(6, 18, 29, 0.35);
+}
+
 .home-kpi-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
+  gap: 11px;
+}
+
+.home-kpi-grid .kpi-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid rgba(105, 140, 170, 0.34);
+  background:
+    linear-gradient(180deg, rgba(14, 36, 55, 0.94), rgba(11, 30, 47, 0.9));
+  box-shadow: 0 12px 20px rgba(4, 13, 22, 0.38);
+}
+
+.home-kpi-grid .kpi-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--kpi-accent, #7da7cc), transparent);
+  opacity: 0.9;
+}
+
+.home-kpi-grid .kpi-card::after {
+  content: "";
+  position: absolute;
+  right: -24px;
+  top: -24px;
+  width: 80px;
+  height: 80px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(141, 179, 210, 0.2), transparent 70%);
+  pointer-events: none;
 }
 
 .kpi-card--compact {
@@ -5043,41 +5146,48 @@ body.is-visitor .container.auth-only {
 .kpi-card--compact span {
   font-size: 0.58rem;
   letter-spacing: 0.16em;
-  color: rgba(207, 220, 233, 0.85);
+  color: rgba(212, 224, 236, 0.88);
 }
 
 .kpi-card--compact strong {
   font-size: 1.25rem;
-  color: #f6f9ff;
+  color: #f7fbff;
 }
 
 .kpi-card--compact small {
   margin: 0;
   font-size: 0.69rem;
-  color: rgba(190, 207, 222, 0.74);
+  color: rgba(190, 208, 224, 0.78);
 }
 
 .kpi-card--success {
-  border-color: rgba(34, 197, 94, 0.45);
-  background: linear-gradient(145deg, rgba(9, 30, 41, 0.96), rgba(10, 34, 46, 0.9));
+  --kpi-accent: #22c55e;
+  border-color: rgba(34, 197, 94, 0.48);
 }
 
 .kpi-card--warn {
-  border-color: rgba(245, 158, 11, 0.45);
-  background: linear-gradient(145deg, rgba(35, 28, 14, 0.95), rgba(33, 25, 13, 0.9));
+  --kpi-accent: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.5);
 }
 
 .kpi-card--danger {
-  border-color: rgba(239, 68, 68, 0.48);
-  background: linear-gradient(145deg, rgba(37, 19, 20, 0.95), rgba(33, 16, 17, 0.9));
+  --kpi-accent: #ef4444;
+  border-color: rgba(239, 68, 68, 0.5);
 }
 
 .kpi-card--info {
+  --kpi-accent: #3b82f6;
   border-color: rgba(59, 130, 246, 0.48);
 }
 
 .kpi-card--neutral {
+  --kpi-accent: #93a9c0;
   border-color: rgba(132, 159, 182, 0.35);
+}
+
+.home-kpi-grid .kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 24px rgba(4, 13, 22, 0.45);
 }
 
 .home-header {
@@ -5124,15 +5234,25 @@ body.is-visitor .container.auth-only {
 
 .home-section {
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .home-section__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 0.72rem;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: rgba(117, 148, 176, 0.92);
   margin: 0;
+}
+
+.home-section__title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(103, 132, 159, 0.3), transparent 75%);
 }
 
 .dashboard-message {
@@ -5208,6 +5328,39 @@ body.is-visitor .container.auth-only {
   gap: 12px;
 }
 
+.home-shell .panel-card {
+  border-radius: 18px;
+  border-color: rgba(102, 136, 165, 0.3);
+  box-shadow:
+    inset 0 0 0 1px rgba(108, 153, 195, 0.09),
+    0 16px 26px rgba(5, 13, 22, 0.3);
+  transition: transform 0.18s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  animation: homeRiseIn 0.55s ease both;
+}
+
+.home-shell .panel-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 0 0 1px rgba(126, 174, 219, 0.13),
+    0 18px 28px rgba(5, 13, 22, 0.38);
+}
+
+.home-shell .panel-card--alerts::before {
+  background: linear-gradient(90deg, #f6d08a, #3b82f6);
+}
+
+.home-shell .panel-card--activities::before {
+  background: linear-gradient(90deg, #3b82f6, #14b8a6);
+}
+
+.home-shell .panel-card--efficiency::before {
+  background: linear-gradient(90deg, #22c55e, #facc15);
+}
+
+.home-shell .panel-card--tips::before {
+  background: linear-gradient(90deg, #14b8a6, #60a5fa);
+}
+
 .panel-head {
   display: flex;
   align-items: center;
@@ -5218,15 +5371,15 @@ body.is-visitor .container.auth-only {
 .panel-card h3 {
   margin: 0;
   font-size: 0.72rem;
-  letter-spacing: 0.24em;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--accent);
 }
 
 .panel-subtitle {
-  margin: -2px 0 2px;
-  font-size: 0.82rem;
-  color: var(--muted);
+  margin: -2px 0 4px;
+  font-size: 0.85rem;
+  color: rgba(188, 207, 223, 0.82);
 }
 
 .health-grid {
@@ -5273,6 +5426,12 @@ body.is-visitor .container.auth-only {
   border-radius: 12px;
   background: var(--surface2);
   border: 1px solid var(--border);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.ops-alert-item:hover {
+  border-color: rgba(116, 160, 198, 0.5);
+  background: rgba(14, 40, 62, 0.75);
 }
 
 .ops-alert-item__text {
@@ -5332,6 +5491,11 @@ body.is-visitor .container.auth-only {
 
 .ops-alert-cta {
   white-space: nowrap;
+  border-color: rgba(118, 161, 196, 0.38);
+}
+
+.ops-alert-cta:hover {
+  border-color: rgba(139, 188, 228, 0.62);
 }
 
 .trend-tag {
@@ -5648,6 +5812,13 @@ body.is-visitor .container.auth-only {
   padding: 14px 16px;
 }
 
+.panel-card--tips .opscope-tip--compact {
+  border-color: rgba(20, 184, 166, 0.44);
+  box-shadow:
+    inset 0 0 20px rgba(3, 15, 24, 0.4),
+    0 0 26px rgba(20, 184, 166, 0.2);
+}
+
 @keyframes tipFloat {
   0%,
   100% {
@@ -5680,6 +5851,28 @@ body.is-visitor .container.auth-only {
   }
   50% {
     box-shadow: inset 0 0 18px rgba(6, 16, 26, 0.35), 0 0 20px rgba(46, 204, 113, 0.45);
+  }
+}
+
+@keyframes homeRiseIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-tactical,
+  .home-shell .panel-card,
+  .home-kpi-grid .kpi-card,
+  .home-tactical__actions .btn,
+  .opscope-tip {
+    animation: none !important;
+    transition: none !important;
   }
 }
 
@@ -5721,6 +5914,14 @@ body.is-visitor .container.auth-only {
 .dashboard-home .data-table tbody td {
   padding: 8px 10px;
   vertical-align: middle;
+}
+
+.dashboard-home .data-table tbody tr {
+  transition: background-color 0.16s ease;
+}
+
+.dashboard-home .data-table tbody tr:hover td {
+  background: rgba(16, 42, 63, 0.42);
 }
 
 .dashboard-home .data-table th:nth-child(1),
@@ -14345,6 +14546,15 @@ textarea:focus {
   .home-tactical__actions .btn {
     width: 100%;
     justify-content: center;
+  }
+
+  .home-section__title {
+    font-size: 0.68rem;
+    letter-spacing: 0.18em;
+  }
+
+  .home-section__title::after {
+    display: none;
   }
 
   .ops-alert-item {
