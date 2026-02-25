@@ -45892,8 +45892,9 @@ function setEditModeManutencao(item) {
     }
   }
   if (btnAdicionarManutencao) {
+    const sectionConfig = getSectionConfig(currentUser);
     updateManutencaoSubmitLabel();
-    const podeCriar = can("create") && secConfig.nova !== false;
+    const podeCriar = can("create") && sectionConfig.nova !== false;
     const podeSalvar = ativo ? can("edit") : podeCriar;
     btnAdicionarManutencao.disabled = !podeSalvar;
     btnAdicionarManutencao.classList.toggle("is-disabled", !podeSalvar);
@@ -46436,6 +46437,12 @@ async function abrirEdicaoManutencao(item) {
     throw new Error("Manutenção não encontrada para edição.");
   }
   carregarFormularioEdicao(inicial);
+  console.info("[maintenance.edit.open]", {
+    maintenanceId: String(inicial.id || ""),
+    status: normalizeMaintenanceStatus(inicial.status),
+    projectId: String(inicial.projectId || ""),
+    activeProjectId: String(activeProjectId || ""),
+  });
   abrirPainelEdicao();
 
   if (item.projectId && item.projectId !== activeProjectId) {
