@@ -19018,16 +19018,41 @@ function criarCardManutencao(item, permissoes, options = {}) {
   };
 
   const liberacaoOk = isLiberacaoOk(item);
+  const podeEditarPlanejamento =
+    statusNormalized === "agendada" || statusNormalized === "backlog";
+  const podeEditarLiberacao =
+    statusNormalized === "liberada" && Boolean(permissoes.execute) && podeExecutarItem;
+  const podeEditarExecucao =
+    statusNormalized === "em_execucao" && Boolean(permissoes.execute) && podeExecutarItem;
+  const podeEditarEncerramento =
+    statusNormalized === "encerramento" && Boolean(permissoes.execute) && podeConcluirItem;
+  const podeEditarConcluida =
+    statusNormalized === "concluida" && canEditConcludedMaintenance(currentUser);
   const podeEditar =
-    statusNormalized === "agendada" ||
-    statusNormalized === "backlog" ||
-    statusNormalized === "liberada" ||
-    (statusNormalized === "concluida" && canEditConcludedMaintenance(currentUser));
+    podeEditarPlanejamento ||
+    podeEditarLiberacao ||
+    podeEditarExecucao ||
+    podeEditarEncerramento ||
+    podeEditarConcluida;
+  let editLabel = "Editar";
+  if (podeEditarPlanejamento) {
+    editLabel = "Editar planejamento";
+  } else if (podeEditarLiberacao) {
+    editLabel = "Editar liberação";
+  } else if (podeEditarExecucao) {
+    editLabel = "Editar execução";
+  } else if (podeEditarEncerramento) {
+    editLabel = "Editar encerramento";
+  } else if (podeEditarConcluida) {
+    editLabel = "Editar concluída";
+  }
   if (permite("edit") && podeEditar) {
-    actions.append(criarBotaoAcao("Editar", "edit"));
+    actions.append(criarBotaoAcao(editLabel, "edit"));
   }
 
-  if (permite("note") && podeEditar) {
+  const podeRegistrarObservacao =
+    podeEditarPlanejamento || statusNormalized === "liberada" || podeEditarConcluida;
+  if (permite("note") && podeRegistrarObservacao) {
     actions.append(criarBotaoAcao("Observação", "note"));
   }
 
@@ -46787,11 +46812,44 @@ async function editarManutencao(index) {
   if (!item) {
     return;
   }
-  if (item.status === "concluida" && !canEditConcludedMaintenance(currentUser)) {
+  const status = normalizeMaintenanceStatus(item.status);
+  if (status === "concluida" && !canEditConcludedMaintenance(currentUser)) {
     mostrarMensagemManutencao("Sem permiss\u00e3o para editar manutencoes concluidas.", true);
     return;
   }
-  await abrirEdicaoManutencao(item);
+  if (status === "agendada" || status === "backlog") {
+    await abrirEdicaoManutencao(item);
+    return;
+  }
+  if (status === "liberada") {
+    if (!requirePermission("complete")) {
+      return;
+    }
+    if (!ensureExecucaoPermitida(item, mostrarMensagemManutencao)) {
+      return;
+    }
+    abrirLiberacao(item);
+    return;
+  }
+  if (status === "em_execucao") {
+    if (!requirePermission("complete")) {
+      return;
+    }
+    abrirRegistroExecucao(item);
+    return;
+  }
+  if (status === "encerramento") {
+    if (!requirePermission("complete")) {
+      return;
+    }
+    abrirConclusao(item);
+    return;
+  }
+  if (status === "concluida") {
+    editarManutencaoConcluida(index);
+    return;
+  }
+  mostrarMensagemManutencao("Status atual nao permite edicao por este atalho.", true);
 }
 
 
