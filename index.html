@@ -1,4 +1,4 @@
-<!doctype tiretml>
+﻿<!doctype tiretml>
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
@@ -1482,18 +1482,25 @@
               </p>
             </div>
           </div>
+          <div class="nova-manutencao__stage">
+            <p class="nova-manutencao__stage-title">1) Identificacao e local</p>
+            <p class="nova-manutencao__stage-subtitle">
+              Defina contexto inicial da atividade antes de classificar prioridade.
+            </p>
           <div class="form-grid nova-manutencao__grid-top">
             <div class="field">
               <label for="manutencaoProjeto">Projeto (ativo)</label>
               <select id="manutencaoProjeto">
                 <option value="">Selecione</option>
               </select>
+              <p class="hint hint--compact">Tudo que for salvo sera vinculado ao projeto selecionado.</p>
             </div>
             <div class="field">
               <label for="tipoManutencao">Tipo de manutenção</label>
               <select id="tipoManutencao">
                 <option value="">Selecione um tipo</option>
               </select>
+              <p class="hint hint--compact">Use um tipo padrao para facilitar relatorios e filtros.</p>
             </div>
             <div class="field" id="customTipoField" hidden>
               <label for="tituloManutencao">Tipo personalizado</label>
@@ -1519,6 +1526,12 @@
               <p class="hint">Opcional. Selecione um ou mais sub-equipamentos.</p>
             </div>
           </div>
+          </div>
+          <div class="nova-manutencao__stage">
+            <p class="nova-manutencao__stage-title">2) Classificacao e programacao</p>
+            <p class="nova-manutencao__stage-subtitle">
+              Defina data, categoria, prioridade, referencia e procedimentos de suporte.
+            </p>
           <div class="form-grid nova-manutencao__grid-bottom">
             <div class="field field--date-group">
               <div class="field__label-row">
@@ -1550,8 +1563,10 @@
               <select id="categoriaManutencao" required>
                 <option value="">Selecione</option>
                 <option value="Preventiva">Preventiva</option>
+                <option value="Preventiva de Contingencia">Preventiva de Conting&ecirc;ncia</option>
                 <option value="Corretiva">Corretiva</option>
                 <option value="Preditiva">Preditiva</option>
+                <option value="Contingencia">Conting&ecirc;ncia</option>
                 <option value="Melhoria">Melhoria</option>
                 <option value="Emergencial">Emergencial</option>
               </select>
@@ -1569,15 +1584,34 @@
             <div class="field">
               <label for="osReferenciaManutencao">OS / referência</label>
               <input id="osReferenciaManutencao" type="text" required />
+              <p class="hint hint--compact">Obrigatório para rastreabilidade e auditoria.</p>
             </div>
             <div class="field" data-full>
-              <label for="procedimentoManutencao">Procedimentos aplicáveis</label>
-              <select id="procedimentoManutencao" multiple size="4">
+              <div class="field__label-row">
+                <label for="procedimentoManutencao">Procedimentos aplicáveis</label>
+                <div class="procedimento-toolbar">
+                  <button id="btnProcedimentoManutencaoSelectAll" class="btn btn--ghost btn--small" type="button">
+                    Selecionar visíveis
+                  </button>
+                  <button id="btnProcedimentoManutencaoClear" class="btn btn--ghost btn--small" type="button">
+                    Limpar seleção
+                  </button>
+                </div>
+              </div>
+              <input
+                id="procedimentoManutencaoSearch"
+                type="search"
+                placeholder="Buscar procedimento por código ou nome"
+                autocomplete="off"
+              />
+              <select id="procedimentoManutencao" class="multi-select multi-select--procedimentos" multiple size="8">
                 <option value="">Nenhum procedimento cadastrado no projeto</option>
               </select>
-              <p class="hint">Opcional. Pode selecionar mais de um procedimento.</p>
+              <p class="hint">Clique para marcar/desmarcar sem precisar segurar Ctrl. Pode selecionar mais de um procedimento.</p>
+              <p id="procedimentoManutencaoStats" class="hint hint--compact"></p>
               <div id="procedimentoManutencaoLinks" class="procedure-links"></div>
             </div>
+          </div>
           </div>
         </div>
         <div class="nova-manutencao__section">
@@ -6097,8 +6131,10 @@
             <select id="liberacaoCategoria" required>
               <option value="">Selecione</option>
               <option value="Preventiva">Preventiva</option>
+              <option value="Preventiva de Contingencia">Preventiva de Conting&ecirc;ncia</option>
               <option value="Corretiva">Corretiva</option>
               <option value="Preditiva">Preditiva</option>
+              <option value="Contingencia">Conting&ecirc;ncia</option>
               <option value="Melhoria">Melhoria</option>
               <option value="Emergencial">Emergencial</option>
             </select>
@@ -7716,5 +7752,4 @@
     <script src="app.js"></script>
   </body>
 </html>
-
 

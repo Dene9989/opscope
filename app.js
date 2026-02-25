@@ -339,6 +339,14 @@ const procedimentoFormCancel = document.getElementById("procedimentoFormCancel")
 const procedimentoTable = document.getElementById("procedimentoTable");
 const procedimentoTableBody = document.querySelector("#procedimentoTable tbody");
 const procedimentoManutencaoLinks = document.getElementById("procedimentoManutencaoLinks");
+const procedimentoManutencaoSearch = document.getElementById("procedimentoManutencaoSearch");
+const procedimentoManutencaoStats = document.getElementById("procedimentoManutencaoStats");
+const btnProcedimentoManutencaoSelectAll = document.getElementById(
+  "btnProcedimentoManutencaoSelectAll"
+);
+const btnProcedimentoManutencaoClear = document.getElementById(
+  "btnProcedimentoManutencaoClear"
+);
 const templateProcedimentosLinks = document.getElementById("templateProcedimentosLinks");
 const equipeForm = document.getElementById("equipeForm");
 const equipeFormUser = document.getElementById("equipeFormUser");
@@ -37838,6 +37846,111 @@ function renderProcedimentoSelectedLinks(select, container) {
 function renderProcedimentoBindingLinks() {
   renderProcedimentoSelectedLinks(procedimentoManutencao, procedimentoManutencaoLinks);
   renderProcedimentoSelectedLinks(templateProcedimentos, templateProcedimentosLinks);
+  updateProcedimentoManutencaoStats();
+}
+
+function getSelectableOptions(select, options = {}) {
+  if (!select) {
+    return [];
+  }
+  const visibleOnly = Boolean(options.visibleOnly);
+  return Array.from(select.options || []).filter((option) => {
+    const value = String(option.value || "").trim();
+    if (!value || option.disabled) {
+      return false;
+    }
+    if (visibleOnly && option.hidden) {
+      return false;
+    }
+    return true;
+  });
+}
+
+function updateProcedimentoManutencaoStats() {
+  if (!procedimentoManutencaoStats || !procedimentoManutencao) {
+    return;
+  }
+  const total = getSelectableOptions(procedimentoManutencao).length;
+  const visible = getSelectableOptions(procedimentoManutencao, { visibleOnly: true }).length;
+  const selected = getMultiSelectValues(procedimentoManutencao).length;
+  if (!total) {
+    procedimentoManutencaoStats.textContent = "Nenhum procedimento disponivel no projeto ativo.";
+    return;
+  }
+  procedimentoManutencaoStats.textContent = `${selected} selecionado(s) de ${total}. ${visible} visivel(is) no filtro.`;
+}
+
+function applyProcedimentoManutencaoFilter() {
+  if (!procedimentoManutencao) {
+    return;
+  }
+  const termo = normalizeSearchValue(
+    procedimentoManutencaoSearch ? procedimentoManutencaoSearch.value : ""
+  );
+  Array.from(procedimentoManutencao.options || []).forEach((option) => {
+    const value = String(option.value || "").trim();
+    if (!value) {
+      option.hidden = Boolean(termo);
+      return;
+    }
+    if (!termo) {
+      option.hidden = false;
+      return;
+    }
+    const label = normalizeSearchValue(option.textContent || "");
+    option.hidden = !label.includes(termo);
+  });
+  updateProcedimentoManutencaoStats();
+}
+
+function bindFriendlyMultiSelect(select) {
+  if (!select || !select.multiple || select.dataset.friendlyBound === "1") {
+    return;
+  }
+  select.dataset.friendlyBound = "1";
+  select.addEventListener("mousedown", (event) => {
+    const target = event.target;
+    const isOption = target && String(target.tagName || "").toLowerCase() === "option";
+    if (!isOption) {
+      return;
+    }
+    const option = target;
+    const value = String(option.value || "").trim();
+    if (!value || option.disabled) {
+      return;
+    }
+    event.preventDefault();
+    option.selected = !option.selected;
+    select.focus();
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+}
+
+function selectVisibleProcedimentosManutencao() {
+  if (!procedimentoManutencao) {
+    return;
+  }
+  const visiveis = getSelectableOptions(procedimentoManutencao, { visibleOnly: true });
+  if (!visiveis.length) {
+    return;
+  }
+  visiveis.forEach((option) => {
+    option.selected = true;
+  });
+  procedimentoManutencao.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function clearProcedimentosManutencao() {
+  if (!procedimentoManutencao) {
+    return;
+  }
+  setMultiSelectValues(procedimentoManutencao, []);
+  procedimentoManutencao.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function refreshProcedimentoManutencaoUi() {
+  applyProcedimentoManutencaoFilter();
+  updateProcedimentoManutencaoStats();
 }
 
 function renderSubequipamentoSelectOptions(select, equipamentoId) {
@@ -37967,7 +38080,9 @@ function renderProcedimentoSelectOptions(select, placeholder = "Selecione proced
 function renderProcedimentoOptions() {
   renderProcedimentoSelectOptions(procedimentoManutencao, "Selecione procedimentos");
   renderProcedimentoSelectOptions(templateProcedimentos, "Selecione procedimentos");
+  bindFriendlyMultiSelect(procedimentoManutencao);
   renderProcedimentoBindingLinks();
+  refreshProcedimentoManutencaoUi();
 }
 
 function resolveEquipamentoIdFromValue(raw) {
@@ -45735,7 +45850,11 @@ function limparFormularioManutencao() {
   if (procedimentoManutencao) {
     setMultiSelectValues(procedimentoManutencao, []);
   }
+  if (procedimentoManutencaoSearch) {
+    procedimentoManutencaoSearch.value = "";
+  }
   renderProcedimentoBindingLinks();
+  refreshProcedimentoManutencaoUi();
   if (futuraManutencao) {
     futuraManutencao.checked = false;
   }
@@ -55138,12 +55257,31 @@ if (procedimentoTable) {
 if (procedimentoManutencao) {
   procedimentoManutencao.addEventListener("change", () => {
     renderProcedimentoBindingLinks();
+    updateProcedimentoManutencaoStats();
   });
 }
 
 if (templateProcedimentos) {
   templateProcedimentos.addEventListener("change", () => {
     renderProcedimentoBindingLinks();
+  });
+}
+
+if (procedimentoManutencaoSearch) {
+  procedimentoManutencaoSearch.addEventListener("input", () => {
+    applyProcedimentoManutencaoFilter();
+  });
+}
+
+if (btnProcedimentoManutencaoSelectAll) {
+  btnProcedimentoManutencaoSelectAll.addEventListener("click", () => {
+    selectVisibleProcedimentosManutencao();
+  });
+}
+
+if (btnProcedimentoManutencaoClear) {
+  btnProcedimentoManutencaoClear.addEventListener("click", () => {
+    clearProcedimentosManutencao();
   });
 }
 
