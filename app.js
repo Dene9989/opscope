@@ -2,7 +2,12 @@
 const btnCancelarEdicaoManutencao = document.getElementById("btnCancelarEdicaoManutencao");
 const manutencaoEditBanner = document.getElementById("manutencaoEditBanner");
 const manutencaoEditInfo = document.getElementById("manutencaoEditInfo");
+const novaManutencaoTitulo = document.getElementById("novaManutencaoTitulo");
 const novaManutencaoCard = document.getElementById("nova-manutencao");
+const novaManutencaoHost = document.getElementById("novaManutencaoHost");
+const novaManutencaoMovidaAviso = document.getElementById("novaManutencaoMovidaAviso");
+const edicaoManutencaoHost = document.getElementById("edicaoManutencaoHost");
+const edicaoManutencaoVazia = document.getElementById("edicaoManutencaoVazia");
 const tipoManutencao = document.getElementById("tipoManutencao");
 const customTipoField = document.getElementById("customTipoField");
 const tituloManutencao = document.getElementById("tituloManutencao");
@@ -3130,6 +3135,7 @@ const DEFAULT_PROJECTS_SEED = [
 ];
 const PERFORMANCE_TABS = new Set(["performance-projects", "performance-people"]);
 const TAB_PERMISSION_MAP = {
+  edicao: "MAINT_EDIT",
   desempenho: "verRelatorios",
   "performance-projects": "verRelatorios",
   "performance-people": "verRelatorios",
@@ -12968,6 +12974,7 @@ const TAB_LABELS = {
   inicio: "In\u00edcio",
   programacao: "Programa\u00e7\u00e3o",
   nova: "Nova Manuten\u00e7\u00e3o",
+  edicao: "Edi\u00e7\u00e3o de Manuten\u00e7\u00e3o",
   modelos: "Modelos e Recorr\u00eancias",
   pmp: "PMP / Cronograma",
   execucao: "Execu\u00e7\u00e3o do Dia",
@@ -45773,6 +45780,47 @@ let manutencaoEditSnapshot = null;
 let manutencaoEditDirty = false;
 let manutencaoEmRevalidacao = null;
 
+function updateMaintenanceEditWorkspace(ativo) {
+  if (!novaManutencaoCard || !novaManutencaoHost || !edicaoManutencaoHost) {
+    return;
+  }
+  if (ativo) {
+    if (novaManutencaoCard.parentElement !== edicaoManutencaoHost) {
+      edicaoManutencaoHost.appendChild(novaManutencaoCard);
+    }
+    if (edicaoManutencaoVazia) {
+      edicaoManutencaoVazia.hidden = true;
+    }
+    if (novaManutencaoMovidaAviso) {
+      novaManutencaoMovidaAviso.hidden = false;
+    }
+    if (novaManutencaoTitulo) {
+      novaManutencaoTitulo.textContent = "Edição de manutenção";
+    }
+    return;
+  }
+  if (novaManutencaoCard.parentElement !== novaManutencaoHost) {
+    novaManutencaoHost.appendChild(novaManutencaoCard);
+  }
+  if (edicaoManutencaoVazia) {
+    edicaoManutencaoVazia.hidden = false;
+  }
+  if (novaManutencaoMovidaAviso) {
+    novaManutencaoMovidaAviso.hidden = true;
+  }
+  if (novaManutencaoTitulo) {
+    novaManutencaoTitulo.textContent = "Nova manutenção";
+  }
+  const edicaoAtiva = Array.from(panels || []).some(
+    (panel) => panel && panel.dataset.panel === "edicao" && panel.classList.contains("is-active")
+  );
+  if (edicaoAtiva) {
+    const tabProgramacao = getTabButton("programacao");
+    const destino = tabProgramacao && !tabProgramacao.hidden ? "programacao" : "nova";
+    ativarTab(destino);
+  }
+}
+
 function setEditModeManutencao(item) {
   const ativo = Boolean(item);
   manutencaoEmEdicao = ativo ? item.id : null;
@@ -45782,6 +45830,7 @@ function setEditModeManutencao(item) {
       : JSON.parse(JSON.stringify(item))
     : null;
   manutencaoEditDirty = false;
+  updateMaintenanceEditWorkspace(ativo);
   if (manutencaoEditBanner) {
     manutencaoEditBanner.hidden = !ativo;
     if (ativo) {
@@ -46340,11 +46389,16 @@ async function abrirEdicaoManutencao(item) {
     await setActiveProjectId(item.projectId);
   }
   const atualizado = manutencoes.find((registro) => registro.id === item.id) || item;
-  ativarTab("nova");
   setEditModeManutencao(atualizado);
   limparFormularioManutencao();
   preencherFormularioManutencao(atualizado);
   manutencaoEditDirty = false;
+  const tabEdicao = getTabButton("edicao");
+  if (tabEdicao && !tabEdicao.hidden) {
+    ativarTab("edicao");
+  } else {
+    ativarTab("nova");
+  }
   if (manutencaoEditBanner && manutencaoEditBanner.scrollIntoView) {
     manutencaoEditBanner.scrollIntoView({ behavior: "smooth", block: "center" });
   }

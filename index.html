@@ -460,6 +460,35 @@
                 <span class="nav-item__label">Nova Manuten&ccedil;&atilde;o</span>
                 <span class="nav-item__meta"></span>
               </button>
+              <button
+                id="btnTabEdicaoManutencao"
+                class="nav-item"
+                type="button"
+                data-tab="edicao"
+                data-tooltip="Edi&ccedil;&atilde;o de Manuten&ccedil;&atilde;o"
+              >
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M4 20h4l10-10-4-4L4 16v4Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M13 7l4 4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Edi&ccedil;&atilde;o de Manuten&ccedil;&atilde;o</span>
+                <span class="nav-item__meta"></span>
+              </button>
               <button class="nav-item" type="button" data-tab="modelos" data-tooltip="Modelos e Recorr&ecirc;ncias">
                 <span class="nav-item__ico">
                   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -1462,8 +1491,9 @@
     </section>
 
     <section class="panel" id="nova" data-panel="nova">
-      <section class="card" id="nova-manutencao">
-        <h2>Nova manutenção</h2>
+      <div id="novaManutencaoHost">
+        <section class="card" id="nova-manutencao">
+          <h2 id="novaManutencaoTitulo">Nova manutenção</h2>
         <div id="manutencaoEditBanner" class="edit-banner" hidden>
           <div>
             <strong>Edição de manutenção</strong>
@@ -1862,7 +1892,21 @@
         <button id="btnAdicionarManutencao" class="btn btn--primary">Iniciar execução</button>
         <p class="hint">Lembretes aparecem com <strong id="diasLembrete">7</strong> dias de antecedencia.</p>
         <p id="mensagemManutencao" class="mensagem" aria-live="polite"></p>
+        </section>
+      </div>
+      <section id="novaManutencaoMovidaAviso" class="card" hidden>
+        <h3>Edição em andamento</h3>
+        <p class="hint">A manutenção em edição está na aba <strong>Edição de Manutenção</strong>.</p>
+        <button class="btn btn--primary" type="button" data-open-tab="edicao">Ir para edição</button>
       </section>
+    </section>
+
+    <section class="panel" id="edicao" data-panel="edicao">
+      <section id="edicaoManutencaoVazia" class="card">
+        <h2>Edição de manutenção</h2>
+        <p class="hint">Selecione uma manutenção na Programação e clique em "Abrir tela de edição".</p>
+      </section>
+      <div id="edicaoManutencaoHost"></div>
     </section>
 
     <section class="panel page-modelos" id="modelos" data-panel="modelos">
@@ -7752,4 +7796,3 @@
     <script src="app.js"></script>
   </body>
 </html>
-
