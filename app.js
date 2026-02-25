@@ -17129,6 +17129,7 @@ function renderDashboardHome() {
     graficoEficiencia,
     proximasAtividades,
     miniSeries: summaryMiniSeries,
+    alertasOperacionais,
   } = dashboardSummary;
   const scopedManutencoes = Array.isArray(manutencoes)
     ? manutencoes.filter(
@@ -17150,30 +17151,46 @@ function renderDashboardHome() {
         ...(localSummary ? localSummary.saudeOperacional || {} : {}),
       }
     : (saudeOperacional || {});
+  const graficoFinal = useLocalSummary
+    ? {
+        ...(graficoEficiencia || {}),
+        ...(localSummary ? localSummary.graficoEficiencia || {} : {}),
+      }
+    : (graficoEficiencia || {});
+  const alertasFinal = useLocalSummary
+    ? (
+        (localSummary &&
+          Array.isArray(localSummary.alertasOperacionais) &&
+          localSummary.alertasOperacionais.length
+          ? localSummary.alertasOperacionais
+          : alertasOperacionais) || []
+      )
+    : (alertasOperacionais || []);
+  const proximasFinal = useLocalSummary
+    ? (
+        (localSummary &&
+          Array.isArray(localSummary.proximasAtividades) &&
+          localSummary.proximasAtividades.length
+          ? localSummary.proximasAtividades
+          : proximasAtividades) || []
+      )
+    : (proximasAtividades || []);
   const miniSeries = useLocalSummary
     ? (localSummary && localSummary.miniSeries) || {}
     : (summaryMiniSeries || {});
 
+  const safeKpiValue = (value) => {
+    if (value === null || value === undefined || value === "") {
+      return "-";
+    }
+    return String(value);
+  };
   const renderKpiCard = (label, value) =>
-    `<article class="kpi-card"><span>${label}</span><strong>${value}</strong></article>`;
+    `<article class="kpi-card"><span>${label}</span><strong>${escapeHtml(
+      safeKpiValue(value)
+    )}</strong></article>`;
 
-  const atrasoMedioPct = Math.round((Number(saudeFinal.atrasoMedioDias) || 0) * 100);
-  const pieValues = [
-    Number(saudeFinal.pontualidadePct) || 0,
-    Number(saudeFinal.backlogTotal) || 0,
-    Number(saudeFinal.concluidasPeriodo) || 0,
-    atrasoMedioPct,
-  ];
-  const pieLabels = ["Pontualidade", "Backlog", "Concluídas", "Atraso médio"];
-  const pieDisplay = [
-    `${saudeFinal.pontualidadePct}%`,
-    String(saudeFinal.backlogTotal),
-    String(saudeFinal.concluidasPeriodo),
-    `${atrasoMedioPct}%`,
-  ];
-  const chart = buildNeonPieChart(pieValues, pieLabels, pieDisplay);
-
-  const pontualidadePct = clampPercent(Number(saudeFinal.pontualidadePct) || 0);
+  const pontualidadePct = clampPercent(Number(saudeFinal.pontualidadePct || 0));
   const atrasoMedioDias = Number(saudeFinal.atrasoMedioDias) || 0;
   const atrasoScale = clampPercent((Math.min(atrasoMedioDias, 10) / 10) * 100);
   const atrasoLabel = Number.isFinite(atrasoMedioDias)
@@ -17183,6 +17200,27 @@ function renderDashboardHome() {
   const concluidasTotal = Number(saudeFinal.concluidasPeriodo) || 0;
   const backlogBars = buildEfficiencyBars(miniSeries.backlog || []);
   const concluidasBars = buildEfficiencyBars(miniSeries.concluidas || []);
+
+  const serieEficiencia = Array.isArray(graficoFinal.serie)
+    ? graficoFinal.serie
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value))
+    : [];
+  const eficienciaAtual = serieEficiencia.length
+    ? serieEficiencia[serieEficiencia.length - 1]
+    : pontualidadePct;
+  const eficienciaAnterior = serieEficiencia.length > 1
+    ? serieEficiencia[serieEficiencia.length - 2]
+    : eficienciaAtual;
+  const tendenciaDelta = Number(eficienciaAtual) - Number(eficienciaAnterior);
+  let trendLabel = `${Math.round(Number(eficienciaAtual) || 0)}%`;
+  let trendClass = "trend-tag--steady";
+  if (Math.abs(tendenciaDelta) >= 1) {
+    const deltaRound = Math.round(tendenciaDelta);
+    trendLabel = `${deltaRound > 0 ? "+" : ""}${deltaRound}%`;
+    trendClass = deltaRound > 0 ? "trend-tag--up" : "trend-tag--down";
+  }
+
   const efficiencyKpisHtml = `
     <div class="efficiency-kpis">
       ${buildEfficiencyKpiBlock(
@@ -17217,8 +17255,8 @@ function renderDashboardHome() {
   `;
 
   const today = startOfDay(new Date());
-  const sortedAtividades = Array.isArray(proximasAtividades)
-    ? proximasAtividades
+  const sortedAtividades = Array.isArray(proximasFinal)
+    ? proximasFinal
         .map((item) => {
           const date = parseDateOnly(item && item.prazo ? item.prazo : "");
           let status = "Em dia";
@@ -17251,6 +17289,59 @@ function renderDashboardHome() {
         })
     : [];
 
+  const resolveAlertVisual = (tipoRaw) => {
+    const tipo = normalizeSearchValue(tipoRaw || "");
+    if (tipo.includes("crit")) {
+      return {
+        chipClass: "alert-chip--danger",
+        chipLabel: "Crítico",
+        openTab: "execucao",
+        actionLabel: "Abrir execução",
+      };
+    }
+    if (tipo.includes("aviso")) {
+      return {
+        chipClass: "alert-chip--warn",
+        chipLabel: "Atenção",
+        openTab: "programacao",
+        actionLabel: "Abrir programação",
+      };
+    }
+    return {
+      chipClass: "alert-chip--info",
+      chipLabel: "Info",
+      openTab: "programacao",
+      actionLabel: "Ver detalhe",
+    };
+  };
+
+  const alertRows = Array.isArray(alertasFinal)
+    ? alertasFinal
+        .slice(0, 5)
+        .map((alerta) => {
+          const visual = resolveAlertVisual(alerta && alerta.tipo ? alerta.tipo : "");
+          const msg =
+            (alerta && (alerta.msg || alerta.mensagem || alerta.message || alerta.titulo)) ||
+            "Alerta operacional sem detalhe.";
+          return `
+            <li class="ops-alert-item">
+              <div class="ops-alert-item__text">
+                <span class="alert-chip ${visual.chipClass}">${visual.chipLabel}</span>
+                <p class="ops-alert-msg">${escapeHtml(String(msg))}</p>
+              </div>
+              <button
+                class="btn btn--ghost btn--small ops-alert-cta"
+                type="button"
+                data-open-tab="${visual.openTab}"
+              >
+                ${visual.actionLabel}
+              </button>
+            </li>
+          `;
+        })
+        .join("")
+    : "";
+
   const rows = sortedAtividades
     .map((item) => {
       const badge = getStatusBadge(item.status);
@@ -17262,6 +17353,11 @@ function renderDashboardHome() {
       </tr>`;
     })
     .join("");
+
+  const alertListMarkup = alertRows
+    ? `<ul class="ops-alert-list">${alertRows}</ul>`
+    : `<p class="ops-alert-empty">Sem alertas críticos no momento.</p>`;
+
   const updatedAt = dashboardSummary.generatedAt
     ? formatDateTime(parseTimestamp(dashboardSummary.generatedAt) || new Date())
     : formatDateTime(new Date());
@@ -17290,88 +17386,20 @@ function renderDashboardHome() {
       </section>
 
       <section class="home-section">
-        <h3 class="home-section__title">Suporte e saúde</h3>
-        <div class="dashboard-row">
-          <article class="card panel-card">
+        <h3 class="home-section__title">Ação imediata</h3>
+        <div class="home-action-grid">
+          <article class="card panel-card panel-card--alerts">
             <div class="panel-head">
-              <h3>DICAS DA OPSCOPE</h3>
+              <h3>ALERTAS OPERACIONAIS</h3>
             </div>
-            <div class="opscope-tips" id="opscopeTips">
-              <p class="opscope-tip" data-tip></p>
-            </div>
+            <p class="panel-subtitle">Ocorrências que exigem resposta rápida da equipe.</p>
+            ${alertListMarkup}
           </article>
-          <article class="card panel-card">
-            <div class="panel-head">
-              <h3>SAÚDE OPERACIONAL</h3>
-            </div>
-            <div class="health-grid">
-              <div class="health-item">
-                <span>Pontualidade</span>
-                <strong>${saudeFinal.pontualidadePct}%</strong>
-              </div>
-              <div class="health-item">
-                <span>Backlog</span>
-                <strong>${saudeFinal.backlogTotal}</strong>
-              </div>
-              <div class="health-item">
-                <span>Concluídas</span>
-                <strong>${saudeFinal.concluidasPeriodo}</strong>
-              </div>
-              <div class="health-item">
-                <span>Atraso médio</span>
-                <strong>${saudeFinal.atrasoMedioDias}d</strong>
-              </div>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section class="home-section">
-        <h3 class="home-section__title">Performance e previsão</h3>
-        <div class="dashboard-row">
-          <article class="card panel-card">
-            <div class="panel-head">
-              <h3>EFICIÊNCIA OPERACIONAL</h3>
-              <span class="trend-tag">+8%</span>
-            </div>
-            <div class="mini-chart neon-pie">
-              ${efficiencyKpisHtml}
-              <div class="pie-legend">
-                <div class="pie-legend__item">
-                  <span class="pie-legend__dot pie-legend__dot--green"></span>
-                  <div>
-                    <strong>Pontualidade</strong>
-                    <span>Percentual de entregas no prazo.</span>
-                  </div>
-                </div>
-                <div class="pie-legend__item">
-                  <span class="pie-legend__dot pie-legend__dot--red"></span>
-                  <div>
-                    <strong>Atraso médio</strong>
-                    <span>Tempo médio de atraso (dias).</span>
-                  </div>
-                </div>
-                <div class="pie-legend__item">
-                  <span class="pie-legend__dot pie-legend__dot--blue"></span>
-                  <div>
-                    <strong>Backlog</strong>
-                    <span>Pendências acumuladas.</span>
-                  </div>
-                </div>
-                <div class="pie-legend__item">
-                  <span class="pie-legend__dot pie-legend__dot--yellow"></span>
-                  <div>
-                    <strong>Concluídas</strong>
-                    <span>Volume total concluído no período.</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </article>
-          <article class="card panel-card">
+          <article class="card panel-card panel-card--activities">
             <div class="panel-head">
               <h3>PRÓXIMAS ATIVIDADES</h3>
             </div>
+            <p class="panel-subtitle">Foco nas próximas entregas por responsável e prazo.</p>
             <div class="table-wrap">
               <table class="data-table">
                 <thead>
@@ -17386,6 +17414,31 @@ function renderDashboardHome() {
                   ${rows || `<tr><td colspan="4" class="empty-state">Sem registros.</td></tr>`}
                 </tbody>
               </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="home-section">
+        <h3 class="home-section__title">Eficiência e suporte</h3>
+        <div class="dashboard-row">
+          <article class="card panel-card panel-card--efficiency">
+            <div class="panel-head">
+              <h3>EFICIÊNCIA OPERACIONAL</h3>
+              <span class="trend-tag ${trendClass}">${trendLabel}</span>
+            </div>
+            <p class="panel-subtitle">Consolidação diária dos quatro indicadores-chave de execução.</p>
+            <div class="mini-chart">
+              ${efficiencyKpisHtml}
+            </div>
+          </article>
+          <article class="card panel-card panel-card--tips">
+            <div class="panel-head">
+              <h3>DICAS DA OPSCOPE</h3>
+            </div>
+            <p class="panel-subtitle">Boas práticas rápidas para reduzir retrabalho e atrasos em campo.</p>
+            <div class="opscope-tips opscope-tips--compact" id="opscopeTips">
+              <p class="opscope-tip opscope-tip--compact" data-tip></p>
             </div>
           </article>
         </div>
@@ -53681,16 +53734,20 @@ tabButtons.forEach((botao) => {
   });
 });
 
-document.querySelectorAll("[data-open-tab]").forEach((link) => {
-  link.addEventListener("click", (event) => {
-    event.preventDefault();
-    const tab = link.dataset.openTab;
-    if (tab) {
-      const href = link.getAttribute("href");
-      const scrollTarget = href && href.startsWith("#") ? href.slice(1) : null;
-      abrirPainelComCarregamento(tab, scrollTarget, { pushUrl: true });
-    }
-  });
+document.addEventListener("click", (event) => {
+  const trigger = event.target.closest("[data-open-tab]");
+  if (!trigger || trigger.disabled) {
+    return;
+  }
+  const tab = trigger.dataset.openTab;
+  if (!tab) {
+    return;
+  }
+  event.preventDefault();
+  const href = trigger.getAttribute("href");
+  const scrollTarget =
+    trigger.dataset.scrollTarget || (href && href.startsWith("#") ? href.slice(1) : null);
+  abrirPainelComCarregamento(tab, scrollTarget, { pushUrl: true });
 });
 
 if (btnRefreshHealth) {
