@@ -5113,6 +5113,24 @@ body.is-visitor .container.auth-only {
   box-shadow: 0 12px 20px rgba(4, 13, 22, 0.38);
 }
 
+.dashboard-home .home-kpi-grid .kpi-card span {
+  color: rgba(219, 232, 245, 0.9);
+  font-size: 0.66rem;
+  letter-spacing: 0.17em;
+}
+
+.dashboard-home .home-kpi-grid .kpi-card strong {
+  color: #f6fbff;
+  font-size: 1.86rem;
+  line-height: 1.08;
+  text-shadow: 0 1px 0 rgba(2, 8, 14, 0.45);
+}
+
+.dashboard-home .home-kpi-grid .kpi-card small {
+  color: rgba(193, 212, 228, 0.92);
+  font-size: 0.74rem;
+}
+
 .home-kpi-grid .kpi-card::before {
   content: "";
   position: absolute;
