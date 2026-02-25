@@ -1272,13 +1272,28 @@ body.is-authenticated .app-shell.auth-only {
   text-align: left;
 }
 
+.nav-group[data-group="favoritos"] .nav-group__header,
 .nav-group[data-group="planejamento"] .nav-group__header,
 .nav-group[data-group="execucao"] .nav-group__header,
 .nav-group[data-group="monitoramento"] .nav-group__header,
-.nav-group[data-group="relatorios"] .nav-group__header {
+.nav-group[data-group="relatorios"] .nav-group__header,
+.nav-group[data-group="pessoas"] .nav-group__header,
+.nav-group[data-group="almoxarifado"] .nav-group__header,
+.nav-group[data-group="sst"] .nav-group__header,
+.nav-group[data-group="administracao"] .nav-group__header {
   color: rgba(245, 249, 255, 0.98);
   border: 1px solid rgba(255, 255, 255, 0.1);
   font-weight: 700;
+}
+
+.nav-group[data-group="favoritos"] .nav-group__header {
+  box-shadow: inset 3px 0 0 #f2ca76;
+  background: linear-gradient(
+    90deg,
+    rgba(242, 202, 118, 0.2),
+    rgba(242, 202, 118, 0.04) 65%,
+    transparent
+  );
 }
 
 .nav-group[data-group="planejamento"] .nav-group__header {
@@ -1321,10 +1336,55 @@ body.is-authenticated .app-shell.auth-only {
   );
 }
 
+.nav-group[data-group="pessoas"] .nav-group__header {
+  box-shadow: inset 3px 0 0 #79c7f5;
+  background: linear-gradient(
+    90deg,
+    rgba(121, 199, 245, 0.2),
+    rgba(121, 199, 245, 0.04) 65%,
+    transparent
+  );
+}
+
+.nav-group[data-group="almoxarifado"] .nav-group__header {
+  box-shadow: inset 3px 0 0 #8fc56d;
+  background: linear-gradient(
+    90deg,
+    rgba(143, 197, 109, 0.2),
+    rgba(143, 197, 109, 0.04) 65%,
+    transparent
+  );
+}
+
+.nav-group[data-group="sst"] .nav-group__header {
+  box-shadow: inset 3px 0 0 #f19b88;
+  background: linear-gradient(
+    90deg,
+    rgba(241, 155, 136, 0.2),
+    rgba(241, 155, 136, 0.04) 65%,
+    transparent
+  );
+}
+
+.nav-group[data-group="administracao"] .nav-group__header {
+  box-shadow: inset 3px 0 0 #bba792;
+  background: linear-gradient(
+    90deg,
+    rgba(187, 167, 146, 0.2),
+    rgba(187, 167, 146, 0.04) 65%,
+    transparent
+  );
+}
+
+.nav-group[data-group="favoritos"] .nav-group__header:hover,
 .nav-group[data-group="planejamento"] .nav-group__header:hover,
 .nav-group[data-group="execucao"] .nav-group__header:hover,
 .nav-group[data-group="monitoramento"] .nav-group__header:hover,
-.nav-group[data-group="relatorios"] .nav-group__header:hover {
+.nav-group[data-group="relatorios"] .nav-group__header:hover,
+.nav-group[data-group="pessoas"] .nav-group__header:hover,
+.nav-group[data-group="almoxarifado"] .nav-group__header:hover,
+.nav-group[data-group="sst"] .nav-group__header:hover,
+.nav-group[data-group="administracao"] .nav-group__header:hover {
   filter: brightness(1.06);
 }
 
@@ -1409,6 +1469,26 @@ body.is-authenticated .app-shell.auth-only {
 .nav-item.is-active,
 .nav-item.active {
   background: var(--sb-active);
+}
+
+.nav-item[data-tab="inicio"] {
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(
+    90deg,
+    rgba(217, 138, 59, 0.22),
+    rgba(217, 138, 59, 0.06) 70%,
+    transparent
+  );
+}
+
+.nav-item[data-tab="inicio"] .nav-item__ico {
+  background: rgba(217, 138, 59, 0.16);
+  border-color: rgba(217, 138, 59, 0.34);
+}
+
+.nav-item[data-tab="inicio"]:hover {
+  filter: brightness(1.05);
 }
 
 .nav-item.is-active::before,
@@ -1575,10 +1655,15 @@ body.is-authenticated .app-shell.auth-only {
   background: transparent;
 }
 
+.sidebar[data-state="collapsed"] .nav-group[data-group="favoritos"] .nav-group__header,
 .sidebar[data-state="collapsed"] .nav-group[data-group="planejamento"] .nav-group__header,
 .sidebar[data-state="collapsed"] .nav-group[data-group="execucao"] .nav-group__header,
 .sidebar[data-state="collapsed"] .nav-group[data-group="monitoramento"] .nav-group__header,
-.sidebar[data-state="collapsed"] .nav-group[data-group="relatorios"] .nav-group__header {
+.sidebar[data-state="collapsed"] .nav-group[data-group="relatorios"] .nav-group__header,
+.sidebar[data-state="collapsed"] .nav-group[data-group="pessoas"] .nav-group__header,
+.sidebar[data-state="collapsed"] .nav-group[data-group="almoxarifado"] .nav-group__header,
+.sidebar[data-state="collapsed"] .nav-group[data-group="sst"] .nav-group__header,
+.sidebar[data-state="collapsed"] .nav-group[data-group="administracao"] .nav-group__header {
   border: 0;
   box-shadow: none;
   background: transparent;
