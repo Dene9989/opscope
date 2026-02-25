@@ -45444,7 +45444,7 @@ function renderTudo() {
   });
   renderListaStatus("concluida", listaConcluidas, listaConcluidasVazia, {
     limit: 6,
-    allowedActions: ["history", "reopen", "remove", "revalidate"],
+    allowedActions: ["edit", "history", "reopen", "remove", "revalidate"],
   });
   renderExecucao();
   renderIntercorrencias();
