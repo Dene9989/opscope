@@ -19455,6 +19455,7 @@ function renderExecucao() {
   const criticas = vencidasInfo.filter((entry) => entry.diff <= -3).map((entry) => entry.item);
 
   renderListaCustom(agendadasHoje, listaExecucaoHoje, listaExecucaoHojeVazia, [
+    "edit",
     "note",
     "release",
     "execute",
@@ -19464,6 +19465,7 @@ function renderExecucao() {
     "revalidate",
   ]);
   renderListaCustom(vencidas, listaExecucaoVencidas, listaExecucaoVencidasVazia, [
+    "edit",
     "note",
     "release",
     "execute",
@@ -19473,6 +19475,7 @@ function renderExecucao() {
     "revalidate",
   ]);
   renderListaCustom(criticas, listaExecucaoCriticas, listaExecucaoCriticasVazia, [
+    "edit",
     "note",
     "release",
     "execute",
@@ -45463,7 +45466,7 @@ function renderTudo() {
   renderLembretes();
   renderProgramacao();
   renderListaStatus("backlog", listaBacklog, listaBacklogVazia, {
-    allowedActions: ["reschedule", "history", "backlog_reason", "revalidate"],
+    allowedActions: ["edit", "reschedule", "history", "backlog_reason", "revalidate"],
   });
   renderListaStatus("concluida", listaConcluidas, listaConcluidasVazia, {
     limit: 6,
@@ -51867,6 +51870,7 @@ function agirNaManutencao(event) {
     acao !== "history" &&
     acao !== "revalidate" &&
     acao !== "export_ss" &&
+    acao !== "edit" &&
     acao !== "register" &&
     acao !== "cancel_start" &&
     acao !== "finish"
