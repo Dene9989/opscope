@@ -3135,7 +3135,6 @@ const DEFAULT_PROJECTS_SEED = [
 ];
 const PERFORMANCE_TABS = new Set(["performance-projects", "performance-people"]);
 const TAB_PERMISSION_MAP = {
-  edicao: "MAINT_EDIT",
   desempenho: "verRelatorios",
   "performance-projects": "verRelatorios",
   "performance-people": "verRelatorios",
@@ -4581,6 +4580,16 @@ function canViewSectionTab(tab, user) {
 function canViewTab(tab, user, secConfig) {
   if (!tab) {
     return false;
+  }
+  if (tab === "edicao") {
+    if (!user) {
+      return false;
+    }
+    if (user.role === "admin" || isFullAccessUser(user)) {
+      return true;
+    }
+    const permissions = getMaintenancePermissionsForUser(user);
+    return Boolean(permissions.edit);
   }
   if (ACCESS_SECTION_PERMISSIONS.includes(tab)) {
     return canViewSectionTab(tab, user);
@@ -46394,10 +46403,16 @@ async function abrirEdicaoManutencao(item) {
   preencherFormularioManutencao(atualizado);
   manutencaoEditDirty = false;
   const tabEdicao = getTabButton("edicao");
+  const tabNova = getTabButton("nova");
   if (tabEdicao && !tabEdicao.hidden) {
     ativarTab("edicao");
-  } else {
+  } else if (tabNova && !tabNova.hidden) {
     ativarTab("nova");
+  } else {
+    mostrarMensagemManutencao(
+      "Edição carregada, mas sua conta não tem acesso à tela de edição. Solicite permissão MAINT_EDIT.",
+      true
+    );
   }
   if (manutencaoEditBanner && manutencaoEditBanner.scrollIntoView) {
     manutencaoEditBanner.scrollIntoView({ behavior: "smooth", block: "center" });
