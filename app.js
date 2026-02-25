@@ -46394,25 +46394,54 @@ async function abrirEdicaoManutencao(item) {
     mostrarMensagemManutencao("Sem permiss\u00e3o para editar manutencoes concluidas.", true);
     return;
   }
-  if (item.projectId && item.projectId !== activeProjectId) {
-    await setActiveProjectId(item.projectId);
+  const abrirPainelEdicao = () => {
+    const tabEdicao = getTabButton("edicao");
+    const tabNova = getTabButton("nova");
+    if (tabEdicao && !tabEdicao.hidden) {
+      ativarTab("edicao");
+    } else if (tabNova && !tabNova.hidden) {
+      ativarTab("nova");
+    } else {
+      mostrarMensagemManutencao(
+        "Edição carregada, mas sua conta não tem acesso à tela de edição. Solicite permissão MAINT_EDIT.",
+        true
+      );
+    }
+  };
+  const carregarFormularioEdicao = (registro) => {
+    if (!registro) {
+      return;
+    }
+    setEditModeManutencao(registro);
+    limparFormularioManutencao();
+    preencherFormularioManutencao(registro);
+    manutencaoEditDirty = false;
+  };
+  const inicial = manutencoes.find((registro) => registro.id === item.id) || item;
+  if (!inicial) {
+    throw new Error("Manutenção não encontrada para edição.");
   }
-  const atualizado = manutencoes.find((registro) => registro.id === item.id) || item;
-  setEditModeManutencao(atualizado);
-  limparFormularioManutencao();
-  preencherFormularioManutencao(atualizado);
-  manutencaoEditDirty = false;
-  const tabEdicao = getTabButton("edicao");
-  const tabNova = getTabButton("nova");
-  if (tabEdicao && !tabEdicao.hidden) {
-    ativarTab("edicao");
-  } else if (tabNova && !tabNova.hidden) {
-    ativarTab("nova");
-  } else {
-    mostrarMensagemManutencao(
-      "Edição carregada, mas sua conta não tem acesso à tela de edição. Solicite permissão MAINT_EDIT.",
-      true
-    );
+  carregarFormularioEdicao(inicial);
+  abrirPainelEdicao();
+
+  if (item.projectId && item.projectId !== activeProjectId) {
+    try {
+      await setActiveProjectId(item.projectId);
+      const atualizado = manutencoes.find((registro) => registro.id === item.id) || inicial;
+      carregarFormularioEdicao(atualizado);
+      abrirPainelEdicao();
+    } catch (error) {
+      console.warn("[maintenance.edit.project-switch.error]", {
+        maintenanceId: item.id || "",
+        fromProjectId: activeProjectId || "",
+        toProjectId: item.projectId || "",
+        message: error && error.message ? error.message : String(error || ""),
+      });
+      mostrarMensagemManutencao(
+        "Não foi possível trocar o projeto automaticamente. Edição aberta com os dados atuais.",
+        true
+      );
+    }
   }
   if (manutencaoEditBanner && manutencaoEditBanner.scrollIntoView) {
     manutencaoEditBanner.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -46875,7 +46904,20 @@ async function editarManutencao(index) {
     mostrarMensagemManutencao("Manutenção cancelada não pode ser editada por este atalho.", true);
     return;
   }
-  await abrirEdicaoManutencao(item);
+  try {
+    await abrirEdicaoManutencao(item);
+  } catch (error) {
+    const message = error && error.message ? error.message : "Falha ao abrir a tela de edição.";
+    console.error("[maintenance.edit.open.error]", {
+      maintenanceId: item.id || "",
+      status,
+      projectId: item.projectId || "",
+      activeProjectId: activeProjectId || "",
+      message,
+    });
+    mostrarMensagemManutencao(message, true);
+    showAuthToast(message);
+  }
 }
 
 
