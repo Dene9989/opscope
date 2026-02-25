@@ -19020,12 +19020,9 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const liberacaoOk = isLiberacaoOk(item);
   const podeEditarPlanejamento =
     statusNormalized === "agendada" || statusNormalized === "backlog";
-  const podeEditarLiberacao =
-    statusNormalized === "liberada" && Boolean(permissoes.execute) && podeExecutarItem;
-  const podeEditarExecucao =
-    statusNormalized === "em_execucao" && Boolean(permissoes.execute) && podeExecutarItem;
-  const podeEditarEncerramento =
-    statusNormalized === "encerramento" && Boolean(permissoes.execute) && podeConcluirItem;
+  const podeEditarLiberacao = statusNormalized === "liberada";
+  const podeEditarExecucao = statusNormalized === "em_execucao";
+  const podeEditarEncerramento = statusNormalized === "encerramento";
   const podeEditarConcluida =
     statusNormalized === "concluida" && canEditConcludedMaintenance(currentUser);
   const podeEditar =
@@ -19034,20 +19031,8 @@ function criarCardManutencao(item, permissoes, options = {}) {
     podeEditarExecucao ||
     podeEditarEncerramento ||
     podeEditarConcluida;
-  let editLabel = "Editar";
-  if (podeEditarPlanejamento) {
-    editLabel = "Editar planejamento";
-  } else if (podeEditarLiberacao) {
-    editLabel = "Editar liberação";
-  } else if (podeEditarExecucao) {
-    editLabel = "Editar execução";
-  } else if (podeEditarEncerramento) {
-    editLabel = "Editar encerramento";
-  } else if (podeEditarConcluida) {
-    editLabel = "Editar concluída";
-  }
   if (permite("edit") && podeEditar) {
-    actions.append(criarBotaoAcao(editLabel, "edit"));
+    actions.append(criarBotaoAcao("Abrir tela de edição", "edit"));
   }
 
   const podeRegistrarObservacao =
@@ -46817,39 +46802,11 @@ async function editarManutencao(index) {
     mostrarMensagemManutencao("Sem permiss\u00e3o para editar manutencoes concluidas.", true);
     return;
   }
-  if (status === "agendada" || status === "backlog") {
-    await abrirEdicaoManutencao(item);
+  if (status === "cancelada") {
+    mostrarMensagemManutencao("Manutenção cancelada não pode ser editada por este atalho.", true);
     return;
   }
-  if (status === "liberada") {
-    if (!requirePermission("complete")) {
-      return;
-    }
-    if (!ensureExecucaoPermitida(item, mostrarMensagemManutencao)) {
-      return;
-    }
-    abrirLiberacao(item);
-    return;
-  }
-  if (status === "em_execucao") {
-    if (!requirePermission("complete")) {
-      return;
-    }
-    abrirRegistroExecucao(item);
-    return;
-  }
-  if (status === "encerramento") {
-    if (!requirePermission("complete")) {
-      return;
-    }
-    abrirConclusao(item);
-    return;
-  }
-  if (status === "concluida") {
-    editarManutencaoConcluida(index);
-    return;
-  }
-  mostrarMensagemManutencao("Status atual nao permite edicao por este atalho.", true);
+  await abrirEdicaoManutencao(item);
 }
 
 
