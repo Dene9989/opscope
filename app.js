@@ -42091,22 +42091,96 @@ function formatContingencyActionsText(list) {
     .join("\n");
 }
 
+function normalizeContingencyCommunicationStatusToken(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  if (
+    normalized === "CONCLUIDA" ||
+    normalized === "CONCLUIDO" ||
+    normalized === "FINALIZADA" ||
+    normalized === "FINALIZADO" ||
+    normalized === "DONE" ||
+    normalized === "COMPLETED"
+  ) {
+    return "CONCLUIDA";
+  }
+  if (
+    normalized === "EM_ANDAMENTO" ||
+    normalized === "EMANDAMENTO" ||
+    normalized === "ANDAMENTO" ||
+    normalized === "IN_PROGRESS" ||
+    normalized === "INPROGRESS"
+  ) {
+    return "EM_ANDAMENTO";
+  }
+  if (
+    normalized === "CANCELADA" ||
+    normalized === "CANCELADO" ||
+    normalized === "CANCELED" ||
+    normalized === "CANCELLED"
+  ) {
+    return "CANCELADA";
+  }
+  if (
+    normalized === "PENDENTE" ||
+    normalized === "PENDENTES" ||
+    normalized === "PENDING" ||
+    normalized === "ABERTA" ||
+    normalized === "ABERTO"
+  ) {
+    return "PENDENTE";
+  }
+  return "";
+}
+
+function isContingencyCommunicationDateToken(value) {
+  const text = String(value || "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) || /^\d{2}\/\d{2}\/\d{4}$/.test(text);
+}
+
 function parseContingencyCommunicationsText(value) {
   const lines = String(value || "")
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
   return lines.map((line) => {
-    const done = line.startsWith("[x]") || line.startsWith("[X]");
-    const clean = line.replace(/^\[(x|X)\]\s*/, "").trim();
+    const donePrefix = /^\[(x|X)\]\s*/.test(line);
+    const clean = line.replace(/^\[(x|X|\s)\]\s*/, "").trim();
     if (!clean) {
+      return null;
+    }
+    const parts = clean.split("|").map((chunk) => chunk.trim()).filter(Boolean);
+    let statusToken = "";
+    if (parts.length >= 2) {
+      const last = parts[parts.length - 1];
+      const parsedStatus = normalizeContingencyCommunicationStatusToken(last);
+      if (parsedStatus) {
+        statusToken = parsedStatus;
+        parts.pop();
+      }
+    }
+    let note = "";
+    if (parts.length >= 2) {
+      const maybeNote = parts[parts.length - 1];
+      if (isContingencyCommunicationDateToken(maybeNote)) {
+        note = maybeNote;
+        parts.pop();
+      }
+    }
+    const label = parts.join(" | ").trim();
+    if (!label) {
       return null;
     }
     return {
       id: criarId(),
-      label: clean,
-      done,
-      note: "",
+      label,
+      done: donePrefix || statusToken === "CONCLUIDA",
+      note,
     };
   }).filter(Boolean);
 }
@@ -42120,8 +42194,13 @@ function formatContingencyCommunicationsText(list) {
       if (!item || !item.label) {
         return "";
       }
-      const prefix = item.done ? "[x] " : "";
-      return `${prefix}${item.label}`.trim();
+      const label = String(item.label || "").trim();
+      const note = String(item.note || "").trim();
+      const status = item.done ? "CONCLUIDA" : "PENDENTE";
+      if (!label) {
+        return "";
+      }
+      return note ? `${label} | ${note} | ${status}` : `${label} | ${status}`;
     })
     .filter(Boolean)
     .join("\n");

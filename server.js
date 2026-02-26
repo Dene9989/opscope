@@ -3039,42 +3039,160 @@ function normalizeContingencyActionStatus(value) {
   return "PENDENTE";
 }
 
+function normalizeContingencyCommunicationStatusToken(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  if (
+    normalized === "CONCLUIDA" ||
+    normalized === "CONCLUIDO" ||
+    normalized === "FINALIZADA" ||
+    normalized === "FINALIZADO" ||
+    normalized === "DONE" ||
+    normalized === "COMPLETED"
+  ) {
+    return "CONCLUIDA";
+  }
+  if (
+    normalized === "EM_ANDAMENTO" ||
+    normalized === "EMANDAMENTO" ||
+    normalized === "ANDAMENTO" ||
+    normalized === "IN_PROGRESS" ||
+    normalized === "INPROGRESS"
+  ) {
+    return "EM_ANDAMENTO";
+  }
+  if (
+    normalized === "CANCELADA" ||
+    normalized === "CANCELADO" ||
+    normalized === "CANCELED" ||
+    normalized === "CANCELLED"
+  ) {
+    return "CANCELADA";
+  }
+  if (
+    normalized === "PENDENTE" ||
+    normalized === "PENDENTES" ||
+    normalized === "PENDING" ||
+    normalized === "ABERTA" ||
+    normalized === "ABERTO"
+  ) {
+    return "PENDENTE";
+  }
+  return "";
+}
+
+function isContingencyCommunicationDateToken(value) {
+  const text = String(value || "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) || /^\d{2}\/\d{2}\/\d{4}$/.test(text);
+}
+
 function normalizeContingencyCommunicationList(value) {
   if (Array.isArray(value)) {
     return value
       .map((entry) => {
         if (entry && typeof entry === "object") {
-          const label = String(entry.label || entry.name || entry.title || "").trim();
+          const donePrefix = /^\[(x|X)\]\s*/.test(String(entry.label || entry.name || entry.title || ""));
+          const explicitStatus = normalizeContingencyCommunicationStatusToken(
+            entry.status || entry.state || entry.situacao || ""
+          );
+          const rawLabel = String(entry.label || entry.name || entry.title || "")
+            .replace(/^\[(x|X|\s)\]\s*/, "")
+            .trim();
+          const parts = rawLabel.split("|").map((part) => part.trim()).filter(Boolean);
+          let statusToken = explicitStatus;
+          if (!statusToken && parts.length >= 2) {
+            const fromLine = normalizeContingencyCommunicationStatusToken(parts[parts.length - 1]);
+            if (fromLine) {
+              statusToken = fromLine;
+              parts.pop();
+            }
+          }
+          let note = String(entry.note || entry.notes || "").trim();
+          if (!note && parts.length >= 2 && isContingencyCommunicationDateToken(parts[parts.length - 1])) {
+            note = parts.pop();
+          }
+          const label = parts.join(" | ").trim();
           if (!label) {
             return null;
           }
           return {
             id: entry.id ? String(entry.id) : crypto.randomUUID(),
             label,
-            done: Boolean(entry.done || entry.checked || entry.ok),
-            note: String(entry.note || entry.notes || "").trim(),
+            done: Boolean(entry.done || entry.checked || entry.ok || donePrefix || statusToken === "CONCLUIDA"),
+            note,
           };
         }
-        const label = String(entry || "").trim();
+        const raw = String(entry || "").trim();
+        if (!raw) {
+          return null;
+        }
+        const donePrefix = /^\[(x|X)\]\s*/.test(raw);
+        const clean = raw.replace(/^\[(x|X|\s)\]\s*/, "").trim();
+        const parts = clean.split("|").map((part) => part.trim()).filter(Boolean);
+        let statusToken = "";
+        if (parts.length >= 2) {
+          const parsedStatus = normalizeContingencyCommunicationStatusToken(parts[parts.length - 1]);
+          if (parsedStatus) {
+            statusToken = parsedStatus;
+            parts.pop();
+          }
+        }
+        let note = "";
+        if (parts.length >= 2 && isContingencyCommunicationDateToken(parts[parts.length - 1])) {
+          note = parts.pop();
+        }
+        const label = parts.join(" | ").trim();
         if (!label) {
           return null;
         }
         return {
           id: crypto.randomUUID(),
           label,
-          done: false,
-          note: "",
+          done: donePrefix || statusToken === "CONCLUIDA",
+          note,
         };
       })
       .filter(Boolean);
   }
   if (typeof value === "string") {
-    return normalizeTextList(value).map((label) => ({
-      id: crypto.randomUUID(),
-      label,
-      done: false,
-      note: "",
-    }));
+    return normalizeTextList(value)
+      .map((line) => {
+        const raw = String(line || "").trim();
+        if (!raw) {
+          return null;
+        }
+        const donePrefix = /^\[(x|X)\]\s*/.test(raw);
+        const clean = raw.replace(/^\[(x|X|\s)\]\s*/, "").trim();
+        const parts = clean.split("|").map((part) => part.trim()).filter(Boolean);
+        let statusToken = "";
+        if (parts.length >= 2) {
+          const parsedStatus = normalizeContingencyCommunicationStatusToken(parts[parts.length - 1]);
+          if (parsedStatus) {
+            statusToken = parsedStatus;
+            parts.pop();
+          }
+        }
+        let note = "";
+        if (parts.length >= 2 && isContingencyCommunicationDateToken(parts[parts.length - 1])) {
+          note = parts.pop();
+        }
+        const label = parts.join(" | ").trim();
+        if (!label) {
+          return null;
+        }
+        return {
+          id: crypto.randomUUID(),
+          label,
+          done: donePrefix || statusToken === "CONCLUIDA",
+          note,
+        };
+      })
+      .filter(Boolean);
   }
   return [];
 }
