@@ -3283,6 +3283,10 @@ function normalizeContingencyAttachment(record) {
   const categoryRaw = String(record && (record.category || record.categoria) ? record.category || record.categoria : "")
     .trim()
     .toUpperCase();
+  const sortOrderRaw = normalizeNumber(
+    record && (record.sortOrder ?? record.order ?? record.position ?? record.index),
+    Number.NaN
+  );
   return {
     id: record && record.id ? String(record.id) : crypto.randomUUID(),
     contingencyId: String(
@@ -3305,6 +3309,7 @@ function normalizeContingencyAttachment(record) {
     uploadedBy: String(record && (record.uploadedBy || record.createdBy) ? record.uploadedBy || record.createdBy : "").trim(),
     uploadedAt: String(record && (record.uploadedAt || record.createdAt) ? record.uploadedAt || record.createdAt : now).trim(),
     notes: String(record && (record.notes || record.observacao) ? record.notes || record.observacao : "").trim(),
+    sortOrder: Number.isFinite(sortOrderRaw) ? Math.max(1, Math.floor(sortOrderRaw)) : null,
   };
 }
 
@@ -3543,6 +3548,19 @@ function getContingencyAttachmentsById(contingencyId, options = {}) {
       };
     })
     .sort((a, b) => {
+      const aOrder = Number.isFinite(Number(a.sortOrder)) ? Number(a.sortOrder) : null;
+      const bOrder = Number.isFinite(Number(b.sortOrder)) ? Number(b.sortOrder) : null;
+      if (aOrder !== null || bOrder !== null) {
+        if (aOrder === null) {
+          return 1;
+        }
+        if (bOrder === null) {
+          return -1;
+        }
+        if (aOrder !== bOrder) {
+          return aOrder - bOrder;
+        }
+      }
       const aTime = parseDateTime(a.uploadedAt);
       const bTime = parseDateTime(b.uploadedAt);
       return (bTime ? bTime.getTime() : 0) - (aTime ? aTime.getTime() : 0);
@@ -17177,6 +17195,15 @@ app.post(
       );
     }
     await upsertUploadBlob(fileEntry, parsed.file.buffer);
+    const existingOrders = contingencyAttachments
+      .filter(
+        (entry) =>
+          entry &&
+          String(entry.contingencyId || "") === contingencyId &&
+          Number.isFinite(Number(entry.sortOrder))
+      )
+      .map((entry) => Number(entry.sortOrder));
+    const nextSortOrder = existingOrders.length ? Math.max(...existingOrders) + 1 : null;
     const attachment = normalizeContingencyAttachment({
       contingencyId,
       fileId: fileEntry.id,
@@ -17189,6 +17216,7 @@ app.post(
       notes: parsed.fields.notes,
       uploadedBy: user.id || "",
       uploadedAt: now,
+      sortOrder: nextSortOrder,
     });
     contingencyAttachments = contingencyAttachments.concat(attachment);
     contingencies[found.index] = touchContingencyAuditFields(found.item, user.id || "");
@@ -17253,6 +17281,141 @@ app.post(
 );
 
 app.put(
+  "/api/contingencies/:id/attachments/reorder",
+  requireAuth,
+  requireStorageWritable,
+  (req, res) => {
+    const user = req.currentUser || getSessionUser(req);
+    const contingencyId = String(req.params.id || "").trim();
+    if (!user) {
+      return respondContingencyError(res, 401, "unauthenticated", "Sessao invalida.");
+    }
+    const found = getContingencyById(contingencyId);
+    if (!found.item) {
+      return respondContingencyError(
+        res,
+        404,
+        "not_found",
+        "Contingencia nao encontrada.",
+        { userId: user.id, contingencyId }
+      );
+    }
+    if (!canEditContingency(user, found.item)) {
+      return respondContingencyError(
+        res,
+        403,
+        "edit_permission_denied",
+        "Sem permissao para reordenar anexos.",
+        { userId: user.id, contingencyId, projectId: found.item.projectId }
+      );
+    }
+    const payload = req.body && typeof req.body === "object" ? req.body : {};
+    const requestedOrder = Array.isArray(payload.order)
+      ? payload.order.map((id) => String(id || "").trim()).filter(Boolean)
+      : [];
+    if (!requestedOrder.length) {
+      return respondContingencyError(
+        res,
+        400,
+        "invalid_order",
+        "Informe a lista de ordem dos anexos.",
+        { userId: user.id, contingencyId }
+      );
+    }
+    const existing = contingencyAttachments
+      .filter((entry) => entry && String(entry.contingencyId || "") === contingencyId)
+      .map((entry) => normalizeContingencyAttachment(entry));
+    if (!existing.length) {
+      return respondContingencyError(
+        res,
+        404,
+        "attachment_not_found",
+        "Nenhum anexo encontrado para reordenar.",
+        { userId: user.id, contingencyId }
+      );
+    }
+    const existingIdSet = new Set(existing.map((entry) => String(entry.id || "")));
+    const requestedUnique = [];
+    const requestedSet = new Set();
+    requestedOrder.forEach((id) => {
+      if (!existingIdSet.has(id) || requestedSet.has(id)) {
+        return;
+      }
+      requestedSet.add(id);
+      requestedUnique.push(id);
+    });
+    if (!requestedUnique.length) {
+      return respondContingencyError(
+        res,
+        400,
+        "invalid_order",
+        "A ordem informada nao possui anexos validos.",
+        { userId: user.id, contingencyId }
+      );
+    }
+    const currentOrder = getContingencyAttachmentsById(contingencyId, { includeAll: true }).map((item) =>
+      String(item.id || "")
+    );
+    const remaining = currentOrder.filter((id) => id && !requestedSet.has(id));
+    const finalOrder = requestedUnique.concat(remaining);
+    const orderMap = new Map(finalOrder.map((id, index) => [id, index + 1]));
+    const previousAttachments = contingencyAttachments.slice();
+    contingencyAttachments = contingencyAttachments.map((entry) => {
+      if (!entry || String(entry.contingencyId || "") !== contingencyId) {
+        return entry;
+      }
+      const nextOrder = orderMap.get(String(entry.id || ""));
+      return normalizeContingencyAttachment({
+        ...entry,
+        sortOrder: Number.isFinite(nextOrder) ? nextOrder : entry.sortOrder,
+      });
+    });
+    contingencies[found.index] = touchContingencyAuditFields(found.item, user.id || "");
+    const persist = persistContingencyStores({
+      contingencies: true,
+      timeline: false,
+      attachments: true,
+    });
+    if (!persist.ok) {
+      contingencyAttachments = previousAttachments;
+      contingencies[found.index] = found.item;
+      return respondContingencyError(
+        res,
+        503,
+        "storage_write_failed",
+        STORAGE_READONLY_MESSAGE,
+        {
+          userId: user.id,
+          contingencyId,
+          projectId: found.item.projectId,
+          fileName: persist.failedFile,
+          storageFailure: getStorageWriteFailureSnapshot(),
+        }
+      );
+    }
+    touchCompat("contingencies", found.item.projectId);
+    const sseResult = broadcastSse("contingencies.updated", {
+      projectId: found.item.projectId,
+      contingencyId,
+      source: "attachment.reorder",
+    });
+    logContingency("attachment.reorder.ok", {
+      userId: user.id,
+      projectId: found.item.projectId,
+      contingencyId,
+      orderedCount: finalOrder.length,
+      sseDelivered: sseResult.delivered,
+      sseClients: sseResult.total,
+    });
+    return res.json({
+      order: finalOrder,
+      item: buildContingencyPayload(contingencies[found.index], { reportType: "internal" }),
+      sse: sseResult,
+    });
+  }
+);
+
+app.put(
   "/api/contingencies/:id/attachments/:attachmentId",
   requireAuth,
   requireStorageWritable,
@@ -17309,6 +17472,10 @@ app.put(
         Object.prototype.hasOwnProperty.call(payload, "notes")
           ? payload.notes
           : contingencyAttachments[index].notes,
+      sortOrder:
+        Object.prototype.hasOwnProperty.call(payload, "sortOrder")
+          ? payload.sortOrder
+          : contingencyAttachments[index].sortOrder,
     });
     contingencies[found.index] = touchContingencyAuditFields(found.item, user.id || "");
     const persist = persistContingencyStores({

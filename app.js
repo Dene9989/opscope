@@ -4843,6 +4843,7 @@ let contingenciesLoading = false;
 let contingenciesEnums = null;
 let contingencyTimelineDraft = [];
 let contingencyAttachmentsDraft = [];
+let contingencyAttachmentReorderBusy = false;
 let contingencyActiveTab = "identificacao";
 let contingencyFilterSearchTimer = null;
 const sstDocsBackfillProjects = new Set();
@@ -42469,9 +42470,11 @@ function renderContingencyAttachmentsDraft() {
   const categoryMap = buildContingencyLabelMap("attachmentCategories");
   const rows = Array.isArray(contingencyAttachmentsDraft) ? contingencyAttachmentsDraft : [];
   contingencyAttachmentsBody.innerHTML = rows
-    .map((entry) => {
+    .map((entry, index) => {
       const categoryLabel = categoryMap.get(entry.category) || entry.category || "-";
       const uploadedAt = formatContingencyDateTimeLabel(entry.uploadedAt);
+      const disableMoveUp = contingencyAttachmentReorderBusy || index <= 0;
+      const disableMoveDown = contingencyAttachmentReorderBusy || index >= rows.length - 1;
       return `
         <tr data-contingency-attachment-id="${escapeHtml(String(entry.id || ""))}">
           <td>${escapeHtml(entry.fileName || "-")}</td>
@@ -42488,6 +42491,12 @@ function renderContingencyAttachmentsDraft() {
           <td>${escapeHtml(entry.notes || "-")}</td>
           <td>
             <div class="table-actions">
+              <button class="btn btn--ghost btn--small" type="button" data-action="contingency-attachment-up" ${
+                disableMoveUp ? "disabled" : ""
+              } title="Subir evidencia na ordem do relatorio">Subir</button>
+              <button class="btn btn--ghost btn--small" type="button" data-action="contingency-attachment-down" ${
+                disableMoveDown ? "disabled" : ""
+              } title="Descer evidencia na ordem do relatorio">Descer</button>
               <button class="btn btn--ghost btn--small" type="button" data-action="contingency-attachment-open">Abrir</button>
               <button class="btn btn--danger btn--small" type="button" data-action="contingency-attachment-remove">Excluir</button>
             </div>
@@ -43053,6 +43062,50 @@ async function handleContingencyAttachmentUpload() {
   }
 }
 
+async function handleContingencyAttachmentMove(attachmentId, direction) {
+  const currentId = getCurrentContingencyId();
+  if (!currentId || contingencyAttachmentReorderBusy) {
+    return;
+  }
+  const currentIndex = contingencyAttachmentsDraft.findIndex(
+    (entry) => String(entry && entry.id) === String(attachmentId)
+  );
+  if (currentIndex < 0) {
+    return;
+  }
+  const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+  if (targetIndex < 0 || targetIndex >= contingencyAttachmentsDraft.length) {
+    return;
+  }
+  const previous = contingencyAttachmentsDraft.slice();
+  const next = contingencyAttachmentsDraft.slice();
+  const [moved] = next.splice(currentIndex, 1);
+  next.splice(targetIndex, 0, moved);
+  contingencyAttachmentReorderBusy = true;
+  contingencyAttachmentsDraft = next;
+  renderContingencyAttachmentsDraft();
+  try {
+    const orderedIds = next.map((entry) => String(entry && entry.id ? entry.id : "")).filter(Boolean);
+    const data = await apiContingencyAttachmentsReorder(currentId, orderedIds);
+    if (data && data.item) {
+      populateContingencyForm(data.item);
+    } else {
+      await openContingency(currentId, { silent: true });
+    }
+    setContingencyMessage("Ordem das evidencias atualizada.");
+  } catch (error) {
+    contingencyAttachmentsDraft = previous;
+    renderContingencyAttachmentsDraft();
+    setContingencyMessage(
+      error && error.message ? error.message : "Falha ao reordenar anexos.",
+      true
+    );
+  } finally {
+    contingencyAttachmentReorderBusy = false;
+    renderContingencyAttachmentsDraft();
+  }
+}
+
 async function handleContingencyAttachmentToggle(attachmentId, includeInClientReport) {
   const currentId = getCurrentContingencyId();
   const attachment = contingencyAttachmentsDraft.find(
@@ -43167,6 +43220,14 @@ function handleContingencyAttachmentsClick(event) {
     return;
   }
   const action = String(trigger.dataset.action || "");
+  if (action === "contingency-attachment-up") {
+    handleContingencyAttachmentMove(attachmentId, "up");
+    return;
+  }
+  if (action === "contingency-attachment-down") {
+    handleContingencyAttachmentMove(attachmentId, "down");
+    return;
+  }
   if (action === "contingency-attachment-open") {
     const url = attachment.storagePath || attachment.url;
     if (url) {
@@ -54943,6 +55004,16 @@ async function apiContingencyAttachmentUpdate(contingencyId, attachmentId, paylo
   return apiRequest(`/api/contingencies/${safeId}/attachments/${safeAttachmentId}`, {
     method: "PUT",
     body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiContingencyAttachmentsReorder(contingencyId, order) {
+  const safeId = encodeURIComponent(String(contingencyId || ""));
+  return apiRequest(`/api/contingencies/${safeId}/attachments/reorder`, {
+    method: "PUT",
+    body: JSON.stringify({
+      order: Array.isArray(order) ? order : [],
+    }),
   });
 }
 
