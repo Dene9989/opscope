@@ -5386,10 +5386,13 @@ async function generateContingencyReportPdf(payload, options = {}) {
   });
   drawDivider();
 
-  ensureSpace(52);
   const signGap = 12;
   const signWidth = (contentWidth - signGap * 2) / 3;
-  const signY = cursorY - 24;
+  const signYFixed = footerY + 88;
+  if (cursorY < signYFixed + 26) {
+    addPage();
+  }
+  const signY = signYFixed;
   page.drawLine({
     start: { x: margin + 8, y: signY },
     end: { x: margin + signWidth - 8, y: signY },
