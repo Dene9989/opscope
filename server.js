@@ -3826,6 +3826,8 @@ async function generateContingencyReportPdf(payload, options = {}) {
     : "internal";
   const generatedBy = String(options.generatedBy || "").trim() || "-";
   const generatedAt = options.generatedAt ? String(options.generatedAt) : new Date().toISOString();
+  const reportTypeLabel = reportType === "client" ? "Versao Cliente" : "Versao Interna";
+  const footerGeneratedBy = "O&M HV BSO2";
   const pdfDoc = await PDFDocument.create();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -3876,7 +3878,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     }
   };
   const engelmigLogo = await embedLogo(path.join(__dirname, "assets", "engelmig-logo.png"));
-  const opscopeLogo = await embedLogo(path.join(__dirname, "assets", "img", "opscope-logo.png"));
+  const solarigLogo = await embedLogo(path.join(__dirname, "assets", "solarig-logo.png"));
   let page = null;
   let cursorY = 0;
   const tocEntries = [];
@@ -3894,6 +3896,25 @@ async function generateContingencyReportPdf(payload, options = {}) {
       y: y + (height - drawHeight) / 2,
       width: drawWidth,
       height: drawHeight,
+    });
+  };
+
+  const drawSolarigFallback = (x, y, width, height) => {
+    const circleRadius = Math.min(14, Math.floor(height * 0.32));
+    const centerY = y + height / 2;
+    const centerX = x + circleRadius + 2;
+    page.drawCircle({
+      x: centerX,
+      y: centerY,
+      size: circleRadius,
+      color: rgb(0.93, 0.53, 0.02),
+    });
+    page.drawText("Solarig", {
+      x: centerX + circleRadius + 6,
+      y: centerY - 7,
+      size: 14,
+      font: fontBold,
+      color: rgb(0.14, 0.33, 0.56),
     });
   };
 
@@ -3916,8 +3937,12 @@ async function generateContingencyReportPdf(payload, options = {}) {
       color: palette.accent,
     });
     drawImageContain(engelmigLogo, margin + 8, pageHeight - headerHeight + 12, 110, 32);
-    drawImageContain(opscopeLogo, pageSize[0] - margin - 118, pageHeight - headerHeight + 12, 110, 32);
-    const headerTitle = "RELATÓRIO DE CONTINGÊNCIA";
+    if (solarigLogo) {
+      drawImageContain(solarigLogo, pageSize[0] - margin - 118, pageHeight - headerHeight + 12, 110, 32);
+    } else {
+      drawSolarigFallback(pageSize[0] - margin - 118, pageHeight - headerHeight + 12, 110, 32);
+    }
+    const headerTitle = "RELAT\u00d3RIO DE CONTING\u00caNCIA";
     const titleWidth = fontBold.widthOfTextAtSize(headerTitle, 12.6);
     page.drawText(headerTitle, {
       x: margin + (contentWidth - titleWidth) / 2,
@@ -3925,14 +3950,6 @@ async function generateContingencyReportPdf(payload, options = {}) {
       size: 12.6,
       font: fontBold,
       color: palette.primary,
-    });
-    const headerMeta = `${toText(safePayload.code)} | ${reportType === "client" ? "Versao Cliente" : "Versao Interna"}`;
-    page.drawText(headerMeta, {
-      x: pageSize[0] - margin - 12 - font.widthOfTextAtSize(headerMeta, 8.4),
-      y: pageHeight - 53,
-      size: 8.4,
-      font,
-      color: palette.muted,
     });
   };
 
@@ -4011,7 +4028,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     });
 
     const headers = [
-      "Nº",
+      "N\u00ba",
       "DATA",
       "NATUREZA DA REVISAO",
       "ELABORADO",
@@ -4037,7 +4054,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
       "0",
       formatContingencyDateOnly(generatedAt),
       "Emissao",
-      toText(generatedBy),
+      footerGeneratedBy,
       "-",
       "-",
       "-",
@@ -4079,7 +4096,11 @@ async function generateContingencyReportPdf(payload, options = {}) {
       color: palette.line,
     });
     drawImageContain(engelmigLogo, margin + 14, logosBottom + 8, contentWidth / 2 - 24, logosRowHeight - 16);
-    drawImageContain(opscopeLogo, margin + contentWidth / 2 + 14, logosBottom + 10, contentWidth / 2 - 24, logosRowHeight - 20);
+    if (solarigLogo) {
+      drawImageContain(solarigLogo, margin + contentWidth / 2 + 14, logosBottom + 10, contentWidth / 2 - 24, logosRowHeight - 20);
+    } else {
+      drawSolarigFallback(margin + contentWidth / 2 + 18, logosBottom + 14, contentWidth / 2 - 32, logosRowHeight - 28);
+    }
 
     const titleBlockTop = logosBottom - 2;
     const titleBlockBottom = frameBottom + 4;
@@ -4114,7 +4135,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
       color: palette.line,
     });
     drawCenteredText(toText(safePayload.substation || projectLabel || "SUBESTACAO"), titleBlockTop - 36, 15, true);
-    drawCenteredText("RELATÓRIO DE CONTINGÊNCIA", rowA - 44, 16, true, palette.primary);
+    drawCenteredText("RELAT\u00d3RIO DE CONTING\u00caNCIA", rowA - 44, 16, true, palette.primary);
     drawCenteredText(
       `${getContingencyLabel(CONTINGENCY_EVENT_LABELS, safePayload.eventType, "Outro")} | ${
         toText(safePayload.assetName || safePayload.assetId)
@@ -4131,6 +4152,52 @@ async function generateContingencyReportPdf(payload, options = {}) {
       10.1,
       true
     );
+
+    const objectiveTop = rowC - 8;
+    const objectiveBottom = titleBlockBottom + 6;
+    if (objectiveTop - objectiveBottom > 46) {
+      page.drawLine({
+        start: { x: margin, y: objectiveTop },
+        end: { x: margin + contentWidth, y: objectiveTop },
+        thickness: 0.8,
+        color: palette.line,
+      });
+      page.drawText("OBJETIVO", {
+        x: margin + 10,
+        y: objectiveTop - 16,
+        size: 11,
+        font: fontBold,
+        color: palette.primary,
+      });
+      const objectiveText = toText(
+        safePayload.impactDescription ||
+          "Consolidar a contingencia com rastreabilidade tecnica, diagnostico, acoes executadas e evidencias."
+      );
+      const objectiveLines = wrapPdfText(objectiveText, contentWidth - 20, 9.2, font);
+      let textY = objectiveTop - 30;
+      objectiveLines.slice(0, 8).forEach((line) => {
+        if (textY < objectiveBottom + 22) {
+          return;
+        }
+        page.drawText(line, {
+          x: margin + 10,
+          y: textY,
+          size: 9.2,
+          font,
+          color: palette.text,
+        });
+        textY -= 10.8;
+      });
+      if (textY > objectiveBottom + 18) {
+        page.drawText("ESCOPO: " + toText(safePayload.assetName || safePayload.assetId), {
+          x: margin + 10,
+          y: textY - 6,
+          size: 9.1,
+          font: fontBold,
+          color: palette.text,
+        });
+      }
+    }
   };
 
   const ensureSpace = (height) => {
@@ -4196,8 +4263,47 @@ async function generateContingencyReportPdf(payload, options = {}) {
     cursorY -= 26 + sectionGap;
   };
 
-  const kv = (label, value) => {
-    writeText(`${label}: ${toText(value)}`, { size: 10, leading: 12.2 });
+  const writeLabelValue = (label, value, options = {}) => {
+    const labelText = `${toText(label, "").replace(/:$/, "")}:`;
+    const valueText = toText(value);
+    const size = Number(options.size || 10);
+    const leading = Number(options.leading || 12.4);
+    const x = Number(options.x || margin);
+    const width = Number(options.width || contentWidth);
+    const labelWidth = fontBold.widthOfTextAtSize(labelText, size);
+    const valueWidth = Math.max(60, width - labelWidth - 6);
+    const valueLines = wrapPdfText(valueText, valueWidth, size, font);
+    ensureSpace(Math.max(1, valueLines.length) * leading + 3);
+    page.drawText(labelText, {
+      x,
+      y: cursorY,
+      size,
+      font: fontBold,
+      color: palette.text,
+    });
+    page.drawText(valueLines[0] || "-", {
+      x: x + labelWidth + 4,
+      y: cursorY,
+      size,
+      font,
+      color: palette.text,
+    });
+    cursorY -= leading;
+    for (let index = 1; index < valueLines.length; index += 1) {
+      page.drawText(valueLines[index], {
+        x: x + labelWidth + 4,
+        y: cursorY,
+        size,
+        font,
+        color: palette.text,
+      });
+      cursorY -= leading;
+    }
+    cursorY -= Number(options.after || 1.4);
+  };
+
+  const kv = (label, value, options = {}) => {
+    writeLabelValue(label, value, options);
   };
 
   const drawDivider = () => {
@@ -4315,7 +4421,27 @@ async function generateContingencyReportPdf(payload, options = {}) {
       image,
       fileName: blob.fileName || attachment.fileName || attachment.fileId || "-",
       notes: attachment.notes || "",
+      attachment,
     };
+  };
+
+  const getAttachmentRepresentation = (attachment, index = 0) => {
+    const raw = toText(attachment && attachment.notes ? attachment.notes : "", "").replace(/\s+/g, " ").trim();
+    const note = raw.replace(/^obs[:\-\s]*/i, "").trim();
+    const categoryLabel = getContingencyLabel(
+      CONTINGENCY_ATTACHMENT_CATEGORY_LABELS,
+      attachment && attachment.category ? attachment.category : "",
+      "Outro"
+    );
+    const looksLikeFileName = /\.(png|jpe?g|pdf|docx?)$/i.test(note);
+    const genericPatterns = /(whatsapp|image|img[_\-\s]?\d+|print|screenshot|foto[\s_-]*\d+|evidencia[\s_-]*\d+)/i;
+    if (note && note.length >= 4 && !looksLikeFileName && !genericPatterns.test(note)) {
+      return note;
+    }
+    if (String(attachment && attachment.category ? attachment.category : "").trim().toUpperCase() === "PHOTO") {
+      return `Imagem evidência ${index + 1} da contingência`;
+    }
+    return `Evidência ${index + 1} - ${categoryLabel}`;
   };
 
   const project = getProjectById(safePayload.projectId);
@@ -4360,6 +4486,38 @@ async function generateContingencyReportPdf(payload, options = {}) {
     attachments.length > 0,
   ];
   const completion = Math.round((checklist.filter(Boolean).length / checklist.length) * 100);
+  const totalActions = correctiveActions.length + preventiveActions.length;
+  const doneActions = correctiveActions
+    .concat(preventiveActions)
+    .filter((item) => String(item && item.status ? item.status : "").trim().toUpperCase() === "CONCLUIDA").length;
+  const pendingActions = Math.max(0, totalActions - doneActions);
+  const conclusionText = [
+    `Com base nos registros da contingência ${toText(safePayload.code)}, identificou-se o evento ${
+      getContingencyLabel(CONTINGENCY_EVENT_LABELS, safePayload.eventType, "Outro").toLowerCase()
+    } no equipamento ${toText(safePayload.assetName || safePayload.assetId)} da subestação ${toText(
+      safePayload.substation
+    )}.`,
+    `A análise técnica consolidou sintomas, diagnóstico e causa raiz na categoria ${getContingencyLabel(
+      CONTINGENCY_ROOT_CAUSE_CATEGORY_LABELS,
+      safePayload.rootCauseCategory,
+      "Outro"
+    ).toLowerCase()}, com status ${getContingencyLabel(
+      CONTINGENCY_ROOT_CAUSE_STATUS_LABELS,
+      safePayload.rootCauseStatus,
+      "Preliminar"
+    ).toLowerCase()}.`,
+    `A linha do tempo registrou ${timeline.length} evento(s), com ${totalActions} ação(ões) planejada(s), sendo ${doneActions} concluída(s) e ${pendingActions} pendente(s).`,
+    `No momento da emissão, o sistema está em condição ${getContingencyLabel(
+      CONTINGENCY_SYSTEM_CONDITION_LABELS,
+      safePayload.systemCondition,
+      "Normal"
+    ).toLowerCase()} e status ${getContingencyLabel(
+      CONTINGENCY_STATUS_LABELS,
+      safePayload.status,
+      "Rascunho"
+    ).toLowerCase()}.`,
+    `Recomendação final: manter monitoramento operacional, concluir as ações pendentes e manter o rastreio técnico documental até encerramento definitivo da contingência.`,
+  ].join(" ");
 
   addCoverPage();
 
@@ -4409,7 +4567,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
   kv("Completude do relatorio", `${completion}%`);
   kv("Total de eventos de timeline", String(timeline.length));
   kv("Total de anexos", String(attachments.length));
-  kv("Emitido por", generatedBy);
+  kv("Emitido por", footerGeneratedBy);
   drawDivider();
 
   section("1. Identificacao do Evento");
@@ -4586,7 +4744,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
   kv("Protocolo", safePayload.protocolRef || "-");
   drawDivider();
 
-  section("7. Evidencias Fotograficas");
+  section("7. Evidencias Fotograficas e Anexos");
   const imageCandidates = attachments.filter((attachment) => {
     const mime = String(attachment && attachment.mimeType ? attachment.mimeType : "").toLowerCase();
     const fileName = String(attachment && attachment.fileName ? attachment.fileName : "").toLowerCase();
@@ -4646,18 +4804,19 @@ async function generateContingencyReportPdf(payload, options = {}) {
         width: drawW,
         height: drawH,
       });
-      const fileLabel = `${index + 1}. ${toText(photo.fileName)}`;
-      const fileLines = wrapPdfText(fileLabel, cardWidth - 14, 8.2, fontBold);
-      page.drawText(fileLines[0] || fileLabel, {
+      const representation = getAttachmentRepresentation(photo.attachment || null, index);
+      const repLabel = `${index + 1}. ${representation}`;
+      const repLines = wrapPdfText(repLabel, cardWidth - 14, 8.2, fontBold);
+      page.drawText(repLines[0] || repLabel, {
         x: x + 7,
         y: topY - cardHeight + 30,
         size: 8.2,
         font: fontBold,
         color: palette.text,
       });
-      const noteLabel = `Obs: ${toText(photo.notes)}`;
-      const noteLines = wrapPdfText(noteLabel, cardWidth - 14, 8, font);
-      page.drawText(noteLines[0] || noteLabel, {
+      const refLabel = `Registro fotográfico ${index + 1}`;
+      const refLines = wrapPdfText(refLabel, cardWidth - 14, 8, font);
+      page.drawText(refLines[0] || refLabel, {
         x: x + 7,
         y: topY - cardHeight + 20,
         size: 8,
@@ -4675,7 +4834,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     }
   }
   if (failedPhotos.length) {
-    writeText(`${failedPhotos.length} foto(s) nao puderam ser incorporadas e permanecem no indice tecnico.`, {
+    writeText(`${failedPhotos.length} foto(s) nao puderam ser incorporadas nesta versao do PDF.`, {
       size: 9.2,
       leading: 11,
       color: palette.warning,
@@ -4683,33 +4842,43 @@ async function generateContingencyReportPdf(payload, options = {}) {
   }
   drawDivider();
 
-  section("8. Indice Tecnico de Anexos");
-  if (!attachments.length) {
-    kv("Arquivos", "Nenhum anexo para este tipo de relatorio.");
-  } else {
-    const photoKeySet = new Set(renderedPhotos.map((item) => item.key).filter(Boolean));
-    attachments.forEach((attachment, index) => {
+  const nonImageAttachments = attachments.filter(
+    (attachment) => !imageCandidates.some((img) => attachmentKey(img) === attachmentKey(attachment))
+  );
+  if (nonImageAttachments.length) {
+    writeText("Anexos complementares:", {
+      bold: true,
+      size: 10.4,
+      leading: 12.6,
+      color: palette.primary,
+    });
+    nonImageAttachments.forEach((attachment, index) => {
       const categoryLabel = getContingencyLabel(
         CONTINGENCY_ATTACHMENT_CATEGORY_LABELS,
-        attachment.category,
+        attachment && attachment.category ? attachment.category : "",
         "Outro"
       );
-      const line = [
-        `${index + 1}. ${attachment.fileName || attachment.fileId || "-"}`,
-        `Categoria: ${categoryLabel}`,
-        `Data: ${formatContingencyDateTime(attachment.uploadedAt)}`,
-        `Preview no PDF: ${photoKeySet.has(attachmentKey(attachment)) ? "Sim" : "Nao"}`,
-        `Obs: ${attachment.notes || "-"}`,
-      ].join(" | ");
-      writeText(line, { size: 9.1, leading: 11 });
+      const description = getAttachmentRepresentation(attachment, index + renderedPhotos.length);
+      const line = `${index + 1}. ${description} | Categoria: ${categoryLabel} | Data: ${formatContingencyDateTime(
+        attachment.uploadedAt
+      )}`;
+      writeText(line, { size: 9.4, leading: 11.4 });
     });
   }
 
   drawDivider();
+  section("8. Conclusao Final");
+  writeText(conclusionText, {
+    size: 10,
+    leading: 12.4,
+    color: palette.text,
+  });
+  drawDivider();
+
   section("9. Rastreabilidade e Emissao");
   kv("Documento", reportType === "client" ? "Versao Cliente" : "Versao Interna");
   kv("Data de emissao", formatContingencyDateTime(generatedAt));
-  kv("Emitido por", generatedBy);
+  kv("Emitido por", footerGeneratedBy);
   kv("Codigo da contingencia", safePayload.code || "-");
   kv("Projeto/UEN", projectLabel);
   writeText(
@@ -4722,7 +4891,8 @@ async function generateContingencyReportPdf(payload, options = {}) {
   );
 
   ensureSpace(52);
-  const signWidth = (contentWidth - 16) / 2;
+  const signGap = 12;
+  const signWidth = (contentWidth - signGap * 2) / 3;
   const signY = cursorY - 24;
   page.drawLine({
     start: { x: margin + 8, y: signY },
@@ -4731,22 +4901,35 @@ async function generateContingencyReportPdf(payload, options = {}) {
     color: palette.line,
   });
   page.drawLine({
-    start: { x: margin + signWidth + 16, y: signY },
+    start: { x: margin + signWidth + signGap + 8, y: signY },
+    end: { x: margin + signWidth * 2 + signGap - 8, y: signY },
+    thickness: 0.8,
+    color: palette.line,
+  });
+  page.drawLine({
+    start: { x: margin + signWidth * 2 + signGap * 2 + 8, y: signY },
     end: { x: margin + contentWidth - 8, y: signY },
     thickness: 0.8,
     color: palette.line,
   });
-  page.drawText("Responsavel tecnico OPSCOPE", {
+  page.drawText("Responsavel Tecnico Engelmig", {
     x: margin + 12,
     y: signY - 12,
-    size: 8.7,
+    size: 8.2,
     font,
     color: palette.muted,
   });
-  page.drawText("Aprovacao Gestao/Cliente", {
-    x: margin + signWidth + 20,
+  page.drawText("Engenharia Engelmig", {
+    x: margin + signWidth + signGap + 12,
     y: signY - 12,
-    size: 8.7,
+    size: 8.2,
+    font,
+    color: palette.muted,
+  });
+  page.drawText("Aprovacao/Gestao Cliente", {
+    x: margin + signWidth * 2 + signGap * 2 + 12,
+    y: signY - 12,
+    size: 8.2,
     font,
     color: palette.muted,
   });
@@ -4813,7 +4996,8 @@ async function generateContingencyReportPdf(payload, options = {}) {
   }
 
   const pages = pdfDoc.getPages();
-  const footer = `Gerado em ${formatContingencyDateTime(generatedAt)} por ${generatedBy}`;
+  const footer = `Gerado em ${formatContingencyDateTime(generatedAt)} por ${footerGeneratedBy}`;
+  const footerMeta = `${toText(safePayload.code)} | ${reportTypeLabel}`;
   pages.forEach((itemPage, index) => {
     const pageText = `Pagina ${index + 1} de ${pages.length}`;
     itemPage.drawLine({
@@ -4826,6 +5010,13 @@ async function generateContingencyReportPdf(payload, options = {}) {
       x: margin,
       y: footerY,
       size: 8.4,
+      font,
+      color: palette.muted,
+    });
+    itemPage.drawText(footerMeta, {
+      x: margin + (contentWidth - font.widthOfTextAtSize(footerMeta, 8.2)) / 2,
+      y: footerY,
+      size: 8.2,
       font,
       color: palette.muted,
     });
