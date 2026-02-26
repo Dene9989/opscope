@@ -3890,11 +3890,79 @@ async function generateContingencyReportPdf(payload, options = {}) {
     card: rgb(1, 1, 1),
     border: rgb(0, 0, 0),
   };
+  const PDF_TEXT_REPLACEMENTS = {
+    "→": "->",
+    "←": "<-",
+    "↔": "<->",
+    "⇒": "=>",
+    "•": "-",
+    "–": "-",
+    "—": "-",
+    "“": "\"",
+    "”": "\"",
+    "‘": "'",
+    "’": "'",
+    "…": "...",
+    "≤": "<=",
+    "≥": ">=",
+    "✓": "OK",
+    "✔": "OK",
+    "✗": "X",
+    "✘": "X",
+    "\u00A0": " ",
+  };
+  const sanitizePdfText = (value, activeFont = font) => {
+    if (value === null || value === undefined) {
+      return "";
+    }
+    const source = String(value).replace(/\r\n?/g, "\n");
+    if (!source) {
+      return "";
+    }
+    const result = [];
+    for (const rawChar of source) {
+      const normalized = Object.prototype.hasOwnProperty.call(PDF_TEXT_REPLACEMENTS, rawChar)
+        ? PDF_TEXT_REPLACEMENTS[rawChar]
+        : rawChar;
+      for (const candidate of String(normalized)) {
+        if (candidate === "\n") {
+          result.push(" ");
+          continue;
+        }
+        try {
+          activeFont.encodeText(candidate);
+          result.push(candidate);
+          continue;
+        } catch (error) {
+          // continue with fallback normalization below
+        }
+        const plain = candidate.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        if (!plain) {
+          result.push(" ");
+          continue;
+        }
+        let inserted = false;
+        for (const plainChar of plain) {
+          try {
+            activeFont.encodeText(plainChar);
+            result.push(plainChar);
+            inserted = true;
+          } catch (error) {
+            // keep trying
+          }
+        }
+        if (!inserted) {
+          result.push(" ");
+        }
+      }
+    }
+    return result.join("").replace(/[ \t]+/g, " ").trimEnd();
+  };
   const toText = (value, fallback = "-") => {
     if (value === null || value === undefined) {
       return fallback;
     }
-    const text = String(value).trim();
+    const text = sanitizePdfText(value, font).trim();
     return text || fallback;
   };
   const embedLogo = async (logoPath) => {
