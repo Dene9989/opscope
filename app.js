@@ -1360,6 +1360,42 @@ const contingencyApprovedByInput = document.getElementById("contingencyApprovedB
 const contingencyApprovedAtInput = document.getElementById("contingencyApprovedAt");
 const contingencyFinalApprovedByInput = document.getElementById("contingencyFinalApprovedBy");
 const contingencyFinalApprovedAtInput = document.getElementById("contingencyFinalApprovedAt");
+const contingencyTechnicalSignatureFileInput = document.getElementById("contingencyTechnicalSignatureFile");
+const contingencyTechnicalSignatureDataInput = document.getElementById("contingencyTechnicalSignatureData");
+const contingencyTechnicalSignatureNameInput = document.getElementById("contingencyTechnicalSignatureName");
+const contingencyTechnicalSignatureUploadedAtInput = document.getElementById(
+  "contingencyTechnicalSignatureUploadedAt"
+);
+const contingencyTechnicalSignaturePreview = document.getElementById(
+  "contingencyTechnicalSignaturePreview"
+);
+const contingencyTechnicalSignatureRemoveBtn = document.getElementById(
+  "contingencyTechnicalSignatureRemoveBtn"
+);
+const contingencyTechnicalSignatureError = document.getElementById(
+  "contingencyTechnicalSignatureError"
+);
+const contingencyEngineeringSignatureFileInput = document.getElementById(
+  "contingencyEngineeringSignatureFile"
+);
+const contingencyEngineeringSignatureDataInput = document.getElementById(
+  "contingencyEngineeringSignatureData"
+);
+const contingencyEngineeringSignatureNameInput = document.getElementById(
+  "contingencyEngineeringSignatureName"
+);
+const contingencyEngineeringSignatureUploadedAtInput = document.getElementById(
+  "contingencyEngineeringSignatureUploadedAt"
+);
+const contingencyEngineeringSignaturePreview = document.getElementById(
+  "contingencyEngineeringSignaturePreview"
+);
+const contingencyEngineeringSignatureRemoveBtn = document.getElementById(
+  "contingencyEngineeringSignatureRemoveBtn"
+);
+const contingencyEngineeringSignatureError = document.getElementById(
+  "contingencyEngineeringSignatureError"
+);
 const contingencySystemConditionInput = document.getElementById("contingencySystemCondition");
 const contingencyImpactMwInput = document.getElementById("contingencyImpactMw");
 const contingencyImpactMwNDInput = document.getElementById("contingencyImpactMwND");
@@ -7721,6 +7757,7 @@ const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
 const AVATAR_ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const SIGNATURE_MAX_BYTES = 2 * 1024 * 1024;
 const SIGNATURE_ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const CONTINGENCY_SIGNATURE_ALLOWED_TYPES = ["image/png", "image/jpeg"];
 const FILE_MAX_BYTES = 10 * 1024 * 1024;
 const FILE_ALLOWED_TYPES = [
   "application/pdf",
@@ -42646,6 +42683,158 @@ function renderContingencyList() {
   }
 }
 
+function getContingencySignatureFieldSet(kind) {
+  if (kind === "engineering") {
+    return {
+      fileInput: contingencyEngineeringSignatureFileInput,
+      dataInput: contingencyEngineeringSignatureDataInput,
+      nameInput: contingencyEngineeringSignatureNameInput,
+      uploadedAtInput: contingencyEngineeringSignatureUploadedAtInput,
+      preview: contingencyEngineeringSignaturePreview,
+      removeButton: contingencyEngineeringSignatureRemoveBtn,
+      error: contingencyEngineeringSignatureError,
+      alt: "Prévia da assinatura da Engenharia Engelmig",
+    };
+  }
+  return {
+    fileInput: contingencyTechnicalSignatureFileInput,
+    dataInput: contingencyTechnicalSignatureDataInput,
+    nameInput: contingencyTechnicalSignatureNameInput,
+    uploadedAtInput: contingencyTechnicalSignatureUploadedAtInput,
+    preview: contingencyTechnicalSignaturePreview,
+    removeButton: contingencyTechnicalSignatureRemoveBtn,
+    error: contingencyTechnicalSignatureError,
+    alt: "Prévia da assinatura do Responsável Técnico Engelmig",
+  };
+}
+
+function normalizeContingencySignatureDraft(value) {
+  const input = value && typeof value === "object" ? value : {};
+  const rawDataUrl =
+    typeof value === "string" ? value : input.dataUrl || input.url || "";
+  return {
+    dataUrl: String(rawDataUrl || "").trim(),
+    fileName: String(input.fileName || input.name || "").trim(),
+    uploadedAt: String(input.uploadedAt || input.updatedAt || "").trim(),
+  };
+}
+
+function renderContingencySignaturePreview(element, dataUrl, altText) {
+  if (!element) {
+    return;
+  }
+  element.textContent = "";
+  if (dataUrl) {
+    const image = document.createElement("img");
+    image.src = dataUrl;
+    image.alt = altText || "Assinatura";
+    image.loading = "eager";
+    element.append(image);
+    element.classList.add("has-signature");
+    return;
+  }
+  const empty = document.createElement("span");
+  empty.className = "contingency-signature-box__empty";
+  empty.textContent = "Sem assinatura";
+  element.append(empty);
+  element.classList.remove("has-signature");
+}
+
+function setContingencySignatureError(kind, message) {
+  const refs = getContingencySignatureFieldSet(kind);
+  setFieldErrorText(refs.error, message || "");
+}
+
+function applyContingencySignatureToUi(kind, value, options = {}) {
+  const refs = getContingencySignatureFieldSet(kind);
+  const signature = normalizeContingencySignatureDraft(value);
+  if (refs.dataInput) {
+    refs.dataInput.value = signature.dataUrl || "";
+  }
+  if (refs.nameInput) {
+    refs.nameInput.value = signature.fileName || "";
+  }
+  if (refs.uploadedAtInput) {
+    refs.uploadedAtInput.value = signature.uploadedAt || "";
+  }
+  renderContingencySignaturePreview(refs.preview, signature.dataUrl, refs.alt);
+  if (refs.removeButton) {
+    refs.removeButton.disabled = !signature.dataUrl;
+  }
+  if (options.clearError !== false) {
+    setFieldErrorText(refs.error, "");
+  }
+}
+
+function clearContingencySignature(kind, options = {}) {
+  const refs = getContingencySignatureFieldSet(kind);
+  applyContingencySignatureToUi(kind, { dataUrl: "", fileName: "", uploadedAt: "" });
+  if (options.clearFileInput && refs.fileInput) {
+    refs.fileInput.value = "";
+  }
+  if (options.notify) {
+    setContingencyMessage("Assinatura removida do formulário.");
+  }
+  renderContingencyFlowState();
+}
+
+function readContingencySignatureFile(file) {
+  return new Promise((resolve, reject) => {
+    if (!file) {
+      reject(new Error("Selecione uma imagem para assinatura."));
+      return;
+    }
+    if (!CONTINGENCY_SIGNATURE_ALLOWED_TYPES.includes(file.type)) {
+      reject(new Error("Formato não suportado. Use PNG ou JPG."));
+      return;
+    }
+    if (file.size > SIGNATURE_MAX_BYTES) {
+      reject(new Error("Arquivo acima de 2 MB."));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || "").trim();
+      if (!dataUrl.startsWith("data:image/")) {
+        reject(new Error("Falha ao processar a assinatura."));
+        return;
+      }
+      resolve({
+        dataUrl,
+        fileName: String(file.name || "").trim(),
+        uploadedAt: toIsoUtc(new Date()),
+      });
+    };
+    reader.onerror = () => {
+      reject(new Error("Falha ao ler a assinatura."));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleContingencySignatureFileChange(kind, event) {
+  const refs = getContingencySignatureFieldSet(kind);
+  const input = event && event.target ? event.target : refs.fileInput;
+  if (!input) {
+    return;
+  }
+  const file = input.files && input.files[0] ? input.files[0] : null;
+  if (!file) {
+    return;
+  }
+  setContingencySignatureError(kind, "");
+  try {
+    const signature = await readContingencySignatureFile(file);
+    applyContingencySignatureToUi(kind, signature);
+    renderContingencyFlowState();
+    setContingencyMessage("");
+  } catch (error) {
+    setContingencySignatureError(kind, error && error.message ? error.message : "Falha ao carregar assinatura.");
+  } finally {
+    input.value = "";
+  }
+}
+
 function resetContingencyForm(options = {}) {
   if (contingencyForm) {
     contingencyForm.reset();
@@ -42674,6 +42863,8 @@ function resetContingencyForm(options = {}) {
   if (contingencyPreparedByInput) {
     contingencyPreparedByInput.value = "O&M HV BSO2";
   }
+  clearContingencySignature("technical", { clearFileInput: true });
+  clearContingencySignature("engineering", { clearFileInput: true });
   contingencyTimelineDraft = [];
   contingencyAttachmentsDraft = [];
   renderContingencyTimelineDraft();
@@ -42722,6 +42913,28 @@ function buildContingencyPayloadFromForm() {
     finalApprovedAt: toIsoFromDatetimeLocal(
       contingencyFinalApprovedAtInput ? contingencyFinalApprovedAtInput.value : ""
     ),
+    technicalSignature: {
+      dataUrl: contingencyTechnicalSignatureDataInput
+        ? contingencyTechnicalSignatureDataInput.value.trim()
+        : "",
+      fileName: contingencyTechnicalSignatureNameInput
+        ? contingencyTechnicalSignatureNameInput.value.trim()
+        : "",
+      uploadedAt: contingencyTechnicalSignatureUploadedAtInput
+        ? contingencyTechnicalSignatureUploadedAtInput.value.trim()
+        : "",
+    },
+    engineeringSignature: {
+      dataUrl: contingencyEngineeringSignatureDataInput
+        ? contingencyEngineeringSignatureDataInput.value.trim()
+        : "",
+      fileName: contingencyEngineeringSignatureNameInput
+        ? contingencyEngineeringSignatureNameInput.value.trim()
+        : "",
+      uploadedAt: contingencyEngineeringSignatureUploadedAtInput
+        ? contingencyEngineeringSignatureUploadedAtInput.value.trim()
+        : "",
+    },
     systemCondition: contingencySystemConditionInput ? contingencySystemConditionInput.value : "",
     impactMw: impactMwValue,
     impactMwNotApplicable,
@@ -42822,6 +43035,22 @@ function populateContingencyForm(item) {
   if (contingencyFinalApprovedAtInput) {
     contingencyFinalApprovedAtInput.value = toDatetimeLocalValue(safe.finalApprovedAt);
   }
+  applyContingencySignatureToUi(
+    "technical",
+    safe.technicalSignature || safe.signatureTechnical || safe.assinaturaResponsavelTecnico || {
+      dataUrl: safe.technicalSignatureDataUrl || "",
+      fileName: safe.technicalSignatureName || "",
+      uploadedAt: safe.technicalSignatureUploadedAt || "",
+    }
+  );
+  applyContingencySignatureToUi(
+    "engineering",
+    safe.engineeringSignature || safe.signatureEngineering || safe.assinaturaEngenharia || {
+      dataUrl: safe.engineeringSignatureDataUrl || "",
+      fileName: safe.engineeringSignatureName || "",
+      uploadedAt: safe.engineeringSignatureUploadedAt || "",
+    }
+  );
   if (contingencySystemConditionInput) {
     contingencySystemConditionInput.value = safe.systemCondition || "NORMAL";
   }
@@ -57499,6 +57728,26 @@ if (contingencyTimelineAddBtn) {
 }
 if (contingencyAttachmentUploadBtn) {
   contingencyAttachmentUploadBtn.addEventListener("click", handleContingencyAttachmentUpload);
+}
+if (contingencyTechnicalSignatureFileInput) {
+  contingencyTechnicalSignatureFileInput.addEventListener("change", (event) => {
+    handleContingencySignatureFileChange("technical", event);
+  });
+}
+if (contingencyEngineeringSignatureFileInput) {
+  contingencyEngineeringSignatureFileInput.addEventListener("change", (event) => {
+    handleContingencySignatureFileChange("engineering", event);
+  });
+}
+if (contingencyTechnicalSignatureRemoveBtn) {
+  contingencyTechnicalSignatureRemoveBtn.addEventListener("click", () => {
+    clearContingencySignature("technical", { clearFileInput: true, notify: true });
+  });
+}
+if (contingencyEngineeringSignatureRemoveBtn) {
+  contingencyEngineeringSignatureRemoveBtn.addEventListener("click", () => {
+    clearContingencySignature("engineering", { clearFileInput: true, notify: true });
+  });
 }
 if (contingencyPdfClientBtn) {
   contingencyPdfClientBtn.addEventListener("click", () => {

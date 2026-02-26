@@ -2340,6 +2340,23 @@ function normalizeUserSignature(value) {
   };
 }
 
+function normalizeContingencySignature(value) {
+  const input = value && typeof value === "object" ? value : {};
+  const dataUrl = normalizeSignatureDataUrl(
+    typeof value === "string" ? value : input.dataUrl || input.url || ""
+  );
+  if (!dataUrl) {
+    return { dataUrl: "", fileName: "", uploadedAt: "" };
+  }
+  const fileName = String(input.fileName || input.name || "").trim();
+  const uploadedParsed = Date.parse(String(input.uploadedAt || input.updatedAt || ""));
+  return {
+    dataUrl,
+    fileName,
+    uploadedAt: Number.isFinite(uploadedParsed) ? new Date(uploadedParsed).toISOString() : "",
+  };
+}
+
 function normalizeSignatureRecordId(value) {
   const raw = String(value || "")
     .trim()
@@ -3319,6 +3336,38 @@ function normalizeContingency(record) {
         : ""
     ).trim(),
     finalApprovedAt,
+    technicalSignature: normalizeContingencySignature(
+      record &&
+        (
+          record.technicalSignature ||
+          record.signatureTechnical ||
+          record.assinaturaResponsavelTecnico ||
+          record.technicalSignatureDataUrl
+        )
+        ? (
+            record.technicalSignature ||
+            record.signatureTechnical ||
+            record.assinaturaResponsavelTecnico ||
+            record.technicalSignatureDataUrl
+          )
+        : null
+    ),
+    engineeringSignature: normalizeContingencySignature(
+      record &&
+        (
+          record.engineeringSignature ||
+          record.signatureEngineering ||
+          record.assinaturaEngenharia ||
+          record.engineeringSignatureDataUrl
+        )
+        ? (
+            record.engineeringSignature ||
+            record.signatureEngineering ||
+            record.assinaturaEngenharia ||
+            record.engineeringSignatureDataUrl
+          )
+        : null
+    ),
     impactMw,
     impactMwNotApplicable,
     impactDescription: String(
@@ -3990,6 +4039,7 @@ function filterContingenciesList(list, filters = {}) {
 
 function buildContingencyListItem(record) {
   const item = normalizeContingency(record);
+  const { technicalSignature, engineeringSignature, ...itemSummary } = item;
   const project = getProjectById(item.projectId);
   const timelineCount = contingencyTimeline.filter(
     (entry) => entry && entry.contingencyId === item.id
@@ -3998,7 +4048,7 @@ function buildContingencyListItem(record) {
     (entry) => entry && entry.contingencyId === item.id
   ).length;
   return {
-    ...item,
+    ...itemSummary,
     projectLabel: project ? getProjectLabel(project) : item.projectId || "-",
     eventTypeLabel: getContingencyLabel(CONTINGENCY_EVENT_LABELS, item.eventType, "Outro"),
     statusLabel: getContingencyLabel(CONTINGENCY_STATUS_LABELS, item.status, "Rascunho"),
@@ -4989,6 +5039,41 @@ async function generateContingencyReportPdf(payload, options = {}) {
     };
   };
 
+  const embedSignatureImage = async (signatureValue) => {
+    const normalized = normalizeContingencySignature(signatureValue);
+    if (!normalized.dataUrl) {
+      return null;
+    }
+    const match = normalized.dataUrl.match(/^data:([^;]+);base64,(.+)$/i);
+    if (!match) {
+      return null;
+    }
+    const mime = String(match[1] || "").toLowerCase();
+    let buffer = null;
+    try {
+      buffer = Buffer.from(match[2], "base64");
+    } catch (error) {
+      return null;
+    }
+    if (!buffer || !buffer.length) {
+      return null;
+    }
+    let image = null;
+    if (mime.includes("png")) {
+      image = await pdfDoc.embedPng(buffer).catch(() => null);
+    }
+    if (!image && (mime.includes("jpg") || mime.includes("jpeg"))) {
+      image = await pdfDoc.embedJpg(buffer).catch(() => null);
+    }
+    if (!image) {
+      image = await pdfDoc.embedPng(buffer).catch(() => null);
+    }
+    if (!image) {
+      image = await pdfDoc.embedJpg(buffer).catch(() => null);
+    }
+    return image;
+  };
+
   const getAttachmentRepresentation = (attachment, index = 0) => {
     const raw = toText(attachment && attachment.notes ? attachment.notes : "", "").replace(/\s+/g, " ").trim();
     const note = raw.replace(/^obs[:\-\s]*/i, "").trim();
@@ -5393,45 +5478,59 @@ async function generateContingencyReportPdf(payload, options = {}) {
     addPage();
   }
   const signY = signYFixed;
+  const signSlotOneX = margin;
+  const signSlotTwoX = margin + signWidth + signGap;
+  const signSlotThreeX = margin + signWidth * 2 + signGap * 2;
+  const signatureImageHeight = 42;
+  const signatureImagePaddingX = 8;
+  const technicalSignatureImage = await embedSignatureImage(safePayload.technicalSignature);
+  const engineeringSignatureImage = await embedSignatureImage(safePayload.engineeringSignature);
+  const drawSignatureInSlot = (image, slotX) => {
+    if (!image) {
+      return;
+    }
+    drawImageContain(
+      image,
+      slotX + signatureImagePaddingX,
+      signY + 6,
+      signWidth - signatureImagePaddingX * 2,
+      signatureImageHeight
+    );
+  };
+  const drawSignatureLabel = (label, slotX) => {
+    const text = toText(label, "");
+    const textWidth = font.widthOfTextAtSize(text, 8.2);
+    page.drawText(text, {
+      x: slotX + Math.max(0, (signWidth - textWidth) / 2),
+      y: signY - 12,
+      size: 8.2,
+      font,
+      color: palette.muted,
+    });
+  };
+  drawSignatureInSlot(technicalSignatureImage, signSlotOneX);
+  drawSignatureInSlot(engineeringSignatureImage, signSlotTwoX);
   page.drawLine({
-    start: { x: margin + 8, y: signY },
-    end: { x: margin + signWidth - 8, y: signY },
+    start: { x: signSlotOneX + 8, y: signY },
+    end: { x: signSlotOneX + signWidth - 8, y: signY },
     thickness: 0.8,
     color: palette.line,
   });
   page.drawLine({
-    start: { x: margin + signWidth + signGap + 8, y: signY },
-    end: { x: margin + signWidth * 2 + signGap - 8, y: signY },
+    start: { x: signSlotTwoX + 8, y: signY },
+    end: { x: signSlotTwoX + signWidth - 8, y: signY },
     thickness: 0.8,
     color: palette.line,
   });
   page.drawLine({
-    start: { x: margin + signWidth * 2 + signGap * 2 + 8, y: signY },
-    end: { x: margin + contentWidth - 8, y: signY },
+    start: { x: signSlotThreeX + 8, y: signY },
+    end: { x: signSlotThreeX + signWidth - 8, y: signY },
     thickness: 0.8,
     color: palette.line,
   });
-  page.drawText("Responsável Técnico Engelmig", {
-    x: margin + 12,
-    y: signY - 12,
-    size: 8.2,
-    font,
-    color: palette.muted,
-  });
-  page.drawText("Engenharia Engelmig", {
-    x: margin + signWidth + signGap + 12,
-    y: signY - 12,
-    size: 8.2,
-    font,
-    color: palette.muted,
-  });
-  page.drawText("Aprovação/Gestão Cliente", {
-    x: margin + signWidth * 2 + signGap * 2 + 12,
-    y: signY - 12,
-    size: 8.2,
-    font,
-    color: palette.muted,
-  });
+  drawSignatureLabel("Responsável Técnico Engelmig", signSlotOneX);
+  drawSignatureLabel("Engenharia Engelmig", signSlotTwoX);
+  drawSignatureLabel("Aprovação/Gestão Cliente", signSlotThreeX);
 
   if (indexPage) {
     const indexTitleY = pageSize[1] - headerHeight - 42;

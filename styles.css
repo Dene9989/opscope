@@ -15839,6 +15839,44 @@ textarea:focus {
   margin-top: 4px;
 }
 
+.contingency-signature-grid {
+  gap: 12px;
+}
+
+.contingency-signature-field {
+  display: grid;
+  gap: 8px;
+}
+
+.contingency-signature-box {
+  min-height: 92px;
+  border: 1px dashed rgba(133, 170, 204, 0.45);
+  border-radius: 10px;
+  background: rgba(8, 21, 34, 0.55);
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  overflow: hidden;
+}
+
+.contingency-signature-box img {
+  max-width: 100%;
+  max-height: 76px;
+  object-fit: contain;
+  display: block;
+}
+
+.contingency-signature-box__empty {
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(174, 198, 220, 0.74);
+}
+
+.contingency-signature-field .table-actions {
+  justify-content: flex-start;
+}
+
 @media (max-width: 860px) {
   .contingencia-tabs {
     gap: 6px;

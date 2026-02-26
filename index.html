@@ -3017,6 +3017,75 @@
                     <label for="contingencyFinalApprovedAt">Data aprova&ccedil;&atilde;o final</label>
                     <input id="contingencyFinalApprovedAt" type="datetime-local" />
                   </div>
+                  <div class="field" data-full>
+                    <label>Assinaturas para o relat&oacute;rio (Engelmig)</label>
+                    <div class="form-grid contingency-signature-grid">
+                      <div class="field contingency-signature-field">
+                        <label for="contingencyTechnicalSignatureFile">
+                          Assinatura Respons&aacute;vel T&eacute;cnico Engelmig
+                        </label>
+                        <input
+                          id="contingencyTechnicalSignatureFile"
+                          type="file"
+                          accept="image/png,image/jpeg"
+                        />
+                        <input id="contingencyTechnicalSignatureData" type="hidden" />
+                        <input id="contingencyTechnicalSignatureName" type="hidden" />
+                        <input id="contingencyTechnicalSignatureUploadedAt" type="hidden" />
+                        <div
+                          id="contingencyTechnicalSignaturePreview"
+                          class="contingency-signature-box"
+                          role="img"
+                          aria-label="Pr&eacute;via da assinatura do respons&aacute;vel t&eacute;cnico"
+                        >
+                          <span class="contingency-signature-box__empty">Sem assinatura</span>
+                        </div>
+                        <div class="table-actions">
+                          <button
+                            id="contingencyTechnicalSignatureRemoveBtn"
+                            class="btn btn--ghost btn--small"
+                            type="button"
+                            disabled
+                          >
+                            Remover assinatura
+                          </button>
+                        </div>
+                        <p id="contingencyTechnicalSignatureError" class="field-error" hidden></p>
+                      </div>
+                      <div class="field contingency-signature-field">
+                        <label for="contingencyEngineeringSignatureFile">
+                          Assinatura Engenharia Engelmig
+                        </label>
+                        <input
+                          id="contingencyEngineeringSignatureFile"
+                          type="file"
+                          accept="image/png,image/jpeg"
+                        />
+                        <input id="contingencyEngineeringSignatureData" type="hidden" />
+                        <input id="contingencyEngineeringSignatureName" type="hidden" />
+                        <input id="contingencyEngineeringSignatureUploadedAt" type="hidden" />
+                        <div
+                          id="contingencyEngineeringSignaturePreview"
+                          class="contingency-signature-box"
+                          role="img"
+                          aria-label="Pr&eacute;via da assinatura da engenharia"
+                        >
+                          <span class="contingency-signature-box__empty">Sem assinatura</span>
+                        </div>
+                        <div class="table-actions">
+                          <button
+                            id="contingencyEngineeringSignatureRemoveBtn"
+                            class="btn btn--ghost btn--small"
+                            type="button"
+                            disabled
+                          >
+                            Remover assinatura
+                          </button>
+                        </div>
+                        <p id="contingencyEngineeringSignatureError" class="field-error" hidden></p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
