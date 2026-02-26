@@ -1386,6 +1386,11 @@ const contingencyPdfInternalBtn = document.getElementById("contingencyPdfInterna
 const contingencyMsg = document.getElementById("contingencyMsg");
 const contingencyTabButtons = Array.from(document.querySelectorAll("[data-contingency-tab]"));
 const contingencyTabPanes = Array.from(document.querySelectorAll("[data-contingency-pane]"));
+const contingencyStepBadge = document.getElementById("contingencyStepBadge");
+const contingencyFlowHint = document.getElementById("contingencyFlowHint");
+const contingencyChecklist = document.getElementById("contingencyChecklist");
+const contingencyPrevStepBtn = document.getElementById("contingencyPrevStepBtn");
+const contingencyNextStepBtn = document.getElementById("contingencyNextStepBtn");
 const btnImprimirRelatorio = document.getElementById("btnImprimirRelatorio");
 const btnExportarPDF = document.getElementById("btnExportarPDF");
 const btnFecharRelatorio = document.getElementById("btnFecharRelatorio");
@@ -1412,6 +1417,22 @@ const STORAGE_KEY = "denemanu.manutencoes";
 const MAINT_DIRTY_KEY = "opscope.maintenance.dirty";
 const MAINT_MONTHLY_KEY = "opscope.maintenance.monthly";
 const MAINT_TOMBSTONE_KEY = "opscope.maintenance.tombstones";
+const CONTINGENCY_TAB_SEQUENCE = [
+  "identificacao",
+  "impacto",
+  "timeline",
+  "diagnostico",
+  "acoes",
+  "anexos",
+];
+const CONTINGENCY_TAB_LABELS = {
+  identificacao: "Identificacao",
+  impacto: "Impacto",
+  timeline: "Timeline",
+  diagnostico: "Diagnostico",
+  acoes: "Acoes",
+  anexos: "Anexos",
+};
 const MAINT_STORAGE_MODE_KEY = "opscope.maintenance.storageMode";
 const MAINT_DIRTY_RETENTION_MS = 30 * 60 * 1000;
 const MAINT_LOCAL_SHADOW_RETENTION_MS = 15 * 60 * 1000;
@@ -4814,6 +4835,8 @@ let contingenciesLoading = false;
 let contingenciesEnums = null;
 let contingencyTimelineDraft = [];
 let contingencyAttachmentsDraft = [];
+let contingencyActiveTab = "identificacao";
+let contingencyFilterSearchTimer = null;
 const sstDocsBackfillProjects = new Set();
 let pendingSstDocAprPreview = null;
 let sstDocReviewingId = null;
@@ -42083,7 +42106,21 @@ function updateContingencyActionButtons() {
   }
   if (contingencyAttachmentUploadBtn) {
     contingencyAttachmentUploadBtn.disabled = !hasId;
+    contingencyAttachmentUploadBtn.title = hasId
+      ? ""
+      : "Salve a contingencia primeiro para habilitar anexos.";
   }
+  if (contingencyPdfClientBtn) {
+    contingencyPdfClientBtn.title = hasId
+      ? ""
+      : "Salve a contingencia primeiro para gerar o PDF.";
+  }
+  if (contingencyPdfInternalBtn) {
+    contingencyPdfInternalBtn.title = hasId
+      ? ""
+      : "Salve a contingencia primeiro para gerar o PDF.";
+  }
+  renderContingencyFlowState();
 }
 
 function syncContingencyImpactState() {
@@ -42096,8 +42133,200 @@ function syncContingencyImpactState() {
   }
 }
 
+function getContingencyActiveTabIndex() {
+  const index = CONTINGENCY_TAB_SEQUENCE.indexOf(contingencyActiveTab);
+  return index >= 0 ? index : 0;
+}
+
+function getContingencyStepIsReady(tabName, state) {
+  if (!state) {
+    return false;
+  }
+  if (tabName === "identificacao") {
+    return state.identificationReady;
+  }
+  if (tabName === "impacto") {
+    return state.impactReady;
+  }
+  if (tabName === "timeline") {
+    return state.timelineReady;
+  }
+  if (tabName === "diagnostico") {
+    return state.diagnosisReady;
+  }
+  if (tabName === "acoes") {
+    return state.actionsReady;
+  }
+  if (tabName === "anexos") {
+    return state.attachmentsReady;
+  }
+  return false;
+}
+
+function getContingencyFlowState() {
+  const payload = buildContingencyPayloadFromForm();
+  const hasId = Boolean(getCurrentContingencyId());
+  const timelineCount = Array.isArray(contingencyTimelineDraft)
+    ? contingencyTimelineDraft.length
+    : 0;
+  const attachmentsCount = Array.isArray(contingencyAttachmentsDraft)
+    ? contingencyAttachmentsDraft.length
+    : 0;
+  const status = String(payload.status || "").trim().toUpperCase();
+  const identificationReady = Boolean(
+    payload.projectId &&
+      payload.startAt &&
+      payload.eventType &&
+      payload.severity &&
+      payload.assetName
+  );
+  const impactMwReady =
+    payload.impactMwNotApplicable || Number.isFinite(Number(payload.impactMw));
+  const impactDescriptionRequired =
+    payload.systemCondition && payload.systemCondition !== "NORMAL";
+  const impactReady = Boolean(
+    impactMwReady && (!impactDescriptionRequired || payload.impactDescription)
+  );
+  const timelineReady = timelineCount > 0;
+  const diagnosisReady = Boolean(
+    payload.symptoms && (payload.diagnosis || payload.rootCauseDescription)
+  );
+  const actionsReady = Boolean(
+    payload.containmentActions ||
+      (Array.isArray(payload.correctiveActions) && payload.correctiveActions.length) ||
+      (Array.isArray(payload.preventiveActions) && payload.preventiveActions.length)
+  );
+  const needsNormalizedAt = status === "NORMALIZED" || status === "CLOSED";
+  const normalizedInfoReady = needsNormalizedAt ? Boolean(payload.normalizedAt) : true;
+  const reportCoreReady = Boolean(
+    identificationReady &&
+      impactReady &&
+      timelineReady &&
+      diagnosisReady &&
+      normalizedInfoReady
+  );
+  return {
+    hasId,
+    timelineCount,
+    attachmentsCount,
+    identificationReady,
+    impactReady,
+    timelineReady,
+    diagnosisReady,
+    actionsReady,
+    attachmentsReady: attachmentsCount > 0,
+    reportCoreReady,
+    needsNormalizedAt,
+    normalizedInfoReady,
+  };
+}
+
+function renderContingencyChecklist(state) {
+  if (!contingencyChecklist) {
+    return;
+  }
+  const flow = state || getContingencyFlowState();
+  const entries = [
+    {
+      ok: flow.identificationReady,
+      label: "Identificacao",
+      detail: "Projeto, inicio, tipo, severidade e equipamento.",
+    },
+    {
+      ok: flow.impactReady,
+      label: "Impacto",
+      detail: "MW (ou N/D) e descricao quando sistema nao NORMAL.",
+    },
+    {
+      ok: flow.timelineReady,
+      label: "Timeline",
+      detail: `Eventos registrados: ${flow.timelineCount}.`,
+    },
+    {
+      ok: flow.diagnosisReady,
+      label: "Diagnostico",
+      detail: "Sintomas + diagnostico/causa raiz.",
+    },
+    {
+      ok: flow.actionsReady,
+      label: "Acoes",
+      detail: "Contencao e plano corretivo/preventivo.",
+    },
+    {
+      ok: flow.attachmentsReady,
+      label: "Anexos",
+      detail: `Anexos enviados: ${flow.attachmentsCount}.`,
+    },
+  ];
+  contingencyChecklist.innerHTML = entries
+    .map((entry) => {
+      const status = entry.ok ? "OK" : "Pendente";
+      return `
+        <li class="${entry.ok ? "is-ok" : "is-warn"}">
+          <strong>${entry.label}</strong><br />
+          <span>${status}: ${entry.detail}</span>
+        </li>
+      `;
+    })
+    .join("");
+}
+
+function renderContingencyFlowState() {
+  const flow = getContingencyFlowState();
+  const index = getContingencyActiveTabIndex();
+  const currentTab = CONTINGENCY_TAB_SEQUENCE[index] || CONTINGENCY_TAB_SEQUENCE[0];
+  const currentLabel = CONTINGENCY_TAB_LABELS[currentTab] || "Etapa";
+  const currentTabReady = getContingencyStepIsReady(currentTab, flow);
+
+  if (contingencyStepBadge) {
+    contingencyStepBadge.textContent = `Etapa ${index + 1}/${CONTINGENCY_TAB_SEQUENCE.length}: ${currentLabel}`;
+    contingencyStepBadge.classList.toggle("badge--ok", currentTabReady);
+    contingencyStepBadge.classList.toggle("badge--warn", !currentTabReady);
+  }
+
+  if (contingencyFlowHint) {
+    if (!flow.hasId) {
+      contingencyFlowHint.textContent =
+        "Preencha os campos e salve primeiro. Anexos e PDFs habilitam apos o primeiro salvamento.";
+    } else if (!flow.reportCoreReady) {
+      contingencyFlowHint.textContent =
+        "Registro salvo. Continue pelas etapas pendentes para gerar relatorio completo.";
+    } else {
+      contingencyFlowHint.textContent =
+        "Contingencia pronta para gerar PDF Cliente e Interno.";
+    }
+  }
+
+  if (contingencyPrevStepBtn) {
+    contingencyPrevStepBtn.disabled = index <= 0;
+  }
+  if (contingencyNextStepBtn) {
+    contingencyNextStepBtn.disabled = index >= CONTINGENCY_TAB_SEQUENCE.length - 1;
+  }
+
+  if (contingencySaveBtn) {
+    contingencySaveBtn.textContent = flow.hasId ? "Salvar alteracoes" : "Salvar contingencia";
+  }
+  if (contingencyPdfClientBtn && flow.hasId) {
+    contingencyPdfClientBtn.title = flow.reportCoreReady
+      ? ""
+      : "Relatorio parcial: conclua os itens pendentes para versao completa.";
+  }
+  if (contingencyPdfInternalBtn && flow.hasId) {
+    contingencyPdfInternalBtn.title = flow.reportCoreReady
+      ? ""
+      : "Relatorio parcial: conclua os itens pendentes para versao completa.";
+  }
+
+  renderContingencyChecklist(flow);
+}
+
 function setContingencyTab(tabName) {
-  const target = String(tabName || "identificacao");
+  const targetRaw = String(tabName || "identificacao");
+  const target = CONTINGENCY_TAB_SEQUENCE.includes(targetRaw)
+    ? targetRaw
+    : "identificacao";
+  contingencyActiveTab = target;
   contingencyTabButtons.forEach((button) => {
     const active = String(button.dataset.contingencyTab || "") === target;
     button.classList.toggle("is-active", active);
@@ -42106,6 +42335,7 @@ function setContingencyTab(tabName) {
     const active = String(pane.dataset.contingencyPane || "") === target;
     pane.classList.toggle("is-active", active);
   });
+  renderContingencyFlowState();
 }
 
 function renderContingencyProjectOptions() {
@@ -42188,6 +42418,7 @@ function renderContingencyTimelineDraft() {
       `;
     })
     .join("");
+  renderContingencyFlowState();
 }
 
 function renderContingencyAttachmentsDraft() {
@@ -42224,6 +42455,7 @@ function renderContingencyAttachmentsDraft() {
       `;
     })
     .join("");
+  renderContingencyFlowState();
 }
 
 function renderContingencyList() {
@@ -42450,6 +42682,62 @@ function readContingencyFilters() {
     asset: contingencyFilterAsset ? contingencyFilterAsset.value.trim() : "",
     q: contingencyFilterSearch ? contingencyFilterSearch.value.trim() : "",
   };
+}
+
+function goToContingencyTabByOffset(offset) {
+  const currentIndex = getContingencyActiveTabIndex();
+  const nextIndex = Math.max(
+    0,
+    Math.min(CONTINGENCY_TAB_SEQUENCE.length - 1, currentIndex + Number(offset || 0))
+  );
+  setContingencyTab(CONTINGENCY_TAB_SEQUENCE[nextIndex]);
+}
+
+function queueContingencyFilterReload(delayMs = 0) {
+  if (contingencyFilterSearchTimer) {
+    clearTimeout(contingencyFilterSearchTimer);
+    contingencyFilterSearchTimer = null;
+  }
+  const run = async () => {
+    contingencyFilterSearchTimer = null;
+    await carregarContingencias(true);
+  };
+  if (!delayMs) {
+    run();
+    return;
+  }
+  contingencyFilterSearchTimer = setTimeout(run, delayMs);
+}
+
+function handleContingencyFormFieldChange(event) {
+  const target = event && event.target ? event.target : null;
+  if (target === contingencyImpactMwNDInput) {
+    syncContingencyImpactState();
+  }
+  renderContingencyFlowState();
+}
+
+function handleContingencyFilterFieldChange(event) {
+  const target = event && event.target ? event.target : null;
+  const delayMs = target === contingencyFilterSearch ? 280 : 0;
+  queueContingencyFilterReload(delayMs);
+}
+
+function startNewContingency() {
+  resetContingencyForm();
+  if (contingencyStartAtInput && !contingencyStartAtInput.value) {
+    contingencyStartAtInput.value = toDatetimeLocalValue(new Date());
+  }
+  if (contingencyStatusInput && !contingencyStatusInput.value) {
+    contingencyStatusInput.value = "DRAFT";
+  }
+  setContingencyMessage(
+    "Nova contingencia pronta. Salve o registro para habilitar anexos e PDFs."
+  );
+  if (contingencySubstationInput) {
+    contingencySubstationInput.focus();
+  }
+  renderContingencyFlowState();
 }
 
 async function ensureContingencyEnums(force = false) {
@@ -42833,6 +43121,7 @@ function renderContingencias() {
   if (!canView) {
     contingencyItems = [];
     renderContingencyList();
+    renderContingencyFlowState();
     return;
   }
   renderContingencyProjectOptions();
@@ -42840,6 +43129,7 @@ function renderContingencias() {
   renderContingencyTimelineDraft();
   renderContingencyAttachmentsDraft();
   updateContingencyActionButtons();
+  renderContingencyFlowState();
   if (!contingenciesLoaded && !contingenciesLoading) {
     carregarContingencias(false);
   }
@@ -56853,6 +57143,96 @@ if (intercorrenciaTableBody) {
     }
   });
 }
+if (contingencyTabButtons.length) {
+  contingencyTabButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      setContingencyTab(button.dataset.contingencyTab || "identificacao");
+    });
+  });
+}
+if (contingencyPrevStepBtn) {
+  contingencyPrevStepBtn.addEventListener("click", () => {
+    goToContingencyTabByOffset(-1);
+  });
+}
+if (contingencyNextStepBtn) {
+  contingencyNextStepBtn.addEventListener("click", () => {
+    goToContingencyTabByOffset(1);
+  });
+}
+if (contingencyNewBtn) {
+  contingencyNewBtn.addEventListener("click", () => {
+    if (!currentUser || !canViewContingencies(currentUser)) {
+      return;
+    }
+    startNewContingency();
+  });
+}
+if (contingencyForm) {
+  contingencyForm.addEventListener("submit", handleContingencyFormSubmit);
+  contingencyForm.addEventListener("input", handleContingencyFormFieldChange);
+  contingencyForm.addEventListener("change", handleContingencyFormFieldChange);
+}
+if (contingencyDeleteBtn) {
+  contingencyDeleteBtn.addEventListener("click", handleContingencyDelete);
+}
+if (contingencyResetBtn) {
+  contingencyResetBtn.addEventListener("click", () => {
+    resetContingencyForm();
+    setContingencyMessage("Formulario limpo.");
+  });
+}
+if (contingencyTimelineAddBtn) {
+  contingencyTimelineAddBtn.addEventListener("click", handleContingencyTimelineAdd);
+}
+if (contingencyAttachmentUploadBtn) {
+  contingencyAttachmentUploadBtn.addEventListener("click", handleContingencyAttachmentUpload);
+}
+if (contingencyPdfClientBtn) {
+  contingencyPdfClientBtn.addEventListener("click", () => {
+    downloadContingencyReport("client");
+  });
+}
+if (contingencyPdfInternalBtn) {
+  contingencyPdfInternalBtn.addEventListener("click", () => {
+    downloadContingencyReport("internal");
+  });
+}
+if (contingencyTableBody) {
+  contingencyTableBody.addEventListener("click", handleContingencyTableClick);
+}
+if (contingencyTimelineBody) {
+  contingencyTimelineBody.addEventListener("click", handleContingencyTimelineClick);
+}
+if (contingencyAttachmentsBody) {
+  contingencyAttachmentsBody.addEventListener("click", handleContingencyAttachmentsClick);
+  contingencyAttachmentsBody.addEventListener("change", handleContingencyAttachmentsChange);
+}
+const contingencyFilterFields = [
+  contingencyFilterProject,
+  contingencyFilterFrom,
+  contingencyFilterTo,
+  contingencyFilterEventType,
+  contingencyFilterSeverity,
+  contingencyFilterStatus,
+  contingencyFilterSubstation,
+  contingencyFilterAsset,
+  contingencyFilterSearch,
+];
+contingencyFilterFields.forEach((field) => {
+  if (!field) {
+    return;
+  }
+  field.addEventListener("change", handleContingencyFilterFieldChange);
+  if (
+    field === contingencyFilterSearch ||
+    field === contingencyFilterSubstation ||
+    field === contingencyFilterAsset
+  ) {
+    field.addEventListener("input", handleContingencyFilterFieldChange);
+  }
+});
+setContingencyTab("identificacao");
 if (btnEnviarFeedback) {
   btnEnviarFeedback.addEventListener("click", enviarFeedback);
 }

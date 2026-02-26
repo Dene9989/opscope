@@ -15772,6 +15772,57 @@ textarea:focus {
   margin-bottom: 10px;
 }
 
+.contingency-flow {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(78, 120, 166, 0.35);
+  background: rgba(9, 24, 40, 0.3);
+}
+
+.contingency-flow__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.contingency-flow__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.contingency-checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.contingency-checklist li {
+  border-radius: 10px;
+  border: 1px solid rgba(120, 150, 175, 0.25);
+  background: rgba(8, 20, 34, 0.55);
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  color: rgba(220, 232, 244, 0.88);
+  line-height: 1.35;
+}
+
+.contingency-checklist li.is-ok {
+  border-color: rgba(53, 170, 94, 0.45);
+  color: #a8e8bf;
+}
+
+.contingency-checklist li.is-warn {
+  border-color: rgba(232, 175, 61, 0.45);
+  color: #ffd9a6;
+}
+
 .contingency-pane {
   display: none;
   padding: 12px;
@@ -15793,6 +15844,10 @@ textarea:focus {
     gap: 6px;
   }
   .contingencia-tabs .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .contingency-flow__actions .btn {
     width: 100%;
     justify-content: center;
   }

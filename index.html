@@ -2922,6 +2922,23 @@
               <button class="btn btn--ghost btn--small" type="button" data-contingency-tab="anexos">Anexos</button>
             </div>
           </div>
+          <div class="field contingency-flow" data-full>
+            <div class="contingency-flow__header">
+              <span id="contingencyStepBadge" class="badge badge--warn">Etapa 1/6</span>
+              <span id="contingencyFlowHint" class="hint">
+                Preencha a identifica&ccedil;&atilde;o e salve para habilitar anexos e relat&oacute;rios.
+              </span>
+            </div>
+            <div class="contingency-flow__actions">
+              <button id="contingencyPrevStepBtn" class="btn btn--ghost btn--small" type="button">
+                Etapa anterior
+              </button>
+              <button id="contingencyNextStepBtn" class="btn btn--ghost btn--small" type="button">
+                Pr&oacute;xima etapa
+              </button>
+            </div>
+            <ul id="contingencyChecklist" class="contingency-checklist" aria-live="polite"></ul>
+          </div>
 
           <div class="field contingency-pane is-active" data-contingency-pane="identificacao" data-full>
             <div class="form-grid">
