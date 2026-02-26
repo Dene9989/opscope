@@ -42021,6 +42021,39 @@ function toIsoFromDatetimeLocal(value) {
   return parsed.toISOString();
 }
 
+function normalizeContingencyActionStatusInput(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "PENDENTE";
+  }
+  const normalized = raw
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  if (["PENDENTE", "EM_ANDAMENTO", "CONCLUIDA", "CANCELADA"].includes(normalized)) {
+    return normalized;
+  }
+  if (normalized === "EM_ANDAMENTO" || normalized === "EMANDAMENTO" || normalized === "ANDAMENTO") {
+    return "EM_ANDAMENTO";
+  }
+  if (
+    normalized === "CONCLUIDA" ||
+    normalized === "CONCLUIDO" ||
+    normalized === "FINALIZADA" ||
+    normalized === "FINALIZADO" ||
+    normalized === "DONE" ||
+    normalized === "COMPLETED"
+  ) {
+    return "CONCLUIDA";
+  }
+  if (normalized === "CANCELADA" || normalized === "CANCELADO" || normalized === "CANCELED") {
+    return "CANCELADA";
+  }
+  return "PENDENTE";
+}
+
 function parseContingencyActionsText(value) {
   const lines = String(value || "")
     .split(/\r?\n/)
@@ -42033,7 +42066,7 @@ function parseContingencyActionsText(value) {
       action: parts[0] || "",
       responsible: parts[1] || "",
       dueDate: parts[2] || "",
-      status: (parts[3] || "PENDENTE").toUpperCase(),
+      status: normalizeContingencyActionStatusInput(parts[3] || "PENDENTE"),
     };
   }).filter((item) => item.action);
 }
@@ -42050,7 +42083,7 @@ function formatContingencyActionsText(list) {
       }
       const responsible = String(item && item.responsible ? item.responsible : "").trim();
       const dueDate = String(item && item.dueDate ? item.dueDate : "").trim();
-      const status = String(item && item.status ? item.status : "").trim().toUpperCase() || "PENDENTE";
+      const status = normalizeContingencyActionStatusInput(item && item.status ? item.status : "PENDENTE");
       return [action, responsible, dueDate, status].join(" | ");
     })
     .filter(Boolean)

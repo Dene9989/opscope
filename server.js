@@ -2989,8 +2989,54 @@ function normalizeContingencyRootCauseCategory(value) {
 }
 
 function normalizeContingencyActionStatus(value) {
-  const raw = String(value || "").trim().toUpperCase();
-  return CONTINGENCY_ACTION_STATUS.has(raw) ? raw : "PENDENTE";
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "PENDENTE";
+  }
+  const normalized = raw
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  if (CONTINGENCY_ACTION_STATUS.has(normalized)) {
+    return normalized;
+  }
+  if (
+    [
+      "EM_ANDAMENTO",
+      "EMANDAMENTO",
+      "ANDAMENTO",
+      "IN_PROGRESS",
+      "INPROGRESS",
+      "PROGRESS",
+    ].includes(normalized)
+  ) {
+    return "EM_ANDAMENTO";
+  }
+  if (
+    [
+      "CONCLUIDA",
+      "CONCLUIDO",
+      "FINALIZADA",
+      "FINALIZADO",
+      "DONE",
+      "COMPLETED",
+    ].includes(normalized)
+  ) {
+    return "CONCLUIDA";
+  }
+  if (
+    [
+      "CANCELADA",
+      "CANCELADO",
+      "CANCELED",
+      "CANCELLED",
+    ].includes(normalized)
+  ) {
+    return "CANCELADA";
+  }
+  return "PENDENTE";
 }
 
 function normalizeContingencyCommunicationList(value) {
@@ -3606,7 +3652,7 @@ const CONTINGENCY_ATTACHMENT_CATEGORY_LABELS = {
 const CONTINGENCY_ACTION_STATUS_LABELS = {
   PENDENTE: "Pendente",
   EM_ANDAMENTO: "Em andamento",
-  CONCLUIDA: "Concluida",
+  CONCLUIDA: "Concluída",
   CANCELADA: "Cancelada",
 };
 
@@ -4220,18 +4266,39 @@ async function generateContingencyReportPdf(payload, options = {}) {
       formatApprovalCoverCell(safePayload.approvedBy, safePayload.approvedAt),
       formatApprovalCoverCell(safePayload.finalApprovedBy, safePayload.finalApprovedAt),
     ];
+    const firstDataRowTop = tableTop - rowHeights[0];
+    const firstDataRowHeight = rowHeights[1];
+    const firstDataRowBottom = firstDataRowTop - firstDataRowHeight;
+    const firstDataRowPadding = 2.2;
+
     colX = margin;
     firstRow.forEach((value, index) => {
       const width = colWidths[index];
       const safeValue = toText(value);
-      const lines = wrapPdfText(safeValue, width - 8, 8.4, font);
-      const textY = tableTop - 44;
-      lines.slice(0, 2).forEach((line, lineIndex) => {
-        const lineWidth = font.widthOfTextAtSize(line, 8.4);
+      const valueSize = index >= 4 ? 7.2 : 8.2;
+      const lineStep = valueSize + 0.45;
+      const wrapped = wrapPdfText(safeValue, width - 8, valueSize, font);
+      const maxLinesByHeight = Math.max(
+        1,
+        Math.floor((firstDataRowHeight - firstDataRowPadding * 2) / lineStep),
+      );
+      const lines = wrapped.slice(0, Math.min(2, maxLinesByHeight));
+      const textBoxHeight = firstDataRowHeight - firstDataRowPadding * 2;
+      const textBlockHeight = valueSize + (lines.length - 1) * lineStep;
+      const verticalOffset = Math.max(0, (textBoxHeight - textBlockHeight) / 2);
+      const firstBaselineY =
+        firstDataRowTop - firstDataRowPadding - verticalOffset - valueSize;
+
+      lines.forEach((line, lineIndex) => {
+        const y = firstBaselineY - lineIndex * lineStep;
+        if (y < firstDataRowBottom + firstDataRowPadding) {
+          return;
+        }
+        const lineWidth = font.widthOfTextAtSize(line, valueSize);
         page.drawText(line, {
           x: colX + (width - lineWidth) / 2,
-          y: textY - lineIndex * 9.3,
-          size: 8.4,
+          y,
+          size: valueSize,
           font,
           color: palette.text,
         });
