@@ -1380,6 +1380,7 @@ const contingencyContainmentActionsInput = document.getElementById("contingencyC
 const contingencyCorrectiveActionsTextInput = document.getElementById("contingencyCorrectiveActionsText");
 const contingencyPreventiveActionsTextInput = document.getElementById("contingencyPreventiveActionsText");
 const contingencyCommunicationsTextInput = document.getElementById("contingencyCommunicationsText");
+const contingencyEngineeringConclusionInput = document.getElementById("contingencyEngineeringConclusion");
 const contingencyAttachmentFileInput = document.getElementById("contingencyAttachmentFile");
 const contingencyAttachmentCategoryInput = document.getElementById("contingencyAttachmentCategory");
 const contingencyAttachmentNotesInput = document.getElementById("contingencyAttachmentNotes");
@@ -4905,9 +4906,12 @@ let rdoPreviewSnapshot = null;
 let rdoSelection = new Set();
 let feedbacks = [];
 let dashboardSummary = null;
+let dashboardSummaryProjectId = "";
 let dashboardError = "";
 let dashboardLastFetch = 0;
 let dashboardRequest = null;
+let dashboardRequestProjectId = "";
+let dashboardRequestToken = 0;
 let maintenanceSyncTimer = null;
 let maintenanceSyncPromise = null;
 let maintenanceLastSync = 0;
@@ -12713,8 +12717,16 @@ async function setActiveProjectId(nextId, options = {}) {
     return;
   }
   activeProjectId = trimmed;
+  dashboardSummary = null;
+  dashboardSummaryProjectId = "";
+  dashboardError = "";
+  dashboardLastFetch = 0;
+  dashboardRequest = null;
+  dashboardRequestProjectId = "";
+  dashboardRequestToken += 1;
   templatesSyncEnabled = false;
   persistActiveProjectId(trimmed);
+  renderDashboardHome();
   if (options.sync !== false) {
     try {
       await apiProjetosSetActive(trimmed);
@@ -17253,6 +17265,13 @@ function renderDashboardHome() {
   if (!dashboardSummary) {
     const mensagem = dashboardError || "Carregando indicadores...";
     dashboardHome.innerHTML = `<p class="dashboard-message">${mensagem}</p>`;
+    return;
+  }
+  const payloadProjectId = String(
+    (dashboardSummary.meta && dashboardSummary.meta.project) || dashboardSummaryProjectId || ""
+  ).trim();
+  if (payloadProjectId && activeProjectId && payloadProjectId !== activeProjectId) {
+    dashboardHome.innerHTML = `<p class="dashboard-message">Atualizando indicadores do projeto selecionado...</p>`;
     return;
   }
   const {
@@ -42317,6 +42336,7 @@ function getContingencyFlowState() {
       (Array.isArray(payload.correctiveActions) && payload.correctiveActions.length) ||
       (Array.isArray(payload.preventiveActions) && payload.preventiveActions.length)
   );
+  const engineeringConclusionReady = Boolean(payload.engineeringConclusion);
   const needsNormalizedAt = status === "NORMALIZED" || status === "CLOSED";
   const normalizedInfoReady = needsNormalizedAt ? Boolean(payload.normalizedAt) : true;
   const reportCoreReady = Boolean(
@@ -42324,6 +42344,7 @@ function getContingencyFlowState() {
       impactReady &&
       timelineReady &&
       diagnosisReady &&
+      engineeringConclusionReady &&
       normalizedInfoReady
   );
   return {
@@ -42335,6 +42356,7 @@ function getContingencyFlowState() {
     timelineReady,
     diagnosisReady,
     actionsReady,
+    engineeringConclusionReady,
     attachmentsReady: attachmentsCount > 0,
     reportCoreReady,
     needsNormalizedAt,
@@ -42372,6 +42394,11 @@ function renderContingencyChecklist(state) {
       ok: flow.actionsReady,
       label: "Ações",
       detail: "Contenção e plano corretivo/preventivo.",
+    },
+    {
+      ok: flow.engineeringConclusionReady,
+      label: "Conclusão engenharia",
+      detail: "Texto manual do técnico para conclusão e recomendações.",
     },
     {
       ok: flow.attachmentsReady,
@@ -42706,6 +42733,9 @@ function buildContingencyPayloadFromForm() {
     communications: parseContingencyCommunicationsText(
       contingencyCommunicationsTextInput ? contingencyCommunicationsTextInput.value : ""
     ),
+    engineeringConclusion: contingencyEngineeringConclusionInput
+      ? contingencyEngineeringConclusionInput.value.trim()
+      : "",
     timeline: Array.isArray(contingencyTimelineDraft) ? contingencyTimelineDraft : [],
   };
 }
@@ -42820,6 +42850,9 @@ function populateContingencyForm(item) {
   }
   if (contingencyCommunicationsTextInput) {
     contingencyCommunicationsTextInput.value = formatContingencyCommunicationsText(safe.communications);
+  }
+  if (contingencyEngineeringConclusionInput) {
+    contingencyEngineeringConclusionInput.value = safe.engineeringConclusion || "";
   }
   contingencyTimelineDraft = Array.isArray(safe.timeline)
     ? safe.timeline.map((entry) => ({
@@ -46239,8 +46272,12 @@ function renderAuthUI() {
       esconderCarregando();
     }
     dashboardSummary = null;
+    dashboardSummaryProjectId = "";
     dashboardError = "";
     dashboardLastFetch = 0;
+    dashboardRequest = null;
+    dashboardRequestProjectId = "";
+    dashboardRequestToken += 1;
     maintenanceLastSync = 0;
     maintenanceLastUserId = null;
     filesState.items = [];
@@ -54578,17 +54615,20 @@ function buildLocalDashboardSummary(items, projectId) {
   };
 }
 
-async function apiDashboardSummary() {
+async function apiDashboardSummary(projectId = activeProjectId) {
+  const targetProjectId = String(projectId || "").trim();
   if (!USE_AUTH_API) {
     const scoped = Array.isArray(manutencoes)
       ? manutencoes.filter(
           (item) =>
-            item && (!activeProjectId || !item.projectId || item.projectId === activeProjectId)
+            item &&
+            (!targetProjectId || !item.projectId || item.projectId === targetProjectId)
         )
       : [];
-    return buildLocalDashboardSummary(scoped, activeProjectId);
+    return buildLocalDashboardSummary(scoped, targetProjectId);
   }
-  return apiRequest("/api/dashboard/summary");
+  const query = targetProjectId ? `?projectId=${encodeURIComponent(targetProjectId)}` : "";
+  return apiRequest(`/api/dashboard/summary${query}`);
 }
 
 async function apiProjetosList() {
@@ -55273,40 +55313,64 @@ async function loadDashboardSummary(force, options = {}) {
   if (!currentUser) {
     return;
   }
-  if (!activeProjectId) {
+  const projectId = String(activeProjectId || "").trim();
+  if (!projectId) {
     return;
   }
   const agora = Date.now();
-  if (!force && dashboardRequest) {
+  if (!force && dashboardRequest && dashboardRequestProjectId === projectId) {
     return;
   }
   const dashboardTtl = STRICT_SERVER_SYNC ? 0 : DASHBOARD_CLIENT_TTL_MS;
-  if (!force && dashboardSummary && agora - dashboardLastFetch < dashboardTtl) {
+  if (
+    !force &&
+    dashboardSummary &&
+    dashboardSummaryProjectId === projectId &&
+    agora - dashboardLastFetch < dashboardTtl
+  ) {
     return;
   }
   dashboardError = "";
-  dashboardRequest = (async () => {
+  const requestToken = ++dashboardRequestToken;
+  const hasSummaryForProject = Boolean(dashboardSummary && dashboardSummaryProjectId === projectId);
+  const requestPromise = (async () => {
     if (USE_AUTH_API && !options.skipSync) {
       try {
-        await syncMaintenanceNow(manutencoes, force || !dashboardSummary);
+        await syncMaintenanceNow(manutencoes, force || !hasSummaryForProject);
       } catch (error) {
         if (STRICT_SERVER_SYNC) {
           showAuthToast("Falha de sincronização. Alterações locais preservadas.");
         }
       }
     }
-    return apiDashboardSummary();
+    return apiDashboardSummary(projectId);
   })();
+  dashboardRequest = requestPromise;
+  dashboardRequestProjectId = projectId;
   try {
-    const data = await dashboardRequest;
+    const data = await requestPromise;
+    if (requestToken !== dashboardRequestToken || projectId !== String(activeProjectId || "").trim()) {
+      return;
+    }
     dashboardSummary = data;
+    dashboardSummaryProjectId =
+      String((data && data.meta && data.meta.project) || "").trim() || projectId;
     dashboardLastFetch = Date.now();
   } catch (error) {
+    if (requestToken !== dashboardRequestToken || projectId !== String(activeProjectId || "").trim()) {
+      return;
+    }
     dashboardSummary = null;
+    dashboardSummaryProjectId = "";
     dashboardError = "Falha ao carregar indicadores. Recarregue.";
   } finally {
-    dashboardRequest = null;
-    renderDashboardHome();
+    if (dashboardRequest === requestPromise) {
+      dashboardRequest = null;
+      dashboardRequestProjectId = "";
+    }
+    if (projectId === String(activeProjectId || "").trim()) {
+      renderDashboardHome();
+    }
   }
 }
 

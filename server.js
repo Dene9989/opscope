@@ -3352,6 +3352,22 @@ function normalizeContingency(record) {
         ? record.rootCauseDescription || record.descricaoCausaRaiz
         : ""
     ).trim(),
+    engineeringConclusion: String(
+      record &&
+        (
+          record.engineeringConclusion ||
+          record.conclusionEngineering ||
+          record.conclusaoRecomendacoesEngenharia ||
+          record.conclusaoFinal
+        )
+        ? (
+            record.engineeringConclusion ||
+            record.conclusionEngineering ||
+            record.conclusaoRecomendacoesEngenharia ||
+            record.conclusaoFinal
+          )
+        : ""
+    ).trim(),
     containmentActions: String(
       record && (record.containmentActions || record.acoesContencao)
         ? record.containmentActions || record.acoesContencao
@@ -3550,7 +3566,6 @@ function canEditContingency(user, record) {
 
 function stripContingencyInternalDetails(record) {
   const copy = normalizeContingency(record);
-  copy.rootCauseDescription = "";
   copy.diagnosis = copy.diagnosis ? `Resumo tecnico: ${copy.diagnosis}` : "";
   return copy;
 }
@@ -3941,6 +3956,7 @@ function filterContingenciesList(list, filters = {}) {
           entry.symptoms,
           entry.diagnosis,
           entry.rootCauseDescription,
+          entry.engineeringConclusion,
           entry.protocolRef,
         ].join(" ")
       );
@@ -4926,6 +4942,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     safePayload.assetName || safePayload.assetId,
     safePayload.symptoms,
     safePayload.diagnosis,
+    safePayload.engineeringConclusion,
     safePayload.residualRisk,
     timeline.length > 0,
     attachments.length > 0,
@@ -4981,39 +4998,6 @@ async function generateContingencyReportPdf(payload, options = {}) {
       cursorY -= 8.8;
     });
   };
-  const totalActions = correctiveActions.length + preventiveActions.length;
-  const doneActions = correctiveActions
-    .concat(preventiveActions)
-    .filter((item) => String(item && item.status ? item.status : "").trim().toUpperCase() === "CONCLUIDA").length;
-  const pendingActions = Math.max(0, totalActions - doneActions);
-  const conclusionText = [
-    `Com base nos registros da contingência ${toText(safePayload.code)}, identificou-se o evento ${
-      getContingencyLabel(CONTINGENCY_EVENT_LABELS, safePayload.eventType, "Outro").toLowerCase()
-    } no equipamento ${toText(safePayload.assetName || safePayload.assetId)} da subestação ${toText(
-      safePayload.substation
-    )}.`,
-    `A análise técnica consolidou sintomas, diagnóstico e causa raiz na categoria ${getContingencyLabel(
-      CONTINGENCY_ROOT_CAUSE_CATEGORY_LABELS,
-      safePayload.rootCauseCategory,
-      "Outro"
-    ).toLowerCase()}, com status ${getContingencyLabel(
-      CONTINGENCY_ROOT_CAUSE_STATUS_LABELS,
-      safePayload.rootCauseStatus,
-      "Preliminar"
-    ).toLowerCase()}.`,
-    `A linha do tempo registrou ${timeline.length} evento(s), com ${totalActions} ação(ões) planejada(s), sendo ${doneActions} concluída(s) e ${pendingActions} pendente(s).`,
-    `No momento da emissão, o sistema está em condição ${getContingencyLabel(
-      CONTINGENCY_SYSTEM_CONDITION_LABELS,
-      safePayload.systemCondition,
-      "Normal"
-    ).toLowerCase()} e status ${getContingencyLabel(
-      CONTINGENCY_STATUS_LABELS,
-      safePayload.status,
-      "Rascunho"
-    ).toLowerCase()}.`,
-    `Recomendação final: manter monitoramento operacional, concluir as ações pendentes e manter o rastreio técnico documental até encerramento definitivo da contingência.`,
-  ].join(" ");
-
   addCoverPage();
 
   addPage();
@@ -5134,7 +5118,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
 
   section("4. Diagnóstico");
   kvParagraph("Sintomas", formatSymptomsForPdf(safePayload.symptoms || "-"));
-  kv("Diagnóstico técnico", safePayload.diagnosis || "-");
+  kvParagraph("Diagnóstico técnico", safePayload.diagnosis || "-");
   kv(
     "Status da causa raiz",
     getContingencyLabel(
@@ -5151,7 +5135,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
       "Outro"
     )
   );
-  kv("Descrição da causa raiz", safePayload.rootCauseDescription || "-");
+  kvParagraph("Descrição da causa raiz", safePayload.rootCauseDescription || "-");
   if (reportType === "client") {
     kv(
       "Nota",
@@ -5313,8 +5297,8 @@ async function generateContingencyReportPdf(payload, options = {}) {
   }
 
   drawDivider();
-  section("8. Conclusão Final");
-  writeText(conclusionText, {
+  section("8. Conclusão e Recomendações da Engenharia");
+  writeText(toTextMultiline(safePayload.engineeringConclusion || "-"), {
     size: 10,
     leading: 12.4,
     color: palette.text,
@@ -18833,9 +18817,35 @@ app.get("/api/auth/verify", (req, res) => {
 
 app.get("/api/dashboard/summary", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
-  const projectId = getActiveProjectId(req, user);
+  if (!user) {
+    return res.status(401).json({ message: "Sessao invalida." });
+  }
+  const allowedProjects = getUserProjectIds(user).filter(Boolean);
+  if (!allowedProjects.length) {
+    return res.status(403).json({ message: "Sem projetos vinculados ao usuario." });
+  }
+  const requestedProjectId = String(req.query.projectId || "").trim();
+  if (requestedProjectId && !allowedProjects.includes(requestedProjectId)) {
+    return res.status(403).json({ message: "Projeto nao autorizado." });
+  }
+  let projectId = requestedProjectId || String(getActiveProjectId(req, user) || "").trim();
+  if (!projectId || !allowedProjects.includes(projectId)) {
+    projectId = allowedProjects[0] || "";
+  }
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+  }
+  if (req.session && req.session.activeProjectId !== projectId) {
+    req.session.activeProjectId = projectId;
+  }
   const payload = getDashboardSummaryForProject(projectId);
-  return res.json(payload);
+  return res.json({
+    ...payload,
+    meta: {
+      ...(payload && payload.meta ? payload.meta : {}),
+      project: projectId,
+    },
+  });
 });
 
 app.get("*", (req, res) => {
