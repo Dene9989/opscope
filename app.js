@@ -1351,6 +1351,14 @@ const contingencySeverityInput = document.getElementById("contingencySeverity");
 const contingencyStartAtInput = document.getElementById("contingencyStartAt");
 const contingencyNormalizedAtInput = document.getElementById("contingencyNormalizedAt");
 const contingencyProtocolRefInput = document.getElementById("contingencyProtocolRef");
+const contingencyReviewNatureInput = document.getElementById("contingencyReviewNature");
+const contingencyPreparedByInput = document.getElementById("contingencyPreparedBy");
+const contingencyVerifiedByInput = document.getElementById("contingencyVerifiedBy");
+const contingencyVerifiedAtInput = document.getElementById("contingencyVerifiedAt");
+const contingencyApprovedByInput = document.getElementById("contingencyApprovedBy");
+const contingencyApprovedAtInput = document.getElementById("contingencyApprovedAt");
+const contingencyFinalApprovedByInput = document.getElementById("contingencyFinalApprovedBy");
+const contingencyFinalApprovedAtInput = document.getElementById("contingencyFinalApprovedAt");
 const contingencySystemConditionInput = document.getElementById("contingencySystemCondition");
 const contingencyImpactMwInput = document.getElementById("contingencyImpactMw");
 const contingencyImpactMwNDInput = document.getElementById("contingencyImpactMwND");
@@ -1426,11 +1434,11 @@ const CONTINGENCY_TAB_SEQUENCE = [
   "anexos",
 ];
 const CONTINGENCY_TAB_LABELS = {
-  identificacao: "Identificacao",
+  identificacao: "Identificação",
   impacto: "Impacto",
   timeline: "Timeline",
-  diagnostico: "Diagnostico",
-  acoes: "Acoes",
+  diagnostico: "Diagnóstico",
+  acoes: "Ações",
   anexos: "Anexos",
 };
 const MAINT_STORAGE_MODE_KEY = "opscope.maintenance.storageMode";
@@ -42108,17 +42116,17 @@ function updateContingencyActionButtons() {
     contingencyAttachmentUploadBtn.disabled = !hasId;
     contingencyAttachmentUploadBtn.title = hasId
       ? ""
-      : "Salve a contingencia primeiro para habilitar anexos.";
+      : "Salve a contingência primeiro para habilitar anexos.";
   }
   if (contingencyPdfClientBtn) {
     contingencyPdfClientBtn.title = hasId
       ? ""
-      : "Salve a contingencia primeiro para gerar o PDF.";
+      : "Salve a contingência primeiro para gerar o PDF.";
   }
   if (contingencyPdfInternalBtn) {
     contingencyPdfInternalBtn.title = hasId
       ? ""
-      : "Salve a contingencia primeiro para gerar o PDF.";
+      : "Salve a contingência primeiro para gerar o PDF.";
   }
   renderContingencyFlowState();
 }
@@ -42229,13 +42237,13 @@ function renderContingencyChecklist(state) {
   const entries = [
     {
       ok: flow.identificationReady,
-      label: "Identificacao",
-      detail: "Projeto, inicio, tipo, severidade e equipamento.",
+      label: "Identificação",
+      detail: "Projeto, início, tipo, severidade e equipamento.",
     },
     {
       ok: flow.impactReady,
       label: "Impacto",
-      detail: "MW (ou N/D) e descricao quando sistema nao NORMAL.",
+      detail: "MW (ou N/D) e descrição quando sistema não NORMAL.",
     },
     {
       ok: flow.timelineReady,
@@ -42244,13 +42252,13 @@ function renderContingencyChecklist(state) {
     },
     {
       ok: flow.diagnosisReady,
-      label: "Diagnostico",
-      detail: "Sintomas + diagnostico/causa raiz.",
+      label: "Diagnóstico",
+      detail: "Sintomas + diagnóstico/causa raiz.",
     },
     {
       ok: flow.actionsReady,
-      label: "Acoes",
-      detail: "Contencao e plano corretivo/preventivo.",
+      label: "Ações",
+      detail: "Contenção e plano corretivo/preventivo.",
     },
     {
       ok: flow.attachmentsReady,
@@ -42287,13 +42295,13 @@ function renderContingencyFlowState() {
   if (contingencyFlowHint) {
     if (!flow.hasId) {
       contingencyFlowHint.textContent =
-        "Preencha os campos e salve primeiro. Anexos e PDFs habilitam apos o primeiro salvamento.";
+        "Preencha os campos e salve primeiro. Anexos e PDFs habilitam após o primeiro salvamento.";
     } else if (!flow.reportCoreReady) {
       contingencyFlowHint.textContent =
-        "Registro salvo. Continue pelas etapas pendentes para gerar relatorio completo.";
+        "Registro salvo. Continue pelas etapas pendentes para gerar relatório completo.";
     } else {
       contingencyFlowHint.textContent =
-        "Contingencia pronta para gerar PDF Cliente e Interno.";
+        "Contingência pronta para gerar PDF Cliente e Interno.";
     }
   }
 
@@ -42305,17 +42313,17 @@ function renderContingencyFlowState() {
   }
 
   if (contingencySaveBtn) {
-    contingencySaveBtn.textContent = flow.hasId ? "Salvar alteracoes" : "Salvar contingencia";
+    contingencySaveBtn.textContent = flow.hasId ? "Salvar alterações" : "Salvar contingência";
   }
   if (contingencyPdfClientBtn && flow.hasId) {
     contingencyPdfClientBtn.title = flow.reportCoreReady
       ? ""
-      : "Relatorio parcial: conclua os itens pendentes para versao completa.";
+      : "Relatório parcial: conclua os itens pendentes para versão completa.";
   }
   if (contingencyPdfInternalBtn && flow.hasId) {
     contingencyPdfInternalBtn.title = flow.reportCoreReady
       ? ""
-      : "Relatorio parcial: conclua os itens pendentes para versao completa.";
+      : "Relatório parcial: conclua os itens pendentes para versão completa.";
   }
 
   renderContingencyChecklist(flow);
@@ -42508,6 +42516,12 @@ function resetContingencyForm(options = {}) {
   if (contingencySystemConditionInput && !contingencySystemConditionInput.value) {
     contingencySystemConditionInput.value = "NORMAL";
   }
+  if (contingencyReviewNatureInput) {
+    contingencyReviewNatureInput.value = "Emissão";
+  }
+  if (contingencyPreparedByInput) {
+    contingencyPreparedByInput.value = "O&M HV BSO2";
+  }
   contingencyTimelineDraft = [];
   contingencyAttachmentsDraft = [];
   renderContingencyTimelineDraft();
@@ -42540,6 +42554,16 @@ function buildContingencyPayloadFromForm() {
     startAt: toIsoFromDatetimeLocal(contingencyStartAtInput ? contingencyStartAtInput.value : ""),
     normalizedAt: toIsoFromDatetimeLocal(contingencyNormalizedAtInput ? contingencyNormalizedAtInput.value : ""),
     protocolRef: contingencyProtocolRefInput ? contingencyProtocolRefInput.value.trim() : "",
+    reviewNature: contingencyReviewNatureInput ? contingencyReviewNatureInput.value.trim() : "",
+    preparedBy: contingencyPreparedByInput ? contingencyPreparedByInput.value.trim() : "",
+    verifiedBy: contingencyVerifiedByInput ? contingencyVerifiedByInput.value.trim() : "",
+    verifiedAt: toIsoFromDatetimeLocal(contingencyVerifiedAtInput ? contingencyVerifiedAtInput.value : ""),
+    approvedBy: contingencyApprovedByInput ? contingencyApprovedByInput.value.trim() : "",
+    approvedAt: toIsoFromDatetimeLocal(contingencyApprovedAtInput ? contingencyApprovedAtInput.value : ""),
+    finalApprovedBy: contingencyFinalApprovedByInput ? contingencyFinalApprovedByInput.value.trim() : "",
+    finalApprovedAt: toIsoFromDatetimeLocal(
+      contingencyFinalApprovedAtInput ? contingencyFinalApprovedAtInput.value : ""
+    ),
     systemCondition: contingencySystemConditionInput ? contingencySystemConditionInput.value : "",
     impactMw: impactMwValue,
     impactMwNotApplicable,
@@ -42605,6 +42629,30 @@ function populateContingencyForm(item) {
   }
   if (contingencyProtocolRefInput) {
     contingencyProtocolRefInput.value = safe.protocolRef || "";
+  }
+  if (contingencyReviewNatureInput) {
+    contingencyReviewNatureInput.value = safe.reviewNature || "Emissão";
+  }
+  if (contingencyPreparedByInput) {
+    contingencyPreparedByInput.value = safe.preparedBy || "O&M HV BSO2";
+  }
+  if (contingencyVerifiedByInput) {
+    contingencyVerifiedByInput.value = safe.verifiedBy || "";
+  }
+  if (contingencyVerifiedAtInput) {
+    contingencyVerifiedAtInput.value = toDatetimeLocalValue(safe.verifiedAt);
+  }
+  if (contingencyApprovedByInput) {
+    contingencyApprovedByInput.value = safe.approvedBy || "";
+  }
+  if (contingencyApprovedAtInput) {
+    contingencyApprovedAtInput.value = toDatetimeLocalValue(safe.approvedAt);
+  }
+  if (contingencyFinalApprovedByInput) {
+    contingencyFinalApprovedByInput.value = safe.finalApprovedBy || "";
+  }
+  if (contingencyFinalApprovedAtInput) {
+    contingencyFinalApprovedAtInput.value = toDatetimeLocalValue(safe.finalApprovedAt);
   }
   if (contingencySystemConditionInput) {
     contingencySystemConditionInput.value = safe.systemCondition || "NORMAL";
@@ -42732,7 +42780,7 @@ function startNewContingency() {
     contingencyStatusInput.value = "DRAFT";
   }
   setContingencyMessage(
-    "Nova contingencia pronta. Salve o registro para habilitar anexos e PDFs."
+    "Nova contingência pronta. Salve o registro para habilitar anexos e PDFs."
   );
   if (contingencySubstationInput) {
     contingencySubstationInput.focus();

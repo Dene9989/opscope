@@ -365,7 +365,7 @@ const FILE_TYPE_CONFIG = {
   procedure: { label: "Procedimentos PMP", dir: "procedimentos" },
   liberacao: { label: "Documentos de liberação", dir: "liberacao" },
 };
-FILE_TYPE_CONFIG.contingency = { label: "Anexos de contingencia", dir: "contingencias" };
+FILE_TYPE_CONFIG.contingency = { label: "Anexos de contingência", dir: "contingencias" };
 const LIBERACAO_DOC_TYPES = new Set(["apr", "os", "pte", "pt"]);
 const FILE_ALLOWED_MIME = new Map([
   ["application/pdf", "pdf"],
@@ -3085,6 +3085,18 @@ function normalizeContingency(record) {
     record && (record.normalizedAt || record.normalized_at || record.dataNormalizacao)
   );
   const normalizedAt = normalizedAtDate ? normalizedAtDate.toISOString() : "";
+  const verifiedAtDate = parseDateTime(
+    record && (record.verifiedAt || record.verificationAt || record.dataVerificacao)
+  );
+  const approvedAtDate = parseDateTime(
+    record && (record.approvedAt || record.approvalAt || record.dataAprovacao)
+  );
+  const finalApprovedAtDate = parseDateTime(
+    record && (record.finalApprovedAt || record.finalApprovalAt || record.dataAprovacaoFinal)
+  );
+  const verifiedAt = verifiedAtDate ? verifiedAtDate.toISOString() : "";
+  const approvedAt = approvedAtDate ? approvedAtDate.toISOString() : "";
+  const finalApprovedAt = finalApprovedAtDate ? finalApprovedAtDate.toISOString() : "";
   const rawImpactMw =
     record && Object.prototype.hasOwnProperty.call(record, "impactMw") ? record.impactMw : null;
   const parsedImpactMw = rawImpactMw === "" || rawImpactMw === null || rawImpactMw === undefined
@@ -3115,6 +3127,34 @@ function normalizeContingency(record) {
     status: normalizeContingencyStatus(record && (record.status || record.situacao)),
     startAt,
     normalizedAt,
+    reviewNature: String(
+      record && (record.reviewNature || record.naturezaRevisao || record.naturezaDaRevisao)
+        ? record.reviewNature || record.naturezaRevisao || record.naturezaDaRevisao
+        : ""
+    ).trim() || "Emissão",
+    preparedBy: String(
+      record && (record.preparedBy || record.elaboradoPor || record.elaborado)
+        ? record.preparedBy || record.elaboradoPor || record.elaborado
+        : ""
+    ).trim() || "O&M HV BSO2",
+    verifiedBy: String(
+      record && (record.verifiedBy || record.verificadoPor || record.verificado)
+        ? record.verifiedBy || record.verificadoPor || record.verificado
+        : ""
+    ).trim(),
+    verifiedAt,
+    approvedBy: String(
+      record && (record.approvedBy || record.aprovadoPor || record.aprovacao)
+        ? record.approvedBy || record.aprovadoPor || record.aprovacao
+        : ""
+    ).trim(),
+    approvedAt,
+    finalApprovedBy: String(
+      record && (record.finalApprovedBy || record.aprovacaoFinalPor || record.aprovFinal)
+        ? record.finalApprovedBy || record.aprovacaoFinalPor || record.aprovFinal
+        : ""
+    ).trim(),
+    finalApprovedAt,
     impactMw,
     impactMwNotApplicable,
     impactDescription: String(
@@ -3342,9 +3382,7 @@ function canEditContingency(user, record) {
 function stripContingencyInternalDetails(record) {
   const copy = normalizeContingency(record);
   copy.rootCauseDescription = "";
-  copy.diagnosis = copy.diagnosis
-    ? `Resumo tecnico: ${copy.diagnosis.slice(0, 260)}${copy.diagnosis.length > 260 ? "..." : ""}`
-    : "";
+  copy.diagnosis = copy.diagnosis ? `Resumo tecnico: ${copy.diagnosis}` : "";
   return copy;
 }
 
@@ -3365,17 +3403,17 @@ function parseBooleanLike(value) {
 function validateContingencyRecord(record) {
   const errors = [];
   if (!record.projectId) {
-    errors.push("Projeto obrigatorio.");
+    errors.push("Projeto obrigatório.");
   }
   if (!record.startAt || !parseDateTime(record.startAt)) {
-    errors.push("Data/hora de inicio obrigatoria.");
+    errors.push("Data/hora de início obrigatória.");
   }
   const status = normalizeContingencyStatus(record.status);
   if ((status === "NORMALIZED" || status === "CLOSED") && !parseDateTime(record.normalizedAt)) {
-    errors.push("Data/hora de normalizacao obrigatoria para status NORMALIZED/CLOSED.");
+    errors.push("Data/hora de normalização obrigatória para status NORMALIZED/CLOSED.");
   }
   if (record.systemCondition !== "NORMAL" && !record.impactDescription) {
-    errors.push("Descricao de impacto obrigatoria quando condicao do sistema nao for NORMAL.");
+    errors.push("Descrição de impacto obrigatória quando condição do sistema não for NORMAL.");
   }
   if (record.impactMw === null && !record.impactMwNotApplicable) {
     errors.push("Informe impacto em MW ou marque N/D.");
@@ -3389,7 +3427,7 @@ function validateContingencyRecord(record) {
       !haystack.includes("dispositivo")
     ) {
       errors.push(
-        "Para TRIP/DESARME, informe dispositivo/rele/protecao nos sintomas ou em funcao de protecao."
+        "Para TRIP/DESARME, informe dispositivo/relé/proteção nos sintomas ou em função de proteção."
       );
     }
   }
@@ -3397,7 +3435,7 @@ function validateContingencyRecord(record) {
     const symptoms = normalizeSearchValue(record.symptoms || "");
     if (!symptoms.includes("remoto") || (!symptoms.includes("local") && !symptoms.includes("mecan"))) {
       errors.push(
-        "Para FALHA_FECHAMENTO, descreva o resultado remoto e local/mecanico nos sintomas."
+        "Para FALHA_FECHAMENTO, descreva o resultado remoto e local/mecânico nos sintomas."
       );
     }
   }
@@ -3417,10 +3455,10 @@ function normalizeContingencyTimelineList(value, contingencyId) {
     .filter((entry) => entry.event || entry.occurredAt || entry.responsible);
   list.forEach((entry, index) => {
     if (!entry.occurredAt || !parseDateTime(entry.occurredAt)) {
-      errors.push(`Timeline item ${index + 1}: horario obrigatorio.`);
+      errors.push(`Timeline item ${index + 1}: horário obrigatório.`);
     }
     if (!entry.event) {
-      errors.push(`Timeline item ${index + 1}: descricao obrigatoria.`);
+      errors.push(`Timeline item ${index + 1}: descrição obrigatória.`);
     }
   });
   list.sort((a, b) => {
@@ -3511,14 +3549,14 @@ const CONTINGENCY_EVENT_LABELS = {
   TRIP: "Trip",
   FALHA_FECHAMENTO: "Falha de fechamento",
   FALHA_COMANDO: "Falha de comando",
-  PERDA_REDUNDANCIA: "Perda de redundancia",
-  FALHA_COMUNICACAO: "Falha de comunicacao",
+  PERDA_REDUNDANCIA: "Perda de redundância",
+  FALHA_COMUNICACAO: "Falha de comunicação",
   OUTRO: "Outro",
 };
 
 const CONTINGENCY_STATUS_LABELS = {
   DRAFT: "Rascunho",
-  IN_ANALYSIS: "Em analise",
+  IN_ANALYSIS: "Em análise",
   NORMALIZED: "Normalizada",
   CLOSED: "Encerrada",
   REOPENED: "Reaberta",
@@ -3528,7 +3566,7 @@ const CONTINGENCY_SYSTEM_CONDITION_LABELS = {
   NORMAL: "Normal",
   DEGRADED: "Degradada",
   RESTRICTED: "Restrita",
-  UNAVAILABLE: "Indisponivel",
+  UNAVAILABLE: "Indisponível",
 };
 
 const CONTINGENCY_ROOT_CAUSE_STATUS_LABELS = {
@@ -3541,8 +3579,8 @@ const CONTINGENCY_ROOT_CAUSE_CATEGORY_LABELS = {
   DC_CIRCUIT: "Circuito de CC",
   COIL: "Bobina",
   INTERLOCK: "Intertravamento",
-  MECHANICAL: "Mecanica",
-  COMMS_RTU: "Comunicacao/RTU",
+  MECHANICAL: "Mecânica",
+  COMMS_RTU: "Comunicação/RTU",
   OPERATIONAL_ERROR: "Erro operacional",
   EXTERNAL: "Externo",
   OTHER: "Outro",
@@ -3818,7 +3856,7 @@ function wrapPdfText(text, maxWidth, size, font) {
 
 async function generateContingencyReportPdf(payload, options = {}) {
   if (!PDFDocument || !StandardFonts) {
-    throw new Error("Dependencia pdf-lib nao instalada.");
+    throw new Error("Dependência pdf-lib não instalada.");
   }
   const safePayload = payload && typeof payload === "object" ? payload : {};
   const reportType = String(options.reportType || "internal").trim().toLowerCase() === "client"
@@ -3826,7 +3864,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     : "internal";
   const generatedBy = String(options.generatedBy || "").trim() || "-";
   const generatedAt = options.generatedAt ? String(options.generatedAt) : new Date().toISOString();
-  const reportTypeLabel = reportType === "client" ? "Versao Cliente" : "Versao Interna";
+  const reportTypeLabel = reportType === "client" ? "Versão Cliente" : "Versão Interna";
   const footerGeneratedBy = "O&M HV BSO2";
   const pdfDoc = await PDFDocument.create();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -3900,21 +3938,54 @@ async function generateContingencyReportPdf(payload, options = {}) {
   };
 
   const drawSolarigFallback = (x, y, width, height) => {
-    const circleRadius = Math.min(14, Math.floor(height * 0.32));
-    const centerY = y + height / 2;
-    const centerX = x + circleRadius + 2;
+    const safeWidth = Math.max(48, width);
+    const safeHeight = Math.max(18, height);
+    const label = "Solarig";
+    const iconDiameter = Math.min(safeHeight * 0.92, safeWidth * 0.34);
+    const iconRadius = iconDiameter / 2;
+    const iconGap = Math.max(5, iconDiameter * 0.15);
+    const textSize = Math.max(10, Math.min(30, safeHeight * 0.72));
+    const textWidth = fontBold.widthOfTextAtSize(label, textSize);
+    const contentWidth = iconDiameter + iconGap + textWidth;
+    const originX = x + Math.max(0, (safeWidth - contentWidth) / 2);
+    const centerY = y + safeHeight / 2;
+    const iconCenterX = originX + iconRadius;
+
     page.drawCircle({
-      x: centerX,
+      x: iconCenterX,
       y: centerY,
-      size: circleRadius,
-      color: rgb(0.93, 0.53, 0.02),
+      size: iconRadius,
+      color: rgb(0.95, 0.54, 0.01),
     });
-    page.drawText("Solarig", {
-      x: centerX + circleRadius + 6,
-      y: centerY - 7,
-      size: 14,
+
+    const diagonal = Math.SQRT1_2;
+    const offsets = [-0.57, -0.2, 0.2, 0.58];
+    const bandThickness = Math.max(1.2, iconDiameter * 0.11);
+    offsets.forEach((factor) => {
+      const offset = factor * iconRadius;
+      const reach = Math.sqrt(Math.max(0, iconRadius * iconRadius - offset * offset));
+      const nx = diagonal;
+      const ny = diagonal;
+      const vx = diagonal;
+      const vy = -diagonal;
+      const startX = iconCenterX + nx * offset - vx * reach;
+      const startY = centerY + ny * offset - vy * reach;
+      const endX = iconCenterX + nx * offset + vx * reach;
+      const endY = centerY + ny * offset + vy * reach;
+      page.drawLine({
+        start: { x: startX, y: startY },
+        end: { x: endX, y: endY },
+        thickness: bandThickness,
+        color: rgb(1, 1, 1),
+      });
+    });
+
+    page.drawText(label, {
+      x: originX + iconDiameter + iconGap,
+      y: centerY - textSize * 0.36,
+      size: textSize,
       font: fontBold,
-      color: rgb(0.14, 0.33, 0.56),
+      color: rgb(0.2, 0.4, 0.62),
     });
   };
 
@@ -3981,8 +4052,18 @@ async function generateContingencyReportPdf(payload, options = {}) {
   const addCoverPage = () => {
     page = pdfDoc.addPage(pageSize);
     const top = pageSize[1] - margin;
-    const frameBottom = margin + 24;
+    const tableHeight = 118;
+    const tableTop = top - 8;
+    const tableBottom = tableTop - tableHeight;
+    const logosRowHeight = 70;
+    const logosTop = tableBottom - 2;
+    const logosBottom = logosTop - logosRowHeight;
+    const titleBlockTop = logosBottom - 2;
+    const titleBlockHeight = 170;
+    const titleBlockBottom = titleBlockTop - titleBlockHeight;
+    const frameBottom = titleBlockBottom - 6;
     const frameHeight = top - frameBottom;
+
     page.drawRectangle({
       x: margin,
       y: frameBottom,
@@ -3993,9 +4074,6 @@ async function generateContingencyReportPdf(payload, options = {}) {
       color: rgb(1, 1, 1),
     });
 
-    const tableHeight = 124;
-    const tableTop = top - 8;
-    const tableBottom = tableTop - tableHeight;
     page.drawRectangle({
       x: margin,
       y: tableBottom,
@@ -4015,7 +4093,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
         color: palette.line,
       });
     });
-    const rowHeights = [30, 23, 23, 23, 25];
+    const rowHeights = [28, 22, 22, 22, 24];
     let currentY = tableTop;
     rowHeights.slice(0, -1).forEach((height) => {
       currentY -= height;
@@ -4050,14 +4128,29 @@ async function generateContingencyReportPdf(payload, options = {}) {
       colX += width;
     });
 
+    const formatApprovalCoverCell = (name, at) => {
+      const person = String(name || "").trim();
+      const dateLabel = formatContingencyDateOnly(at);
+      if (person && dateLabel !== "-") {
+        return `${person} | ${dateLabel}`;
+      }
+      if (person) {
+        return person;
+      }
+      if (dateLabel !== "-") {
+        return dateLabel;
+      }
+      return "-";
+    };
+
     const firstRow = [
       "0",
       formatContingencyDateOnly(generatedAt),
-      "Emissao",
-      footerGeneratedBy,
-      "-",
-      "-",
-      "-",
+      toText(safePayload.reviewNature, "Emissão"),
+      toText(safePayload.preparedBy, footerGeneratedBy),
+      formatApprovalCoverCell(safePayload.verifiedBy, safePayload.verifiedAt),
+      formatApprovalCoverCell(safePayload.approvedBy, safePayload.approvedAt),
+      formatApprovalCoverCell(safePayload.finalApprovedBy, safePayload.finalApprovedAt),
     ];
     colX = margin;
     firstRow.forEach((value, index) => {
@@ -4078,9 +4171,6 @@ async function generateContingencyReportPdf(payload, options = {}) {
       colX += width;
     });
 
-    const logosRowHeight = 74;
-    const logosTop = tableBottom - 2;
-    const logosBottom = logosTop - logosRowHeight;
     page.drawRectangle({
       x: margin,
       y: logosBottom,
@@ -4097,14 +4187,11 @@ async function generateContingencyReportPdf(payload, options = {}) {
     });
     drawImageContain(engelmigLogo, margin + 14, logosBottom + 8, contentWidth / 2 - 24, logosRowHeight - 16);
     if (solarigLogo) {
-      drawImageContain(solarigLogo, margin + contentWidth / 2 + 14, logosBottom + 10, contentWidth / 2 - 24, logosRowHeight - 20);
+      drawImageContain(solarigLogo, margin + contentWidth / 2 + 14, logosBottom + 8, contentWidth / 2 - 24, logosRowHeight - 16);
     } else {
-      drawSolarigFallback(margin + contentWidth / 2 + 18, logosBottom + 14, contentWidth / 2 - 32, logosRowHeight - 28);
+      drawSolarigFallback(margin + contentWidth / 2 + 14, logosBottom + 8, contentWidth / 2 - 24, logosRowHeight - 16);
     }
 
-    const titleBlockTop = logosBottom - 2;
-    const titleBlockBottom = frameBottom + 4;
-    const titleBlockHeight = titleBlockTop - titleBlockBottom;
     page.drawRectangle({
       x: margin,
       y: titleBlockBottom,
@@ -4113,9 +4200,9 @@ async function generateContingencyReportPdf(payload, options = {}) {
       borderColor: palette.border,
       borderWidth: 1,
     });
-    const rowA = titleBlockTop - 58;
-    const rowB = rowA - 72;
-    const rowC = rowB - 58;
+    const rowA = titleBlockTop - 48;
+    const rowB = titleBlockTop - 96;
+    const rowC = titleBlockTop - 138;
     page.drawLine({
       start: { x: margin, y: rowA },
       end: { x: margin + contentWidth, y: rowA },
@@ -4134,70 +4221,24 @@ async function generateContingencyReportPdf(payload, options = {}) {
       thickness: 0.8,
       color: palette.line,
     });
-    drawCenteredText(toText(safePayload.substation || projectLabel || "SUBESTACAO"), titleBlockTop - 36, 15, true);
+    drawCenteredText(toText(safePayload.substation || projectLabel || "SUBESTACAO"), titleBlockTop - 31, 14.2, true);
     drawCenteredText("RELAT\u00d3RIO DE CONTING\u00caNCIA", rowA - 44, 16, true, palette.primary);
     drawCenteredText(
       `${getContingencyLabel(CONTINGENCY_EVENT_LABELS, safePayload.eventType, "Outro")} | ${
         toText(safePayload.assetName || safePayload.assetId)
       }`,
-      rowB - 34,
-      11.2,
+      rowB - 26,
+      10.8,
       true
     );
     drawCenteredText(
-      `Codigo: ${toText(safePayload.code)}  |  Revisao: ${toText(safePayload.revision || 1)}  |  Emissao: ${formatContingencyDateOnly(
+      `Código: ${toText(safePayload.code)}  |  Revisão: ${toText(safePayload.revision || 1)}  |  Emissão: ${formatContingencyDateOnly(
         generatedAt
       )}`,
-      rowC - 35,
-      10.1,
+      rowC - 24,
+      9.9,
       true
     );
-
-    const objectiveTop = rowC - 8;
-    const objectiveBottom = titleBlockBottom + 6;
-    if (objectiveTop - objectiveBottom > 46) {
-      page.drawLine({
-        start: { x: margin, y: objectiveTop },
-        end: { x: margin + contentWidth, y: objectiveTop },
-        thickness: 0.8,
-        color: palette.line,
-      });
-      page.drawText("OBJETIVO", {
-        x: margin + 10,
-        y: objectiveTop - 16,
-        size: 11,
-        font: fontBold,
-        color: palette.primary,
-      });
-      const objectiveText = toText(
-        safePayload.impactDescription ||
-          "Consolidar a contingencia com rastreabilidade tecnica, diagnostico, acoes executadas e evidencias."
-      );
-      const objectiveLines = wrapPdfText(objectiveText, contentWidth - 20, 9.2, font);
-      let textY = objectiveTop - 30;
-      objectiveLines.slice(0, 8).forEach((line) => {
-        if (textY < objectiveBottom + 22) {
-          return;
-        }
-        page.drawText(line, {
-          x: margin + 10,
-          y: textY,
-          size: 9.2,
-          font,
-          color: palette.text,
-        });
-        textY -= 10.8;
-      });
-      if (textY > objectiveBottom + 18) {
-        page.drawText("ESCOPO: " + toText(safePayload.assetName || safePayload.assetId), {
-          x: margin + 10,
-          y: textY - 6,
-          size: 9.1,
-          font: fontBold,
-          color: palette.text,
-        });
-      }
-    }
   };
 
   const ensureSpace = (height) => {
@@ -4270,10 +4311,10 @@ async function generateContingencyReportPdf(payload, options = {}) {
     const leading = Number(options.leading || 12.4);
     const x = Number(options.x || margin);
     const width = Number(options.width || contentWidth);
-    const labelWidth = fontBold.widthOfTextAtSize(labelText, size);
-    const valueWidth = Math.max(60, width - labelWidth - 6);
+    const valueIndent = Number(options.indent || 8);
+    const valueWidth = Math.max(80, width - valueIndent);
     const valueLines = wrapPdfText(valueText, valueWidth, size, font);
-    ensureSpace(Math.max(1, valueLines.length) * leading + 3);
+    ensureSpace((1 + Math.max(1, valueLines.length)) * leading + 4);
     page.drawText(labelText, {
       x,
       y: cursorY,
@@ -4281,17 +4322,10 @@ async function generateContingencyReportPdf(payload, options = {}) {
       font: fontBold,
       color: palette.text,
     });
-    page.drawText(valueLines[0] || "-", {
-      x: x + labelWidth + 4,
-      y: cursorY,
-      size,
-      font,
-      color: palette.text,
-    });
     cursorY -= leading;
-    for (let index = 1; index < valueLines.length; index += 1) {
-      page.drawText(valueLines[index], {
-        x: x + labelWidth + 4,
+    for (let index = 0; index < valueLines.length; index += 1) {
+      page.drawText(valueLines[index] || "-", {
+        x: x + valueIndent,
         y: cursorY,
         size,
         font,
@@ -4299,7 +4333,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
       });
       cursorY -= leading;
     }
-    cursorY -= Number(options.after || 1.4);
+    cursorY -= Number(options.after || 1.8);
   };
 
   const kv = (label, value, options = {}) => {
@@ -4457,7 +4491,6 @@ async function generateContingencyReportPdf(payload, options = {}) {
   const communications = Array.isArray(safePayload.communications) ? safePayload.communications : [];
   const startAt = parseDateTime(safePayload.startAt);
   const endAt = parseDateTime(safePayload.normalizedAt) || parseDateTime(generatedAt);
-  const today = startOfDay(new Date());
   const severity = String(safePayload.severity || "S3").trim().toUpperCase() || "S3";
   const formatWindow = (start, end) => {
     if (!start || !end || end.getTime() < start.getTime()) {
@@ -4486,6 +4519,55 @@ async function generateContingencyReportPdf(payload, options = {}) {
     attachments.length > 0,
   ];
   const completion = Math.round((checklist.filter(Boolean).length / checklist.length) * 100);
+  const renderActionList = (title, actions) => {
+    writeText(title, { bold: true, size: 10.6, leading: 13, color: palette.primary });
+    if (!actions.length) {
+      writeText("Sem acoes registradas.", { size: 9.4, leading: 11.4, color: palette.muted });
+      cursorY -= 2;
+      return;
+    }
+    actions.forEach((action, index) => {
+      const dueDate = parseDateOnly(action && action.dueDate ? action.dueDate : "");
+      const statusRaw = String(action && action.status ? action.status : "").trim().toUpperCase();
+      const statusColor =
+        statusRaw === "CONCLUIDA"
+          ? palette.success
+          : statusRaw === "EM_ANDAMENTO"
+            ? palette.warning
+            : palette.text;
+      const summary = `${index + 1}. ${toText(action && action.action ? action.action : "-")}`;
+      const details = [
+        `Responsavel: ${toText(action && action.responsible ? action.responsible : "-")}`,
+        `Prazo: ${dueDate ? dueDate.toLocaleDateString("pt-BR") : "-"}`,
+        `Status: ${formatContingencyActionStatus(statusRaw)}`,
+      ].join(" | ");
+      const summaryLines = wrapPdfText(summary, contentWidth, 10, fontBold);
+      const detailsLines = wrapPdfText(details, contentWidth, 9.2, font);
+      const blockHeight = summaryLines.length * 12 + detailsLines.length * 11.2 + 7;
+      ensureSpace(blockHeight);
+      summaryLines.forEach((line) => {
+        page.drawText(line || " ", {
+          x: margin,
+          y: cursorY,
+          size: 10,
+          font: fontBold,
+          color: palette.text,
+        });
+        cursorY -= 12;
+      });
+      detailsLines.forEach((line) => {
+        page.drawText(line || " ", {
+          x: margin,
+          y: cursorY,
+          size: 9.2,
+          font,
+          color: statusColor,
+        });
+        cursorY -= 11.2;
+      });
+      cursorY -= 3.2;
+    });
+  };
   const totalActions = correctiveActions.length + preventiveActions.length;
   const doneActions = correctiveActions
     .concat(preventiveActions)
@@ -4537,14 +4619,14 @@ async function generateContingencyReportPdf(payload, options = {}) {
     color: palette.primary,
     leading: 19,
   });
-  writeText(`${reportType === "client" ? "Versao Cliente" : "Versao Interna"} | Projeto: ${projectLabel}`, {
+  writeText(`${reportType === "client" ? "Versão Cliente" : "Versão Interna"} | Projeto: ${projectLabel}`, {
     size: 10.5,
     bold: true,
     color: palette.text,
     leading: 12.8,
   });
   writeText(
-    `Codigo: ${toText(safePayload.code)} | Emissao: ${formatContingencyDateTime(generatedAt)} | Revisao: ${toText(
+    `Código: ${toText(safePayload.code)} | Emissão: ${formatContingencyDateTime(generatedAt)} | Revisão: ${toText(
       safePayload.revision || 1
     )}`,
     {
@@ -4562,31 +4644,31 @@ async function generateContingencyReportPdf(payload, options = {}) {
   });
   kv("Status", getContingencyLabel(CONTINGENCY_STATUS_LABELS, safePayload.status, "Rascunho"));
   kv("Severidade", severity);
-  kv("Condicao do sistema", getContingencyLabel(CONTINGENCY_SYSTEM_CONDITION_LABELS, safePayload.systemCondition, "Normal"));
+  kv("Condição do sistema", getContingencyLabel(CONTINGENCY_SYSTEM_CONDITION_LABELS, safePayload.systemCondition, "Normal"));
   kv("Janela do evento", formatWindow(startAt, endAt));
-  kv("Completude do relatorio", `${completion}%`);
+  kv("Completude do relatório", `${completion}%`);
   kv("Total de eventos de timeline", String(timeline.length));
   kv("Total de anexos", String(attachments.length));
   kv("Emitido por", footerGeneratedBy);
   drawDivider();
 
-  section("1. Identificacao do Evento");
-  kv("Contingencia", safePayload.code || "-");
-  kv("Subestacao", safePayload.substation || "-");
+  section("1. Identificação do Evento");
+  kv("Contingência", safePayload.code || "-");
+  kv("Subestação", safePayload.substation || "-");
   kv("Bay", safePayload.bay || "-");
   kv("Alimentador", safePayload.feeder || "-");
   kv("Equipamento", safePayload.assetName || safePayload.assetId || "-");
   kv("Tipo", getContingencyLabel(CONTINGENCY_EVENT_LABELS, safePayload.eventType, "Outro"));
   kv("Severidade", safePayload.severity || "S3");
   kv("Status", getContingencyLabel(CONTINGENCY_STATUS_LABELS, safePayload.status, "Rascunho"));
-  kv("Inicio", formatContingencyDateTime(safePayload.startAt));
-  kv("Normalizacao", formatContingencyDateTime(safePayload.normalizedAt));
-  kv("Revisao", String(safePayload.revision || 1));
+  kv("Início", formatContingencyDateTime(safePayload.startAt));
+  kv("Normalização", formatContingencyDateTime(safePayload.normalizedAt));
+  kv("Revisão", String(safePayload.revision || 1));
   drawDivider();
 
   section("2. Impacto Operacional");
   kv(
-    "Condicao do sistema",
+    "Condição do sistema",
     getContingencyLabel(
       CONTINGENCY_SYSTEM_CONDITION_LABELS,
       safePayload.systemCondition,
@@ -4601,7 +4683,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
         ? "-"
         : String(safePayload.impactMw)
   );
-  kv("Descricao do impacto", safePayload.impactDescription || "-");
+  kv("Descrição do impacto", safePayload.impactDescription || "-");
   kv("Risco residual", safePayload.residualRisk || "-");
   drawDivider();
 
@@ -4637,9 +4719,9 @@ async function generateContingencyReportPdf(payload, options = {}) {
   }
   drawDivider();
 
-  section("4. Diagnostico");
+  section("4. Diagnóstico");
   kv("Sintomas", safePayload.symptoms || "-");
-  kv("Diagnostico tecnico", safePayload.diagnosis || "-");
+  kv("Diagnóstico técnico", safePayload.diagnosis || "-");
   kv(
     "Status da causa raiz",
     getContingencyLabel(
@@ -4656,75 +4738,23 @@ async function generateContingencyReportPdf(payload, options = {}) {
       "Outro"
     )
   );
-  kv("Descricao da causa raiz", safePayload.rootCauseDescription || "-");
+  kv("Descrição da causa raiz", safePayload.rootCauseDescription || "-");
   if (reportType === "client") {
     kv(
       "Nota",
-      "Detalhes internos sensiveis foram reduzidos na versao cliente."
+      "Detalhes internos sensíveis foram reduzidos na versão cliente."
     );
   }
   drawDivider();
 
-  section("5. Acoes Executadas e Plano");
-  kv("Acoes de contencao/normalizacao", safePayload.containmentActions || "-");
-  if (correctiveActions.length) {
-    writeText("Acoes corretivas:", { bold: true, size: 10.6, leading: 13, color: palette.primary });
-    correctiveActions.forEach((action, index) => {
-      const dueDate = parseDateOnly(action && action.dueDate ? action.dueDate : "");
-      const statusRaw = String(action && action.status ? action.status : "").trim().toUpperCase();
-      const overdue = Boolean(
-        dueDate && dueDate.getTime() < today.getTime() && statusRaw !== "CONCLUIDA" && statusRaw !== "CANCELADA"
-      );
-      const statusColor = overdue
-        ? palette.danger
-        : statusRaw === "CONCLUIDA"
-          ? palette.success
-          : statusRaw === "EM_ANDAMENTO"
-            ? palette.warning
-            : palette.text;
-      const summary = `${index + 1}. ${toText(action && action.action ? action.action : "-")}`;
-      const details = [
-        `Responsavel: ${toText(action && action.responsible ? action.responsible : "-")}`,
-        `Prazo: ${dueDate ? dueDate.toLocaleDateString("pt-BR") : "-"}`,
-        `Status: ${formatContingencyActionStatus(statusRaw)}${overdue ? " (ATRASADA)" : ""}`,
-      ].join(" | ");
-      writeText(summary, { size: 10, leading: 12, bold: true });
-      writeText(details, { size: 9.2, leading: 11.2, color: statusColor });
-    });
-  } else {
-    kv("Acoes corretivas", "Sem acoes registradas.");
-  }
-  if (preventiveActions.length) {
-    writeText("Acoes preventivas:", { bold: true, size: 10.6, leading: 13, color: palette.primary });
-    preventiveActions.forEach((action, index) => {
-      const dueDate = parseDateOnly(action && action.dueDate ? action.dueDate : "");
-      const statusRaw = String(action && action.status ? action.status : "").trim().toUpperCase();
-      const overdue = Boolean(
-        dueDate && dueDate.getTime() < today.getTime() && statusRaw !== "CONCLUIDA" && statusRaw !== "CANCELADA"
-      );
-      const statusColor = overdue
-        ? palette.danger
-        : statusRaw === "CONCLUIDA"
-          ? palette.success
-          : statusRaw === "EM_ANDAMENTO"
-            ? palette.warning
-            : palette.text;
-      const summary = `${index + 1}. ${toText(action && action.action ? action.action : "-")}`;
-      const details = [
-        `Responsavel: ${toText(action && action.responsible ? action.responsible : "-")}`,
-        `Prazo: ${dueDate ? dueDate.toLocaleDateString("pt-BR") : "-"}`,
-        `Status: ${formatContingencyActionStatus(statusRaw)}${overdue ? " (ATRASADA)" : ""}`,
-      ].join(" | ");
-      writeText(summary, { size: 10, leading: 12, bold: true });
-      writeText(details, { size: 9.2, leading: 11.2, color: statusColor });
-    });
-  } else {
-    kv("Acoes preventivas", "Sem acoes registradas.");
-  }
+  section("5. Ações Executadas e Plano");
+  kv("Ações de contenção/normalização", safePayload.containmentActions || "-");
+  renderActionList("Ações corretivas:", correctiveActions);
+  renderActionList("Ações preventivas:", preventiveActions);
   if (communications.length) {
-    writeText("Comunicacoes:", { bold: true, size: 10.6, leading: 13, color: palette.primary });
+    writeText("Comunicações:", { bold: true, size: 10.6, leading: 13, color: palette.primary });
     communications.forEach((entry, index) => {
-      const statusValue = entry.done ? "Concluida" : "Pendente";
+      const statusValue = entry.done ? "Concluída" : "Pendente";
       const noteLabel = entry.note ? ` | Nota: ${entry.note}` : "";
       writeText(`[${entry.done ? "x" : " "}] ${index + 1}. ${toText(entry.label)} | ${statusValue}${noteLabel}`, {
         size: 9.3,
@@ -4733,7 +4763,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
       });
     });
   } else {
-    kv("Comunicacoes", "Sem checklist de comunicacoes.");
+    kv("Comunicações", "Sem checklist de comunicações.");
   }
   drawDivider();
 
@@ -4744,7 +4774,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
   kv("Protocolo", safePayload.protocolRef || "-");
   drawDivider();
 
-  section("7. Evidencias Fotograficas e Anexos");
+  section("7. Evidências Fotográficas e Anexos");
   const imageCandidates = attachments.filter((attachment) => {
     const mime = String(attachment && attachment.mimeType ? attachment.mimeType : "").toLowerCase();
     const fileName = String(attachment && attachment.fileName ? attachment.fileName : "").toLowerCase();
@@ -4762,7 +4792,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     failedPhotos.push(attachment);
   }
   if (!renderedPhotos.length) {
-    kv("Fotos", "Nenhuma foto valida foi incorporada ao PDF.");
+    kv("Fotos", "Nenhuma foto válida foi incorporada ao PDF.");
   } else {
     const cols = 2;
     const gap = 10;
@@ -4834,7 +4864,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     }
   }
   if (failedPhotos.length) {
-    writeText(`${failedPhotos.length} foto(s) nao puderam ser incorporadas nesta versao do PDF.`, {
+    writeText(`${failedPhotos.length} foto(s) não puderam ser incorporadas nesta versão do PDF.`, {
       size: 9.2,
       leading: 11,
       color: palette.warning,
@@ -4867,7 +4897,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
   }
 
   drawDivider();
-  section("8. Conclusao Final");
+  section("8. Conclusão Final");
   writeText(conclusionText, {
     size: 10,
     leading: 12.4,
@@ -4875,14 +4905,14 @@ async function generateContingencyReportPdf(payload, options = {}) {
   });
   drawDivider();
 
-  section("9. Rastreabilidade e Emissao");
-  kv("Documento", reportType === "client" ? "Versao Cliente" : "Versao Interna");
-  kv("Data de emissao", formatContingencyDateTime(generatedAt));
+  section("9. Rastreabilidade e Emissão");
+  kv("Documento", reportType === "client" ? "Versão Cliente" : "Versão Interna");
+  kv("Data de emissão", formatContingencyDateTime(generatedAt));
   kv("Emitido por", footerGeneratedBy);
-  kv("Codigo da contingencia", safePayload.code || "-");
+  kv("Código da contingência", safePayload.code || "-");
   kv("Projeto/UEN", projectLabel);
   writeText(
-    "Documento estruturado para rastreabilidade tecnica da contingencia, com historico de acoes e evidencias.",
+    "Documento estruturado para rastreabilidade técnica da contingência, com histórico de ações e evidências.",
     {
       size: 9.5,
       leading: 11.4,
@@ -4912,7 +4942,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     thickness: 0.8,
     color: palette.line,
   });
-  page.drawText("Responsavel Tecnico Engelmig", {
+  page.drawText("Responsável Técnico Engelmig", {
     x: margin + 12,
     y: signY - 12,
     size: 8.2,
@@ -4926,7 +4956,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     font,
     color: palette.muted,
   });
-  page.drawText("Aprovacao/Gestao Cliente", {
+  page.drawText("Aprovação/Gestão Cliente", {
     x: margin + signWidth * 2 + signGap * 2 + 12,
     y: signY - 12,
     size: 8.2,
@@ -4999,7 +5029,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
   const footer = `Gerado em ${formatContingencyDateTime(generatedAt)} por ${footerGeneratedBy}`;
   const footerMeta = `${toText(safePayload.code)} | ${reportTypeLabel}`;
   pages.forEach((itemPage, index) => {
-    const pageText = `Pagina ${index + 1} de ${pages.length}`;
+    const pageText = `Página ${index + 1} de ${pages.length}`;
     itemPage.drawLine({
       start: { x: margin, y: footerY + 10 },
       end: { x: pageSize[0] - margin, y: footerY + 10 },
@@ -5708,7 +5738,7 @@ function canManageFiles(user) {
 function requireSupervisor(req, res, next) {
   const user = req.currentUser || getSessionUser(req);
   if (!user || !canManageFiles(user)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   return next();
 }
@@ -11158,7 +11188,7 @@ function hasPermission(user, permissionKey) {
 function requireAuth(req, res, next) {
   const user = getSessionUser(req);
   if (!user) {
-    return res.status(401).json({ message: "Nao autorizado." });
+    return res.status(401).json({ message: "Não autorizado." });
   }
   req.currentUser = user;
   return next();
@@ -11174,7 +11204,7 @@ function requirePermission(permissionKey) {
     const isLegacy = key.startsWith("admin:") || LEGACY_PERMISSION_KEYS.has(key);
     const allowed = isLegacy ? hasPermission(user, key) : hasGranularPermission(user, key);
     if (!allowed) {
-      return res.status(403).json({ message: "Nao autorizado." });
+      return res.status(403).json({ message: "Não autorizado." });
     }
     return next();
   };
@@ -11183,7 +11213,7 @@ function requirePermission(permissionKey) {
 function requireAdmin(req, res, next) {
   const user = req.currentUser || getSessionUser(req);
   if (!user || (!isMasterUser(user) && !isFullAccessRole(user.rbacRole || user.role))) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   return next();
 }
@@ -11191,7 +11221,7 @@ function requireAdmin(req, res, next) {
 function requireAccessView(req, res, next) {
   const user = req.currentUser || getSessionUser(req);
   if (!user || !canViewAccessForUser(user)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   return next();
 }
@@ -11199,7 +11229,7 @@ function requireAccessView(req, res, next) {
 function requireAccessManage(req, res, next) {
   const user = req.currentUser || getSessionUser(req);
   if (!user || !canManageAccessForUser(user)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   return next();
 }
@@ -11255,7 +11285,7 @@ function requireProjectAccess(req, res, next) {
     return res.status(400).json({ message: "Projeto obrigatório." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   req.projectId = projectId;
   return next();
@@ -11839,7 +11869,7 @@ app.get("/api/events", requireAuth, (req, res) => {
     }
   }
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+    return res.status(400).json({ message: "Projeto ativo obrigatório." });
   }
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -12079,7 +12109,7 @@ app.post("/api/projetos/active", requireAuth, (req, res) => {
     return res.status(400).json({ message: "Projeto inválido." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   req.session.activeProjectId = projectId;
   return res.json({ ok: true, activeProjectId: projectId });
@@ -12353,7 +12383,7 @@ app.put(
     const equipamento = equipamentos[index];
     const user = req.currentUser || getSessionUser(req);
     if (!userHasProjectAccess(user, equipamento.projectId)) {
-      return res.status(403).json({ message: "Nao autorizado." });
+      return res.status(403).json({ message: "Não autorizado." });
     }
     const payload = req.body && typeof req.body === "object" ? req.body : {};
     const updated = {
@@ -12394,7 +12424,7 @@ app.delete(
     const equipamento = equipamentos[index];
     const user = req.currentUser || getSessionUser(req);
     if (!userHasProjectAccess(user, equipamento.projectId)) {
-      return res.status(403).json({ message: "Nao autorizado." });
+      return res.status(403).json({ message: "Não autorizado." });
     }
     equipamentos.splice(index, 1);
     saveEquipamentos(equipamentos);
@@ -12419,7 +12449,7 @@ app.post(
     const projectId = req.projectId;
     const parsed = parseMultipartForm(req);
     if (!parsed || !parsed.file) {
-      return res.status(400).json({ message: "Arquivo nao enviado." });
+      return res.status(400).json({ message: "Arquivo não enviado." });
     }
     const originalName = String(parsed.file.originalName || "").trim();
     const mimeRaw = String(parsed.file.mime || "").trim().toLowerCase();
@@ -12537,7 +12567,7 @@ app.put(
     const user = req.currentUser || getSessionUser(req);
     const current = procedimentos[index];
     if (!userHasProjectAccess(user, current.projectId)) {
-      return res.status(403).json({ message: "Nao autorizado." });
+      return res.status(403).json({ message: "Não autorizado." });
     }
     const payload = req.body && typeof req.body === "object" ? req.body : {};
     const hasArquivoPayload =
@@ -12610,7 +12640,7 @@ app.delete(
     const user = req.currentUser || getSessionUser(req);
     const current = procedimentos[index];
     if (!userHasProjectAccess(user, current.projectId)) {
-      return res.status(403).json({ message: "Nao autorizado." });
+      return res.status(403).json({ message: "Não autorizado." });
     }
     const fileId = String(current.arquivo && current.arquivo.id ? current.arquivo.id : "").trim();
     procedimentos.splice(index, 1);
@@ -12636,7 +12666,7 @@ app.get("/api/pmp/activities", requireAuth, (req, res) => {
   const year = Number(req.query.year || 0);
   const allowed = new Set(getUserProjectIds(user));
   if (projectId && !allowed.has(projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   let list = pmpActivities.filter((item) => item && allowed.has(item.projectId));
   if (projectId) {
@@ -12659,7 +12689,7 @@ app.post("/api/pmp/activities", requireAuth, requirePermission("gerenciarPMP"), 
     return res.status(400).json({ message: "Projeto obrigatório." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   const nome = String(payload.nome || "").trim();
   if (!nome) {
@@ -12695,7 +12725,7 @@ app.put("/api/pmp/activities/:id", requireAuth, requirePermission("gerenciarPMP"
   }
   const current = pmpActivities[index];
   if (!userHasProjectAccess(user, current.projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   const payload = req.body && typeof req.body === "object" ? req.body : {};
   const projectId =
@@ -12704,7 +12734,7 @@ app.put("/api/pmp/activities/:id", requireAuth, requirePermission("gerenciarPMP"
     return res.status(400).json({ message: "Projeto obrigatório." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   const equipamentoId =
     "equipamentoId" in payload ? String(payload.equipamentoId || "").trim() : current.equipamentoId;
@@ -12743,7 +12773,7 @@ app.delete(
     }
     const current = pmpActivities[index];
     if (!userHasProjectAccess(user, current.projectId)) {
-      return res.status(403).json({ message: "Nao autorizado." });
+      return res.status(403).json({ message: "Não autorizado." });
     }
     pmpActivities.splice(index, 1);
     savePmpActivities(pmpActivities);
@@ -12759,7 +12789,7 @@ app.get("/api/pmp/executions", requireAuth, (req, res) => {
   const year = Number(req.query.year || 0);
   const allowed = new Set(getUserProjectIds(user));
   if (projectId && !allowed.has(projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   let list = pmpExecutions.filter((item) => item && allowed.has(item.projectId));
   if (projectId) {
@@ -12789,7 +12819,7 @@ app.post("/api/pmp/executions", requireAuth, (req, res) => {
     return res.status(404).json({ message: "Atividade não encontrada." });
   }
   if (!userHasProjectAccess(user, activity.projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   const periodKey = String(payload.periodKey || "").trim();
   const scheduledFor = String(payload.scheduledFor || "").trim();
@@ -12837,7 +12867,7 @@ app.delete(
     }
     const exec = pmpExecutions[index];
     if (!userHasProjectAccess(user, exec.projectId)) {
-      return res.status(403).json({ message: "Nao autorizado." });
+      return res.status(403).json({ message: "Não autorizado." });
     }
     pmpExecutions.splice(index, 1);
     savePmpExecutions(pmpExecutions);
@@ -12858,7 +12888,7 @@ app.post("/api/pmp/duplicate", requireAuth, requirePermission("gerenciarPMP"), (
     return res.status(400).json({ message: "Projeto e anos são obrigatórios." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   const existentes = pmpActivities.filter(
     (item) => item.projectId === projectId && Number(item.ano) === targetYear
@@ -13019,7 +13049,7 @@ app.get("/api/almox/stock", requireAuth, requirePermission("verAlmoxarifado"), (
   const projectId = String(req.query.projectId || "").trim();
   const allowed = new Set(getUserProjectIds(user));
   if (projectId && !allowed.has(projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   let list = almoxStock.filter((entry) => entry && allowed.has(entry.projectId));
   if (projectId) {
@@ -13041,7 +13071,7 @@ app.put(
     const user = req.currentUser || getSessionUser(req);
     const entry = almoxStock[index];
     if (!userHasProjectAccess(user, entry.projectId)) {
-      return res.status(403).json({ message: "Nao autorizado." });
+      return res.status(403).json({ message: "Não autorizado." });
     }
     const payload = req.body && typeof req.body === "object" ? req.body : {};
     const updated = {
@@ -13078,7 +13108,7 @@ app.get(
     const projectId = String(req.query.projectId || "").trim();
     const allowed = new Set(getUserProjectIds(user));
     if (projectId && !allowed.has(projectId)) {
-      return res.status(403).json({ message: "Nao autorizado." });
+      return res.status(403).json({ message: "Não autorizado." });
     }
     let list = almoxMovements.filter((entry) => entry && allowed.has(entry.projectId));
     if (projectId) {
@@ -13104,7 +13134,7 @@ app.post(
     }
     const user = req.currentUser || getSessionUser(req);
     if (!userHasProjectAccess(user, projectId)) {
-      return res.status(403).json({ message: "Nao autorizado." });
+      return res.status(403).json({ message: "Não autorizado." });
     }
     if (!ALMOX_MOVEMENT_TYPES.has(type)) {
       return res.status(400).json({ message: "Tipo de movimentacao invalido." });
@@ -13167,7 +13197,7 @@ app.get(
   requirePermission("verAlmoxarifado"),
   async (req, res) => {
     if (!PDFDocument || !StandardFonts) {
-      return res.status(501).json({ message: "Dependencia pdf-lib nao instalada." });
+      return res.status(501).json({ message: "Dependência pdf-lib não instalada." });
     }
     const movementId = String(req.params.id || "").trim();
     const movement = almoxMovements.find((entry) => entry && entry.id === movementId);
@@ -13474,7 +13504,7 @@ app.get("/api/sst/inspections", requireAuth, requirePermission("verSST"), (req, 
   const projectId = String(req.query.projectId || "").trim();
   const allowed = new Set(getUserProjectIds(user));
   if (projectId && !allowed.has(projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   let list = sstInspections.filter((item) => !item.projectId || allowed.has(item.projectId));
   if (projectId) {
@@ -13492,7 +13522,7 @@ app.post("/api/sst/inspections", requireAuth, requirePermission("gerenciarSST"),
   }
   const user = req.currentUser || getSessionUser(req);
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   const record = normalizeSstInspection({
     ...payload,
@@ -13521,7 +13551,7 @@ app.put("/api/sst/inspections/:id", requireAuth, requirePermission("gerenciarSST
   const current = sstInspections[index];
   const user = req.currentUser || getSessionUser(req);
   if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   const updated = normalizeSstInspection({
     ...current,
@@ -13552,7 +13582,7 @@ app.delete("/api/sst/inspections/:id", requireAuth, requirePermission("gerenciar
   const user = req.currentUser || getSessionUser(req);
   const current = sstInspections[index];
   if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   sstInspections.splice(index, 1);
   saveSstInspections(sstInspections);
@@ -13575,7 +13605,7 @@ app.get(
     const projectId = String(req.query.projectId || "").trim();
     const allowed = new Set(getUserProjectIds(user));
     if (projectId && !allowed.has(projectId)) {
-      return res.status(403).json({ message: "Nao autorizado." });
+      return res.status(403).json({ message: "Não autorizado." });
     }
     let list = sstNonconformities.filter((item) => !item.projectId || allowed.has(item.projectId));
     if (projectId) {
@@ -13594,7 +13624,7 @@ app.post("/api/sst/nonconformities", requireAuth, requirePermission("gerenciarSS
   }
   const user = req.currentUser || getSessionUser(req);
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   const record = normalizeSstNonconformity({
     ...payload,
@@ -13623,7 +13653,7 @@ app.put("/api/sst/nonconformities/:id", requireAuth, requirePermission("gerencia
   const current = sstNonconformities[index];
   const user = req.currentUser || getSessionUser(req);
   if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   const updated = normalizeSstNonconformity({
     ...current,
@@ -13654,7 +13684,7 @@ app.delete("/api/sst/nonconformities/:id", requireAuth, requirePermission("geren
   const user = req.currentUser || getSessionUser(req);
   const current = sstNonconformities[index];
   if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   sstNonconformities.splice(index, 1);
   saveSstNonconformities(sstNonconformities);
@@ -13673,7 +13703,7 @@ app.get("/api/sst/incidents", requireAuth, requirePermission("verSST"), (req, re
   const projectId = String(req.query.projectId || "").trim();
   const allowed = new Set(getUserProjectIds(user));
   if (projectId && !allowed.has(projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   let list = sstIncidents.filter((item) => !item.projectId || allowed.has(item.projectId));
   if (projectId) {
@@ -13691,7 +13721,7 @@ app.post("/api/sst/incidents", requireAuth, requirePermission("gerenciarSST"), (
   }
   const user = req.currentUser || getSessionUser(req);
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   const record = normalizeSstIncident({
     ...payload,
@@ -13720,7 +13750,7 @@ app.put("/api/sst/incidents/:id", requireAuth, requirePermission("gerenciarSST")
   const current = sstIncidents[index];
   const user = req.currentUser || getSessionUser(req);
   if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   const updated = normalizeSstIncident({
     ...current,
@@ -13751,7 +13781,7 @@ app.delete("/api/sst/incidents/:id", requireAuth, requirePermission("gerenciarSS
   const user = req.currentUser || getSessionUser(req);
   const current = sstIncidents[index];
   if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   sstIncidents.splice(index, 1);
   saveSstIncidents(sstIncidents);
@@ -13770,7 +13800,7 @@ app.get("/api/sst/aprs", requireAuth, requirePermission("verSST"), (req, res) =>
   const projectId = String(req.query.projectId || "").trim();
   const allowed = new Set(getUserProjectIds(user));
   if (projectId && !allowed.has(projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   let list = sstAprs.filter((item) => !item.projectId || allowed.has(item.projectId));
   if (projectId) {
@@ -13788,7 +13818,7 @@ app.post("/api/sst/aprs", requireAuth, requirePermission("gerenciarSST"), (req, 
   }
   const user = req.currentUser || getSessionUser(req);
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   const record = normalizeSstApr({
     ...payload,
@@ -13817,7 +13847,7 @@ app.put("/api/sst/aprs/:id", requireAuth, requirePermission("gerenciarSST"), (re
   const current = sstAprs[index];
   const user = req.currentUser || getSessionUser(req);
   if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   const updated = normalizeSstApr({
     ...current,
@@ -13848,7 +13878,7 @@ app.delete("/api/sst/aprs/:id", requireAuth, requirePermission("gerenciarSST"), 
   const user = req.currentUser || getSessionUser(req);
   const current = sstAprs[index];
   if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   sstAprs.splice(index, 1);
   saveSstAprs(sstAprs);
@@ -13933,7 +13963,7 @@ app.get("/api/sst/vehicles", requireAuth, (req, res) => {
   let list = sstVehicles.slice();
   if (projectId) {
     if (!userHasProjectAccess(user, projectId)) {
-      return res.status(403).json({ message: "Nao autorizado." });
+      return res.status(403).json({ message: "Não autorizado." });
     }
     list = list.filter((item) => String(item.projectId) === projectId);
   } else {
@@ -13965,7 +13995,7 @@ app.get("/api/sst/vehicles/:id", requireAuth, (req, res) => {
   }
   const user = req.currentUser || getSessionUser(req);
   if (vehicle.projectId && !userHasProjectAccess(user, vehicle.projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   return res.json({ vehicle });
 });
@@ -13978,7 +14008,7 @@ app.post("/api/sst/vehicles", requireAuth, requirePermission("gerenciarProjetos"
     return res.status(400).json({ message: "Projeto obrigatorio." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   const plate = normalizeVehiclePlate(payload.plate || payload.placa || "");
   if (!plate) {
@@ -14031,7 +14061,7 @@ app.put("/api/sst/vehicles/:id", requireAuth, requirePermission("gerenciarProjet
     return res.status(400).json({ message: "Projeto obrigatorio." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   const plate = normalizeVehiclePlate(payload.plate || payload.placa || current.plate || "");
   if (!plate) {
@@ -14078,7 +14108,7 @@ app.delete("/api/sst/vehicles/:id", requireAuth, requirePermission("gerenciarPro
   }
   const current = sstVehicles[index];
   if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   const updated = normalizeSstVehicle({
     ...current,
@@ -14104,7 +14134,7 @@ app.post(
   (req, res) => {
     const user = req.currentUser || getSessionUser(req);
     if (!canUpsertSstDocFromMaintenance(user)) {
-      return res.status(403).json({ message: "Nao autorizado." });
+      return res.status(403).json({ message: "Não autorizado." });
     }
     const payload = req.body && typeof req.body === "object" ? req.body : {};
     const projectId = String(payload.projectId || "").trim();
@@ -14116,7 +14146,7 @@ app.post(
       return res.status(400).json({ message: "relatedId obrigatorio." });
     }
     if (!userHasProjectAccess(user, projectId)) {
-      return res.status(403).json({ message: "Nao autorizado." });
+      return res.status(403).json({ message: "Não autorizado." });
     }
     const nowIso = new Date().toISOString();
     const prepared = normalizeSstDoc({
@@ -14167,7 +14197,7 @@ app.post(
   (req, res) => {
     const user = req.currentUser || getSessionUser(req);
     if (!canUpsertSstDocFromMaintenance(user)) {
-      return res.status(403).json({ message: "Nao autorizado." });
+      return res.status(403).json({ message: "Não autorizado." });
     }
     const payload = req.body && typeof req.body === "object" ? req.body : {};
     const projectId = String(payload.projectId || getActiveProjectId(req, user) || "").trim();
@@ -14175,7 +14205,7 @@ app.post(
       return res.status(400).json({ message: "Projeto obrigatorio." });
     }
     if (!userHasProjectAccess(user, projectId)) {
-      return res.status(403).json({ message: "Nao autorizado." });
+      return res.status(403).json({ message: "Não autorizado." });
     }
     const tombstones = getMaintenanceTombstonesMap(projectId);
     const maintenanceList = loadMaintenanceData().filter((item) => {
@@ -14230,7 +14260,7 @@ app.get("/api/sst/docs", requireAuth, requirePermission("verSST"), (req, res) =>
   const projectId = String(req.query.projectId || "").trim();
   const allowed = new Set(getUserProjectIds(user));
   if (projectId && !allowed.has(projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   let list = sstDocs.filter((item) => !item.projectId || allowed.has(item.projectId));
   if (projectId) {
@@ -14272,7 +14302,7 @@ app.post(
     }
     const user = req.currentUser || getSessionUser(req);
     if (!userHasProjectAccess(user, projectId)) {
-      return res.status(403).json({ message: "Nao autorizado." });
+      return res.status(403).json({ message: "Não autorizado." });
     }
     const record = normalizeSstDoc({
       ...payload,
@@ -14313,7 +14343,7 @@ app.put(
     const current = sstDocs[index];
     const user = req.currentUser || getSessionUser(req);
     if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
-      return res.status(403).json({ message: "Nao autorizado." });
+      return res.status(403).json({ message: "Não autorizado." });
     }
     const canManage =
       isMasterUser(user) ||
@@ -14329,7 +14359,7 @@ app.put(
         payload.correctionInstructions ||
         payload.notifiedAt;
       if (!isLiberacao || !canSyncMaintenance(user) || (status && status !== "PENDENTE") || hasReviewFields) {
-        return res.status(403).json({ message: "Nao autorizado." });
+        return res.status(403).json({ message: "Não autorizado." });
       }
     }
     const updated = normalizeSstDoc({
@@ -14359,7 +14389,7 @@ app.put(
 app.patch("/api/profile", requireAuth, (req, res) => {
   const actor = req.currentUser || getSessionUser(req);
   if (!actor) {
-    return res.status(401).json({ message: "Nao autorizado." });
+    return res.status(401).json({ message: "Não autorizado." });
   }
   const targetId = String(req.body.userId || "").trim();
   const targetUser =
@@ -14385,7 +14415,7 @@ app.patch("/api/profile", requireAuth, (req, res) => {
     (wantsSettingsUpdate && !(isSelfProfile || canEdit)) ||
     (wantsSignatureUpdate && !(isSelfProfile || canEdit))
   ) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   const index = users.findIndex((item) => item.id === targetUser.id);
   if (index === -1) {
@@ -14468,7 +14498,7 @@ app.patch("/api/profile", requireAuth, (req, res) => {
 app.post("/api/profile/avatar", requireAuth, async (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   if (!user) {
-    return res.status(401).json({ message: "Nao autorizado." });
+    return res.status(401).json({ message: "Não autorizado." });
   }
   const dataUrl = String(req.body.dataUrl || "").trim();
   if (!dataUrl) {
@@ -14530,7 +14560,7 @@ app.post("/api/profile/avatar", requireAuth, async (req, res) => {
 app.delete("/api/profile/avatar", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   if (!user) {
-    return res.status(401).json({ message: "Nao autorizado." });
+    return res.status(401).json({ message: "Não autorizado." });
   }
   const index = users.findIndex((item) => item.id === user.id);
   if (index === -1) {
@@ -15417,7 +15447,7 @@ app.patch(
   }
   const current = automations[index];
   if (current.projectId && current.projectId !== projectId) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   const payload = req.body && typeof req.body === "object" ? req.body : {};
   const updated = {
@@ -15760,7 +15790,7 @@ app.delete("/api/admin/files/:id", requireAuth, requirePermission("excluirArquiv
   }
   const file = filesMeta[index];
   if (!userHasProjectAccess(user, file.projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   const typeConfig = getFileTypeConfig(file.type);
   if (typeConfig) {
@@ -15826,7 +15856,7 @@ app.post(
     };
 
     if (requestedProjectId && !userHasProjectAccess(user, requestedProjectId)) {
-      return respondSyncError(403, "project_access_denied", "Nao autorizado.", {
+      return respondSyncError(403, "project_access_denied", "Não autorizado.", {
         projectId: requestedProjectId,
       });
     }
@@ -15834,10 +15864,10 @@ app.post(
     const projectId = requestedProjectId || getActiveProjectId(req, user);
     markMaintenanceSyncResponse(res, { projectId: projectId || "" });
     if (!projectId) {
-      return respondSyncError(400, "missing_active_project", "Projeto ativo obrigatorio.");
+      return respondSyncError(400, "missing_active_project", "Projeto ativo obrigatório.");
     }
     if (!userHasProjectAccess(user, projectId)) {
-      return respondSyncError(403, "project_access_denied", "Nao autorizado.", { projectId });
+      return respondSyncError(403, "project_access_denied", "Não autorizado.", { projectId });
     }
     if (req.session && req.session.activeProjectId !== projectId) {
       req.session.activeProjectId = projectId;
@@ -16019,10 +16049,10 @@ app.get("/api/maintenance/templates", requireAuth, (req, res) => {
   const fromQuery = String(req.query.projectId || "").trim();
   const projectId = fromQuery || getActiveProjectId(req, user);
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+    return res.status(400).json({ message: "Projeto ativo obrigatório." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   const dataset = loadMaintenanceTemplates();
   const list = dataset.filter((item) => item && item.projectId === projectId);
@@ -16035,10 +16065,10 @@ app.post("/api/maintenance/templates/sync", requireAuth, requireStorageWritable,
   const fromBody = String(req.body.projectId || "").trim();
   const projectId = fromBody || fromQuery || getActiveProjectId(req, user);
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+    return res.status(400).json({ message: "Projeto ativo obrigatório." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   if (!canManageMaintenanceTemplates(user)) {
     return res.status(403).json({ message: "Sem permissao para atualizar modelos." });
@@ -16075,7 +16105,7 @@ app.get("/api/maintenance", requireAuth, (req, res) => {
     return res.status(400).json({ message: "Projeto ativo obrigatório." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   const tombstones = getMaintenanceTombstonesMap(projectId);
   let dataset = loadMaintenanceData();
@@ -16112,7 +16142,7 @@ app.delete("/api/maintenance/:id", requireAuth, requireStorageWritable, (req, re
     return res.status(400).json({ message: "Manutenção inválida." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   if (!canDeleteMaintenance(user)) {
     return res.status(403).json({ message: "Sem permissão para remover manutenções." });
@@ -16233,14 +16263,14 @@ app.get("/api/contingencies/enums", requireAuth, (req, res) => {
 app.get("/api/contingencies", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   if (!user) {
-    return respondContingencyError(res, 401, "unauthenticated", "Sessao invalida.");
+    return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
   }
   const allowedProjects = new Set(getUserProjectIds(user));
   const queryProjectId = String(req.query.projectId || "").trim();
   const activeProjectId = getActiveProjectId(req, user) || "";
   const projectId = queryProjectId || activeProjectId;
   if (projectId && !allowedProjects.has(projectId)) {
-    return respondContingencyError(res, 403, "project_access_denied", "Nao autorizado.", {
+    return respondContingencyError(res, 403, "project_access_denied", "Não autorizado.", {
       userId: user.id,
       projectId,
     });
@@ -16250,7 +16280,7 @@ app.get("/api/contingencies", requireAuth, (req, res) => {
       res,
       400,
       "missing_active_project",
-      "Projeto ativo obrigatorio.",
+      "Projeto ativo obrigatório.",
       { userId: user.id }
     );
   }
@@ -16286,7 +16316,7 @@ app.get("/api/contingencies", requireAuth, (req, res) => {
 app.get("/api/contingencies/:id", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   if (!user) {
-    return respondContingencyError(res, 401, "unauthenticated", "Sessao invalida.");
+    return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
   }
   const contingencyId = String(req.params.id || "").trim();
   if (!contingencyId) {
@@ -16294,7 +16324,7 @@ app.get("/api/contingencies/:id", requireAuth, (req, res) => {
       res,
       400,
       "invalid_id",
-      "Contingencia invalida.",
+      "Contingência inválida.",
       { userId: user.id }
     );
   }
@@ -16304,12 +16334,12 @@ app.get("/api/contingencies/:id", requireAuth, (req, res) => {
       res,
       404,
       "not_found",
-      "Contingencia nao encontrada.",
+      "Contingência não encontrada.",
       { userId: user.id, contingencyId }
     );
   }
   if (!userHasProjectAccess(user, found.item.projectId)) {
-    return respondContingencyError(res, 403, "project_access_denied", "Nao autorizado.", {
+    return respondContingencyError(res, 403, "project_access_denied", "Não autorizado.", {
       userId: user.id,
       contingencyId,
       projectId: found.item.projectId,
@@ -16327,7 +16357,7 @@ app.post("/api/contingencies", requireAuth, requireStorageWritable, (req, res) =
   const user = req.currentUser || getSessionUser(req);
   const payload = req.body && typeof req.body === "object" ? req.body : {};
   if (!user) {
-    return respondContingencyError(res, 401, "unauthenticated", "Sessao invalida.");
+    return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
   }
   const projectId = resolveContingencyProjectId(req, user, { payload });
   if (!projectId) {
@@ -16335,12 +16365,12 @@ app.post("/api/contingencies", requireAuth, requireStorageWritable, (req, res) =
       res,
       400,
       "missing_active_project",
-      "Projeto ativo obrigatorio.",
+      "Projeto ativo obrigatório.",
       { userId: user.id }
     );
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return respondContingencyError(res, 403, "project_access_denied", "Nao autorizado.", {
+    return respondContingencyError(res, 403, "project_access_denied", "Não autorizado.", {
       userId: user.id,
       projectId,
     });
@@ -16383,7 +16413,7 @@ app.post("/api/contingencies", requireAuth, requireStorageWritable, (req, res) =
       res,
       403,
       "close_permission_denied",
-      "Sem permissao para encerrar contingencias.",
+      "Sem permissão para encerrar contingências.",
       { userId: user.id, projectId }
     );
   }
@@ -16429,7 +16459,21 @@ app.post("/api/contingencies", requireAuth, requireStorageWritable, (req, res) =
   appendAudit(
     "contingency_create",
     user.id || null,
-    { contingencyId: record.id, code: record.code, projectId },
+    {
+      contingencyId: record.id,
+      code: record.code,
+      projectId,
+      reviewFlow: {
+        reviewNature: record.reviewNature,
+        preparedBy: record.preparedBy,
+        verifiedBy: record.verifiedBy,
+        verifiedAt: record.verifiedAt,
+        approvedBy: record.approvedBy,
+        approvedAt: record.approvedAt,
+        finalApprovedBy: record.finalApprovedBy,
+        finalApprovedAt: record.finalApprovedAt,
+      },
+    },
     getClientIp(req),
     projectId
   );
@@ -16459,14 +16503,14 @@ app.put("/api/contingencies/:id", requireAuth, requireStorageWritable, (req, res
   const contingencyId = String(req.params.id || "").trim();
   const payload = req.body && typeof req.body === "object" ? req.body : {};
   if (!user) {
-    return respondContingencyError(res, 401, "unauthenticated", "Sessao invalida.");
+    return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
   }
   if (!contingencyId) {
     return respondContingencyError(
       res,
       400,
       "invalid_id",
-      "Contingencia invalida.",
+      "Contingência inválida.",
       { userId: user.id }
     );
   }
@@ -16476,12 +16520,12 @@ app.put("/api/contingencies/:id", requireAuth, requireStorageWritable, (req, res
       res,
       404,
       "not_found",
-      "Contingencia nao encontrada.",
+      "Contingência não encontrada.",
       { userId: user.id, contingencyId }
     );
   }
   if (!userHasProjectAccess(user, found.item.projectId)) {
-    return respondContingencyError(res, 403, "project_access_denied", "Nao autorizado.", {
+    return respondContingencyError(res, 403, "project_access_denied", "Não autorizado.", {
       userId: user.id,
       contingencyId,
       projectId: found.item.projectId,
@@ -16492,7 +16536,7 @@ app.put("/api/contingencies/:id", requireAuth, requireStorageWritable, (req, res
       res,
       403,
       "edit_permission_denied",
-      "Sem permissao para editar esta contingencia.",
+      "Sem permissão para editar esta contingência.",
       {
         userId: user.id,
         contingencyId,
@@ -16506,7 +16550,7 @@ app.put("/api/contingencies/:id", requireAuth, requireStorageWritable, (req, res
       res,
       403,
       "close_permission_denied",
-      "Sem permissao para encerrar contingencias.",
+      "Sem permissão para encerrar contingências.",
       { userId: user.id, contingencyId, projectId: found.item.projectId }
     );
   }
@@ -16588,7 +16632,21 @@ app.put("/api/contingencies/:id", requireAuth, requireStorageWritable, (req, res
   appendAudit(
     "contingency_update",
     user.id || null,
-    { contingencyId: updated.id, code: updated.code, projectId: updated.projectId },
+    {
+      contingencyId: updated.id,
+      code: updated.code,
+      projectId: updated.projectId,
+      reviewFlow: {
+        reviewNature: updated.reviewNature,
+        preparedBy: updated.preparedBy,
+        verifiedBy: updated.verifiedBy,
+        verifiedAt: updated.verifiedAt,
+        approvedBy: updated.approvedBy,
+        approvedAt: updated.approvedAt,
+        finalApprovedBy: updated.finalApprovedBy,
+        finalApprovedAt: updated.finalApprovedAt,
+      },
+    },
     getClientIp(req),
     updated.projectId
   );
@@ -16617,14 +16675,14 @@ app.delete("/api/contingencies/:id", requireAuth, requireStorageWritable, async 
   const user = req.currentUser || getSessionUser(req);
   const contingencyId = String(req.params.id || "").trim();
   if (!user) {
-    return respondContingencyError(res, 401, "unauthenticated", "Sessao invalida.");
+    return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
   }
   if (!contingencyId) {
     return respondContingencyError(
       res,
       400,
       "invalid_id",
-      "Contingencia invalida.",
+      "Contingência inválida.",
       { userId: user.id }
     );
   }
@@ -16634,12 +16692,12 @@ app.delete("/api/contingencies/:id", requireAuth, requireStorageWritable, async 
       res,
       404,
       "not_found",
-      "Contingencia nao encontrada.",
+      "Contingência não encontrada.",
       { userId: user.id, contingencyId }
     );
   }
   if (!userHasProjectAccess(user, found.item.projectId)) {
-    return respondContingencyError(res, 403, "project_access_denied", "Nao autorizado.", {
+    return respondContingencyError(res, 403, "project_access_denied", "Não autorizado.", {
       userId: user.id,
       contingencyId,
       projectId: found.item.projectId,
@@ -16651,7 +16709,7 @@ app.delete("/api/contingencies/:id", requireAuth, requireStorageWritable, async 
       res,
       403,
       "delete_permission_denied",
-      "Sem permissao para excluir contingencia encerrada.",
+      "Sem permissão para excluir contingência encerrada.",
       { userId: user.id, contingencyId, projectId: found.item.projectId }
     );
   }
@@ -16729,7 +16787,7 @@ app.post(
     const user = req.currentUser || getSessionUser(req);
     const contingencyId = String(req.params.id || "").trim();
     if (!user) {
-      return respondContingencyError(res, 401, "unauthenticated", "Sessao invalida.");
+      return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
     }
     const found = getContingencyById(contingencyId);
     if (!found.item) {
@@ -16737,7 +16795,7 @@ app.post(
         res,
         404,
         "not_found",
-        "Contingencia nao encontrada.",
+        "Contingência não encontrada.",
         { userId: user.id, contingencyId }
       );
     }
@@ -16746,7 +16804,7 @@ app.post(
         res,
         403,
         "edit_permission_denied",
-        "Sem permissao para anexar arquivos.",
+        "Sem permissão para anexar arquivos.",
         { userId: user.id, contingencyId, projectId: found.item.projectId }
       );
     }
@@ -16756,7 +16814,7 @@ app.post(
         res,
         400,
         "missing_file",
-        "Arquivo nao enviado.",
+        "Arquivo não enviado.",
         { userId: user.id, contingencyId }
       );
     }
@@ -16766,7 +16824,7 @@ app.post(
         res,
         415,
         "invalid_mime",
-        "Tipo de arquivo nao suportado.",
+        "Tipo de arquivo não suportado.",
         { userId: user.id, contingencyId, mime }
       );
     }
@@ -16923,7 +16981,7 @@ app.put(
     const contingencyId = String(req.params.id || "").trim();
     const attachmentId = String(req.params.attachmentId || "").trim();
     if (!user) {
-      return respondContingencyError(res, 401, "unauthenticated", "Sessao invalida.");
+      return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
     }
     const found = getContingencyById(contingencyId);
     if (!found.item) {
@@ -16931,7 +16989,7 @@ app.put(
         res,
         404,
         "not_found",
-        "Contingencia nao encontrada.",
+        "Contingência não encontrada.",
         { userId: user.id, contingencyId }
       );
     }
@@ -16940,7 +16998,7 @@ app.put(
         res,
         403,
         "edit_permission_denied",
-        "Sem permissao para editar anexos.",
+        "Sem permissão para editar anexos.",
         { userId: user.id, contingencyId, projectId: found.item.projectId }
       );
     }
@@ -16955,7 +17013,7 @@ app.put(
         res,
         404,
         "attachment_not_found",
-        "Anexo nao encontrado.",
+        "Anexo não encontrado.",
         { userId: user.id, contingencyId, attachmentId }
       );
     }
@@ -17029,7 +17087,7 @@ app.delete(
     const contingencyId = String(req.params.id || "").trim();
     const attachmentId = String(req.params.attachmentId || "").trim();
     if (!user) {
-      return respondContingencyError(res, 401, "unauthenticated", "Sessao invalida.");
+      return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
     }
     const found = getContingencyById(contingencyId);
     if (!found.item) {
@@ -17037,7 +17095,7 @@ app.delete(
         res,
         404,
         "not_found",
-        "Contingencia nao encontrada.",
+        "Contingência não encontrada.",
         { userId: user.id, contingencyId }
       );
     }
@@ -17046,7 +17104,7 @@ app.delete(
         res,
         403,
         "edit_permission_denied",
-        "Sem permissao para excluir anexos.",
+        "Sem permissão para excluir anexos.",
         { userId: user.id, contingencyId, projectId: found.item.projectId }
       );
     }
@@ -17061,7 +17119,7 @@ app.delete(
         res,
         404,
         "attachment_not_found",
-        "Anexo nao encontrado.",
+        "Anexo não encontrado.",
         { userId: user.id, contingencyId, attachmentId }
       );
     }
@@ -17125,14 +17183,14 @@ app.get("/api/contingencies/:id/report", requireAuth, async (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   const contingencyId = String(req.params.id || "").trim();
   if (!user) {
-    return respondContingencyError(res, 401, "unauthenticated", "Sessao invalida.");
+    return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
   }
   if (!contingencyId) {
     return respondContingencyError(
       res,
       400,
       "invalid_id",
-      "Contingencia invalida.",
+      "Contingência inválida.",
       { userId: user.id }
     );
   }
@@ -17142,12 +17200,12 @@ app.get("/api/contingencies/:id/report", requireAuth, async (req, res) => {
       res,
       404,
       "not_found",
-      "Contingencia nao encontrada.",
+      "Contingência não encontrada.",
       { userId: user.id, contingencyId }
     );
   }
   if (!userHasProjectAccess(user, found.item.projectId)) {
-    return respondContingencyError(res, 403, "project_access_denied", "Nao autorizado.", {
+    return respondContingencyError(res, 403, "project_access_denied", "Não autorizado.", {
       userId: user.id,
       contingencyId,
       projectId: found.item.projectId,
@@ -17241,7 +17299,7 @@ app.post(
     }
     if (record.scope === "project" && record.projectId) {
       if (!userHasProjectAccess(user, record.projectId)) {
-        return res.status(403).json({ message: "Nao autorizado." });
+        return res.status(403).json({ message: "Não autorizado." });
       }
     }
     announcements = [record, ...announcements];
@@ -17308,7 +17366,7 @@ app.get("/api/feedbacks", requireAuth, (req, res) => {
     return res.status(400).json({ message: "Projeto ativo obrigatório." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   const list = Array.isArray(feedbacks) ? feedbacks : [];
   const visible = list.filter(
@@ -17327,7 +17385,7 @@ app.post("/api/feedbacks", requireAuth, requireStorageWritable, (req, res) => {
     return res.status(400).json({ message: "Projeto ativo obrigatório." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   const payload = {
     ...req.body,
@@ -17402,7 +17460,7 @@ app.get(
       return res.status(400).json({ message: "Projeto ativo obrigat\u00f3rio." });
     }
     if (!userHasProjectAccess(user, projectId)) {
-      return res.status(403).json({ message: "Nao autorizado." });
+      return res.status(403).json({ message: "Não autorizado." });
     }
     const list = loadRdoSnapshots().filter((item) => item && item.projectId === projectId);
     return res.json({ items: list, projectId });
@@ -17423,7 +17481,7 @@ app.post(
       return res.status(400).json({ message: "Projeto ativo obrigat\u00f3rio." });
     }
     if (!userHasProjectAccess(user, projectId)) {
-      return res.status(403).json({ message: "Nao autorizado." });
+      return res.status(403).json({ message: "Não autorizado." });
     }
 
     const incoming = Array.isArray(req.body.items)
@@ -17469,7 +17527,7 @@ app.post(
       return res.status(400).json({ message: "Projeto ativo obrigatório." });
     }
     if (!userHasProjectAccess(user, projectId)) {
-      return res.status(403).json({ message: "Nao autorizado." });
+      return res.status(403).json({ message: "Não autorizado." });
     }
     const dateRaw = String(body.date || body.rdoDate || body.day || "").trim();
     const date = parseDateOnly(dateRaw) || startOfDay(new Date());
@@ -17557,7 +17615,7 @@ app.post("/api/maintenance/release", requireAuth, (req, res) => {
     return res.status(404).json({ message: "ManutenÃ§Ã£o nÃ£o encontrada." });
   }
   if (!canExecuteMaintenanceForUser(candidate, user)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
 
   const dueDate = getDueDate(candidate) || parseDateOnly(payloadDate);
@@ -17643,10 +17701,10 @@ app.patch("/api/admin/users/:id", requireAuth, requirePermission("verUsuarios"),
     "securitySettings" in req.body;
 
   if (wantsProfileUpdate && !canEditProfile(actor, current)) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   if (wantsActive && !hasGranularPermission(actor, "desativarUsuarios")) {
-    return res.status(403).json({ message: "Nao autorizado." });
+    return res.status(403).json({ message: "Não autorizado." });
   }
   if ("name" in req.body) {
     updates.name = String(req.body.name || "").trim();
