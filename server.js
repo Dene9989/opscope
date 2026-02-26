@@ -4333,7 +4333,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
       });
       cursorY -= leading;
     }
-    cursorY -= Number(options.after || 1.8);
+    cursorY -= Number(options.after ?? 9.6);
   };
 
   const kv = (label, value, options = {}) => {
@@ -4521,9 +4521,10 @@ async function generateContingencyReportPdf(payload, options = {}) {
   const completion = Math.round((checklist.filter(Boolean).length / checklist.length) * 100);
   const renderActionList = (title, actions) => {
     writeText(title, { bold: true, size: 10.6, leading: 13, color: palette.primary });
+    cursorY -= 2.8;
     if (!actions.length) {
-      writeText("Sem acoes registradas.", { size: 9.4, leading: 11.4, color: palette.muted });
-      cursorY -= 2;
+      writeText("Sem ações registradas.", { size: 9.4, leading: 11.4, color: palette.muted });
+      cursorY -= 8.8;
       return;
     }
     actions.forEach((action, index) => {
@@ -4543,7 +4544,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
       ].join(" | ");
       const summaryLines = wrapPdfText(summary, contentWidth, 10, fontBold);
       const detailsLines = wrapPdfText(details, contentWidth, 9.2, font);
-      const blockHeight = summaryLines.length * 12 + detailsLines.length * 11.2 + 7;
+      const blockHeight = summaryLines.length * 12 + detailsLines.length * 11.2 + 12;
       ensureSpace(blockHeight);
       summaryLines.forEach((line) => {
         page.drawText(line || " ", {
@@ -4565,7 +4566,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
         });
         cursorY -= 11.2;
       });
-      cursorY -= 3.2;
+      cursorY -= 8.8;
     });
   };
   const totalActions = correctiveActions.length + preventiveActions.length;
@@ -4711,7 +4712,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
         size: 10,
         leading: 12.2,
       });
-      cursorY -= 2;
+      cursorY -= 8.6;
       if (currentTime) {
         previousTime = currentTime;
       }
@@ -4753,6 +4754,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
   renderActionList("Ações preventivas:", preventiveActions);
   if (communications.length) {
     writeText("Comunicações:", { bold: true, size: 10.6, leading: 13, color: palette.primary });
+    cursorY -= 2.8;
     communications.forEach((entry, index) => {
       const statusValue = entry.done ? "Concluída" : "Pendente";
       const noteLabel = entry.note ? ` | Nota: ${entry.note}` : "";
@@ -4761,6 +4763,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
         leading: 11.3,
         color: entry.done ? palette.success : palette.text,
       });
+      cursorY -= 6.2;
     });
   } else {
     kv("Comunicações", "Sem checklist de comunicações.");
@@ -4893,6 +4896,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
         attachment.uploadedAt
       )}`;
       writeText(line, { size: 9.4, leading: 11.4 });
+      cursorY -= 5.4;
     });
   }
 
