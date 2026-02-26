@@ -3837,18 +3837,18 @@ async function generateContingencyReportPdf(payload, options = {}) {
   const headerHeight = 72;
   const footerY = 20;
   const palette = {
-    header: rgb(0.06, 0.18, 0.33),
-    accent: rgb(0.79, 0.61, 0.26),
-    primary: rgb(0.08, 0.24, 0.45),
-    text: rgb(0.12, 0.16, 0.22),
-    muted: rgb(0.33, 0.39, 0.47),
+    header: rgb(1, 1, 1),
+    accent: rgb(0.08, 0.24, 0.45),
+    primary: rgb(0.08, 0.22, 0.4),
+    text: rgb(0.08, 0.08, 0.08),
+    muted: rgb(0.34, 0.34, 0.34),
     success: rgb(0.16, 0.47, 0.26),
     warning: rgb(0.74, 0.47, 0.08),
     danger: rgb(0.67, 0.16, 0.16),
-    line: rgb(0.81, 0.84, 0.89),
-    section: rgb(0.93, 0.95, 0.99),
-    card: rgb(0.96, 0.97, 0.99),
-    border: rgb(0.84, 0.87, 0.92),
+    line: rgb(0, 0, 0),
+    section: rgb(0.985, 0.985, 0.985),
+    card: rgb(1, 1, 1),
+    border: rgb(0, 0, 0),
   };
   const toText = (value, fallback = "-") => {
     if (value === null || value === undefined) {
@@ -3879,6 +3879,8 @@ async function generateContingencyReportPdf(payload, options = {}) {
   const opscopeLogo = await embedLogo(path.join(__dirname, "assets", "img", "opscope-logo.png"));
   let page = null;
   let cursorY = 0;
+  const tocEntries = [];
+  let indexPage = null;
 
   const drawImageContain = (image, x, y, width, height) => {
     if (!image) {
@@ -3898,35 +3900,39 @@ async function generateContingencyReportPdf(payload, options = {}) {
   const drawHeader = () => {
     const pageHeight = pageSize[1];
     page.drawRectangle({
-      x: 0,
+      x: margin,
       y: pageHeight - headerHeight,
-      width: pageSize[0],
-      height: headerHeight,
+      width: contentWidth,
+      height: headerHeight - 8,
+      borderColor: palette.border,
+      borderWidth: 1,
       color: palette.header,
     });
     page.drawRectangle({
-      x: 0,
+      x: margin,
       y: pageHeight - headerHeight,
-      width: pageSize[0],
-      height: 3,
+      width: contentWidth,
+      height: 2,
       color: palette.accent,
     });
-    drawImageContain(engelmigLogo, margin, pageHeight - headerHeight + 12, 122, 38);
-    drawImageContain(opscopeLogo, pageSize[0] - margin - 122, pageHeight - headerHeight + 12, 122, 38);
-    page.drawText("Relatorio Tecnico de Contingencia", {
-      x: margin + 132,
-      y: pageHeight - 34,
-      size: 11.5,
+    drawImageContain(engelmigLogo, margin + 8, pageHeight - headerHeight + 12, 110, 32);
+    drawImageContain(opscopeLogo, pageSize[0] - margin - 118, pageHeight - headerHeight + 12, 110, 32);
+    const headerTitle = "RELATÓRIO DE CONTINGÊNCIA";
+    const titleWidth = fontBold.widthOfTextAtSize(headerTitle, 12.6);
+    page.drawText(headerTitle, {
+      x: margin + (contentWidth - titleWidth) / 2,
+      y: pageHeight - 36,
+      size: 12.6,
       font: fontBold,
-      color: rgb(0.96, 0.98, 1),
+      color: palette.primary,
     });
     const headerMeta = `${toText(safePayload.code)} | ${reportType === "client" ? "Versao Cliente" : "Versao Interna"}`;
     page.drawText(headerMeta, {
-      x: pageSize[0] - margin - font.widthOfTextAtSize(headerMeta, 8.7),
-      y: pageHeight - 50,
-      size: 8.7,
+      x: pageSize[0] - margin - 12 - font.widthOfTextAtSize(headerMeta, 8.4),
+      y: pageHeight - 53,
+      size: 8.4,
       font,
-      color: rgb(0.86, 0.9, 0.95),
+      color: palette.muted,
     });
   };
 
@@ -3934,6 +3940,197 @@ async function generateContingencyReportPdf(payload, options = {}) {
     page = pdfDoc.addPage(pageSize);
     drawHeader();
     cursorY = pageSize[1] - headerHeight - 18;
+  };
+
+  const getCurrentPageNumber = () => {
+    const pages = pdfDoc.getPages();
+    const index = pages.indexOf(page);
+    return index >= 0 ? index + 1 : pages.length || 1;
+  };
+
+  const drawCenteredText = (text, y, size = 11, bold = false, color = palette.text) => {
+    const content = toText(text);
+    const selectedFont = bold ? fontBold : font;
+    const width = selectedFont.widthOfTextAtSize(content, size);
+    page.drawText(content, {
+      x: margin + (contentWidth - width) / 2,
+      y,
+      size,
+      font: selectedFont,
+      color,
+    });
+  };
+
+  const addCoverPage = () => {
+    page = pdfDoc.addPage(pageSize);
+    const top = pageSize[1] - margin;
+    const frameBottom = margin + 24;
+    const frameHeight = top - frameBottom;
+    page.drawRectangle({
+      x: margin,
+      y: frameBottom,
+      width: contentWidth,
+      height: frameHeight,
+      borderColor: palette.border,
+      borderWidth: 1.1,
+      color: rgb(1, 1, 1),
+    });
+
+    const tableHeight = 124;
+    const tableTop = top - 8;
+    const tableBottom = tableTop - tableHeight;
+    page.drawRectangle({
+      x: margin,
+      y: tableBottom,
+      width: contentWidth,
+      height: tableHeight,
+      borderColor: palette.border,
+      borderWidth: 1,
+    });
+    const colWidths = [30, 70, 108, 95, 95, 64, 65];
+    let currentX = margin;
+    colWidths.slice(0, -1).forEach((width) => {
+      currentX += width;
+      page.drawLine({
+        start: { x: currentX, y: tableBottom },
+        end: { x: currentX, y: tableTop },
+        thickness: 0.8,
+        color: palette.line,
+      });
+    });
+    const rowHeights = [30, 23, 23, 23, 25];
+    let currentY = tableTop;
+    rowHeights.slice(0, -1).forEach((height) => {
+      currentY -= height;
+      page.drawLine({
+        start: { x: margin, y: currentY },
+        end: { x: margin + contentWidth, y: currentY },
+        thickness: 0.8,
+        color: palette.line,
+      });
+    });
+
+    const headers = [
+      "Nº",
+      "DATA",
+      "NATUREZA DA REVISAO",
+      "ELABORADO",
+      "VERIFICADO",
+      "APROV.",
+      "APROV. FINAL",
+    ];
+    let colX = margin;
+    headers.forEach((label, index) => {
+      const width = colWidths[index];
+      const textWidth = fontBold.widthOfTextAtSize(label, 8.1);
+      page.drawText(label, {
+        x: colX + (width - textWidth) / 2,
+        y: tableTop - 18,
+        size: 8.1,
+        font: fontBold,
+        color: palette.text,
+      });
+      colX += width;
+    });
+
+    const firstRow = [
+      "0",
+      formatContingencyDateOnly(generatedAt),
+      "Emissao",
+      toText(generatedBy),
+      "-",
+      "-",
+      "-",
+    ];
+    colX = margin;
+    firstRow.forEach((value, index) => {
+      const width = colWidths[index];
+      const safeValue = toText(value);
+      const lines = wrapPdfText(safeValue, width - 8, 8.4, font);
+      const textY = tableTop - 44;
+      lines.slice(0, 2).forEach((line, lineIndex) => {
+        const lineWidth = font.widthOfTextAtSize(line, 8.4);
+        page.drawText(line, {
+          x: colX + (width - lineWidth) / 2,
+          y: textY - lineIndex * 9.3,
+          size: 8.4,
+          font,
+          color: palette.text,
+        });
+      });
+      colX += width;
+    });
+
+    const logosRowHeight = 74;
+    const logosTop = tableBottom - 2;
+    const logosBottom = logosTop - logosRowHeight;
+    page.drawRectangle({
+      x: margin,
+      y: logosBottom,
+      width: contentWidth,
+      height: logosRowHeight,
+      borderColor: palette.border,
+      borderWidth: 1,
+    });
+    page.drawLine({
+      start: { x: margin + contentWidth / 2, y: logosBottom },
+      end: { x: margin + contentWidth / 2, y: logosTop },
+      thickness: 0.8,
+      color: palette.line,
+    });
+    drawImageContain(engelmigLogo, margin + 14, logosBottom + 8, contentWidth / 2 - 24, logosRowHeight - 16);
+    drawImageContain(opscopeLogo, margin + contentWidth / 2 + 14, logosBottom + 10, contentWidth / 2 - 24, logosRowHeight - 20);
+
+    const titleBlockTop = logosBottom - 2;
+    const titleBlockBottom = frameBottom + 4;
+    const titleBlockHeight = titleBlockTop - titleBlockBottom;
+    page.drawRectangle({
+      x: margin,
+      y: titleBlockBottom,
+      width: contentWidth,
+      height: titleBlockHeight,
+      borderColor: palette.border,
+      borderWidth: 1,
+    });
+    const rowA = titleBlockTop - 58;
+    const rowB = rowA - 72;
+    const rowC = rowB - 58;
+    page.drawLine({
+      start: { x: margin, y: rowA },
+      end: { x: margin + contentWidth, y: rowA },
+      thickness: 0.8,
+      color: palette.line,
+    });
+    page.drawLine({
+      start: { x: margin, y: rowB },
+      end: { x: margin + contentWidth, y: rowB },
+      thickness: 0.8,
+      color: palette.line,
+    });
+    page.drawLine({
+      start: { x: margin, y: rowC },
+      end: { x: margin + contentWidth, y: rowC },
+      thickness: 0.8,
+      color: palette.line,
+    });
+    drawCenteredText(toText(safePayload.substation || projectLabel || "SUBESTACAO"), titleBlockTop - 36, 15, true);
+    drawCenteredText("RELATÓRIO DE CONTINGÊNCIA", rowA - 44, 16, true, palette.primary);
+    drawCenteredText(
+      `${getContingencyLabel(CONTINGENCY_EVENT_LABELS, safePayload.eventType, "Outro")} | ${
+        toText(safePayload.assetName || safePayload.assetId)
+      }`,
+      rowB - 34,
+      11.2,
+      true
+    );
+    drawCenteredText(
+      `Codigo: ${toText(safePayload.code)}  |  Revisao: ${toText(safePayload.revision || 1)}  |  Emissao: ${formatContingencyDateOnly(
+        generatedAt
+      )}`,
+      rowC - 35,
+      10.1,
+      true
+    );
   };
 
   const ensureSpace = (height) => {
@@ -3972,6 +4169,14 @@ async function generateContingencyReportPdf(payload, options = {}) {
 
   const section = (title) => {
     ensureSpace(34);
+    const sectionKey = String(title || "").trim();
+    if (sectionKey && !tocEntries.some((entry) => entry.key === sectionKey)) {
+      tocEntries.push({
+        key: sectionKey,
+        title: sectionKey.replace(/^\d+\.\s*/, "").trim() || sectionKey,
+        page: getCurrentPageNumber(),
+      });
+    }
     page.drawRectangle({
       x: margin,
       y: cursorY - 18,
@@ -4156,90 +4361,55 @@ async function generateContingencyReportPdf(payload, options = {}) {
   ];
   const completion = Math.round((checklist.filter(Boolean).length / checklist.length) * 100);
 
+  addCoverPage();
+
   addPage();
-  writeText("RELATORIO TECNICO PARA ACIONAMENTO DE GARANTIA", {
+  indexPage = page;
+  drawCenteredText("ÍNDICE", pageSize[1] - headerHeight - 42, 22, false, palette.text);
+  page.drawLine({
+    start: { x: margin + 10, y: pageSize[1] - headerHeight - 52 },
+    end: { x: pageSize[0] - margin - 10, y: pageSize[1] - headerHeight - 52 },
+    thickness: 0.8,
+    color: palette.line,
+  });
+  addPage();
+  writeText("RELATÓRIO DE CONTINGÊNCIA", {
     bold: true,
-    size: 18,
+    size: 17,
     color: palette.primary,
-    leading: 20,
+    leading: 19,
   });
-  writeText(`${reportType === "client" ? "Versao Cliente" : "Versao Interna"} | Projeto ${projectLabel}`, {
-    size: 10,
+  writeText(`${reportType === "client" ? "Versao Cliente" : "Versao Interna"} | Projeto: ${projectLabel}`, {
+    size: 10.5,
     bold: true,
-    color: palette.muted,
-    leading: 12,
-  });
-  writeText(`Data de emissao: ${formatContingencyDateTime(generatedAt)} | Codigo: ${toText(safePayload.code)}`, {
-    size: 9.6,
     color: palette.text,
-    leading: 11.5,
+    leading: 12.8,
   });
-  cursorY -= 3;
-  const badge = `${severity} | Janela ${formatWindow(startAt, endAt)}`;
-  const badgeWidth = fontBold.widthOfTextAtSize(badge, 9) + 18;
-  ensureSpace(24);
-  page.drawRectangle({
-    x: margin,
-    y: cursorY - 17,
-    width: badgeWidth,
-    height: 17,
-    color: palette.primary,
-  });
-  page.drawText(badge, {
-    x: margin + 9,
-    y: cursorY - 12,
-    size: 9,
-    font: fontBold,
-    color: rgb(0.96, 0.98, 1),
-  });
-  cursorY -= 25;
-  const summary = [
-    { label: "Status", value: getContingencyLabel(CONTINGENCY_STATUS_LABELS, safePayload.status, "Rascunho") },
+  writeText(
+    `Codigo: ${toText(safePayload.code)} | Emissao: ${formatContingencyDateTime(generatedAt)} | Revisao: ${toText(
+      safePayload.revision || 1
+    )}`,
     {
-      label: "Condicao",
-      value: getContingencyLabel(CONTINGENCY_SYSTEM_CONDITION_LABELS, safePayload.systemCondition, "Normal"),
-    },
-    { label: "Completude", value: `${completion}%` },
-    { label: "Timeline", value: String(timeline.length) },
-    { label: "Anexos/Fotos", value: `${attachments.length}` },
-    { label: "Emitido por", value: generatedBy },
-  ];
-  const cardCols = 3;
-  const cardGap = 9;
-  const cardWidth = (contentWidth - cardGap * (cardCols - 1)) / cardCols;
-  const cardHeight = 53;
-  for (let start = 0; start < summary.length; start += cardCols) {
-    const row = summary.slice(start, start + cardCols);
-    ensureSpace(cardHeight + 8);
-    const topY = cursorY;
-    row.forEach((item, index) => {
-      const x = margin + index * (cardWidth + cardGap);
-      page.drawRectangle({
-        x,
-        y: topY - cardHeight,
-        width: cardWidth,
-        height: cardHeight,
-        color: palette.card,
-        borderColor: palette.border,
-        borderWidth: 0.7,
-      });
-      page.drawText(toText(item.label), {
-        x: x + 6,
-        y: topY - 13,
-        size: 8.2,
-        font: fontBold,
-        color: palette.muted,
-      });
-      page.drawText(toText(item.value), {
-        x: x + 6,
-        y: topY - 31,
-        size: 10.4,
-        font: fontBold,
-        color: palette.primary,
-      });
-    });
-    cursorY -= cardHeight + 8;
-  }
+      size: 10.2,
+      color: palette.text,
+      leading: 12.4,
+    }
+  );
+  drawDivider();
+  writeText("DADOS GERAIS", {
+    bold: true,
+    size: 12,
+    color: palette.primary,
+    leading: 14,
+  });
+  kv("Status", getContingencyLabel(CONTINGENCY_STATUS_LABELS, safePayload.status, "Rascunho"));
+  kv("Severidade", severity);
+  kv("Condicao do sistema", getContingencyLabel(CONTINGENCY_SYSTEM_CONDITION_LABELS, safePayload.systemCondition, "Normal"));
+  kv("Janela do evento", formatWindow(startAt, endAt));
+  kv("Completude do relatorio", `${completion}%`);
+  kv("Total de eventos de timeline", String(timeline.length));
+  kv("Total de anexos", String(attachments.length));
+  kv("Emitido por", generatedBy);
   drawDivider();
 
   section("1. Identificacao do Evento");
@@ -4543,7 +4713,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
   kv("Codigo da contingencia", safePayload.code || "-");
   kv("Projeto/UEN", projectLabel);
   writeText(
-    "Documento estruturado para acionamento de garantia, com rastreabilidade tecnica, historico de acoes e evidencias.",
+    "Documento estruturado para rastreabilidade tecnica da contingencia, com historico de acoes e evidencias.",
     {
       size: 9.5,
       leading: 11.4,
@@ -4580,6 +4750,67 @@ async function generateContingencyReportPdf(payload, options = {}) {
     font,
     color: palette.muted,
   });
+
+  if (indexPage) {
+    const indexTitleY = pageSize[1] - headerHeight - 42;
+    let indexY = indexTitleY - 34;
+    const indexLeft = margin + 10;
+    const indexRight = pageSize[0] - margin - 10;
+    const maxRows = 26;
+    const rows = tocEntries.slice(0, maxRows);
+    rows.forEach((entry, index) => {
+      const numberLabel = `${index + 1}`;
+      const titleLabel = String(entry.title || entry.key || "").toUpperCase();
+      const pageLabel = String(entry.page || "");
+      const titleX = indexLeft + 26;
+      indexPage.drawText(numberLabel, {
+        x: indexLeft,
+        y: indexY,
+        size: 11.4,
+        font: fontBold,
+        color: palette.text,
+      });
+      indexPage.drawText(titleLabel, {
+        x: titleX,
+        y: indexY,
+        size: 11.4,
+        font: fontBold,
+        color: palette.text,
+      });
+      const titleWidth = fontBold.widthOfTextAtSize(titleLabel, 11.4);
+      const pageWidth = fontBold.widthOfTextAtSize(pageLabel, 11.4);
+      const dotsStart = titleX + titleWidth + 6;
+      const dotsEnd = indexRight - pageWidth - 6;
+      const dotsCount = Math.max(0, Math.floor((dotsEnd - dotsStart) / 3.4));
+      const dots = ".".repeat(dotsCount);
+      if (dots) {
+        indexPage.drawText(dots, {
+          x: dotsStart,
+          y: indexY + 0.5,
+          size: 11.2,
+          font,
+          color: palette.text,
+        });
+      }
+      indexPage.drawText(pageLabel, {
+        x: indexRight - pageWidth,
+        y: indexY,
+        size: 11.4,
+        font: fontBold,
+        color: palette.text,
+      });
+      indexY -= 20;
+    });
+    if (tocEntries.length > maxRows) {
+      indexPage.drawText(`+${tocEntries.length - maxRows} item(ns) adicionais no corpo do documento.`, {
+        x: indexLeft,
+        y: indexY - 4,
+        size: 9.2,
+        font,
+        color: palette.muted,
+      });
+    }
+  }
 
   const pages = pdfDoc.getPages();
   const footer = `Gerado em ${formatContingencyDateTime(generatedAt)} por ${generatedBy}`;
