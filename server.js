@@ -3830,32 +3830,135 @@ async function generateContingencyReportPdf(payload, options = {}) {
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const pageSize = [595, 842];
-  const margin = 42;
+  const margin = 34;
   const contentWidth = pageSize[0] - margin * 2;
-  const lineHeight = 14;
+  const lineHeight = 13;
   const sectionGap = 8;
-  let page = pdfDoc.addPage(pageSize);
-  let cursorY = pageSize[1] - margin;
+  const headerHeight = 72;
+  const footerY = 20;
+  const palette = {
+    header: rgb(0.06, 0.18, 0.33),
+    accent: rgb(0.79, 0.61, 0.26),
+    primary: rgb(0.08, 0.24, 0.45),
+    text: rgb(0.12, 0.16, 0.22),
+    muted: rgb(0.33, 0.39, 0.47),
+    success: rgb(0.16, 0.47, 0.26),
+    warning: rgb(0.74, 0.47, 0.08),
+    danger: rgb(0.67, 0.16, 0.16),
+    line: rgb(0.81, 0.84, 0.89),
+    section: rgb(0.93, 0.95, 0.99),
+    card: rgb(0.96, 0.97, 0.99),
+    border: rgb(0.84, 0.87, 0.92),
+  };
+  const toText = (value, fallback = "-") => {
+    if (value === null || value === undefined) {
+      return fallback;
+    }
+    const text = String(value).trim();
+    return text || fallback;
+  };
+  const embedLogo = async (logoPath) => {
+    try {
+      if (!logoPath || !fs.existsSync(logoPath)) {
+        return null;
+      }
+      const data = fs.readFileSync(logoPath);
+      const ext = String(path.extname(logoPath) || "").toLowerCase();
+      if (ext === ".png") {
+        return await pdfDoc.embedPng(data);
+      }
+      if (ext === ".jpg" || ext === ".jpeg") {
+        return await pdfDoc.embedJpg(data);
+      }
+      return await pdfDoc.embedPng(data).catch(() => null);
+    } catch (error) {
+      return null;
+    }
+  };
+  const engelmigLogo = await embedLogo(path.join(__dirname, "assets", "engelmig-logo.png"));
+  const opscopeLogo = await embedLogo(path.join(__dirname, "assets", "img", "opscope-logo.png"));
+  let page = null;
+  let cursorY = 0;
 
-  const ensureSpace = (height) => {
-    if (cursorY - height > margin + 24) {
+  const drawImageContain = (image, x, y, width, height) => {
+    if (!image) {
       return;
     }
+    const scale = Math.min(width / image.width, height / image.height, 1);
+    const drawWidth = image.width * scale;
+    const drawHeight = image.height * scale;
+    page.drawImage(image, {
+      x: x + (width - drawWidth) / 2,
+      y: y + (height - drawHeight) / 2,
+      width: drawWidth,
+      height: drawHeight,
+    });
+  };
+
+  const drawHeader = () => {
+    const pageHeight = pageSize[1];
+    page.drawRectangle({
+      x: 0,
+      y: pageHeight - headerHeight,
+      width: pageSize[0],
+      height: headerHeight,
+      color: palette.header,
+    });
+    page.drawRectangle({
+      x: 0,
+      y: pageHeight - headerHeight,
+      width: pageSize[0],
+      height: 3,
+      color: palette.accent,
+    });
+    drawImageContain(engelmigLogo, margin, pageHeight - headerHeight + 12, 122, 38);
+    drawImageContain(opscopeLogo, pageSize[0] - margin - 122, pageHeight - headerHeight + 12, 122, 38);
+    page.drawText("Relatorio Tecnico de Contingencia", {
+      x: margin + 132,
+      y: pageHeight - 34,
+      size: 11.5,
+      font: fontBold,
+      color: rgb(0.96, 0.98, 1),
+    });
+    const headerMeta = `${toText(safePayload.code)} | ${reportType === "client" ? "Versao Cliente" : "Versao Interna"}`;
+    page.drawText(headerMeta, {
+      x: pageSize[0] - margin - font.widthOfTextAtSize(headerMeta, 8.7),
+      y: pageHeight - 50,
+      size: 8.7,
+      font,
+      color: rgb(0.86, 0.9, 0.95),
+    });
+  };
+
+  const addPage = () => {
     page = pdfDoc.addPage(pageSize);
-    cursorY = pageSize[1] - margin;
+    drawHeader();
+    cursorY = pageSize[1] - headerHeight - 18;
+  };
+
+  const ensureSpace = (height) => {
+    const needed = Number(height || 18);
+    if (!page) {
+      addPage();
+      return;
+    }
+    if (cursorY - needed > margin + 16) {
+      return;
+    }
+    addPage();
   };
 
   const writeText = (text, config = {}) => {
-    const size = Number(config.size || 11);
+    const size = Number(config.size || 10.2);
     const bold = Boolean(config.bold);
-    const color = config.color || rgb(0.12, 0.16, 0.22);
+    const color = config.color || palette.text;
     const leading = Number(config.leading || lineHeight);
     const maxWidth = Number(config.maxWidth || contentWidth);
     const x = Number(config.x || margin);
-    const lines = wrapPdfText(text || "-", maxWidth, size, bold ? fontBold : font);
+    const lines = wrapPdfText(toText(text), maxWidth, size, bold ? fontBold : font);
     ensureSpace(lines.length * leading + 2);
     lines.forEach((line) => {
-      page.drawText(line, {
+      page.drawText(line || " ", {
         x,
         y: cursorY,
         size,
@@ -3869,18 +3972,27 @@ async function generateContingencyReportPdf(payload, options = {}) {
 
   const section = (title) => {
     ensureSpace(34);
-    cursorY -= 4;
-    writeText(title, {
-      bold: true,
-      size: 12.5,
-      color: rgb(0.08, 0.29, 0.53),
-      leading: 15,
+    page.drawRectangle({
+      x: margin,
+      y: cursorY - 18,
+      width: contentWidth,
+      height: 20,
+      color: palette.section,
+      borderColor: palette.border,
+      borderWidth: 0.7,
     });
-    cursorY -= sectionGap;
+    page.drawText(title, {
+      x: margin + 10,
+      y: cursorY - 12,
+      size: 11.5,
+      font: fontBold,
+      color: palette.primary,
+    });
+    cursorY -= 26 + sectionGap;
   };
 
   const kv = (label, value) => {
-    writeText(`${label}: ${value || "-"}`, { size: 10.7, leading: 13 });
+    writeText(`${label}: ${toText(value)}`, { size: 10, leading: 12.2 });
   };
 
   const drawDivider = () => {
@@ -3889,41 +4001,245 @@ async function generateContingencyReportPdf(payload, options = {}) {
       start: { x: margin, y: cursorY },
       end: { x: pageSize[0] - margin, y: cursorY },
       thickness: 0.7,
-      color: rgb(0.81, 0.84, 0.89),
+      color: palette.line,
     });
     cursorY -= 10;
   };
 
+  const attachmentKey = (attachment) =>
+    String(
+      (attachment && (attachment.id || attachment.fileId || attachment.fileName || attachment.storagePath)) || ""
+    ).trim();
+
+  const resolveAttachmentBlob = async (attachment) => {
+    if (!attachment) {
+      return null;
+    }
+    const fileId = String(attachment.fileId || "").trim();
+    const fileName = String(attachment.fileName || "").trim();
+    const mimeHint = String(attachment.mimeType || "").toLowerCase().trim();
+    const fileEntry = fileId && Array.isArray(filesMeta)
+      ? filesMeta.find((entry) => entry && String(entry.id || "") === fileId)
+      : null;
+
+    if (fileId) {
+      const blob = await fetchUploadBlobById(fileId).catch(() => null);
+      if (blob && blob.buffer && blob.buffer.length) {
+        return {
+          buffer: blob.buffer,
+          mime: String(blob.mime || fileEntry?.mime || mimeHint || "").toLowerCase(),
+          fileName: fileName || blob.name || fileId,
+        };
+      }
+    }
+
+    const candidates = [];
+    const pushCandidate = (filePath) => {
+      if (filePath && !candidates.includes(filePath)) {
+        candidates.push(filePath);
+      }
+    };
+
+    if (fileEntry && fileEntry.name) {
+      const typeConfig = getFileTypeConfig(fileEntry.type || "contingency");
+      if (typeConfig) {
+        pushCandidate(path.join(FILES_DIR, typeConfig.dir, fileEntry.name));
+        pushCandidate(path.join(LEGACY_UPLOADS_DIR, "files", typeConfig.dir, fileEntry.name));
+      }
+    }
+
+    const storagePath = String(attachment.storagePath || "").trim();
+    const storageMatch = storagePath.match(/\/uploads\/files\/([^/]+)\/([^/?#]+)/i);
+    if (storageMatch) {
+      const storageDir = storageMatch[1];
+      let storageName = storageMatch[2];
+      try {
+        storageName = decodeURIComponent(storageName);
+      } catch (error) {
+        storageName = storageMatch[2];
+      }
+      pushCandidate(path.join(FILES_DIR, storageDir, storageName));
+      pushCandidate(path.join(LEGACY_UPLOADS_DIR, "files", storageDir, storageName));
+    }
+
+    for (const candidate of candidates) {
+      try {
+        if (!fs.existsSync(candidate) || !fs.statSync(candidate).isFile()) {
+          continue;
+        }
+        const buffer = fs.readFileSync(candidate);
+        if (!buffer.length) {
+          continue;
+        }
+        return {
+          buffer,
+          mime: String(fileEntry?.mime || mimeHint || "").toLowerCase(),
+          fileName: fileName || path.basename(candidate),
+        };
+      } catch (error) {
+        // continue searching
+      }
+    }
+    return null;
+  };
+
+  const embedAttachmentImage = async (attachment) => {
+    const blob = await resolveAttachmentBlob(attachment);
+    if (!blob || !blob.buffer || !blob.buffer.length) {
+      return null;
+    }
+    let image = null;
+    const mime = String(blob.mime || "").toLowerCase();
+    if (mime.includes("png")) {
+      image = await pdfDoc.embedPng(blob.buffer).catch(() => null);
+    }
+    if (!image && (mime.includes("jpg") || mime.includes("jpeg"))) {
+      image = await pdfDoc.embedJpg(blob.buffer).catch(() => null);
+    }
+    if (!image) {
+      image = await pdfDoc.embedPng(blob.buffer).catch(() => null);
+    }
+    if (!image) {
+      image = await pdfDoc.embedJpg(blob.buffer).catch(() => null);
+    }
+    if (!image) {
+      return null;
+    }
+    return {
+      key: attachmentKey(attachment),
+      image,
+      fileName: blob.fileName || attachment.fileName || attachment.fileId || "-",
+      notes: attachment.notes || "",
+    };
+  };
+
   const project = getProjectById(safePayload.projectId);
   const projectLabel = project ? getProjectLabel(project) : safePayload.projectId || "-";
-  const timeline = Array.isArray(safePayload.timeline) ? safePayload.timeline : [];
+  const timeline = (Array.isArray(safePayload.timeline) ? safePayload.timeline : []).slice().sort((a, b) => {
+    const aDate = parseDateTime(a && a.occurredAt ? a.occurredAt : "");
+    const bDate = parseDateTime(b && b.occurredAt ? b.occurredAt : "");
+    return (aDate ? aDate.getTime() : 0) - (bDate ? bDate.getTime() : 0);
+  });
   const attachments = Array.isArray(safePayload.attachments) ? safePayload.attachments : [];
   const correctiveActions = Array.isArray(safePayload.correctiveActions) ? safePayload.correctiveActions : [];
   const preventiveActions = Array.isArray(safePayload.preventiveActions) ? safePayload.preventiveActions : [];
   const communications = Array.isArray(safePayload.communications) ? safePayload.communications : [];
+  const startAt = parseDateTime(safePayload.startAt);
+  const endAt = parseDateTime(safePayload.normalizedAt) || parseDateTime(generatedAt);
+  const today = startOfDay(new Date());
+  const severity = String(safePayload.severity || "S3").trim().toUpperCase() || "S3";
+  const formatWindow = (start, end) => {
+    if (!start || !end || end.getTime() < start.getTime()) {
+      return "-";
+    }
+    const totalMin = Math.round((end.getTime() - start.getTime()) / 60000);
+    const days = Math.floor(totalMin / 1440);
+    const hours = Math.floor((totalMin % 1440) / 60);
+    const minutes = totalMin % 60;
+    const chunks = [];
+    if (days > 0) {
+      chunks.push(`${days}d`);
+    }
+    chunks.push(`${String(hours).padStart(2, "0")}h`);
+    chunks.push(`${String(minutes).padStart(2, "0")}m`);
+    return chunks.join(" ");
+  };
+  const checklist = [
+    safePayload.code,
+    safePayload.substation,
+    safePayload.assetName || safePayload.assetId,
+    safePayload.symptoms,
+    safePayload.diagnosis,
+    safePayload.residualRisk,
+    timeline.length > 0,
+    attachments.length > 0,
+  ];
+  const completion = Math.round((checklist.filter(Boolean).length / checklist.length) * 100);
 
-  writeText("OPSCOPE", {
-    bold: true,
-    size: 11,
-    color: rgb(0.79, 0.61, 0.26),
-    leading: 12,
-  });
-  writeText("Relatorio Tecnico de Contingencia", {
+  addPage();
+  writeText("RELATORIO TECNICO PARA ACIONAMENTO DE GARANTIA", {
     bold: true,
     size: 18,
-    color: rgb(0.08, 0.2, 0.35),
+    color: palette.primary,
     leading: 20,
   });
-  writeText(reportType === "client" ? "Versao Cliente" : "Versao Interna", {
+  writeText(`${reportType === "client" ? "Versao Cliente" : "Versao Interna"} | Projeto ${projectLabel}`, {
     size: 10,
     bold: true,
-    color: rgb(0.26, 0.34, 0.42),
+    color: palette.muted,
     leading: 12,
   });
-  cursorY -= 2;
-  kv("Codigo", safePayload.code || "-");
-  kv("Data de emissao", formatContingencyDateTime(generatedAt));
-  kv("Projeto", projectLabel);
+  writeText(`Data de emissao: ${formatContingencyDateTime(generatedAt)} | Codigo: ${toText(safePayload.code)}`, {
+    size: 9.6,
+    color: palette.text,
+    leading: 11.5,
+  });
+  cursorY -= 3;
+  const badge = `${severity} | Janela ${formatWindow(startAt, endAt)}`;
+  const badgeWidth = fontBold.widthOfTextAtSize(badge, 9) + 18;
+  ensureSpace(24);
+  page.drawRectangle({
+    x: margin,
+    y: cursorY - 17,
+    width: badgeWidth,
+    height: 17,
+    color: palette.primary,
+  });
+  page.drawText(badge, {
+    x: margin + 9,
+    y: cursorY - 12,
+    size: 9,
+    font: fontBold,
+    color: rgb(0.96, 0.98, 1),
+  });
+  cursorY -= 25;
+  const summary = [
+    { label: "Status", value: getContingencyLabel(CONTINGENCY_STATUS_LABELS, safePayload.status, "Rascunho") },
+    {
+      label: "Condicao",
+      value: getContingencyLabel(CONTINGENCY_SYSTEM_CONDITION_LABELS, safePayload.systemCondition, "Normal"),
+    },
+    { label: "Completude", value: `${completion}%` },
+    { label: "Timeline", value: String(timeline.length) },
+    { label: "Anexos/Fotos", value: `${attachments.length}` },
+    { label: "Emitido por", value: generatedBy },
+  ];
+  const cardCols = 3;
+  const cardGap = 9;
+  const cardWidth = (contentWidth - cardGap * (cardCols - 1)) / cardCols;
+  const cardHeight = 53;
+  for (let start = 0; start < summary.length; start += cardCols) {
+    const row = summary.slice(start, start + cardCols);
+    ensureSpace(cardHeight + 8);
+    const topY = cursorY;
+    row.forEach((item, index) => {
+      const x = margin + index * (cardWidth + cardGap);
+      page.drawRectangle({
+        x,
+        y: topY - cardHeight,
+        width: cardWidth,
+        height: cardHeight,
+        color: palette.card,
+        borderColor: palette.border,
+        borderWidth: 0.7,
+      });
+      page.drawText(toText(item.label), {
+        x: x + 6,
+        y: topY - 13,
+        size: 8.2,
+        font: fontBold,
+        color: palette.muted,
+      });
+      page.drawText(toText(item.value), {
+        x: x + 6,
+        y: topY - 31,
+        size: 10.4,
+        font: fontBold,
+        color: palette.primary,
+      });
+    });
+    cursorY -= cardHeight + 8;
+  }
   drawDivider();
 
   section("1. Identificacao do Evento");
@@ -3965,20 +4281,30 @@ async function generateContingencyReportPdf(payload, options = {}) {
   if (!timeline.length) {
     kv("Eventos", "Sem eventos registrados.");
   } else {
+    let previousTime = null;
     timeline.forEach((entry, index) => {
+      const currentTime = parseDateTime(entry && entry.occurredAt ? entry.occurredAt : "");
+      const deltaLabel =
+        previousTime && currentTime && currentTime.getTime() >= previousTime.getTime()
+          ? ` (+${formatWindow(previousTime, currentTime)})`
+          : "";
       const when = formatContingencyDateTime(entry.occurredAt);
       const sourceLabel = getContingencyLabel(CONTINGENCY_TIMELINE_SOURCE_LABELS, entry.source, "Outro");
       const responsible = entry.responsible || "-";
-      writeText(`${index + 1}. ${when} | ${sourceLabel} | ${responsible}`, {
+      writeText(`${index + 1}. ${when} | ${sourceLabel} | ${responsible}${deltaLabel}`, {
         size: 10.3,
         bold: true,
         leading: 13,
+        color: palette.primary,
       });
       writeText(entry.event || "-", {
-        size: 10.2,
-        leading: 13,
+        size: 10,
+        leading: 12.2,
       });
       cursorY -= 2;
+      if (currentTime) {
+        previousTime = currentTime;
+      }
     });
   }
   drawDivider();
@@ -4014,41 +4340,68 @@ async function generateContingencyReportPdf(payload, options = {}) {
   section("5. Acoes Executadas e Plano");
   kv("Acoes de contencao/normalizacao", safePayload.containmentActions || "-");
   if (correctiveActions.length) {
-    writeText("Acoes corretivas:", { bold: true, size: 10.5, leading: 13 });
+    writeText("Acoes corretivas:", { bold: true, size: 10.6, leading: 13, color: palette.primary });
     correctiveActions.forEach((action, index) => {
-      const summary = [
-        `${index + 1}. ${action.action || "-"}`,
-        `Responsavel: ${action.responsible || "-"}`,
-        `Prazo: ${action.dueDate ? formatContingencyDateOnly(action.dueDate) : "-"}`,
-        `Status: ${formatContingencyActionStatus(action.status)}`,
+      const dueDate = parseDateOnly(action && action.dueDate ? action.dueDate : "");
+      const statusRaw = String(action && action.status ? action.status : "").trim().toUpperCase();
+      const overdue = Boolean(
+        dueDate && dueDate.getTime() < today.getTime() && statusRaw !== "CONCLUIDA" && statusRaw !== "CANCELADA"
+      );
+      const statusColor = overdue
+        ? palette.danger
+        : statusRaw === "CONCLUIDA"
+          ? palette.success
+          : statusRaw === "EM_ANDAMENTO"
+            ? palette.warning
+            : palette.text;
+      const summary = `${index + 1}. ${toText(action && action.action ? action.action : "-")}`;
+      const details = [
+        `Responsavel: ${toText(action && action.responsible ? action.responsible : "-")}`,
+        `Prazo: ${dueDate ? dueDate.toLocaleDateString("pt-BR") : "-"}`,
+        `Status: ${formatContingencyActionStatus(statusRaw)}${overdue ? " (ATRASADA)" : ""}`,
       ].join(" | ");
-      writeText(summary, { size: 10.1, leading: 12.5 });
+      writeText(summary, { size: 10, leading: 12, bold: true });
+      writeText(details, { size: 9.2, leading: 11.2, color: statusColor });
     });
   } else {
     kv("Acoes corretivas", "Sem acoes registradas.");
   }
   if (preventiveActions.length) {
-    writeText("Acoes preventivas:", { bold: true, size: 10.5, leading: 13 });
+    writeText("Acoes preventivas:", { bold: true, size: 10.6, leading: 13, color: palette.primary });
     preventiveActions.forEach((action, index) => {
-      const summary = [
-        `${index + 1}. ${action.action || "-"}`,
-        `Responsavel: ${action.responsible || "-"}`,
-        `Prazo: ${action.dueDate ? formatContingencyDateOnly(action.dueDate) : "-"}`,
-        `Status: ${formatContingencyActionStatus(action.status)}`,
+      const dueDate = parseDateOnly(action && action.dueDate ? action.dueDate : "");
+      const statusRaw = String(action && action.status ? action.status : "").trim().toUpperCase();
+      const overdue = Boolean(
+        dueDate && dueDate.getTime() < today.getTime() && statusRaw !== "CONCLUIDA" && statusRaw !== "CANCELADA"
+      );
+      const statusColor = overdue
+        ? palette.danger
+        : statusRaw === "CONCLUIDA"
+          ? palette.success
+          : statusRaw === "EM_ANDAMENTO"
+            ? palette.warning
+            : palette.text;
+      const summary = `${index + 1}. ${toText(action && action.action ? action.action : "-")}`;
+      const details = [
+        `Responsavel: ${toText(action && action.responsible ? action.responsible : "-")}`,
+        `Prazo: ${dueDate ? dueDate.toLocaleDateString("pt-BR") : "-"}`,
+        `Status: ${formatContingencyActionStatus(statusRaw)}${overdue ? " (ATRASADA)" : ""}`,
       ].join(" | ");
-      writeText(summary, { size: 10.1, leading: 12.5 });
+      writeText(summary, { size: 10, leading: 12, bold: true });
+      writeText(details, { size: 9.2, leading: 11.2, color: statusColor });
     });
   } else {
     kv("Acoes preventivas", "Sem acoes registradas.");
   }
   if (communications.length) {
-    writeText("Comunicacoes:", { bold: true, size: 10.5, leading: 13 });
+    writeText("Comunicacoes:", { bold: true, size: 10.6, leading: 13, color: palette.primary });
     communications.forEach((entry, index) => {
-      const statusLabel = entry.done ? "Concluida" : "Pendente";
-      const noteLabel = entry.note ? ` (${entry.note})` : "";
-      writeText(`${index + 1}. ${entry.label || "-"} - ${statusLabel}${noteLabel}`, {
-        size: 10.1,
-        leading: 12.5,
+      const statusValue = entry.done ? "Concluida" : "Pendente";
+      const noteLabel = entry.note ? ` | Nota: ${entry.note}` : "";
+      writeText(`[${entry.done ? "x" : " "}] ${index + 1}. ${toText(entry.label)} | ${statusValue}${noteLabel}`, {
+        size: 9.3,
+        leading: 11.3,
+        color: entry.done ? palette.success : palette.text,
       });
     });
   } else {
@@ -4063,10 +4416,108 @@ async function generateContingencyReportPdf(payload, options = {}) {
   kv("Protocolo", safePayload.protocolRef || "-");
   drawDivider();
 
-  section("7. Anexos");
+  section("7. Evidencias Fotograficas");
+  const imageCandidates = attachments.filter((attachment) => {
+    const mime = String(attachment && attachment.mimeType ? attachment.mimeType : "").toLowerCase();
+    const fileName = String(attachment && attachment.fileName ? attachment.fileName : "").toLowerCase();
+    const category = String(attachment && attachment.category ? attachment.category : "").toUpperCase();
+    return mime.startsWith("image/") || /\.(png|jpe?g)$/i.test(fileName) || category === "PHOTO";
+  });
+  const renderedPhotos = [];
+  const failedPhotos = [];
+  for (const attachment of imageCandidates) {
+    const embedded = await embedAttachmentImage(attachment);
+    if (embedded) {
+      renderedPhotos.push(embedded);
+      continue;
+    }
+    failedPhotos.push(attachment);
+  }
+  if (!renderedPhotos.length) {
+    kv("Fotos", "Nenhuma foto valida foi incorporada ao PDF.");
+  } else {
+    const cols = 2;
+    const gap = 10;
+    const cardWidth = (contentWidth - gap) / cols;
+    const cardHeight = 184;
+    let col = 0;
+    renderedPhotos.forEach((photo, index) => {
+      if (col === 0) {
+        ensureSpace(cardHeight + 10);
+      }
+      const x = margin + col * (cardWidth + gap);
+      const topY = cursorY;
+      page.drawRectangle({
+        x,
+        y: topY - cardHeight,
+        width: cardWidth,
+        height: cardHeight,
+        color: rgb(0.99, 0.995, 1),
+        borderColor: palette.border,
+        borderWidth: 0.7,
+      });
+      const frameX = x + 8;
+      const frameY = topY - cardHeight + 42;
+      const frameW = cardWidth - 16;
+      const frameH = cardHeight - 52;
+      page.drawRectangle({
+        x: frameX,
+        y: frameY,
+        width: frameW,
+        height: frameH,
+        color: rgb(0.95, 0.97, 1),
+      });
+      const scale = Math.min(frameW / photo.image.width, frameH / photo.image.height, 1);
+      const drawW = photo.image.width * scale;
+      const drawH = photo.image.height * scale;
+      page.drawImage(photo.image, {
+        x: frameX + (frameW - drawW) / 2,
+        y: frameY + (frameH - drawH) / 2,
+        width: drawW,
+        height: drawH,
+      });
+      const fileLabel = `${index + 1}. ${toText(photo.fileName)}`;
+      const fileLines = wrapPdfText(fileLabel, cardWidth - 14, 8.2, fontBold);
+      page.drawText(fileLines[0] || fileLabel, {
+        x: x + 7,
+        y: topY - cardHeight + 30,
+        size: 8.2,
+        font: fontBold,
+        color: palette.text,
+      });
+      const noteLabel = `Obs: ${toText(photo.notes)}`;
+      const noteLines = wrapPdfText(noteLabel, cardWidth - 14, 8, font);
+      page.drawText(noteLines[0] || noteLabel, {
+        x: x + 7,
+        y: topY - cardHeight + 20,
+        size: 8,
+        font,
+        color: palette.muted,
+      });
+      col += 1;
+      if (col >= cols) {
+        col = 0;
+        cursorY -= cardHeight + 10;
+      }
+    });
+    if (col !== 0) {
+      cursorY -= cardHeight + 10;
+    }
+  }
+  if (failedPhotos.length) {
+    writeText(`${failedPhotos.length} foto(s) nao puderam ser incorporadas e permanecem no indice tecnico.`, {
+      size: 9.2,
+      leading: 11,
+      color: palette.warning,
+    });
+  }
+  drawDivider();
+
+  section("8. Indice Tecnico de Anexos");
   if (!attachments.length) {
     kv("Arquivos", "Nenhum anexo para este tipo de relatorio.");
   } else {
+    const photoKeySet = new Set(renderedPhotos.map((item) => item.key).filter(Boolean));
     attachments.forEach((attachment, index) => {
       const categoryLabel = getContingencyLabel(
         CONTINGENCY_ATTACHMENT_CATEGORY_LABELS,
@@ -4077,29 +4528,82 @@ async function generateContingencyReportPdf(payload, options = {}) {
         `${index + 1}. ${attachment.fileName || attachment.fileId || "-"}`,
         `Categoria: ${categoryLabel}`,
         `Data: ${formatContingencyDateTime(attachment.uploadedAt)}`,
+        `Preview no PDF: ${photoKeySet.has(attachmentKey(attachment)) ? "Sim" : "Nao"}`,
         `Obs: ${attachment.notes || "-"}`,
       ].join(" | ");
-      writeText(line, { size: 10, leading: 12.5 });
+      writeText(line, { size: 9.1, leading: 11 });
     });
   }
+
+  drawDivider();
+  section("9. Rastreabilidade e Emissao");
+  kv("Documento", reportType === "client" ? "Versao Cliente" : "Versao Interna");
+  kv("Data de emissao", formatContingencyDateTime(generatedAt));
+  kv("Emitido por", generatedBy);
+  kv("Codigo da contingencia", safePayload.code || "-");
+  kv("Projeto/UEN", projectLabel);
+  writeText(
+    "Documento estruturado para acionamento de garantia, com rastreabilidade tecnica, historico de acoes e evidencias.",
+    {
+      size: 9.5,
+      leading: 11.4,
+      color: palette.muted,
+    }
+  );
+
+  ensureSpace(52);
+  const signWidth = (contentWidth - 16) / 2;
+  const signY = cursorY - 24;
+  page.drawLine({
+    start: { x: margin + 8, y: signY },
+    end: { x: margin + signWidth - 8, y: signY },
+    thickness: 0.8,
+    color: palette.line,
+  });
+  page.drawLine({
+    start: { x: margin + signWidth + 16, y: signY },
+    end: { x: margin + contentWidth - 8, y: signY },
+    thickness: 0.8,
+    color: palette.line,
+  });
+  page.drawText("Responsavel tecnico OPSCOPE", {
+    x: margin + 12,
+    y: signY - 12,
+    size: 8.7,
+    font,
+    color: palette.muted,
+  });
+  page.drawText("Aprovacao Gestao/Cliente", {
+    x: margin + signWidth + 20,
+    y: signY - 12,
+    size: 8.7,
+    font,
+    color: palette.muted,
+  });
 
   const pages = pdfDoc.getPages();
   const footer = `Gerado em ${formatContingencyDateTime(generatedAt)} por ${generatedBy}`;
   pages.forEach((itemPage, index) => {
     const pageText = `Pagina ${index + 1} de ${pages.length}`;
+    itemPage.drawLine({
+      start: { x: margin, y: footerY + 10 },
+      end: { x: pageSize[0] - margin, y: footerY + 10 },
+      thickness: 0.7,
+      color: palette.line,
+    });
     itemPage.drawText(footer, {
       x: margin,
-      y: 18,
-      size: 8.8,
+      y: footerY,
+      size: 8.4,
       font,
-      color: rgb(0.3, 0.35, 0.42),
+      color: palette.muted,
     });
     itemPage.drawText(pageText, {
-      x: pageSize[0] - margin - font.widthOfTextAtSize(pageText, 8.8),
-      y: 18,
-      size: 8.8,
+      x: pageSize[0] - margin - font.widthOfTextAtSize(pageText, 8.4),
+      y: footerY,
+      size: 8.4,
       font,
-      color: rgb(0.3, 0.35, 0.42),
+      color: palette.muted,
     });
   });
 
