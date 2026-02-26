@@ -3383,7 +3383,7 @@ function normalizeContingency(record) {
       record && (record.communications || record.comunicacoes)
     ),
     protocolRef: String(record && (record.protocolRef || record.protocolo) ? record.protocolRef || record.protocolo : "").trim(),
-    revision: Number.isFinite(revisionRaw) && revisionRaw > 0 ? Math.floor(revisionRaw) : 1,
+    revision: Number.isFinite(revisionRaw) && revisionRaw >= 0 ? Math.floor(revisionRaw) : 1,
     createdBy: String(record && record.createdBy ? record.createdBy : "").trim(),
     createdAt: record && record.createdAt ? String(record.createdAt) : now,
     updatedBy: String(record && record.updatedBy ? record.updatedBy : "").trim(),
@@ -3882,14 +3882,13 @@ function persistContingencyStores(options = {}) {
   return { ok: true, failedFile: "" };
 }
 
-function touchContingencyAuditFields(record, userId, options = {}) {
+function touchContingencyAuditFields(record, userId) {
   const now = new Date().toISOString();
   const next = normalizeContingency(record);
-  const keepRevision = options.keepRevision === true;
-  const revision = Number(next.revision || 1);
+  const revision = Number(next.revision);
   next.updatedAt = now;
   next.updatedBy = userId || "";
-  next.revision = keepRevision ? Math.max(1, revision) : Math.max(1, revision) + 1;
+  next.revision = Number.isFinite(revision) && revision >= 0 ? Math.floor(revision) : 1;
   return next;
 }
 
@@ -4756,6 +4755,109 @@ async function generateContingencyReportPdf(payload, options = {}) {
   const kvParagraph = (label, value, options = {}) => {
     writeLabelValueParagraph(label, value, options);
   };
+  const drawCompactKeyValueTable = (rows, options = {}) => {
+    const normalizedRows = (Array.isArray(rows) ? rows : [])
+      .map((row) => ({
+        label: toText(row && row.label ? row.label : "-", "-"),
+        value: toText(row && row.value ? row.value : "-", "-"),
+      }))
+      .filter((row) => row.label || row.value);
+    if (!normalizedRows.length) {
+      return;
+    }
+    const tableX = Number(options.x || margin);
+    const tableWidth = Number(options.width || contentWidth);
+    const labelColRatio = Number(options.labelRatio || 0.34);
+    const labelColWidth = Math.max(110, Math.floor(tableWidth * labelColRatio));
+    const valueColWidth = Math.max(140, tableWidth - labelColWidth);
+    const labelSize = Number(options.labelSize || 9.2);
+    const valueSize = Number(options.valueSize || 9.2);
+    const lineGap = Number(options.lineGap || 1.8);
+    const rowPaddingY = Number(options.paddingY || 4.6);
+    const rowPaddingX = Number(options.paddingX || 5.4);
+    const rowHeights = normalizedRows.map((row) => {
+      const labelLines = wrapPdfText(
+        `${String(row.label || "").replace(/:$/, "")}:`,
+        Math.max(40, labelColWidth - rowPaddingX * 2),
+        labelSize,
+        fontBold
+      );
+      const valueLines = wrapPdfText(
+        row.value || "-",
+        Math.max(40, valueColWidth - rowPaddingX * 2),
+        valueSize,
+        font
+      );
+      const labelHeight = labelLines.length * (labelSize + lineGap);
+      const valueHeight = valueLines.length * (valueSize + lineGap);
+      return Math.max(labelHeight, valueHeight) + rowPaddingY * 2;
+    });
+    const tableHeight = rowHeights.reduce((acc, height) => acc + height, 0);
+    ensureSpace(tableHeight + 4);
+    const tableTopY = cursorY;
+    page.drawRectangle({
+      x: tableX,
+      y: tableTopY - tableHeight,
+      width: tableWidth,
+      height: tableHeight,
+      borderColor: palette.border,
+      borderWidth: 0.7,
+      color: rgb(1, 1, 1),
+    });
+    page.drawLine({
+      start: { x: tableX + labelColWidth, y: tableTopY },
+      end: { x: tableX + labelColWidth, y: tableTopY - tableHeight },
+      thickness: 0.55,
+      color: palette.line,
+    });
+    let currentY = tableTopY;
+    normalizedRows.forEach((row, index) => {
+      const rowHeight = rowHeights[index];
+      const labelText = `${String(row.label || "").replace(/:$/, "")}:`;
+      const valueText = row.value || "-";
+      const labelLines = wrapPdfText(
+        labelText,
+        Math.max(40, labelColWidth - rowPaddingX * 2),
+        labelSize,
+        fontBold
+      );
+      const valueLines = wrapPdfText(
+        valueText,
+        Math.max(40, valueColWidth - rowPaddingX * 2),
+        valueSize,
+        font
+      );
+      const baseLineY = currentY - rowPaddingY - labelSize;
+      labelLines.forEach((line, lineIndex) => {
+        page.drawText(line || " ", {
+          x: tableX + rowPaddingX,
+          y: baseLineY - lineIndex * (labelSize + lineGap),
+          size: labelSize,
+          font: fontBold,
+          color: palette.text,
+        });
+      });
+      valueLines.forEach((line, lineIndex) => {
+        page.drawText(line || " ", {
+          x: tableX + labelColWidth + rowPaddingX,
+          y: baseLineY - lineIndex * (valueSize + lineGap),
+          size: valueSize,
+          font,
+          color: palette.text,
+        });
+      });
+      currentY -= rowHeight;
+      if (index < normalizedRows.length - 1) {
+        page.drawLine({
+          start: { x: tableX, y: currentY },
+          end: { x: tableX + tableWidth, y: currentY },
+          thickness: 0.5,
+          color: palette.line,
+        });
+      }
+    });
+    cursorY = tableTopY - tableHeight - Number(options.after || 9.4);
+  };
 
   const formatSymptomsForPdf = (value) => {
     const raw = toTextMultiline(value, "-");
@@ -5010,58 +5112,44 @@ async function generateContingencyReportPdf(payload, options = {}) {
     color: palette.line,
   });
   addPage();
-  writeText("RELATÓRIO DE CONTINGÊNCIA", {
-    bold: true,
-    size: 17,
-    color: palette.primary,
-    leading: 19,
-  });
-  writeText(`${reportType === "client" ? "Versão Cliente" : "Versão Interna"} | Projeto: ${projectLabel}`, {
-    size: 10.5,
-    bold: true,
-    color: palette.text,
-    leading: 12.8,
-  });
-  writeText(
-    `Código: ${toText(safePayload.code)} | Emissão: ${formatContingencyDateTime(generatedAt)} | Revisão: ${toText(
-      safePayload.revision || 1
-    )}`,
+  section("Dados Gerais");
+  drawCompactKeyValueTable([
     {
-      size: 10.2,
-      color: palette.text,
-      leading: 12.4,
-    }
-  );
-  drawDivider();
-  writeText("DADOS GERAIS", {
-    bold: true,
-    size: 12,
-    color: palette.primary,
-    leading: 14,
-  });
-  kv("Status", getContingencyLabel(CONTINGENCY_STATUS_LABELS, safePayload.status, "Rascunho"));
-  kv("Severidade", severity);
-  kv("Condição do sistema", getContingencyLabel(CONTINGENCY_SYSTEM_CONDITION_LABELS, safePayload.systemCondition, "Normal"));
-  kv("Janela do evento", formatWindow(startAt, endAt));
-  kv("Completude do relatório", `${completion}%`);
-  kv("Total de eventos de timeline", String(timeline.length));
-  kv("Total de anexos", String(attachments.length));
-  kv("Emitido por", footerGeneratedBy);
-  drawDivider();
+      label: "Status",
+      value: getContingencyLabel(CONTINGENCY_STATUS_LABELS, safePayload.status, "Rascunho"),
+    },
+    { label: "Severidade", value: severity },
+    {
+      label: "Condição do sistema",
+      value: getContingencyLabel(CONTINGENCY_SYSTEM_CONDITION_LABELS, safePayload.systemCondition, "Normal"),
+    },
+    { label: "Janela do evento", value: formatWindow(startAt, endAt) },
+    { label: "Completude do relatório", value: `${completion}%` },
+    { label: "Total de eventos de timeline", value: String(timeline.length) },
+    { label: "Total de anexos", value: String(attachments.length) },
+    { label: "Emitido por", value: footerGeneratedBy },
+  ]);
 
   section("1. Identificação do Evento");
-  kv("Contingência", safePayload.code || "-");
-  kv("Subestação", safePayload.substation || "-");
-  kv("Bay", safePayload.bay || "-");
-  kv("Alimentador", safePayload.feeder || "-");
-  kv("Equipamento", safePayload.assetName || safePayload.assetId || "-");
-  kv("Tipo", getContingencyLabel(CONTINGENCY_EVENT_LABELS, safePayload.eventType, "Outro"));
-  kv("Severidade", safePayload.severity || "S3");
-  kv("Status", getContingencyLabel(CONTINGENCY_STATUS_LABELS, safePayload.status, "Rascunho"));
-  kv("Início", formatContingencyDateTime(safePayload.startAt));
-  kv("Normalização", formatContingencyDateTime(safePayload.normalizedAt));
-  kv("Revisão", String(safePayload.revision || 1));
-  drawDivider();
+  drawCompactKeyValueTable([
+    { label: "Contingência", value: safePayload.code || "-" },
+    { label: "Subestação", value: safePayload.substation || "-" },
+    { label: "Bay", value: safePayload.bay || "-" },
+    { label: "Alimentador", value: safePayload.feeder || "-" },
+    { label: "Equipamento", value: safePayload.assetName || safePayload.assetId || "-" },
+    {
+      label: "Tipo",
+      value: getContingencyLabel(CONTINGENCY_EVENT_LABELS, safePayload.eventType, "Outro"),
+    },
+    { label: "Severidade", value: safePayload.severity || "S3" },
+    {
+      label: "Status",
+      value: getContingencyLabel(CONTINGENCY_STATUS_LABELS, safePayload.status, "Rascunho"),
+    },
+    { label: "Início", value: formatContingencyDateTime(safePayload.startAt) },
+    { label: "Normalização", value: formatContingencyDateTime(safePayload.normalizedAt) },
+    { label: "Revisão", value: String(safePayload.revision || 1) },
+  ]);
 
   section("2. Impacto Operacional");
   kv(
@@ -5136,12 +5224,6 @@ async function generateContingencyReportPdf(payload, options = {}) {
     )
   );
   kvParagraph("Descrição da causa raiz", safePayload.rootCauseDescription || "-");
-  if (reportType === "client") {
-    kv(
-      "Nota",
-      "Detalhes internos sensíveis foram reduzidos na versão cliente."
-    );
-  }
   drawDivider();
 
   section("5. Ações Executadas e Plano");
@@ -5170,7 +5252,6 @@ async function generateContingencyReportPdf(payload, options = {}) {
   kv("Status", getContingencyLabel(CONTINGENCY_STATUS_LABELS, safePayload.status, "Rascunho"));
   kv("Normalizada em", formatContingencyDateTime(safePayload.normalizedAt));
   kv("Risco residual", safePayload.residualRisk || "-");
-  kv("Protocolo", safePayload.protocolRef || "-");
   drawDivider();
 
   section("7. Evidências Fotográficas e Anexos");
@@ -5305,21 +5386,6 @@ async function generateContingencyReportPdf(payload, options = {}) {
   });
   drawDivider();
 
-  section("9. Rastreabilidade e Emissão");
-  kv("Documento", reportType === "client" ? "Versão Cliente" : "Versão Interna");
-  kv("Data de emissão", formatContingencyDateTime(generatedAt));
-  kv("Emitido por", footerGeneratedBy);
-  kv("Código da contingência", safePayload.code || "-");
-  kv("Projeto/UEN", projectLabel);
-  writeText(
-    "Documento estruturado para rastreabilidade técnica da contingência, com histórico de ações e evidências.",
-    {
-      size: 9.5,
-      leading: 11.4,
-      color: palette.muted,
-    }
-  );
-
   ensureSpace(52);
   const signGap = 12;
   const signWidth = (contentWidth - signGap * 2) / 3;
@@ -5427,7 +5493,8 @@ async function generateContingencyReportPdf(payload, options = {}) {
 
   const pages = pdfDoc.getPages();
   const footer = `Gerado em ${formatContingencyDateTime(generatedAt)} por ${footerGeneratedBy}`;
-  const footerMeta = `${toText(safePayload.code)} | ${reportTypeLabel}`;
+  const footerNotice =
+    "Documento controlado e interno. É totalmente proibida qualquer cópia sem autorização.";
   pages.forEach((itemPage, index) => {
     const pageText = `Página ${index + 1} de ${pages.length}`;
     itemPage.drawLine({
@@ -5443,10 +5510,10 @@ async function generateContingencyReportPdf(payload, options = {}) {
       font,
       color: palette.muted,
     });
-    itemPage.drawText(footerMeta, {
-      x: margin + (contentWidth - font.widthOfTextAtSize(footerMeta, 8.2)) / 2,
-      y: footerY,
-      size: 8.2,
+    itemPage.drawText(footerNotice, {
+      x: margin + (contentWidth - font.widthOfTextAtSize(footerNotice, 7.3)) / 2,
+      y: footerY - 9,
+      size: 7.3,
       font,
       color: palette.muted,
     });
@@ -16793,6 +16860,11 @@ app.post("/api/contingencies", requireAuth, requireStorageWritable, (req, res) =
   const equipment = payload.assetId
     ? equipamentos.find((entry) => entry && String(entry.id) === String(payload.assetId))
     : null;
+  const requestedRevision = Number(payload && payload.revision);
+  const initialRevision =
+    Number.isFinite(requestedRevision) && requestedRevision >= 0
+      ? Math.floor(requestedRevision)
+      : 1;
   let record = normalizeContingency({
     ...payload,
     projectId,
@@ -16805,7 +16877,7 @@ app.post("/api/contingencies", requireAuth, requireStorageWritable, (req, res) =
     createdBy: user.id || "",
     updatedAt: now,
     updatedBy: user.id || "",
-    revision: 1,
+    revision: initialRevision,
   });
   const nextStatus = normalizeContingencyStatus(record.status);
   if (nextStatus === "CLOSED" && !canCloseContingency(user)) {
@@ -16957,7 +17029,14 @@ app.put("/api/contingencies/:id", requireAuth, requireStorageWritable, (req, res
   const equipment = payload.assetId
     ? equipamentos.find((entry) => entry && String(entry.id) === String(payload.assetId))
     : null;
-  const revision = Math.max(1, Number(found.item.revision || 1)) + 1;
+  const requestedRevision = Number(payload && payload.revision);
+  const currentRevision = Number(found.item && found.item.revision);
+  const revision =
+    Number.isFinite(requestedRevision) && requestedRevision >= 0
+      ? Math.floor(requestedRevision)
+      : Number.isFinite(currentRevision) && currentRevision >= 0
+        ? Math.floor(currentRevision)
+        : 1;
   const now = new Date().toISOString();
   let updated = normalizeContingency({
     ...found.item,

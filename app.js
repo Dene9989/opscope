@@ -1352,6 +1352,7 @@ const contingencyStartAtInput = document.getElementById("contingencyStartAt");
 const contingencyNormalizedAtInput = document.getElementById("contingencyNormalizedAt");
 const contingencyProtocolRefInput = document.getElementById("contingencyProtocolRef");
 const contingencyReviewNatureInput = document.getElementById("contingencyReviewNature");
+const contingencyRevisionInput = document.getElementById("contingencyRevision");
 const contingencyPreparedByInput = document.getElementById("contingencyPreparedBy");
 const contingencyVerifiedByInput = document.getElementById("contingencyVerifiedBy");
 const contingencyVerifiedAtInput = document.getElementById("contingencyVerifiedAt");
@@ -42667,6 +42668,9 @@ function resetContingencyForm(options = {}) {
   if (contingencyReviewNatureInput) {
     contingencyReviewNatureInput.value = "Emissão";
   }
+  if (contingencyRevisionInput) {
+    contingencyRevisionInput.value = "0";
+  }
   if (contingencyPreparedByInput) {
     contingencyPreparedByInput.value = "O&M HV BSO2";
   }
@@ -42685,6 +42689,11 @@ function resetContingencyForm(options = {}) {
 function buildContingencyPayloadFromForm() {
   const impactMwNotApplicable = Boolean(contingencyImpactMwNDInput && contingencyImpactMwNDInput.checked);
   const impactMwRaw = contingencyImpactMwInput ? contingencyImpactMwInput.value : "";
+  const revisionRaw = contingencyRevisionInput ? contingencyRevisionInput.value : "";
+  const revisionValue =
+    revisionRaw !== "" && Number.isFinite(Number(revisionRaw))
+      ? Math.max(0, Math.floor(Number(revisionRaw)))
+      : undefined;
   const impactMwValue = impactMwNotApplicable
     ? null
     : impactMwRaw !== "" && Number.isFinite(Number(impactMwRaw))
@@ -42703,6 +42712,7 @@ function buildContingencyPayloadFromForm() {
     normalizedAt: toIsoFromDatetimeLocal(contingencyNormalizedAtInput ? contingencyNormalizedAtInput.value : ""),
     protocolRef: contingencyProtocolRefInput ? contingencyProtocolRefInput.value.trim() : "",
     reviewNature: contingencyReviewNatureInput ? contingencyReviewNatureInput.value.trim() : "",
+    revision: revisionValue,
     preparedBy: contingencyPreparedByInput ? contingencyPreparedByInput.value.trim() : "",
     verifiedBy: contingencyVerifiedByInput ? contingencyVerifiedByInput.value.trim() : "",
     verifiedAt: toIsoFromDatetimeLocal(contingencyVerifiedAtInput ? contingencyVerifiedAtInput.value : ""),
@@ -42783,6 +42793,13 @@ function populateContingencyForm(item) {
   }
   if (contingencyReviewNatureInput) {
     contingencyReviewNatureInput.value = safe.reviewNature || "Emissão";
+  }
+  if (contingencyRevisionInput) {
+    const revisionValue = Number(safe.revision);
+    contingencyRevisionInput.value =
+      Number.isFinite(revisionValue) && revisionValue >= 0
+        ? String(Math.floor(revisionValue))
+        : "0";
   }
   if (contingencyPreparedByInput) {
     contingencyPreparedByInput.value = safe.preparedBy || "O&M HV BSO2";
