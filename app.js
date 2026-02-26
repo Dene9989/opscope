@@ -1325,6 +1325,67 @@ const intercorrenciaCriticidadeFiltro = document.getElementById("intercorrenciaC
 const intercorrenciaBusca = document.getElementById("intercorrenciaBusca");
 const intercorrenciaTableBody = document.getElementById("intercorrenciaTableBody");
 const intercorrenciaEmpty = document.getElementById("intercorrenciaEmpty");
+const contingencyNewBtn = document.getElementById("contingencyNewBtn");
+const contingencyTableBody = document.getElementById("contingencyTableBody");
+const contingencyListEmpty = document.getElementById("contingencyListEmpty");
+const contingencyFilterProject = document.getElementById("contingencyFilterProject");
+const contingencyFilterFrom = document.getElementById("contingencyFilterFrom");
+const contingencyFilterTo = document.getElementById("contingencyFilterTo");
+const contingencyFilterEventType = document.getElementById("contingencyFilterEventType");
+const contingencyFilterSeverity = document.getElementById("contingencyFilterSeverity");
+const contingencyFilterStatus = document.getElementById("contingencyFilterStatus");
+const contingencyFilterSubstation = document.getElementById("contingencyFilterSubstation");
+const contingencyFilterAsset = document.getElementById("contingencyFilterAsset");
+const contingencyFilterSearch = document.getElementById("contingencyFilterSearch");
+const contingencyForm = document.getElementById("contingencyForm");
+const contingencyIdInput = document.getElementById("contingencyId");
+const contingencyCodeInput = document.getElementById("contingencyCode");
+const contingencyProjectInput = document.getElementById("contingencyProject");
+const contingencyStatusInput = document.getElementById("contingencyStatus");
+const contingencySubstationInput = document.getElementById("contingencySubstation");
+const contingencyBayInput = document.getElementById("contingencyBay");
+const contingencyFeederInput = document.getElementById("contingencyFeeder");
+const contingencyAssetNameInput = document.getElementById("contingencyAssetName");
+const contingencyEventTypeInput = document.getElementById("contingencyEventType");
+const contingencySeverityInput = document.getElementById("contingencySeverity");
+const contingencyStartAtInput = document.getElementById("contingencyStartAt");
+const contingencyNormalizedAtInput = document.getElementById("contingencyNormalizedAt");
+const contingencyProtocolRefInput = document.getElementById("contingencyProtocolRef");
+const contingencySystemConditionInput = document.getElementById("contingencySystemCondition");
+const contingencyImpactMwInput = document.getElementById("contingencyImpactMw");
+const contingencyImpactMwNDInput = document.getElementById("contingencyImpactMwND");
+const contingencyImpactDescriptionInput = document.getElementById("contingencyImpactDescription");
+const contingencyResidualRiskInput = document.getElementById("contingencyResidualRisk");
+const contingencyTimelineAtInput = document.getElementById("contingencyTimelineAt");
+const contingencyTimelineSourceInput = document.getElementById("contingencyTimelineSource");
+const contingencyTimelineResponsibleInput = document.getElementById("contingencyTimelineResponsible");
+const contingencyTimelineEventInput = document.getElementById("contingencyTimelineEvent");
+const contingencyTimelineAddBtn = document.getElementById("contingencyTimelineAddBtn");
+const contingencyTimelineBody = document.getElementById("contingencyTimelineBody");
+const contingencySymptomsInput = document.getElementById("contingencySymptoms");
+const contingencyProtectionFunctionInput = document.getElementById("contingencyProtectionFunction");
+const contingencyRootCauseStatusInput = document.getElementById("contingencyRootCauseStatus");
+const contingencyRootCauseCategoryInput = document.getElementById("contingencyRootCauseCategory");
+const contingencyDiagnosisInput = document.getElementById("contingencyDiagnosis");
+const contingencyRootCauseDescriptionInput = document.getElementById("contingencyRootCauseDescription");
+const contingencyContainmentActionsInput = document.getElementById("contingencyContainmentActions");
+const contingencyCorrectiveActionsTextInput = document.getElementById("contingencyCorrectiveActionsText");
+const contingencyPreventiveActionsTextInput = document.getElementById("contingencyPreventiveActionsText");
+const contingencyCommunicationsTextInput = document.getElementById("contingencyCommunicationsText");
+const contingencyAttachmentFileInput = document.getElementById("contingencyAttachmentFile");
+const contingencyAttachmentCategoryInput = document.getElementById("contingencyAttachmentCategory");
+const contingencyAttachmentNotesInput = document.getElementById("contingencyAttachmentNotes");
+const contingencyAttachmentIncludeClientInput = document.getElementById("contingencyAttachmentIncludeClient");
+const contingencyAttachmentUploadBtn = document.getElementById("contingencyAttachmentUploadBtn");
+const contingencyAttachmentsBody = document.getElementById("contingencyAttachmentsBody");
+const contingencySaveBtn = document.getElementById("contingencySaveBtn");
+const contingencyDeleteBtn = document.getElementById("contingencyDeleteBtn");
+const contingencyResetBtn = document.getElementById("contingencyResetBtn");
+const contingencyPdfClientBtn = document.getElementById("contingencyPdfClientBtn");
+const contingencyPdfInternalBtn = document.getElementById("contingencyPdfInternalBtn");
+const contingencyMsg = document.getElementById("contingencyMsg");
+const contingencyTabButtons = Array.from(document.querySelectorAll("[data-contingency-tab]"));
+const contingencyTabPanes = Array.from(document.querySelectorAll("[data-contingency-pane]"));
 const btnImprimirRelatorio = document.getElementById("btnImprimirRelatorio");
 const btnExportarPDF = document.getElementById("btnExportarPDF");
 const btnFecharRelatorio = document.getElementById("btnFecharRelatorio");
@@ -1542,6 +1603,7 @@ const SECTION_LABELS = {
   execucao: "Execução do dia",
   backlog: "Backlog",
   intercorrencias: "Intercorrências/Falhas",
+  contingencias: "Contingências",
   projetos: "Gerenciar projeto",
   desempenho: "Desempenho",
   "performance-projects": "Desempenho por projeto",
@@ -1608,6 +1670,7 @@ const ACCESS_SECTION_PERMISSIONS = [
   "modelos",
   "execucao",
   "backlog",
+  "contingencias",
   "feedbacks",
   "perfil",
 ];
@@ -4086,6 +4149,10 @@ function canManageSst(user) {
   return hasGranularPermission(user, "gerenciarSST");
 }
 
+function canViewContingencies(user) {
+  return Boolean(user);
+}
+
 function canAccessGerencialTab(tabId, user) {
   if (!user || !canViewGerencial(user)) {
     return false;
@@ -4581,6 +4648,9 @@ function canViewTab(tab, user, secConfig) {
   if (!tab) {
     return false;
   }
+  if (tab === "contingencias") {
+    return Boolean(user);
+  }
   if (tab === "edicao") {
     if (!user) {
       return false;
@@ -4738,6 +4808,12 @@ let sstNonconformities = [];
 let sstIncidents = [];
 let sstDocs = [];
 let sstLoaded = false;
+let contingencyItems = [];
+let contingenciesLoaded = false;
+let contingenciesLoading = false;
+let contingenciesEnums = null;
+let contingencyTimelineDraft = [];
+let contingencyAttachmentsDraft = [];
 const sstDocsBackfillProjects = new Set();
 let pendingSstDocAprPreview = null;
 let sstDocReviewingId = null;
@@ -4956,7 +5032,14 @@ const SYNC_DEBUG_KEY = "opscope.debugSync";
 const COMPAT_SCHEMA_VERSION = 1;
 const COMPAT_STATE_KEY = "opscope.compat.state";
 const COMPAT_CHECK_TTL_MS = 15000;
-const COMPAT_DATASETS = ["maintenance", "templates", "announcements", "feedbacks", "sstDocs"];
+const COMPAT_DATASETS = [
+  "maintenance",
+  "templates",
+  "announcements",
+  "feedbacks",
+  "sstDocs",
+  "contingencies",
+];
 let syncEventSource = null;
 let syncEventProject = "";
 let syncPollTimer = null;
@@ -6020,6 +6103,9 @@ async function checkCompatState(force = false) {
     if (changed.includes("sstDocs")) {
       tasks.push(carregarSst(true));
     }
+    if (changed.includes("contingencies")) {
+      tasks.push(carregarContingencias(true));
+    }
     await Promise.allSettled(tasks);
   }
   saveCompatState(normalized);
@@ -6108,6 +6194,7 @@ async function runAutoSyncTick() {
         tasks.push(carregarManutencoesServidor(true));
       }
       tasks.push(carregarTemplatesServidor(true));
+      tasks.push(carregarContingencias(true));
       tasks.push(loadDashboardSummary(true, { skipSync: true }));
       tasks.push(refreshProjects());
     }
@@ -6211,6 +6298,10 @@ function handleSyncEvent(eventName, payload = {}) {
     carregarSst(true);
     return;
   }
+  if (eventName === "contingencies.updated") {
+    carregarContingencias(true);
+    return;
+  }
   if (eventName === "projects.updated") {
     refreshProjects();
     return;
@@ -6273,6 +6364,7 @@ function startSyncEvents() {
     "feedback.created",
     "feedbacks.updated",
     "sst.docs.updated",
+    "contingencies.updated",
     "compat.updated",
   ].forEach(
     (name) => {
@@ -6346,6 +6438,7 @@ async function syncSiteNow() {
         ]);
         await carregarManutencoesServidor(true);
         await carregarTemplatesServidor(true);
+        await carregarContingencias(true);
         await carregarPmpDados();
       }
       if (currentUser && canViewSst(currentUser)) {
@@ -10834,6 +10927,9 @@ function handleTabDataLoad(tab) {
   if (tab.startsWith("almoxarifado")) {
     carregarAlmoxarifado(false);
   }
+  if (tab === "contingencias") {
+    carregarContingencias(false);
+  }
 }
 
 function applyTabFromUrl() {
@@ -11089,6 +11185,9 @@ function abrirPainelComCarregamento(tab, scrollTarget = null, options = {}) {
     }
     if (tab.startsWith("sst")) {
       carregarSst(false);
+    }
+    if (tab === "contingencias") {
+      carregarContingencias(false);
     }
     if (scrollTarget) {
       const alvo = document.getElementById(scrollTarget);
@@ -12604,6 +12703,7 @@ async function setActiveProjectId(nextId, options = {}) {
   await carregarProcedimentosProjeto();
   await carregarManutencoesServidor(true);
   await carregarTemplatesServidor(true);
+  await carregarContingencias(true);
   await carregarRdoSnapshotsServidor(true);
   gerarManutencoesRecorrentes();
   await carregarPmpDados();
@@ -17473,13 +17573,25 @@ function renderDashboardHome() {
           <div class="home-tactical__meta">
             <span class="home-tactical__updated">Atualizado em ${escapeHtml(updatedAt)}</span>
             <div class="home-tactical__actions">
-              <button class="btn btn--primary btn--small" type="button" data-open-tab="nova">
+              <button
+                class="btn btn--primary btn--small home-tactical__quick-btn home-tactical__quick-btn--primary"
+                type="button"
+                data-open-tab="nova"
+              >
                 Nova manutenção
               </button>
-              <button class="btn btn--ghost btn--small" type="button" data-open-tab="programacao">
+              <button
+                class="btn btn--ghost btn--small home-tactical__quick-btn home-tactical__quick-btn--schedule"
+                type="button"
+                data-open-tab="programacao"
+              >
                 Abrir programação
               </button>
-              <button class="btn btn--ghost btn--small" type="button" data-open-tab="execucao">
+              <button
+                class="btn btn--ghost btn--small home-tactical__quick-btn home-tactical__quick-btn--execution"
+                type="button"
+                data-open-tab="execucao"
+              >
                 Ver execução
               </button>
             </div>
@@ -41803,6 +41915,936 @@ async function carregarSst(force = false) {
   renderSstAprPt();
 }
 
+function getContingencyEnumList(key) {
+  const source = contingenciesEnums && Array.isArray(contingenciesEnums[key]) ? contingenciesEnums[key] : [];
+  return source.map((item) => ({
+    value: String(item && item.value ? item.value : "").trim(),
+    label: String(item && item.label ? item.label : item && item.value ? item.value : "").trim(),
+  }));
+}
+
+function buildContingencyLabelMap(key) {
+  const map = new Map();
+  getContingencyEnumList(key).forEach((item) => {
+    if (!item.value) {
+      return;
+    }
+    map.set(item.value, item.label || item.value);
+  });
+  return map;
+}
+
+function fillContingencySelect(select, options, placeholder = "Selecione", selected = undefined) {
+  if (!select) {
+    return;
+  }
+  const previous = selected !== undefined ? selected : select.value;
+  select.innerHTML = "";
+  if (placeholder !== null) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = placeholder;
+    select.append(option);
+  }
+  (Array.isArray(options) ? options : []).forEach((item) => {
+    if (!item || !item.value) {
+      return;
+    }
+    const option = document.createElement("option");
+    option.value = item.value;
+    option.textContent = item.label || item.value;
+    select.append(option);
+  });
+  if (previous && Array.from(select.options).some((opt) => opt.value === previous)) {
+    select.value = previous;
+  }
+}
+
+function formatContingencyDateTimeLabel(value) {
+  const parsed = parseDateTime(value);
+  return parsed ? formatDateTime(parsed) : "-";
+}
+
+function toDatetimeLocalValue(value) {
+  const parsed = parseDateTime(value);
+  if (!parsed) {
+    return "";
+  }
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  const hh = String(parsed.getHours()).padStart(2, "0");
+  const mm = String(parsed.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hh}:${mm}`;
+}
+
+function toIsoFromDatetimeLocal(value) {
+  const text = String(value || "").trim();
+  if (!text) {
+    return "";
+  }
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+  return parsed.toISOString();
+}
+
+function parseContingencyActionsText(value) {
+  const lines = String(value || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return lines.map((line) => {
+    const parts = line.split("|").map((chunk) => chunk.trim());
+    return {
+      id: criarId(),
+      action: parts[0] || "",
+      responsible: parts[1] || "",
+      dueDate: parts[2] || "",
+      status: (parts[3] || "PENDENTE").toUpperCase(),
+    };
+  }).filter((item) => item.action);
+}
+
+function formatContingencyActionsText(list) {
+  if (!Array.isArray(list)) {
+    return "";
+  }
+  return list
+    .map((item) => {
+      const action = String(item && item.action ? item.action : "").trim();
+      if (!action) {
+        return "";
+      }
+      const responsible = String(item && item.responsible ? item.responsible : "").trim();
+      const dueDate = String(item && item.dueDate ? item.dueDate : "").trim();
+      const status = String(item && item.status ? item.status : "").trim().toUpperCase() || "PENDENTE";
+      return [action, responsible, dueDate, status].join(" | ");
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+function parseContingencyCommunicationsText(value) {
+  const lines = String(value || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return lines.map((line) => {
+    const done = line.startsWith("[x]") || line.startsWith("[X]");
+    const clean = line.replace(/^\[(x|X)\]\s*/, "").trim();
+    if (!clean) {
+      return null;
+    }
+    return {
+      id: criarId(),
+      label: clean,
+      done,
+      note: "",
+    };
+  }).filter(Boolean);
+}
+
+function formatContingencyCommunicationsText(list) {
+  if (!Array.isArray(list)) {
+    return "";
+  }
+  return list
+    .map((item) => {
+      if (!item || !item.label) {
+        return "";
+      }
+      const prefix = item.done ? "[x] " : "";
+      return `${prefix}${item.label}`.trim();
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+function setContingencyMessage(message, isError = false) {
+  setInlineMessage(contingencyMsg, message || "", Boolean(isError));
+}
+
+function getCurrentContingencyId() {
+  return contingencyIdInput ? String(contingencyIdInput.value || "").trim() : "";
+}
+
+function updateContingencyActionButtons() {
+  const hasId = Boolean(getCurrentContingencyId());
+  if (contingencyDeleteBtn) {
+    contingencyDeleteBtn.disabled = !hasId;
+  }
+  if (contingencyPdfClientBtn) {
+    contingencyPdfClientBtn.disabled = !hasId;
+  }
+  if (contingencyPdfInternalBtn) {
+    contingencyPdfInternalBtn.disabled = !hasId;
+  }
+  if (contingencyAttachmentUploadBtn) {
+    contingencyAttachmentUploadBtn.disabled = !hasId;
+  }
+}
+
+function syncContingencyImpactState() {
+  if (!contingencyImpactMwInput || !contingencyImpactMwNDInput) {
+    return;
+  }
+  contingencyImpactMwInput.disabled = contingencyImpactMwNDInput.checked;
+  if (contingencyImpactMwNDInput.checked) {
+    contingencyImpactMwInput.value = "";
+  }
+}
+
+function setContingencyTab(tabName) {
+  const target = String(tabName || "identificacao");
+  contingencyTabButtons.forEach((button) => {
+    const active = String(button.dataset.contingencyTab || "") === target;
+    button.classList.toggle("is-active", active);
+  });
+  contingencyTabPanes.forEach((pane) => {
+    const active = String(pane.dataset.contingencyPane || "") === target;
+    pane.classList.toggle("is-active", active);
+  });
+}
+
+function renderContingencyProjectOptions() {
+  const options = Array.isArray(availableProjects)
+    ? availableProjects.map((project) => ({
+        value: project.id,
+        label: getProjectLabel(project),
+      }))
+    : [];
+  fillContingencySelect(contingencyFilterProject, options, "Projeto ativo");
+  fillContingencySelect(contingencyProjectInput, options, "Selecione");
+  if (activeProjectId) {
+    if (contingencyFilterProject && !contingencyFilterProject.value) {
+      contingencyFilterProject.value = activeProjectId;
+    }
+    if (contingencyProjectInput && !contingencyProjectInput.value) {
+      contingencyProjectInput.value = activeProjectId;
+    }
+  }
+}
+
+function applyContingencyEnumsToUI() {
+  if (!contingenciesEnums) {
+    return;
+  }
+  fillContingencySelect(contingencyFilterEventType, getContingencyEnumList("eventTypes"), "Todos");
+  fillContingencySelect(contingencyFilterSeverity, getContingencyEnumList("severities"), "Todas");
+  fillContingencySelect(contingencyFilterStatus, getContingencyEnumList("statuses"), "Todos");
+  fillContingencySelect(contingencyEventTypeInput, getContingencyEnumList("eventTypes"), "Selecione");
+  fillContingencySelect(contingencySeverityInput, getContingencyEnumList("severities"), "Selecione");
+  fillContingencySelect(contingencyStatusInput, getContingencyEnumList("statuses"), "Selecione");
+  fillContingencySelect(
+    contingencySystemConditionInput,
+    getContingencyEnumList("systemConditions"),
+    "Selecione"
+  );
+  fillContingencySelect(
+    contingencyRootCauseStatusInput,
+    getContingencyEnumList("rootCauseStatuses"),
+    "Selecione"
+  );
+  fillContingencySelect(
+    contingencyRootCauseCategoryInput,
+    getContingencyEnumList("rootCauseCategories"),
+    "Selecione"
+  );
+  fillContingencySelect(contingencyTimelineSourceInput, getContingencyEnumList("timelineSources"), null);
+  fillContingencySelect(
+    contingencyAttachmentCategoryInput,
+    getContingencyEnumList("attachmentCategories"),
+    "Selecione"
+  );
+  if (contingencyTimelineSourceInput && !contingencyTimelineSourceInput.value) {
+    contingencyTimelineSourceInput.value = "SCADA";
+  }
+  if (contingencyAttachmentCategoryInput && !contingencyAttachmentCategoryInput.value) {
+    contingencyAttachmentCategoryInput.value = "OTHER";
+  }
+}
+
+function renderContingencyTimelineDraft() {
+  if (!contingencyTimelineBody) {
+    return;
+  }
+  const sourceLabelMap = buildContingencyLabelMap("timelineSources");
+  const rows = Array.isArray(contingencyTimelineDraft) ? contingencyTimelineDraft : [];
+  contingencyTimelineBody.innerHTML = rows
+    .map((entry) => {
+      const sourceLabel = sourceLabelMap.get(entry.source) || entry.source || "-";
+      return `
+        <tr data-contingency-timeline-id="${escapeHtml(String(entry.id || ""))}">
+          <td>${escapeHtml(formatContingencyDateTimeLabel(entry.occurredAt))}</td>
+          <td>${escapeHtml(sourceLabel)}</td>
+          <td>${escapeHtml(entry.responsible || "-")}</td>
+          <td>${escapeHtml(entry.event || "-")}</td>
+          <td>
+            <button class="btn btn--ghost btn--small" type="button" data-action="contingency-timeline-remove">Remover</button>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+}
+
+function renderContingencyAttachmentsDraft() {
+  if (!contingencyAttachmentsBody) {
+    return;
+  }
+  const categoryMap = buildContingencyLabelMap("attachmentCategories");
+  const rows = Array.isArray(contingencyAttachmentsDraft) ? contingencyAttachmentsDraft : [];
+  contingencyAttachmentsBody.innerHTML = rows
+    .map((entry) => {
+      const categoryLabel = categoryMap.get(entry.category) || entry.category || "-";
+      const uploadedAt = formatContingencyDateTimeLabel(entry.uploadedAt);
+      return `
+        <tr data-contingency-attachment-id="${escapeHtml(String(entry.id || ""))}">
+          <td>${escapeHtml(entry.fileName || "-")}</td>
+          <td>${escapeHtml(categoryLabel)}</td>
+          <td>
+            <label>
+              <input type="checkbox" data-action="contingency-attachment-include" ${
+                entry.includeInClientReport ? "checked" : ""
+              } />
+              Sim
+            </label>
+          </td>
+          <td>${escapeHtml(uploadedAt)}</td>
+          <td>${escapeHtml(entry.notes || "-")}</td>
+          <td>
+            <div class="table-actions">
+              <button class="btn btn--ghost btn--small" type="button" data-action="contingency-attachment-open">Abrir</button>
+              <button class="btn btn--danger btn--small" type="button" data-action="contingency-attachment-remove">Excluir</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+}
+
+function renderContingencyList() {
+  if (!contingencyTableBody) {
+    return;
+  }
+  const rows = Array.isArray(contingencyItems) ? contingencyItems : [];
+  contingencyTableBody.innerHTML = rows
+    .map((item) => `
+      <tr data-contingency-id="${escapeHtml(String(item.id || ""))}">
+        <td>${escapeHtml(item.code || "-")}</td>
+        <td>${escapeHtml(formatContingencyDateTimeLabel(item.startAt))}</td>
+        <td>${escapeHtml(item.assetName || "-")}</td>
+        <td>${escapeHtml(item.eventTypeLabel || item.eventType || "-")}</td>
+        <td>${escapeHtml(item.severity || "-")}</td>
+        <td>${escapeHtml(item.statusLabel || item.status || "-")}</td>
+        <td>${escapeHtml(item.normalizedAt ? "Sim" : "Não")}</td>
+        <td>${escapeHtml(getUserLabel(item.updatedBy || item.createdBy || ""))}</td>
+        <td>
+          <div class="table-actions">
+            <button class="btn btn--ghost btn--small" type="button" data-action="contingency-open">Ver/Editar</button>
+            <button class="btn btn--ghost btn--small" type="button" data-action="contingency-pdf-client">PDF Cliente</button>
+            <button class="btn btn--ghost btn--small" type="button" data-action="contingency-pdf-internal">PDF Interno</button>
+          </div>
+        </td>
+      </tr>
+    `)
+    .join("");
+  if (contingencyListEmpty) {
+    contingencyListEmpty.hidden = rows.length > 0;
+  }
+}
+
+function resetContingencyForm(options = {}) {
+  if (contingencyForm) {
+    contingencyForm.reset();
+  }
+  if (contingencyIdInput) {
+    contingencyIdInput.value = "";
+  }
+  if (contingencyCodeInput) {
+    contingencyCodeInput.value = "";
+  }
+  if (contingencyProjectInput) {
+    contingencyProjectInput.value = activeProjectId || "";
+  }
+  if (contingencyStatusInput && !contingencyStatusInput.value) {
+    contingencyStatusInput.value = "DRAFT";
+  }
+  if (contingencySystemConditionInput && !contingencySystemConditionInput.value) {
+    contingencySystemConditionInput.value = "NORMAL";
+  }
+  contingencyTimelineDraft = [];
+  contingencyAttachmentsDraft = [];
+  renderContingencyTimelineDraft();
+  renderContingencyAttachmentsDraft();
+  syncContingencyImpactState();
+  updateContingencyActionButtons();
+  setContingencyTab("identificacao");
+  if (!options.keepMessage) {
+    setContingencyMessage("");
+  }
+}
+
+function buildContingencyPayloadFromForm() {
+  const impactMwNotApplicable = Boolean(contingencyImpactMwNDInput && contingencyImpactMwNDInput.checked);
+  const impactMwRaw = contingencyImpactMwInput ? contingencyImpactMwInput.value : "";
+  const impactMwValue = impactMwNotApplicable
+    ? null
+    : impactMwRaw !== "" && Number.isFinite(Number(impactMwRaw))
+      ? Number(impactMwRaw)
+      : null;
+  return {
+    projectId: contingencyProjectInput ? contingencyProjectInput.value : "",
+    substation: contingencySubstationInput ? contingencySubstationInput.value.trim() : "",
+    bay: contingencyBayInput ? contingencyBayInput.value.trim() : "",
+    feeder: contingencyFeederInput ? contingencyFeederInput.value.trim() : "",
+    assetName: contingencyAssetNameInput ? contingencyAssetNameInput.value.trim() : "",
+    eventType: contingencyEventTypeInput ? contingencyEventTypeInput.value : "",
+    severity: contingencySeverityInput ? contingencySeverityInput.value : "",
+    status: contingencyStatusInput ? contingencyStatusInput.value : "",
+    startAt: toIsoFromDatetimeLocal(contingencyStartAtInput ? contingencyStartAtInput.value : ""),
+    normalizedAt: toIsoFromDatetimeLocal(contingencyNormalizedAtInput ? contingencyNormalizedAtInput.value : ""),
+    protocolRef: contingencyProtocolRefInput ? contingencyProtocolRefInput.value.trim() : "",
+    systemCondition: contingencySystemConditionInput ? contingencySystemConditionInput.value : "",
+    impactMw: impactMwValue,
+    impactMwNotApplicable,
+    impactDescription: contingencyImpactDescriptionInput ? contingencyImpactDescriptionInput.value.trim() : "",
+    residualRisk: contingencyResidualRiskInput ? contingencyResidualRiskInput.value.trim() : "",
+    symptoms: contingencySymptomsInput ? contingencySymptomsInput.value.trim() : "",
+    protectionFunction: contingencyProtectionFunctionInput ? contingencyProtectionFunctionInput.value.trim() : "",
+    rootCauseStatus: contingencyRootCauseStatusInput ? contingencyRootCauseStatusInput.value : "",
+    rootCauseCategory: contingencyRootCauseCategoryInput ? contingencyRootCauseCategoryInput.value : "",
+    diagnosis: contingencyDiagnosisInput ? contingencyDiagnosisInput.value.trim() : "",
+    rootCauseDescription: contingencyRootCauseDescriptionInput ? contingencyRootCauseDescriptionInput.value.trim() : "",
+    containmentActions: contingencyContainmentActionsInput ? contingencyContainmentActionsInput.value.trim() : "",
+    correctiveActions: parseContingencyActionsText(
+      contingencyCorrectiveActionsTextInput ? contingencyCorrectiveActionsTextInput.value : ""
+    ),
+    preventiveActions: parseContingencyActionsText(
+      contingencyPreventiveActionsTextInput ? contingencyPreventiveActionsTextInput.value : ""
+    ),
+    communications: parseContingencyCommunicationsText(
+      contingencyCommunicationsTextInput ? contingencyCommunicationsTextInput.value : ""
+    ),
+    timeline: Array.isArray(contingencyTimelineDraft) ? contingencyTimelineDraft : [],
+  };
+}
+
+function populateContingencyForm(item) {
+  const safe = item && typeof item === "object" ? item : {};
+  if (contingencyIdInput) {
+    contingencyIdInput.value = safe.id || "";
+  }
+  if (contingencyCodeInput) {
+    contingencyCodeInput.value = safe.code || "";
+  }
+  if (contingencyProjectInput) {
+    contingencyProjectInput.value = safe.projectId || activeProjectId || "";
+  }
+  if (contingencyStatusInput) {
+    contingencyStatusInput.value = safe.status || "DRAFT";
+  }
+  if (contingencySubstationInput) {
+    contingencySubstationInput.value = safe.substation || "";
+  }
+  if (contingencyBayInput) {
+    contingencyBayInput.value = safe.bay || "";
+  }
+  if (contingencyFeederInput) {
+    contingencyFeederInput.value = safe.feeder || "";
+  }
+  if (contingencyAssetNameInput) {
+    contingencyAssetNameInput.value = safe.assetName || "";
+  }
+  if (contingencyEventTypeInput) {
+    contingencyEventTypeInput.value = safe.eventType || "";
+  }
+  if (contingencySeverityInput) {
+    contingencySeverityInput.value = safe.severity || "";
+  }
+  if (contingencyStartAtInput) {
+    contingencyStartAtInput.value = toDatetimeLocalValue(safe.startAt);
+  }
+  if (contingencyNormalizedAtInput) {
+    contingencyNormalizedAtInput.value = toDatetimeLocalValue(safe.normalizedAt);
+  }
+  if (contingencyProtocolRefInput) {
+    contingencyProtocolRefInput.value = safe.protocolRef || "";
+  }
+  if (contingencySystemConditionInput) {
+    contingencySystemConditionInput.value = safe.systemCondition || "NORMAL";
+  }
+  if (contingencyImpactMwInput) {
+    contingencyImpactMwInput.value =
+      safe.impactMw === null || safe.impactMw === undefined ? "" : String(safe.impactMw);
+  }
+  if (contingencyImpactMwNDInput) {
+    contingencyImpactMwNDInput.checked = Boolean(safe.impactMwNotApplicable);
+  }
+  if (contingencyImpactDescriptionInput) {
+    contingencyImpactDescriptionInput.value = safe.impactDescription || "";
+  }
+  if (contingencyResidualRiskInput) {
+    contingencyResidualRiskInput.value = safe.residualRisk || "";
+  }
+  if (contingencySymptomsInput) {
+    contingencySymptomsInput.value = safe.symptoms || "";
+  }
+  if (contingencyProtectionFunctionInput) {
+    contingencyProtectionFunctionInput.value = safe.protectionFunction || "";
+  }
+  if (contingencyRootCauseStatusInput) {
+    contingencyRootCauseStatusInput.value = safe.rootCauseStatus || "PRELIMINARY";
+  }
+  if (contingencyRootCauseCategoryInput) {
+    contingencyRootCauseCategoryInput.value = safe.rootCauseCategory || "OTHER";
+  }
+  if (contingencyDiagnosisInput) {
+    contingencyDiagnosisInput.value = safe.diagnosis || "";
+  }
+  if (contingencyRootCauseDescriptionInput) {
+    contingencyRootCauseDescriptionInput.value = safe.rootCauseDescription || "";
+  }
+  if (contingencyContainmentActionsInput) {
+    contingencyContainmentActionsInput.value = safe.containmentActions || "";
+  }
+  if (contingencyCorrectiveActionsTextInput) {
+    contingencyCorrectiveActionsTextInput.value = formatContingencyActionsText(safe.correctiveActions);
+  }
+  if (contingencyPreventiveActionsTextInput) {
+    contingencyPreventiveActionsTextInput.value = formatContingencyActionsText(safe.preventiveActions);
+  }
+  if (contingencyCommunicationsTextInput) {
+    contingencyCommunicationsTextInput.value = formatContingencyCommunicationsText(safe.communications);
+  }
+  contingencyTimelineDraft = Array.isArray(safe.timeline)
+    ? safe.timeline.map((entry) => ({
+        id: entry.id || criarId(),
+        occurredAt: entry.occurredAt || "",
+        event: entry.event || "",
+        source: entry.source || "OTHER",
+        responsible: entry.responsible || "",
+      }))
+    : [];
+  contingencyAttachmentsDraft = Array.isArray(safe.attachments)
+    ? safe.attachments.map((entry) => ({ ...entry }))
+    : [];
+  renderContingencyTimelineDraft();
+  renderContingencyAttachmentsDraft();
+  syncContingencyImpactState();
+  updateContingencyActionButtons();
+}
+
+function readContingencyFilters() {
+  return {
+    projectId: contingencyFilterProject ? contingencyFilterProject.value : activeProjectId,
+    from: contingencyFilterFrom ? contingencyFilterFrom.value : "",
+    to: contingencyFilterTo ? contingencyFilterTo.value : "",
+    eventType: contingencyFilterEventType ? contingencyFilterEventType.value : "",
+    severity: contingencyFilterSeverity ? contingencyFilterSeverity.value : "",
+    status: contingencyFilterStatus ? contingencyFilterStatus.value : "",
+    substation: contingencyFilterSubstation ? contingencyFilterSubstation.value.trim() : "",
+    asset: contingencyFilterAsset ? contingencyFilterAsset.value.trim() : "",
+    q: contingencyFilterSearch ? contingencyFilterSearch.value.trim() : "",
+  };
+}
+
+async function ensureContingencyEnums(force = false) {
+  if (contingenciesEnums && !force) {
+    return;
+  }
+  try {
+    contingenciesEnums = await apiContingencyEnums();
+  } catch (error) {
+    contingenciesEnums = contingenciesEnums || {
+      eventTypes: [],
+      severities: [],
+      statuses: [],
+      systemConditions: [],
+      rootCauseStatuses: [],
+      rootCauseCategories: [],
+      timelineSources: [],
+      attachmentCategories: [],
+    };
+  }
+  applyContingencyEnumsToUI();
+}
+
+async function carregarContingencias(force = false) {
+  if (!currentUser || !canViewContingencies(currentUser)) {
+    contingencyItems = [];
+    contingenciesLoaded = false;
+    contingenciesLoading = false;
+    renderContingencyList();
+    return;
+  }
+  if (!force && contingenciesLoaded) {
+    renderContingencyList();
+    return;
+  }
+  if (contingenciesLoading) {
+    return;
+  }
+  contingenciesLoading = true;
+  try {
+    await ensureContingencyEnums(false);
+    renderContingencyProjectOptions();
+    const filters = readContingencyFilters();
+    if (!filters.projectId && activeProjectId) {
+      filters.projectId = activeProjectId;
+    }
+    const data = await apiContingenciesList(filters);
+    contingencyItems = Array.isArray(data.items) ? data.items : [];
+    contingenciesLoaded = true;
+    renderContingencyList();
+  } catch (error) {
+    contingencyItems = [];
+    contingenciesLoaded = false;
+    renderContingencyList();
+    setContingencyMessage(
+      error && error.message ? error.message : "Falha ao carregar contingências.",
+      true
+    );
+  } finally {
+    contingenciesLoading = false;
+  }
+}
+
+async function openContingency(itemId, options = {}) {
+  const contingencyId = String(itemId || "").trim();
+  if (!contingencyId) {
+    return;
+  }
+  try {
+    const data = await apiContingencyGet(contingencyId, { reportType: "internal" });
+    const item = data && data.item ? data.item : null;
+    if (!item) {
+      throw new Error("Contingência não encontrada.");
+    }
+    populateContingencyForm(item);
+    if (!options.silent) {
+      setContingencyMessage("Contingência carregada.");
+    }
+  } catch (error) {
+    setContingencyMessage(
+      error && error.message ? error.message : "Falha ao abrir contingência.",
+      true
+    );
+  }
+}
+
+async function handleContingencyFormSubmit(event) {
+  event.preventDefault();
+  if (!currentUser || !canViewContingencies(currentUser)) {
+    setContingencyMessage("Sem permissão para salvar contingências.", true);
+    return;
+  }
+  const payload = buildContingencyPayloadFromForm();
+  if (!payload.projectId) {
+    setContingencyMessage("Selecione o projeto.", true);
+    return;
+  }
+  if (!payload.startAt) {
+    setContingencyMessage("Informe a data/hora de início.", true);
+    return;
+  }
+  const currentId = getCurrentContingencyId();
+  try {
+    if (currentId) {
+      const data = await apiContingencyUpdate(currentId, payload);
+      if (data && data.item) {
+        populateContingencyForm(data.item);
+      }
+      setContingencyMessage("Contingência atualizada.");
+    } else {
+      const data = await apiContingencyCreate(payload);
+      if (data && data.item) {
+        populateContingencyForm(data.item);
+      }
+      setContingencyMessage("Contingência criada.");
+    }
+    await carregarContingencias(true);
+  } catch (error) {
+    setContingencyMessage(
+      error && error.message ? error.message : "Falha ao salvar contingência.",
+      true
+    );
+  }
+}
+
+async function handleContingencyDelete() {
+  const currentId = getCurrentContingencyId();
+  if (!currentId) {
+    setContingencyMessage("Selecione uma contingência para excluir.", true);
+    return;
+  }
+  const confirmed = window.confirm("Excluir esta contingência?");
+  if (!confirmed) {
+    return;
+  }
+  try {
+    await apiContingencyDelete(currentId);
+    resetContingencyForm({ keepMessage: true });
+    setContingencyMessage("Contingência excluída.");
+    await carregarContingencias(true);
+  } catch (error) {
+    setContingencyMessage(error && error.message ? error.message : "Falha ao excluir contingência.", true);
+  }
+}
+
+function handleContingencyTimelineAdd() {
+  const occurredAt = toIsoFromDatetimeLocal(
+    contingencyTimelineAtInput ? contingencyTimelineAtInput.value : ""
+  );
+  const eventText = contingencyTimelineEventInput ? contingencyTimelineEventInput.value.trim() : "";
+  const source = contingencyTimelineSourceInput ? contingencyTimelineSourceInput.value : "OTHER";
+  const responsible = contingencyTimelineResponsibleInput
+    ? contingencyTimelineResponsibleInput.value.trim()
+    : "";
+  if (!occurredAt || !eventText) {
+    setContingencyMessage("Timeline exige hora e descrição do evento.", true);
+    return;
+  }
+  contingencyTimelineDraft = contingencyTimelineDraft.concat({
+    id: criarId(),
+    occurredAt,
+    event: eventText,
+    source: source || "OTHER",
+    responsible,
+  });
+  contingencyTimelineDraft.sort((a, b) => {
+    const aTime = parseDateTime(a.occurredAt);
+    const bTime = parseDateTime(b.occurredAt);
+    return (aTime ? aTime.getTime() : 0) - (bTime ? bTime.getTime() : 0);
+  });
+  if (contingencyTimelineAtInput) {
+    contingencyTimelineAtInput.value = "";
+  }
+  if (contingencyTimelineEventInput) {
+    contingencyTimelineEventInput.value = "";
+  }
+  if (contingencyTimelineResponsibleInput) {
+    contingencyTimelineResponsibleInput.value = "";
+  }
+  renderContingencyTimelineDraft();
+  setContingencyMessage("");
+}
+
+async function handleContingencyAttachmentUpload() {
+  const currentId = getCurrentContingencyId();
+  if (!currentId) {
+    setContingencyMessage("Salve a contingência antes de anexar arquivos.", true);
+    return;
+  }
+  const file =
+    contingencyAttachmentFileInput &&
+    contingencyAttachmentFileInput.files &&
+    contingencyAttachmentFileInput.files[0]
+      ? contingencyAttachmentFileInput.files[0]
+      : null;
+  if (!file) {
+    setContingencyMessage("Selecione um arquivo para upload.", true);
+    return;
+  }
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append(
+    "category",
+    contingencyAttachmentCategoryInput ? contingencyAttachmentCategoryInput.value : "OTHER"
+  );
+  formData.append(
+    "notes",
+    contingencyAttachmentNotesInput ? contingencyAttachmentNotesInput.value.trim() : ""
+  );
+  formData.append(
+    "includeInClientReport",
+    contingencyAttachmentIncludeClientInput && contingencyAttachmentIncludeClientInput.checked
+      ? "true"
+      : "false"
+  );
+  try {
+    const data = await apiContingencyAttachmentUpload(currentId, formData);
+    if (contingencyAttachmentFileInput) {
+      contingencyAttachmentFileInput.value = "";
+    }
+    if (contingencyAttachmentNotesInput) {
+      contingencyAttachmentNotesInput.value = "";
+    }
+    if (data && data.item) {
+      populateContingencyForm(data.item);
+    } else {
+      await openContingency(currentId, { silent: true });
+    }
+    setContingencyMessage("Anexo enviado.");
+  } catch (error) {
+    setContingencyMessage(error && error.message ? error.message : "Falha no upload do anexo.", true);
+  }
+}
+
+async function handleContingencyAttachmentToggle(attachmentId, includeInClientReport) {
+  const currentId = getCurrentContingencyId();
+  const attachment = contingencyAttachmentsDraft.find(
+    (entry) => String(entry && entry.id) === String(attachmentId)
+  );
+  if (!currentId || !attachment) {
+    return;
+  }
+  try {
+    const data = await apiContingencyAttachmentUpdate(currentId, attachmentId, {
+      includeInClientReport,
+      category: attachment.category,
+      notes: attachment.notes || "",
+    });
+    if (data && data.item) {
+      populateContingencyForm(data.item);
+    }
+  } catch (error) {
+    setContingencyMessage(
+      error && error.message ? error.message : "Falha ao atualizar anexo.",
+      true
+    );
+    await openContingency(currentId, { silent: true });
+  }
+}
+
+async function handleContingencyAttachmentRemove(attachmentId) {
+  const currentId = getCurrentContingencyId();
+  if (!currentId || !attachmentId) {
+    return;
+  }
+  const confirmed = window.confirm("Excluir este anexo?");
+  if (!confirmed) {
+    return;
+  }
+  try {
+    const data = await apiContingencyAttachmentDelete(currentId, attachmentId);
+    if (data && data.item) {
+      populateContingencyForm(data.item);
+    } else {
+      await openContingency(currentId, { silent: true });
+    }
+    setContingencyMessage("Anexo removido.");
+  } catch (error) {
+    setContingencyMessage(error && error.message ? error.message : "Falha ao remover anexo.", true);
+  }
+}
+
+function downloadContingencyReport(type = "internal", id = getCurrentContingencyId()) {
+  const contingencyId = String(id || "").trim();
+  if (!contingencyId) {
+    setContingencyMessage("Selecione uma contingência para gerar o PDF.", true);
+    return;
+  }
+  window.open(getContingencyReportUrl(contingencyId, type), "_blank", "noopener");
+}
+
+function handleContingencyTableClick(event) {
+  const trigger = event.target.closest("button[data-action]");
+  if (!trigger) {
+    return;
+  }
+  const row = trigger.closest("[data-contingency-id]");
+  if (!row) {
+    return;
+  }
+  const contingencyId = String(row.dataset.contingencyId || "");
+  const action = String(trigger.dataset.action || "");
+  if (action === "contingency-open") {
+    openContingency(contingencyId);
+    return;
+  }
+  if (action === "contingency-pdf-client") {
+    downloadContingencyReport("client", contingencyId);
+    return;
+  }
+  if (action === "contingency-pdf-internal") {
+    downloadContingencyReport("internal", contingencyId);
+  }
+}
+
+function handleContingencyTimelineClick(event) {
+  const trigger = event.target.closest("button[data-action='contingency-timeline-remove']");
+  if (!trigger) {
+    return;
+  }
+  const row = trigger.closest("[data-contingency-timeline-id]");
+  if (!row) {
+    return;
+  }
+  const timelineId = String(row.dataset.contingencyTimelineId || "");
+  contingencyTimelineDraft = contingencyTimelineDraft.filter(
+    (entry) => String(entry && entry.id) !== timelineId
+  );
+  renderContingencyTimelineDraft();
+}
+
+function handleContingencyAttachmentsClick(event) {
+  const trigger = event.target.closest("button[data-action]");
+  if (!trigger) {
+    return;
+  }
+  const row = trigger.closest("[data-contingency-attachment-id]");
+  if (!row) {
+    return;
+  }
+  const attachmentId = String(row.dataset.contingencyAttachmentId || "");
+  const attachment = contingencyAttachmentsDraft.find(
+    (entry) => String(entry && entry.id) === attachmentId
+  );
+  if (!attachment) {
+    return;
+  }
+  const action = String(trigger.dataset.action || "");
+  if (action === "contingency-attachment-open") {
+    const url = attachment.storagePath || attachment.url;
+    if (url) {
+      window.open(url, "_blank", "noopener");
+    }
+    return;
+  }
+  if (action === "contingency-attachment-remove") {
+    handleContingencyAttachmentRemove(attachmentId);
+  }
+}
+
+function handleContingencyAttachmentsChange(event) {
+  const checkbox = event.target.closest("input[data-action='contingency-attachment-include']");
+  if (!checkbox) {
+    return;
+  }
+  const row = checkbox.closest("[data-contingency-attachment-id]");
+  if (!row) {
+    return;
+  }
+  handleContingencyAttachmentToggle(row.dataset.contingencyAttachmentId || "", checkbox.checked);
+}
+
+function renderContingencias() {
+  if (!contingencyTableBody) {
+    return;
+  }
+  const canView = currentUser && canViewContingencies(currentUser);
+  if (contingencyForm) {
+    setFormDisabled(contingencyForm, !canView);
+  }
+  if (!canView) {
+    contingencyItems = [];
+    renderContingencyList();
+    return;
+  }
+  renderContingencyProjectOptions();
+  renderContingencyList();
+  renderContingencyTimelineDraft();
+  renderContingencyAttachmentsDraft();
+  updateContingencyActionButtons();
+  if (!contingenciesLoaded && !contingenciesLoading) {
+    carregarContingencias(false);
+  }
+}
+
 async function handleAlmoxItemSubmit(event) {
   event.preventDefault();
   if (!currentUser || !canManageAlmoxarifado(currentUser)) {
@@ -45632,6 +46674,7 @@ function renderTudo() {
   });
   renderExecucao();
   renderIntercorrencias();
+  renderContingencias();
   renderKPIs();
   renderDesempenho();
   renderGrafico();
@@ -52100,6 +53143,9 @@ function ativarTab(nome, options = {}) {
   if (currentUser && tabName && tabName.startsWith("sst")) {
     carregarSst(true);
   }
+  if (currentUser && tabName === "contingencias") {
+    carregarContingencias(true);
+  }
   if (currentUser && tabName === "feedbacks") {
     carregarFeedbacks(true);
   }
@@ -53449,6 +54495,98 @@ async function apiSstPermitCreate(payload) {
     method: "POST",
     body: JSON.stringify(payload || {}),
   });
+}
+
+async function apiContingencyEnums() {
+  return apiRequest("/api/contingencies/enums");
+}
+
+async function apiContingenciesList(params = {}) {
+  const query = new URLSearchParams();
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") {
+      return;
+    }
+    query.set(key, String(value));
+  });
+  const suffix = query.toString();
+  return apiRequest(`/api/contingencies${suffix ? `?${suffix}` : ""}`);
+}
+
+async function apiContingencyGet(id, params = {}) {
+  const safeId = encodeURIComponent(String(id || ""));
+  const query = new URLSearchParams();
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") {
+      return;
+    }
+    query.set(key, String(value));
+  });
+  const suffix = query.toString();
+  return apiRequest(`/api/contingencies/${safeId}${suffix ? `?${suffix}` : ""}`);
+}
+
+async function apiContingencyCreate(payload) {
+  return apiRequest("/api/contingencies", {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiContingencyUpdate(id, payload) {
+  const safeId = encodeURIComponent(String(id || ""));
+  return apiRequest(`/api/contingencies/${safeId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiContingencyDelete(id) {
+  const safeId = encodeURIComponent(String(id || ""));
+  return apiRequest(`/api/contingencies/${safeId}`, {
+    method: "DELETE",
+  });
+}
+
+async function apiContingencyAttachmentUpload(contingencyId, formData) {
+  const safeId = encodeURIComponent(String(contingencyId || ""));
+  const response = await fetch(`${API_BASE}/api/contingencies/${safeId}/attachments`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = data && data.message ? data.message : "Falha ao enviar anexo.";
+    const error = new Error(message);
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+  return data;
+}
+
+async function apiContingencyAttachmentUpdate(contingencyId, attachmentId, payload) {
+  const safeId = encodeURIComponent(String(contingencyId || ""));
+  const safeAttachmentId = encodeURIComponent(String(attachmentId || ""));
+  return apiRequest(`/api/contingencies/${safeId}/attachments/${safeAttachmentId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiContingencyAttachmentDelete(contingencyId, attachmentId) {
+  const safeId = encodeURIComponent(String(contingencyId || ""));
+  const safeAttachmentId = encodeURIComponent(String(attachmentId || ""));
+  return apiRequest(`/api/contingencies/${safeId}/attachments/${safeAttachmentId}`, {
+    method: "DELETE",
+  });
+}
+
+function getContingencyReportUrl(id, type = "internal") {
+  const safeId = encodeURIComponent(String(id || ""));
+  const safeType = String(type || "internal").toLowerCase() === "client" ? "client" : "internal";
+  return `${API_BASE}/api/contingencies/${safeId}/report?type=${safeType}`;
 }
 
 async function syncMaintenanceNow(items, force) {

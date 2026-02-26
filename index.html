@@ -656,6 +656,26 @@
                   <span class="badge badge--warn" id="badgeIntercorrencias">0</span>
                 </span>
               </button>
+              <button
+                class="nav-item"
+                type="button"
+                data-tab="contingencias"
+                data-tooltip="Conting&ecirc;ncias"
+              >
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M4 12h16M12 4v16M6 6l12 12M18 6 6 18"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.4"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Conting&ecirc;ncias</span>
+                <span class="nav-item__meta"></span>
+              </button>
             </div>
           </section>
 
@@ -2786,6 +2806,325 @@
         <p id="intercorrenciaEmpty" class="empty-state">
           Nenhuma intercorr&ecirc;ncia/falha registrada para os filtros atuais.
         </p>
+      </section>
+    </section>
+
+    <section class="panel" id="contingencias" data-panel="contingencias">
+      <section class="card">
+        <div class="section-title">
+          <div>
+            <h2>Conting&ecirc;ncias</h2>
+            <p class="hint">Registro t&eacute;cnico estruturado para evento anormal e rastre&aacute;vel.</p>
+          </div>
+          <div class="table-actions">
+            <button id="contingencyNewBtn" class="btn btn--primary btn--small" type="button">
+              Nova Conting&ecirc;ncia
+            </button>
+          </div>
+        </div>
+        <div class="form-grid contingencia-filters">
+          <div class="field">
+            <label for="contingencyFilterProject">Projeto</label>
+            <select id="contingencyFilterProject"></select>
+          </div>
+          <div class="field">
+            <label for="contingencyFilterFrom">In&iacute;cio (de)</label>
+            <input id="contingencyFilterFrom" type="date" />
+          </div>
+          <div class="field">
+            <label for="contingencyFilterTo">In&iacute;cio (at&eacute;)</label>
+            <input id="contingencyFilterTo" type="date" />
+          </div>
+          <div class="field">
+            <label for="contingencyFilterEventType">Tipo de evento</label>
+            <select id="contingencyFilterEventType">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="contingencyFilterSeverity">Severidade</label>
+            <select id="contingencyFilterSeverity">
+              <option value="">Todas</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="contingencyFilterStatus">Status</label>
+            <select id="contingencyFilterStatus">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="contingencyFilterSubstation">Subesta&ccedil;&atilde;o</label>
+            <input id="contingencyFilterSubstation" type="text" placeholder="Ex: 834 - PARACATU/SOLARIG" />
+          </div>
+          <div class="field">
+            <label for="contingencyFilterAsset">Equipamento</label>
+            <input id="contingencyFilterAsset" type="text" placeholder="Ex: Disjuntor DJ-01" />
+          </div>
+          <div class="field" data-full>
+            <label for="contingencyFilterSearch">Busca geral</label>
+            <input id="contingencyFilterSearch" type="search" placeholder="C&oacute;digo, diagn&oacute;stico, sintomas, protocolo..." />
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>In&iacute;cio</th>
+                <th>Equipamento</th>
+                <th>Tipo</th>
+                <th>Severidade</th>
+                <th>Status</th>
+                <th>Normalizada</th>
+                <th>Respons&aacute;vel</th>
+                <th>A&ccedil;&otilde;es</th>
+              </tr>
+            </thead>
+            <tbody id="contingencyTableBody"></tbody>
+          </table>
+        </div>
+        <p id="contingencyListEmpty" class="empty-state">Nenhuma conting&ecirc;ncia encontrada para os filtros.</p>
+      </section>
+
+      <section class="card">
+        <div class="section-title">
+          <div>
+            <h3>Detalhe da conting&ecirc;ncia</h3>
+            <p class="hint">Preencha por abas para gerar relat&oacute;rio cliente/interno sem perda de dados.</p>
+          </div>
+          <div class="table-actions">
+            <button id="contingencyPdfClientBtn" class="btn btn--ghost btn--small" type="button">Gerar PDF Cliente</button>
+            <button id="contingencyPdfInternalBtn" class="btn btn--ghost btn--small" type="button">Gerar PDF Interno</button>
+          </div>
+        </div>
+        <form id="contingencyForm" class="form-grid">
+          <input id="contingencyId" type="hidden" />
+          <div class="field">
+            <label for="contingencyCode">C&oacute;digo</label>
+            <input id="contingencyCode" type="text" readonly placeholder="CTG-AAAA-00001" />
+          </div>
+          <div class="field">
+            <label for="contingencyProject">Projeto/UEN</label>
+            <select id="contingencyProject"></select>
+          </div>
+          <div class="field">
+            <label for="contingencyStatus">Status</label>
+            <select id="contingencyStatus"></select>
+          </div>
+          <div class="field" data-full>
+            <div class="contingencia-tabs">
+              <button class="btn btn--ghost btn--small is-active" type="button" data-contingency-tab="identificacao">Identifica&ccedil;&atilde;o</button>
+              <button class="btn btn--ghost btn--small" type="button" data-contingency-tab="impacto">Impacto</button>
+              <button class="btn btn--ghost btn--small" type="button" data-contingency-tab="timeline">Timeline</button>
+              <button class="btn btn--ghost btn--small" type="button" data-contingency-tab="diagnostico">Diagn&oacute;stico</button>
+              <button class="btn btn--ghost btn--small" type="button" data-contingency-tab="acoes">A&ccedil;&otilde;es</button>
+              <button class="btn btn--ghost btn--small" type="button" data-contingency-tab="anexos">Anexos</button>
+            </div>
+          </div>
+
+          <div class="field contingency-pane is-active" data-contingency-pane="identificacao" data-full>
+            <div class="form-grid">
+              <div class="field">
+                <label for="contingencySubstation">Subesta&ccedil;&atilde;o</label>
+                <input id="contingencySubstation" type="text" />
+              </div>
+              <div class="field">
+                <label for="contingencyBay">Bay</label>
+                <input id="contingencyBay" type="text" />
+              </div>
+              <div class="field">
+                <label for="contingencyFeeder">Alimentador</label>
+                <input id="contingencyFeeder" type="text" />
+              </div>
+              <div class="field">
+                <label for="contingencyAssetName">Equipamento</label>
+                <input id="contingencyAssetName" type="text" placeholder="Nome do ativo/equipamento" />
+              </div>
+              <div class="field">
+                <label for="contingencyEventType">Tipo de evento</label>
+                <select id="contingencyEventType"></select>
+              </div>
+              <div class="field">
+                <label for="contingencySeverity">Severidade</label>
+                <select id="contingencySeverity"></select>
+              </div>
+              <div class="field">
+                <label for="contingencyStartAt">Data/hora in&iacute;cio</label>
+                <input id="contingencyStartAt" type="datetime-local" />
+              </div>
+              <div class="field">
+                <label for="contingencyNormalizedAt">Data/hora normaliza&ccedil;&atilde;o</label>
+                <input id="contingencyNormalizedAt" type="datetime-local" />
+              </div>
+              <div class="field">
+                <label for="contingencyProtocolRef">Protocolo / refer&ecirc;ncia</label>
+                <input id="contingencyProtocolRef" type="text" placeholder="Ex: OSC-2026-0092" />
+              </div>
+            </div>
+          </div>
+
+          <div class="field contingency-pane" data-contingency-pane="impacto" data-full>
+            <div class="form-grid">
+              <div class="field">
+                <label for="contingencySystemCondition">Condi&ccedil;&atilde;o do sistema</label>
+                <select id="contingencySystemCondition"></select>
+              </div>
+              <div class="field">
+                <label for="contingencyImpactMw">Impacto MW</label>
+                <input id="contingencyImpactMw" type="number" step="0.01" min="0" />
+              </div>
+              <div class="field">
+                <label>
+                  <input id="contingencyImpactMwND" type="checkbox" />
+                  N/D para impacto MW
+                </label>
+              </div>
+              <div class="field" data-full>
+                <label for="contingencyImpactDescription">Descri&ccedil;&atilde;o do impacto</label>
+                <textarea id="contingencyImpactDescription" rows="3" placeholder="Obrigat&oacute;rio quando condi&ccedil;&atilde;o diferente de NORMAL"></textarea>
+              </div>
+              <div class="field" data-full>
+                <label for="contingencyResidualRisk">Risco residual p&oacute;s-normaliza&ccedil;&atilde;o</label>
+                <textarea id="contingencyResidualRisk" rows="2"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="field contingency-pane" data-contingency-pane="timeline" data-full>
+            <div class="form-grid">
+              <div class="field">
+                <label for="contingencyTimelineAt">Hora do evento</label>
+                <input id="contingencyTimelineAt" type="datetime-local" />
+              </div>
+              <div class="field">
+                <label for="contingencyTimelineSource">Fonte</label>
+                <select id="contingencyTimelineSource"></select>
+              </div>
+              <div class="field">
+                <label for="contingencyTimelineResponsible">Respons&aacute;vel</label>
+                <input id="contingencyTimelineResponsible" type="text" />
+              </div>
+              <div class="field" data-full>
+                <label for="contingencyTimelineEvent">Evento</label>
+                <input id="contingencyTimelineEvent" type="text" placeholder="Descreva o evento objetivo" />
+              </div>
+              <div class="field" data-full>
+                <button id="contingencyTimelineAddBtn" class="btn btn--ghost btn--small" type="button">Adicionar evento</button>
+              </div>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Hora</th>
+                  <th>Fonte</th>
+                  <th>Respons&aacute;vel</th>
+                  <th>Evento</th>
+                  <th>A&ccedil;&otilde;es</th>
+                </tr>
+              </thead>
+              <tbody id="contingencyTimelineBody"></tbody>
+            </table>
+          </div>
+
+          <div class="field contingency-pane" data-contingency-pane="diagnostico" data-full>
+            <div class="form-grid">
+              <div class="field" data-full>
+                <label for="contingencySymptoms">Sintomas observados</label>
+                <textarea id="contingencySymptoms" rows="3"></textarea>
+              </div>
+              <div class="field">
+                <label for="contingencyProtectionFunction">Dispositivo/rel&eacute;/prote&ccedil;&atilde;o</label>
+                <input id="contingencyProtectionFunction" type="text" placeholder="Ex: 50/51, 87T, 59N" />
+              </div>
+              <div class="field">
+                <label for="contingencyRootCauseStatus">Status da causa raiz</label>
+                <select id="contingencyRootCauseStatus"></select>
+              </div>
+              <div class="field">
+                <label for="contingencyRootCauseCategory">Categoria da causa raiz</label>
+                <select id="contingencyRootCauseCategory"></select>
+              </div>
+              <div class="field" data-full>
+                <label for="contingencyDiagnosis">Diagn&oacute;stico t&eacute;cnico</label>
+                <textarea id="contingencyDiagnosis" rows="3"></textarea>
+              </div>
+              <div class="field" data-full>
+                <label for="contingencyRootCauseDescription">Descri&ccedil;&atilde;o da causa raiz</label>
+                <textarea id="contingencyRootCauseDescription" rows="3"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="field contingency-pane" data-contingency-pane="acoes" data-full>
+            <div class="form-grid">
+              <div class="field" data-full>
+                <label for="contingencyContainmentActions">A&ccedil;&otilde;es de conting&ecirc;ncia/normaliza&ccedil;&atilde;o</label>
+                <textarea id="contingencyContainmentActions" rows="3"></textarea>
+              </div>
+              <div class="field" data-full>
+                <label for="contingencyCorrectiveActionsText">A&ccedil;&otilde;es corretivas</label>
+                <textarea id="contingencyCorrectiveActionsText" rows="4" placeholder="Uma por linha: ação | responsável | prazo (AAAA-MM-DD) | status"></textarea>
+              </div>
+              <div class="field" data-full>
+                <label for="contingencyPreventiveActionsText">A&ccedil;&otilde;es preventivas</label>
+                <textarea id="contingencyPreventiveActionsText" rows="4" placeholder="Uma por linha: ação | responsável | prazo (AAAA-MM-DD) | status"></textarea>
+              </div>
+              <div class="field" data-full>
+                <label for="contingencyCommunicationsText">Comunica&ccedil;&otilde;es</label>
+                <textarea id="contingencyCommunicationsText" rows="3" placeholder="Uma por linha: item de comunicação"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="field contingency-pane" data-contingency-pane="anexos" data-full>
+            <div class="form-grid">
+              <div class="field" data-full>
+                <label for="contingencyAttachmentFile">Arquivo</label>
+                <input id="contingencyAttachmentFile" type="file" />
+              </div>
+              <div class="field">
+                <label for="contingencyAttachmentCategory">Categoria</label>
+                <select id="contingencyAttachmentCategory"></select>
+              </div>
+              <div class="field">
+                <label for="contingencyAttachmentNotes">Notas</label>
+                <input id="contingencyAttachmentNotes" type="text" />
+              </div>
+              <div class="field">
+                <label>
+                  <input id="contingencyAttachmentIncludeClient" type="checkbox" checked />
+                  Incluir no relat&oacute;rio do cliente
+                </label>
+              </div>
+              <div class="field" data-full>
+                <button id="contingencyAttachmentUploadBtn" class="btn btn--ghost btn--small" type="button">Enviar anexo</button>
+              </div>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Arquivo</th>
+                  <th>Categoria</th>
+                  <th>Cliente</th>
+                  <th>Upload</th>
+                  <th>Notas</th>
+                  <th>A&ccedil;&otilde;es</th>
+                </tr>
+              </thead>
+              <tbody id="contingencyAttachmentsBody"></tbody>
+            </table>
+          </div>
+
+          <div class="field" data-full>
+            <div class="table-actions">
+              <button id="contingencySaveBtn" class="btn btn--primary" type="submit">Salvar conting&ecirc;ncia</button>
+              <button id="contingencyDeleteBtn" class="btn btn--danger" type="button">Excluir</button>
+              <button id="contingencyResetBtn" class="btn btn--ghost" type="button">Limpar</button>
+            </div>
+          </div>
+        </form>
+        <p id="contingencyMsg" class="mensagem" aria-live="polite"></p>
       </section>
     </section>
 

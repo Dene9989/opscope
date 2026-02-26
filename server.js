@@ -94,7 +94,14 @@ const BUILD_ID = (() => {
 })();
 const MAINT_SYNC_DEBUG = String(process.env.OPSCOPE_DEBUG_MAINT_SYNC || "").trim();
 const COMPAT_SCHEMA_VERSION = 1;
-const COMPAT_DATASETS = ["maintenance", "templates", "announcements", "feedbacks", "sstDocs"];
+const COMPAT_DATASETS = [
+  "maintenance",
+  "templates",
+  "announcements",
+  "feedbacks",
+  "sstDocs",
+  "contingencies",
+];
 const SSE_PING_INTERVAL_MS = 25000;
 const sseClients = new Map();
 
@@ -215,6 +222,10 @@ const DATA_FILE_NAMES = [
   "sst_aprs.json",
   "sst_permits.json",
   "sst_vehicles.json",
+  "contingencies.json",
+  "contingency_timeline.json",
+  "contingency_attachments.json",
+  "contingency_code_counter.json",
   "access_roles.json",
 ];
 
@@ -270,6 +281,10 @@ const SST_INCIDENTS_FILE = path.join(DATA_DIR, "sst_incidents.json");
 const SST_APRS_FILE = path.join(DATA_DIR, "sst_aprs.json");
 const SST_PERMITS_FILE = path.join(DATA_DIR, "sst_permits.json");
 const SST_VEHICLES_FILE = path.join(DATA_DIR, "sst_vehicles.json");
+const CONTINGENCIES_FILE = path.join(DATA_DIR, "contingencies.json");
+const CONTINGENCY_TIMELINE_FILE = path.join(DATA_DIR, "contingency_timeline.json");
+const CONTINGENCY_ATTACHMENTS_FILE = path.join(DATA_DIR, "contingency_attachments.json");
+const CONTINGENCY_CODE_COUNTER_FILE = path.join(DATA_DIR, "contingency_code_counter.json");
 const ACCESS_ROLES_FILE = path.join(DATA_DIR, "access_roles.json");
 const PMP_ACTIVITIES_FILE = path.join(DATA_DIR, "pmp_activities.json");
 const PMP_EXECUTIONS_FILE = path.join(DATA_DIR, "pmp_executions.json");
@@ -311,6 +326,10 @@ const STORE_FILES = [
   SST_APRS_FILE,
   SST_PERMITS_FILE,
   SST_VEHICLES_FILE,
+  CONTINGENCIES_FILE,
+  CONTINGENCY_TIMELINE_FILE,
+  CONTINGENCY_ATTACHMENTS_FILE,
+  CONTINGENCY_CODE_COUNTER_FILE,
   ACCESS_ROLES_FILE,
   PMP_ACTIVITIES_FILE,
   PMP_EXECUTIONS_FILE,
@@ -346,6 +365,7 @@ const FILE_TYPE_CONFIG = {
   procedure: { label: "Procedimentos PMP", dir: "procedimentos" },
   liberacao: { label: "Documentos de liberação", dir: "liberacao" },
 };
+FILE_TYPE_CONFIG.contingency = { label: "Anexos de contingencia", dir: "contingencias" };
 const LIBERACAO_DOC_TYPES = new Set(["apr", "os", "pte", "pt"]);
 const FILE_ALLOWED_MIME = new Map([
   ["application/pdf", "pdf"],
@@ -389,6 +409,55 @@ const ALMOX_MOVEMENT_TYPES = new Set([
   "LIBERACAO_RESERVA",
 ]);
 const SST_SEVERITY_LEVELS = new Set(["BAIXA", "MEDIA", "ALTA", "CRITICA"]);
+const CONTINGENCY_EVENT_TYPES = new Set([
+  "DESARME",
+  "TRIP",
+  "FALHA_FECHAMENTO",
+  "FALHA_COMANDO",
+  "PERDA_REDUNDANCIA",
+  "FALHA_COMUNICACAO",
+  "OUTRO",
+]);
+const CONTINGENCY_SEVERITIES = new Set(["S1", "S2", "S3", "S4"]);
+const CONTINGENCY_STATUSES = new Set([
+  "DRAFT",
+  "IN_ANALYSIS",
+  "NORMALIZED",
+  "CLOSED",
+  "REOPENED",
+]);
+const CONTINGENCY_SYSTEM_CONDITIONS = new Set([
+  "NORMAL",
+  "DEGRADED",
+  "RESTRICTED",
+  "UNAVAILABLE",
+]);
+const CONTINGENCY_ROOT_CAUSE_STATUSES = new Set(["PRELIMINARY", "VALIDATING", "CONFIRMED"]);
+const CONTINGENCY_ROOT_CAUSE_CATEGORIES = new Set([
+  "DC_CIRCUIT",
+  "COIL",
+  "INTERLOCK",
+  "MECHANICAL",
+  "COMMS_RTU",
+  "OPERATIONAL_ERROR",
+  "EXTERNAL",
+  "OTHER",
+]);
+const CONTINGENCY_TIMELINE_SOURCES = new Set(["SCADA", "RELAY", "FIELD", "COS", "OTHER"]);
+const CONTINGENCY_ATTACHMENT_CATEGORIES = new Set([
+  "SOE",
+  "OSCILLOGRAPHY",
+  "SCADA_LOG",
+  "PHOTO",
+  "MEASUREMENTS",
+  "OTHER",
+]);
+const CONTINGENCY_ACTION_STATUS = new Set([
+  "PENDENTE",
+  "EM_ANDAMENTO",
+  "CONCLUIDA",
+  "CANCELADA",
+]);
 
 const PERMISSION_KEYS = [
   "create",
@@ -2865,6 +2934,1176 @@ function loadSstPermits() {
 
 function saveSstPermits(list) {
   writeJson(SST_PERMITS_FILE, list);
+}
+
+function normalizeContingencyEventType(value) {
+  const normalized = normalizeSearchValue(value || "");
+  if (!normalized) {
+    return "OUTRO";
+  }
+  if (normalized === "trip") {
+    return "TRIP";
+  }
+  if (normalized.includes("desarme")) {
+    return "DESARME";
+  }
+  if (normalized.includes("falha") && normalized.includes("fech")) {
+    return "FALHA_FECHAMENTO";
+  }
+  if (normalized.includes("falha") && normalized.includes("comando")) {
+    return "FALHA_COMANDO";
+  }
+  if (normalized.includes("perda") && normalized.includes("redund")) {
+    return "PERDA_REDUNDANCIA";
+  }
+  if (normalized.includes("comunic")) {
+    return "FALHA_COMUNICACAO";
+  }
+  const raw = String(value || "").trim().toUpperCase();
+  return CONTINGENCY_EVENT_TYPES.has(raw) ? raw : "OUTRO";
+}
+
+function normalizeContingencySeverity(value) {
+  const raw = String(value || "").trim().toUpperCase();
+  return CONTINGENCY_SEVERITIES.has(raw) ? raw : "S3";
+}
+
+function normalizeContingencyStatus(value) {
+  const raw = String(value || "").trim().toUpperCase();
+  return CONTINGENCY_STATUSES.has(raw) ? raw : "DRAFT";
+}
+
+function normalizeContingencySystemCondition(value) {
+  const raw = String(value || "").trim().toUpperCase();
+  return CONTINGENCY_SYSTEM_CONDITIONS.has(raw) ? raw : "NORMAL";
+}
+
+function normalizeContingencyRootCauseStatus(value) {
+  const raw = String(value || "").trim().toUpperCase();
+  return CONTINGENCY_ROOT_CAUSE_STATUSES.has(raw) ? raw : "PRELIMINARY";
+}
+
+function normalizeContingencyRootCauseCategory(value) {
+  const raw = String(value || "").trim().toUpperCase();
+  return CONTINGENCY_ROOT_CAUSE_CATEGORIES.has(raw) ? raw : "OTHER";
+}
+
+function normalizeContingencyActionStatus(value) {
+  const raw = String(value || "").trim().toUpperCase();
+  return CONTINGENCY_ACTION_STATUS.has(raw) ? raw : "PENDENTE";
+}
+
+function normalizeContingencyCommunicationList(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => {
+        if (entry && typeof entry === "object") {
+          const label = String(entry.label || entry.name || entry.title || "").trim();
+          if (!label) {
+            return null;
+          }
+          return {
+            id: entry.id ? String(entry.id) : crypto.randomUUID(),
+            label,
+            done: Boolean(entry.done || entry.checked || entry.ok),
+            note: String(entry.note || entry.notes || "").trim(),
+          };
+        }
+        const label = String(entry || "").trim();
+        if (!label) {
+          return null;
+        }
+        return {
+          id: crypto.randomUUID(),
+          label,
+          done: false,
+          note: "",
+        };
+      })
+      .filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return normalizeTextList(value).map((label) => ({
+      id: crypto.randomUUID(),
+      label,
+      done: false,
+      note: "",
+    }));
+  }
+  return [];
+}
+
+function normalizeContingencyActionList(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => {
+        const action = String(
+          entry && typeof entry === "object"
+            ? entry.action || entry.acao || entry.title || entry.name
+            : entry || ""
+        ).trim();
+        if (!action) {
+          return null;
+        }
+        const dueDate = parseDateOnly(entry && (entry.dueDate || entry.prazo || entry.due))
+          ? formatDateISO(parseDateOnly(entry && (entry.dueDate || entry.prazo || entry.due)))
+          : "";
+        return {
+          id: entry && entry.id ? String(entry.id) : crypto.randomUUID(),
+          action,
+          responsible: String(
+            entry && typeof entry === "object"
+              ? entry.responsible || entry.responsavel || entry.owner
+              : ""
+          ).trim(),
+          dueDate,
+          status: normalizeContingencyActionStatus(
+            entry && typeof entry === "object" ? entry.status || entry.situacao : ""
+          ),
+        };
+      })
+      .filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return normalizeTextList(value).map((action) => ({
+      id: crypto.randomUUID(),
+      action,
+      responsible: "",
+      dueDate: "",
+      status: "PENDENTE",
+    }));
+  }
+  return [];
+}
+
+function normalizeContingency(record) {
+  const now = new Date().toISOString();
+  const startAt = parseDateTime(record && (record.startAt || record.startDate || record.inicio))
+    ? parseDateTime(record.startAt || record.startDate || record.inicio).toISOString()
+    : now;
+  const normalizedAtDate = parseDateTime(
+    record && (record.normalizedAt || record.normalized_at || record.dataNormalizacao)
+  );
+  const normalizedAt = normalizedAtDate ? normalizedAtDate.toISOString() : "";
+  const rawImpactMw =
+    record && Object.prototype.hasOwnProperty.call(record, "impactMw") ? record.impactMw : null;
+  const parsedImpactMw = rawImpactMw === "" || rawImpactMw === null || rawImpactMw === undefined
+    ? null
+    : Number(rawImpactMw);
+  const impactMw = Number.isFinite(parsedImpactMw) ? parsedImpactMw : null;
+  const impactMwNotApplicable =
+    Boolean(record && (record.impactMwNotApplicable || record.impactMwND)) ||
+    (impactMw === null && normalizeSearchValue(record && record.impactMw) === "n/d");
+  const revisionRaw = Number(record && record.revision);
+  return {
+    id: record && record.id ? String(record.id) : crypto.randomUUID(),
+    code: String(record && record.code ? record.code : "").trim(),
+    projectId: String(record && record.projectId ? record.projectId : "").trim(),
+    site: String(record && (record.site || record.local) ? record.site || record.local : "").trim(),
+    plant: String(record && (record.plant || record.usina) ? record.plant || record.usina : "").trim(),
+    substation: String(
+      record && (record.substation || record.subestacao) ? record.substation || record.subestacao : ""
+    ).trim(),
+    bay: String(record && record.bay ? record.bay : "").trim(),
+    feeder: String(record && record.feeder ? record.feeder : "").trim(),
+    assetId: String(record && (record.assetId || record.equipmentId) ? record.assetId || record.equipmentId : "").trim(),
+    assetName: String(
+      record && (record.assetName || record.equipmentName) ? record.assetName || record.equipmentName : ""
+    ).trim(),
+    eventType: normalizeContingencyEventType(record && (record.eventType || record.tipoEvento)),
+    severity: normalizeContingencySeverity(record && (record.severity || record.criticidade)),
+    status: normalizeContingencyStatus(record && (record.status || record.situacao)),
+    startAt,
+    normalizedAt,
+    impactMw,
+    impactMwNotApplicable,
+    impactDescription: String(
+      record && (record.impactDescription || record.descricaoImpacto)
+        ? record.impactDescription || record.descricaoImpacto
+        : ""
+    ).trim(),
+    systemCondition: normalizeContingencySystemCondition(
+      record && (record.systemCondition || record.condicaoSistema)
+    ),
+    residualRisk: String(
+      record && (record.residualRisk || record.riscoResidual)
+        ? record.residualRisk || record.riscoResidual
+        : ""
+    ).trim(),
+    symptoms: String(record && (record.symptoms || record.sintomas) ? record.symptoms || record.sintomas : "").trim(),
+    protectionFunction: String(
+      record && (record.protectionFunction || record.funcaoProtecao)
+        ? record.protectionFunction || record.funcaoProtecao
+        : ""
+    ).trim(),
+    diagnosis: String(record && (record.diagnosis || record.diagnostico) ? record.diagnosis || record.diagnostico : "").trim(),
+    rootCauseStatus: normalizeContingencyRootCauseStatus(
+      record && (record.rootCauseStatus || record.statusCausaRaiz)
+    ),
+    rootCauseCategory: normalizeContingencyRootCauseCategory(
+      record && (record.rootCauseCategory || record.categoriaCausaRaiz)
+    ),
+    rootCauseDescription: String(
+      record && (record.rootCauseDescription || record.descricaoCausaRaiz)
+        ? record.rootCauseDescription || record.descricaoCausaRaiz
+        : ""
+    ).trim(),
+    containmentActions: String(
+      record && (record.containmentActions || record.acoesContencao)
+        ? record.containmentActions || record.acoesContencao
+        : ""
+    ).trim(),
+    correctiveActions: normalizeContingencyActionList(
+      record && (record.correctiveActions || record.acoesCorretivas)
+    ),
+    preventiveActions: normalizeContingencyActionList(
+      record && (record.preventiveActions || record.acoesPreventivas)
+    ),
+    communications: normalizeContingencyCommunicationList(
+      record && (record.communications || record.comunicacoes)
+    ),
+    protocolRef: String(record && (record.protocolRef || record.protocolo) ? record.protocolRef || record.protocolo : "").trim(),
+    revision: Number.isFinite(revisionRaw) && revisionRaw > 0 ? Math.floor(revisionRaw) : 1,
+    createdBy: String(record && record.createdBy ? record.createdBy : "").trim(),
+    createdAt: record && record.createdAt ? String(record.createdAt) : now,
+    updatedBy: String(record && record.updatedBy ? record.updatedBy : "").trim(),
+    updatedAt: record && record.updatedAt ? String(record.updatedAt) : now,
+  };
+}
+
+function normalizeContingencyTimelineEvent(record) {
+  const now = new Date().toISOString();
+  const occurredAtDate = parseDateTime(record && (record.occurredAt || record.dataHora || record.when));
+  const sourceRaw = String(record && (record.source || record.fonte) ? record.source || record.fonte : "")
+    .trim()
+    .toUpperCase();
+  return {
+    id: record && record.id ? String(record.id) : crypto.randomUUID(),
+    contingencyId: String(
+      record && (record.contingencyId || record.contingenciaId)
+        ? record.contingencyId || record.contingenciaId
+        : ""
+    ).trim(),
+    occurredAt: occurredAtDate ? occurredAtDate.toISOString() : "",
+    event: String(record && (record.event || record.evento) ? record.event || record.evento : "").trim(),
+    source: CONTINGENCY_TIMELINE_SOURCES.has(sourceRaw) ? sourceRaw : "OTHER",
+    responsible: String(record && (record.responsible || record.responsavel) ? record.responsible || record.responsavel : "").trim(),
+    createdAt: record && record.createdAt ? String(record.createdAt) : now,
+  };
+}
+
+function normalizeContingencyAttachment(record) {
+  const now = new Date().toISOString();
+  const categoryRaw = String(record && (record.category || record.categoria) ? record.category || record.categoria : "")
+    .trim()
+    .toUpperCase();
+  return {
+    id: record && record.id ? String(record.id) : crypto.randomUUID(),
+    contingencyId: String(
+      record && (record.contingencyId || record.contingenciaId)
+        ? record.contingencyId || record.contingenciaId
+        : ""
+    ).trim(),
+    fileId: String(record && (record.fileId || record.idArquivo) ? record.fileId || record.idArquivo : "").trim(),
+    fileName: String(record && (record.fileName || record.nomeArquivo) ? record.fileName || record.nomeArquivo : "").trim(),
+    mimeType: String(record && (record.mimeType || record.mime) ? record.mimeType || record.mime : "").trim(),
+    size: normalizeNumber(record && record.size, 0),
+    storagePath: String(record && (record.storagePath || record.path || record.url) ? record.storagePath || record.path || record.url : "").trim(),
+    category: CONTINGENCY_ATTACHMENT_CATEGORIES.has(categoryRaw) ? categoryRaw : "OTHER",
+    includeInClientReport: Boolean(
+      record &&
+        (record.includeInClientReport ||
+          record.includeClient ||
+          String(record.includeInClientReport).toLowerCase() === "true")
+    ),
+    uploadedBy: String(record && (record.uploadedBy || record.createdBy) ? record.uploadedBy || record.createdBy : "").trim(),
+    uploadedAt: String(record && (record.uploadedAt || record.createdAt) ? record.uploadedAt || record.createdAt : now).trim(),
+    notes: String(record && (record.notes || record.observacao) ? record.notes || record.observacao : "").trim(),
+  };
+}
+
+function loadContingencies() {
+  const data = readJson(CONTINGENCIES_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.filter((item) => item && typeof item === "object").map(normalizeContingency);
+}
+
+function saveContingencies(list) {
+  return writeJson(CONTINGENCIES_FILE, Array.isArray(list) ? list : []);
+}
+
+function loadContingencyTimeline() {
+  const data = readJson(CONTINGENCY_TIMELINE_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data
+    .filter((item) => item && typeof item === "object")
+    .map(normalizeContingencyTimelineEvent)
+    .filter((entry) => entry.contingencyId);
+}
+
+function saveContingencyTimeline(list) {
+  return writeJson(CONTINGENCY_TIMELINE_FILE, Array.isArray(list) ? list : []);
+}
+
+function loadContingencyAttachments() {
+  const data = readJson(CONTINGENCY_ATTACHMENTS_FILE, []);
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data
+    .filter((item) => item && typeof item === "object")
+    .map(normalizeContingencyAttachment)
+    .filter((entry) => entry.contingencyId);
+}
+
+function saveContingencyAttachments(list) {
+  return writeJson(CONTINGENCY_ATTACHMENTS_FILE, Array.isArray(list) ? list : []);
+}
+
+function normalizeContingencyCounterState(value) {
+  const payload = value && typeof value === "object" ? value : {};
+  const next = {};
+  Object.keys(payload).forEach((key) => {
+    const year = String(key || "").trim();
+    if (!/^\d{4}$/.test(year)) {
+      return;
+    }
+    const seq = Math.floor(Number(payload[key]));
+    next[year] = Number.isFinite(seq) && seq > 0 ? seq : 1;
+  });
+  return next;
+}
+
+function loadContingencyCodeCounterState() {
+  return normalizeContingencyCounterState(readJson(CONTINGENCY_CODE_COUNTER_FILE, {}));
+}
+
+function saveContingencyCodeCounterState(state) {
+  return writeJson(CONTINGENCY_CODE_COUNTER_FILE, normalizeContingencyCounterState(state));
+}
+
+function getContingencyCodeYear(startAtValue) {
+  const parsed = parseDateTime(startAtValue);
+  const date = parsed || new Date();
+  return String(date.getUTCFullYear());
+}
+
+function buildContingencyCode(year, sequence) {
+  return `CTG-${year}-${String(sequence).padStart(5, "0")}`;
+}
+
+function issueContingencyCode(startAtValue) {
+  const year = getContingencyCodeYear(startAtValue);
+  const nextState = normalizeContingencyCounterState(contingencyCodeCounter);
+  const sequence = Math.max(1, Math.floor(Number(nextState[year] || 1)));
+  const code = buildContingencyCode(year, sequence);
+  nextState[year] = sequence + 1;
+  const saved = saveContingencyCodeCounterState(nextState);
+  if (!saved) {
+    return { ok: false, code: "", year, sequence };
+  }
+  contingencyCodeCounter = nextState;
+  return { ok: true, code, year, sequence };
+}
+
+function canCloseContingency(user) {
+  if (!user) {
+    return false;
+  }
+  if (isMasterUser(user) || isFullAccessRole(user.rbacRole || user.role)) {
+    return true;
+  }
+  return getUserHierarchyRank(user) <= 2;
+}
+
+function canEditContingency(user, record) {
+  if (!user || !record) {
+    return false;
+  }
+  if (!userHasProjectAccess(user, record.projectId)) {
+    return false;
+  }
+  if (normalizeContingencyStatus(record.status) === "CLOSED") {
+    return canCloseContingency(user);
+  }
+  if (isMasterUser(user) || isFullAccessRole(user.rbacRole || user.role)) {
+    return true;
+  }
+  if (hasGranularPermission(user, "gerenciarSST")) {
+    return true;
+  }
+  return true;
+}
+
+function stripContingencyInternalDetails(record) {
+  const copy = normalizeContingency(record);
+  copy.rootCauseDescription = "";
+  copy.diagnosis = copy.diagnosis
+    ? `Resumo tecnico: ${copy.diagnosis.slice(0, 260)}${copy.diagnosis.length > 260 ? "..." : ""}`
+    : "";
+  return copy;
+}
+
+function parseBooleanLike(value) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  const normalized = normalizeSearchValue(value || "");
+  return (
+    normalized === "1" ||
+    normalized === "true" ||
+    normalized === "sim" ||
+    normalized === "yes" ||
+    normalized === "on"
+  );
+}
+
+function validateContingencyRecord(record) {
+  const errors = [];
+  if (!record.projectId) {
+    errors.push("Projeto obrigatorio.");
+  }
+  if (!record.startAt || !parseDateTime(record.startAt)) {
+    errors.push("Data/hora de inicio obrigatoria.");
+  }
+  const status = normalizeContingencyStatus(record.status);
+  if ((status === "NORMALIZED" || status === "CLOSED") && !parseDateTime(record.normalizedAt)) {
+    errors.push("Data/hora de normalizacao obrigatoria para status NORMALIZED/CLOSED.");
+  }
+  if (record.systemCondition !== "NORMAL" && !record.impactDescription) {
+    errors.push("Descricao de impacto obrigatoria quando condicao do sistema nao for NORMAL.");
+  }
+  if (record.impactMw === null && !record.impactMwNotApplicable) {
+    errors.push("Informe impacto em MW ou marque N/D.");
+  }
+  if (record.eventType === "TRIP" || record.eventType === "DESARME") {
+    const haystack = normalizeSearchValue(`${record.symptoms || ""} ${record.protectionFunction || ""}`);
+    if (
+      !record.protectionFunction &&
+      !haystack.includes("rele") &&
+      !haystack.includes("prote") &&
+      !haystack.includes("dispositivo")
+    ) {
+      errors.push(
+        "Para TRIP/DESARME, informe dispositivo/rele/protecao nos sintomas ou em funcao de protecao."
+      );
+    }
+  }
+  if (record.eventType === "FALHA_FECHAMENTO") {
+    const symptoms = normalizeSearchValue(record.symptoms || "");
+    if (!symptoms.includes("remoto") || (!symptoms.includes("local") && !symptoms.includes("mecan"))) {
+      errors.push(
+        "Para FALHA_FECHAMENTO, descreva o resultado remoto e local/mecanico nos sintomas."
+      );
+    }
+  }
+  return errors;
+}
+
+function normalizeContingencyTimelineList(value, contingencyId) {
+  const source = Array.isArray(value) ? value : [];
+  const errors = [];
+  const list = source
+    .map((entry) =>
+      normalizeContingencyTimelineEvent({
+        ...entry,
+        contingencyId,
+      })
+    )
+    .filter((entry) => entry.event || entry.occurredAt || entry.responsible);
+  list.forEach((entry, index) => {
+    if (!entry.occurredAt || !parseDateTime(entry.occurredAt)) {
+      errors.push(`Timeline item ${index + 1}: horario obrigatorio.`);
+    }
+    if (!entry.event) {
+      errors.push(`Timeline item ${index + 1}: descricao obrigatoria.`);
+    }
+  });
+  list.sort((a, b) => {
+    const aTime = parseDateTime(a.occurredAt);
+    const bTime = parseDateTime(b.occurredAt);
+    return (aTime ? aTime.getTime() : 0) - (bTime ? bTime.getTime() : 0);
+  });
+  return { list, errors };
+}
+
+function getContingencyTimelineById(contingencyId) {
+  return contingencyTimeline
+    .filter((entry) => entry && entry.contingencyId === contingencyId)
+    .sort((a, b) => {
+      const aTime = parseDateTime(a.occurredAt);
+      const bTime = parseDateTime(b.occurredAt);
+      return (aTime ? aTime.getTime() : 0) - (bTime ? bTime.getTime() : 0);
+    });
+}
+
+function getContingencyAttachmentsById(contingencyId, options = {}) {
+  const includeAll = options.includeAll !== false;
+  return contingencyAttachments
+    .filter((entry) => entry && entry.contingencyId === contingencyId)
+    .filter((entry) => includeAll || entry.includeInClientReport)
+    .map((entry) => {
+      const file = filesMeta.find((item) => item && item.id === entry.fileId);
+      const storagePath =
+        entry.storagePath || (entry.fileId ? `/api/files/${encodeURIComponent(entry.fileId)}/content` : "");
+      return {
+        ...entry,
+        fileName: entry.fileName || (file ? file.originalName || file.name : ""),
+        mimeType: entry.mimeType || (file ? file.mime || "" : ""),
+        size: entry.size || (file ? Number(file.size || 0) : 0),
+        storagePath,
+      };
+    })
+    .sort((a, b) => {
+      const aTime = parseDateTime(a.uploadedAt);
+      const bTime = parseDateTime(b.uploadedAt);
+      return (bTime ? bTime.getTime() : 0) - (aTime ? aTime.getTime() : 0);
+    });
+}
+
+function buildContingencyPayload(record, options = {}) {
+  const reportType = String(options.reportType || "").trim().toLowerCase();
+  const includeInternal = reportType !== "client";
+  const base = includeInternal ? normalizeContingency(record) : stripContingencyInternalDetails(record);
+  return {
+    ...base,
+    timeline: getContingencyTimelineById(base.id),
+    attachments: getContingencyAttachmentsById(base.id, {
+      includeAll: includeInternal,
+    }),
+  };
+}
+
+function logContingency(action, details = {}, level = "info") {
+  const payload = {
+    action,
+    at: new Date().toISOString(),
+    ...details,
+  };
+  if (level === "error") {
+    console.error("[contingencies]", payload);
+    return;
+  }
+  if (level === "warn") {
+    console.warn("[contingencies]", payload);
+    return;
+  }
+  console.info("[contingencies]", payload);
+}
+
+function respondContingencyError(res, statusCode, reason, message, details = {}) {
+  logContingency("request.failed", { statusCode, reason, ...details }, "warn");
+  if (statusCode === 503) {
+    res.setHeader("Retry-After", "60");
+  }
+  return res.status(statusCode).json({
+    message,
+    reason,
+  });
+}
+
+const CONTINGENCY_EVENT_LABELS = {
+  DESARME: "Desarme",
+  TRIP: "Trip",
+  FALHA_FECHAMENTO: "Falha de fechamento",
+  FALHA_COMANDO: "Falha de comando",
+  PERDA_REDUNDANCIA: "Perda de redundancia",
+  FALHA_COMUNICACAO: "Falha de comunicacao",
+  OUTRO: "Outro",
+};
+
+const CONTINGENCY_STATUS_LABELS = {
+  DRAFT: "Rascunho",
+  IN_ANALYSIS: "Em analise",
+  NORMALIZED: "Normalizada",
+  CLOSED: "Encerrada",
+  REOPENED: "Reaberta",
+};
+
+const CONTINGENCY_SYSTEM_CONDITION_LABELS = {
+  NORMAL: "Normal",
+  DEGRADED: "Degradada",
+  RESTRICTED: "Restrita",
+  UNAVAILABLE: "Indisponivel",
+};
+
+const CONTINGENCY_ROOT_CAUSE_STATUS_LABELS = {
+  PRELIMINARY: "Preliminar",
+  VALIDATING: "Validando",
+  CONFIRMED: "Confirmada",
+};
+
+const CONTINGENCY_ROOT_CAUSE_CATEGORY_LABELS = {
+  DC_CIRCUIT: "Circuito de CC",
+  COIL: "Bobina",
+  INTERLOCK: "Intertravamento",
+  MECHANICAL: "Mecanica",
+  COMMS_RTU: "Comunicacao/RTU",
+  OPERATIONAL_ERROR: "Erro operacional",
+  EXTERNAL: "Externo",
+  OTHER: "Outro",
+};
+
+const CONTINGENCY_TIMELINE_SOURCE_LABELS = {
+  SCADA: "SCADA",
+  RELAY: "Rele",
+  FIELD: "Campo",
+  COS: "COS",
+  OTHER: "Outro",
+};
+
+const CONTINGENCY_ATTACHMENT_CATEGORY_LABELS = {
+  SOE: "SOE",
+  OSCILLOGRAPHY: "Oscilografia",
+  SCADA_LOG: "Log SCADA",
+  PHOTO: "Foto",
+  MEASUREMENTS: "Medicoes",
+  OTHER: "Outro",
+};
+
+const CONTINGENCY_ACTION_STATUS_LABELS = {
+  PENDENTE: "Pendente",
+  EM_ANDAMENTO: "Em andamento",
+  CONCLUIDA: "Concluida",
+  CANCELADA: "Cancelada",
+};
+
+function getContingencyLabel(map, key, fallback = "-") {
+  const normalized = String(key || "").trim().toUpperCase();
+  if (!normalized) {
+    return fallback;
+  }
+  return map[normalized] || normalized || fallback;
+}
+
+function formatContingencyDateTime(value) {
+  const parsed = parseDateTime(value);
+  if (!parsed) {
+    return "-";
+  }
+  return parsed.toLocaleString("pt-BR");
+}
+
+function formatContingencyDateOnly(value) {
+  const parsed = parseDateTime(value) || parseDateOnly(value);
+  if (!parsed) {
+    return "-";
+  }
+  return parsed.toLocaleDateString("pt-BR");
+}
+
+function formatContingencyActionStatus(status) {
+  return getContingencyLabel(CONTINGENCY_ACTION_STATUS_LABELS, status, "Pendente");
+}
+
+function resolveContingencyProjectId(req, user, options = {}) {
+  const payload =
+    options && options.payload && typeof options.payload === "object" ? options.payload : {};
+  const fromPayload = String(payload.projectId || "").trim();
+  const fromQuery = String(req && req.query && req.query.projectId ? req.query.projectId : "").trim();
+  const projectId = fromPayload || fromQuery || getActiveProjectId(req, user) || "";
+  if (projectId && req && req.session && req.session.activeProjectId !== projectId) {
+    req.session.activeProjectId = projectId;
+  }
+  return projectId;
+}
+
+function persistContingencyStores(options = {}) {
+  const persistContingencies = options.contingencies !== false;
+  const persistTimeline = options.timeline === true;
+  const persistAttachments = options.attachments === true;
+  if (persistContingencies && !saveContingencies(contingencies)) {
+    return { ok: false, failedFile: path.basename(CONTINGENCIES_FILE) };
+  }
+  if (persistTimeline && !saveContingencyTimeline(contingencyTimeline)) {
+    return { ok: false, failedFile: path.basename(CONTINGENCY_TIMELINE_FILE) };
+  }
+  if (persistAttachments && !saveContingencyAttachments(contingencyAttachments)) {
+    return { ok: false, failedFile: path.basename(CONTINGENCY_ATTACHMENTS_FILE) };
+  }
+  return { ok: true, failedFile: "" };
+}
+
+function touchContingencyAuditFields(record, userId, options = {}) {
+  const now = new Date().toISOString();
+  const next = normalizeContingency(record);
+  const keepRevision = options.keepRevision === true;
+  const revision = Number(next.revision || 1);
+  next.updatedAt = now;
+  next.updatedBy = userId || "";
+  next.revision = keepRevision ? Math.max(1, revision) : Math.max(1, revision) + 1;
+  return next;
+}
+
+function getContingencyById(id) {
+  const target = String(id || "").trim();
+  if (!target) {
+    return { index: -1, item: null };
+  }
+  const index = contingencies.findIndex(
+    (entry) => entry && String(entry.id || "") === target
+  );
+  return {
+    index,
+    item: index >= 0 ? contingencies[index] : null,
+  };
+}
+
+function filterContingenciesList(list, filters = {}) {
+  let output = Array.isArray(list) ? list.slice() : [];
+  const eventType = normalizeContingencyEventType(filters.eventType || "");
+  const severity = normalizeContingencySeverity(filters.severity || "");
+  const status = normalizeContingencyStatus(filters.status || "");
+  const normalizedFilter = String(filters.normalized || "").trim();
+  const substation = normalizeSearchValue(filters.substation || "");
+  const asset = normalizeSearchValue(filters.asset || filters.equipment || "");
+  const search = normalizeSearchValue(filters.q || filters.search || "");
+  const fromDate = parseDateOnly(filters.from || filters.dateFrom);
+  const toDate = parseDateOnly(filters.to || filters.dateTo);
+
+  if (filters.eventType) {
+    output = output.filter((entry) => normalizeContingencyEventType(entry.eventType) === eventType);
+  }
+  if (filters.severity) {
+    output = output.filter((entry) => normalizeContingencySeverity(entry.severity) === severity);
+  }
+  if (filters.status) {
+    output = output.filter((entry) => normalizeContingencyStatus(entry.status) === status);
+  }
+  if (normalizedFilter) {
+    const mustBeNormalized = parseBooleanLike(normalizedFilter);
+    output = output.filter((entry) => {
+      const hasNormalizedAt = Boolean(parseDateTime(entry.normalizedAt));
+      return mustBeNormalized ? hasNormalizedAt : !hasNormalizedAt;
+    });
+  }
+  if (substation) {
+    output = output.filter((entry) =>
+      normalizeSearchValue(entry.substation || "").includes(substation)
+    );
+  }
+  if (asset) {
+    output = output.filter((entry) =>
+      normalizeSearchValue(entry.assetName || "").includes(asset)
+    );
+  }
+  if (search) {
+    output = output.filter((entry) => {
+      const haystack = normalizeSearchValue(
+        [
+          entry.code,
+          entry.substation,
+          entry.assetName,
+          entry.eventType,
+          entry.symptoms,
+          entry.diagnosis,
+          entry.rootCauseDescription,
+          entry.protocolRef,
+        ].join(" ")
+      );
+      return haystack.includes(search);
+    });
+  }
+  if (fromDate || toDate) {
+    const fromMs = fromDate ? startOfDay(fromDate).getTime() : null;
+    const toMs = toDate ? addDays(startOfDay(toDate), 1).getTime() - 1 : null;
+    output = output.filter((entry) => {
+      const startAt = parseDateTime(entry.startAt);
+      if (!startAt) {
+        return false;
+      }
+      const ts = startAt.getTime();
+      if (fromMs !== null && ts < fromMs) {
+        return false;
+      }
+      if (toMs !== null && ts > toMs) {
+        return false;
+      }
+      return true;
+    });
+  }
+  output.sort((a, b) => {
+    const aTime = parseDateTime(a.startAt);
+    const bTime = parseDateTime(b.startAt);
+    return (bTime ? bTime.getTime() : 0) - (aTime ? aTime.getTime() : 0);
+  });
+  return output;
+}
+
+function buildContingencyListItem(record) {
+  const item = normalizeContingency(record);
+  const project = getProjectById(item.projectId);
+  const timelineCount = contingencyTimeline.filter(
+    (entry) => entry && entry.contingencyId === item.id
+  ).length;
+  const attachmentCount = contingencyAttachments.filter(
+    (entry) => entry && entry.contingencyId === item.id
+  ).length;
+  return {
+    ...item,
+    projectLabel: project ? getProjectLabel(project) : item.projectId || "-",
+    eventTypeLabel: getContingencyLabel(CONTINGENCY_EVENT_LABELS, item.eventType, "Outro"),
+    statusLabel: getContingencyLabel(CONTINGENCY_STATUS_LABELS, item.status, "Rascunho"),
+    systemConditionLabel: getContingencyLabel(
+      CONTINGENCY_SYSTEM_CONDITION_LABELS,
+      item.systemCondition,
+      "Normal"
+    ),
+    timelineCount,
+    attachmentCount,
+  };
+}
+
+function getContingencyEnumsPayload() {
+  return {
+    eventTypes: Array.from(CONTINGENCY_EVENT_TYPES).map((value) => ({
+      value,
+      label: getContingencyLabel(CONTINGENCY_EVENT_LABELS, value, value),
+    })),
+    severities: Array.from(CONTINGENCY_SEVERITIES).map((value) => ({ value, label: value })),
+    statuses: Array.from(CONTINGENCY_STATUSES).map((value) => ({
+      value,
+      label: getContingencyLabel(CONTINGENCY_STATUS_LABELS, value, value),
+    })),
+    systemConditions: Array.from(CONTINGENCY_SYSTEM_CONDITIONS).map((value) => ({
+      value,
+      label: getContingencyLabel(CONTINGENCY_SYSTEM_CONDITION_LABELS, value, value),
+    })),
+    rootCauseStatuses: Array.from(CONTINGENCY_ROOT_CAUSE_STATUSES).map((value) => ({
+      value,
+      label: getContingencyLabel(CONTINGENCY_ROOT_CAUSE_STATUS_LABELS, value, value),
+    })),
+    rootCauseCategories: Array.from(CONTINGENCY_ROOT_CAUSE_CATEGORIES).map((value) => ({
+      value,
+      label: getContingencyLabel(CONTINGENCY_ROOT_CAUSE_CATEGORY_LABELS, value, value),
+    })),
+    timelineSources: Array.from(CONTINGENCY_TIMELINE_SOURCES).map((value) => ({
+      value,
+      label: getContingencyLabel(CONTINGENCY_TIMELINE_SOURCE_LABELS, value, value),
+    })),
+    attachmentCategories: Array.from(CONTINGENCY_ATTACHMENT_CATEGORIES).map((value) => ({
+      value,
+      label: getContingencyLabel(CONTINGENCY_ATTACHMENT_CATEGORY_LABELS, value, value),
+    })),
+  };
+}
+
+function wrapPdfText(text, maxWidth, size, font) {
+  const input = String(text || "").replace(/\s+/g, " ").trim();
+  if (!input) {
+    return [""];
+  }
+  const words = input.split(" ");
+  const lines = [];
+  let current = "";
+  words.forEach((word) => {
+    const candidate = current ? `${current} ${word}` : word;
+    const width = font.widthOfTextAtSize(candidate, size);
+    if (width > maxWidth && current) {
+      lines.push(current);
+      current = word;
+      return;
+    }
+    current = candidate;
+  });
+  if (current) {
+    lines.push(current);
+  }
+  return lines.length ? lines : [input];
+}
+
+async function generateContingencyReportPdf(payload, options = {}) {
+  if (!PDFDocument || !StandardFonts) {
+    throw new Error("Dependencia pdf-lib nao instalada.");
+  }
+  const safePayload = payload && typeof payload === "object" ? payload : {};
+  const reportType = String(options.reportType || "internal").trim().toLowerCase() === "client"
+    ? "client"
+    : "internal";
+  const generatedBy = String(options.generatedBy || "").trim() || "-";
+  const generatedAt = options.generatedAt ? String(options.generatedAt) : new Date().toISOString();
+  const pdfDoc = await PDFDocument.create();
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const pageSize = [595, 842];
+  const margin = 42;
+  const contentWidth = pageSize[0] - margin * 2;
+  const lineHeight = 14;
+  const sectionGap = 8;
+  let page = pdfDoc.addPage(pageSize);
+  let cursorY = pageSize[1] - margin;
+
+  const ensureSpace = (height) => {
+    if (cursorY - height > margin + 24) {
+      return;
+    }
+    page = pdfDoc.addPage(pageSize);
+    cursorY = pageSize[1] - margin;
+  };
+
+  const writeText = (text, config = {}) => {
+    const size = Number(config.size || 11);
+    const bold = Boolean(config.bold);
+    const color = config.color || rgb(0.12, 0.16, 0.22);
+    const leading = Number(config.leading || lineHeight);
+    const maxWidth = Number(config.maxWidth || contentWidth);
+    const x = Number(config.x || margin);
+    const lines = wrapPdfText(text || "-", maxWidth, size, bold ? fontBold : font);
+    ensureSpace(lines.length * leading + 2);
+    lines.forEach((line) => {
+      page.drawText(line, {
+        x,
+        y: cursorY,
+        size,
+        font: bold ? fontBold : font,
+        color,
+      });
+      cursorY -= leading;
+    });
+    return lines.length;
+  };
+
+  const section = (title) => {
+    ensureSpace(34);
+    cursorY -= 4;
+    writeText(title, {
+      bold: true,
+      size: 12.5,
+      color: rgb(0.08, 0.29, 0.53),
+      leading: 15,
+    });
+    cursorY -= sectionGap;
+  };
+
+  const kv = (label, value) => {
+    writeText(`${label}: ${value || "-"}`, { size: 10.7, leading: 13 });
+  };
+
+  const drawDivider = () => {
+    ensureSpace(10);
+    page.drawLine({
+      start: { x: margin, y: cursorY },
+      end: { x: pageSize[0] - margin, y: cursorY },
+      thickness: 0.7,
+      color: rgb(0.81, 0.84, 0.89),
+    });
+    cursorY -= 10;
+  };
+
+  const project = getProjectById(safePayload.projectId);
+  const projectLabel = project ? getProjectLabel(project) : safePayload.projectId || "-";
+  const timeline = Array.isArray(safePayload.timeline) ? safePayload.timeline : [];
+  const attachments = Array.isArray(safePayload.attachments) ? safePayload.attachments : [];
+  const correctiveActions = Array.isArray(safePayload.correctiveActions) ? safePayload.correctiveActions : [];
+  const preventiveActions = Array.isArray(safePayload.preventiveActions) ? safePayload.preventiveActions : [];
+  const communications = Array.isArray(safePayload.communications) ? safePayload.communications : [];
+
+  writeText("OPSCOPE", {
+    bold: true,
+    size: 11,
+    color: rgb(0.79, 0.61, 0.26),
+    leading: 12,
+  });
+  writeText("Relatorio Tecnico de Contingencia", {
+    bold: true,
+    size: 18,
+    color: rgb(0.08, 0.2, 0.35),
+    leading: 20,
+  });
+  writeText(reportType === "client" ? "Versao Cliente" : "Versao Interna", {
+    size: 10,
+    bold: true,
+    color: rgb(0.26, 0.34, 0.42),
+    leading: 12,
+  });
+  cursorY -= 2;
+  kv("Codigo", safePayload.code || "-");
+  kv("Data de emissao", formatContingencyDateTime(generatedAt));
+  kv("Projeto", projectLabel);
+  drawDivider();
+
+  section("1. Identificacao do Evento");
+  kv("Contingencia", safePayload.code || "-");
+  kv("Subestacao", safePayload.substation || "-");
+  kv("Bay", safePayload.bay || "-");
+  kv("Alimentador", safePayload.feeder || "-");
+  kv("Equipamento", safePayload.assetName || safePayload.assetId || "-");
+  kv("Tipo", getContingencyLabel(CONTINGENCY_EVENT_LABELS, safePayload.eventType, "Outro"));
+  kv("Severidade", safePayload.severity || "S3");
+  kv("Status", getContingencyLabel(CONTINGENCY_STATUS_LABELS, safePayload.status, "Rascunho"));
+  kv("Inicio", formatContingencyDateTime(safePayload.startAt));
+  kv("Normalizacao", formatContingencyDateTime(safePayload.normalizedAt));
+  kv("Revisao", String(safePayload.revision || 1));
+  drawDivider();
+
+  section("2. Impacto Operacional");
+  kv(
+    "Condicao do sistema",
+    getContingencyLabel(
+      CONTINGENCY_SYSTEM_CONDITION_LABELS,
+      safePayload.systemCondition,
+      "Normal"
+    )
+  );
+  kv(
+    "Impacto MW",
+    safePayload.impactMwNotApplicable
+      ? "N/D"
+      : safePayload.impactMw === null || safePayload.impactMw === undefined
+        ? "-"
+        : String(safePayload.impactMw)
+  );
+  kv("Descricao do impacto", safePayload.impactDescription || "-");
+  kv("Risco residual", safePayload.residualRisk || "-");
+  drawDivider();
+
+  section("3. Linha do Tempo");
+  if (!timeline.length) {
+    kv("Eventos", "Sem eventos registrados.");
+  } else {
+    timeline.forEach((entry, index) => {
+      const when = formatContingencyDateTime(entry.occurredAt);
+      const sourceLabel = getContingencyLabel(CONTINGENCY_TIMELINE_SOURCE_LABELS, entry.source, "Outro");
+      const responsible = entry.responsible || "-";
+      writeText(`${index + 1}. ${when} | ${sourceLabel} | ${responsible}`, {
+        size: 10.3,
+        bold: true,
+        leading: 13,
+      });
+      writeText(entry.event || "-", {
+        size: 10.2,
+        leading: 13,
+      });
+      cursorY -= 2;
+    });
+  }
+  drawDivider();
+
+  section("4. Diagnostico");
+  kv("Sintomas", safePayload.symptoms || "-");
+  kv("Diagnostico tecnico", safePayload.diagnosis || "-");
+  kv(
+    "Status da causa raiz",
+    getContingencyLabel(
+      CONTINGENCY_ROOT_CAUSE_STATUS_LABELS,
+      safePayload.rootCauseStatus,
+      "Preliminar"
+    )
+  );
+  kv(
+    "Categoria da causa raiz",
+    getContingencyLabel(
+      CONTINGENCY_ROOT_CAUSE_CATEGORY_LABELS,
+      safePayload.rootCauseCategory,
+      "Outro"
+    )
+  );
+  kv("Descricao da causa raiz", safePayload.rootCauseDescription || "-");
+  if (reportType === "client") {
+    kv(
+      "Nota",
+      "Detalhes internos sensiveis foram reduzidos na versao cliente."
+    );
+  }
+  drawDivider();
+
+  section("5. Acoes Executadas e Plano");
+  kv("Acoes de contencao/normalizacao", safePayload.containmentActions || "-");
+  if (correctiveActions.length) {
+    writeText("Acoes corretivas:", { bold: true, size: 10.5, leading: 13 });
+    correctiveActions.forEach((action, index) => {
+      const summary = [
+        `${index + 1}. ${action.action || "-"}`,
+        `Responsavel: ${action.responsible || "-"}`,
+        `Prazo: ${action.dueDate ? formatContingencyDateOnly(action.dueDate) : "-"}`,
+        `Status: ${formatContingencyActionStatus(action.status)}`,
+      ].join(" | ");
+      writeText(summary, { size: 10.1, leading: 12.5 });
+    });
+  } else {
+    kv("Acoes corretivas", "Sem acoes registradas.");
+  }
+  if (preventiveActions.length) {
+    writeText("Acoes preventivas:", { bold: true, size: 10.5, leading: 13 });
+    preventiveActions.forEach((action, index) => {
+      const summary = [
+        `${index + 1}. ${action.action || "-"}`,
+        `Responsavel: ${action.responsible || "-"}`,
+        `Prazo: ${action.dueDate ? formatContingencyDateOnly(action.dueDate) : "-"}`,
+        `Status: ${formatContingencyActionStatus(action.status)}`,
+      ].join(" | ");
+      writeText(summary, { size: 10.1, leading: 12.5 });
+    });
+  } else {
+    kv("Acoes preventivas", "Sem acoes registradas.");
+  }
+  if (communications.length) {
+    writeText("Comunicacoes:", { bold: true, size: 10.5, leading: 13 });
+    communications.forEach((entry, index) => {
+      const statusLabel = entry.done ? "Concluida" : "Pendente";
+      const noteLabel = entry.note ? ` (${entry.note})` : "";
+      writeText(`${index + 1}. ${entry.label || "-"} - ${statusLabel}${noteLabel}`, {
+        size: 10.1,
+        leading: 12.5,
+      });
+    });
+  } else {
+    kv("Comunicacoes", "Sem checklist de comunicacoes.");
+  }
+  drawDivider();
+
+  section("6. Status Atual / Risco Residual");
+  kv("Status", getContingencyLabel(CONTINGENCY_STATUS_LABELS, safePayload.status, "Rascunho"));
+  kv("Normalizada em", formatContingencyDateTime(safePayload.normalizedAt));
+  kv("Risco residual", safePayload.residualRisk || "-");
+  kv("Protocolo", safePayload.protocolRef || "-");
+  drawDivider();
+
+  section("7. Anexos");
+  if (!attachments.length) {
+    kv("Arquivos", "Nenhum anexo para este tipo de relatorio.");
+  } else {
+    attachments.forEach((attachment, index) => {
+      const categoryLabel = getContingencyLabel(
+        CONTINGENCY_ATTACHMENT_CATEGORY_LABELS,
+        attachment.category,
+        "Outro"
+      );
+      const line = [
+        `${index + 1}. ${attachment.fileName || attachment.fileId || "-"}`,
+        `Categoria: ${categoryLabel}`,
+        `Data: ${formatContingencyDateTime(attachment.uploadedAt)}`,
+        `Obs: ${attachment.notes || "-"}`,
+      ].join(" | ");
+      writeText(line, { size: 10, leading: 12.5 });
+    });
+  }
+
+  const pages = pdfDoc.getPages();
+  const footer = `Gerado em ${formatContingencyDateTime(generatedAt)} por ${generatedBy}`;
+  pages.forEach((itemPage, index) => {
+    const pageText = `Pagina ${index + 1} de ${pages.length}`;
+    itemPage.drawText(footer, {
+      x: margin,
+      y: 18,
+      size: 8.8,
+      font,
+      color: rgb(0.3, 0.35, 0.42),
+    });
+    itemPage.drawText(pageText, {
+      x: pageSize[0] - margin - font.widthOfTextAtSize(pageText, 8.8),
+      y: 18,
+      size: 8.8,
+      font,
+      color: rgb(0.3, 0.35, 0.42),
+    });
+  });
+
+  return Buffer.from(await pdfDoc.save());
 }
 
 function getAlmoxStockKey(projectId, itemId, worksite) {
@@ -9395,6 +10634,10 @@ let sstAprs = [];
 let sstPermits = [];
 let sstVehicles = [];
 let sstDocs = [];
+let contingencies = [];
+let contingencyTimeline = [];
+let contingencyAttachments = [];
+let contingencyCodeCounter = {};
 let compatState = getDefaultCompatState();
 let accessRoles = [];
 let users = [];
@@ -9527,6 +10770,22 @@ async function bootstrap() {
   sstDocs = loadSstDocs();
   if (!fs.existsSync(SST_DOCS_FILE)) {
     saveSstDocs(sstDocs);
+  }
+  contingencies = loadContingencies();
+  if (!fs.existsSync(CONTINGENCIES_FILE)) {
+    saveContingencies(contingencies);
+  }
+  contingencyTimeline = loadContingencyTimeline();
+  if (!fs.existsSync(CONTINGENCY_TIMELINE_FILE)) {
+    saveContingencyTimeline(contingencyTimeline);
+  }
+  contingencyAttachments = loadContingencyAttachments();
+  if (!fs.existsSync(CONTINGENCY_ATTACHMENTS_FILE)) {
+    saveContingencyAttachments(contingencyAttachments);
+  }
+  contingencyCodeCounter = loadContingencyCodeCounterState();
+  if (!fs.existsSync(CONTINGENCY_CODE_COUNTER_FILE)) {
+    saveContingencyCodeCounterState(contingencyCodeCounter);
   }
   announcements = loadAnnouncements();
   if (!fs.existsSync(ANNOUNCEMENTS_FILE)) {
@@ -14039,6 +15298,984 @@ app.post("/api/maintenance/reopen", requireAuth, requireStorageWritable, (req, r
     source: "reopen",
   });
   return res.json({ ok: true, item: updated, projectId });
+});
+
+app.get("/api/contingencies/enums", requireAuth, (req, res) => {
+  return res.json(getContingencyEnumsPayload());
+});
+
+app.get("/api/contingencies", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  if (!user) {
+    return respondContingencyError(res, 401, "unauthenticated", "Sessao invalida.");
+  }
+  const allowedProjects = new Set(getUserProjectIds(user));
+  const queryProjectId = String(req.query.projectId || "").trim();
+  const activeProjectId = getActiveProjectId(req, user) || "";
+  const projectId = queryProjectId || activeProjectId;
+  if (projectId && !allowedProjects.has(projectId)) {
+    return respondContingencyError(res, 403, "project_access_denied", "Nao autorizado.", {
+      userId: user.id,
+      projectId,
+    });
+  }
+  if (!projectId && !allowedProjects.size) {
+    return respondContingencyError(
+      res,
+      400,
+      "missing_active_project",
+      "Projeto ativo obrigatorio.",
+      { userId: user.id }
+    );
+  }
+  const includeDetails = parseBooleanLike(req.query.details);
+  let list = contingencies.filter((item) => item && allowedProjects.has(item.projectId));
+  if (projectId) {
+    list = list.filter((item) => item.projectId === projectId);
+    if (req.session && req.session.activeProjectId !== projectId) {
+      req.session.activeProjectId = projectId;
+    }
+  }
+  list = filterContingenciesList(list, req.query || {});
+  logContingency("list.ok", {
+    userId: user.id,
+    projectId,
+    count: list.length,
+    includeDetails,
+  });
+  if (!includeDetails) {
+    return res.json({
+      items: list.map((entry) => buildContingencyListItem(entry)),
+      projectId: projectId || "",
+      count: list.length,
+    });
+  }
+  return res.json({
+    items: list.map((entry) => buildContingencyPayload(entry, { reportType: "internal" })),
+    projectId: projectId || "",
+    count: list.length,
+  });
+});
+
+app.get("/api/contingencies/:id", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  if (!user) {
+    return respondContingencyError(res, 401, "unauthenticated", "Sessao invalida.");
+  }
+  const contingencyId = String(req.params.id || "").trim();
+  if (!contingencyId) {
+    return respondContingencyError(
+      res,
+      400,
+      "invalid_id",
+      "Contingencia invalida.",
+      { userId: user.id }
+    );
+  }
+  const found = getContingencyById(contingencyId);
+  if (!found.item) {
+    return respondContingencyError(
+      res,
+      404,
+      "not_found",
+      "Contingencia nao encontrada.",
+      { userId: user.id, contingencyId }
+    );
+  }
+  if (!userHasProjectAccess(user, found.item.projectId)) {
+    return respondContingencyError(res, 403, "project_access_denied", "Nao autorizado.", {
+      userId: user.id,
+      contingencyId,
+      projectId: found.item.projectId,
+    });
+  }
+  const reportType = String(req.query.reportType || "internal").trim().toLowerCase();
+  return res.json({
+    item: buildContingencyPayload(found.item, {
+      reportType: reportType === "client" ? "client" : "internal",
+    }),
+  });
+});
+
+app.post("/api/contingencies", requireAuth, requireStorageWritable, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  if (!user) {
+    return respondContingencyError(res, 401, "unauthenticated", "Sessao invalida.");
+  }
+  const projectId = resolveContingencyProjectId(req, user, { payload });
+  if (!projectId) {
+    return respondContingencyError(
+      res,
+      400,
+      "missing_active_project",
+      "Projeto ativo obrigatorio.",
+      { userId: user.id }
+    );
+  }
+  if (!userHasProjectAccess(user, projectId)) {
+    return respondContingencyError(res, 403, "project_access_denied", "Nao autorizado.", {
+      userId: user.id,
+      projectId,
+    });
+  }
+  const now = new Date().toISOString();
+  const issued = issueContingencyCode(payload.startAt || now);
+  if (!issued.ok || !issued.code) {
+    return respondContingencyError(
+      res,
+      503,
+      "storage_write_failed",
+      STORAGE_READONLY_MESSAGE,
+      {
+        userId: user.id,
+        projectId,
+        storageFailure: getStorageWriteFailureSnapshot(),
+      }
+    );
+  }
+  const equipment = payload.assetId
+    ? equipamentos.find((entry) => entry && String(entry.id) === String(payload.assetId))
+    : null;
+  let record = normalizeContingency({
+    ...payload,
+    projectId,
+    code: issued.code,
+    assetName:
+      payload.assetName ||
+      (equipment ? equipment.nome || equipment.name || equipment.tag : "") ||
+      "",
+    createdAt: now,
+    createdBy: user.id || "",
+    updatedAt: now,
+    updatedBy: user.id || "",
+    revision: 1,
+  });
+  const nextStatus = normalizeContingencyStatus(record.status);
+  if (nextStatus === "CLOSED" && !canCloseContingency(user)) {
+    return respondContingencyError(
+      res,
+      403,
+      "close_permission_denied",
+      "Sem permissao para encerrar contingencias.",
+      { userId: user.id, projectId }
+    );
+  }
+  const baseValidation = validateContingencyRecord(record);
+  const normalizedTimeline = normalizeContingencyTimelineList(payload.timeline, record.id);
+  const errors = baseValidation.concat(normalizedTimeline.errors || []);
+  if (errors.length) {
+    return respondContingencyError(
+      res,
+      400,
+      "validation_error",
+      errors.join(" "),
+      { userId: user.id, projectId }
+    );
+  }
+  contingencies = contingencies.concat(record);
+  contingencyTimeline = contingencyTimeline
+    .filter((entry) => entry && entry.contingencyId !== record.id)
+    .concat(normalizedTimeline.list || []);
+  const persist = persistContingencyStores({
+    contingencies: true,
+    timeline: true,
+    attachments: false,
+  });
+  if (!persist.ok) {
+    contingencies = contingencies.filter((entry) => entry && entry.id !== record.id);
+    contingencyTimeline = contingencyTimeline.filter(
+      (entry) => entry && entry.contingencyId !== record.id
+    );
+    return respondContingencyError(
+      res,
+      503,
+      "storage_write_failed",
+      STORAGE_READONLY_MESSAGE,
+      {
+        userId: user.id,
+        projectId,
+        fileName: persist.failedFile,
+        storageFailure: getStorageWriteFailureSnapshot(),
+      }
+    );
+  }
+  appendAudit(
+    "contingency_create",
+    user.id || null,
+    { contingencyId: record.id, code: record.code, projectId },
+    getClientIp(req),
+    projectId
+  );
+  touchCompat("contingencies", projectId);
+  const sseResult = broadcastSse("contingencies.updated", {
+    projectId,
+    contingencyId: record.id,
+    source: "create",
+  });
+  logContingency("create.ok", {
+    userId: user.id,
+    projectId,
+    contingencyId: record.id,
+    code: record.code,
+    timelineCount: normalizedTimeline.list.length,
+    sseDelivered: sseResult.delivered,
+    sseClients: sseResult.total,
+  });
+  return res.json({
+    item: buildContingencyPayload(record, { reportType: "internal" }),
+    sse: sseResult,
+  });
+});
+
+app.put("/api/contingencies/:id", requireAuth, requireStorageWritable, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const contingencyId = String(req.params.id || "").trim();
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  if (!user) {
+    return respondContingencyError(res, 401, "unauthenticated", "Sessao invalida.");
+  }
+  if (!contingencyId) {
+    return respondContingencyError(
+      res,
+      400,
+      "invalid_id",
+      "Contingencia invalida.",
+      { userId: user.id }
+    );
+  }
+  const found = getContingencyById(contingencyId);
+  if (!found.item) {
+    return respondContingencyError(
+      res,
+      404,
+      "not_found",
+      "Contingencia nao encontrada.",
+      { userId: user.id, contingencyId }
+    );
+  }
+  if (!userHasProjectAccess(user, found.item.projectId)) {
+    return respondContingencyError(res, 403, "project_access_denied", "Nao autorizado.", {
+      userId: user.id,
+      contingencyId,
+      projectId: found.item.projectId,
+    });
+  }
+  if (!canEditContingency(user, found.item)) {
+    return respondContingencyError(
+      res,
+      403,
+      "edit_permission_denied",
+      "Sem permissao para editar esta contingencia.",
+      {
+        userId: user.id,
+        contingencyId,
+        projectId: found.item.projectId,
+      }
+    );
+  }
+  const statusTarget = normalizeContingencyStatus(payload.status || found.item.status);
+  if (statusTarget === "CLOSED" && !canCloseContingency(user)) {
+    return respondContingencyError(
+      res,
+      403,
+      "close_permission_denied",
+      "Sem permissao para encerrar contingencias.",
+      { userId: user.id, contingencyId, projectId: found.item.projectId }
+    );
+  }
+  const equipment = payload.assetId
+    ? equipamentos.find((entry) => entry && String(entry.id) === String(payload.assetId))
+    : null;
+  const revision = Math.max(1, Number(found.item.revision || 1)) + 1;
+  const now = new Date().toISOString();
+  let updated = normalizeContingency({
+    ...found.item,
+    ...payload,
+    id: found.item.id,
+    code: found.item.code,
+    projectId: found.item.projectId,
+    assetName:
+      payload.assetName ||
+      (equipment ? equipment.nome || equipment.name || equipment.tag : "") ||
+      found.item.assetName ||
+      "",
+    createdAt: found.item.createdAt,
+    createdBy: found.item.createdBy,
+    revision,
+    updatedAt: now,
+    updatedBy: user.id || "",
+  });
+  const baseValidation = validateContingencyRecord(updated);
+  const normalizedTimeline = Object.prototype.hasOwnProperty.call(payload, "timeline")
+    ? normalizeContingencyTimelineList(payload.timeline, updated.id)
+    : {
+        list: getContingencyTimelineById(updated.id),
+        errors: [],
+      };
+  const errors = baseValidation.concat(normalizedTimeline.errors || []);
+  if (errors.length) {
+    return respondContingencyError(
+      res,
+      400,
+      "validation_error",
+      errors.join(" "),
+      {
+        userId: user.id,
+        contingencyId: updated.id,
+        projectId: updated.projectId,
+      }
+    );
+  }
+  contingencies[found.index] = updated;
+  if (Object.prototype.hasOwnProperty.call(payload, "timeline")) {
+    contingencyTimeline = contingencyTimeline
+      .filter((entry) => entry && entry.contingencyId !== updated.id)
+      .concat(normalizedTimeline.list || []);
+  }
+  const persist = persistContingencyStores({
+    contingencies: true,
+    timeline: Object.prototype.hasOwnProperty.call(payload, "timeline"),
+    attachments: false,
+  });
+  if (!persist.ok) {
+    contingencies[found.index] = found.item;
+    if (Object.prototype.hasOwnProperty.call(payload, "timeline")) {
+      contingencyTimeline = contingencyTimeline
+        .filter((entry) => entry && entry.contingencyId !== updated.id)
+        .concat(getContingencyTimelineById(updated.id));
+    }
+    return respondContingencyError(
+      res,
+      503,
+      "storage_write_failed",
+      STORAGE_READONLY_MESSAGE,
+      {
+        userId: user.id,
+        contingencyId: updated.id,
+        projectId: updated.projectId,
+        fileName: persist.failedFile,
+        storageFailure: getStorageWriteFailureSnapshot(),
+      }
+    );
+  }
+  appendAudit(
+    "contingency_update",
+    user.id || null,
+    { contingencyId: updated.id, code: updated.code, projectId: updated.projectId },
+    getClientIp(req),
+    updated.projectId
+  );
+  touchCompat("contingencies", updated.projectId);
+  const sseResult = broadcastSse("contingencies.updated", {
+    projectId: updated.projectId,
+    contingencyId: updated.id,
+    source: "update",
+  });
+  logContingency("update.ok", {
+    userId: user.id,
+    projectId: updated.projectId,
+    contingencyId: updated.id,
+    status: updated.status,
+    timelineChanged: Boolean(Object.prototype.hasOwnProperty.call(payload, "timeline")),
+    sseDelivered: sseResult.delivered,
+    sseClients: sseResult.total,
+  });
+  return res.json({
+    item: buildContingencyPayload(updated, { reportType: "internal" }),
+    sse: sseResult,
+  });
+});
+
+app.delete("/api/contingencies/:id", requireAuth, requireStorageWritable, async (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const contingencyId = String(req.params.id || "").trim();
+  if (!user) {
+    return respondContingencyError(res, 401, "unauthenticated", "Sessao invalida.");
+  }
+  if (!contingencyId) {
+    return respondContingencyError(
+      res,
+      400,
+      "invalid_id",
+      "Contingencia invalida.",
+      { userId: user.id }
+    );
+  }
+  const found = getContingencyById(contingencyId);
+  if (!found.item) {
+    return respondContingencyError(
+      res,
+      404,
+      "not_found",
+      "Contingencia nao encontrada.",
+      { userId: user.id, contingencyId }
+    );
+  }
+  if (!userHasProjectAccess(user, found.item.projectId)) {
+    return respondContingencyError(res, 403, "project_access_denied", "Nao autorizado.", {
+      userId: user.id,
+      contingencyId,
+      projectId: found.item.projectId,
+    });
+  }
+  const isClosed = normalizeContingencyStatus(found.item.status) === "CLOSED";
+  if (isClosed && !canCloseContingency(user)) {
+    return respondContingencyError(
+      res,
+      403,
+      "delete_permission_denied",
+      "Sem permissao para excluir contingencia encerrada.",
+      { userId: user.id, contingencyId, projectId: found.item.projectId }
+    );
+  }
+  const attachmentsToRemove = contingencyAttachments.filter(
+    (entry) => entry && entry.contingencyId === contingencyId
+  );
+  contingencies.splice(found.index, 1);
+  contingencyTimeline = contingencyTimeline.filter(
+    (entry) => entry && entry.contingencyId !== contingencyId
+  );
+  contingencyAttachments = contingencyAttachments.filter(
+    (entry) => entry && entry.contingencyId !== contingencyId
+  );
+  const persist = persistContingencyStores({
+    contingencies: true,
+    timeline: true,
+    attachments: true,
+  });
+  if (!persist.ok) {
+    contingencies.splice(found.index, 0, found.item);
+    contingencyTimeline = loadContingencyTimeline();
+    contingencyAttachments = loadContingencyAttachments();
+    return respondContingencyError(
+      res,
+      503,
+      "storage_write_failed",
+      STORAGE_READONLY_MESSAGE,
+      {
+        userId: user.id,
+        contingencyId,
+        projectId: found.item.projectId,
+        fileName: persist.failedFile,
+        storageFailure: getStorageWriteFailureSnapshot(),
+      }
+    );
+  }
+  for (const attachment of attachmentsToRemove) {
+    if (attachment && attachment.fileId) {
+      await removeStoredFileById(attachment.fileId, {
+        expectedType: "contingency",
+        projectId: found.item.projectId,
+      });
+    }
+  }
+  appendAudit(
+    "contingency_delete",
+    user.id || null,
+    { contingencyId, code: found.item.code, projectId: found.item.projectId },
+    getClientIp(req),
+    found.item.projectId
+  );
+  touchCompat("contingencies", found.item.projectId);
+  const sseResult = broadcastSse("contingencies.updated", {
+    projectId: found.item.projectId,
+    contingencyId,
+    source: "delete",
+  });
+  logContingency("delete.ok", {
+    userId: user.id,
+    projectId: found.item.projectId,
+    contingencyId,
+    attachmentsRemoved: attachmentsToRemove.length,
+    sseDelivered: sseResult.delivered,
+    sseClients: sseResult.total,
+  });
+  return res.json({ ok: true, removedId: contingencyId, sse: sseResult });
+});
+
+app.post(
+  "/api/contingencies/:id/attachments",
+  requireAuth,
+  requireStorageWritable,
+  express.raw({ type: "multipart/form-data", limit: FILE_MAX_BYTES + 1024 * 1024 }),
+  async (req, res) => {
+    const user = req.currentUser || getSessionUser(req);
+    const contingencyId = String(req.params.id || "").trim();
+    if (!user) {
+      return respondContingencyError(res, 401, "unauthenticated", "Sessao invalida.");
+    }
+    const found = getContingencyById(contingencyId);
+    if (!found.item) {
+      return respondContingencyError(
+        res,
+        404,
+        "not_found",
+        "Contingencia nao encontrada.",
+        { userId: user.id, contingencyId }
+      );
+    }
+    if (!canEditContingency(user, found.item)) {
+      return respondContingencyError(
+        res,
+        403,
+        "edit_permission_denied",
+        "Sem permissao para anexar arquivos.",
+        { userId: user.id, contingencyId, projectId: found.item.projectId }
+      );
+    }
+    const parsed = parseMultipartForm(req);
+    if (!parsed || !parsed.file) {
+      return respondContingencyError(
+        res,
+        400,
+        "missing_file",
+        "Arquivo nao enviado.",
+        { userId: user.id, contingencyId }
+      );
+    }
+    const mime = String(parsed.file.mime || "").toLowerCase();
+    if (!FILE_ALLOWED_MIME.has(mime)) {
+      return respondContingencyError(
+        res,
+        415,
+        "invalid_mime",
+        "Tipo de arquivo nao suportado.",
+        { userId: user.id, contingencyId, mime }
+      );
+    }
+    if (!parsed.file.buffer || parsed.file.buffer.length === 0) {
+      return respondContingencyError(
+        res,
+        400,
+        "invalid_file",
+        "Arquivo invalido.",
+        { userId: user.id, contingencyId }
+      );
+    }
+    if (parsed.file.buffer.length > FILE_MAX_BYTES) {
+      return respondContingencyError(
+        res,
+        413,
+        "file_too_large",
+        "Arquivo acima de 10 MB.",
+        { userId: user.id, contingencyId }
+      );
+    }
+    ensureUploadDirs();
+    const ext = FILE_ALLOWED_MIME.get(mime);
+    const baseName = sanitizeFileName(path.parse(parsed.file.originalName || "contingencia").name);
+    const unique = crypto.randomUUID().slice(0, 8);
+    const fileName = `${Date.now()}-${unique}-${baseName || "contingencia"}.${ext}`;
+    const typeConfig = FILE_TYPE_CONFIG.contingency;
+    const dirPath = path.join(FILES_DIR, typeConfig.dir);
+    const filePath = path.join(dirPath, fileName);
+    try {
+      fs.writeFileSync(filePath, parsed.file.buffer);
+    } catch (error) {
+      return respondContingencyError(
+        res,
+        500,
+        "file_write_failed",
+        "Falha ao salvar arquivo.",
+        { userId: user.id, contingencyId, projectId: found.item.projectId }
+      );
+    }
+    const now = new Date().toISOString();
+    const fileEntry = {
+      id: crypto.randomUUID(),
+      name: fileName,
+      originalName: parsed.file.originalName || fileName,
+      type: "contingency",
+      size: parsed.file.buffer.length,
+      mime,
+      url: `/uploads/files/${typeConfig.dir}/${fileName}`,
+      createdAt: now,
+      createdBy: user.id || "",
+      createdByName: user.name || "",
+      projectId: found.item.projectId,
+    };
+    filesMeta = Array.isArray(filesMeta) ? filesMeta.concat(fileEntry) : [fileEntry];
+    const filesSaved = writeJson(FILES_META_FILE, filesMeta);
+    if (!filesSaved) {
+      return respondContingencyError(
+        res,
+        503,
+        "storage_write_failed",
+        STORAGE_READONLY_MESSAGE,
+        {
+          userId: user.id,
+          contingencyId,
+          projectId: found.item.projectId,
+          fileName: path.basename(FILES_META_FILE),
+          storageFailure: getStorageWriteFailureSnapshot(),
+        }
+      );
+    }
+    await upsertUploadBlob(fileEntry, parsed.file.buffer);
+    const attachment = normalizeContingencyAttachment({
+      contingencyId,
+      fileId: fileEntry.id,
+      fileName: fileEntry.originalName,
+      mimeType: fileEntry.mime,
+      size: fileEntry.size,
+      storagePath: `/api/files/${encodeURIComponent(fileEntry.id)}/content`,
+      category: parsed.fields.category,
+      includeInClientReport: parseBooleanLike(parsed.fields.includeInClientReport),
+      notes: parsed.fields.notes,
+      uploadedBy: user.id || "",
+      uploadedAt: now,
+    });
+    contingencyAttachments = contingencyAttachments.concat(attachment);
+    contingencies[found.index] = touchContingencyAuditFields(found.item, user.id || "");
+    const persist = persistContingencyStores({
+      contingencies: true,
+      timeline: false,
+      attachments: true,
+    });
+    if (!persist.ok) {
+      contingencyAttachments = contingencyAttachments.filter(
+        (entry) => entry && entry.id !== attachment.id
+      );
+      contingencies[found.index] = found.item;
+      return respondContingencyError(
+        res,
+        503,
+        "storage_write_failed",
+        STORAGE_READONLY_MESSAGE,
+        {
+          userId: user.id,
+          contingencyId,
+          projectId: found.item.projectId,
+          fileName: persist.failedFile,
+          storageFailure: getStorageWriteFailureSnapshot(),
+        }
+      );
+    }
+    appendAudit(
+      "contingency_attachment_create",
+      user.id || null,
+      {
+        contingencyId,
+        attachmentId: attachment.id,
+        fileId: fileEntry.id,
+        projectId: found.item.projectId,
+      },
+      getClientIp(req),
+      found.item.projectId
+    );
+    touchCompat("contingencies", found.item.projectId);
+    const sseResult = broadcastSse("contingencies.updated", {
+      projectId: found.item.projectId,
+      contingencyId,
+      attachmentId: attachment.id,
+      source: "attachment.create",
+    });
+    logContingency("attachment.create.ok", {
+      userId: user.id,
+      projectId: found.item.projectId,
+      contingencyId,
+      attachmentId: attachment.id,
+      includeInClientReport: attachment.includeInClientReport,
+      sseDelivered: sseResult.delivered,
+      sseClients: sseResult.total,
+    });
+    return res.json({
+      attachment,
+      item: buildContingencyPayload(contingencies[found.index], { reportType: "internal" }),
+      sse: sseResult,
+    });
+  }
+);
+
+app.put(
+  "/api/contingencies/:id/attachments/:attachmentId",
+  requireAuth,
+  requireStorageWritable,
+  (req, res) => {
+    const user = req.currentUser || getSessionUser(req);
+    const contingencyId = String(req.params.id || "").trim();
+    const attachmentId = String(req.params.attachmentId || "").trim();
+    if (!user) {
+      return respondContingencyError(res, 401, "unauthenticated", "Sessao invalida.");
+    }
+    const found = getContingencyById(contingencyId);
+    if (!found.item) {
+      return respondContingencyError(
+        res,
+        404,
+        "not_found",
+        "Contingencia nao encontrada.",
+        { userId: user.id, contingencyId }
+      );
+    }
+    if (!canEditContingency(user, found.item)) {
+      return respondContingencyError(
+        res,
+        403,
+        "edit_permission_denied",
+        "Sem permissao para editar anexos.",
+        { userId: user.id, contingencyId, projectId: found.item.projectId }
+      );
+    }
+    const index = contingencyAttachments.findIndex(
+      (entry) =>
+        entry &&
+        String(entry.id || "") === attachmentId &&
+        String(entry.contingencyId || "") === contingencyId
+    );
+    if (index < 0) {
+      return respondContingencyError(
+        res,
+        404,
+        "attachment_not_found",
+        "Anexo nao encontrado.",
+        { userId: user.id, contingencyId, attachmentId }
+      );
+    }
+    const payload = req.body && typeof req.body === "object" ? req.body : {};
+    contingencyAttachments[index] = normalizeContingencyAttachment({
+      ...contingencyAttachments[index],
+      category: payload.category || contingencyAttachments[index].category,
+      includeInClientReport:
+        Object.prototype.hasOwnProperty.call(payload, "includeInClientReport")
+          ? parseBooleanLike(payload.includeInClientReport)
+          : contingencyAttachments[index].includeInClientReport,
+      notes:
+        Object.prototype.hasOwnProperty.call(payload, "notes")
+          ? payload.notes
+          : contingencyAttachments[index].notes,
+    });
+    contingencies[found.index] = touchContingencyAuditFields(found.item, user.id || "");
+    const persist = persistContingencyStores({
+      contingencies: true,
+      timeline: false,
+      attachments: true,
+    });
+    if (!persist.ok) {
+      contingencyAttachments = loadContingencyAttachments();
+      contingencies[found.index] = found.item;
+      return respondContingencyError(
+        res,
+        503,
+        "storage_write_failed",
+        STORAGE_READONLY_MESSAGE,
+        {
+          userId: user.id,
+          contingencyId,
+          attachmentId,
+          projectId: found.item.projectId,
+          fileName: persist.failedFile,
+          storageFailure: getStorageWriteFailureSnapshot(),
+        }
+      );
+    }
+    touchCompat("contingencies", found.item.projectId);
+    const sseResult = broadcastSse("contingencies.updated", {
+      projectId: found.item.projectId,
+      contingencyId,
+      attachmentId,
+      source: "attachment.update",
+    });
+    logContingency("attachment.update.ok", {
+      userId: user.id,
+      projectId: found.item.projectId,
+      contingencyId,
+      attachmentId,
+      includeInClientReport: contingencyAttachments[index].includeInClientReport,
+      sseDelivered: sseResult.delivered,
+      sseClients: sseResult.total,
+    });
+    return res.json({
+      attachment: contingencyAttachments[index],
+      item: buildContingencyPayload(contingencies[found.index], { reportType: "internal" }),
+      sse: sseResult,
+    });
+  }
+);
+
+app.delete(
+  "/api/contingencies/:id/attachments/:attachmentId",
+  requireAuth,
+  requireStorageWritable,
+  async (req, res) => {
+    const user = req.currentUser || getSessionUser(req);
+    const contingencyId = String(req.params.id || "").trim();
+    const attachmentId = String(req.params.attachmentId || "").trim();
+    if (!user) {
+      return respondContingencyError(res, 401, "unauthenticated", "Sessao invalida.");
+    }
+    const found = getContingencyById(contingencyId);
+    if (!found.item) {
+      return respondContingencyError(
+        res,
+        404,
+        "not_found",
+        "Contingencia nao encontrada.",
+        { userId: user.id, contingencyId }
+      );
+    }
+    if (!canEditContingency(user, found.item)) {
+      return respondContingencyError(
+        res,
+        403,
+        "edit_permission_denied",
+        "Sem permissao para excluir anexos.",
+        { userId: user.id, contingencyId, projectId: found.item.projectId }
+      );
+    }
+    const index = contingencyAttachments.findIndex(
+      (entry) =>
+        entry &&
+        String(entry.id || "") === attachmentId &&
+        String(entry.contingencyId || "") === contingencyId
+    );
+    if (index < 0) {
+      return respondContingencyError(
+        res,
+        404,
+        "attachment_not_found",
+        "Anexo nao encontrado.",
+        { userId: user.id, contingencyId, attachmentId }
+      );
+    }
+    const removed = contingencyAttachments[index];
+    contingencyAttachments.splice(index, 1);
+    contingencies[found.index] = touchContingencyAuditFields(found.item, user.id || "");
+    const persist = persistContingencyStores({
+      contingencies: true,
+      timeline: false,
+      attachments: true,
+    });
+    if (!persist.ok) {
+      contingencyAttachments = loadContingencyAttachments();
+      contingencies[found.index] = found.item;
+      return respondContingencyError(
+        res,
+        503,
+        "storage_write_failed",
+        STORAGE_READONLY_MESSAGE,
+        {
+          userId: user.id,
+          contingencyId,
+          attachmentId,
+          projectId: found.item.projectId,
+          fileName: persist.failedFile,
+          storageFailure: getStorageWriteFailureSnapshot(),
+        }
+      );
+    }
+    if (removed && removed.fileId) {
+      await removeStoredFileById(removed.fileId, {
+        expectedType: "contingency",
+        projectId: found.item.projectId,
+      });
+    }
+    touchCompat("contingencies", found.item.projectId);
+    const sseResult = broadcastSse("contingencies.updated", {
+      projectId: found.item.projectId,
+      contingencyId,
+      attachmentId,
+      source: "attachment.delete",
+    });
+    logContingency("attachment.delete.ok", {
+      userId: user.id,
+      projectId: found.item.projectId,
+      contingencyId,
+      attachmentId,
+      sseDelivered: sseResult.delivered,
+      sseClients: sseResult.total,
+    });
+    return res.json({
+      ok: true,
+      removedId: attachmentId,
+      item: buildContingencyPayload(contingencies[found.index], { reportType: "internal" }),
+      sse: sseResult,
+    });
+  }
+);
+
+app.get("/api/contingencies/:id/report", requireAuth, async (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const contingencyId = String(req.params.id || "").trim();
+  if (!user) {
+    return respondContingencyError(res, 401, "unauthenticated", "Sessao invalida.");
+  }
+  if (!contingencyId) {
+    return respondContingencyError(
+      res,
+      400,
+      "invalid_id",
+      "Contingencia invalida.",
+      { userId: user.id }
+    );
+  }
+  const found = getContingencyById(contingencyId);
+  if (!found.item) {
+    return respondContingencyError(
+      res,
+      404,
+      "not_found",
+      "Contingencia nao encontrada.",
+      { userId: user.id, contingencyId }
+    );
+  }
+  if (!userHasProjectAccess(user, found.item.projectId)) {
+    return respondContingencyError(res, 403, "project_access_denied", "Nao autorizado.", {
+      userId: user.id,
+      contingencyId,
+      projectId: found.item.projectId,
+    });
+  }
+  const reportType = String(req.query.type || "internal").trim().toLowerCase() === "client"
+    ? "client"
+    : "internal";
+  let bytes;
+  try {
+    const payload = buildContingencyPayload(found.item, { reportType });
+    bytes = await generateContingencyReportPdf(payload, {
+      reportType,
+      generatedBy: getUserLabel(user.id || ""),
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    return respondContingencyError(
+      res,
+      500,
+      "pdf_generation_failed",
+      error && error.message ? error.message : "Falha ao gerar PDF.",
+      {
+        userId: user.id,
+        contingencyId,
+        projectId: found.item.projectId,
+      }
+    );
+  }
+  appendAudit(
+    "contingency_report_generate",
+    user.id || null,
+    {
+      contingencyId,
+      code: found.item.code,
+      projectId: found.item.projectId,
+      reportType,
+    },
+    getClientIp(req),
+    found.item.projectId
+  );
+  logContingency("report.ok", {
+    userId: user.id,
+    projectId: found.item.projectId,
+    contingencyId,
+    type: reportType,
+    bytes: bytes ? bytes.length : 0,
+  });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="contingencia-${found.item.code || contingencyId}-${reportType}.pdf"`
+  );
+  return res.end(bytes);
 });
 
 app.get("/api/announcements", requireAuth, (req, res) => {
