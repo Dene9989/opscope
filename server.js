@@ -3655,6 +3655,25 @@ const CONTINGENCY_ACTION_STATUS_LABELS = {
   CONCLUIDA: "Concluída",
   CANCELADA: "Cancelada",
 };
+const CONTINGENCY_REPORT_TIMEZONE = String(
+  process.env.OPSCOPE_CONTINGENCY_TIMEZONE || "America/Sao_Paulo"
+).trim() || "America/Sao_Paulo";
+const CONTINGENCY_REPORT_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: CONTINGENCY_REPORT_TIMEZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
+const CONTINGENCY_REPORT_DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: CONTINGENCY_REPORT_TIMEZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
 
 function getContingencyLabel(map, key, fallback = "-") {
   const normalized = String(key || "").trim().toUpperCase();
@@ -3669,7 +3688,7 @@ function formatContingencyDateTime(value) {
   if (!parsed) {
     return "-";
   }
-  return parsed.toLocaleString("pt-BR");
+  return CONTINGENCY_REPORT_DATE_TIME_FORMATTER.format(parsed);
 }
 
 function formatContingencyDateOnly(value) {
@@ -3677,7 +3696,7 @@ function formatContingencyDateOnly(value) {
   if (!parsed) {
     return "-";
   }
-  return parsed.toLocaleDateString("pt-BR");
+  return CONTINGENCY_REPORT_DATE_FORMATTER.format(parsed);
 }
 
 function formatContingencyActionStatus(status) {
@@ -3900,6 +3919,35 @@ function wrapPdfText(text, maxWidth, size, font) {
   return lines.length ? lines : [input];
 }
 
+function truncatePdfText(text, maxWidth, size, font) {
+  const input = String(text || "").replace(/\s+/g, " ").trim();
+  if (!input) {
+    return "";
+  }
+  if (font.widthOfTextAtSize(input, size) <= maxWidth) {
+    return input;
+  }
+  const ellipsis = "...";
+  const ellipsisWidth = font.widthOfTextAtSize(ellipsis, size);
+  if (ellipsisWidth >= maxWidth) {
+    return "";
+  }
+  let low = 0;
+  let high = input.length;
+  while (low < high) {
+    const mid = Math.floor((low + high + 1) / 2);
+    const candidate = input.slice(0, mid).trimEnd();
+    const width = font.widthOfTextAtSize(candidate, size) + ellipsisWidth;
+    if (width <= maxWidth) {
+      low = mid;
+    } else {
+      high = mid - 1;
+    }
+  }
+  const compact = input.slice(0, low).trimEnd();
+  return compact ? `${compact}${ellipsis}` : ellipsis;
+}
+
 async function generateContingencyReportPdf(payload, options = {}) {
   if (!PDFDocument || !StandardFonts) {
     throw new Error("Dependência pdf-lib não instalada.");
@@ -3957,7 +4005,8 @@ async function generateContingencyReportPdf(payload, options = {}) {
     "✘": "X",
     "\u00A0": " ",
   };
-  const sanitizePdfText = (value, activeFont = font) => {
+  const sanitizePdfText = (value, activeFont = font, options = {}) => {
+    const preserveLineBreaks = Boolean(options && options.preserveLineBreaks);
     if (value === null || value === undefined) {
       return "";
     }
@@ -3972,7 +4021,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
         : rawChar;
       for (const candidate of String(normalized)) {
         if (candidate === "\n") {
-          result.push(" ");
+          result.push(preserveLineBreaks ? "\n" : " ");
           continue;
         }
         try {
@@ -4002,13 +4051,29 @@ async function generateContingencyReportPdf(payload, options = {}) {
         }
       }
     }
-    return result.join("").replace(/[ \t]+/g, " ").trimEnd();
+    const output = result.join("");
+    if (preserveLineBreaks) {
+      return output
+        .split("\n")
+        .map((line) => line.replace(/[ \t]+/g, " ").trimEnd())
+        .join("\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trimEnd();
+    }
+    return output.replace(/[ \t]+/g, " ").trimEnd();
   };
   const toText = (value, fallback = "-") => {
     if (value === null || value === undefined) {
       return fallback;
     }
     const text = sanitizePdfText(value, font).trim();
+    return text || fallback;
+  };
+  const toTextMultiline = (value, fallback = "-") => {
+    if (value === null || value === undefined) {
+      return fallback;
+    }
+    const text = sanitizePdfText(value, font, { preserveLineBreaks: true }).trim();
     return text || fallback;
   };
   const embedLogo = async (logoPath) => {
@@ -4275,14 +4340,28 @@ async function generateContingencyReportPdf(payload, options = {}) {
     firstRow.forEach((value, index) => {
       const width = colWidths[index];
       const safeValue = toText(value);
-      const valueSize = index >= 4 ? 7.2 : 8.2;
-      const lineStep = valueSize + 0.45;
-      const wrapped = wrapPdfText(safeValue, width - 8, valueSize, font);
-      const maxLinesByHeight = Math.max(
-        1,
-        Math.floor((firstDataRowHeight - firstDataRowPadding * 2) / lineStep),
-      );
-      const lines = wrapped.slice(0, Math.min(2, maxLinesByHeight));
+      const isApprovalCell = index >= 4;
+      let valueSize = isApprovalCell ? 7.2 : 8.2;
+      let lineStep = valueSize + 0.45;
+      let lines = [];
+      if (isApprovalCell && safeValue.includes("|")) {
+        const pipeIndex = safeValue.lastIndexOf("|");
+        const rawPerson = safeValue.slice(0, pipeIndex).trim();
+        const rawDate = safeValue.slice(pipeIndex + 1).trim();
+        valueSize = 6.2;
+        lineStep = valueSize + 0.7;
+        lines = [
+          truncatePdfText(rawPerson || "-", width - 8, valueSize, font) || "-",
+          truncatePdfText(rawDate || "-", width - 8, valueSize, font) || "-",
+        ];
+      } else {
+        const wrapped = wrapPdfText(safeValue, width - 8, valueSize, font);
+        const maxLinesByHeight = Math.max(
+          1,
+          Math.floor((firstDataRowHeight - firstDataRowPadding * 2) / lineStep),
+        );
+        lines = wrapped.slice(0, Math.min(2, maxLinesByHeight));
+      }
       const textBoxHeight = firstDataRowHeight - firstDataRowPadding * 2;
       const textBlockHeight = valueSize + (lines.length - 1) * lineStep;
       const verticalOffset = Math.max(0, (textBoxHeight - textBlockHeight) / 2);
@@ -4471,8 +4550,70 @@ async function generateContingencyReportPdf(payload, options = {}) {
     cursorY -= Number(options.after ?? 9.6);
   };
 
+  const writeLabelValueParagraph = (label, value, options = {}) => {
+    const labelText = `${toText(label, "").replace(/:$/, "")}:`;
+    const valueText = toTextMultiline(value);
+    const size = Number(options.size || 10);
+    const leading = Number(options.leading || 12.4);
+    const x = Number(options.x || margin);
+    const width = Number(options.width || contentWidth);
+    const valueIndent = Number(options.indent || 8);
+    const valueWidth = Math.max(80, width - valueIndent);
+    const paragraphs = String(valueText || "")
+      .split(/\n{2,}/)
+      .map((part) => String(part || "").trim())
+      .filter(Boolean);
+    const wrappedParagraphs = (paragraphs.length ? paragraphs : ["-"]).map((part) =>
+      wrapPdfText(part, valueWidth, size, font)
+    );
+    const totalValueLines = wrappedParagraphs.reduce(
+      (acc, lines) => acc + Math.max(1, lines.length),
+      0
+    );
+    const blankLineCount = Math.max(0, wrappedParagraphs.length - 1);
+    ensureSpace((1 + totalValueLines + blankLineCount) * leading + 4);
+    page.drawText(labelText, {
+      x,
+      y: cursorY,
+      size,
+      font: fontBold,
+      color: palette.text,
+    });
+    cursorY -= leading;
+    wrappedParagraphs.forEach((lines, paragraphIndex) => {
+      lines.forEach((line) => {
+        page.drawText(line || "-", {
+          x: x + valueIndent,
+          y: cursorY,
+          size,
+          font,
+          color: palette.text,
+        });
+        cursorY -= leading;
+      });
+      if (paragraphIndex < wrappedParagraphs.length - 1) {
+        cursorY -= leading;
+      }
+    });
+    cursorY -= Number(options.after ?? 9.6);
+  };
+
   const kv = (label, value, options = {}) => {
     writeLabelValue(label, value, options);
+  };
+  const kvParagraph = (label, value, options = {}) => {
+    writeLabelValueParagraph(label, value, options);
+  };
+
+  const formatSymptomsForPdf = (value) => {
+    const raw = toTextMultiline(value, "-");
+    if (raw === "-") {
+      return raw;
+    }
+    return raw
+      .replace(/\s+(Resultado\s+local\/mec[^:\n]{0,4}nico:)/gi, "\n\n$1")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
   };
 
   const drawDivider = () => {
@@ -4856,7 +4997,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
   drawDivider();
 
   section("4. Diagnóstico");
-  kv("Sintomas", safePayload.symptoms || "-");
+  kvParagraph("Sintomas", formatSymptomsForPdf(safePayload.symptoms || "-"));
   kv("Diagnóstico técnico", safePayload.diagnosis || "-");
   kv(
     "Status da causa raiz",
