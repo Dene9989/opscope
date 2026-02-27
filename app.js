@@ -56,6 +56,12 @@ const lembretesVazio = document.getElementById("lembretesVazio");
 const listaAgendadas = document.getElementById("listaAgendadas");
 const listaAgendadasVazia = document.getElementById("listaAgendadasVazia");
 const alertaProgramacao = document.getElementById("alertaProgramacao");
+const programacaoListaConteudo = document.getElementById("programacaoListaConteudo");
+const programacaoDetalheView = document.getElementById("programacaoDetalheView");
+const programacaoDetalheTitulo = document.getElementById("programacaoDetalheTitulo");
+const programacaoDetalheMeta = document.getElementById("programacaoDetalheMeta");
+const programacaoDetalheConteudo = document.getElementById("programacaoDetalheConteudo");
+const btnProgramacaoVoltar = document.getElementById("btnProgramacaoVoltar");
 const filtroProgramacaoSubestacao = document.getElementById("filtroProgramacaoSubestacao");
 const filtroProgramacaoStatus = document.getElementById("filtroProgramacaoStatus");
 const filtroProgramacaoPeriodo = document.getElementById("filtroProgramacaoPeriodo");
@@ -4811,6 +4817,21 @@ const MAINTENANCE_STATE_LABELS = {
   awaiting: "AGUARDANDO CONCLUSÃO",
 };
 
+const PROGRAMACAO_ALLOWED_ACTIONS = [
+  "edit",
+  "release",
+  "execute",
+  "cancel_start",
+  "reschedule",
+  "register",
+  "finish",
+  "reopen",
+  "remove",
+  "history",
+  "backlog_reason",
+  "revalidate",
+];
+
 const RESULTADO_LABELS = {
   concluida: "Concluída",
   ressalva: "Concluída com ressalva",
@@ -4872,6 +4893,7 @@ let profileViewingUserId = "";
 let authToastTimeout = null;
 let execucaoRegistradaAlertTimer = null;
 let activeProjectId = "";
+let programacaoDetalheId = "";
 let powerBIButtonsBound = false;
 let availableProjects = [];
 let projectEquipamentos = [];
@@ -19557,6 +19579,243 @@ function criarCardManutencao(item, permissoes, options = {}) {
   return card;
 }
 
+function getProgramacaoPermissoes() {
+  return {
+    edit: can("edit"),
+    note: can("edit"),
+    remove: can("remove"),
+    reschedule: can("reschedule"),
+    execute: can("complete"),
+    backlog_reason: can("edit"),
+    reopen: canReopenMaintenance(currentUser),
+    history: true,
+  };
+}
+
+function getProgramacaoBadgeInfo(statusNormalized, diff) {
+  if (statusNormalized === "concluida") {
+    return { base: "concluida", label: STATUS_LABELS.concluida };
+  }
+  if (statusNormalized === "em_execucao") {
+    return { base: "em_execucao", label: STATUS_LABELS.em_execucao };
+  }
+  if (statusNormalized === "encerramento") {
+    return { base: "encerramento", label: STATUS_LABELS.encerramento };
+  }
+  if (statusNormalized === "backlog") {
+    return { base: "backlog", label: "BACKLOG" };
+  }
+  if (statusNormalized === "liberada") {
+    return { base: "liberada", label: STATUS_LABELS.liberada };
+  }
+  if (diff === 0) {
+    return { base: "hoje", label: "Vence hoje" };
+  }
+  return { base: "agendada", label: STATUS_LABELS.agendada };
+}
+
+function criarCardProgramacaoCompacto(item) {
+  const data = parseDate(item.data);
+  const hoje = startOfDay(new Date());
+  const diff = data ? diffInDays(hoje, data) : null;
+  const statusNormalized = normalizeMaintenanceStatus(item.status);
+  const state = getMaintenanceState(item, data, hoje);
+  const lockInfo = getReleaseLockInfo(item, data, hoje);
+  const badgeInfo = getProgramacaoBadgeInfo(statusNormalized, diff);
+  const responsaveis = getMaintenanceResponsibleLabels(item);
+  const equipamentoLabel = getMaintenanceEquipamentoLabel(item);
+  const dataTexto = data ? formatDate(data) : "data indefinida";
+
+  const card = document.createElement("article");
+  card.className = `manutencao-item manutencao-item--compact status-${statusNormalized} state-${state}`;
+  card.dataset.id = item.id;
+  card.dataset.maintenanceId = item.id;
+  card.id = `maintenance-${item.id}`;
+  card.setAttribute("role", "button");
+  card.setAttribute("tabindex", "0");
+  card.setAttribute("aria-label", `Abrir detalhes de ${item.titulo || "manutenção"}`);
+
+  const rail = document.createElement("div");
+  rail.className = "status-rail";
+  rail.setAttribute("aria-hidden", "true");
+
+  const layout = document.createElement("div");
+  layout.className = "manutencao-compact";
+
+  const top = document.createElement("div");
+  top.className = "manutencao-compact__top";
+
+  const info = document.createElement("div");
+  info.className = "manutencao-info";
+
+  const titulo = document.createElement("h3");
+  titulo.textContent = item.titulo || "Manutenção sem título";
+
+  const meta = document.createElement("p");
+  meta.className = "meta";
+  meta.textContent = `${item.local || "Subestação não informada"} - ${dataTexto}`;
+
+  const equipamentoLinha = document.createElement("p");
+  equipamentoLinha.className = "submeta submeta--equip";
+  equipamentoLinha.textContent = `Equipamento: ${
+    equipamentoLabel && equipamentoLabel !== "-" ? equipamentoLabel : "não informado"
+  }`;
+
+  info.append(titulo, meta, equipamentoLinha);
+
+  if (responsaveis.length) {
+    const responsavelLinha = document.createElement("p");
+    responsavelLinha.className = "submeta";
+    responsavelLinha.textContent = `Responsáveis: ${formatResponsavelLista(responsaveis)}`;
+    info.append(responsavelLinha);
+  }
+
+  const resumo = document.createElement("p");
+  resumo.className = "submeta";
+  if (statusNormalized === "agendada" || statusNormalized === "liberada") {
+    resumo.textContent = diff !== null && diff < 0 ? formatOverdue(diff) : formatUpcoming(diff);
+  } else if (statusNormalized === "backlog") {
+    resumo.textContent = formatOverdue(diff);
+  } else if (statusNormalized === "em_execucao") {
+    const inicio = parseTimestamp(item.executionStartedAt);
+    resumo.textContent = inicio ? `Em execução desde ${formatDateTime(inicio)}` : "Em execução";
+  } else if (statusNormalized === "encerramento") {
+    resumo.textContent = "Encerramento em preenchimento";
+  } else if (statusNormalized === "concluida" && item.doneAt) {
+    const feitoEm = parseTimestamp(item.doneAt);
+    resumo.textContent = feitoEm ? `Concluída em ${formatDate(startOfDay(feitoEm))}` : "";
+  }
+  if (resumo.textContent) {
+    info.append(resumo);
+  }
+  if (lockInfo) {
+    const lockLine = document.createElement("p");
+    lockLine.className = "submeta submeta--lock";
+    const lockIcon = document.createElement("span");
+    lockIcon.className = "lock-icon";
+    lockIcon.innerHTML = LOCK_ICON_SVG;
+    const lockText = document.createElement("span");
+    lockText.textContent = `Trancada - libera em ${formatDate(lockInfo.date)}`;
+    lockLine.append(lockIcon, lockText);
+    info.append(lockLine);
+  }
+
+  const statusGroup = document.createElement("div");
+  statusGroup.className = "status-group";
+  const badge = document.createElement("span");
+  badge.className = `status status--${badgeInfo.base}`;
+  badge.textContent = badgeInfo.label;
+  statusGroup.append(badge);
+
+  if (hasExecucaoRegistradaCompleta(item) && statusNormalized !== "concluida") {
+    const execBadge = document.createElement("span");
+    execBadge.className = "status status--execucao-registrada";
+    execBadge.textContent = "Execução registrada";
+    statusGroup.append(execBadge);
+  }
+
+  const stateBadge = document.createElement("span");
+  stateBadge.className = `status-flag status-flag--${state}`;
+  stateBadge.textContent = MAINTENANCE_STATE_LABELS[state] || "PLANEJADA";
+  if (statusNormalized !== "concluida") {
+    statusGroup.append(stateBadge);
+  }
+
+  top.append(info, statusGroup);
+  layout.append(top);
+
+  const actions = document.createElement("div");
+  actions.className = "manutencao-actions manutencao-actions--compact";
+  actions.append(criarBotaoAcao("Ver detalhes", "view_details"));
+
+  const podeEditar =
+    statusNormalized === "agendada" ||
+    statusNormalized === "backlog" ||
+    statusNormalized === "liberada" ||
+    statusNormalized === "em_execucao" ||
+    statusNormalized === "encerramento" ||
+    (statusNormalized === "concluida" && canEditConcludedMaintenance(currentUser));
+  if (can("edit") && podeEditar) {
+    actions.append(criarBotaoAcao("Editar", "edit"));
+  }
+
+  card.append(rail, layout, actions);
+  return card;
+}
+
+function setProgramacaoDetalheVisivel(visivel) {
+  if (programacaoListaConteudo) {
+    programacaoListaConteudo.hidden = visivel;
+  }
+  if (programacaoDetalheView) {
+    programacaoDetalheView.hidden = !visivel;
+  }
+}
+
+function renderProgramacaoDetalheCard(item) {
+  if (!programacaoDetalheConteudo) {
+    return;
+  }
+  programacaoDetalheConteudo.innerHTML = "";
+  const card = criarCardManutencao(item, getProgramacaoPermissoes(), {
+    allowedActions: PROGRAMACAO_ALLOWED_ACTIONS,
+  });
+  card.classList.add("manutencao-item--detail");
+  programacaoDetalheConteudo.append(card);
+
+  if (programacaoDetalheTitulo) {
+    programacaoDetalheTitulo.textContent = item.titulo || "Detalhes da manutenção";
+  }
+  if (programacaoDetalheMeta) {
+    const data = parseDate(item.data);
+    const statusLabel = STATUS_LABELS[normalizeMaintenanceStatus(item.status)] || "Agendada";
+    const dataLabel = data ? formatDate(data) : "data indefinida";
+    programacaoDetalheMeta.textContent = `${item.local || "-"} | ${dataLabel} | ${statusLabel}`;
+  }
+}
+
+function abrirProgramacaoDetalhe(maintenanceId) {
+  const id = String(maintenanceId || "").trim();
+  if (!id) {
+    return;
+  }
+  const item = manutencoes.find((entry) => String((entry && entry.id) || "") === id);
+  if (!item) {
+    mostrarMensagemManutencao("Manutenção não encontrada.", true);
+    return;
+  }
+  programacaoDetalheId = id;
+  renderProgramacaoDetalheCard(item);
+  setProgramacaoDetalheVisivel(true);
+}
+
+function fecharProgramacaoDetalhe() {
+  programacaoDetalheId = "";
+  if (programacaoDetalheConteudo) {
+    programacaoDetalheConteudo.innerHTML = "";
+  }
+  setProgramacaoDetalheVisivel(false);
+}
+
+function sincronizarProgramacaoDetalheComLista(items) {
+  if (!programacaoDetalheView || !programacaoListaConteudo) {
+    return;
+  }
+  if (!programacaoDetalheId) {
+    setProgramacaoDetalheVisivel(false);
+    return;
+  }
+  const selecionado = Array.isArray(items)
+    ? items.find((item) => String((item && item.id) || "") === programacaoDetalheId)
+    : null;
+  if (!selecionado) {
+    fecharProgramacaoDetalhe();
+    return;
+  }
+  renderProgramacaoDetalheCard(selecionado);
+  setProgramacaoDetalheVisivel(true);
+}
+
 function renderListaStatus(status, container, emptyEl, options = {}) {
   if (!container || !emptyEl) {
     return;
@@ -19737,6 +19996,7 @@ function renderProgramacao() {
   if (!filtrados.length) {
     listaAgendadasVazia.textContent = "Nenhuma manutenção encontrada.";
     listaAgendadasVazia.hidden = false;
+    sincronizarProgramacaoDetalheComLista([]);
     return;
   }
 
@@ -19780,40 +20040,23 @@ function renderProgramacao() {
     });
   });
 
-  const permissoes = {
-    edit: can("edit"),
-    note: can("edit"),
-    remove: can("remove"),
-    reschedule: can("reschedule"),
-    execute: can("complete"),
-    backlog_reason: can("edit"),
-    reopen: canReopenMaintenance(currentUser),
-    history: true,
-  };
+  const permissoes = getProgramacaoPermissoes();
 
   ordenados.forEach((item) => {
-    listaAgendadas.append(
-      criarCardManutencao(item, permissoes, {
-        allowedActions: [
-          "edit",
-          "release",
-          "execute",
-          "cancel_start",
-          "reschedule",
-          "register",
-          "finish",
-          "reopen",
-          "remove",
-          "history",
-          "backlog_reason",
-          "revalidate",
-        ],
-      })
-    );
+    if (programacaoDetalheView) {
+      listaAgendadas.append(criarCardProgramacaoCompacto(item));
+    } else {
+      listaAgendadas.append(
+        criarCardManutencao(item, permissoes, {
+          allowedActions: PROGRAMACAO_ALLOWED_ACTIONS,
+        })
+      );
+    }
   });
 
   listaAgendadasVazia.textContent = "Nenhuma manutenção agendada.";
   listaAgendadasVazia.hidden = true;
+  sincronizarProgramacaoDetalheComLista(ordenados);
 }
 
 function renderListaCustom(items, container, emptyEl, allowedActions) {
@@ -55058,6 +55301,17 @@ async function removerManutencao(index) {
 }
 
 function agirNaManutencao(event) {
+  const cardCompacto = event.target.closest(".manutencao-item--compact[data-id]");
+  if (
+    cardCompacto &&
+    (!event.target.closest("button[data-action]") &&
+      listaAgendadas &&
+      listaAgendadas.contains(cardCompacto))
+  ) {
+    abrirProgramacaoDetalhe(cardCompacto.dataset.id);
+    return;
+  }
+
   const botao = event.target.closest("button[data-action]");
   if (!botao) {
     return;
@@ -55082,12 +55336,17 @@ function agirNaManutencao(event) {
     acao !== "history" &&
     acao !== "revalidate" &&
     acao !== "export_ss" &&
+    acao !== "view_details" &&
     acao !== "edit" &&
     acao !== "register" &&
     acao !== "cancel_start" &&
     acao !== "finish"
   ) {
     mostrarMensagemManutencao(getPrazoExpiradoMensagem(manutencoes[index]), true);
+    return;
+  }
+  if (acao === "view_details") {
+    abrirProgramacaoDetalhe(manutencoes[index].id);
     return;
   }
   if (acao === "edit") {
@@ -58234,6 +58493,26 @@ if (novaManutencaoCard) {
 }
 if (listaAgendadas) {
   listaAgendadas.addEventListener("click", agirNaManutencao);
+  listaAgendadas.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+    if (event.target.closest("button[data-action]")) {
+      return;
+    }
+    const card = event.target.closest(".manutencao-item--compact[data-id]");
+    if (!card) {
+      return;
+    }
+    event.preventDefault();
+    abrirProgramacaoDetalhe(card.dataset.id);
+  });
+}
+if (programacaoDetalheConteudo) {
+  programacaoDetalheConteudo.addEventListener("click", agirNaManutencao);
+}
+if (btnProgramacaoVoltar) {
+  btnProgramacaoVoltar.addEventListener("click", fecharProgramacaoDetalhe);
 }
 if (listaBacklog) {
   listaBacklog.addEventListener("click", agirNaManutencao);

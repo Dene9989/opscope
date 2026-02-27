@@ -16332,10 +16332,107 @@ textarea:focus {
   background: rgba(10, 26, 40, 0.56);
 }
 
+#programacao .programacao-lista {
+  display: grid;
+  gap: 12px;
+}
+
+#programacao .programacao-detalhe {
+  border: 1px solid rgba(110, 138, 161, 0.24);
+  border-radius: 14px;
+  background: rgba(8, 22, 34, 0.64);
+  padding: 14px;
+}
+
+#programacao .programacao-detalhe__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+#programacao .programacao-detalhe__header h3 {
+  margin: 0 0 4px;
+  font-size: 1.06rem;
+  color: #edf4fb;
+}
+
+#programacao .programacao-detalhe__header .hint {
+  margin: 0;
+  color: rgba(186, 203, 219, 0.82);
+}
+
 #programacao .manutencao-item {
   background: rgba(10, 26, 40, 0.8);
   border-color: rgba(110, 138, 161, 0.24);
   box-shadow: 0 8px 14px rgba(5, 12, 20, 0.2);
+}
+
+#programacao .manutencao-item--compact {
+  cursor: pointer;
+  padding: 12px 14px;
+  gap: 10px;
+}
+
+#programacao .manutencao-item--compact:hover {
+  border-color: rgba(142, 168, 190, 0.4);
+  box-shadow: 0 8px 16px rgba(5, 12, 20, 0.28);
+}
+
+#programacao .manutencao-item--compact:focus-visible {
+  outline: 2px solid rgba(146, 174, 196, 0.6);
+  outline-offset: 2px;
+}
+
+#programacao .manutencao-item--compact .status-rail {
+  top: 8px;
+  bottom: 8px;
+}
+
+#programacao .manutencao-item--compact .manutencao-compact {
+  display: grid;
+  gap: 8px;
+}
+
+#programacao .manutencao-item--compact .manutencao-compact__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+#programacao .manutencao-item--compact .manutencao-info {
+  min-width: 0;
+}
+
+#programacao .manutencao-item--compact .manutencao-info h3 {
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.3;
+}
+
+#programacao .manutencao-item--compact .meta,
+#programacao .manutencao-item--compact .submeta {
+  margin: 0;
+  line-height: 1.35;
+  font-size: 0.92rem;
+}
+
+#programacao .manutencao-item--compact .status-group {
+  justify-content: flex-end;
+}
+
+#programacao .manutencao-item--compact .manutencao-actions {
+  margin-top: 2px;
+}
+
+#programacao .manutencao-item--compact .manutencao-actions .btn {
+  white-space: nowrap;
+}
+
+#programacao .manutencao-item--detail {
+  cursor: default;
 }
 
 #programacao .manutencao-item .status-rail {
@@ -16409,6 +16506,20 @@ textarea:focus {
   background: rgba(80, 119, 170, 0.26);
   border-color: rgba(94, 137, 192, 0.48);
   color: #deebfb;
+}
+
+@media (max-width: 980px) {
+  #programacao .programacao-detalhe__header {
+    flex-direction: column;
+  }
+
+  #programacao .manutencao-item--compact .manutencao-compact__top {
+    flex-direction: column;
+  }
+
+  #programacao .manutencao-item--compact .status-group {
+    justify-content: flex-start;
+  }
 }
 
 .page-pmp .pmp-filters,

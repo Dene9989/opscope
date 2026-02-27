@@ -1504,9 +1504,23 @@
             </select>
           </div>
         </div>
-        <p id="alertaProgramacao" class="alert alert--warning" hidden></p>
-        <div id="listaAgendadas" class="manutencoes"></div>
-        <p id="listaAgendadasVazia" class="empty-state">Nenhuma manutenção agendada.</p>
+        <div id="programacaoListaConteudo" class="programacao-lista">
+          <p id="alertaProgramacao" class="alert alert--warning" hidden></p>
+          <div id="listaAgendadas" class="manutencoes"></div>
+          <p id="listaAgendadasVazia" class="empty-state">Nenhuma manutenção agendada.</p>
+        </div>
+        <section id="programacaoDetalheView" class="programacao-detalhe" hidden>
+          <div class="programacao-detalhe__header">
+            <div>
+              <h3 id="programacaoDetalheTitulo">Detalhes da manutenção</h3>
+              <p id="programacaoDetalheMeta" class="hint"></p>
+            </div>
+            <button id="btnProgramacaoVoltar" class="btn btn--ghost btn--small" type="button">
+              Voltar para lista
+            </button>
+          </div>
+          <div id="programacaoDetalheConteudo"></div>
+        </section>
       </section>
     </section>
 
