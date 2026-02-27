@@ -15355,6 +15355,92 @@ textarea:focus {
   border-color: rgba(148, 163, 184, 0.36);
 }
 
+#modalPmpImport .modal__content {
+  background: #0f1c2a;
+  color: #e8eef5;
+  border: 1px solid rgba(120, 150, 175, 0.35);
+}
+
+#modalPmpImport .modal__header {
+  position: sticky;
+  top: 0;
+  background: #0f1c2a;
+  z-index: 2;
+}
+
+#modalPmpImport .modal__header .hint,
+#modalPmpImport .modal__form .hint {
+  color: rgba(220, 230, 240, 0.76);
+}
+
+#modalPmpImport label {
+  color: rgba(236, 242, 250, 0.92);
+}
+
+#modalPmpImport input,
+#modalPmpImport select,
+#modalPmpImport textarea {
+  color: #e8eef5;
+  background: rgba(19, 43, 66, 0.9);
+  border-color: rgba(120, 150, 175, 0.35);
+}
+
+#modalPmpImport input::placeholder,
+#modalPmpImport textarea::placeholder {
+  color: rgba(215, 226, 238, 0.62);
+}
+
+#modalPmpImport .btn--ghost {
+  color: #e8eef5;
+  border-color: rgba(232, 238, 245, 0.35);
+}
+
+#modalPmpImport .btn--ghost:hover {
+  background: rgba(232, 238, 245, 0.08);
+  box-shadow: none;
+}
+
+#modalPmpImport .pmp-import__toggle {
+  color: rgba(230, 236, 245, 0.9);
+}
+
+#modalPmpImport .pmp-import__chip {
+  color: rgba(232, 238, 246, 0.92);
+  background: rgba(17, 31, 46, 0.82);
+  border-color: rgba(120, 150, 175, 0.32);
+}
+
+#modalPmpImport .pmp-import__chip strong {
+  color: #f7fbff;
+}
+
+#modalPmpImport .pmp-import__table-wrap {
+  background: rgba(10, 20, 30, 0.72);
+  border-color: rgba(120, 150, 175, 0.28);
+}
+
+#modalPmpImport .pmp-import__table th {
+  color: rgba(240, 245, 255, 0.82);
+}
+
+#modalPmpImport .pmp-import__table td {
+  color: rgba(235, 241, 250, 0.94);
+}
+
+#modalPmpImport .pmp-import__table tbody tr:hover td {
+  background: rgba(41, 67, 94, 0.42);
+}
+
+#modalPmpImport .pmp-import__table tbody tr.is-disabled td {
+  opacity: 0.58;
+}
+
+#modalPmpImport .pmp-import__badge--muted {
+  color: rgba(225, 235, 247, 0.92);
+  background: rgba(148, 163, 184, 0.24);
+  border-color: rgba(148, 163, 184, 0.46);
+}
+
 @media (max-width: 960px) {
   .pmp-import__actions-inline {
     justify-content: flex-start;
