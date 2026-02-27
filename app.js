@@ -19726,7 +19726,16 @@ function criarCardProgramacaoCompacto(item) {
 
   const actions = document.createElement("div");
   actions.className = "manutencao-actions manutencao-actions--compact";
-  actions.append(criarBotaoAcao("Ver detalhes", "view_details"));
+  const btnVerDetalhes = criarBotaoAcao("Ver detalhes", "view_details");
+  const openDetails = (event) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    abrirProgramacaoDetalhe(item && item.id ? item.id : "");
+  };
+  btnVerDetalhes.addEventListener("click", openDetails);
+  actions.append(btnVerDetalhes);
 
   const podeEditar =
     statusNormalized === "agendada" ||
@@ -19738,6 +19747,26 @@ function criarCardProgramacaoCompacto(item) {
   if (can("edit") && podeEditar) {
     actions.append(criarBotaoAcao("Editar", "edit"));
   }
+
+  card.addEventListener("click", (event) => {
+    const actionBtn = event.target.closest("button[data-action]");
+    if (!actionBtn) {
+      openDetails(event);
+      return;
+    }
+    if (actionBtn.dataset.action === "view_details") {
+      openDetails(event);
+    }
+  });
+  card.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+    if (event.target.closest("button[data-action]")) {
+      return;
+    }
+    openDetails(event);
+  });
 
   card.append(rail, layout, actions);
   return card;
@@ -19777,6 +19806,7 @@ function renderProgramacaoDetalheCard(item) {
 function abrirProgramacaoDetalhe(maintenanceId) {
   const id = String(maintenanceId || "").trim();
   if (!id) {
+    mostrarMensagemManutencao("Manutenção sem identificador para abrir detalhes.", true);
     return;
   }
   const item = manutencoes.find((entry) => String((entry && entry.id) || "") === id);
@@ -55326,11 +55356,14 @@ function agirNaManutencao(event) {
   const index = manutencoes.findIndex(
     (item) => String((item && item.id) || "") === id
   );
+  const acao = botao.dataset.action;
   if (index < 0) {
+    if (acao === "view_details") {
+      abrirProgramacaoDetalhe(id);
+    }
     return;
   }
 
-  const acao = botao.dataset.action;
   if (
     isPrazoMaximoExpirado(manutencoes[index]) &&
     acao !== "history" &&
