@@ -5,7 +5,6 @@ const manutencaoEditInfo = document.getElementById("manutencaoEditInfo");
 const novaManutencaoTitulo = document.getElementById("novaManutencaoTitulo");
 const novaManutencaoCard = document.getElementById("nova-manutencao");
 const novaManutencaoHost = document.getElementById("novaManutencaoHost");
-const novaManutencaoMovidaAviso = document.getElementById("novaManutencaoMovidaAviso");
 const edicaoManutencaoHost = document.getElementById("edicaoManutencaoHost");
 const edicaoManutencaoVazia = document.getElementById("edicaoManutencaoVazia");
 const tipoManutencao = document.getElementById("tipoManutencao");
@@ -47827,9 +47826,6 @@ function updateMaintenanceEditWorkspace(ativo) {
     if (edicaoManutencaoVazia) {
       edicaoManutencaoVazia.hidden = true;
     }
-    if (novaManutencaoMovidaAviso) {
-      novaManutencaoMovidaAviso.hidden = false;
-    }
     if (novaManutencaoTitulo) {
       novaManutencaoTitulo.textContent = "Edição de manutenção";
     }
@@ -47840,9 +47836,6 @@ function updateMaintenanceEditWorkspace(ativo) {
   }
   if (edicaoManutencaoVazia) {
     edicaoManutencaoVazia.hidden = false;
-  }
-  if (novaManutencaoMovidaAviso) {
-    novaManutencaoMovidaAviso.hidden = true;
   }
   if (novaManutencaoTitulo) {
     novaManutencaoTitulo.textContent = "Nova manutenção";
