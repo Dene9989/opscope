@@ -4843,6 +4843,7 @@ let profileViewingUserId = "";
 let authToastTimeout = null;
 let execucaoRegistradaAlertTimer = null;
 let activeProjectId = "";
+let powerBIButtonsBound = false;
 let availableProjects = [];
 let projectEquipamentos = [];
 let projectEquipamentosProjectId = "";
@@ -60107,6 +60108,281 @@ if (btnCancelarSstDocReview) {
   btnCancelarSstDocReview.addEventListener("click", fecharSstDocReview);
 }
 
+function readPowerBIFieldValue(input) {
+  if (!input || typeof input.value === "undefined" || input.value === null) {
+    return "";
+  }
+  return String(input.value).trim();
+}
+
+function buildPowerBIBaseFilters(extra = {}) {
+  const filters = { ...(extra || {}) };
+  const projectId = String(activeProjectId || "").trim();
+  if (projectId && !filters.projectId) {
+    filters.projectId = projectId;
+  }
+  return filters;
+}
+
+function registerPowerBIExport(config) {
+  if (!window.attachPowerBIExportButton || !config || !config.containerSelector || !config.source) {
+    return;
+  }
+  window.attachPowerBIExportButton({
+    containerSelector: config.containerSelector,
+    source: config.source,
+    getFiltersFn: () => {
+      let payload = {};
+      if (typeof config.getFiltersFn === "function") {
+        try {
+          payload = config.getFiltersFn() || {};
+        } catch (error) {
+          payload = {};
+        }
+      }
+      const filters =
+        payload && payload.filters && typeof payload.filters === "object"
+          ? payload.filters
+          : payload || {};
+      return {
+        from: payload.from || "",
+        to: payload.to || "",
+        filters: buildPowerBIBaseFilters(filters),
+      };
+    },
+  });
+}
+
+function setupPowerBIExportButtons() {
+  if (powerBIButtonsBound || !window.attachPowerBIExportButton) {
+    return;
+  }
+  powerBIButtonsBound = true;
+
+  registerPowerBIExport({
+    containerSelector: "#inicio",
+    source: "kpis",
+    getFiltersFn: () => ({
+      filters: {
+        periodo: readPowerBIFieldValue(kpiPeriodo),
+      },
+    }),
+  });
+
+  registerPowerBIExport({
+    containerSelector: "#programacao #lista-programacao .programacao-toolbar",
+    source: "programacao",
+    getFiltersFn: () => ({
+      filters: {
+        subestacao: readPowerBIFieldValue(filtroProgramacaoSubestacao),
+        status: readPowerBIFieldValue(filtroProgramacaoStatus),
+        periodo: readPowerBIFieldValue(filtroProgramacaoPeriodo),
+      },
+    }),
+  });
+
+  registerPowerBIExport({ containerSelector: "#execucao .card", source: "execucao" });
+  registerPowerBIExport({ containerSelector: "#backlog .card", source: "backlog" });
+
+  registerPowerBIExport({
+    containerSelector: "#intercorrencias .intercorrencia-filtros",
+    source: "intercorrencias",
+    getFiltersFn: () => ({
+      filters: {
+        status: readPowerBIFieldValue(intercorrenciaStatusFiltro),
+        criticidade: readPowerBIFieldValue(intercorrenciaCriticidadeFiltro),
+        search: readPowerBIFieldValue(intercorrenciaBusca),
+      },
+    }),
+  });
+
+  registerPowerBIExport({
+    containerSelector: "#contingencias .contingencia-filters",
+    source: "contingencias",
+    getFiltersFn: () => ({
+      from: readPowerBIFieldValue(contingencyFilterFrom),
+      to: readPowerBIFieldValue(contingencyFilterTo),
+      filters: {
+        projectId: readPowerBIFieldValue(contingencyFilterProject),
+        eventType: readPowerBIFieldValue(contingencyFilterEventType),
+        severity: readPowerBIFieldValue(contingencyFilterSeverity),
+        status: readPowerBIFieldValue(contingencyFilterStatus),
+        substation: readPowerBIFieldValue(contingencyFilterSubstation),
+        asset: readPowerBIFieldValue(contingencyFilterAsset),
+        search: readPowerBIFieldValue(contingencyFilterSearch),
+      },
+    }),
+  });
+
+  registerPowerBIExport({
+    containerSelector: "#pmp .pmp-toolbar",
+    source: "pmp",
+    getFiltersFn: () => ({
+      filters: {
+        year: readPowerBIFieldValue(pmpAno),
+        view: readPowerBIFieldValue(pmpView),
+        month: readPowerBIFieldValue(pmpMes),
+        projectId: readPowerBIFieldValue(pmpFiltroProjeto),
+        frequencia: readPowerBIFieldValue(pmpFiltroFrequencia),
+        equipamento: readPowerBIFieldValue(pmpFiltroEquipamento),
+        responsavel: readPowerBIFieldValue(pmpFiltroResponsavel),
+        origem: readPowerBIFieldValue(pmpFiltroOrigem),
+        status: readPowerBIFieldValue(pmpFiltroStatus),
+        search: readPowerBIFieldValue(pmpBusca),
+      },
+    }),
+  });
+
+  registerPowerBIExport({
+    containerSelector: "#tendencias .card-kpi--filters .programacao-toolbar",
+    source: "tendencias",
+    getFiltersFn: () => ({
+      filters: {
+        periodo: readPowerBIFieldValue(kpiPeriodo),
+        subestacao: readPowerBIFieldValue(kpiSubestacao),
+        categoria: readPowerBIFieldValue(kpiCategoria),
+        prioridade: readPowerBIFieldValue(kpiPrioridade),
+        usuario: readPowerBIFieldValue(kpiUsuarioFiltro),
+      },
+    }),
+  });
+
+  registerPowerBIExport({
+    containerSelector: "#desempenho .desempenho-head__actions",
+    source: "desempenho",
+    getFiltersFn: () => ({
+      filters: {
+        periodo: readPowerBIFieldValue(perfResumoPeriodo),
+      },
+    }),
+  });
+
+  registerPowerBIExport({
+    containerSelector: "#performance-projects .performance-projects-toolbar",
+    source: "performance-projects",
+    getFiltersFn: () => ({
+      filters: {
+        periodo: readPowerBIFieldValue(perfProjetoPeriodo),
+        projeto: readPowerBIFieldValue(perfProjetoFiltro),
+      },
+    }),
+  });
+
+  registerPowerBIExport({
+    containerSelector: "#performance-people .performance-people-toolbar",
+    source: "performance-people",
+    getFiltersFn: () => ({
+      filters: {
+        periodo: readPowerBIFieldValue(perfPessoaPeriodo),
+        pessoa: readPowerBIFieldValue(perfPessoaFiltro),
+      },
+    }),
+  });
+
+  registerPowerBIExport({
+    containerSelector: "#relatorios .table-actions",
+    source: "relatorios",
+    getFiltersFn: () => ({
+      from: readPowerBIFieldValue(relatorioInicioMensal),
+      to: readPowerBIFieldValue(relatorioFimMensal),
+      filters: {
+        periodo: readPowerBIFieldValue(relatorioPeriodoFiltro),
+        status: readPowerBIFieldValue(relatorioStatusFiltro),
+        responsavel: readPowerBIFieldValue(relatorioResponsavelFiltro),
+        tipo: readPowerBIFieldValue(relatorioTipoFiltro),
+        mes: readPowerBIFieldValue(relatorioMes),
+      },
+    }),
+  });
+
+  registerPowerBIExport({ containerSelector: "#rastreabilidade .card", source: "rastreabilidade" });
+  registerPowerBIExport({ containerSelector: "#feedbacks .card", source: "feedbacks" });
+  registerPowerBIExport({ containerSelector: "#projetos .card", source: "projetos" });
+  registerPowerBIExport({ containerSelector: "#acessos .access-actions", source: "acessos" });
+
+  registerPowerBIExport({
+    containerSelector: "#gerencialLogs .card-actions",
+    source: "logs",
+    getFiltersFn: () => ({
+      from: readPowerBIFieldValue(logsFilterFrom),
+      to: readPowerBIFieldValue(logsFilterTo),
+      filters: {
+        endpoint: readPowerBIFieldValue(logsFilterEndpoint),
+        user: readPowerBIFieldValue(logsFilterUser),
+        status: readPowerBIFieldValue(logsFilterStatus),
+      },
+    }),
+  });
+
+  registerPowerBIExport({
+    containerSelector: "#gerencialFiles .card-head",
+    source: "uploads",
+    getFiltersFn: () => ({
+      filters: {
+        tipo: readPowerBIFieldValue(filesFilterType),
+        search: readPowerBIFieldValue(filesSearch),
+      },
+    }),
+  });
+
+  registerPowerBIExport({ containerSelector: "#gerencialHealth .card-actions", source: "auditoria" });
+  registerPowerBIExport({ containerSelector: "#almoxarifado .card", source: "almoxarifado" });
+  registerPowerBIExport({ containerSelector: "#almoxarifado-itens .card", source: "almoxarifado" });
+  registerPowerBIExport({ containerSelector: "#almoxarifado-estoque .card", source: "almoxarifado" });
+  registerPowerBIExport({ containerSelector: "#almoxarifado-movimentacoes .card", source: "almoxarifado" });
+  registerPowerBIExport({ containerSelector: "#almoxarifado-epis .card", source: "almoxarifado" });
+
+  registerPowerBIExport({ containerSelector: "#sst .card", source: "sst" });
+  registerPowerBIExport({ containerSelector: "#sst-treinamentos .card", source: "sst" });
+
+  registerPowerBIExport({
+    containerSelector: "#sst-inspecoes .card",
+    source: "sst",
+    getFiltersFn: () => ({
+      from: readPowerBIFieldValue(sstInspectionFilterFrom),
+      to: readPowerBIFieldValue(sstInspectionFilterTo),
+      filters: {
+        projectId: readPowerBIFieldValue(sstInspectionFilterProject),
+        template: readPowerBIFieldValue(sstInspectionFilterTemplate),
+        status: readPowerBIFieldValue(sstInspectionFilterStatus),
+        search: readPowerBIFieldValue(sstInspectionFilterSearch),
+      },
+    }),
+  });
+
+  registerPowerBIExport({
+    containerSelector: "#sst-ncs .card",
+    source: "sst",
+    getFiltersFn: () => ({
+      from: readPowerBIFieldValue(sstNcFilterFrom),
+      to: readPowerBIFieldValue(sstNcFilterTo),
+      filters: {
+        projectId: readPowerBIFieldValue(sstNcFilterProject),
+        status: readPowerBIFieldValue(sstNcFilterStatus),
+        severity: readPowerBIFieldValue(sstNcFilterSeverity),
+        responsible: readPowerBIFieldValue(sstNcFilterResponsible),
+        search: readPowerBIFieldValue(sstNcFilterSearch),
+      },
+    }),
+  });
+
+  registerPowerBIExport({ containerSelector: "#sst-incidentes .card", source: "sst" });
+
+  registerPowerBIExport({
+    containerSelector: "#sst-apr-pt .card",
+    source: "sst",
+    getFiltersFn: () => ({
+      from: readPowerBIFieldValue(sstPermitFrom),
+      to: readPowerBIFieldValue(sstPermitTo),
+      filters: {
+        projectId: readPowerBIFieldValue(sstDocProjectFilter),
+        status: readPowerBIFieldValue(sstDocStatusFilter),
+        search: readPowerBIFieldValue(sstDocSearch),
+      },
+    }),
+  });
+}
+
 users = [];
 templates = carregarTemplates();
 garantirTemplatesPadrao();
@@ -60131,6 +60407,7 @@ initRichEditors();
 initConclusaoModelos();
 initFontGroups();
 initSyncDebug();
+setupPowerBIExportButtons();
 bindIdleReconnectHandlers();
 carregarSessaoServidor();
 preencherInicioExecucaoNova();

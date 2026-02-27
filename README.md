@@ -55,3 +55,8 @@ Sistema web para gestao operacional e manutencao.
 ## Perfis RBAC usados
 
 - admin, gestor, almoxarife, tecnico_sst, supervisor, colaborador
+
+## Exportacao manual para Power BI
+
+- Endpoint: `GET /api/powerbi/export`
+- Documentacao detalhada: `docs/powerbi_export.md`

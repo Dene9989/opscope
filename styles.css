@@ -15877,6 +15877,24 @@ textarea:focus {
   justify-content: flex-start;
 }
 
+.powerbi-export-slot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.powerbi-export-btn {
+  white-space: nowrap;
+}
+
+.programacao-toolbar .powerbi-export-btn,
+.desempenho-head__actions .powerbi-export-btn,
+.performance-projects-toolbar .powerbi-export-btn,
+.performance-people-toolbar .powerbi-export-btn {
+  margin-left: auto;
+}
+
 @media (max-width: 860px) {
   .contingencia-tabs {
     gap: 6px;
