@@ -16264,6 +16264,284 @@ textarea:focus {
   margin-left: auto;
 }
 
+/* Corporate revamp phase 2: Inicio cards + Programacao + PMP */
+.home-shell .panel-card {
+  background: linear-gradient(180deg, rgba(9, 23, 36, 0.96), rgba(8, 20, 32, 0.95));
+  border-color: rgba(106, 132, 154, 0.26);
+}
+
+.home-shell .panel-card::before {
+  height: 2px;
+  opacity: 0.68;
+}
+
+.panel-card h3 {
+  color: rgba(226, 236, 246, 0.9);
+}
+
+.panel-subtitle {
+  color: rgba(184, 201, 217, 0.8);
+}
+
+.ops-alert-item,
+.mini-chart,
+.efficiency-kpi {
+  border-color: rgba(106, 132, 154, 0.24);
+}
+
+.ops-alert-item {
+  background: rgba(11, 28, 43, 0.78);
+}
+
+.mini-chart,
+.efficiency-kpi {
+  background: rgba(11, 28, 43, 0.74);
+}
+
+#programacao .card,
+.page-pmp .card {
+  background: linear-gradient(180deg, rgba(9, 24, 38, 0.97), rgba(8, 21, 33, 0.96));
+  border-color: rgba(110, 138, 161, 0.28);
+  box-shadow: 0 10px 18px rgba(5, 12, 20, 0.22);
+}
+
+#programacao .card::before,
+.page-pmp .card::before {
+  height: 2px;
+  background: rgba(207, 154, 69, 0.75);
+}
+
+#programacao .stats .stat {
+  background: rgba(10, 26, 40, 0.7);
+  border-color: rgba(110, 138, 161, 0.3);
+  box-shadow: none;
+}
+
+#programacao .stats .stat span {
+  color: #edf3f9;
+}
+
+#programacao .stats .stat small {
+  color: rgba(186, 203, 219, 0.82);
+}
+
+#programacao .programacao-toolbar {
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(110, 138, 161, 0.24);
+  background: rgba(10, 26, 40, 0.56);
+}
+
+#programacao .manutencao-item {
+  background: rgba(10, 26, 40, 0.8);
+  border-color: rgba(110, 138, 161, 0.24);
+  box-shadow: 0 8px 14px rgba(5, 12, 20, 0.2);
+}
+
+#programacao .manutencao-item .status-rail {
+  width: 4px;
+}
+
+#programacao .manutencao-item.focus-pulse {
+  animation: none;
+  outline: 2px solid var(--focus-color);
+  outline-offset: 2px;
+}
+
+#programacao .manutencao-item.focus-state-pulse .status-rail {
+  animation: none;
+}
+
+#programacao .manutencao-item.status-agendada {
+  background: rgba(31, 46, 62, 0.82);
+}
+
+#programacao .manutencao-item.status-liberada {
+  background: rgba(29, 53, 44, 0.82);
+}
+
+#programacao .manutencao-item.status-backlog {
+  background: rgba(63, 36, 41, 0.82);
+}
+
+#programacao .manutencao-item.status-em_execucao {
+  background: rgba(26, 53, 56, 0.82);
+}
+
+#programacao .manutencao-item.status-encerramento {
+  background: rgba(44, 49, 60, 0.82);
+}
+
+#programacao .manutencao-item.status-concluida {
+  background: rgba(34, 49, 71, 0.82);
+}
+
+#programacao .status {
+  border-color: rgba(138, 166, 189, 0.34);
+}
+
+#programacao .status--agendada {
+  background: rgba(40, 56, 73, 0.9);
+  border-color: rgba(118, 141, 161, 0.42);
+  color: #e8f0f8;
+}
+
+#programacao .status--liberada {
+  background: rgba(62, 130, 96, 0.24);
+  border-color: rgba(78, 149, 113, 0.46);
+  color: #d7efe2;
+}
+
+#programacao .status--backlog {
+  background: rgba(153, 79, 79, 0.28);
+  border-color: rgba(176, 95, 95, 0.52);
+  color: #f7e0e0;
+}
+
+#programacao .status--em_execucao {
+  background: rgba(74, 124, 124, 0.26);
+  border-color: rgba(92, 144, 144, 0.46);
+  color: #dff1f1;
+}
+
+#programacao .status--execucao-registrada,
+#programacao .status--concluida {
+  background: rgba(80, 119, 170, 0.26);
+  border-color: rgba(94, 137, 192, 0.48);
+  color: #deebfb;
+}
+
+.page-pmp .pmp-filters,
+.page-pmp .pmp-kpi,
+.page-pmp .pmp-form,
+.page-pmp .pmp-form-section,
+.page-pmp .pmp-month,
+.page-pmp .pmp-status,
+.page-pmp .pmp-type {
+  border-color: rgba(112, 139, 160, 0.24);
+}
+
+.page-pmp .pmp-filters {
+  background: rgba(10, 26, 40, 0.56);
+}
+
+.page-pmp .pmp-kpi {
+  background: rgba(10, 26, 40, 0.66);
+}
+
+.page-pmp .pmp-kpi span,
+.page-pmp .pmp-kpi__hint {
+  color: rgba(193, 210, 224, 0.76);
+}
+
+.page-pmp .pmp-kpi strong {
+  color: #edf4fa;
+}
+
+.page-pmp .pmp-kpi__bar {
+  background: rgba(126, 156, 179, 0.22);
+}
+
+.page-pmp .pmp-kpi__bar-fill {
+  background: #4a8765;
+}
+
+.page-pmp .pmp-kpi__bar-fill.is-warning {
+  background: #ad7f3a;
+}
+
+.page-pmp .pmp-form {
+  background: rgba(9, 23, 36, 0.72);
+}
+
+.page-pmp .pmp-form-section {
+  background: rgba(10, 25, 38, 0.58);
+}
+
+.page-pmp .section-title {
+  border-bottom-color: rgba(110, 138, 160, 0.28);
+}
+
+.page-pmp .section-title h4 {
+  color: rgba(230, 238, 245, 0.86);
+}
+
+.page-pmp .section-title p {
+  color: rgba(189, 205, 220, 0.72);
+}
+
+.page-pmp .pmp-grid-wrap {
+  border-color: rgba(112, 139, 160, 0.24);
+  background: rgba(8, 21, 33, 0.72);
+}
+
+.page-pmp .pmp-grid thead th {
+  background: rgba(14, 29, 43, 0.96);
+  color: rgba(230, 238, 245, 0.9);
+  border-bottom-color: rgba(112, 139, 160, 0.26);
+}
+
+.page-pmp .pmp-grid th,
+.page-pmp .pmp-grid td {
+  color: rgba(222, 233, 243, 0.9);
+  border-bottom-color: rgba(112, 139, 160, 0.16);
+}
+
+.page-pmp .pmp-grid tbody tr:hover td {
+  background: rgba(27, 49, 69, 0.36);
+}
+
+.page-pmp .pmp-col-name,
+.page-pmp .pmp-col-code,
+.page-pmp .pmp-col-equip {
+  background: rgba(11, 24, 36, 0.97);
+}
+
+.page-pmp .pmp-grid th.pmp-col-name,
+.page-pmp .pmp-grid th.pmp-col-code,
+.page-pmp .pmp-grid th.pmp-col-equip {
+  background: rgba(14, 30, 44, 0.98);
+}
+
+.page-pmp .pmp-cell--on-time {
+  background: rgba(74, 135, 101, 0.24);
+  color: #cde9d8;
+}
+
+.page-pmp .pmp-cell--late {
+  background: rgba(173, 127, 58, 0.26);
+  color: #f3ddbd;
+}
+
+.page-pmp .pmp-cell--missed {
+  background: rgba(162, 88, 88, 0.28);
+  color: #f6dddd;
+}
+
+.page-pmp .pmp-cell--scheduled {
+  background: rgba(84, 118, 166, 0.24);
+  color: #d8e7fb;
+}
+
+.page-pmp .pmp-cell--cancelled {
+  background: rgba(110, 126, 145, 0.26);
+  color: #e3eaf3;
+}
+
+.page-pmp .pmp-cell--empty {
+  color: rgba(178, 194, 210, 0.6);
+}
+
+.page-pmp .pmp-legend {
+  background: rgba(8, 21, 33, 0.86);
+  border-color: rgba(112, 139, 160, 0.24);
+  color: rgba(195, 212, 226, 0.84);
+}
+
+.page-pmp .pmp-type-legend {
+  color: rgba(195, 212, 226, 0.82);
+}
+
 @media (max-width: 860px) {
   .contingencia-tabs {
     gap: 6px;
