@@ -5978,6 +5978,179 @@ function normalizePmpActivity(record) {
         })
         .filter(Boolean)
     : [];
+  const maintenanceSourceId = String(
+    record && record.maintenanceSourceId ? record.maintenanceSourceId : ""
+  ).trim();
+  const origemDetalhe = String(record && record.origemDetalhe ? record.origemDetalhe : "").trim();
+  const templateIdOrigem = String(
+    record && record.templateIdOrigem ? record.templateIdOrigem : ""
+  ).trim();
+  const sourceImportedAt = String(
+    record && record.sourceImportedAt ? record.sourceImportedAt : ""
+  ).trim();
+  const sourceImportedBy = String(
+    record && record.sourceImportedBy ? record.sourceImportedBy : ""
+  ).trim();
+  const sourceSyncAt = String(record && record.sourceSyncAt ? record.sourceSyncAt : "").trim();
+  const sourceSyncBy = String(record && record.sourceSyncBy ? record.sourceSyncBy : "").trim();
+  const sourceSyncCountRaw = Number(
+    record && record.sourceSyncCount !== undefined ? record.sourceSyncCount : 0
+  );
+  const sourceSyncCount =
+    Number.isFinite(sourceSyncCountRaw) && sourceSyncCountRaw > 0
+      ? Math.round(sourceSyncCountRaw)
+      : 0;
+  const normalizeTextList = (value, limit = 80) => {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    return value
+      .map((entry) => String(entry || "").trim())
+      .filter(Boolean)
+      .slice(0, Math.max(1, limit));
+  };
+  const normalizeSourceDocs = (value) => {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    return value
+      .map((entry) => {
+        if (!entry || typeof entry !== "object") {
+          return null;
+        }
+        return {
+          key: String(entry.key || "").trim(),
+          label: String(entry.label || "").trim(),
+          nome: String(entry.nome || entry.name || "Documento").trim(),
+          url: String(entry.url || entry.dataUrl || "").trim(),
+        };
+      })
+      .filter((entry) => entry && (entry.nome || entry.url))
+      .slice(0, 40);
+  };
+  const normalizeSourceEvidencias = (value) => {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    return value
+      .map((entry) => {
+        if (!entry) {
+          return null;
+        }
+        if (typeof entry === "string") {
+          const text = entry.trim();
+          if (!text) {
+            return null;
+          }
+          return {
+            nome: text,
+            url: "",
+            categoria: "evidencia",
+            observacao: "",
+          };
+        }
+        return {
+          nome: String(entry.nome || entry.name || "Evidência").trim(),
+          url: String(entry.url || entry.dataUrl || "").trim(),
+          categoria: String(entry.categoria || entry.tipo || "evidencia").trim(),
+          observacao: String(entry.observacao || entry.obs || "").trim(),
+        };
+      })
+      .filter((entry) => entry && (entry.nome || entry.url || entry.observacao))
+      .slice(0, 120);
+  };
+  const normalizeSourceProcedimentoDoc = (docRaw) => {
+    if (!docRaw || typeof docRaw !== "object") {
+      return null;
+    }
+    const url = String(docRaw.url || docRaw.dataUrl || "").trim();
+    if (!url) {
+      return null;
+    }
+    const nome = String(docRaw.originalName || docRaw.name || "Procedimento.pdf").trim();
+    return {
+      id: docRaw.id ? String(docRaw.id) : "",
+      url,
+      name: nome,
+      originalName: nome,
+      mime: String(docRaw.mime || "application/pdf"),
+    };
+  };
+  const sourceSnapshotRaw =
+    record && record.sourceSnapshot && typeof record.sourceSnapshot === "object"
+      ? record.sourceSnapshot
+      : null;
+  const sourceSnapshot = sourceSnapshotRaw
+    ? {
+      maintenanceId: String(sourceSnapshotRaw.maintenanceId || "").trim(),
+      titulo: String(sourceSnapshotRaw.titulo || "").trim(),
+      statusKey: String(sourceSnapshotRaw.statusKey || "").trim(),
+      statusLabel: String(sourceSnapshotRaw.statusLabel || "").trim(),
+      osReferencia: String(sourceSnapshotRaw.osReferencia || "").trim(),
+      subestacao: String(sourceSnapshotRaw.subestacao || "").trim(),
+      categoria: String(sourceSnapshotRaw.categoria || "").trim(),
+      prioridade: String(sourceSnapshotRaw.prioridade || "").trim(),
+      descricao: String(sourceSnapshotRaw.descricao || "").trim(),
+      observacao: String(sourceSnapshotRaw.observacao || "").trim(),
+      executadoPor: String(sourceSnapshotRaw.executadoPor || "").trim(),
+      participantes: normalizeTextList(sourceSnapshotRaw.participantes || [], 60),
+      frequencia: String(sourceSnapshotRaw.frequencia || "").trim(),
+      tipoManutencao: String(sourceSnapshotRaw.tipoManutencao || "").trim(),
+      procedimentoIds: normalizeTextList(sourceSnapshotRaw.procedimentoIds || [], 80),
+      procedimentoLabels: normalizeTextList(sourceSnapshotRaw.procedimentoLabels || [], 80),
+      procedimentoDoc: normalizeSourceProcedimentoDoc(sourceSnapshotRaw.procedimentoDoc),
+      procedimentoDocs: Array.isArray(sourceSnapshotRaw.procedimentoDocs)
+        ? sourceSnapshotRaw.procedimentoDocs
+            .map((entry) => {
+              if (!entry || typeof entry !== "object") {
+                return null;
+              }
+              return {
+                id: String(entry.id || "").trim(),
+                label: String(entry.label || "").trim(),
+                doc: normalizeSourceProcedimentoDoc(entry.doc),
+              };
+            })
+            .filter((entry) => entry && entry.doc)
+            .slice(0, 40)
+        : [],
+      checklist: Array.isArray(sourceSnapshotRaw.checklist)
+        ? sourceSnapshotRaw.checklist
+            .map((item) => {
+              if (!item) {
+                return null;
+              }
+              if (typeof item === "string") {
+                const text = item.trim();
+                return text ? { descricao: text, link: "" } : null;
+              }
+              const descricao = String(item.descricao || item.label || "").trim();
+              const link = String(item.link || item.url || "").trim();
+              if (!descricao && !link) {
+                return null;
+              }
+              return { descricao, link };
+            })
+            .filter(Boolean)
+            .slice(0, 160)
+        : [],
+      docs: normalizeSourceDocs(sourceSnapshotRaw.docs),
+      evidencias: normalizeSourceEvidencias(sourceSnapshotRaw.evidencias),
+      dataProgramada: String(sourceSnapshotRaw.dataProgramada || "").trim(),
+      inicioExecucao: String(sourceSnapshotRaw.inicioExecucao || "").trim(),
+      fimExecucao: String(sourceSnapshotRaw.fimExecucao || "").trim(),
+      concluidaEm: String(sourceSnapshotRaw.concluidaEm || "").trim(),
+      updatedAt: String(sourceSnapshotRaw.updatedAt || "").trim(),
+      rawRef:
+        sourceSnapshotRaw.rawRef && typeof sourceSnapshotRaw.rawRef === "object"
+          ? {
+              id: String(sourceSnapshotRaw.rawRef.id || "").trim(),
+              templateId: String(sourceSnapshotRaw.rawRef.templateId || "").trim(),
+              projectId: String(sourceSnapshotRaw.rawRef.projectId || "").trim(),
+            }
+          : null,
+    }
+    : null;
   return {
     id: record && record.id ? String(record.id) : crypto.randomUUID(),
     projectId: String(record && record.projectId ? record.projectId : "").trim(),
@@ -5996,7 +6169,16 @@ function normalizePmpActivity(record) {
     responsavelId: String(record && record.responsavelId ? record.responsavelId : "").trim(),
     checklist,
     origem,
+    origemDetalhe,
+    templateIdOrigem,
+    maintenanceSourceId,
     procedimentos: String(record && record.procedimentos ? record.procedimentos : "").trim(),
+    sourceImportedAt,
+    sourceImportedBy,
+    sourceSyncAt,
+    sourceSyncBy,
+    sourceSyncCount,
+    sourceSnapshot,
     ano: Number.isFinite(year) ? year : new Date().getFullYear(),
     inicio: String(record && record.inicio ? record.inicio : "").trim(),
     createdAt: record && record.createdAt ? record.createdAt : now,

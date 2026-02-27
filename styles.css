@@ -15197,6 +15197,8 @@ textarea:focus {
 .pmp-grid .pmp-actions {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
 }
 
 .pmp-procedure {
@@ -15441,6 +15443,93 @@ textarea:focus {
   border-color: rgba(148, 163, 184, 0.46);
 }
 
+.pmp-info {
+  display: grid;
+  gap: 14px;
+}
+
+.pmp-info__section {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(120, 150, 175, 0.2);
+  background: rgba(12, 26, 40, 0.48);
+  display: grid;
+  gap: 10px;
+}
+
+.pmp-info__section h4 {
+  margin: 0;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(240, 245, 255, 0.84);
+}
+
+.pmp-info__grid {
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) minmax(0, 1fr);
+  gap: 8px 12px;
+}
+
+.pmp-info__grid dt {
+  margin: 0;
+  font-size: 0.78rem;
+  color: rgba(195, 210, 226, 0.84);
+}
+
+.pmp-info__grid dd {
+  margin: 0;
+  font-size: 0.84rem;
+  color: rgba(234, 240, 248, 0.94);
+}
+
+.pmp-info__grid dd.is-multiline {
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+
+#modalPmpInfo .modal__content {
+  background: #0f1c2a;
+  color: #e8eef5;
+  border: 1px solid rgba(120, 150, 175, 0.35);
+}
+
+#modalPmpInfo .modal__header {
+  position: sticky;
+  top: 0;
+  background: #0f1c2a;
+  z-index: 2;
+}
+
+#modalPmpInfo .modal__header .hint {
+  color: rgba(220, 230, 240, 0.74);
+}
+
+#modalPmpInfo .modal__form {
+  color: rgba(232, 238, 246, 0.92);
+}
+
+#modalPmpInfo .pmp-cell-list li,
+#modalPmpInfo .checklist li {
+  color: rgba(232, 238, 246, 0.92);
+}
+
+#modalPmpInfo .pmp-cell-list a,
+#modalPmpInfo .checklist a {
+  color: #8ac9ff;
+}
+
+#modalPmpInfo .btn--ghost {
+  color: #e8eef5;
+  border-color: rgba(232, 238, 245, 0.32);
+}
+
+#modalPmpInfo .btn--ghost:hover {
+  background: rgba(232, 238, 245, 0.08);
+  box-shadow: none;
+}
+
 @media (max-width: 960px) {
   .pmp-import__actions-inline {
     justify-content: flex-start;
@@ -15453,6 +15542,10 @@ textarea:focus {
 
   .pmp-import__chip {
     font-size: 0.7rem;
+  }
+
+  .pmp-info__grid {
+    grid-template-columns: 1fr;
   }
 }
 
