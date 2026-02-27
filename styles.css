@@ -6583,19 +6583,22 @@ label {
   }
 }
 
-#procedimentoForm .table-actions {
-  justify-content: flex-start;
-}
-
 .page-procedimentos .card {
   display: grid;
-  gap: 16px;
+  gap: 14px;
+}
+
+.page-procedimentos .procedimentos-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .page-procedimentos #procedimentoForm {
   display: grid;
-  gap: 14px;
-  padding: 14px;
+  gap: 12px;
+  padding: 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   background: linear-gradient(180deg, rgba(12, 33, 51, 0.78), rgba(8, 24, 39, 0.76));
@@ -6617,6 +6620,20 @@ label {
   border-radius: 10px;
 }
 
+.page-procedimentos .procedimento-upload {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.page-procedimentos .procedimento-upload__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .page-procedimentos #procedimentoFormPdf::file-selector-button {
   margin-right: 10px;
   border: 1px solid rgba(200, 146, 61, 0.5);
@@ -6632,25 +6649,33 @@ label {
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   overflow: auto;
-  max-height: 460px;
+  max-height: 520px;
   padding-right: 6px;
   scrollbar-gutter: stable;
 }
 
+.page-procedimentos .report-table__wrap--procedimentos {
+  margin-top: 2px;
+}
+
 .page-procedimentos #procedimentoTable {
   width: 100%;
-  min-width: 1160px;
+  min-width: 980px;
   table-layout: fixed;
 }
 
 .page-procedimentos #procedimentoTable th {
   color: #eef5ff;
   background: rgba(6, 18, 30, 0.98);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .page-procedimentos #procedimentoTable th:nth-child(1),
 .page-procedimentos #procedimentoTable td:nth-child(1) {
-  width: 16%;
+  width: 18%;
 }
 
 .page-procedimentos #procedimentoTable th:nth-child(2),
@@ -6660,19 +6685,19 @@ label {
 
 .page-procedimentos #procedimentoTable th:nth-child(3),
 .page-procedimentos #procedimentoTable td:nth-child(3) {
-  width: 37%;
+  width: 33%;
 }
 
 .page-procedimentos #procedimentoTable th:nth-child(4),
 .page-procedimentos #procedimentoTable td:nth-child(4) {
-  width: 16%;
+  width: 18%;
 }
 
 .page-procedimentos #procedimentoTable td {
   color: #e9f1ff;
   font-weight: 500;
-  vertical-align: top;
-  padding: 10px 12px;
+  vertical-align: middle;
+  padding: 9px 12px;
 }
 
 .page-procedimentos #procedimentoTable td:nth-child(3) {
@@ -6694,7 +6719,7 @@ label {
 .page-procedimentos #procedimentoTable .procedure-code,
 .page-procedimentos #procedimentoTable .procedure-text {
   display: block;
-  line-height: 1.35;
+  line-height: 1.32;
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
@@ -6709,25 +6734,88 @@ label {
   font-weight: 600;
 }
 
+.page-procedimentos #procedimentoTable .procedure-empty {
+  padding: 16px 14px;
+  text-align: center;
+  font-size: 0.86rem;
+  color: rgba(210, 225, 242, 0.84);
+}
+
 .page-procedimentos #procedimentoTable .procedure-actions {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 7px;
-  align-content: start;
-  justify-items: stretch;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
   width: 100%;
-  max-width: 110px;
-  margin-left: auto;
+  max-width: none;
+  min-height: 30px;
+  margin-left: 0;
 }
 
 .page-procedimentos #procedimentoTable .procedure-actions .btn {
-  width: 100%;
-  min-width: 0;
-  height: 32px;
-  padding: 6px 8px;
-  font-size: 0.78rem;
+  width: auto;
+  min-width: 68px;
+  height: 30px;
+  padding: 5px 10px;
+  font-size: 0.74rem;
+  letter-spacing: 0.01em;
   white-space: nowrap;
   justify-content: center;
+}
+
+.page-procedimentos .procedimentos-toolbar {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.4fr) minmax(180px, 0.8fr) minmax(260px, 1fr);
+  gap: 12px;
+  align-items: end;
+}
+
+.page-procedimentos .procedimentos-toolbar__field {
+  margin: 0;
+}
+
+.page-procedimentos .procedimentos-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.page-procedimentos .procedimentos-stat {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  color: rgba(220, 234, 250, 0.92);
+  background: rgba(9, 27, 44, 0.72);
+}
+
+.page-procedimentos .procedimentos-stat strong {
+  color: #fff3d2;
+  font-size: 0.78rem;
+}
+
+@media (max-width: 1120px) {
+  .page-procedimentos .procedimentos-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+  .page-procedimentos .procedimentos-stats {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+  .page-procedimentos .procedimento-upload {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+  .page-procedimentos .procedimento-upload__actions {
+    justify-content: flex-start;
+  }
+  .page-procedimentos #procedimentoTable {
+    min-width: 920px;
+  }
 }
 
 .procedure-links {

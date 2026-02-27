@@ -342,6 +342,12 @@ const procedimentoFormPdfRemove = document.getElementById("procedimentoFormPdfRe
 const procedimentoFormCancel = document.getElementById("procedimentoFormCancel");
 const procedimentoTable = document.getElementById("procedimentoTable");
 const procedimentoTableBody = document.querySelector("#procedimentoTable tbody");
+const procedimentoTableSearch = document.getElementById("procedimentoTableSearch");
+const procedimentoTablePdfFilter = document.getElementById("procedimentoTablePdfFilter");
+const procedimentoTableCountTotal = document.getElementById("procedimentoTableCountTotal");
+const procedimentoTableCountWithPdf = document.getElementById("procedimentoTableCountWithPdf");
+const procedimentoTableCountWithoutPdf = document.getElementById("procedimentoTableCountWithoutPdf");
+const procedimentoTableCountVisible = document.getElementById("procedimentoTableCountVisible");
 const procedimentoManutencaoLinks = document.getElementById("procedimentoManutencaoLinks");
 const procedimentoManutencaoSearch = document.getElementById("procedimentoManutencaoSearch");
 const procedimentoManutencaoStats = document.getElementById("procedimentoManutencaoStats");
@@ -38419,15 +38425,83 @@ function getProcedimentoLabel(procedimento) {
   return nome || codigo || "";
 }
 
+function updateProcedimentosTableStats(allItems, visibleItems) {
+  const fullList = Array.isArray(allItems) ? allItems : [];
+  const filteredList = Array.isArray(visibleItems) ? visibleItems : [];
+  const withPdfCount = fullList.reduce((count, procedimento) => {
+    const doc = getProcedimentoPdfDoc(procedimento);
+    return count + (doc && doc.url ? 1 : 0);
+  }, 0);
+  const withoutPdfCount = Math.max(0, fullList.length - withPdfCount);
+
+  if (procedimentoTableCountTotal) {
+    procedimentoTableCountTotal.textContent = String(fullList.length);
+  }
+  if (procedimentoTableCountWithPdf) {
+    procedimentoTableCountWithPdf.textContent = String(withPdfCount);
+  }
+  if (procedimentoTableCountWithoutPdf) {
+    procedimentoTableCountWithoutPdf.textContent = String(withoutPdfCount);
+  }
+  if (procedimentoTableCountVisible) {
+    procedimentoTableCountVisible.textContent = String(filteredList.length);
+  }
+}
+
+function getFilteredProjectProcedimentos() {
+  const sourceList = Array.isArray(projectProcedimentos) ? projectProcedimentos : [];
+  const termo = normalizeSearchValue(procedimentoTableSearch ? procedimentoTableSearch.value : "");
+  const pdfFilter = String(
+    (procedimentoTablePdfFilter && procedimentoTablePdfFilter.value) || "all"
+  ).trim();
+
+  return sourceList.filter((procedimento) => {
+    const pdfDoc = getProcedimentoPdfDoc(procedimento);
+    const hasPdf = Boolean(pdfDoc && pdfDoc.url);
+
+    if (pdfFilter === "with_pdf" && !hasPdf) {
+      return false;
+    }
+    if (pdfFilter === "without_pdf" && hasPdf) {
+      return false;
+    }
+    if (!termo) {
+      return true;
+    }
+
+    const codigo = normalizeSearchValue(procedimento.codigo || "");
+    const nome = normalizeSearchValue(procedimento.nome || "");
+    const pdfNome = normalizeSearchValue(
+      (pdfDoc && (pdfDoc.originalName || pdfDoc.name)) || ""
+    );
+    return codigo.includes(termo) || nome.includes(termo) || pdfNome.includes(termo);
+  });
+}
+
 function renderProcedimentosTable() {
   if (!procedimentoTableBody) {
     return;
   }
   procedimentoTableBody.innerHTML = "";
-  if (!projectProcedimentos.length) {
+
+  const sourceList = Array.isArray(projectProcedimentos) ? projectProcedimentos : [];
+  const visibleList = getFilteredProjectProcedimentos();
+  updateProcedimentosTableStats(sourceList, visibleList);
+
+  if (!visibleList.length) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 4;
+    td.className = "procedure-empty";
+    td.textContent = sourceList.length
+      ? "Nenhum procedimento encontrado para os filtros atuais."
+      : "Nenhum procedimento cadastrado no projeto ativo.";
+    tr.append(td);
+    procedimentoTableBody.append(tr);
     return;
   }
-  projectProcedimentos.forEach((procedimento) => {
+
+  visibleList.forEach((procedimento) => {
     const tr = document.createElement("tr");
     const actions = [];
     const pdfDoc = getProcedimentoPdfDoc(procedimento);
@@ -38447,12 +38521,15 @@ function renderProcedimentosTable() {
     const codigo = procedimento.codigo || "-";
     const nome = procedimento.nome || "-";
     const pdfNome = (pdfDoc && (pdfDoc.originalName || pdfDoc.name)) || "-";
+    const actionMarkup = actions.length
+      ? `<div class="table-actions procedure-actions">${actions.join(" ")}</div>`
+      : '<div class="procedure-actions"><span class="hint">-</span></div>';
     tr.dataset.procedureId = procedimento.id;
     tr.innerHTML = `
       <td><span class="procedure-code" title="${escapeHtml(codigo)}">${escapeHtml(codigo)}</span></td>
       <td><span class="procedure-text" title="${escapeHtml(nome)}">${escapeHtml(nome)}</span></td>
       <td><span class="procedure-text procedure-text--pdf" title="${escapeHtml(pdfNome)}">${escapeHtml(pdfNome)}</span></td>
-      <td class="table-actions procedure-actions">${actions.join(" ")}</td>
+      <td>${actionMarkup}</td>
     `;
     procedimentoTableBody.append(tr);
   });
@@ -57541,6 +57618,18 @@ if (procedimentoTable) {
         alert(error && error.message ? error.message : "Falha ao excluir procedimento.");
       }
     }
+  });
+}
+
+if (procedimentoTableSearch) {
+  procedimentoTableSearch.addEventListener("input", () => {
+    renderProcedimentosTable();
+  });
+}
+
+if (procedimentoTablePdfFilter) {
+  procedimentoTablePdfFilter.addEventListener("change", () => {
+    renderProcedimentosTable();
   });
 }
 

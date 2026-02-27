@@ -2279,8 +2279,12 @@
 
     <section class="panel page-procedimentos" id="procedimentos" data-panel="procedimentos">
       <section class="card">
-        <h2>Procedimentos</h2>
-        <p class="hint">Cadastre procedimentos por projeto para vincular nas manutenções e recorrências.</p>
+        <div class="procedimentos-header">
+          <div>
+            <h2>Procedimentos</h2>
+            <p class="hint">Cadastre procedimentos por projeto para vincular nas manutenções e recorrências.</p>
+          </div>
+        </div>
         <form id="procedimentoForm" class="project-form">
           <input id="procedimentoFormId" type="hidden" />
           <div class="form-grid">
@@ -2300,26 +2304,28 @@
             </div>
             <div class="field field--full">
               <label for="procedimentoFormPdf">Procedimento (PDF)</label>
-              <input id="procedimentoFormPdf" type="file" accept="application/pdf,.pdf" />
-              <p id="procedimentoFormPdfName" class="hint">Nenhum PDF selecionado.</p>
-              <div class="table-actions">
-                <button
-                  id="procedimentoFormPdfPreview"
-                  type="button"
-                  class="btn btn--ghost btn--small"
-                  hidden
-                >
-                  Visualizar PDF
-                </button>
-                <button
-                  id="procedimentoFormPdfRemove"
-                  type="button"
-                  class="btn btn--ghost btn--small btn--danger"
-                  hidden
-                >
-                  Remover PDF
-                </button>
+              <div class="procedimento-upload">
+                <input id="procedimentoFormPdf" type="file" accept="application/pdf,.pdf" />
+                <div class="procedimento-upload__actions">
+                  <button
+                    id="procedimentoFormPdfPreview"
+                    type="button"
+                    class="btn btn--ghost btn--small"
+                    hidden
+                  >
+                    Visualizar PDF
+                  </button>
+                  <button
+                    id="procedimentoFormPdfRemove"
+                    type="button"
+                    class="btn btn--ghost btn--small btn--danger"
+                    hidden
+                  >
+                    Remover PDF
+                  </button>
+                </div>
               </div>
+              <p id="procedimentoFormPdfName" class="hint">Nenhum PDF selecionado.</p>
               <p class="hint">Obrigatorio. Faca upload do PDF antes de salvar.</p>
             </div>
           </div>
@@ -2328,14 +2334,39 @@
             <button class="btn btn--ghost" type="button" id="procedimentoFormCancel">Limpar</button>
           </div>
         </form>
-        <div class="report-table__wrap">
+        <div class="procedimentos-toolbar">
+          <div class="field procedimentos-toolbar__field">
+            <label for="procedimentoTableSearch">Buscar</label>
+            <input
+              id="procedimentoTableSearch"
+              type="text"
+              placeholder="Código, nome ou PDF"
+              autocomplete="off"
+            />
+          </div>
+          <div class="field procedimentos-toolbar__field">
+            <label for="procedimentoTablePdfFilter">Filtro de PDF</label>
+            <select id="procedimentoTablePdfFilter">
+              <option value="all">Todos</option>
+              <option value="with_pdf">Com PDF</option>
+              <option value="without_pdf">Sem PDF</option>
+            </select>
+          </div>
+          <div class="procedimentos-stats" aria-live="polite">
+            <span class="procedimentos-stat">Total: <strong id="procedimentoTableCountTotal">0</strong></span>
+            <span class="procedimentos-stat">Com PDF: <strong id="procedimentoTableCountWithPdf">0</strong></span>
+            <span class="procedimentos-stat">Sem PDF: <strong id="procedimentoTableCountWithoutPdf">0</strong></span>
+            <span class="procedimentos-stat">Visíveis: <strong id="procedimentoTableCountVisible">0</strong></span>
+          </div>
+        </div>
+        <div class="report-table__wrap report-table__wrap--procedimentos">
           <table class="report__table" id="procedimentoTable">
             <thead>
               <tr>
                 <th>Código</th>
                 <th>Nome</th>
                 <th>PDF</th>
-                <th>Ações</th>
+                <th class="procedimentos-col-actions">Ações</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -8263,6 +8294,6 @@
     </footer>
 
     <script src="assets/js/powerbiExport.js?v=20260227-2"></script>
-    <script src="app.js?v=20260225-3"></script>
+    <script src="app.js?v=20260227-4"></script>
   </body>
 </html>
