@@ -11248,6 +11248,17 @@ function abrirPainelComCarregamento(tab, scrollTarget = null, options = {}) {
   if (!tab) {
     return;
   }
+  if (tab === "nova" && manutencaoEmEdicao) {
+    const confirmarCancelamento = window.confirm(
+      "Existe uma edição de manutenção em andamento. Deseja cancelar a edição atual e abrir uma nova manutenção?"
+    );
+    if (!confirmarCancelamento) {
+      ativarTab("edicao");
+      return;
+    }
+    limparEdicaoManutencao();
+    mostrarMensagemManutencao("Edição cancelada. Formulário de nova manutenção liberado.");
+  }
   fecharPainelLembretes();
 
   const abrir = () => {
