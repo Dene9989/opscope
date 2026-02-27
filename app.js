@@ -19782,12 +19782,28 @@ function criarCardProgramacaoCompacto(item) {
   return card;
 }
 
+function getEventTargetElement(event) {
+  const rawTarget = event && event.target ? event.target : null;
+  if (!rawTarget) {
+    return null;
+  }
+  if (rawTarget.nodeType === 1) {
+    return rawTarget;
+  }
+  if (rawTarget.parentElement) {
+    return rawTarget.parentElement;
+  }
+  return null;
+}
+
 function setProgramacaoDetalheVisivel(visivel) {
   if (programacaoListaConteudo) {
     programacaoListaConteudo.hidden = visivel;
+    programacaoListaConteudo.style.display = visivel ? "none" : "";
   }
   if (programacaoDetalheView) {
     programacaoDetalheView.hidden = !visivel;
+    programacaoDetalheView.style.display = visivel ? "block" : "none";
   }
 }
 
@@ -19796,11 +19812,40 @@ function renderProgramacaoDetalheCard(item) {
     return;
   }
   programacaoDetalheConteudo.innerHTML = "";
-  const card = criarCardManutencao(item, getProgramacaoPermissoes(), {
-    allowedActions: PROGRAMACAO_ALLOWED_ACTIONS,
-  });
-  card.classList.add("manutencao-item--detail");
-  programacaoDetalheConteudo.append(card);
+  try {
+    const card = criarCardManutencao(item, getProgramacaoPermissoes(), {
+      allowedActions: PROGRAMACAO_ALLOWED_ACTIONS,
+    });
+    card.classList.add("manutencao-item--detail");
+    programacaoDetalheConteudo.append(card);
+  } catch (error) {
+    console.error("[programacao.detail.render.error]", {
+      maintenanceId: item && item.id ? item.id : "",
+      message: error && error.message ? error.message : String(error || ""),
+    });
+    const fallback = document.createElement("article");
+    fallback.className = "manutencao-item manutencao-item--detail";
+    fallback.dataset.id = item && item.id ? String(item.id) : "";
+    const titulo = document.createElement("h3");
+    titulo.textContent = item && item.titulo ? item.titulo : "Detalhes da manutenção";
+    const linhas = [
+      `Subestação: ${item && item.local ? item.local : "-"}`,
+      `Data: ${item && item.data ? formatDate(parseDate(item.data) || new Date()) : "-"}`,
+      `Status: ${
+        STATUS_LABELS[normalizeMaintenanceStatus(item && item.status ? item.status : "")] || "-"
+      }`,
+      `Equipamento: ${getMaintenanceEquipamentoLabel(item)}`,
+    ];
+    const bloco = document.createElement("div");
+    bloco.className = "obs";
+    bloco.textContent = linhas.join("\n");
+    const actions = document.createElement("div");
+    actions.className = "manutencao-actions";
+    const btnEdit = criarBotaoAcao("Abrir tela de edição", "edit");
+    actions.append(btnEdit);
+    fallback.append(titulo, bloco, actions);
+    programacaoDetalheConteudo.append(fallback);
+  }
 
   if (programacaoDetalheTitulo) {
     programacaoDetalheTitulo.textContent = item.titulo || "Detalhes da manutenção";
@@ -19824,9 +19869,16 @@ function abrirProgramacaoDetalhe(maintenanceId) {
     mostrarMensagemManutencao("Manutenção não encontrada.", true);
     return;
   }
+  if (!programacaoDetalheView || !programacaoListaConteudo || !programacaoDetalheConteudo) {
+    const index = manutencoes.findIndex((entry) => String((entry && entry.id) || "") === id);
+    if (index >= 0) {
+      void editarManutencao(index);
+      return;
+    }
+  }
   programacaoDetalheId = id;
-  renderProgramacaoDetalheCard(item);
   setProgramacaoDetalheVisivel(true);
+  renderProgramacaoDetalheCard(item);
 }
 
 function fecharProgramacaoDetalhe() {
@@ -55341,13 +55393,7 @@ async function removerManutencao(index) {
 }
 
 function agirNaManutencao(event) {
-  const rawTarget = event.target;
-  const target =
-    rawTarget && rawTarget.nodeType === 1
-      ? rawTarget
-      : rawTarget && rawTarget.parentElement
-        ? rawTarget.parentElement
-        : null;
+  const target = getEventTargetElement(event);
   if (!target) {
     return;
   }
@@ -58550,13 +58596,7 @@ if (listaAgendadas) {
     if (event.key !== "Enter" && event.key !== " ") {
       return;
     }
-    const rawTarget = event.target;
-    const target =
-      rawTarget && rawTarget.nodeType === 1
-        ? rawTarget
-        : rawTarget && rawTarget.parentElement
-          ? rawTarget.parentElement
-          : null;
+    const target = getEventTargetElement(event);
     if (!target) {
       return;
     }
@@ -58571,6 +58611,33 @@ if (listaAgendadas) {
     abrirProgramacaoDetalhe(card.dataset.id);
   });
 }
+document.addEventListener(
+  "click",
+  (event) => {
+    const target = getEventTargetElement(event);
+    if (!target) {
+      return;
+    }
+    const detailsBtn = target.closest("#listaAgendadas button[data-action='view_details']");
+    if (detailsBtn) {
+      const card = detailsBtn.closest("[data-id]");
+      if (!card) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      abrirProgramacaoDetalhe(card.dataset.id || "");
+      return;
+    }
+    const compactCard = target.closest("#listaAgendadas .manutencao-item--compact[data-id]");
+    if (compactCard && !target.closest("button[data-action]")) {
+      event.preventDefault();
+      event.stopPropagation();
+      abrirProgramacaoDetalhe(compactCard.dataset.id || "");
+    }
+  },
+  true
+);
 if (programacaoDetalheConteudo) {
   programacaoDetalheConteudo.addEventListener("click", agirNaManutencao);
 }
