@@ -423,6 +423,15 @@ const pmpExportPdf = document.getElementById("pmpExportPdf");
 const pmpExportExcel = document.getElementById("pmpExportExcel");
 const modalPmpImport = document.getElementById("modalPmpImport");
 const pmpImportSearch = document.getElementById("pmpImportSearch");
+const pmpImportEligibleOnly = document.getElementById("pmpImportEligibleOnly");
+const pmpImportIncludeManual = document.getElementById("pmpImportIncludeManual");
+const pmpImportIncludeInactive = document.getElementById("pmpImportIncludeInactive");
+const pmpImportSelectEligible = document.getElementById("pmpImportSelectEligible");
+const pmpImportClearSelection = document.getElementById("pmpImportClearSelection");
+const pmpImportCountTotal = document.getElementById("pmpImportCountTotal");
+const pmpImportCountEligible = document.getElementById("pmpImportCountEligible");
+const pmpImportCountVisible = document.getElementById("pmpImportCountVisible");
+const pmpImportCountImported = document.getElementById("pmpImportCountImported");
 const pmpImportList = document.getElementById("pmpImportList");
 const pmpImportEmpty = document.getElementById("pmpImportEmpty");
 const pmpImportCancel = document.getElementById("pmpImportCancel");
@@ -4910,6 +4919,12 @@ let procedimentoFormPdfPendingFile = null;
 let procedimentoFormPdfPendingUrl = "";
 let pmpImportItems = [];
 let pmpImportSelection = new Set();
+let pmpImportVisibleEligibleIds = new Set();
+let pmpImportFilters = {
+  eligibleOnly: true,
+  includeManual: false,
+  includeInactive: false,
+};
 let pmpLastSnapshot = null;
 let pmpCellContext = null;
 let adminPermissionCatalog = [];
@@ -31826,27 +31841,126 @@ async function ensurePmpMaintenanceCache(projectId) {
   return [];
 }
 
+function getPmpImportSourceMeta(item, template) {
+  const templateId = String(item && (item.templateId || item.template || item.modeloId) || "").trim();
+  if (templateId) {
+    return {
+      type: "template",
+      label: template ? "Modelo/recorrência" : "Modelo removido",
+      priority: 4,
+    };
+  }
+  const source = normalizeSearchValue(
+    item && (item.source || item.origem || item.createdFrom || item.createdVia || item.origemCadastro || "")
+  );
+  if (source.includes("recorrenc")) {
+    return { type: "recorrencia", label: "Recorrência", priority: 3 };
+  }
+  if (source.includes("modelo") || source.includes("template")) {
+    return { type: "modelo", label: "Modelo", priority: 3 };
+  }
+  if (isSystemTemplateMaintenance(item)) {
+    return { type: "sistema", label: "Sistema", priority: 2 };
+  }
+  return { type: "manual", label: "Manual", priority: 1 };
+}
+
+function getPmpImportTemplateStatus(template, hasTemplateRef) {
+  if (!hasTemplateRef) {
+    return "Sem modelo";
+  }
+  if (!template) {
+    return "Removido";
+  }
+  return template.ativo === false ? "Inativo" : "Ativo";
+}
+
+function getPmpImportSignature(item) {
+  const nome = normalizeSearchValue(item && (item.nome || item.titulo || "") || "");
+  const codigo = normalizeSearchValue(item && item.codigo || "");
+  const equipamentoId = String(item && item.equipamentoId || "").trim();
+  return `${nome}|${equipamentoId}|${codigo}`;
+}
+
+function isPmpImportAlreadyIncluded(entry) {
+  if (!entry || !entry.projectId || !Array.isArray(pmpActivities) || !pmpActivities.length) {
+    return false;
+  }
+  const targetSignature = getPmpImportSignature(entry);
+  return pmpActivities.some((activity) => {
+    if (!activity || String(activity.projectId || "") !== String(entry.projectId || "")) {
+      return false;
+    }
+    const activityTemplateId = String(
+      activity.templateIdOrigem || activity.templateId || activity.template || ""
+    ).trim();
+    if (entry.templateId && activityTemplateId && activityTemplateId === entry.templateId) {
+      return true;
+    }
+    const activityOrigin = normalizeSearchValue(activity.origem || "");
+    if (activityOrigin !== "importado") {
+      return false;
+    }
+    return getPmpImportSignature(activity) === targetSignature;
+  });
+}
+
+function getPmpImportEligibility(entry) {
+  if (!entry) {
+    return { eligible: false, reason: "Registro inválido" };
+  }
+  if (entry.alreadyImported) {
+    return { eligible: false, reason: "Já importada no PMP" };
+  }
+  if (!entry.isTemplateOrigin) {
+    return { eligible: false, reason: "Origem manual" };
+  }
+  if (entry.hasTemplateRef && !entry.templateFound) {
+    return { eligible: false, reason: "Modelo removido" };
+  }
+  if (entry.templateFound && entry.templateActive === false) {
+    return { eligible: false, reason: "Modelo inativo" };
+  }
+  if (!entry.hasTemplateRef && !entry.templateFound) {
+    return { eligible: false, reason: "Sem vínculo de modelo" };
+  }
+  return { eligible: true, reason: "Elegível para importação" };
+}
+
 function buildPmpImportItems(projectId, items) {
+  const targetProjectId = String(projectId || "").trim();
   const groups = new Map();
   items.forEach((item) => {
-    if (!item || item.projectId !== projectId) {
+    if (!item || String(item.projectId || "").trim() !== targetProjectId) {
       return;
     }
-    const template = item.templateId ? getTemplateById(item.templateId) : null;
+    const templateId = String(item.templateId || item.template || item.modeloId || "").trim();
+    const hasTemplateRef = Boolean(templateId);
+    const template = hasTemplateRef ? getTemplateById(templateId) : null;
+    const sourceMeta = getPmpImportSourceMeta(item, template);
+    const templateStatus = getPmpImportTemplateStatus(template, hasTemplateRef);
+    const isTemplateOrigin = hasTemplateRef || sourceMeta.type !== "manual";
     const nomeBase = template && template.nome
       ? template.nome
       : item.titulo || item.nome || item.descricao || "-";
-    const key = item.templateId || `${normalizeSearchValue(nomeBase)}|${item.equipamentoId || ""}`;
+    const key = templateId || `${normalizeSearchValue(nomeBase)}|${item.equipamentoId || ""}`;
     if (!groups.has(key)) {
       groups.set(key, {
         id: key,
-        projectId,
-        templateId: item.templateId || "",
+        projectId: targetProjectId,
+        templateId,
         nome: nomeBase,
         codigo: getMaintenanceCodigo(item),
         equipamentoId: item.equipamentoId || "",
         frequencia: mapTemplateFrequencyToPmp(template),
-        status: template && template.ativo === false ? "Inativo" : "Ativo",
+        templateStatus,
+        sourceType: sourceMeta.type,
+        sourceLabel: sourceMeta.label,
+        sourcePriority: sourceMeta.priority,
+        hasTemplateRef,
+        templateFound: Boolean(template),
+        templateActive: template ? template.ativo !== false : null,
+        isTemplateOrigin,
         totalDuracao: 0,
         duracaoCount: 0,
         totalTecnicos: 0,
@@ -31865,30 +31979,72 @@ function buildPmpImportItems(projectId, items) {
       entry.totalTecnicos += tecnicos;
       entry.tecnicosCount += 1;
     }
+    if (!entry.codigo) {
+      entry.codigo = getMaintenanceCodigo(item);
+    }
+    if (!entry.frequencia) {
+      entry.frequencia = mapTemplateFrequencyToPmp(template);
+    }
+    if (sourceMeta.priority > entry.sourcePriority) {
+      entry.sourceType = sourceMeta.type;
+      entry.sourceLabel = sourceMeta.label;
+      entry.sourcePriority = sourceMeta.priority;
+      entry.isTemplateOrigin = hasTemplateRef || sourceMeta.type !== "manual";
+    }
+    if (hasTemplateRef && !entry.hasTemplateRef) {
+      entry.hasTemplateRef = true;
+    }
+    if (template && !entry.templateFound) {
+      entry.templateFound = true;
+      entry.templateActive = template.ativo !== false;
+      entry.templateStatus = getPmpImportTemplateStatus(template, true);
+    }
+    if (template && template.ativo === false) {
+      entry.templateActive = false;
+      entry.templateStatus = "Inativo";
+    }
     const execDate = getItemConclusaoDate(item) || getItemFimExecucaoDate(item);
     if (execDate && (!entry.ultimaExecucao || execDate > entry.ultimaExecucao)) {
       entry.ultimaExecucao = execDate;
     }
   });
   return Array.from(groups.values())
-    .map((entry) => ({
-      id: entry.id,
-      projectId: entry.projectId,
-      templateId: entry.templateId,
-      nome: entry.nome,
-      codigo: entry.codigo,
-      equipamentoId: entry.equipamentoId,
-      frequencia: entry.frequencia,
-      tecnicosEstimados: entry.tecnicosCount
-        ? Math.round(entry.totalTecnicos / entry.tecnicosCount)
-        : 0,
-      duracaoMinutos: entry.duracaoCount
-        ? Math.round(entry.totalDuracao / entry.duracaoCount)
-        : 0,
-      ultimaExecucao: entry.ultimaExecucao,
-      status: entry.status,
-    }))
-    .sort((a, b) => (a.nome || "").localeCompare(b.nome || ""));
+    .map((entry) => {
+      const normalized = {
+        id: entry.id,
+        projectId: entry.projectId,
+        templateId: entry.templateId,
+        nome: entry.nome,
+        codigo: entry.codigo,
+        equipamentoId: entry.equipamentoId,
+        frequencia: entry.frequencia,
+        tecnicosEstimados: entry.tecnicosCount
+          ? Math.round(entry.totalTecnicos / entry.tecnicosCount)
+          : 0,
+        duracaoMinutos: entry.duracaoCount
+          ? Math.round(entry.totalDuracao / entry.duracaoCount)
+          : 0,
+        ultimaExecucao: entry.ultimaExecucao,
+        sourceType: entry.sourceType,
+        sourceLabel: entry.sourceLabel,
+        templateStatus: entry.templateStatus,
+        hasTemplateRef: entry.hasTemplateRef,
+        templateFound: entry.templateFound,
+        templateActive: entry.templateActive,
+        isTemplateOrigin: entry.isTemplateOrigin,
+      };
+      normalized.alreadyImported = isPmpImportAlreadyIncluded(normalized);
+      const eligibility = getPmpImportEligibility(normalized);
+      normalized.eligible = eligibility.eligible;
+      normalized.eligibleReason = eligibility.reason;
+      return normalized;
+    })
+    .sort((a, b) => {
+      if (a.eligible !== b.eligible) {
+        return a.eligible ? -1 : 1;
+      }
+      return (a.nome || "").localeCompare(b.nome || "");
+    });
 }
 
 function buildAutoExecutionMap(activities, periods, viewMode, year, monthIndex) {
@@ -33014,12 +33170,80 @@ function closePmpImportModal() {
 }
 
 function updatePmpImportConfirmState() {
+  const selectedCount = Array.from(pmpImportSelection).filter((id) =>
+    pmpImportVisibleEligibleIds.has(id)
+  ).length;
   if (pmpImportConfirm) {
-    pmpImportConfirm.disabled = pmpImportSelection.size === 0;
+    pmpImportConfirm.disabled = selectedCount === 0;
     pmpImportConfirm.textContent =
-      pmpImportSelection.size > 0
-        ? `Importar (${pmpImportSelection.size})`
+      selectedCount > 0
+        ? `Importar (${selectedCount})`
         : "Importar selecionadas";
+  }
+}
+
+function readPmpImportFiltersFromUi() {
+  pmpImportFilters = {
+    eligibleOnly: pmpImportEligibleOnly ? Boolean(pmpImportEligibleOnly.checked) : true,
+    includeManual: pmpImportIncludeManual ? Boolean(pmpImportIncludeManual.checked) : false,
+    includeInactive: pmpImportIncludeInactive ? Boolean(pmpImportIncludeInactive.checked) : false,
+  };
+}
+
+function getPmpImportRowStatusClass(item) {
+  if (!item) {
+    return "none";
+  }
+  if (item.templateStatus === "Ativo") {
+    return "ok";
+  }
+  if (item.templateStatus === "Inativo") {
+    return "warn";
+  }
+  return "muted";
+}
+
+function shouldShowPmpImportItem(item, term) {
+  if (!item) {
+    return false;
+  }
+  if (term) {
+    const equipamento = getEquipamentoNomeById(item.projectId, item.equipamentoId);
+    const text = normalizeSearchValue(
+      `${item.nome || ""} ${item.codigo || ""} ${equipamento || ""} ${item.sourceLabel || ""}`
+    );
+    if (!text.includes(term)) {
+      return false;
+    }
+  }
+  if (!pmpImportFilters.includeManual && item.sourceType === "manual") {
+    return false;
+  }
+  if (!pmpImportFilters.includeInactive) {
+    if (item.templateStatus === "Inativo" || item.templateStatus === "Removido") {
+      return false;
+    }
+  }
+  if (pmpImportFilters.eligibleOnly && !item.eligible) {
+    return false;
+  }
+  return true;
+}
+
+function updatePmpImportCounters(visibleItems) {
+  if (pmpImportCountTotal) {
+    pmpImportCountTotal.textContent = String(pmpImportItems.length);
+  }
+  if (pmpImportCountEligible) {
+    pmpImportCountEligible.textContent = String(pmpImportItems.filter((item) => item.eligible).length);
+  }
+  if (pmpImportCountVisible) {
+    pmpImportCountVisible.textContent = String(visibleItems.length);
+  }
+  if (pmpImportCountImported) {
+    pmpImportCountImported.textContent = String(
+      pmpImportItems.filter((item) => item.alreadyImported).length
+    );
   }
 }
 
@@ -33027,23 +33251,27 @@ function renderPmpImportList() {
   if (!pmpImportList) {
     return;
   }
+  readPmpImportFiltersFromUi();
   const term = normalizeSearchValue(pmpImportSearch ? pmpImportSearch.value : "");
   pmpImportList.innerHTML = "";
-  const items = pmpImportItems.filter((item) => {
-    if (!term) {
-      return true;
+  const items = pmpImportItems.filter((item) => shouldShowPmpImportItem(item, term));
+  pmpImportVisibleEligibleIds = new Set(items.filter((item) => item.eligible).map((item) => item.id));
+  pmpImportSelection.forEach((id) => {
+    if (!pmpImportVisibleEligibleIds.has(id)) {
+      pmpImportSelection.delete(id);
     }
-    const equipamento = getEquipamentoNomeById(item.projectId, item.equipamentoId);
-    const text = normalizeSearchValue(
-      `${item.nome || ""} ${item.codigo || ""} ${equipamento || ""}`
-    );
-    return text.includes(term);
   });
+  updatePmpImportCounters(items);
   items.forEach((item) => {
     const tr = document.createElement("tr");
+    if (!item.eligible) {
+      tr.classList.add("is-disabled");
+    }
     const tdCheck = document.createElement("td");
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
+    checkbox.disabled = !item.eligible;
+    checkbox.title = item.eligible ? "Selecionar para importar" : item.eligibleReason || "Indisponível";
     checkbox.checked = pmpImportSelection.has(item.id);
     checkbox.addEventListener("change", () => {
       if (checkbox.checked) {
@@ -33068,11 +33296,25 @@ function renderPmpImportList() {
     tdEquip.textContent = getEquipamentoNomeById(item.projectId, item.equipamentoId) || "-";
     tr.append(tdEquip);
 
+    const tdOrigem = document.createElement("td");
+    const origemBadge = document.createElement("span");
+    origemBadge.className = "pmp-import__badge pmp-import__badge--muted";
+    origemBadge.textContent = item.sourceLabel || "-";
+    tdOrigem.append(origemBadge);
+    tr.append(tdOrigem);
+
     const tdFreq = document.createElement("td");
     tdFreq.textContent = item.frequencia
       ? (getPmpFrequency(item.frequencia) || { label: item.frequencia }).label
       : "-";
     tr.append(tdFreq);
+
+    const tdTemplate = document.createElement("td");
+    const templateBadge = document.createElement("span");
+    templateBadge.className = `pmp-import__badge pmp-import__badge--${getPmpImportRowStatusClass(item)}`;
+    templateBadge.textContent = item.templateStatus || "-";
+    tdTemplate.append(templateBadge);
+    tr.append(tdTemplate);
 
     const tdTec = document.createElement("td");
     tdTec.textContent = item.tecnicosEstimados ? String(item.tecnicosEstimados) : "-";
@@ -33087,8 +33329,15 @@ function renderPmpImportList() {
     tr.append(tdUltima);
 
     const tdStatus = document.createElement("td");
-    tdStatus.textContent = item.status || "-";
+    const statusBadge = document.createElement("span");
+    statusBadge.className = `pmp-import__badge pmp-import__badge--${item.eligible ? "ok" : "warn"}`;
+    statusBadge.textContent = item.eligible ? "Pronta" : "Revisar";
+    tdStatus.append(statusBadge);
     tr.append(tdStatus);
+
+    const tdEligibility = document.createElement("td");
+    tdEligibility.textContent = item.eligibleReason || "-";
+    tr.append(tdEligibility);
 
     pmpImportList.append(tr);
   });
@@ -33096,6 +33345,17 @@ function renderPmpImportList() {
     pmpImportEmpty.hidden = items.length > 0;
   }
   updatePmpImportConfirmState();
+}
+
+function selectVisiblePmpImportItems() {
+  pmpImportVisibleEligibleIds.forEach((id) => pmpImportSelection.add(id));
+  renderPmpImportList();
+}
+
+function clearPmpImportSelectionItems() {
+  pmpImportSelection = new Set();
+  updatePmpImportConfirmState();
+  renderPmpImportList();
 }
 
 async function openPmpImportModal() {
@@ -33115,7 +33375,22 @@ async function openPmpImportModal() {
   if (pmpImportSearch) {
     pmpImportSearch.value = "";
   }
+  if (pmpImportEligibleOnly) {
+    pmpImportEligibleOnly.checked = true;
+  }
+  if (pmpImportIncludeManual) {
+    pmpImportIncludeManual.checked = false;
+  }
+  if (pmpImportIncludeInactive) {
+    pmpImportIncludeInactive.checked = false;
+  }
+  pmpImportFilters = {
+    eligibleOnly: true,
+    includeManual: false,
+    includeInactive: false,
+  };
   pmpImportSelection = new Set();
+  pmpImportVisibleEligibleIds = new Set();
   modalPmpImport.hidden = false;
   await ensurePmpEquipamentos(projectId);
   const items = await ensurePmpMaintenanceCache(projectId);
@@ -33131,7 +33406,9 @@ async function confirmPmpImport() {
   if (!projectId) {
     return;
   }
-  const selecionados = pmpImportItems.filter((item) => pmpImportSelection.has(item.id));
+  const selecionados = pmpImportItems.filter(
+    (item) => pmpImportSelection.has(item.id) && item.eligible
+  );
   if (!selecionados.length) {
     return;
   }
@@ -33165,6 +33442,8 @@ async function confirmPmpImport() {
         checklist: [],
         tipoManutencao: "",
         origem: "importado",
+        origemDetalhe: item.sourceLabel || "Modelo/recorrência",
+        templateIdOrigem: item.templateId || "",
         ano,
       };
       const data = await apiPmpActivitiesCreate(payload);
@@ -59926,6 +60205,21 @@ if (pmpImportClose) {
 }
 if (pmpImportSearch) {
   pmpImportSearch.addEventListener("input", renderPmpImportList);
+}
+if (pmpImportEligibleOnly) {
+  pmpImportEligibleOnly.addEventListener("change", renderPmpImportList);
+}
+if (pmpImportIncludeManual) {
+  pmpImportIncludeManual.addEventListener("change", renderPmpImportList);
+}
+if (pmpImportIncludeInactive) {
+  pmpImportIncludeInactive.addEventListener("change", renderPmpImportList);
+}
+if (pmpImportSelectEligible) {
+  pmpImportSelectEligible.addEventListener("click", selectVisiblePmpImportItems);
+}
+if (pmpImportClearSelection) {
+  pmpImportClearSelection.addEventListener("click", clearPmpImportSelectionItems);
 }
 if (pmpImportConfirm) {
   pmpImportConfirm.addEventListener("click", confirmPmpImport);

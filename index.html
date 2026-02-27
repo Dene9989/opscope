@@ -8013,31 +8013,78 @@
         <div class="modal__header">
           <div>
             <h3>Importar manutenções existentes</h3>
-            <p class="hint">Selecione manutenções do projeto para criar atividades PMP.</p>
+            <p class="hint">
+              Selecione manutenções ativas de modelos/recorrências para criar atividades PMP.
+            </p>
           </div>
           <button class="btn btn--ghost btn--small" type="button" data-pmp-import-close>Fechar</button>
         </div>
         <div class="modal__form">
-          <div class="form-grid">
-            <div class="field" data-full>
-              <label for="pmpImportSearch">Buscar manutenção</label>
-              <input id="pmpImportSearch" type="text" placeholder="Nome, codigo, equipamento" />
-            </div>
-          </div>
           <div class="pmp-import">
+            <div class="pmp-import__toolbar">
+              <div class="field pmp-import__search" data-full>
+                <label for="pmpImportSearch">Buscar manutenção</label>
+                <input id="pmpImportSearch" type="text" placeholder="Nome, código, equipamento" />
+              </div>
+              <div class="pmp-import__toggles">
+                <label class="pmp-import__toggle">
+                  <input id="pmpImportEligibleOnly" type="checkbox" checked />
+                  <span>Somente elegíveis (ativo + modelo/recorrência)</span>
+                </label>
+                <label class="pmp-import__toggle">
+                  <input id="pmpImportIncludeManual" type="checkbox" />
+                  <span>Mostrar manutenções manuais</span>
+                </label>
+                <label class="pmp-import__toggle">
+                  <input id="pmpImportIncludeInactive" type="checkbox" />
+                  <span>Mostrar modelos inativos</span>
+                </label>
+              </div>
+              <div class="pmp-import__actions-inline">
+                <button
+                  id="pmpImportSelectEligible"
+                  class="btn btn--ghost btn--small"
+                  type="button"
+                >
+                  Selecionar visíveis
+                </button>
+                <button
+                  id="pmpImportClearSelection"
+                  class="btn btn--ghost btn--small"
+                  type="button"
+                >
+                  Limpar seleção
+                </button>
+              </div>
+              <div class="pmp-import__summary">
+                <span class="pmp-import__chip">Total: <strong id="pmpImportCountTotal">0</strong></span>
+                <span class="pmp-import__chip"
+                  >Elegíveis: <strong id="pmpImportCountEligible">0</strong></span
+                >
+                <span class="pmp-import__chip"
+                  >Visíveis: <strong id="pmpImportCountVisible">0</strong></span
+                >
+                <span class="pmp-import__chip"
+                  >Já no PMP: <strong id="pmpImportCountImported">0</strong></span
+                >
+              </div>
+            </div>
             <div class="pmp-import__table-wrap">
               <table class="pmp-import__table">
                 <thead>
                   <tr>
                     <th></th>
                     <th>Manutenção</th>
-                    <th>Codigo / tag</th>
+                    <th>Código / tag</th>
                     <th>Equipamento</th>
+                    <th>Origem</th>
                     <th>Frequência</th>
+                    <th>Template</th>
                     <th>Técnicos</th>
                     <th>Duração</th>
-                    <th>última execução</th>
+                    <th>Última execução</th>
                     <th>Status</th>
+                    <th>Elegibilidade</th>
                   </tr>
                 </thead>
                 <tbody id="pmpImportList"></tbody>
