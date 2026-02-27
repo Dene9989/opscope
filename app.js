@@ -19749,7 +19749,17 @@ function criarCardProgramacaoCompacto(item) {
   }
 
   card.addEventListener("click", (event) => {
-    const actionBtn = event.target.closest("button[data-action]");
+    const rawTarget = event.target;
+    const target =
+      rawTarget && rawTarget.nodeType === 1
+        ? rawTarget
+        : rawTarget && rawTarget.parentElement
+          ? rawTarget.parentElement
+          : null;
+    if (!target) {
+      return;
+    }
+    const actionBtn = target.closest("button[data-action]");
     if (!actionBtn) {
       openDetails(event);
       return;
@@ -55331,10 +55341,20 @@ async function removerManutencao(index) {
 }
 
 function agirNaManutencao(event) {
-  const cardCompacto = event.target.closest(".manutencao-item--compact[data-id]");
+  const rawTarget = event.target;
+  const target =
+    rawTarget && rawTarget.nodeType === 1
+      ? rawTarget
+      : rawTarget && rawTarget.parentElement
+        ? rawTarget.parentElement
+        : null;
+  if (!target) {
+    return;
+  }
+  const cardCompacto = target.closest(".manutencao-item--compact[data-id]");
   if (
     cardCompacto &&
-    (!event.target.closest("button[data-action]") &&
+    (!target.closest("button[data-action]") &&
       listaAgendadas &&
       listaAgendadas.contains(cardCompacto))
   ) {
@@ -55342,7 +55362,7 @@ function agirNaManutencao(event) {
     return;
   }
 
-  const botao = event.target.closest("button[data-action]");
+  const botao = target.closest("button[data-action]");
   if (!botao) {
     return;
   }
@@ -58530,10 +58550,20 @@ if (listaAgendadas) {
     if (event.key !== "Enter" && event.key !== " ") {
       return;
     }
-    if (event.target.closest("button[data-action]")) {
+    const rawTarget = event.target;
+    const target =
+      rawTarget && rawTarget.nodeType === 1
+        ? rawTarget
+        : rawTarget && rawTarget.parentElement
+          ? rawTarget.parentElement
+          : null;
+    if (!target) {
       return;
     }
-    const card = event.target.closest(".manutencao-item--compact[data-id]");
+    if (target.closest("button[data-action]")) {
+      return;
+    }
+    const card = target.closest(".manutencao-item--compact[data-id]");
     if (!card) {
       return;
     }
