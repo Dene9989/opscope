@@ -59,4 +59,5 @@ Sistema web para gestao operacional e manutencao.
 ## Exportacao manual para Power BI
 
 - Endpoint: `GET /api/powerbi/export`
+- Fontes disponiveis: `GET /api/powerbi/sources`
 - Documentacao detalhada: `docs/powerbi_export.md`

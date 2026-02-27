@@ -47,6 +47,45 @@ function parseDateParam(value) {
   return "";
 }
 
+function normalizeSourceId(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "_") || "all";
+}
+
+function buildPowerBISourcesCatalog(sourceRegistry = {}, sourceLabels = {}) {
+  const normalizedCounts = new Map();
+  Object.entries(sourceRegistry || {}).forEach(([rawKey, entries]) => {
+    const id = normalizeSourceId(rawKey);
+    const count = Array.isArray(entries) ? entries.length : 0;
+    normalizedCounts.set(id, Math.max(normalizedCounts.get(id) || 0, count));
+  });
+  const ids = new Set(["all"]);
+  Object.keys(sourceRegistry || {}).forEach((key) => {
+    ids.add(normalizeSourceId(key));
+  });
+  const list = Array.from(ids);
+  list.sort((a, b) => {
+    if (a === "all") {
+      return -1;
+    }
+    if (b === "all") {
+      return 1;
+    }
+    return a.localeCompare(b);
+  });
+  return list.map((id) => {
+    const fileCount = normalizedCounts.get(id) || 0;
+    const label = String((sourceLabels && sourceLabels[id]) || id).trim() || id;
+    return {
+      id,
+      label,
+      fileCount,
+    };
+  });
+}
+
 function createPowerBIRouter(options = {}) {
   const router = express.Router();
   const auth = options.requireAuth;
@@ -54,6 +93,14 @@ function createPowerBIRouter(options = {}) {
   if (typeof auth !== "function") {
     throw new Error("createPowerBIRouter requires requireAuth middleware.");
   }
+
+  router.get("/api/powerbi/sources", auth, (req, res) => {
+    const sources = buildPowerBISourcesCatalog(options.sourceRegistry, options.sourceLabels);
+    return res.json({
+      sources,
+      updatedAt: new Date().toISOString(),
+    });
+  });
 
   router.get("/api/powerbi/export", auth, async (req, res) => {
     const source = safeSource(req.query.source);

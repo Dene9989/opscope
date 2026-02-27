@@ -389,6 +389,32 @@ const POWERBI_SOURCE_REGISTRY = {
   ],
   feedbacks: [FEEDBACKS_FILE, ANNOUNCEMENTS_FILE],
 };
+const POWERBI_SOURCE_LABELS = {
+  all: "Todos os dados",
+  inicio: "Inicio operacional",
+  kpis: "KPIs e tendencias",
+  manutencao: "Manutencao",
+  programacao: "Programacao",
+  execucao: "Execucao do dia",
+  backlog: "Backlog",
+  intercorrencias: "Intercorrencias/Falhas",
+  contingencias: "Contingencias",
+  auditoria: "Auditoria",
+  rastreabilidade: "Rastreabilidade",
+  relatorios: "Relatorios",
+  tendencias: "KPIs",
+  desempenho: "Desempenho geral",
+  "performance-projects": "Desempenho por projeto",
+  "performance-people": "Desempenho por colaborador",
+  pmp: "PMP",
+  logs: "Logs de API",
+  uploads: "Arquivos/Uploads",
+  acessos: "Gestao de acessos",
+  projetos: "Projetos e cadastros",
+  almoxarifado: "Almoxarifado",
+  sst: "SST",
+  feedbacks: "Feedbacks e comunicacoes",
+};
 const FILES_DIR = path.join(UPLOADS_DIR, "files");
 const SMTP_HOST = process.env.SMTP_HOST || "";
 const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
@@ -12465,6 +12491,7 @@ app.use(
     baseDataDir: DATA_DIR,
     usersFile: USERS_FILE,
     sourceRegistry: POWERBI_SOURCE_REGISTRY,
+    sourceLabels: POWERBI_SOURCE_LABELS,
     databaseUrl: DATABASE_URL,
     dbStoreTable: DB_STORE_TABLE,
     dbUploadsTable: DB_UPLOADS_TABLE,

@@ -15879,16 +15879,43 @@ textarea:focus {
 
 .powerbi-export-slot {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 0.5rem;
   margin-bottom: 0.75rem;
+}
+
+.powerbi-export-slot--inline {
+  margin-bottom: 0;
+  margin-left: auto;
+}
+
+.powerbi-export-slot--actions {
+  margin-left: auto;
+}
+
+.powerbi-export-slot--heading {
+  margin-left: auto;
+}
+
+.powerbi-export-slot--toolbar {
+  grid-column: 1 / -1;
+  margin-bottom: 0.35rem;
 }
 
 .powerbi-export-btn {
   white-space: nowrap;
 }
 
+.powerbi-export-btn[disabled] {
+  opacity: 0.56;
+  cursor: not-allowed;
+}
+
 .programacao-toolbar .powerbi-export-btn,
+.intercorrencia-filtros .powerbi-export-btn,
+.contingencia-filters .powerbi-export-btn,
+.pmp-toolbar .powerbi-export-btn,
 .desempenho-head__actions .powerbi-export-btn,
 .performance-projects-toolbar .powerbi-export-btn,
 .performance-people-toolbar .powerbi-export-btn {

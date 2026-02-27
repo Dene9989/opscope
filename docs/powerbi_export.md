@@ -7,6 +7,10 @@ A manual export endpoint is available at:
 
 The endpoint generates a ZIP with CSV files ready for Power BI import.
 
+Available sources can be listed via:
+
+`GET /api/powerbi/sources`
+
 ## Query params
 - `source` (optional): module/page key (`kpis`, `manutencao`, `contingencias`, `auditoria`, `logs`, `uploads`, etc.)
 - `from` (optional): `YYYY-MM-DD`
@@ -44,6 +48,8 @@ A reusable helper is available at:
 Functions:
 - `buildPowerBIExportUrl({ source, from, to, filters })`
 - `attachPowerBIExportButton({ containerSelector, source, getFiltersFn })`
+- `fetchPowerBISources(force?)`
+- `syncPowerBIExportSources(force?)`
 
 To enable export for a new panel:
 1. Register source on backend (`POWERBI_SOURCE_REGISTRY` in `server.js`).

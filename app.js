@@ -12926,6 +12926,9 @@ async function carregarSessaoServidor() {
     if (bootStarted) {
       finishBootOverlay();
     }
+    if (currentUser && window.syncPowerBIExportSources) {
+      window.syncPowerBIExportSources(true).catch(() => {});
+    }
     if (currentUser) {
       startIdleSessionWatch();
     } else {
