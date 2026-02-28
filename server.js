@@ -503,7 +503,7 @@ const IS_DEV = process.env.NODE_ENV !== "production";
 const INTELLIGENCE_ENABLED =
   String(process.env.OPSCOPE_DISABLE_INTELLIGENCE || "").trim().toLowerCase() !== "true";
 const TURN_PLAN_ENABLED =
-  String(process.env.OPSCOPE_TURN_PLAN_ENABLED || "").trim().toLowerCase() === "true";
+  String(process.env.OPSCOPE_TURN_PLAN_ENABLED || "true").trim().toLowerCase() !== "false";
 const TURN_PLAN_LEARNING_RANGE_DAYS = Math.max(
   7,
   Math.min(180, Number(process.env.OPSCOPE_TURN_PLAN_LEARNING_RANGE_DAYS) || 90)

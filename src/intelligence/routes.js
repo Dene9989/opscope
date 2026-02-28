@@ -283,6 +283,9 @@ function createIntelligenceRouter(options = {}) {
     return res.json({
       ok: true,
       health: orchestrator.health(),
+      features: {
+        turnPlanEnabled,
+      },
     });
   });
 
