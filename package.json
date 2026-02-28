@@ -5,7 +5,8 @@
   "description": "OPSCOPE local server",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node tests/turn-plan-priority.test.js && node tests/turn-plan-routes.test.js"
   },
   "dependencies": {
     "archiver": "^7.0.1",

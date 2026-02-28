@@ -319,6 +319,7 @@ const INTELLIGENCE_EVENTS_FILE = path.join(DATA_DIR, "intelligence_events.json")
 const INTELLIGENCE_INCONSISTENCIES_FILE = path.join(DATA_DIR, "intelligence_inconsistencies.json");
 const INTELLIGENCE_SCENARIOS_FILE = path.join(DATA_DIR, "intelligence_scenarios.json");
 const INTELLIGENCE_SNAPSHOTS_FILE = path.join(DATA_DIR, "intelligence_snapshots.json");
+const TURN_PLAN_FEEDBACK_FILE = path.join(DATA_DIR, "intelligence_turn_plan_feedback.json");
 const STORE_FILES = [
   USERS_FILE,
   VERIFICATIONS_FILE,
@@ -501,6 +502,12 @@ const DASHBOARD_CACHE = new Map();
 const IS_DEV = process.env.NODE_ENV !== "production";
 const INTELLIGENCE_ENABLED =
   String(process.env.OPSCOPE_DISABLE_INTELLIGENCE || "").trim().toLowerCase() !== "true";
+const TURN_PLAN_ENABLED =
+  String(process.env.OPSCOPE_TURN_PLAN_ENABLED || "").trim().toLowerCase() === "true";
+const TURN_PLAN_LEARNING_RANGE_DAYS = Math.max(
+  7,
+  Math.min(180, Number(process.env.OPSCOPE_TURN_PLAN_LEARNING_RANGE_DAYS) || 90)
+);
 const API_LOG_LIMIT = Number(process.env.API_LOG_LIMIT) || 800;
 const API_LOG_MAX_FILE_BYTES = Math.max(
   512 * 1024,
@@ -13626,6 +13633,9 @@ if (INTELLIGENCE_ENABLED) {
         inconsistenciesFile: INTELLIGENCE_INCONSISTENCIES_FILE,
         scenariosFile: INTELLIGENCE_SCENARIOS_FILE,
         snapshotsFile: INTELLIGENCE_SNAPSHOTS_FILE,
+        turnPlanEnabled: TURN_PLAN_ENABLED,
+        turnPlanFeedbackFile: TURN_PLAN_FEEDBACK_FILE,
+        turnPlanLearningRangeDays: TURN_PLAN_LEARNING_RANGE_DAYS,
         getDefaultProjectId: (req, user) => getActiveProjectId(req, user),
         canAccessProject: (req, projectId, user) => {
           const actor = user || req.currentUser || getSessionUser(req);

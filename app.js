@@ -5022,6 +5022,23 @@ let intelligenceLastFetch = 0;
 let intelligenceRequest = null;
 let intelligenceRequestProjectId = "";
 let intelligenceRequestToken = 0;
+function createInitialTurnPlanState() {
+  return {
+    enabled: null,
+    loading: false,
+    error: "",
+    plan: null,
+    metrics: null,
+    expandedActionId: "",
+    pendingActionId: "",
+    submittingActionId: "",
+  };
+}
+let turnPlanState = createInitialTurnPlanState();
+let turnPlanLastFetch = 0;
+let turnPlanRequest = null;
+let turnPlanRequestProjectId = "";
+let turnPlanRequestToken = 0;
 let maintenanceSyncTimer = null;
 let maintenanceSyncPromise = null;
 let maintenanceLastSync = 0;
@@ -12952,6 +12969,11 @@ async function setActiveProjectId(nextId, options = {}) {
   intelligenceRequest = null;
   intelligenceRequestProjectId = "";
   intelligenceRequestToken += 1;
+  turnPlanState = createInitialTurnPlanState();
+  turnPlanLastFetch = 0;
+  turnPlanRequest = null;
+  turnPlanRequestProjectId = "";
+  turnPlanRequestToken += 1;
   templatesSyncEnabled = false;
   persistActiveProjectId(trimmed);
   renderDashboardHome();
@@ -17665,6 +17687,201 @@ function buildIntelligenceSimulationMarkup() {
   `;
 }
 
+function formatTurnPlanActionTypeLabel(typeRaw) {
+  const type = normalizeSearchValue(typeRaw || "");
+  if (type.includes("maintenance") || type.includes("manutenc")) {
+    return "Manutenção";
+  }
+  if (type.includes("conting")) {
+    return "Contingência";
+  }
+  if (type.includes("audit")) {
+    return "Auditoria";
+  }
+  if (type.includes("pmp")) {
+    return "PMP";
+  }
+  return "Operação";
+}
+
+function buildTurnPlanMetricsLine() {
+  const metrics = turnPlanState && turnPlanState.metrics ? turnPlanState.metrics : null;
+  if (!metrics || typeof metrics !== "object") {
+    return "";
+  }
+  const accuracyPct = Number(metrics.accuracyPct || 0);
+  const acertos = Number(metrics.acertos || 0);
+  const falsos = Number(metrics.falsosPositivos || 0);
+  const tempo = Number(metrics.tempoMedioResolucaoMin || 0);
+  return `Acurácia ${accuracyPct}% | Acertos ${acertos} | Falsos positivos ${falsos} | Tempo médio ${tempo} min`;
+}
+
+function buildTurnPlanMarkup() {
+  const enabled = turnPlanState && turnPlanState.enabled;
+  if (enabled === false) {
+    return "";
+  }
+  if (turnPlanState.loading && !turnPlanState.plan) {
+    return `
+      <section class="home-turn-plan">
+        <div class="home-turn-plan__head">
+          <h4>Plano do turno (Autopiloto assistido)</h4>
+        </div>
+        <p class="home-intelligence-empty">Gerando plano recomendado...</p>
+      </section>
+    `;
+  }
+  if (turnPlanState.error && !turnPlanState.plan) {
+    return `
+      <section class="home-turn-plan">
+        <div class="home-turn-plan__head">
+          <h4>Plano do turno (Autopiloto assistido)</h4>
+          <button type="button" class="btn btn--ghost btn--small" data-turn-plan-refresh="1">Tentar novamente</button>
+        </div>
+        <p class="home-intelligence-empty">${escapeHtml(turnPlanState.error)}</p>
+      </section>
+    `;
+  }
+
+  const plan = turnPlanState.plan && typeof turnPlanState.plan === "object" ? turnPlanState.plan : null;
+  if (!plan) {
+    return "";
+  }
+  const actions = Array.isArray(plan.actions) ? plan.actions.slice(0, 20) : [];
+  const metricsLine = buildTurnPlanMetricsLine();
+  const pagination = plan.pagination && typeof plan.pagination === "object" ? plan.pagination : {};
+  const planMeta = [
+    `Projeto ${String(plan.projectId || activeProjectId || "-").trim() || "-"}`,
+    `Data ${String(plan.date || "-").trim() || "-"}`,
+    `Turno ${String(plan.shift || "all").trim() || "all"}`,
+    Number.isFinite(Number(pagination.totalItems))
+      ? `${Number(pagination.totalItems)} ações candidatas`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" | ");
+
+  const rows = actions.length
+    ? actions
+        .map((action) => {
+          const actionId = String(action && action.id ? action.id : "").trim();
+          if (!actionId) {
+            return "";
+          }
+          const expanded = turnPlanState.expandedActionId === actionId;
+          const pending = turnPlanState.pendingActionId === actionId;
+          const submitting = turnPlanState.submittingActionId === actionId;
+          const evidenceRows = Array.isArray(action.evidence)
+            ? action.evidence
+                .slice(0, 6)
+                .map((item) => {
+                  const description = item && item.description ? String(item.description) : "";
+                  const id = item && item.id ? String(item.id) : "";
+                  return `<li>${escapeHtml([description, id ? `(${id})` : ""].filter(Boolean).join(" "))}</li>`;
+                })
+                .join("")
+            : "";
+          const whyRows = Array.isArray(action.why)
+            ? action.why
+                .slice(0, 4)
+                .map((line) => `<li>${escapeHtml(String(line || ""))}</li>`)
+                .join("")
+            : "";
+          const constraints = action.constraints && typeof action.constraints === "object" ? action.constraints : {};
+          const constraintTags = [
+            constraints.needsWindow ? "Requer janela" : "",
+            constraints.needsSpareParts ? "Requer sobressalente" : "",
+            constraints.needsPermission ? "Requer permissão" : "",
+          ]
+            .filter(Boolean)
+            .map((label) => `<span class="home-turn-plan-tag">${escapeHtml(label)}</span>`)
+            .join("");
+          const impact = action.estimatedImpact && typeof action.estimatedImpact === "object" ? action.estimatedImpact : {};
+          const feedbackButtons = pending
+            ? `
+                <div class="home-turn-plan-feedback">
+                  <span>Registrar resultado:</span>
+                  <button type="button" class="btn btn--ghost btn--small" data-turn-plan-feedback="${escapeHtml(
+                    actionId
+                  )}" data-turn-plan-outcome="success" ${submitting ? "disabled" : ""}>Sucesso</button>
+                  <button type="button" class="btn btn--ghost btn--small" data-turn-plan-feedback="${escapeHtml(
+                    actionId
+                  )}" data-turn-plan-outcome="partial" ${submitting ? "disabled" : ""}>Parcial</button>
+                  <button type="button" class="btn btn--ghost btn--small" data-turn-plan-feedback="${escapeHtml(
+                    actionId
+                  )}" data-turn-plan-outcome="fail" ${submitting ? "disabled" : ""}>Falha</button>
+                  <button type="button" class="btn btn--ghost btn--small" data-turn-plan-feedback="${escapeHtml(
+                    actionId
+                  )}" data-turn-plan-outcome="unknown" ${submitting ? "disabled" : ""}>Indefinido</button>
+                </div>
+              `
+            : "";
+          const details = expanded
+            ? `
+                <div class="home-turn-plan-why">
+                  <div>
+                    <strong>Por que isso?</strong>
+                    <ul>${whyRows || "<li>Sem justificativa detalhada.</li>"}</ul>
+                  </div>
+                  <div>
+                    <strong>Evidências</strong>
+                    <ul>${evidenceRows || "<li>Sem evidências adicionais.</li>"}</ul>
+                  </div>
+                  <p><strong>Próximo passo:</strong> ${escapeHtml(
+                    String(action.recommendedNextStep || "Confirmar ação com a equipe.")
+                  )}</p>
+                  <p><strong>Impacto estimado:</strong> downtime ${Number(
+                    impact.downtimeMin || 0
+                  )} min | risco ${Number(impact.riskDelta || 0)} | custo ${Number(impact.costDelta || 0)}</p>
+                  <div class="home-turn-plan-tags">${constraintTags || '<span class="home-turn-plan-tag">Sem restrições críticas</span>'}</div>
+                </div>
+              `
+            : "";
+          return `
+            <li class="home-turn-plan-item">
+              <div class="home-turn-plan-item__head">
+                <div>
+                  <strong>${escapeHtml(String(action.title || "Ação recomendada"))}</strong>
+                  <p>${escapeHtml(String(action.summary || ""))}</p>
+                </div>
+                <div class="home-turn-plan-item__score">
+                  <span>${escapeHtml(formatTurnPlanActionTypeLabel(action.type || ""))}</span>
+                  <strong>${Number(action.priorityScore || 0)}</strong>
+                  <small>conf ${Number(action.confidence || 0)}%</small>
+                </div>
+              </div>
+              <div class="home-turn-plan-item__actions">
+                <button type="button" class="btn btn--ghost btn--small" data-turn-plan-toggle="${escapeHtml(
+                  actionId
+                )}">${expanded ? "Ocultar explicação" : "Por que isso?"}</button>
+                <button type="button" class="btn btn--ghost btn--small" data-turn-plan-run="${escapeHtml(
+                  actionId
+                )}" ${submitting ? "disabled" : ""}>Executar assistido</button>
+              </div>
+              ${feedbackButtons}
+              ${details}
+            </li>
+          `;
+        })
+        .filter(Boolean)
+        .join("")
+    : '<li class="home-turn-plan-item home-turn-plan-item--empty">Nenhuma ação priorizada para o escopo atual.</li>';
+
+  return `
+    <section class="home-turn-plan">
+      <div class="home-turn-plan__head">
+        <h4>Plano do turno (Autopiloto assistido)</h4>
+        <div class="home-turn-plan__actions">
+          <button type="button" class="btn btn--ghost btn--small" data-turn-plan-refresh="1">Atualizar plano</button>
+        </div>
+      </div>
+      <p class="home-intelligence-scope">${escapeHtml(planMeta)}</p>
+      ${metricsLine ? `<p class="home-turn-plan__metrics">${escapeHtml(metricsLine)}</p>` : ""}
+      <ul class="home-turn-plan-list">${rows}</ul>
+    </section>
+  `;
+}
+
 function buildHomeIntelligenceMarkup() {
   const summaryPayload =
     intelligenceSummary && intelligenceSummary.summary ? intelligenceSummary.summary : null;
@@ -17783,6 +18000,7 @@ function buildHomeIntelligenceMarkup() {
         .join("")
     : '<li class="home-intelligence-meta-list--empty">Sem recomendações no momento.</li>';
   const simulationMarkup = buildIntelligenceSimulationMarkup();
+  const turnPlanMarkup = buildTurnPlanMarkup();
 
   return `
     <div class="home-intelligence-card">
@@ -17833,6 +18051,7 @@ function buildHomeIntelligenceMarkup() {
         <ul class="home-intelligence-recommendations">${recommendationRows}</ul>
       </div>
       ${simulationMarkup}
+      ${turnPlanMarkup}
       <div class="home-intelligence-footer">
         <small>Atualizado em ${escapeHtml(generatedAt)}</small>
         <div class="home-intelligence-actions">
@@ -48606,6 +48825,11 @@ function renderAuthUI() {
     intelligenceRequest = null;
     intelligenceRequestProjectId = "";
     intelligenceRequestToken += 1;
+    turnPlanState = createInitialTurnPlanState();
+    turnPlanLastFetch = 0;
+    turnPlanRequest = null;
+    turnPlanRequestProjectId = "";
+    turnPlanRequestToken += 1;
     maintenanceLastSync = 0;
     maintenanceLastUserId = null;
     filesState.items = [];
@@ -57117,6 +57341,43 @@ function buildIntelligenceQueryString(params = {}) {
   return query.toString();
 }
 
+function buildTurnPlanQueryString(params = {}) {
+  const query = new URLSearchParams();
+  const projectId = String(params.projectId || "").trim();
+  if (projectId) {
+    query.set("projectId", projectId);
+  }
+  const source = String(params.source || "inteligencia").trim();
+  if (source) {
+    query.set("source", source);
+  }
+  const date = String(params.date || "").trim();
+  if (date) {
+    query.set("date", date);
+  }
+  const shift = String(params.shift || "").trim();
+  if (shift) {
+    query.set("shift", shift);
+  }
+  const mode = String(params.mode || "").trim();
+  if (mode) {
+    query.set("mode", mode);
+  }
+  if (params.limit !== undefined && params.limit !== null && params.limit !== "") {
+    query.set("limit", String(params.limit));
+  }
+  if (params.page !== undefined && params.page !== null && params.page !== "") {
+    query.set("page", String(params.page));
+  }
+  if (params.range) {
+    query.set("range", String(params.range).trim());
+  }
+  if (params.force) {
+    query.set("force", "true");
+  }
+  return query.toString();
+}
+
 function buildIntelligenceFallback(projectId = activeProjectId) {
   const scoped = Array.isArray(manutencoes)
     ? manutencoes.filter(
@@ -57217,6 +57478,59 @@ async function apiIntelligenceSimulate(params = {}) {
       filters: params.filters && typeof params.filters === "object" ? params.filters : {},
     }),
   });
+}
+
+async function apiTurnPlanGet(params = {}) {
+  if (!USE_AUTH_API) {
+    return { enabled: false, actions: [] };
+  }
+  const query = buildTurnPlanQueryString({
+    projectId: String(params.projectId || activeProjectId || "").trim(),
+    source: params.source || "inteligencia",
+    date: params.date || "",
+    shift: params.shift || "all",
+    mode: params.mode || "assisted",
+    limit: params.limit !== undefined ? params.limit : 20,
+    page: params.page !== undefined ? params.page : 1,
+    force: Boolean(params.force),
+  });
+  return apiRequest(`/api/turn-plan${query ? `?${query}` : ""}`);
+}
+
+async function apiTurnPlanFeedback(planId, payload = {}) {
+  if (!USE_AUTH_API) {
+    throw new Error("Feedback do plano de turno disponível apenas com API autenticada.");
+  }
+  const safePlanId = String(planId || "").trim();
+  if (!safePlanId) {
+    throw new Error("Plano de turno inválido.");
+  }
+  return apiRequest(`/api/turn-plan/${encodeURIComponent(safePlanId)}/feedback`, {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiTurnPlanMetrics(params = {}) {
+  if (!USE_AUTH_API) {
+    return {
+      metrics: {
+        totalFeedback: 0,
+        acertos: 0,
+        falsosPositivos: 0,
+        outcomes: { success: 0, partial: 0, fail: 0, unknown: 0 },
+        accuracyPct: 0,
+        tempoMedioResolucaoMin: 0,
+        preventedDowntimeMin: 0,
+        topCausas: [],
+      },
+    };
+  }
+  const query = buildTurnPlanQueryString({
+    projectId: String(params.projectId || activeProjectId || "").trim(),
+    range: params.range || "30d",
+  });
+  return apiRequest(`/api/turn-plan/metrics${query ? `?${query}` : ""}`);
 }
 
 async function apiProjetosList() {
@@ -57962,6 +58276,125 @@ async function loadDashboardSummary(force, options = {}) {
   }
 }
 
+function getTurnPlanDefaultDate() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+async function loadTurnPlanMetrics(projectId) {
+  if (!turnPlanState.enabled || !projectId) {
+    turnPlanState.metrics = null;
+    return;
+  }
+  try {
+    const metricsData = await apiTurnPlanMetrics({
+      projectId,
+      range: "30d",
+    });
+    if (projectId !== String(activeProjectId || "").trim()) {
+      return;
+    }
+    turnPlanState.metrics =
+      metricsData && metricsData.metrics && typeof metricsData.metrics === "object"
+        ? metricsData.metrics
+        : null;
+  } catch (_) {
+    turnPlanState.metrics = null;
+  }
+}
+
+async function loadTurnPlan(force = false) {
+  if (!currentUser) {
+    return;
+  }
+  const projectId = String(activeProjectId || "").trim();
+  if (!projectId) {
+    turnPlanState = createInitialTurnPlanState();
+    turnPlanLastFetch = 0;
+    turnPlanRequest = null;
+    turnPlanRequestProjectId = "";
+    turnPlanRequestToken += 1;
+    return;
+  }
+  const now = Date.now();
+  if (!force && turnPlanRequest && turnPlanRequestProjectId === projectId) {
+    return;
+  }
+  const turnPlanTtlMs = Math.max(30 * 1000, DASHBOARD_CLIENT_TTL_MS || 60 * 1000);
+  if (
+    !force &&
+    turnPlanState.plan &&
+    turnPlanState.enabled !== false &&
+    turnPlanRequestProjectId === "" &&
+    now - turnPlanLastFetch < turnPlanTtlMs
+  ) {
+    return;
+  }
+  turnPlanState.loading = true;
+  turnPlanState.error = "";
+  const requestToken = ++turnPlanRequestToken;
+  const requestPromise = apiTurnPlanGet({
+    source: "inteligencia",
+    projectId,
+    date: getTurnPlanDefaultDate(),
+    shift: "all",
+    mode: "assisted",
+    limit: 20,
+    page: 1,
+    force,
+  });
+  turnPlanRequest = requestPromise;
+  turnPlanRequestProjectId = projectId;
+  renderKpiIntelligencePanel();
+  try {
+    const data = await requestPromise;
+    if (requestToken !== turnPlanRequestToken || projectId !== String(activeProjectId || "").trim()) {
+      return;
+    }
+    turnPlanState.enabled = data && data.enabled === false ? false : true;
+    turnPlanState.plan = data && data.planId ? data : null;
+    turnPlanState.error = "";
+    turnPlanState.loading = false;
+    turnPlanState.expandedActionId = "";
+    turnPlanState.pendingActionId = "";
+    turnPlanState.submittingActionId = "";
+    turnPlanLastFetch = Date.now();
+    if (turnPlanState.enabled) {
+      await loadTurnPlanMetrics(projectId);
+    } else {
+      turnPlanState.metrics = null;
+    }
+  } catch (error) {
+    if (requestToken !== turnPlanRequestToken || projectId !== String(activeProjectId || "").trim()) {
+      return;
+    }
+    if (error && error.status === 404) {
+      turnPlanState = createInitialTurnPlanState();
+      turnPlanState.enabled = false;
+      turnPlanState.loading = false;
+      turnPlanLastFetch = Date.now();
+      return;
+    }
+    turnPlanState.enabled = true;
+    turnPlanState.plan = null;
+    turnPlanState.metrics = null;
+    turnPlanState.loading = false;
+    turnPlanState.error =
+      (error && error.message) || "Falha ao carregar plano do turno.";
+  } finally {
+    if (turnPlanRequest === requestPromise) {
+      turnPlanRequest = null;
+      turnPlanRequestProjectId = "";
+    }
+    if (projectId === String(activeProjectId || "").trim()) {
+      renderKpiIntelligencePanel();
+    }
+  }
+}
+
 async function loadIntelligenceSummary(force = false) {
   if (!currentUser) {
     return;
@@ -57972,6 +58405,11 @@ async function loadIntelligenceSummary(force = false) {
     intelligenceSummaryProjectId = "";
     intelligenceInconsistencies = [];
     intelligenceLastSimulation = null;
+    turnPlanState = createInitialTurnPlanState();
+    turnPlanLastFetch = 0;
+    turnPlanRequest = null;
+    turnPlanRequestProjectId = "";
+    turnPlanRequestToken += 1;
     intelligenceError = "";
     renderKpiIntelligencePanel();
     return;
@@ -57987,6 +58425,7 @@ async function loadIntelligenceSummary(force = false) {
     intelligenceSummaryProjectId === projectId &&
     now - intelligenceLastFetch < intelligenceTtlMs
   ) {
+    loadTurnPlan(false).catch(() => null);
     return;
   }
   intelligenceError = "";
@@ -58021,6 +58460,7 @@ async function loadIntelligenceSummary(force = false) {
       : [];
     intelligenceLastSimulation = null;
     intelligenceLastFetch = Date.now();
+    loadTurnPlan(force).catch(() => null);
   } catch (error) {
     if (requestToken !== intelligenceRequestToken || projectId !== String(activeProjectId || "").trim()) {
       return;
@@ -58029,6 +58469,11 @@ async function loadIntelligenceSummary(force = false) {
     intelligenceSummaryProjectId = "";
     intelligenceInconsistencies = [];
     intelligenceLastSimulation = null;
+    turnPlanState = createInitialTurnPlanState();
+    turnPlanLastFetch = 0;
+    turnPlanRequest = null;
+    turnPlanRequestProjectId = "";
+    turnPlanRequestToken += 1;
     intelligenceError = "Falha ao carregar inteligência operacional. Tente novamente.";
   } finally {
     if (intelligenceRequest === requestPromise) {
@@ -58102,6 +58547,65 @@ async function handleIntelligenceScenarioSimulate(scenarioId) {
     const message =
       (error && error.message) || "Falha ao simular cenário de inteligência.";
     showAuthToast(message);
+  }
+}
+
+function toggleTurnPlanDetails(actionId) {
+  const safeActionId = String(actionId || "").trim();
+  if (!safeActionId) {
+    return;
+  }
+  turnPlanState.expandedActionId =
+    turnPlanState.expandedActionId === safeActionId ? "" : safeActionId;
+  renderKpiIntelligencePanel();
+}
+
+function openTurnPlanAssist(actionId) {
+  const safeActionId = String(actionId || "").trim();
+  if (!safeActionId) {
+    return;
+  }
+  turnPlanState.pendingActionId =
+    turnPlanState.pendingActionId === safeActionId ? "" : safeActionId;
+  renderKpiIntelligencePanel();
+}
+
+async function submitTurnPlanFeedback(actionId, outcome) {
+  const safeActionId = String(actionId || "").trim();
+  const safeOutcome = String(outcome || "").trim().toLowerCase();
+  if (!safeActionId || !safeOutcome || !turnPlanState.plan || !turnPlanState.plan.planId) {
+    return;
+  }
+  const allowedOutcomes = new Set(["success", "partial", "fail", "unknown"]);
+  if (!allowedOutcomes.has(safeOutcome)) {
+    showAuthToast("Resultado de feedback inválido.");
+    return;
+  }
+  const confirmed = await openConfirmModal({
+    title: "Registrar resultado da ação",
+    message: `Confirmar resultado "${safeOutcome}" para esta ação do plano?`,
+    confirmText: "Confirmar",
+    cancelText: "Cancelar",
+  });
+  if (!confirmed) {
+    return;
+  }
+  turnPlanState.submittingActionId = safeActionId;
+  renderKpiIntelligencePanel();
+  try {
+    await apiTurnPlanFeedback(turnPlanState.plan.planId, {
+      actionId: safeActionId,
+      outcome: safeOutcome,
+    });
+    turnPlanState.pendingActionId = "";
+    turnPlanState.submittingActionId = "";
+    showAuthToast(`Feedback "${safeOutcome}" registrado no plano do turno.`);
+    await loadTurnPlanMetrics(String(activeProjectId || "").trim());
+  } catch (error) {
+    turnPlanState.submittingActionId = "";
+    showAuthToast((error && error.message) || "Falha ao registrar feedback do plano.");
+  } finally {
+    renderKpiIntelligencePanel();
   }
 }
 
@@ -58311,6 +58815,35 @@ document.addEventListener("click", (event) => {
     handleIntelligenceScenarioSimulate(scenarioId).finally(() => {
       intelligenceScenarioBtn.disabled = false;
     });
+    return;
+  }
+  const turnPlanRefresh = event.target.closest("[data-turn-plan-refresh]");
+  if (turnPlanRefresh && !turnPlanRefresh.disabled) {
+    event.preventDefault();
+    turnPlanRefresh.disabled = true;
+    loadTurnPlan(true).finally(() => {
+      turnPlanRefresh.disabled = false;
+    });
+    return;
+  }
+  const turnPlanToggle = event.target.closest("[data-turn-plan-toggle]");
+  if (turnPlanToggle && !turnPlanToggle.disabled) {
+    event.preventDefault();
+    toggleTurnPlanDetails(turnPlanToggle.dataset.turnPlanToggle || "");
+    return;
+  }
+  const turnPlanRun = event.target.closest("[data-turn-plan-run]");
+  if (turnPlanRun && !turnPlanRun.disabled) {
+    event.preventDefault();
+    openTurnPlanAssist(turnPlanRun.dataset.turnPlanRun || "");
+    return;
+  }
+  const turnPlanFeedback = event.target.closest("[data-turn-plan-feedback]");
+  if (turnPlanFeedback && !turnPlanFeedback.disabled) {
+    event.preventDefault();
+    const actionId = turnPlanFeedback.dataset.turnPlanFeedback || "";
+    const outcome = turnPlanFeedback.dataset.turnPlanOutcome || "";
+    submitTurnPlanFeedback(actionId, outcome);
     return;
   }
   const trigger = event.target.closest("[data-open-tab]");

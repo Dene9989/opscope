@@ -12,6 +12,7 @@ const { extractSignals } = require("./normalize/signalExtractor");
 const { runRules } = require("./rules/rules.engine");
 const { buildScenarioPreviews, simulateScenario } = require("./scenarios/scenario.engine");
 const { createIntelligenceStore } = require("./store/intelligenceStore");
+const { buildTurnPlan } = require("./turnPlan/planBuilder");
 
 function parseDay(value, endOfDay = false) {
   const date = parseDate(value);
@@ -436,6 +437,31 @@ function createIntelligenceOrchestrator(options = {}) {
     });
   }
 
+  async function getTurnPlan(params = {}, options = {}) {
+    const scope = await getScope(params, options);
+    const plan = buildTurnPlan({
+      scope: {
+        scopeKey: scope.scopeKey,
+        projectId: scope.projectId,
+        events: scope.events || [],
+        inconsistencies: scope.inconsistencies || [],
+      },
+      params: {
+        projectId: scope.projectId,
+        date: params.date,
+        shift: params.shift,
+        mode: params.mode,
+        limit: params.limit,
+        page: params.page,
+      },
+    });
+    return {
+      ...plan,
+      scopeKey: scope.scopeKey,
+      source: scope.source || safeText(params.source || "all"),
+    };
+  }
+
   function health() {
     return {
       rebuildTtlMs,
@@ -451,6 +477,7 @@ function createIntelligenceOrchestrator(options = {}) {
     listInconsistencies,
     getInconsistencyById,
     simulate,
+    getTurnPlan,
     health,
   };
 }
