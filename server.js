@@ -4914,8 +4914,26 @@ async function generateContingencyReportPdf(payload, options = {}) {
       return null;
     }
   };
+  const resolveContingencyCoverPath = () => {
+    const envPath = String(process.env.OPSCOPE_CONTINGENCY_COVER_IMAGE || "").trim();
+    const candidates = [
+      envPath,
+      path.join(__dirname, "assets", "contingency-cover.png"),
+      path.join(__dirname, "assets", "contingency-cover.jpg"),
+      path.join(__dirname, "assets", "visitor-bg.png"),
+    ]
+      .map((candidate) => {
+        if (!candidate) {
+          return "";
+        }
+        return path.isAbsolute(candidate) ? candidate : path.join(__dirname, candidate);
+      })
+      .filter(Boolean);
+    return candidates.find((candidate) => fs.existsSync(candidate)) || "";
+  };
   const engelmigLogo = await embedLogo(path.join(__dirname, "assets", "engelmig-logo.png"));
   const solarigLogo = await embedLogo(path.join(__dirname, "assets", "solarig-logo.png"));
+  const contingencyCoverImage = await embedLogo(resolveContingencyCoverPath());
   let page = null;
   let cursorY = 0;
   const tocEntries = [];
@@ -4933,6 +4951,22 @@ async function generateContingencyReportPdf(payload, options = {}) {
       y: y + (height - drawHeight) / 2,
       width: drawWidth,
       height: drawHeight,
+    });
+  };
+  const drawImageCover = (image, x, y, width, height, opacity = 1) => {
+    if (!image) {
+      return;
+    }
+    const scale = Math.max(width / image.width, height / image.height);
+    const drawWidth = image.width * scale;
+    const drawHeight = image.height * scale;
+    const normalizedOpacity = Math.min(1, Math.max(0, Number(opacity) || 1));
+    page.drawImage(image, {
+      x: x + (width - drawWidth) / 2,
+      y: y + (height - drawHeight) / 2,
+      width: drawWidth,
+      height: drawHeight,
+      opacity: normalizedOpacity,
     });
   };
 
@@ -5063,6 +5097,9 @@ async function generateContingencyReportPdf(payload, options = {}) {
     const frameBottom = titleBlockBottom - 6;
     const frameHeight = top - frameBottom;
 
+    if (contingencyCoverImage) {
+      drawImageCover(contingencyCoverImage, margin, frameBottom, contentWidth, frameHeight, 0.26);
+    }
     page.drawRectangle({
       x: margin,
       y: frameBottom,
@@ -5071,6 +5108,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
       borderColor: palette.border,
       borderWidth: 1.1,
       color: rgb(1, 1, 1),
+      opacity: contingencyCoverImage ? 0.78 : 1,
     });
 
     page.drawRectangle({
