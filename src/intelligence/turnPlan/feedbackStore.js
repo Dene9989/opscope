@@ -185,7 +185,7 @@ class TurnPlanFeedbackStore {
     const targetProjectId = safeText(projectId);
     const sinceDate = since instanceof Date && !Number.isNaN(since.getTime()) ? since : null;
     return (this.readDoc().items || []).filter((item) => {
-      if (targetProjectId && safeText(item.projectId) && safeText(item.projectId) !== targetProjectId) {
+      if (targetProjectId && safeText(item.projectId) !== targetProjectId) {
         return false;
       }
       if (sinceDate) {
@@ -204,4 +204,3 @@ module.exports = {
   normalizeOutcome,
   classifyCause,
 };
-

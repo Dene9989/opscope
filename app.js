@@ -17704,6 +17704,18 @@ function formatTurnPlanActionTypeLabel(typeRaw) {
   return "Operação";
 }
 
+function formatTurnPlanProjectLabel(projectIdRaw) {
+  const projectId = String(projectIdRaw || "").trim();
+  if (!projectId) {
+    return "Projeto não definido";
+  }
+  const project = getProjectById(projectId);
+  if (project) {
+    return getProjectLabel(project);
+  }
+  return projectId;
+}
+
 function buildTurnPlanMetricsLine() {
   const metrics = turnPlanState && turnPlanState.metrics ? turnPlanState.metrics : null;
   if (!metrics || typeof metrics !== "object") {
@@ -17751,7 +17763,7 @@ function buildTurnPlanMarkup() {
   const metricsLine = buildTurnPlanMetricsLine();
   const pagination = plan.pagination && typeof plan.pagination === "object" ? plan.pagination : {};
   const planMeta = [
-    `Projeto ${String(plan.projectId || activeProjectId || "-").trim() || "-"}`,
+    `Projeto ${formatTurnPlanProjectLabel(plan.projectId || activeProjectId || "")}`,
     `Data ${String(plan.date || "-").trim() || "-"}`,
     `Turno ${String(plan.shift || "all").trim() || "all"}`,
     Number.isFinite(Number(pagination.totalItems))

@@ -7,7 +7,7 @@ const express = require("express");
 
 const { createIntelligenceRouter } = require("../src/intelligence/routes");
 
-function createFixture() {
+function createFixture(options = {}) {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "opscope-turn-plan-"));
   const sourceFile = path.join(tempDir, "maintenance.json");
   const usersFile = path.join(tempDir, "users.json");
@@ -16,30 +16,32 @@ function createFixture() {
   const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
 
-  const records = [
-    {
-      id: "m1",
-      projectId: "P1",
-      title: "Falha no transformador principal",
-      status: "aberta",
-      severity: "critical",
-      event_ts: now.toISOString(),
-      dueAt: yesterday.toISOString(),
-      descricao: "Falha de comando sem procedimento registrado",
-      asset: "TR-01",
-    },
-    {
-      id: "m2",
-      projectId: "P1",
-      title: "Backlog em painel auxiliar",
-      status: "aberta",
-      severity: "high",
-      event_ts: twoDaysAgo.toISOString(),
-      dueAt: yesterday.toISOString(),
-      descricao: "Pendente de validacao da equipe",
-      asset: "PA-11",
-    },
-  ];
+  const records = Array.isArray(options.records) && options.records.length
+    ? options.records
+    : [
+        {
+          id: "m1",
+          projectId: "P1",
+          title: "Falha no transformador principal",
+          status: "aberta",
+          severity: "critical",
+          event_ts: now.toISOString(),
+          dueAt: yesterday.toISOString(),
+          descricao: "Falha de comando sem procedimento registrado",
+          asset: "TR-01",
+        },
+        {
+          id: "m2",
+          projectId: "P1",
+          title: "Backlog em painel auxiliar",
+          status: "aberta",
+          severity: "high",
+          event_ts: twoDaysAgo.toISOString(),
+          dueAt: yesterday.toISOString(),
+          descricao: "Pendente de validacao da equipe",
+          asset: "PA-11",
+        },
+      ];
 
   fs.writeFileSync(sourceFile, JSON.stringify(records, null, 2), "utf8");
   fs.writeFileSync(usersFile, "[]", "utf8");
@@ -111,6 +113,115 @@ test("GET /api/turn-plan returns prioritized actions with bounded page size", as
     assert.ok(Array.isArray(first.evidence));
     assert.ok(Array.isArray(first.why));
     assert.ok(first.constraints && typeof first.constraints === "object");
+  } finally {
+    fixture.server.close();
+    fs.rmSync(fixture.tempDir, { recursive: true, force: true });
+  }
+});
+
+test("intelligence and turn-plan keep strict project scope across mixed records", async () => {
+  const now = new Date();
+  const fixture = createFixture({
+    records: [
+      {
+        id: "p1-1",
+        projectId: "P1",
+        title: "Evento P1 crítico",
+        status: "aberta",
+        severity: "critical",
+        event_ts: now.toISOString(),
+        descricao: "Registro do projeto P1",
+        asset: "ASSET-P1",
+      },
+      {
+        id: "p2-1",
+        projectId: "P2",
+        title: "Evento P2 alto",
+        status: "aberta",
+        severity: "high",
+        event_ts: now.toISOString(),
+        descricao: "Registro do projeto P2",
+        asset: "ASSET-P2",
+      },
+      {
+        id: "no-project",
+        title: "Evento sem projeto",
+        status: "aberta",
+        severity: "medium",
+        event_ts: now.toISOString(),
+        descricao: "Registro sem projectId",
+        asset: "ASSET-NA",
+      },
+    ],
+  });
+  try {
+    const summaryP1 = await requestJson(
+      `${fixture.baseUrl}/api/intelligence/summary?source=inteligencia&projectId=P1&force=true`
+    );
+    assert.equal(summaryP1.response.status, 200);
+    assert.equal(summaryP1.payload.projectId, "P1");
+    assert.equal(summaryP1.payload.summary.totals.events, 1);
+
+    const summaryP2 = await requestJson(
+      `${fixture.baseUrl}/api/intelligence/summary?source=inteligencia&projectId=P2&force=true`
+    );
+    assert.equal(summaryP2.response.status, 200);
+    assert.equal(summaryP2.payload.projectId, "P2");
+    assert.equal(summaryP2.payload.summary.totals.events, 1);
+
+    const planP1 = await requestJson(
+      `${fixture.baseUrl}/api/turn-plan?source=inteligencia&projectId=P1&limit=20&page=1&force=true`
+    );
+    assert.equal(planP1.response.status, 200);
+    assert.ok(Array.isArray(planP1.payload.actions) && planP1.payload.actions.length >= 1);
+    const actionP1 = planP1.payload.actions[0];
+    assert.ok(actionP1 && actionP1.id);
+
+    const feedbackP1 = await requestJson(
+      `${fixture.baseUrl}/api/turn-plan/${encodeURIComponent(planP1.payload.planId)}/feedback`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actionId: actionP1.id,
+          outcome: "success",
+          notes: "Resultado valido apenas para P1.",
+        }),
+      }
+    );
+    assert.equal(feedbackP1.response.status, 200);
+
+    const feedbackDoc = JSON.parse(fs.readFileSync(fixture.feedbackFile, "utf8"));
+    feedbackDoc.items.push({
+      id: "manual-p2",
+      planId: "x",
+      actionId: "x",
+      projectId: "P2",
+      actionType: "maintenance",
+      outcome: "fail",
+      notes: "Nao deve entrar no P1",
+      causeCategory: "teste",
+      createdAt: new Date().toISOString(),
+    });
+    feedbackDoc.items.push({
+      id: "manual-empty",
+      planId: "x",
+      actionId: "x",
+      projectId: "",
+      actionType: "maintenance",
+      outcome: "fail",
+      notes: "Sem projeto nao deve entrar no filtro P1",
+      causeCategory: "teste",
+      createdAt: new Date().toISOString(),
+    });
+    fs.writeFileSync(fixture.feedbackFile, JSON.stringify(feedbackDoc, null, 2), "utf8");
+
+    const metricsP1 = await requestJson(
+      `${fixture.baseUrl}/api/turn-plan/metrics?projectId=P1&range=30d`
+    );
+    assert.equal(metricsP1.response.status, 200);
+    assert.equal(metricsP1.payload.metrics.totalFeedback, 1);
+    assert.equal(metricsP1.payload.metrics.acertos, 1);
   } finally {
     fixture.server.close();
     fs.rmSync(fixture.tempDir, { recursive: true, force: true });

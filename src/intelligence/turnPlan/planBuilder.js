@@ -111,18 +111,18 @@ function recommendedStepByType(type, severity) {
   if (type === "maintenance") {
     return severity === "critical"
       ? "Abrir OS imediata e mobilizar equipe de resposta."
-      : "Abrir OS e designar responsavel para tratativa.";
+      : "Abrir OS e designar responsável para tratativa.";
   }
   if (type === "contingency") {
-    return "Validar causa raiz em campo e acionar plano de contingencia.";
+    return "Validar causa raiz em campo e acionar plano de contingência.";
   }
   if (type === "audit") {
-    return "Executar checklist de conformidade e registrar evidencias.";
+    return "Executar checklist de conformidade e registrar evidências.";
   }
   if (type === "pmp") {
-    return "Programar execucao PMP na proxima janela operacional.";
+    return "Programar execução PMP na próxima janela operacional.";
   }
-  return "Confirmar condicao operacional e registrar acao corretiva.";
+  return "Confirmar condição operacional e registrar ação corretiva.";
 }
 
 function inferConstraints(type, entry = {}) {
@@ -180,7 +180,7 @@ function collectEvidence(entry = {}, eventIndex = new Map()) {
       evidence.push({
         kind: "maintenanceId",
         id,
-        description: `Registro de manutencao associado: ${id}.`,
+        description: `Registro de manutenção associado: ${id}.`,
       });
     });
 
@@ -199,27 +199,27 @@ function buildWhyBullets({
   const bullets = [];
   const severityLabel = severity || "info";
   bullets.push(
-    `Severidade ${severityLabel} contribuiu ${priorityBreakdown.severity} pontos na priorizacao.`
+    `Severidade ${severityLabel} contribuiu ${priorityBreakdown.severity} pontos na priorização.`
   );
 
   if (priorityBreakdown.ageDays !== null && priorityBreakdown.ageDays !== undefined) {
     bullets.push(
-      `Recencia do evento (${priorityBreakdown.ageDays} dias) adicionou ${priorityBreakdown.recency} pontos.`
+      `Recência do evento (${priorityBreakdown.ageDays} dias) adicionou ${priorityBreakdown.recency} pontos.`
     );
   } else if (safeText(detectedAt)) {
-    bullets.push("A data de deteccao esta registrada e foi considerada na recencia.");
+    bullets.push("A data de detecção está registrada e foi considerada na recência.");
   } else {
-    bullets.push("Sem timestamp confiavel; recencia aplicada com peso conservador.");
+    bullets.push("Sem timestamp confiável; recência aplicada com peso conservador.");
   }
 
   if (recurrenceCount > 1) {
     bullets.push(
-      `Recorrencia observada (${recurrenceCount} ocorrencias) elevou ${priorityBreakdown.recurrence} pontos.`
+      `Recorrência observada (${recurrenceCount} ocorrências) elevou ${priorityBreakdown.recurrence} pontos.`
     );
   }
   if (normalizeStatus(status) === "open") {
     bullets.push(
-      `Status aberto adicionou ${priorityBreakdown.status} pontos de urgencia operacional.`
+      `Status aberto adicionou ${priorityBreakdown.status} pontos de urgência operacional.`
     );
   }
   if (isCritical) {
@@ -228,10 +228,10 @@ function buildWhyBullets({
     );
   }
   if (constraints.needsWindow) {
-    bullets.push("A acao requer janela operacional para execucao segura.");
+    bullets.push("A ação requer janela operacional para execução segura.");
   }
   if (bullets.length < 2) {
-    bullets.push("Acao selecionada para reduzir risco residual do turno.");
+    bullets.push("Ação selecionada para reduzir risco residual do turno.");
   }
   return bullets.slice(0, 4);
 }
@@ -403,7 +403,7 @@ function buildFallbackActionsFromEvents(events = [], context = {}) {
         ],
         why: [
           `Evento em aberto com score de risco ${Number(event.signals && event.signals.riskScore ? event.signals.riskScore : 0)}.`,
-          "Fallback aplicado por ausencia de inconsistencias estruturadas no escopo.",
+          "Fallback aplicado por ausência de inconsistências estruturadas no escopo.",
         ],
         recommendedNextStep: recommendedStepByType(type, severity),
         constraints,
@@ -501,4 +501,3 @@ module.exports = {
   normalizeShift,
   buildTurnPlan,
 };
-
