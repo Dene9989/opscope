@@ -1,4 +1,8 @@
 const { normalizeSourceId, safeText } = require("../normalize/keyResolver");
+const INTELLIGENCE_FILTERS_MAX_BYTES = Math.max(
+  1024,
+  Number(process.env.OPSCOPE_INTELLIGENCE_FILTERS_MAX_BYTES) || 64 * 1024
+);
 
 function parseDateParam(value) {
   const text = safeText(value);
@@ -20,6 +24,9 @@ function parseFilters(raw) {
   }
   const text = safeText(raw);
   if (!text) {
+    return {};
+  }
+  if (Buffer.byteLength(text, "utf8") > INTELLIGENCE_FILTERS_MAX_BYTES) {
     return {};
   }
   try {
@@ -80,4 +87,3 @@ module.exports = {
   parseInteger,
   parseScopeFromRequest,
 };
-

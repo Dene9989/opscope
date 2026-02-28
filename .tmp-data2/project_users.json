@@ -1,0 +1,16 @@
+[
+  {
+    "id": "4bb7ad3a-1745-4058-9386-840d0caba84e",
+    "projectId": "b2f1f2a6-7c1a-4a0d-9e0c-0f2e2c1c1a50",
+    "userId": "ec0b5a1d-0f0c-4039-91e7-ee0a5232ccb9",
+    "papel": "Tecnico",
+    "createdAt": "2026-02-28T12:41:47.813Z"
+  },
+  {
+    "id": "90ed7cc5-afe7-47bc-9146-32c535f16da3",
+    "projectId": "b2f1f2a6-7c1a-4a0d-9e0c-0f2e2c1c1a50",
+    "userId": "20b44709-e60d-4d71-9857-9dbc233b2361",
+    "papel": "Tecnico",
+    "createdAt": "2026-02-28T12:41:47.814Z"
+  }
+]

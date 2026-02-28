@@ -1,0 +1,21 @@
+[
+  {
+    "id": "maintenance_critical_email",
+    "name": "Notificar manutenção crítica",
+    "enabled": true,
+    "event": "maintenance_created",
+    "condition": {
+      "type": "critical"
+    },
+    "action": {
+      "type": "notify_email",
+      "to": ""
+    },
+    "projectId": "b2f1f2a6-7c1a-4a0d-9e0c-0f2e2c1c1a50",
+    "lastRunAt": "",
+    "lastStatus": "",
+    "lastError": "",
+    "lastItemId": "",
+    "lastTriggeredBy": ""
+  }
+]

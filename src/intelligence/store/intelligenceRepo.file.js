@@ -1,5 +1,10 @@
 const fs = require("fs");
 const path = require("path");
+const INTELLIGENCE_JSON_MAX_BYTES = Math.min(
+  64 * 1024 * 1024,
+  Math.max(512 * 1024, Number(process.env.OPSCOPE_INTELLIGENCE_JSON_MAX_FILE_BYTES) || 16 * 1024 * 1024)
+);
+const oversizedWarned = new Set();
 
 function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) {
@@ -10,6 +15,19 @@ function ensureDir(dirPath) {
 function readJson(filePath, fallback) {
   try {
     if (!fs.existsSync(filePath)) {
+      return fallback;
+    }
+    const stats = fs.statSync(filePath);
+    if (stats && Number.isFinite(Number(stats.size)) && Number(stats.size) > INTELLIGENCE_JSON_MAX_BYTES) {
+      const key = path.resolve(filePath);
+      if (!oversizedWarned.has(key)) {
+        oversizedWarned.add(key);
+        console.warn("[intelligence] JSON local ignorado por tamanho excessivo.", {
+          file: filePath,
+          bytes: stats.size,
+          maxBytes: INTELLIGENCE_JSON_MAX_BYTES,
+        });
+      }
       return fallback;
     }
     return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -284,4 +302,3 @@ class IntelligenceFileRepo {
 module.exports = {
   IntelligenceFileRepo,
 };
-

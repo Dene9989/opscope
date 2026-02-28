@@ -4,6 +4,10 @@ try {
 } catch (_) {
   PgClient = null;
 }
+const INTELLIGENCE_DB_PAYLOAD_MAX_BYTES = Math.min(
+  64 * 1024 * 1024,
+  Math.max(512 * 1024, Number(process.env.OPSCOPE_INTELLIGENCE_DB_PAYLOAD_MAX_BYTES) || 16 * 1024 * 1024)
+);
 
 class IntelligenceDbRepo {
   constructor(options = {}) {
@@ -17,6 +21,16 @@ class IntelligenceDbRepo {
       return false;
     }
     const key = `data/intelligence_scope_${String(scopeKey).trim()}.json`;
+    const serialized = JSON.stringify(payload || {});
+    const payloadBytes = Buffer.byteLength(serialized, "utf8");
+    if (payloadBytes > INTELLIGENCE_DB_PAYLOAD_MAX_BYTES) {
+      console.warn("[intelligence] Escopo nao salvo no DB por tamanho excessivo.", {
+        key,
+        bytes: payloadBytes,
+        maxBytes: INTELLIGENCE_DB_PAYLOAD_MAX_BYTES,
+      });
+      return false;
+    }
     const client = new PgClient({
       connectionString: this.databaseUrl,
       ssl: this.databaseUrl.includes("sslmode=require") ? { rejectUnauthorized: false } : undefined,
@@ -29,7 +43,7 @@ class IntelligenceDbRepo {
          VALUES ($1, $2, NOW())
          ON CONFLICT (key)
          DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()`,
-        [key, JSON.stringify(payload || {})]
+        [key, serialized]
       );
       return true;
     } catch (_) {
@@ -56,13 +70,31 @@ class IntelligenceDbRepo {
     try {
       await client.connect();
       const response = await client.query(
-        `SELECT payload FROM ${this.dbStoreTable} WHERE key = $1 LIMIT 1`,
-        [key]
+        `SELECT
+           CASE
+             WHEN octet_length(payload) <= $2 THEN payload
+             ELSE NULL
+           END AS payload,
+           octet_length(payload) AS payload_bytes
+         FROM ${this.dbStoreTable}
+         WHERE key = $1
+         LIMIT 1`,
+        [key, INTELLIGENCE_DB_PAYLOAD_MAX_BYTES]
       );
       if (!response || !response.rowCount) {
         return null;
       }
-      const raw = response.rows[0].payload;
+      const row = response.rows[0] || {};
+      const payloadBytes = Number(row.payload_bytes || 0);
+      if (payloadBytes > INTELLIGENCE_DB_PAYLOAD_MAX_BYTES) {
+        console.warn("[intelligence] Escopo remoto ignorado por tamanho excessivo.", {
+          key,
+          bytes: payloadBytes,
+          maxBytes: INTELLIGENCE_DB_PAYLOAD_MAX_BYTES,
+        });
+        return null;
+      }
+      const raw = row.payload;
       if (!raw) {
         return null;
       }
@@ -85,4 +117,3 @@ class IntelligenceDbRepo {
 module.exports = {
   IntelligenceDbRepo,
 };
-

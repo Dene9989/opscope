@@ -498,6 +498,8 @@ const SMTP_TIMEOUT_MS = Number(process.env.SMTP_TIMEOUT_MS) || 10000;
 const DASHBOARD_CACHE_TTL_MS = 60 * 1000;
 const DASHBOARD_CACHE = new Map();
 const IS_DEV = process.env.NODE_ENV !== "production";
+const INTELLIGENCE_ENABLED =
+  String(process.env.OPSCOPE_DISABLE_INTELLIGENCE || "").trim().toLowerCase() !== "true";
 const API_LOG_LIMIT = Number(process.env.API_LOG_LIMIT) || 800;
 const API_LOG_MAX_FILE_BYTES = Math.max(
   512 * 1024,
@@ -1771,7 +1773,14 @@ function createFileSessionStore() {
           callback(null, null);
           return;
         }
-        const parsed = JSON.parse(String(record.payload || "{}"));
+        const payloadText = String(record.payload || "{}");
+        if (Buffer.byteLength(payloadText, "utf8") > SESSION_FILE_MAX_BYTES) {
+          this.sessions.delete(key);
+          this.scheduleFlush();
+          callback(null, null);
+          return;
+        }
+        const parsed = JSON.parse(payloadText);
         callback(null, parsed);
       } catch (error) {
         callback(error);
@@ -2085,59 +2094,74 @@ async function initDatabase() {
   if (!shouldUseDb()) {
     return;
   }
-  const needsSsl =
-    process.env.PGSSLMODE === "require" ||
-    DATABASE_URL.includes("sslmode=require") ||
-    process.env.NODE_ENV === "production";
-  dbPool = new Pool({
-    connectionString: DATABASE_URL,
-    ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
-  });
-  await dbPool.query(
-    `CREATE TABLE IF NOT EXISTS ${DB_STORE_TABLE} (
-      key TEXT PRIMARY KEY,
-      payload TEXT NOT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )`
-  );
-  if (STORE_UPLOADS) {
+  try {
+    const needsSsl =
+      process.env.PGSSLMODE === "require" ||
+      DATABASE_URL.includes("sslmode=require") ||
+      process.env.NODE_ENV === "production";
+    dbPool = new Pool({
+      connectionString: DATABASE_URL,
+      ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
+    });
     await dbPool.query(
-      `CREATE TABLE IF NOT EXISTS ${DB_UPLOADS_TABLE} (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        type TEXT NOT NULL,
-        mime TEXT NOT NULL,
-        size INTEGER NOT NULL,
-        project_id TEXT,
-        data BYTEA NOT NULL,
+      `CREATE TABLE IF NOT EXISTS ${DB_STORE_TABLE} (
+        key TEXT PRIMARY KEY,
+        payload TEXT NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )`
     );
-    await dbPool.query(
-      `CREATE INDEX IF NOT EXISTS ${DB_UPLOADS_TABLE}_type_name_idx ON ${DB_UPLOADS_TABLE} (type, name)`
-    );
-  }
-  try {
-    const typeCheck = await dbPool.query(
-      `SELECT data_type
-       FROM information_schema.columns
-       WHERE table_name = $1 AND column_name = 'payload'`,
-      [DB_STORE_TABLE]
-    );
-    const currentType = typeCheck.rows[0]?.data_type || "";
-    if (currentType && currentType !== "text") {
+    if (STORE_UPLOADS) {
       await dbPool.query(
-        `ALTER TABLE ${DB_STORE_TABLE}
-         ALTER COLUMN payload TYPE TEXT
-         USING payload::text`
+        `CREATE TABLE IF NOT EXISTS ${DB_UPLOADS_TABLE} (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          type TEXT NOT NULL,
+          mime TEXT NOT NULL,
+          size INTEGER NOT NULL,
+          project_id TEXT,
+          data BYTEA NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )`
+      );
+      await dbPool.query(
+        `CREATE INDEX IF NOT EXISTS ${DB_UPLOADS_TABLE}_type_name_idx ON ${DB_UPLOADS_TABLE} (type, name)`
       );
     }
+    try {
+      const typeCheck = await dbPool.query(
+        `SELECT data_type
+         FROM information_schema.columns
+         WHERE table_name = $1 AND column_name = 'payload'`,
+        [DB_STORE_TABLE]
+      );
+      const currentType = typeCheck.rows[0]?.data_type || "";
+      if (currentType && currentType !== "text") {
+        await dbPool.query(
+          `ALTER TABLE ${DB_STORE_TABLE}
+           ALTER COLUMN payload TYPE TEXT
+           USING payload::text`
+        );
+      }
+    } catch (error) {
+      console.warn("[db] Falha ao ajustar coluna payload:", error.message || error);
+    }
+    dbReady = true;
   } catch (error) {
-    console.warn("[db] Falha ao ajustar coluna payload:", error.message || error);
+    dbReady = false;
+    console.warn("[db] Banco indisponivel no startup. Sistema seguira em modo local.", {
+      message: error && error.message ? error.message : String(error || ""),
+    });
+    if (dbPool) {
+      try {
+        await dbPool.end();
+      } catch (_) {
+        // noop
+      }
+    }
+    dbPool = null;
   }
-  dbReady = true;
 }
 
 async function upsertStorePayload(key, payload) {
@@ -7056,9 +7080,18 @@ function checkJsonFile(filePath, label) {
     return { label, ok: false, message: "Arquivo ausente." };
   }
   try {
+    const stats = fs.statSync(filePath);
+    if (stats && Number.isFinite(Number(stats.size)) && Number(stats.size) > JSON_FILE_MAX_BYTES) {
+      return {
+        label,
+        ok: false,
+        message: "Arquivo excede limite de leitura segura.",
+        size: Number(stats.size) || 0,
+      };
+    }
     const raw = fs.readFileSync(filePath, "utf8");
     const parsed = JSON.parse(raw);
-    const size = fs.statSync(filePath).size;
+    const size = Number(stats && stats.size) || 0;
     const count = Array.isArray(parsed) ? parsed.length : Object.keys(parsed || {}).length;
     return { label, ok: true, size, count };
   } catch (error) {
@@ -13152,28 +13185,38 @@ app.use(
   })
 );
 
-app.use(
-  createIntelligenceRouter({
-    requireAuth,
-    baseDataDir: DATA_DIR,
-    usersFile: USERS_FILE,
-    sourceRegistry: INTELLIGENCE_SOURCE_REGISTRY,
-    databaseUrl: DATABASE_URL,
-    dbStoreTable: DB_STORE_TABLE,
-    eventsFile: INTELLIGENCE_EVENTS_FILE,
-    inconsistenciesFile: INTELLIGENCE_INCONSISTENCIES_FILE,
-    scenariosFile: INTELLIGENCE_SCENARIOS_FILE,
-    snapshotsFile: INTELLIGENCE_SNAPSHOTS_FILE,
-    getDefaultProjectId: (req, user) => getActiveProjectId(req, user),
-    canAccessProject: (req, projectId, user) => {
-      const actor = user || req.currentUser || getSessionUser(req);
-      if (!projectId) {
-        return true;
-      }
-      return userHasProjectAccess(actor, projectId);
-    },
-  })
-);
+if (INTELLIGENCE_ENABLED) {
+  try {
+    app.use(
+      createIntelligenceRouter({
+        requireAuth,
+        baseDataDir: DATA_DIR,
+        usersFile: USERS_FILE,
+        sourceRegistry: INTELLIGENCE_SOURCE_REGISTRY,
+        databaseUrl: DATABASE_URL,
+        dbStoreTable: DB_STORE_TABLE,
+        eventsFile: INTELLIGENCE_EVENTS_FILE,
+        inconsistenciesFile: INTELLIGENCE_INCONSISTENCIES_FILE,
+        scenariosFile: INTELLIGENCE_SCENARIOS_FILE,
+        snapshotsFile: INTELLIGENCE_SNAPSHOTS_FILE,
+        getDefaultProjectId: (req, user) => getActiveProjectId(req, user),
+        canAccessProject: (req, projectId, user) => {
+          const actor = user || req.currentUser || getSessionUser(req);
+          if (!projectId) {
+            return true;
+          }
+          return userHasProjectAccess(actor, projectId);
+        },
+      })
+    );
+  } catch (error) {
+    console.warn("[intelligence] Modulo desativado por falha de inicializacao.", {
+      message: error && error.message ? error.message : String(error || ""),
+    });
+  }
+} else {
+  console.warn("[intelligence] Modulo desativado por configuracao (OPSCOPE_DISABLE_INTELLIGENCE=true).");
+}
 
 app.get("/api/version", (req, res) => {
   return res.json({ buildId: BUILD_ID, serverTime: new Date().toISOString() });
