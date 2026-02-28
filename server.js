@@ -8,7 +8,6 @@ const session = require("express-session");
 const bcrypt = require("bcryptjs");
 const fs = require("fs");
 const path = require("path");
-const os = require("os");
 const crypto = require("crypto");
 let sharp;
 try {
@@ -4917,44 +4916,10 @@ async function generateContingencyReportPdf(payload, options = {}) {
   };
   const resolveContingencyCoverPath = () => {
     const envPath = String(process.env.OPSCOPE_CONTINGENCY_COVER_IMAGE || "").trim();
-    const downloadsDir = path.join(os.homedir(), "Downloads");
-    const normalizeName = (value) =>
-      String(value || "")
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .toLowerCase()
-        .trim();
-    let downloadsAutoMatch = "";
-    try {
-      const entries = fs.readdirSync(downloadsDir, { withFileTypes: true });
-      const matched = entries.find((entry) => {
-        if (!entry || !entry.isFile()) {
-          return false;
-        }
-        const normalized = normalizeName(entry.name);
-        return (
-          normalized === "contingenciacapa.png" ||
-          normalized === "contingenciacapa.jpg" ||
-          normalized === "contingenciacapa.jpeg"
-        );
-      });
-      if (matched && matched.name) {
-        downloadsAutoMatch = path.join(downloadsDir, matched.name);
-      }
-    } catch (error) {
-      downloadsAutoMatch = "";
-    }
     const candidates = [
       envPath,
-      downloadsAutoMatch,
-      path.join(downloadsDir, "ContingênciaCapa.png"),
-      path.join(downloadsDir, "ContingenciaCapa.png"),
-      path.join(downloadsDir, "contingenciacapa.png"),
-      path.join(downloadsDir, "ContingênciaCapa.jpg"),
-      path.join(downloadsDir, "ContingenciaCapa.jpg"),
       path.join(__dirname, "assets", "contingency-cover.png"),
       path.join(__dirname, "assets", "contingency-cover.jpg"),
-      path.join(__dirname, "assets", "visitor-bg.png"),
     ]
       .map((candidate) => {
         if (!candidate) {
@@ -5152,16 +5117,22 @@ async function generateContingencyReportPdf(payload, options = {}) {
         ),
       });
     }
-    page.drawRectangle({
+    const frameRect = {
       x: margin,
       y: frameBottom,
       width: contentWidth,
       height: frameHeight,
       borderColor: palette.border,
       borderWidth: 1.1,
-      color: rgb(1, 1, 1),
-      opacity: contingencyCoverImage ? 0.32 : 1,
-    });
+    };
+    if (contingencyCoverImage) {
+      page.drawRectangle(frameRect);
+    } else {
+      page.drawRectangle({
+        ...frameRect,
+        color: rgb(1, 1, 1),
+      });
+    }
 
     page.drawRectangle({
       x: margin,
