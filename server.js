@@ -513,6 +513,26 @@ const DB_STORE_PAYLOAD_MAX_BYTES = Math.max(
   2 * 1024 * 1024,
   Number(process.env.OPSCOPE_DB_STORE_PAYLOAD_MAX_BYTES) || 32 * 1024 * 1024
 );
+const MAINTENANCE_LIST_DEFAULT_LIMIT = Math.max(
+  1,
+  Math.min(500, Number(process.env.OPSCOPE_MAINTENANCE_DEFAULT_LIMIT) || 100)
+);
+const MAINTENANCE_LIST_MAX_LIMIT = Math.max(
+  MAINTENANCE_LIST_DEFAULT_LIMIT,
+  Math.min(1000, Number(process.env.OPSCOPE_MAINTENANCE_MAX_LIMIT) || 200)
+);
+const MAINTENANCE_LIST_FULL_MAX_ITEMS = Math.max(
+  MAINTENANCE_LIST_MAX_LIMIT,
+  Math.min(10000, Number(process.env.OPSCOPE_MAINTENANCE_FULL_MAX_ITEMS) || 1000)
+);
+const MAINTENANCE_LIST_WARN_RESPONSE_BYTES = Math.max(
+  256 * 1024,
+  Number(process.env.OPSCOPE_MAINTENANCE_WARN_RESPONSE_BYTES) || 1024 * 1024
+);
+const MAINTENANCE_LIST_MAX_PAGE = Math.max(
+  1,
+  Number(process.env.OPSCOPE_MAINTENANCE_MAX_PAGE) || 10000
+);
 const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
 const AVATAR_TARGET_BYTES = 1024 * 1024;
 const AVATAR_SIZE = 512;
@@ -11043,6 +11063,263 @@ function isMaintenanceInRange(item, inicio, fim) {
   return candidates.some((date) => date >= inicio && date < fim);
 }
 
+function parsePositiveInt(value, fallback = 1) {
+  const raw = String(value === undefined || value === null ? "" : value).trim();
+  if (!raw) {
+    return fallback;
+  }
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return parsed;
+}
+
+function parseMaintenanceListMode(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (raw === "summary" || raw === "resumo" || raw === "lite") {
+    return "summary";
+  }
+  return "full";
+}
+
+function parseMaintenanceStatusFilter(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return new Set();
+  }
+  const normalizeFilterStatus = (entry) => {
+    const normalized = normalizeSearchValue(entry || "")
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+    if (!normalized) {
+      return "";
+    }
+    if (["concluida", "concluido", "done", "completed", "finalizada"].includes(normalized)) {
+      return "concluida";
+    }
+    if (["cancelada", "cancelado", "canceled", "cancelled"].includes(normalized)) {
+      return "cancelada";
+    }
+    if (["em_execucao", "execucao", "executando", "em_exec"].includes(normalized)) {
+      return "em_execucao";
+    }
+    if (["encerramento", "encerrando", "encerrada", "encerrado", "finalizacao"].includes(normalized)) {
+      return "encerramento";
+    }
+    if (["backlog", "atrasada", "atrasado", "overdue"].includes(normalized)) {
+      return "backlog";
+    }
+    if (["liberada", "liberado", "liberacao", "released"].includes(normalized)) {
+      return "liberada";
+    }
+    if (["agendada", "agendado", "programada", "programado", "pendente", "scheduled"].includes(normalized)) {
+      return "agendada";
+    }
+    return "";
+  };
+  const output = new Set();
+  raw
+    .split(",")
+    .map((entry) => normalizeFilterStatus(entry))
+    .filter(Boolean)
+    .forEach((entry) => output.add(entry));
+  return output;
+}
+
+function getMaintenanceSearchBlob(item) {
+  if (!item || typeof item !== "object") {
+    return "";
+  }
+  const liberacao =
+    item.liberacao && typeof item.liberacao === "object" ? item.liberacao : {};
+  const conclusao =
+    item.conclusao && typeof item.conclusao === "object" ? item.conclusao : {};
+  const registroExecucao =
+    item.registroExecucao && typeof item.registroExecucao === "object"
+      ? item.registroExecucao
+      : {};
+  const fields = [
+    item.id,
+    item.titulo,
+    item.nome,
+    item.atividade,
+    item.local,
+    item.subestacao,
+    item.equipamento,
+    item.equipamentoId,
+    item.status,
+    item.categoria,
+    item.prioridade,
+    item.criticidade,
+    item.responsavel,
+    item.osReferencia,
+    item.osNumero,
+    item.referencia,
+    liberacao.osNumero,
+    liberacao.osReferencia,
+    conclusao.referencia,
+    conclusao.osNumero,
+    registroExecucao.comentario,
+    registroExecucao.observacaoExecucao,
+    registroExecucao.resultado,
+  ];
+  const labels = getMaintenanceResponsibleLabels(item);
+  if (labels.length) {
+    fields.push(labels.join(" "));
+  }
+  return normalizeSearchValue(fields.filter(Boolean).join(" "));
+}
+
+function countMaintenanceEvidenceEntries(item) {
+  if (!item || typeof item !== "object") {
+    return 0;
+  }
+  let total = 0;
+  const count = (value) => (Array.isArray(value) ? value.length : 0);
+  total += count(item.evidencias);
+  total += count(item.anexos);
+  total += count(item.arquivos);
+  if (item.registroExecucao && typeof item.registroExecucao === "object") {
+    total += count(item.registroExecucao.evidencias);
+  }
+  if (item.conclusao && typeof item.conclusao === "object") {
+    total += count(item.conclusao.evidencias);
+    if (item.conclusao.intercorrencia && typeof item.conclusao.intercorrencia === "object") {
+      total += count(item.conclusao.intercorrencia.fotos);
+    }
+  }
+  if (item.intercorrencia && typeof item.intercorrencia === "object") {
+    total += count(item.intercorrencia.fotos);
+  }
+  return total;
+}
+
+function summarizeMaintenanceList(list) {
+  const byStatus = {
+    agendada: 0,
+    liberada: 0,
+    em_execucao: 0,
+    encerramento: 0,
+    concluida: 0,
+    backlog: 0,
+    cancelada: 0,
+    other: 0,
+  };
+  let withExecution = 0;
+  let withEvidence = 0;
+  list.forEach((item) => {
+    const status = normalizeStatus(item && item.status);
+    if (Object.prototype.hasOwnProperty.call(byStatus, status)) {
+      byStatus[status] += 1;
+    } else {
+      byStatus.other += 1;
+    }
+    if (hasExecucaoRegistrada(item)) {
+      withExecution += 1;
+    }
+    if (countMaintenanceEvidenceEntries(item) > 0) {
+      withEvidence += 1;
+    }
+  });
+  return {
+    totalItems: list.length,
+    withExecution,
+    withEvidence,
+    byStatus,
+  };
+}
+
+function buildMaintenanceSummaryItem(item) {
+  if (!item || typeof item !== "object") {
+    return item;
+  }
+  const liberacao =
+    item.liberacao && typeof item.liberacao === "object" ? item.liberacao : {};
+  const conclusao =
+    item.conclusao && typeof item.conclusao === "object" ? item.conclusao : {};
+  return {
+    id: item.id || "",
+    projectId: item.projectId || "",
+    status: item.status || "",
+    titulo: item.titulo || item.nome || item.atividade || "",
+    local: item.local || item.subestacao || "",
+    subestacao: item.subestacao || "",
+    equipamento: item.equipamento || "",
+    equipamentoId: item.equipamentoId || "",
+    categoria: item.categoria || "",
+    prioridade: item.prioridade || "",
+    criticidade: item.criticidade || "",
+    responsavel: item.responsavel || "",
+    responsavelIds: getMaintenanceResponsibleIds(item),
+    osNumero:
+      item.osNumero ||
+      item.osReferencia ||
+      item.referencia ||
+      liberacao.osNumero ||
+      liberacao.osReferencia ||
+      conclusao.osNumero ||
+      conclusao.referencia ||
+      "",
+    data: item.data || "",
+    prazo: item.prazo || "",
+    dueDate: item.dueDate || "",
+    createdAt: item.createdAt || "",
+    updatedAt: item.updatedAt || "",
+    executionStartedAt: item.executionStartedAt || "",
+    executionFinishedAt: item.executionFinishedAt || "",
+    doneAt: item.doneAt || "",
+    hasExecucaoRegistrada: hasExecucaoRegistrada(item),
+    evidenciasCount: countMaintenanceEvidenceEntries(item),
+  };
+}
+
+function sanitizeInlineDataUrls(value, context) {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (/^data:[^;]+;base64,/i.test(trimmed)) {
+      context.removed += 1;
+      return "[inline-data-url-omitted]";
+    }
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => sanitizeInlineDataUrls(entry, context));
+  }
+  if (value && typeof value === "object") {
+    const output = {};
+    Object.keys(value).forEach((key) => {
+      output[key] = sanitizeInlineDataUrls(value[key], context);
+    });
+    return output;
+  }
+  return value;
+}
+
+function sanitizeMaintenanceListItem(item, options = {}) {
+  const source = item && typeof item === "object" ? item : null;
+  if (!source) {
+    return item;
+  }
+  if (options.includeInlineDataUrls) {
+    return source;
+  }
+  const context = { removed: 0 };
+  const sanitized = sanitizeInlineDataUrls(source, context);
+  if (context.removed > 0 && sanitized && typeof sanitized === "object") {
+    sanitized.inlineDataUrlsOmitted = context.removed;
+  }
+  return sanitized;
+}
+
+function estimateJsonBytes(value) {
+  try {
+    return Buffer.byteLength(JSON.stringify(value), "utf8");
+  } catch (error) {
+    return 0;
+  }
+}
+
 function normalizePersonLabel(label) {
   return String(label || "")
     .trim()
@@ -17481,6 +17758,7 @@ app.post("/api/maintenance/templates/sync", requireAuth, requireStorageWritable,
 });
 
 app.get("/api/maintenance", requireAuth, (req, res) => {
+  const startedAt = Date.now();
   const user = req.currentUser || getSessionUser(req);
   const fromQuery = String(req.query.projectId || "").trim();
   const projectId = fromQuery || getActiveProjectId(req, user);
@@ -17510,7 +17788,108 @@ app.get("/api/maintenance", requireAuth, (req, res) => {
     writeJson(MAINTENANCE_FILE, [...filtered, ...list]);
     touchCompat("maintenance", projectId);
   }
-  return res.json({ items: list, projectId });
+
+  const statusFilter = parseMaintenanceStatusFilter(req.query.status || "");
+  if (statusFilter.size) {
+    list = list.filter((item) => statusFilter.has(normalizeStatus(item && item.status)));
+  }
+
+  const searchTermRaw = String(req.query.q || req.query.search || "").trim();
+  const searchTerm = normalizeSearchValue(searchTermRaw);
+  if (searchTerm) {
+    list = list.filter((item) => getMaintenanceSearchBlob(item).includes(searchTerm));
+  }
+
+  const mode = parseMaintenanceListMode(req.query.mode);
+  const includeInlineDataUrls = parseBooleanLike(req.query.inlineData);
+  const includeSummary =
+    req.query.summary === undefined ? true : parseBooleanLike(req.query.summary);
+  const wantsAll = parseBooleanLike(req.query.all) || parseBooleanLike(req.query.full);
+  const requestedLimit = parsePositiveInt(req.query.limit, MAINTENANCE_LIST_DEFAULT_LIMIT);
+  const safeLimit = Math.min(MAINTENANCE_LIST_MAX_LIMIT, requestedLimit);
+  const totalItems = list.length;
+
+  let page = 1;
+  let limit = safeLimit;
+  let totalPages = Math.max(1, Math.ceil(totalItems / Math.max(1, safeLimit)));
+  let pageItems = list;
+
+  if (wantsAll) {
+    if (totalItems > MAINTENANCE_LIST_FULL_MAX_ITEMS) {
+      return res.status(413).json({
+        message:
+          "Resultado muito grande para retorno completo. Use paginação com page/limit.",
+        reason: "maintenance_full_limit_exceeded",
+        projectId,
+        totalItems,
+        maxItems: MAINTENANCE_LIST_FULL_MAX_ITEMS,
+      });
+    }
+    page = 1;
+    limit = totalItems > 0 ? totalItems : safeLimit;
+    totalPages = totalItems > 0 ? 1 : 0;
+    pageItems = list;
+  } else {
+    const requestedPage = parsePositiveInt(req.query.page, 1);
+    const boundedPage = Math.min(requestedPage, MAINTENANCE_LIST_MAX_PAGE);
+    page = Math.min(boundedPage, totalPages);
+    const offset = (page - 1) * safeLimit;
+    const end = offset + safeLimit;
+    pageItems = list.slice(offset, end);
+  }
+
+  const items =
+    mode === "summary"
+      ? pageItems.map((item) => buildMaintenanceSummaryItem(item))
+      : pageItems.map((item) =>
+          sanitizeMaintenanceListItem(item, {
+            includeInlineDataUrls,
+          })
+        );
+
+  const payload = {
+    items,
+    projectId,
+    pagination: {
+      page,
+      limit,
+      totalItems,
+      totalPages,
+      hasNextPage: !wantsAll && page < totalPages,
+      hasPrevPage: !wantsAll && page > 1,
+      mode,
+      all: wantsAll,
+      maxLimit: MAINTENANCE_LIST_MAX_LIMIT,
+      fullMaxItems: MAINTENANCE_LIST_FULL_MAX_ITEMS,
+    },
+  };
+
+  if (includeSummary) {
+    payload.summary = summarizeMaintenanceList(list);
+  }
+
+  const responseBytes = estimateJsonBytes(payload);
+  const durationMs = Date.now() - startedAt;
+  const logPayload = {
+    projectId,
+    mode,
+    all: wantsAll,
+    page,
+    limit,
+    totalItems,
+    returnedItems: items.length,
+    responseBytes,
+    durationMs,
+    statusFilterCount: statusFilter.size,
+    hasSearch: Boolean(searchTerm),
+  };
+  if (responseBytes >= MAINTENANCE_LIST_WARN_RESPONSE_BYTES) {
+    console.warn("[maintenance-list] large-response", logPayload);
+  } else {
+    console.info("[maintenance-list] ok", logPayload);
+  }
+
+  return res.json(payload);
 });
 
 app.delete("/api/maintenance/:id", requireAuth, requireStorageWritable, (req, res) => {

@@ -5820,6 +5820,11 @@ function compactEvidencias(list) {
         delete cleaned.dataUrl;
         changed = true;
       }
+      if (url && url.trim().startsWith("data:")) {
+        delete cleaned.url;
+        cleaned.inlineDataUrlOmitted = true;
+        changed = true;
+      }
       return cleaned;
     });
   };
@@ -5875,12 +5880,23 @@ function stripDataUrlField(entry) {
   if (!entry || typeof entry !== "object") {
     return entry;
   }
-  if (!("dataUrl" in entry) && !("dataURL" in entry)) {
+  const hasDataUrlField = "dataUrl" in entry || "dataURL" in entry;
+  const rawUrl = typeof entry.url === "string" ? entry.url.trim() : "";
+  const rawSrc = typeof entry.src === "string" ? entry.src.trim() : "";
+  if (!hasDataUrlField && !rawUrl.startsWith("data:") && !rawSrc.startsWith("data:")) {
     return entry;
   }
   const clone = { ...entry };
   delete clone.dataUrl;
   delete clone.dataURL;
+  if (rawUrl.startsWith("data:")) {
+    delete clone.url;
+    clone.inlineDataUrlOmitted = true;
+  }
+  if (rawSrc.startsWith("data:")) {
+    delete clone.src;
+    clone.inlineDataUrlOmitted = true;
+  }
   return clone;
 }
 
@@ -12451,7 +12467,7 @@ function salvarManutencoes(lista, options = {}) {
     markMaintenanceDirtyIds(dirtyIds);
   }
   if (!options.skipSync) {
-    scheduleMaintenanceSync(lista, forceSync || hadQuotaError);
+    scheduleMaintenanceSync(compacted.list, forceSync || hadQuotaError);
   }
 }
 
@@ -56288,9 +56304,107 @@ async function apiTemplatesSync(items, projectId) {
   });
 }
 
-async function apiMaintenanceList(projectId) {
-  const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
-  return apiRequest(`/api/maintenance${query}`);
+const MAINTENANCE_API_PAGE_LIMIT = 200;
+const MAINTENANCE_API_MAX_PAGES = 200;
+
+async function apiMaintenanceList(projectId, options = {}) {
+  const params = new URLSearchParams();
+  if (projectId) {
+    params.set("projectId", String(projectId));
+  }
+  const mode = options && options.mode === "summary" ? "summary" : "full";
+  params.set("mode", mode);
+  const includeSummary = options && options.summary === false ? false : true;
+  params.set("summary", includeSummary ? "true" : "false");
+  if (options && options.status) {
+    params.set("status", String(options.status));
+  }
+  if (options && options.q) {
+    params.set("q", String(options.q));
+  }
+  if (options && options.inlineData === true) {
+    params.set("inlineData", "true");
+  }
+  const requestedLimit =
+    options && Number.isFinite(Number(options.limit)) && Number(options.limit) > 0
+      ? Math.floor(Number(options.limit))
+      : MAINTENANCE_API_PAGE_LIMIT;
+  const safeLimit = Math.max(1, Math.min(MAINTENANCE_API_PAGE_LIMIT, requestedLimit));
+  const wantsAll = Boolean(options && options.all === true);
+  const shouldAggregate = !(options && options.aggregate === false);
+  const requestedPage =
+    options && Number.isFinite(Number(options.page)) && Number(options.page) > 0
+      ? Math.floor(Number(options.page))
+      : 1;
+
+  if (wantsAll || !shouldAggregate) {
+    params.set("limit", String(safeLimit));
+    if (wantsAll) {
+      params.set("all", "true");
+    } else {
+      params.set("page", String(requestedPage));
+    }
+    const singleQuery = params.toString();
+    return apiRequest(`/api/maintenance${singleQuery ? `?${singleQuery}` : ""}`);
+  }
+
+  let page = requestedPage;
+  let fetchedPages = 0;
+  let mergedItems = [];
+  let firstPayload = null;
+  let lastPagination = null;
+
+  while (fetchedPages < MAINTENANCE_API_MAX_PAGES) {
+    params.set("limit", String(safeLimit));
+    params.set("page", String(page));
+    const query = params.toString();
+    const data = await apiRequest(`/api/maintenance${query ? `?${query}` : ""}`);
+    if (!firstPayload) {
+      firstPayload = data && typeof data === "object" ? { ...data } : {};
+    }
+    const items = Array.isArray(data && data.items) ? data.items : [];
+    mergedItems = mergedItems.concat(items);
+    fetchedPages += 1;
+    const pagination =
+      data && data.pagination && typeof data.pagination === "object" ? data.pagination : null;
+    lastPagination = pagination;
+    if (!pagination || !pagination.hasNextPage) {
+      break;
+    }
+    page = Number(pagination.page || page) + 1;
+  }
+
+  const output = firstPayload || {};
+  output.items = mergedItems;
+  output.projectId = output.projectId || (projectId ? String(projectId) : "");
+  if (lastPagination) {
+    output.pagination = {
+      ...lastPagination,
+      aggregated: true,
+      fetchedPages,
+      returnedItems: mergedItems.length,
+    };
+  } else {
+    output.pagination = {
+      page: requestedPage,
+      limit: safeLimit,
+      totalItems: mergedItems.length,
+      totalPages: 1,
+      hasNextPage: false,
+      hasPrevPage: requestedPage > 1,
+      aggregated: true,
+      fetchedPages,
+      returnedItems: mergedItems.length,
+    };
+  }
+  if (fetchedPages >= MAINTENANCE_API_MAX_PAGES && lastPagination && lastPagination.hasNextPage) {
+    console.warn("[maintenance-list] paginação truncada no cliente", {
+      maxPages: MAINTENANCE_API_MAX_PAGES,
+      fetchedPages,
+      projectId: output.projectId || "",
+    });
+  }
+  return output;
 }
 
 async function apiMaintenanceDelete(maintenanceId, projectId) {
