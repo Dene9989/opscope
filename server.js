@@ -63,6 +63,10 @@ const SESSION_FILE_CLEANUP_MS = Math.max(
   30 * 1000,
   Number(process.env.OPSCOPE_SESSION_CLEANUP_MS) || 5 * 60 * 1000
 );
+const SESSION_FILE_MAX_BYTES = Math.min(
+  16 * 1024 * 1024,
+  Math.max(256 * 1024, Number(process.env.OPSCOPE_SESSION_MAX_FILE_BYTES) || 4 * 1024 * 1024)
+);
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Admin@12345!";
 const MASTER_USERNAME = "denisson.alves";
 const MASTER_NAME = "Denisson Silva Alves";
@@ -204,6 +208,8 @@ let dbWritesPausedUntil = 0;
 let dbReconnectTimer = null;
 let dbLastConnectivityLogAt = 0;
 let storageWriteFailure = null;
+const oversizedJsonReadFiles = new Set();
+const oversizedJsonWarned = new Set();
 const DATA_FILE_NAMES = [
   "invites.json",
   "audit.json",
@@ -359,6 +365,7 @@ const STORE_FILES = [
   PMP_EXECUTIONS_FILE,
 ];
 const STORE_SYNC_SKIP_REMOTE_FILES = new Set([path.resolve(API_LOG_FILE)]);
+const STORE_DB_WRITE_SKIP_FILES = new Set([...STORE_SYNC_SKIP_REMOTE_FILES]);
 const POWERBI_SOURCE_REGISTRY = {
   all: [...STORE_FILES, PROCEDIMENTOS_FILE],
   inicio: [MAINTENANCE_FILE, AUDIT_FILE, API_LOG_FILE],
@@ -495,6 +502,10 @@ const API_LOG_LIMIT = Number(process.env.API_LOG_LIMIT) || 800;
 const API_LOG_MAX_FILE_BYTES = Math.max(
   512 * 1024,
   Number(process.env.OPSCOPE_API_LOG_MAX_FILE_BYTES) || 8 * 1024 * 1024
+);
+const JSON_FILE_MAX_BYTES = Math.min(
+  128 * 1024 * 1024,
+  Math.max(2 * 1024 * 1024, Number(process.env.OPSCOPE_JSON_MAX_FILE_BYTES) || 48 * 1024 * 1024)
 );
 const DB_STORE_PAYLOAD_MAX_BYTES = Math.max(
   2 * 1024 * 1024,
@@ -1634,6 +1645,33 @@ function createFileSessionStore() {
         if (!fs.existsSync(this.filePath)) {
           return;
         }
+        const stats = fs.statSync(this.filePath);
+        if (stats && Number.isFinite(Number(stats.size)) && Number(stats.size) > SESSION_FILE_MAX_BYTES) {
+          const oversizedPath = path.join(
+            BACKUP_DIR,
+            `sessions-oversized-${new Date().toISOString().replace(/[:.]/g, "-")}.json`
+          );
+          try {
+            ensureBackupDir();
+            fs.copyFileSync(this.filePath, oversizedPath);
+          } catch (copyError) {
+            // noop
+          }
+          try {
+            fs.writeFileSync(
+              this.filePath,
+              JSON.stringify({ updatedAt: new Date().toISOString(), sessions: {} }, null, 2)
+            );
+          } catch (truncateError) {
+            // noop
+          }
+          console.warn("[session] sessions.json excedeu limite e foi resetado com backup.", {
+            bytes: stats.size,
+            maxBytes: SESSION_FILE_MAX_BYTES,
+            backup: oversizedPath,
+          });
+          return;
+        }
         const raw = fs.readFileSync(this.filePath, "utf8");
         if (!raw) {
           return;
@@ -1888,8 +1926,9 @@ function readJson(filePath, fallback) {
     if (!fs.existsSync(filePath)) {
       return fallback;
     }
+    const resolved = path.resolve(filePath);
+    const stats = fs.statSync(filePath);
     if (path.resolve(filePath) === path.resolve(API_LOG_FILE)) {
-      const stats = fs.statSync(filePath);
       if (stats && Number.isFinite(Number(stats.size)) && Number(stats.size) > API_LOG_MAX_FILE_BYTES) {
         const oversizedPath = path.join(
           BACKUP_DIR,
@@ -1913,8 +1952,23 @@ function readJson(filePath, fallback) {
         }
       }
     }
+    if (stats && Number.isFinite(Number(stats.size)) && Number(stats.size) > JSON_FILE_MAX_BYTES) {
+      oversizedJsonReadFiles.add(resolved);
+      if (!oversizedJsonWarned.has(resolved)) {
+        oversizedJsonWarned.add(resolved);
+        console.warn("[storage] JSON ignorado por tamanho excessivo para proteger memoria.", {
+          file: filePath,
+          bytes: stats.size,
+          maxBytes: JSON_FILE_MAX_BYTES,
+        });
+      }
+      return fallback;
+    }
     const raw = fs.readFileSync(filePath, "utf8");
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    oversizedJsonReadFiles.delete(resolved);
+    oversizedJsonWarned.delete(resolved);
+    return parsed;
   } catch (error) {
     return fallback;
   }
@@ -1959,12 +2013,26 @@ function clearStorageWriteFailure(filePath) {
 }
 
 function writeJson(filePath, data, options = {}) {
+  const resolved = path.resolve(filePath);
+  if (oversizedJsonReadFiles.has(resolved) && !options.allowOversizedOverwrite) {
+    const warnKey = `${resolved}::write`;
+    if (!oversizedJsonWarned.has(warnKey)) {
+      oversizedJsonWarned.add(warnKey);
+      console.warn("[storage] Escrita bloqueada para arquivo JSON oversized preservado.", {
+        file: filePath,
+      });
+    }
+    return false;
+  }
   try {
     const dir = path.dirname(filePath);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+    oversizedJsonReadFiles.delete(resolved);
+    oversizedJsonWarned.delete(resolved);
+    oversizedJsonWarned.delete(`${resolved}::write`);
     clearStorageWriteFailure(filePath);
   } catch (error) {
     markStorageWriteFailure(filePath, error);
@@ -2080,6 +2148,15 @@ async function upsertStorePayload(key, payload) {
   if (typeof serialized !== "string") {
     serialized = "null";
   }
+  const serializedBytes = Buffer.byteLength(serialized, "utf8");
+  if (serializedBytes > DB_STORE_PAYLOAD_MAX_BYTES) {
+    console.warn("[db] Payload local nao enviado ao store remoto por tamanho excessivo.", {
+      key,
+      bytes: serializedBytes,
+      maxBytes: DB_STORE_PAYLOAD_MAX_BYTES,
+    });
+    return;
+  }
   await dbPool.query(
     `INSERT INTO ${DB_STORE_TABLE} (key, payload, updated_at)
      VALUES ($1, $2, NOW())
@@ -2094,22 +2171,23 @@ async function fetchStorePayload(key) {
     return { payload: null, oversized: false, updatedAt: "" };
   }
   const result = await dbPool.query(
-    `SELECT payload, updated_at FROM ${DB_STORE_TABLE} WHERE key = $1`,
-    [key]
+    `SELECT
+       CASE
+         WHEN octet_length(payload) <= $2 THEN payload
+         ELSE NULL
+       END AS payload,
+       octet_length(payload) AS payload_bytes,
+       updated_at
+     FROM ${DB_STORE_TABLE}
+     WHERE key = $1`,
+    [key, DB_STORE_PAYLOAD_MAX_BYTES]
   );
   if (!result || !result.rowCount) {
     return { payload: null, oversized: false, updatedAt: "" };
   }
   const row = result.rows[0] || {};
-  const raw = row.payload;
+  const payloadBytes = Number(row.payload_bytes || 0);
   const updatedAt = row.updated_at ? new Date(row.updated_at).toISOString() : "";
-  if (raw === null || typeof raw === "undefined") {
-    return { payload: null, oversized: false, updatedAt };
-  }
-  if (typeof raw !== "string") {
-    return { payload: raw, oversized: false, updatedAt };
-  }
-  const payloadBytes = Buffer.byteLength(raw, "utf8");
   if (payloadBytes > DB_STORE_PAYLOAD_MAX_BYTES) {
     console.warn("[db] Payload remoto ignorado por tamanho excessivo.", {
       key,
@@ -2117,6 +2195,13 @@ async function fetchStorePayload(key) {
       maxBytes: DB_STORE_PAYLOAD_MAX_BYTES,
     });
     return { payload: null, oversized: true, updatedAt };
+  }
+  const raw = row.payload;
+  if (raw === null || typeof raw === "undefined") {
+    return { payload: null, oversized: false, updatedAt };
+  }
+  if (typeof raw !== "string") {
+    return { payload: raw, oversized: false, updatedAt };
   }
   try {
     return { payload: JSON.parse(raw), oversized: false, updatedAt };
@@ -2211,6 +2296,9 @@ function queueDbWrite(filePath, data) {
     return;
   }
   if (Date.now() < dbWritesPausedUntil) {
+    return;
+  }
+  if (STORE_DB_WRITE_SKIP_FILES.has(path.resolve(filePath || ""))) {
     return;
   }
   const key = getStoreKey(filePath);
