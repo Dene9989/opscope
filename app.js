@@ -239,6 +239,7 @@ const kpiAgingChart = document.getElementById("kpiAgingChart");
 const kpiAgingMeta = document.getElementById("kpiAgingMeta");
 const kpiSlaChart = document.getElementById("kpiSlaChart");
 const kpiSlaMeta = document.getElementById("kpiSlaMeta");
+const kpiIntelligencePanel = document.getElementById("kpiIntelligencePanel");
 const tendenciasPanel = document.getElementById("tendencias");
 const kpiGargalos = document.getElementById("kpiGargalos");
 const kpiGargalosVazio = document.getElementById("kpiGargalosVazio");
@@ -17385,7 +17386,6 @@ function getMaintenanceState(item, data, hoje) {
 
 function renderHome() {
   loadDashboardSummary();
-  loadIntelligenceSummary();
   renderDashboardHome();
 }
 
@@ -17407,20 +17407,20 @@ function buildHomeIntelligenceMarkup() {
   const summaryPayload =
     intelligenceSummary && intelligenceSummary.summary ? intelligenceSummary.summary : null;
   if (!summaryPayload && intelligenceRequest) {
-    return `<article class="card panel-card home-intelligence-card"><p class="home-intelligence-empty">Carregando inteligência operacional...</p></article>`;
+    return `<div class="home-intelligence-card"><p class="home-intelligence-empty">Carregando inteligência operacional...</p></div>`;
   }
   if (!summaryPayload && intelligenceError) {
     return `
-      <article class="card panel-card home-intelligence-card">
+      <div class="home-intelligence-card">
         <p class="home-intelligence-empty">${escapeHtml(intelligenceError)}</p>
         <div class="home-intelligence-actions">
           <button type="button" class="btn btn--ghost btn--small" data-intelligence-refresh="1">Tentar novamente</button>
         </div>
-      </article>
+      </div>
     `;
   }
   if (!summaryPayload) {
-    return `<article class="card panel-card home-intelligence-card"><p class="home-intelligence-empty">Sem dados de inteligência para o projeto selecionado.</p></article>`;
+    return `<div class="home-intelligence-card"><p class="home-intelligence-empty">Sem dados de inteligência para o projeto selecionado.</p></div>`;
   }
 
   const totals = summaryPayload.totals && typeof summaryPayload.totals === "object" ? summaryPayload.totals : {};
@@ -17478,7 +17478,7 @@ function buildHomeIntelligenceMarkup() {
     : `<li class="home-intelligence-scenario home-intelligence-scenario--empty">Sem cenários cadastrados.</li>`;
 
   return `
-    <article class="card panel-card home-intelligence-card">
+    <div class="home-intelligence-card">
       <div class="panel-head panel-head--split">
         <h3>INTELIGÊNCIA OPERACIONAL</h3>
         <span class="intel-badge ${riskVisual.className}">
@@ -17516,8 +17516,15 @@ function buildHomeIntelligenceMarkup() {
           <button type="button" class="btn btn--ghost btn--small" data-intelligence-refresh="1">Atualizar inteligência</button>
         </div>
       </div>
-    </article>
+    </div>
   `;
+}
+
+function renderKpiIntelligencePanel() {
+  if (!kpiIntelligencePanel) {
+    return;
+  }
+  kpiIntelligencePanel.innerHTML = buildHomeIntelligenceMarkup();
 }
 
 function renderDashboardHome() {
@@ -17951,11 +17958,6 @@ function renderDashboardHome() {
             </div>
           </article>
         </div>
-      </section>
-
-      <section class="home-section">
-        <h3 class="home-section__title">Inteligência e cenários</h3>
-        ${buildHomeIntelligenceMarkup()}
       </section>
 
       <section class="home-section">
@@ -29765,6 +29767,8 @@ function renderPainelKpiGerencial() {
   renderKpiBacklogMotivos(itensPeriodo);
   renderKpiRanking(itensPeriodo, filtros);
   renderKpiDrilldown();
+  renderKpiIntelligencePanel();
+  loadIntelligenceSummary();
 }
 
 function handleKpiDrilldownClick(event) {
@@ -57504,6 +57508,7 @@ async function loadIntelligenceSummary(force = false) {
     intelligenceSummaryProjectId = "";
     intelligenceInconsistencies = [];
     intelligenceError = "";
+    renderKpiIntelligencePanel();
     return;
   }
   const now = Date.now();
@@ -57538,6 +57543,7 @@ async function loadIntelligenceSummary(force = false) {
   ]);
   intelligenceRequest = requestPromise;
   intelligenceRequestProjectId = projectId;
+  renderKpiIntelligencePanel();
   try {
     const [summaryData, inconsistenciesData] = await requestPromise;
     if (requestToken !== intelligenceRequestToken || projectId !== String(activeProjectId || "").trim()) {
@@ -57563,7 +57569,7 @@ async function loadIntelligenceSummary(force = false) {
       intelligenceRequestProjectId = "";
     }
     if (projectId === String(activeProjectId || "").trim()) {
-      renderDashboardHome();
+      renderKpiIntelligencePanel();
     }
   }
 }

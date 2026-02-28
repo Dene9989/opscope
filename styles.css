@@ -5593,7 +5593,16 @@ body.is-visitor .container.auth-only {
 }
 
 .home-intelligence-card {
+  display: grid;
   gap: 14px;
+}
+
+.home-intelligence-card h3 {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
 }
 
 .home-intelligence-kpis {
