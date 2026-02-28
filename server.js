@@ -44,6 +44,7 @@ try {
   rgb = null;
 }
 const { createPowerBIRouter } = require("./src/powerbi/routes");
+const { createIntelligenceRouter } = require("./src/intelligence/routes");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -228,6 +229,10 @@ const DATA_FILE_NAMES = [
   "contingency_attachments.json",
   "contingency_code_counter.json",
   "access_roles.json",
+  "intelligence_events.json",
+  "intelligence_inconsistencies.json",
+  "intelligence_scenarios.json",
+  "intelligence_snapshots.json",
 ];
 
 const ENV_DATA_DIR = process.env.OPSCOPE_DATA_DIR
@@ -289,6 +294,10 @@ const CONTINGENCY_CODE_COUNTER_FILE = path.join(DATA_DIR, "contingency_code_coun
 const ACCESS_ROLES_FILE = path.join(DATA_DIR, "access_roles.json");
 const PMP_ACTIVITIES_FILE = path.join(DATA_DIR, "pmp_activities.json");
 const PMP_EXECUTIONS_FILE = path.join(DATA_DIR, "pmp_executions.json");
+const INTELLIGENCE_EVENTS_FILE = path.join(DATA_DIR, "intelligence_events.json");
+const INTELLIGENCE_INCONSISTENCIES_FILE = path.join(DATA_DIR, "intelligence_inconsistencies.json");
+const INTELLIGENCE_SCENARIOS_FILE = path.join(DATA_DIR, "intelligence_scenarios.json");
+const INTELLIGENCE_SNAPSHOTS_FILE = path.join(DATA_DIR, "intelligence_snapshots.json");
 const STORE_FILES = [
   USERS_FILE,
   VERIFICATIONS_FILE,
@@ -414,6 +423,32 @@ const POWERBI_SOURCE_LABELS = {
   almoxarifado: "Almoxarifado",
   sst: "SST",
   feedbacks: "Feedbacks e comunicacoes",
+};
+const INTELLIGENCE_SOURCE_REGISTRY = {
+  all: [...STORE_FILES, PROCEDIMENTOS_FILE],
+  inicio: [MAINTENANCE_FILE, AUDIT_FILE, API_LOG_FILE],
+  manutencao: [MAINTENANCE_FILE, MAINTENANCE_TEMPLATES_FILE, RDO_SNAPSHOTS_FILE],
+  programacao: [MAINTENANCE_FILE],
+  execucao: [MAINTENANCE_FILE],
+  backlog: [MAINTENANCE_FILE],
+  intercorrencias: [MAINTENANCE_FILE],
+  contingencias: [CONTINGENCIES_FILE, CONTINGENCY_TIMELINE_FILE, CONTINGENCY_ATTACHMENTS_FILE],
+  pmp: [PMP_ACTIVITIES_FILE, PMP_EXECUTIONS_FILE, PROCEDIMENTOS_FILE],
+  auditoria: [AUDIT_FILE],
+  logs: [API_LOG_FILE],
+  uploads: [FILES_META_FILE],
+  sst: [
+    SST_TRAININGS_FILE,
+    SST_TRAINING_RECORDS_FILE,
+    SST_INSPECTION_TEMPLATES_FILE,
+    SST_INSPECTIONS_FILE,
+    SST_NONCONFORMITIES_FILE,
+    SST_INCIDENTS_FILE,
+    SST_APRS_FILE,
+    SST_PERMITS_FILE,
+    SST_VEHICLES_FILE,
+    SST_DOCS_FILE,
+  ],
 };
 const FILES_DIR = path.join(UPLOADS_DIR, "files");
 const SMTP_HOST = process.env.SMTP_HOST || "";
@@ -12677,6 +12712,29 @@ app.use(
     databaseUrl: DATABASE_URL,
     dbStoreTable: DB_STORE_TABLE,
     dbUploadsTable: DB_UPLOADS_TABLE,
+    getDefaultProjectId: (req, user) => getActiveProjectId(req, user),
+    canAccessProject: (req, projectId, user) => {
+      const actor = user || req.currentUser || getSessionUser(req);
+      if (!projectId) {
+        return true;
+      }
+      return userHasProjectAccess(actor, projectId);
+    },
+  })
+);
+
+app.use(
+  createIntelligenceRouter({
+    requireAuth,
+    baseDataDir: DATA_DIR,
+    usersFile: USERS_FILE,
+    sourceRegistry: INTELLIGENCE_SOURCE_REGISTRY,
+    databaseUrl: DATABASE_URL,
+    dbStoreTable: DB_STORE_TABLE,
+    eventsFile: INTELLIGENCE_EVENTS_FILE,
+    inconsistenciesFile: INTELLIGENCE_INCONSISTENCIES_FILE,
+    scenariosFile: INTELLIGENCE_SCENARIOS_FILE,
+    snapshotsFile: INTELLIGENCE_SNAPSHOTS_FILE,
     getDefaultProjectId: (req, user) => getActiveProjectId(req, user),
     canAccessProject: (req, projectId, user) => {
       const actor = user || req.currentUser || getSessionUser(req);

@@ -5009,6 +5009,14 @@ let dashboardLastFetch = 0;
 let dashboardRequest = null;
 let dashboardRequestProjectId = "";
 let dashboardRequestToken = 0;
+let intelligenceSummary = null;
+let intelligenceSummaryProjectId = "";
+let intelligenceInconsistencies = [];
+let intelligenceError = "";
+let intelligenceLastFetch = 0;
+let intelligenceRequest = null;
+let intelligenceRequestProjectId = "";
+let intelligenceRequestToken = 0;
 let maintenanceSyncTimer = null;
 let maintenanceSyncPromise = null;
 let maintenanceLastSync = 0;
@@ -12839,6 +12847,14 @@ async function setActiveProjectId(nextId, options = {}) {
   dashboardRequest = null;
   dashboardRequestProjectId = "";
   dashboardRequestToken += 1;
+  intelligenceSummary = null;
+  intelligenceSummaryProjectId = "";
+  intelligenceInconsistencies = [];
+  intelligenceError = "";
+  intelligenceLastFetch = 0;
+  intelligenceRequest = null;
+  intelligenceRequestProjectId = "";
+  intelligenceRequestToken += 1;
   templatesSyncEnabled = false;
   persistActiveProjectId(trimmed);
   renderDashboardHome();
@@ -17369,7 +17385,139 @@ function getMaintenanceState(item, data, hoje) {
 
 function renderHome() {
   loadDashboardSummary();
+  loadIntelligenceSummary();
   renderDashboardHome();
+}
+
+function resolveIntelligenceRiskLabel(levelRaw) {
+  const level = normalizeSearchValue(levelRaw || "");
+  if (level.includes("crit")) {
+    return { label: "Crítico", className: "intel-badge--critical" };
+  }
+  if (level.includes("high") || level.includes("alto")) {
+    return { label: "Alto", className: "intel-badge--high" };
+  }
+  if (level.includes("med")) {
+    return { label: "Médio", className: "intel-badge--medium" };
+  }
+  return { label: "Controlado", className: "intel-badge--low" };
+}
+
+function buildHomeIntelligenceMarkup() {
+  const summaryPayload =
+    intelligenceSummary && intelligenceSummary.summary ? intelligenceSummary.summary : null;
+  if (!summaryPayload && intelligenceRequest) {
+    return `<article class="card panel-card home-intelligence-card"><p class="home-intelligence-empty">Carregando inteligência operacional...</p></article>`;
+  }
+  if (!summaryPayload && intelligenceError) {
+    return `
+      <article class="card panel-card home-intelligence-card">
+        <p class="home-intelligence-empty">${escapeHtml(intelligenceError)}</p>
+        <div class="home-intelligence-actions">
+          <button type="button" class="btn btn--ghost btn--small" data-intelligence-refresh="1">Tentar novamente</button>
+        </div>
+      </article>
+    `;
+  }
+  if (!summaryPayload) {
+    return `<article class="card panel-card home-intelligence-card"><p class="home-intelligence-empty">Sem dados de inteligência para o projeto selecionado.</p></article>`;
+  }
+
+  const totals = summaryPayload.totals && typeof summaryPayload.totals === "object" ? summaryPayload.totals : {};
+  const risk = summaryPayload.risk && typeof summaryPayload.risk === "object" ? summaryPayload.risk : {};
+  const riskVisual = resolveIntelligenceRiskLabel(risk.level || "low");
+  const generatedAt = intelligenceSummary.generatedAt
+    ? formatDateTime(parseTimestamp(intelligenceSummary.generatedAt) || new Date())
+    : formatDateTime(new Date());
+  const issues = Array.isArray(intelligenceInconsistencies) ? intelligenceInconsistencies.slice(0, 4) : [];
+  const issueRows = issues.length
+    ? issues
+        .map((item) => {
+          const severity = String(item.severity || "").toLowerCase();
+          const chipClass = severity.includes("crit")
+            ? "alert-chip--danger"
+            : severity.includes("high")
+              ? "alert-chip--warn"
+              : "alert-chip--info";
+          return `
+            <li class="home-intelligence-issue">
+              <span class="alert-chip ${chipClass}">${escapeHtml(item.severity || "info")}</span>
+              <div>
+                <strong>${escapeHtml(item.title || "Inconsistência")}</strong>
+                <p>${escapeHtml(item.message || "")}</p>
+              </div>
+            </li>
+          `;
+        })
+        .join("")
+    : `<li class="home-intelligence-issue home-intelligence-issue--empty">Nenhuma inconsistência crítica no momento.</li>`;
+
+  const scenarios = Array.isArray(intelligenceSummary.scenarios) ? intelligenceSummary.scenarios.slice(0, 3) : [];
+  const scenarioRows = scenarios.length
+    ? scenarios
+        .map(
+          (scenario) => `
+            <li class="home-intelligence-scenario">
+              <div>
+                <strong>${escapeHtml(scenario.name || scenario.id || "Cenário")}</strong>
+                <p>${escapeHtml(
+                  (scenario.preview && scenario.preview.headline) || scenario.description || ""
+                )}</p>
+              </div>
+              <button
+                type="button"
+                class="btn btn--ghost btn--small"
+                data-intelligence-simulate="${escapeHtml(scenario.id || "")}"
+              >
+                Simular
+              </button>
+            </li>
+          `
+        )
+        .join("")
+    : `<li class="home-intelligence-scenario home-intelligence-scenario--empty">Sem cenários cadastrados.</li>`;
+
+  return `
+    <article class="card panel-card home-intelligence-card">
+      <div class="panel-head panel-head--split">
+        <h3>INTELIGÊNCIA OPERACIONAL</h3>
+        <span class="intel-badge ${riskVisual.className}">
+          Risco ${riskVisual.label} (${Number(risk.score || 0)})
+        </span>
+      </div>
+      <p class="panel-subtitle">Leitura automática de riscos e inconsistências para decisão rápida do turno.</p>
+      <div class="home-intelligence-kpis">
+        <article class="kpi-card kpi-card--compact"><span>Eventos</span><strong>${Number(
+          totals.events || 0
+        )}</strong><small>no escopo atual</small></article>
+        <article class="kpi-card kpi-card--compact"><span>Abertos</span><strong>${Number(
+          totals.openEvents || 0
+        )}</strong><small>em tratamento</small></article>
+        <article class="kpi-card kpi-card--compact"><span>Vencidos</span><strong>${Number(
+          totals.overdueEvents || 0
+        )}</strong><small>fora da janela</small></article>
+        <article class="kpi-card kpi-card--compact"><span>Críticos</span><strong>${Number(
+          totals.criticalOpen || 0
+        )}</strong><small>abertos</small></article>
+      </div>
+      <div class="home-intelligence-grid">
+        <div>
+          <h4>Inconsistências priorizadas</h4>
+          <ul class="home-intelligence-list">${issueRows}</ul>
+        </div>
+        <div>
+          <h4>Cenários de simulação</h4>
+          <ul class="home-intelligence-list">${scenarioRows}</ul>
+        </div>
+      </div>
+      <div class="home-intelligence-footer">
+        <small>Atualizado em ${escapeHtml(generatedAt)}</small>
+        <div class="home-intelligence-actions">
+          <button type="button" class="btn btn--ghost btn--small" data-intelligence-refresh="1">Atualizar inteligência</button>
+        </div>
+      </div>
+    </article>
+  `;
 }
 
 function renderDashboardHome() {
@@ -17803,6 +17951,11 @@ function renderDashboardHome() {
             </div>
           </article>
         </div>
+      </section>
+
+      <section class="home-section">
+        <h3 class="home-section__title">Inteligência e cenários</h3>
+        ${buildHomeIntelligenceMarkup()}
       </section>
 
       <section class="home-section">
@@ -48082,6 +48235,14 @@ function renderAuthUI() {
     dashboardRequest = null;
     dashboardRequestProjectId = "";
     dashboardRequestToken += 1;
+    intelligenceSummary = null;
+    intelligenceSummaryProjectId = "";
+    intelligenceInconsistencies = [];
+    intelligenceError = "";
+    intelligenceLastFetch = 0;
+    intelligenceRequest = null;
+    intelligenceRequestProjectId = "";
+    intelligenceRequestToken += 1;
     maintenanceLastSync = 0;
     maintenanceLastUserId = null;
     filesState.items = [];
@@ -56452,6 +56613,144 @@ async function apiDashboardSummary(projectId = activeProjectId) {
   return apiRequest(`/api/dashboard/summary${query}`);
 }
 
+function buildIntelligenceQueryString(params = {}) {
+  const query = new URLSearchParams();
+  const source = String(params.source || "inicio").trim();
+  if (source) {
+    query.set("source", source);
+  }
+  const projectId = String(params.projectId || "").trim();
+  if (projectId) {
+    query.set("projectId", projectId);
+  }
+  const from = String(params.from || "").trim();
+  if (from) {
+    query.set("from", from);
+  }
+  const to = String(params.to || "").trim();
+  if (to) {
+    query.set("to", to);
+  }
+  if (params.force) {
+    query.set("force", "true");
+  }
+  if (params.severity) {
+    query.set("severity", String(params.severity).trim());
+  }
+  if (params.status) {
+    query.set("status", String(params.status).trim());
+  }
+  if (params.limit !== undefined && params.limit !== null && params.limit !== "") {
+    query.set("limit", String(params.limit));
+  }
+  if (params.offset !== undefined && params.offset !== null && params.offset !== "") {
+    query.set("offset", String(params.offset));
+  }
+  if (params.filters && typeof params.filters === "object") {
+    query.set("filters", JSON.stringify(params.filters));
+  }
+  return query.toString();
+}
+
+function buildIntelligenceFallback(projectId = activeProjectId) {
+  const scoped = Array.isArray(manutencoes)
+    ? manutencoes.filter(
+        (item) => item && (!projectId || !item.projectId || String(item.projectId) === String(projectId))
+      )
+    : [];
+  const local = buildLocalDashboardSummary(scoped, projectId);
+  const openEvents = Number((local && local.kpis && local.kpis.aguardandoConclusao) || 0);
+  const criticalOpen = Number((local && local.kpis && local.kpis.criticas) || 0);
+  const overdueEvents = Number((local && local.kpis && local.kpis.atrasadas) || 0);
+  const riskScore = Math.max(
+    0,
+    Math.min(100, Math.round(criticalOpen * 12 + overdueEvents * 7 + openEvents * 2))
+  );
+  return {
+    generatedAt: new Date().toISOString(),
+    source: "inicio",
+    projectId: String(projectId || ""),
+    summary: {
+      generatedAt: new Date().toISOString(),
+      source: "inicio",
+      projectId: String(projectId || ""),
+      totals: {
+        events: scoped.length,
+        openEvents,
+        closedEvents: Math.max(0, scoped.length - openEvents),
+        overdueEvents,
+        criticalOpen,
+        recurringFailures: 0,
+      },
+      risk: {
+        score: riskScore,
+        level: riskScore >= 75 ? "critical" : riskScore >= 55 ? "high" : riskScore >= 30 ? "medium" : "low",
+      },
+      topSources: [{ name: "manutencao", count: scoped.length }],
+      topRules: [],
+      recommendations: ["Sincronize com o servidor para obter a inteligência completa deste projeto."],
+    },
+    scenarios: [],
+    counts: {
+      events: scoped.length,
+      inconsistencies: 0,
+    },
+  };
+}
+
+async function apiIntelligenceSummary(params = {}) {
+  const projectId = String(params.projectId || activeProjectId || "").trim();
+  if (!USE_AUTH_API) {
+    return buildIntelligenceFallback(projectId);
+  }
+  const query = buildIntelligenceQueryString({
+    source: params.source || "inicio",
+    projectId,
+    from: params.from || "",
+    to: params.to || "",
+    filters: params.filters || {},
+    force: Boolean(params.force),
+  });
+  return apiRequest(`/api/intelligence/summary${query ? `?${query}` : ""}`);
+}
+
+async function apiIntelligenceInconsistencies(params = {}) {
+  const projectId = String(params.projectId || activeProjectId || "").trim();
+  if (!USE_AUTH_API) {
+    return { total: 0, items: [], generatedAt: new Date().toISOString() };
+  }
+  const query = buildIntelligenceQueryString({
+    source: params.source || "inicio",
+    projectId,
+    from: params.from || "",
+    to: params.to || "",
+    filters: params.filters || {},
+    severity: params.severity || "",
+    status: params.status || "",
+    limit: params.limit !== undefined ? params.limit : 5,
+    offset: params.offset !== undefined ? params.offset : 0,
+    force: Boolean(params.force),
+  });
+  return apiRequest(`/api/intelligence/inconsistencies${query ? `?${query}` : ""}`);
+}
+
+async function apiIntelligenceSimulate(params = {}) {
+  const projectId = String(params.projectId || activeProjectId || "").trim();
+  if (!USE_AUTH_API) {
+    throw new Error("Simulação de inteligência disponível apenas com API autenticada.");
+  }
+  return apiRequest("/api/intelligence/scenarios/simulate", {
+    method: "POST",
+    body: JSON.stringify({
+      source: params.source || "inicio",
+      projectId,
+      scenarioId: params.scenarioId || params.id || "",
+      overrides: params.overrides && typeof params.overrides === "object" ? params.overrides : {},
+      filters: params.filters && typeof params.filters === "object" ? params.filters : {},
+    }),
+  });
+}
+
 async function apiProjetosList() {
   if (!USE_AUTH_API) {
     seedDefaultProjectsIfEmpty();
@@ -57195,6 +57494,111 @@ async function loadDashboardSummary(force, options = {}) {
   }
 }
 
+async function loadIntelligenceSummary(force = false) {
+  if (!currentUser) {
+    return;
+  }
+  const projectId = String(activeProjectId || "").trim();
+  if (!projectId) {
+    intelligenceSummary = null;
+    intelligenceSummaryProjectId = "";
+    intelligenceInconsistencies = [];
+    intelligenceError = "";
+    return;
+  }
+  const now = Date.now();
+  if (!force && intelligenceRequest && intelligenceRequestProjectId === projectId) {
+    return;
+  }
+  const intelligenceTtlMs = Math.max(30 * 1000, DASHBOARD_CLIENT_TTL_MS || 60 * 1000);
+  if (
+    !force &&
+    intelligenceSummary &&
+    intelligenceSummaryProjectId === projectId &&
+    now - intelligenceLastFetch < intelligenceTtlMs
+  ) {
+    return;
+  }
+  intelligenceError = "";
+  const requestToken = ++intelligenceRequestToken;
+  const requestPromise = Promise.all([
+    apiIntelligenceSummary({
+      source: "inicio",
+      projectId,
+      force,
+      filters: { projectId },
+    }),
+    apiIntelligenceInconsistencies({
+      source: "inicio",
+      projectId,
+      limit: 4,
+      force,
+      filters: { projectId },
+    }),
+  ]);
+  intelligenceRequest = requestPromise;
+  intelligenceRequestProjectId = projectId;
+  try {
+    const [summaryData, inconsistenciesData] = await requestPromise;
+    if (requestToken !== intelligenceRequestToken || projectId !== String(activeProjectId || "").trim()) {
+      return;
+    }
+    intelligenceSummary = summaryData || null;
+    intelligenceSummaryProjectId = projectId;
+    intelligenceInconsistencies = Array.isArray(inconsistenciesData && inconsistenciesData.items)
+      ? inconsistenciesData.items
+      : [];
+    intelligenceLastFetch = Date.now();
+  } catch (error) {
+    if (requestToken !== intelligenceRequestToken || projectId !== String(activeProjectId || "").trim()) {
+      return;
+    }
+    intelligenceSummary = null;
+    intelligenceSummaryProjectId = "";
+    intelligenceInconsistencies = [];
+    intelligenceError = "Falha ao carregar inteligência operacional. Tente novamente.";
+  } finally {
+    if (intelligenceRequest === requestPromise) {
+      intelligenceRequest = null;
+      intelligenceRequestProjectId = "";
+    }
+    if (projectId === String(activeProjectId || "").trim()) {
+      renderDashboardHome();
+    }
+  }
+}
+
+async function handleIntelligenceScenarioSimulate(scenarioId) {
+  const safeScenarioId = String(scenarioId || "").trim();
+  if (!safeScenarioId || !currentUser || !activeProjectId) {
+    return;
+  }
+  try {
+    const result = await apiIntelligenceSimulate({
+      source: "inicio",
+      projectId: activeProjectId,
+      scenarioId: safeScenarioId,
+      overrides: {},
+      filters: { projectId: activeProjectId },
+    });
+    const scenario = result && result.scenario ? result.scenario : null;
+    if (!scenario) {
+      showAuthToast("Simulação concluída sem retorno válido.");
+      return;
+    }
+    const priority = scenario.impact && scenario.impact.priority ? scenario.impact.priority : "-";
+    const escalation =
+      scenario.impact && scenario.impact.escalationIndex !== undefined
+        ? scenario.impact.escalationIndex
+        : "-";
+    showAuthToast(`Simulação ${scenario.name || safeScenarioId}: prioridade ${priority} | índice ${escalation}.`);
+  } catch (error) {
+    const message =
+      (error && error.message) || "Falha ao simular cenário de inteligência.";
+    showAuthToast(message);
+  }
+}
+
 function aprovarSolicitacao(item) {
   if (!currentUser || !canInviteUsuarios(currentUser)) {
     mostrarMensagemGerencial("Sem permissão para aprovar solicitações.", true);
@@ -57384,6 +57788,19 @@ tabButtons.forEach((botao) => {
 });
 
 document.addEventListener("click", (event) => {
+  const intelligenceRefresh = event.target.closest("[data-intelligence-refresh]");
+  if (intelligenceRefresh && !intelligenceRefresh.disabled) {
+    event.preventDefault();
+    loadIntelligenceSummary(true);
+    return;
+  }
+  const intelligenceScenarioBtn = event.target.closest("[data-intelligence-simulate]");
+  if (intelligenceScenarioBtn && !intelligenceScenarioBtn.disabled) {
+    event.preventDefault();
+    const scenarioId = intelligenceScenarioBtn.dataset.intelligenceSimulate;
+    handleIntelligenceScenarioSimulate(scenarioId);
+    return;
+  }
   const trigger = event.target.closest("[data-open-tab]");
   if (!trigger || trigger.disabled) {
     return;

@@ -1,3 +1,7 @@
 storage/
 data/users.json
+data/intelligence_events.json
+data/intelligence_inconsistencies.json
+data/intelligence_scenarios.json
+data/intelligence_snapshots.json
 .env

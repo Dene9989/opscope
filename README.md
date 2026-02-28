@@ -61,3 +61,12 @@ Sistema web para gestao operacional e manutencao.
 - Endpoint: `GET /api/powerbi/export`
 - Fontes disponiveis: `GET /api/powerbi/sources`
 - Documentacao detalhada: `docs/powerbi_export.md`
+
+## Inteligencia Operacional
+
+- Health: `GET /api/intelligence/health`
+- Rebuild manual: `POST /api/intelligence/rebuild`
+- Resumo: `GET /api/intelligence/summary`
+- Inconsistencias: `GET /api/intelligence/inconsistencies`
+- Simulacao: `POST /api/intelligence/scenarios/simulate`
+- Documentacao detalhada: `docs/intelligence_operacional.md`

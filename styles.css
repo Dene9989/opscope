@@ -5588,6 +5588,138 @@ body.is-visitor .container.auth-only {
   border-color: rgba(139, 188, 228, 0.62);
 }
 
+.panel-head--split {
+  align-items: flex-start;
+}
+
+.home-intelligence-card {
+  gap: 14px;
+}
+
+.home-intelligence-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.home-intelligence-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.home-intelligence-grid h4 {
+  margin: 0 0 8px;
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.home-intelligence-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.home-intelligence-issue,
+.home-intelligence-scenario {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface2);
+  padding: 10px 12px;
+}
+
+.home-intelligence-issue {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.home-intelligence-issue strong,
+.home-intelligence-scenario strong {
+  display: block;
+  font-size: 0.86rem;
+  color: var(--text);
+}
+
+.home-intelligence-issue p,
+.home-intelligence-scenario p {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.home-intelligence-scenario {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.home-intelligence-issue--empty,
+.home-intelligence-scenario--empty,
+.home-intelligence-empty {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.home-intelligence-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.home-intelligence-footer small {
+  color: var(--muted);
+}
+
+.home-intelligence-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.intel-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.intel-badge--critical {
+  color: #ffdfdf;
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+.intel-badge--high {
+  color: #ffe6bb;
+  background: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.45);
+}
+
+.intel-badge--medium {
+  color: #dbeafe;
+  background: rgba(59, 130, 246, 0.18);
+  border-color: rgba(59, 130, 246, 0.45);
+}
+
+.intel-badge--low {
+  color: #dcfce7;
+  background: rgba(34, 197, 94, 0.16);
+  border-color: rgba(34, 197, 94, 0.45);
+}
+
 .trend-tag {
   display: inline-flex;
   align-items: center;
@@ -14599,6 +14731,14 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 
+  .home-intelligence-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .home-intelligence-grid {
+    grid-template-columns: 1fr;
+  }
+
   .topbar {
     padding: 8px 14px;
   }
@@ -14747,6 +14887,15 @@ textarea:focus {
 
   .efficiency-kpis {
     grid-template-columns: 1fr;
+  }
+
+  .home-intelligence-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .home-intelligence-scenario {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .account-grid {
