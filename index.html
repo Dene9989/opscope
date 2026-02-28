@@ -764,6 +764,34 @@
                 <span class="nav-item__label">KPIs e Tend&ecirc;ncias</span>
                 <span class="nav-item__meta"></span>
               </button>
+              <button
+                class="nav-item"
+                type="button"
+                data-tab="inteligencia"
+                data-tooltip="Intelig&ecirc;ncia Operacional"
+              >
+                <span class="nav-item__ico">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M12 3a6 6 0 0 0-3.8 10.6c.7.6 1.2 1.4 1.2 2.3V17h5.2v-1.1c0-.9.4-1.7 1.2-2.3A6 6 0 0 0 12 3Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M9.5 20h5M10 17h4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </span>
+                <span class="nav-item__label">Intelig&ecirc;ncia Operacional</span>
+                <span class="nav-item__meta"></span>
+              </button>
             </div>
           </section>
 
@@ -3960,12 +3988,6 @@
       </section>
 
       <section class="card card-kpi">
-        <h2>Inteligência operacional</h2>
-        <p class="hint">Leitura automática de riscos e inconsistências para decisão rápida.</p>
-        <div id="kpiIntelligencePanel"></div>
-      </section>
-
-      <section class="card card-kpi">
         <h2>Resumo executivo</h2>
         <div id="kpiCards" class="kpi-grid kpi-grid--gerencial"></div>
       </section>
@@ -4069,6 +4091,19 @@
         <p id="kpiDrilldownVazio" class="empty-state" hidden>Nenhum item encontrado.</p>
       </section>
     </section>
+
+    <section class="panel panel-kpi" id="inteligencia" data-panel="inteligencia">
+      <section class="card card-kpi">
+        <div class="card-kpi__head">
+          <div>
+            <h2>Inteligência operacional</h2>
+            <p class="hint">Leitura automática de riscos, inconsistências e cenários para decisão rápida do turno.</p>
+          </div>
+        </div>
+        <div id="kpiIntelligencePanel"></div>
+      </section>
+    </section>
+
     <section class="panel page-relatorios" id="relatorios" data-panel="relatorios">
       <section class="card">
         <div class="report-header">

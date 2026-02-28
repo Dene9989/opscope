@@ -241,6 +241,7 @@ const kpiSlaChart = document.getElementById("kpiSlaChart");
 const kpiSlaMeta = document.getElementById("kpiSlaMeta");
 const kpiIntelligencePanel = document.getElementById("kpiIntelligencePanel");
 const tendenciasPanel = document.getElementById("tendencias");
+const inteligenciaPanel = document.getElementById("inteligencia");
 const kpiGargalos = document.getElementById("kpiGargalos");
 const kpiGargalosVazio = document.getElementById("kpiGargalosVazio");
 const kpiBacklogMotivos = document.getElementById("kpiBacklogMotivos");
@@ -1712,6 +1713,7 @@ const SECTION_LABELS = {
   "performance-projects": "Desempenho por projeto",
   "performance-people": "Desempenho por colaborador",
   tendencias: "KPIs e tendências",
+  inteligencia: "Inteligência operacional",
   relatorios: "Relatórios",
   feedbacks: "Feedbacks",
   perfil: "Meu perfil",
@@ -3305,6 +3307,7 @@ const TAB_PERMISSION_MAP = {
   "performance-projects": "verRelatorios",
   "performance-people": "verRelatorios",
   tendencias: "verRelatorios",
+  inteligencia: "verRelatorios",
   relatorios: ["verRelatorios", "verRDOs"],
   projetos: [
     "verProjetos",
@@ -13274,6 +13277,7 @@ const TAB_LABELS = {
   "performance-projects": "Desempenho por Projeto",
   "performance-people": "Desempenho por Colaborador",
   tendencias: "KPIs e Tend\u00eancias",
+  inteligencia: "Inteligência Operacional",
   relatorios: "Relat\u00f3rios Gerenciais",
   feedbacks: "Feedbacks",
   almoxarifado: "Almoxarifado",
@@ -13482,6 +13486,11 @@ Object.assign(HELP_MODULES, {
     when: "Use para avaliar padr\u00f5es e riscos operacionais.",
     examples: ["Avaliar tend\u00eancia trimestral de SLA."],
   },
+  inteligencia: {
+    purpose: "Consolida inteligência operacional, inconsistências e cenários de simulação.",
+    when: "Use para análise tática e tomada de decisão rápida no turno.",
+    examples: ["Priorizar inconsistências críticas antes da execução."],
+  },
   relatorios: {
     purpose: "Gera relat\u00f3rios operacionais e gerenciais.",
     when: "Use para consolidar resultados e exportar dados.",
@@ -13572,6 +13581,7 @@ Object.assign(HELP_MODULE_ACTIONS, {
   "performance-projects": [{ label: "Comparar desempenho entre projetos.", allow: () => true }],
   "performance-people": [{ label: "Comparar desempenho por colaborador.", allow: () => true }],
   tendencias: [{ label: "Analisar tend\u00eancias e KPIs.", allow: () => true }],
+  inteligencia: [{ label: "Analisar inteligência operacional e simulações.", allow: () => true }],
   relatorios: [
     { label: "Visualizar relat\u00f3rios gerenciais.", allow: () => canViewRelatorios(currentUser) },
     { label: "Exportar relat\u00f3rios em PDF ou Excel.", allow: () => canExportRelatorios(currentUser) },
@@ -28237,10 +28247,13 @@ function applyKpiTheme(mode, options = {}) {
   const persist = options.persist !== false;
   const nextMode = KPI_THEMES.includes(mode) ? mode : KPI_THEME_EXECUTIVO;
   kpiThemeMode = nextMode;
-  if (tendenciasPanel) {
-    tendenciasPanel.classList.remove("kpi-theme--executivo", "kpi-theme--neon");
-    tendenciasPanel.classList.add(`kpi-theme--${nextMode}`);
-  }
+  [tendenciasPanel, inteligenciaPanel].forEach((panel) => {
+    if (!panel) {
+      return;
+    }
+    panel.classList.remove("kpi-theme--executivo", "kpi-theme--neon");
+    panel.classList.add(`kpi-theme--${nextMode}`);
+  });
   updateKpiThemeButtonLabel(nextMode);
   if (persist) {
     persistKpiThemeMode(nextMode);
@@ -55683,6 +55696,10 @@ function ativarTab(nome, options = {}) {
   if (currentUser && tabName === "feedbacks") {
     carregarFeedbacks(true);
   }
+  if (currentUser && tabName === "inteligencia") {
+    renderKpiIntelligencePanel();
+    loadIntelligenceSummary();
+  }
 }
 
 async function authLoginLocal(login, senha) {
@@ -57528,13 +57545,13 @@ async function loadIntelligenceSummary(force = false) {
   const requestToken = ++intelligenceRequestToken;
   const requestPromise = Promise.all([
     apiIntelligenceSummary({
-      source: "inicio",
+      source: "inteligencia",
       projectId,
       force,
       filters: { projectId },
     }),
     apiIntelligenceInconsistencies({
-      source: "inicio",
+      source: "inteligencia",
       projectId,
       limit: 4,
       force,
@@ -57581,7 +57598,7 @@ async function handleIntelligenceScenarioSimulate(scenarioId) {
   }
   try {
     const result = await apiIntelligenceSimulate({
-      source: "inicio",
+      source: "inteligencia",
       projectId: activeProjectId,
       scenarioId: safeScenarioId,
       overrides: {},
@@ -62349,6 +62366,11 @@ function setupPowerBIExportButtons() {
         usuario: readPowerBIFieldValue(kpiUsuarioFiltro),
       },
     }),
+  });
+
+  registerPowerBIExport({
+    containerSelector: "#inteligencia .card-kpi",
+    source: "tendencias",
   });
 
   registerPowerBIExport({
