@@ -28,10 +28,13 @@ body {
   --navy: #0b1e2d;
   --surface: #0f2436;
   --surface2: #132c41;
-  --text: #eaf0f6;
-  --muted: #9fb0c0;
+  --text: #f2f8ff;
+  --muted: #c7d6e5;
+  --text-high-contrast: #f4f9ff;
+  --muted-high-contrast: #cfdeed;
+  --border-high-contrast: rgba(255, 255, 255, 0.24);
   --accent: #c8923d;
-  --border: rgba(255, 255, 255, 0.1);
+  --border: rgba(255, 255, 255, 0.16);
   --color-bg: var(--bg);
   --color-bg-alt: #efeae3;
   --color-surface: #ffffff;
@@ -4841,6 +4844,12 @@ body.is-visitor .container.auth-only {
   display: block;
 }
 
+.app {
+  --text: var(--text-high-contrast);
+  --muted: var(--muted-high-contrast);
+  --border: var(--border-high-contrast);
+}
+
 .app .card,
 .app .manutencao-item,
 .app .account-item,
@@ -4938,7 +4947,7 @@ body.is-visitor .container.auth-only {
 
 .app input::placeholder,
 .app textarea::placeholder {
-  color: rgba(159, 176, 192, 0.6);
+  color: rgba(207, 222, 237, 0.82);
 }
 
 .dashboard-home {
@@ -17165,4 +17174,56 @@ textarea:focus {
     width: 100%;
     justify-content: center;
   }
+}
+
+/* Contraste reforçado para superfícies escuras */
+.page-modelos,
+.page-relatorios,
+.page-gerencial {
+  --text-strong: #f7fbff;
+  --text-body: #e2edf7;
+  --text-muted: #cad9e8;
+  --card-border: rgba(255, 255, 255, 0.2);
+  --field-border: rgba(255, 255, 255, 0.3);
+}
+
+.panel-kpi {
+  --kpi-text: #f3f9ff;
+  --kpi-text-soft: #d2e2f2;
+  --kpi-text-muted: #bdd0e3;
+  --kpi-chart-label: rgba(237, 247, 255, 0.94);
+}
+
+.panel-kpi.kpi-theme--neon {
+  --kpi-text: #f4ffff;
+  --kpi-text-soft: #d1e5f6;
+  --kpi-text-muted: #bfd4e8;
+  --kpi-chart-label: rgba(240, 250, 255, 0.95);
+}
+
+.panel-desempenho {
+  --perf-text: #f2f8ff;
+  --perf-text-soft: #cedff0;
+  --perf-chart-label: rgba(236, 247, 255, 0.93);
+  --perf-border: rgba(120, 182, 229, 0.52);
+}
+
+.panel-desempenho.perf-theme--neon {
+  --perf-text: #f3ffff;
+  --perf-text-soft: #cfe3f5;
+  --perf-chart-label: rgba(239, 250, 255, 0.94);
+}
+
+.panel-performance-projects {
+  --pproj-text: #f3f9ff;
+  --pproj-text-soft: rgba(238, 247, 255, 0.9);
+  --pproj-border: rgba(154, 214, 255, 0.44);
+  --pproj-border-strong: rgba(175, 228, 255, 0.62);
+}
+
+.panel-performance-people {
+  --ppeople-text: #f3f9ff;
+  --ppeople-text-soft: rgba(238, 247, 255, 0.9);
+  --ppeople-border: rgba(160, 218, 255, 0.44);
+  --ppeople-border-strong: rgba(181, 232, 255, 0.62);
 }
