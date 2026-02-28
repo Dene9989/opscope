@@ -26,8 +26,18 @@ const DUE_DATE_KEYS = [
   "deadline",
   "prazo",
   "dataPrazo",
+  "data",
+  "date",
+  "dataHora",
+  "data_hora",
   "plannedAt",
+  "plannedDate",
+  "scheduledAt",
+  "scheduledDate",
   "programadaPara",
+  "programadaEm",
+  "agendadaPara",
+  "executionDate",
 ];
 
 const DONE_DATE_KEYS = [
@@ -258,4 +268,3 @@ module.exports = {
   inferDate,
   flattenForSearch,
 };
-

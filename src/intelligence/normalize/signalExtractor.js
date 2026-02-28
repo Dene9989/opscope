@@ -23,7 +23,7 @@ function extractSignals(event, nowInput = new Date()) {
 
   const statusNormalized = normalizeStatus(event.status);
   const isClosed = statusNormalized === "closed" || statusNormalized === "cancelled";
-  const isOpen = !isClosed;
+  const isOpen = statusNormalized === "open";
   const isCritical = severityValue(event.severity) >= 4;
   const isHigh = severityValue(event.severity) >= 3;
   const overdue = Boolean(dueDate && isOpen && dueDate < now);
@@ -77,4 +77,3 @@ function extractSignals(event, nowInput = new Date()) {
 module.exports = {
   extractSignals,
 };
-

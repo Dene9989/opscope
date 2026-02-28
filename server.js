@@ -50,6 +50,19 @@ const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || "0.0.0.0";
 const SESSION_SECRET = process.env.SESSION_SECRET || "opscope_dev_secret_change";
+const SESSION_FILE = "sessions.json";
+const SESSION_FILE_TTL_MS = Math.max(
+  60 * 60 * 1000,
+  Number(process.env.OPSCOPE_SESSION_TTL_MS) || 8 * 60 * 60 * 1000
+);
+const SESSION_FILE_FLUSH_MS = Math.max(
+  500,
+  Number(process.env.OPSCOPE_SESSION_FLUSH_MS) || 1000
+);
+const SESSION_FILE_CLEANUP_MS = Math.max(
+  30 * 1000,
+  Number(process.env.OPSCOPE_SESSION_CLEANUP_MS) || 5 * 60 * 1000
+);
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Admin@12345!";
 const MASTER_USERNAME = "denisson.alves";
 const MASTER_NAME = "Denisson Silva Alves";
@@ -165,6 +178,7 @@ const STORAGE_DIR = process.env.OPSCOPE_STORAGE_DIR
       "opscope-storage"
     );
 const STORAGE_DATA_DIR = path.join(STORAGE_DIR, "data");
+const SESSION_STORE_FILE = path.join(STORAGE_DIR, SESSION_FILE);
 const DATABASE_URL = process.env.OPSCOPE_DATABASE_URL || process.env.DATABASE_URL || "";
 const DB_ENABLED = Boolean(DATABASE_URL);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
@@ -344,6 +358,7 @@ const STORE_FILES = [
   PMP_ACTIVITIES_FILE,
   PMP_EXECUTIONS_FILE,
 ];
+const STORE_SYNC_SKIP_REMOTE_FILES = new Set([path.resolve(API_LOG_FILE)]);
 const POWERBI_SOURCE_REGISTRY = {
   all: [...STORE_FILES, PROCEDIMENTOS_FILE],
   inicio: [MAINTENANCE_FILE, AUDIT_FILE, API_LOG_FILE],
@@ -424,9 +439,22 @@ const POWERBI_SOURCE_LABELS = {
   sst: "SST",
   feedbacks: "Feedbacks e comunicacoes",
 };
+const INTELLIGENCE_CORE_FILES = [
+  { filePath: MAINTENANCE_FILE, logicalSource: "manutencao" },
+  { filePath: CONTINGENCIES_FILE, logicalSource: "contingencias" },
+  { filePath: CONTINGENCY_TIMELINE_FILE, logicalSource: "contingencias_timeline" },
+  { filePath: CONTINGENCY_ATTACHMENTS_FILE, logicalSource: "contingencias_anexos" },
+  { filePath: PMP_ACTIVITIES_FILE, logicalSource: "pmp_atividades" },
+  { filePath: PMP_EXECUTIONS_FILE, logicalSource: "pmp_execucoes" },
+  { filePath: RDO_SNAPSHOTS_FILE, logicalSource: "rdo" },
+  { filePath: AUDIT_FILE, logicalSource: "auditoria" },
+];
 const INTELLIGENCE_SOURCE_REGISTRY = {
   all: [...STORE_FILES, PROCEDIMENTOS_FILE],
   inicio: [MAINTENANCE_FILE, AUDIT_FILE, API_LOG_FILE],
+  kpis: INTELLIGENCE_CORE_FILES,
+  tendencias: INTELLIGENCE_CORE_FILES,
+  inteligencia: INTELLIGENCE_CORE_FILES,
   manutencao: [MAINTENANCE_FILE, MAINTENANCE_TEMPLATES_FILE, RDO_SNAPSHOTS_FILE],
   programacao: [MAINTENANCE_FILE],
   execucao: [MAINTENANCE_FILE],
@@ -464,6 +492,14 @@ const DASHBOARD_CACHE_TTL_MS = 60 * 1000;
 const DASHBOARD_CACHE = new Map();
 const IS_DEV = process.env.NODE_ENV !== "production";
 const API_LOG_LIMIT = Number(process.env.API_LOG_LIMIT) || 800;
+const API_LOG_MAX_FILE_BYTES = Math.max(
+  512 * 1024,
+  Number(process.env.OPSCOPE_API_LOG_MAX_FILE_BYTES) || 8 * 1024 * 1024
+);
+const DB_STORE_PAYLOAD_MAX_BYTES = Math.max(
+  2 * 1024 * 1024,
+  Number(process.env.OPSCOPE_DB_STORE_PAYLOAD_MAX_BYTES) || 32 * 1024 * 1024
+);
 const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
 const AVATAR_TARGET_BYTES = 1024 * 1024;
 const AVATAR_SIZE = 512;
@@ -1530,6 +1566,242 @@ function ensureBackupDir() {
   }
 }
 
+function ensureSessionStoreDir() {
+  const dir = path.dirname(SESSION_STORE_FILE);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+}
+
+function parseSessionFileDoc(raw) {
+  if (!raw || typeof raw !== "object") {
+    return {};
+  }
+  if (raw.sessions && typeof raw.sessions === "object") {
+    return raw.sessions;
+  }
+  return raw;
+}
+
+function createFileSessionStore() {
+  const BaseStore = session.Store;
+  class FileSessionStore extends BaseStore {
+    constructor(options = {}) {
+      super();
+      this.filePath = options.filePath || SESSION_STORE_FILE;
+      this.ttlMs = Math.max(60 * 1000, Number(options.ttlMs) || SESSION_FILE_TTL_MS);
+      this.flushMs = Math.max(200, Number(options.flushMs) || SESSION_FILE_FLUSH_MS);
+      this.cleanupMs = Math.max(30 * 1000, Number(options.cleanupMs) || SESSION_FILE_CLEANUP_MS);
+      this.sessions = new Map();
+      this.flushTimer = null;
+      this.loadFromDisk();
+      this.cleanupTimer = setInterval(() => {
+        this.cleanupExpired();
+      }, this.cleanupMs);
+      if (typeof this.cleanupTimer.unref === "function") {
+        this.cleanupTimer.unref();
+      }
+    }
+
+    getExpiryMs(sid, sess = null) {
+      const cookie = sess && sess.cookie ? sess.cookie : null;
+      const cookieExpires = cookie && cookie.expires ? new Date(cookie.expires).getTime() : 0;
+      if (cookieExpires && Number.isFinite(cookieExpires)) {
+        return cookieExpires;
+      }
+      const cookieMaxAge = cookie && Number.isFinite(Number(cookie.maxAge)) ? Number(cookie.maxAge) : 0;
+      if (cookieMaxAge > 0) {
+        return Date.now() + cookieMaxAge;
+      }
+      const existing = this.sessions.get(String(sid || ""));
+      if (existing && Number.isFinite(Number(existing.expiresAt)) && Number(existing.expiresAt) > Date.now()) {
+        return Number(existing.expiresAt);
+      }
+      return Date.now() + this.ttlMs;
+    }
+
+    isExpired(record) {
+      if (!record || typeof record !== "object") {
+        return true;
+      }
+      const expiry = Number(record.expiresAt || 0);
+      return Number.isFinite(expiry) && expiry > 0 ? expiry <= Date.now() : false;
+    }
+
+    loadFromDisk() {
+      try {
+        ensureSessionStoreDir();
+        if (!fs.existsSync(this.filePath)) {
+          return;
+        }
+        const raw = fs.readFileSync(this.filePath, "utf8");
+        if (!raw) {
+          return;
+        }
+        const parsed = JSON.parse(raw);
+        const sessionDoc = parseSessionFileDoc(parsed);
+        Object.entries(sessionDoc).forEach(([sid, record]) => {
+          if (!sid || !record || typeof record !== "object") {
+            return;
+          }
+          if (this.isExpired(record)) {
+            return;
+          }
+          const payload = typeof record.payload === "string" ? record.payload : JSON.stringify(record.payload || {});
+          const storedExpiry = Number(record.expiresAt || 0);
+          this.sessions.set(String(sid), {
+            payload,
+            expiresAt:
+              Number.isFinite(storedExpiry) && storedExpiry > 0
+                ? storedExpiry
+                : this.getExpiryMs(sid, record.payload || null),
+            updatedAt: String(record.updatedAt || ""),
+          });
+        });
+      } catch (error) {
+        console.warn("[session] Falha ao carregar sessões persistidas:", error.message || error);
+      }
+    }
+
+    flushToDisk() {
+      this.flushTimer = null;
+      try {
+        ensureSessionStoreDir();
+        const serializable = {};
+        this.sessions.forEach((record, sid) => {
+          if (!sid || !record || this.isExpired(record)) {
+            return;
+          }
+          serializable[sid] = {
+            payload: record.payload,
+            expiresAt: Number(record.expiresAt || 0),
+            updatedAt: record.updatedAt || new Date().toISOString(),
+          };
+        });
+        const tempPath = `${this.filePath}.tmp`;
+        fs.writeFileSync(
+          tempPath,
+          JSON.stringify(
+            {
+              updatedAt: new Date().toISOString(),
+              sessions: serializable,
+            },
+            null,
+            2
+          )
+        );
+        fs.renameSync(tempPath, this.filePath);
+      } catch (error) {
+        console.warn("[session] Falha ao persistir sessões:", error.message || error);
+      }
+    }
+
+    scheduleFlush() {
+      if (this.flushTimer) {
+        return;
+      }
+      this.flushTimer = setTimeout(() => {
+        this.flushToDisk();
+      }, this.flushMs);
+      if (typeof this.flushTimer.unref === "function") {
+        this.flushTimer.unref();
+      }
+    }
+
+    cleanupExpired() {
+      let changed = false;
+      this.sessions.forEach((record, sid) => {
+        if (this.isExpired(record)) {
+          this.sessions.delete(sid);
+          changed = true;
+        }
+      });
+      if (changed) {
+        this.scheduleFlush();
+      }
+    }
+
+    get(sid, callback) {
+      try {
+        const key = String(sid || "");
+        const record = this.sessions.get(key);
+        if (!record || this.isExpired(record)) {
+          if (record) {
+            this.sessions.delete(key);
+            this.scheduleFlush();
+          }
+          callback(null, null);
+          return;
+        }
+        const parsed = JSON.parse(String(record.payload || "{}"));
+        callback(null, parsed);
+      } catch (error) {
+        callback(error);
+      }
+    }
+
+    set(sid, sess, callback) {
+      try {
+        const key = String(sid || "");
+        if (!key) {
+          if (callback) callback(new Error("Session ID inválido."));
+          return;
+        }
+        this.sessions.set(key, {
+          payload: JSON.stringify(sess || {}),
+          expiresAt: this.getExpiryMs(key, sess || null),
+          updatedAt: new Date().toISOString(),
+        });
+        this.scheduleFlush();
+        if (callback) callback(null);
+      } catch (error) {
+        if (callback) callback(error);
+      }
+    }
+
+    destroy(sid, callback) {
+      try {
+        const key = String(sid || "");
+        this.sessions.delete(key);
+        this.scheduleFlush();
+        if (callback) callback(null);
+      } catch (error) {
+        if (callback) callback(error);
+      }
+    }
+
+    touch(sid, sess, callback) {
+      try {
+        const key = String(sid || "");
+        const record = this.sessions.get(key);
+        if (record) {
+          record.expiresAt = this.getExpiryMs(key, sess || null);
+          record.updatedAt = new Date().toISOString();
+          this.sessions.set(key, record);
+          this.scheduleFlush();
+        }
+        if (callback) callback(null);
+      } catch (error) {
+        if (callback) callback(error);
+      }
+    }
+  }
+  return new FileSessionStore({
+    filePath: SESSION_STORE_FILE,
+    ttlMs: SESSION_FILE_TTL_MS,
+    flushMs: SESSION_FILE_FLUSH_MS,
+    cleanupMs: SESSION_FILE_CLEANUP_MS,
+  });
+}
+
+let sessionStore = null;
+try {
+  sessionStore = createFileSessionStore();
+} catch (error) {
+  sessionStore = null;
+  console.warn("[session] Falha ao iniciar armazenamento persistente de sessões:", error.message || error);
+}
+
 function migrateLegacyAvatars() {
   if (LEGACY_AVATARS_DIR === AVATARS_DIR) {
     return;
@@ -1615,6 +1887,31 @@ function readJson(filePath, fallback) {
   try {
     if (!fs.existsSync(filePath)) {
       return fallback;
+    }
+    if (path.resolve(filePath) === path.resolve(API_LOG_FILE)) {
+      const stats = fs.statSync(filePath);
+      if (stats && Number.isFinite(Number(stats.size)) && Number(stats.size) > API_LOG_MAX_FILE_BYTES) {
+        const oversizedPath = path.join(
+          BACKUP_DIR,
+          `api-logs-oversized-${new Date().toISOString().replace(/[:.]/g, "-")}.json`
+        );
+        try {
+          ensureBackupDir();
+          fs.copyFileSync(filePath, oversizedPath);
+        } catch (copyError) {
+          // noop
+        }
+        try {
+          fs.writeFileSync(filePath, "[]");
+          console.warn("[storage] api_logs.json excedeu limite e foi truncado com backup.", {
+            bytes: stats.size,
+            maxBytes: API_LOG_MAX_FILE_BYTES,
+            backup: oversizedPath,
+          });
+        } catch (truncateError) {
+          console.warn("[storage] Falha ao truncar api_logs.json excedido.", truncateError.message || truncateError);
+        }
+      }
     }
     const raw = fs.readFileSync(filePath, "utf8");
     return JSON.parse(raw);
@@ -1794,27 +2091,38 @@ async function upsertStorePayload(key, payload) {
 
 async function fetchStorePayload(key) {
   if (!dbReady || !dbPool || !key) {
-    return null;
+    return { payload: null, oversized: false, updatedAt: "" };
   }
   const result = await dbPool.query(
-    `SELECT payload FROM ${DB_STORE_TABLE} WHERE key = $1`,
+    `SELECT payload, updated_at FROM ${DB_STORE_TABLE} WHERE key = $1`,
     [key]
   );
   if (!result || !result.rowCount) {
-    return null;
+    return { payload: null, oversized: false, updatedAt: "" };
   }
-  const raw = result.rows[0].payload;
+  const row = result.rows[0] || {};
+  const raw = row.payload;
+  const updatedAt = row.updated_at ? new Date(row.updated_at).toISOString() : "";
   if (raw === null || typeof raw === "undefined") {
-    return null;
+    return { payload: null, oversized: false, updatedAt };
   }
   if (typeof raw !== "string") {
-    return raw;
+    return { payload: raw, oversized: false, updatedAt };
+  }
+  const payloadBytes = Buffer.byteLength(raw, "utf8");
+  if (payloadBytes > DB_STORE_PAYLOAD_MAX_BYTES) {
+    console.warn("[db] Payload remoto ignorado por tamanho excessivo.", {
+      key,
+      bytes: payloadBytes,
+      maxBytes: DB_STORE_PAYLOAD_MAX_BYTES,
+    });
+    return { payload: null, oversized: true, updatedAt };
   }
   try {
-    return JSON.parse(raw);
+    return { payload: JSON.parse(raw), oversized: false, updatedAt };
   } catch (error) {
-    console.warn("[db] Payload inválido para", key);
-    return null;
+    console.warn("[db] Payload invalido para", key);
+    return { payload: null, oversized: false, updatedAt };
   }
 }
 
@@ -1935,16 +2243,29 @@ async function syncStoreFile(filePath) {
   if (!key || !dbReady) {
     return;
   }
-  const remotePayload = await fetchStorePayload(key);
+  const resolvedFile = path.resolve(filePath);
+  if (STORE_SYNC_SKIP_REMOTE_FILES.has(resolvedFile)) {
+    return;
+  }
+  const localExists = fs.existsSync(filePath);
+  const localPayload = localExists ? readJson(filePath, null) : null;
+  const localHasPayload = localPayload !== null && typeof localPayload !== "undefined";
+
+  const remote = await fetchStorePayload(key);
+  const remotePayload = remote && remote.payload !== undefined ? remote.payload : null;
   if (remotePayload !== null && typeof remotePayload !== "undefined") {
-    writeJson(filePath, remotePayload, { skipDb: true });
+    if (!writeJson(filePath, remotePayload, { skipDb: true })) {
+      console.warn("[db] Falha ao materializar payload remoto no arquivo local.", { key, filePath });
+    }
     return;
   }
-  if (!fs.existsSync(filePath)) {
+  if (!localExists) {
     return;
   }
-  const localPayload = readJson(filePath, null);
-  if (localPayload !== null && typeof localPayload !== "undefined") {
+  if (localHasPayload) {
+    if (remote && remote.oversized) {
+      console.warn("[db] Regravando payload local para substituir remoto excessivo.", { key });
+    }
     await upsertStorePayload(key, localPayload);
   }
 }
@@ -1954,7 +2275,14 @@ async function syncStoreFiles() {
     return;
   }
   for (const filePath of STORE_FILES) {
-    await syncStoreFile(filePath);
+    try {
+      await syncStoreFile(filePath);
+    } catch (error) {
+      console.warn("[db] Falha ao sincronizar arquivo do store.", {
+        file: filePath,
+        message: error && error.message ? error.message : String(error || ""),
+      });
+    }
   }
 }
 
@@ -2216,12 +2544,18 @@ async function backfillUploadsToDb() {
 }
 
 function registerShutdownHandlers() {
-  if (!dbReady) {
-    return;
-  }
   const shutdown = async () => {
-    await flushDbWrites();
-    if (dbPool) {
+    if (dbReady) {
+      await flushDbWrites();
+    }
+    if (sessionStore && typeof sessionStore.flushToDisk === "function") {
+      try {
+        sessionStore.flushToDisk();
+      } catch (error) {
+        // noop
+      }
+    }
+    if (dbReady && dbPool) {
       await dbPool.end().catch(() => {});
     }
     process.exit(0);
@@ -12484,7 +12818,13 @@ async function bootstrap() {
   migrateLegacyUploads();
   migrateLegacyAvatars();
   await initDatabase();
-  await syncStoreFiles();
+  try {
+    await syncStoreFiles();
+  } catch (error) {
+    console.warn("[db] Sincronização inicial do store falhou. Sistema seguirá com dados locais.", {
+      message: error && error.message ? error.message : String(error || ""),
+    });
+  }
   registerShutdownHandlers();
 
   const usersFileExists = fs.existsSync(USERS_FILE);
@@ -12638,6 +12978,7 @@ app.use(express.json({ limit: "20mb" }));
 app.set("trust proxy", 1);
 app.use(
   session({
+    store: sessionStore || undefined,
     name: "opscope.sid",
     secret: SESSION_SECRET,
     resave: false,

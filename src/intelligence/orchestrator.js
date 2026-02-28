@@ -195,6 +195,38 @@ function buildCounts(events, inconsistencies) {
   };
 }
 
+function getEventOrderTime(event) {
+  const date = parseDate(event && (event.eventTs || event.dueTs || event.doneTs || ""));
+  return date ? date.getTime() : 0;
+}
+
+function dedupeEvents(events = []) {
+  const map = new Map();
+  (Array.isArray(events) ? events : []).forEach((event) => {
+    if (!event || typeof event !== "object") {
+      return;
+    }
+    const eventId = safeText(event.eventId || event.id);
+    if (!eventId) {
+      return;
+    }
+    const key = [eventId, safeText(event.projectId || "_"), safeText(event.source || "_")].join("::");
+    const current = map.get(key);
+    if (!current) {
+      map.set(key, event);
+      return;
+    }
+    if (getEventOrderTime(event) >= getEventOrderTime(current)) {
+      map.set(key, {
+        ...current,
+        ...event,
+        signals: event.signals || current.signals || {},
+      });
+    }
+  });
+  return Array.from(map.values());
+}
+
 function isScopeStale(scope, ttlMs) {
   if (!scope || !scope.updatedAt) {
     return true;
@@ -250,14 +282,16 @@ function createIntelligenceOrchestrator(options = {}) {
       events.push(event);
     });
 
-    events.sort((a, b) => {
+    const dedupedEvents = dedupeEvents(events);
+
+    dedupedEvents.sort((a, b) => {
       const ad = parseDate(a.eventTs || a.dueTs || a.doneTs || "");
       const bd = parseDate(b.eventTs || b.dueTs || b.doneTs || "");
       return (bd ? bd.getTime() : 0) - (ad ? ad.getTime() : 0);
     });
 
     const inconsistencies = runRules({
-      events,
+      events: dedupedEvents,
       context: {
         projectId,
         source: resolvedSource.source,
@@ -268,13 +302,13 @@ function createIntelligenceOrchestrator(options = {}) {
     });
 
     const summary = buildSummary({
-      events,
+      events: dedupedEvents,
       inconsistencies,
       source: resolvedSource.source,
       projectId,
     });
     const scenarios = buildScenarioPreviews({ summary });
-    const counts = buildCounts(events, inconsistencies);
+    const counts = buildCounts(dedupedEvents, inconsistencies);
     const snapshotId = stableHash([scopeKey, generatedAt, counts.events, counts.inconsistencies]).slice(
       0,
       24
@@ -287,7 +321,7 @@ function createIntelligenceOrchestrator(options = {}) {
       to,
       generatedAt,
       snapshotId,
-      events,
+      events: dedupedEvents,
       inconsistencies,
       scenarios,
       summary,
@@ -303,7 +337,7 @@ function createIntelligenceOrchestrator(options = {}) {
       generatedAt,
       counts,
       summary,
-      events,
+      events: dedupedEvents,
       inconsistencies,
       scenarios,
       snapshotId,
@@ -420,4 +454,3 @@ function createIntelligenceOrchestrator(options = {}) {
 module.exports = {
   createIntelligenceOrchestrator,
 };
-

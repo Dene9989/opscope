@@ -5,3 +5,4 @@ data/intelligence_inconsistencies.json
 data/intelligence_scenarios.json
 data/intelligence_snapshots.json
 .env
+.tmp-intelligence-check/

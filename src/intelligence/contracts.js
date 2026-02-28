@@ -51,29 +51,39 @@ function compareSeverityDesc(a, b) {
 
 function normalizeStatus(value) {
   const raw = safeText(value).toLowerCase();
+  const token = raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   if (!raw) {
     return "unknown";
   }
   if (
-    raw.includes("conclu") ||
-    raw.includes("normaliz") ||
-    raw.includes("fechad") ||
-    raw.includes("resolvid") ||
-    raw.includes("finalizad") ||
-    raw.includes("done")
+    token.includes("conclu") ||
+    token.includes("normaliz") ||
+    token.includes("fechad") ||
+    token.includes("resolvid") ||
+    token.includes("finalizad") ||
+    token.includes("encerrad") ||
+    token.includes("executad") ||
+    token.includes("done")
   ) {
     return "closed";
   }
-  if (raw.includes("cancel")) {
+  if (token.includes("cancel")) {
     return "cancelled";
   }
   if (
-    raw.includes("pend") ||
-    raw.includes("analise") ||
-    raw.includes("rascunho") ||
-    raw.includes("abert") ||
-    raw.includes("exec") ||
-    raw.includes("aguard")
+    token.includes("pend") ||
+    token.includes("analise") ||
+    token.includes("rascunh") ||
+    token.includes("abert") ||
+    token.includes("exec") ||
+    token.includes("aguard") ||
+    token.includes("andamento") ||
+    token.includes("agend") ||
+    token.includes("planejad") ||
+    token.includes("programad") ||
+    token.includes("liberad") ||
+    token.includes("ativo") ||
+    token.includes("pronta")
   ) {
     return "open";
   }
@@ -89,4 +99,3 @@ module.exports = {
   compareSeverityDesc,
   normalizeStatus,
 };
-

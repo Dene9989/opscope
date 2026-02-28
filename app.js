@@ -6219,6 +6219,10 @@ async function checkCompatState(force = false) {
   try {
     remote = await apiCompatState();
   } catch (error) {
+    if (isUnauthorizedError(error)) {
+      setCompatStatus("warn", "Compatibilidade: sessão expirada");
+      return;
+    }
     setCompatStatus("warn", "Compatibilidade: offline");
     return;
   }
@@ -7855,8 +7859,73 @@ let passwordResetCooldownTimer = null;
 let passwordResetCooldownUntil = 0;
 let passwordResetCodeSent = false;
 let passwordResetCodeValidated = false;
+let authSessionExpired = false;
+let authSessionNoticeAt = 0;
+const AUTH_SESSION_NOTICE_COOLDOWN_MS = 30000;
+const PROJECT_EQUIP_CACHE_PREFIX = "opscope.projectEquipamentos";
+
+function isAuthApiPath(path) {
+  const normalized = String(path || "").trim().toLowerCase();
+  return normalized.startsWith("/api/auth/");
+}
+
+function getProjectEquipCacheKey(projectId) {
+  const id = String(projectId || "").trim();
+  return id ? `${PROJECT_EQUIP_CACHE_PREFIX}.${id}` : "";
+}
+
+function saveProjectEquipamentosCache(projectId, list) {
+  const key = getProjectEquipCacheKey(projectId);
+  if (!key) {
+    return;
+  }
+  try {
+    const payload = Array.isArray(list) ? list : [];
+    localStorage.setItem(key, JSON.stringify(payload));
+  } catch (error) {
+    // noop
+  }
+}
+
+function loadProjectEquipamentosCache(projectId) {
+  const key = getProjectEquipCacheKey(projectId);
+  if (!key) {
+    return [];
+  }
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((item) => item && typeof item === "object") : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function handleAuthSessionExpired(message = "Sessão expirada. Faça login novamente.") {
+  if (authSessionExpired) {
+    return;
+  }
+  authSessionExpired = true;
+  const now = Date.now();
+  if (now - authSessionNoticeAt > AUTH_SESSION_NOTICE_COOLDOWN_MS) {
+    authSessionNoticeAt = now;
+    showAuthToast(message);
+  }
+  currentUser = null;
+  renderAuthUI();
+  mostrarAuthPanel("login");
+}
 
 async function apiRequest(path, options = {}) {
+  const authPath = isAuthApiPath(path);
+  if (authSessionExpired && !authPath) {
+    const error = new Error("Sessão expirada. Faça login novamente.");
+    error.status = 401;
+    throw error;
+  }
   const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
   let timeoutId = null;
   if (controller) {
@@ -7895,7 +7964,13 @@ async function apiRequest(path, options = {}) {
     const error = new Error(message);
     error.status = response.status;
     error.data = data;
+    if ((response.status === 401 || response.status === 403) && !authPath) {
+      handleAuthSessionExpired(message || "Sessão expirada. Faça login novamente.");
+    }
     throw error;
+  }
+  if (authPath) {
+    authSessionExpired = false;
   }
   return data;
 }
@@ -33149,6 +33224,11 @@ function getEquipamentoNomeById(projectId, equipamentoId) {
       return `${local.tag ? `${local.tag} - ` : ""}${local.nome || ""}`.trim();
     }
   }
+  const persisted = loadProjectEquipamentosCache(projectId);
+  const persistedMatch = persisted.find((item) => item && item.id === equipamentoId);
+  if (persistedMatch) {
+    return `${persistedMatch.tag ? `${persistedMatch.tag} - ` : ""}${persistedMatch.nome || ""}`.trim();
+  }
   return equipamentoId;
 }
 
@@ -33157,6 +33237,10 @@ function getMaintenanceEquipamentoLabel(item) {
     return "-";
   }
   const projectId = item.projectId || activeProjectId;
+  const nomeDireto = String(item.equipamentoNome || item.equipamentoTag || "").trim();
+  if (nomeDireto) {
+    return nomeDireto;
+  }
   if (item.equipamento && typeof item.equipamento === "object") {
     const tag = item.equipamento.tag || "";
     const nome = item.equipamento.nome || item.equipamento.name || "";
@@ -33187,10 +33271,12 @@ async function ensurePmpEquipamentos(projectId) {
     const data = await apiProjetosEquipamentosList(projectId);
     const list = Array.isArray(data.equipamentos) ? data.equipamentos : [];
     pmpEquipamentosCache.set(projectId, list);
+    saveProjectEquipamentosCache(projectId, list);
     return list;
   } catch (error) {
-    pmpEquipamentosCache.set(projectId, []);
-    return [];
+    const cached = loadProjectEquipamentosCache(projectId);
+    pmpEquipamentosCache.set(projectId, cached);
+    return cached;
   }
 }
 
@@ -47710,7 +47796,8 @@ function handleSstDocContainerClick(event) {
 
 
 async function carregarEquipamentosProjeto() {
-  if (!currentUser || !activeProjectId) {
+  const requestProjectId = String(activeProjectId || "").trim();
+  if (!requestProjectId) {
     projectEquipamentos = [];
     projectEquipamentosProjectId = "";
     projectEquipamentosLoadError = "";
@@ -47718,7 +47805,21 @@ async function carregarEquipamentosProjeto() {
     renderEquipamentoOptions();
     return;
   }
-  const requestProjectId = activeProjectId;
+  if (!currentUser) {
+    const cachedOnly = loadProjectEquipamentosCache(requestProjectId);
+    if (cachedOnly.length) {
+      projectEquipamentos = cachedOnly;
+      projectEquipamentosProjectId = requestProjectId;
+      projectEquipamentosLoadError = "sessão expirada";
+    } else {
+      projectEquipamentos = [];
+      projectEquipamentosProjectId = requestProjectId;
+      projectEquipamentosLoadError = "sessão expirada";
+    }
+    renderEquipamentosTable();
+    renderEquipamentoOptions();
+    return;
+  }
   const sameProjectCached =
     projectEquipamentosProjectId === requestProjectId && Array.isArray(projectEquipamentos) && projectEquipamentos.length > 0;
   try {
@@ -47727,9 +47828,15 @@ async function carregarEquipamentosProjeto() {
     projectEquipamentos = nextList;
     projectEquipamentosProjectId = requestProjectId;
     projectEquipamentosLoadError = "";
+    saveProjectEquipamentosCache(requestProjectId, nextList);
   } catch (error) {
     console.error("[equipamentos] falha ao carregar", error);
-    if (!sameProjectCached) {
+    const cached = loadProjectEquipamentosCache(requestProjectId);
+    if (!sameProjectCached && cached.length) {
+      projectEquipamentos = cached;
+      projectEquipamentosProjectId = requestProjectId;
+      projectEquipamentosLoadError = "cache local";
+    } else if (!sameProjectCached) {
       projectEquipamentos = [];
       projectEquipamentosProjectId = requestProjectId;
     }
@@ -57593,7 +57700,12 @@ async function loadIntelligenceSummary(force = false) {
 
 async function handleIntelligenceScenarioSimulate(scenarioId) {
   const safeScenarioId = String(scenarioId || "").trim();
-  if (!safeScenarioId || !currentUser || !activeProjectId) {
+  if (!safeScenarioId) {
+    showAuthToast("Cenário de simulação inválido.");
+    return;
+  }
+  if (!currentUser || !activeProjectId) {
+    showAuthToast("Selecione um projeto ativo para simular.");
     return;
   }
   try {
@@ -57814,14 +57926,20 @@ document.addEventListener("click", (event) => {
   const intelligenceRefresh = event.target.closest("[data-intelligence-refresh]");
   if (intelligenceRefresh && !intelligenceRefresh.disabled) {
     event.preventDefault();
-    loadIntelligenceSummary(true);
+    intelligenceRefresh.disabled = true;
+    loadIntelligenceSummary(true).finally(() => {
+      intelligenceRefresh.disabled = false;
+    });
     return;
   }
   const intelligenceScenarioBtn = event.target.closest("[data-intelligence-simulate]");
   if (intelligenceScenarioBtn && !intelligenceScenarioBtn.disabled) {
     event.preventDefault();
     const scenarioId = intelligenceScenarioBtn.dataset.intelligenceSimulate;
-    handleIntelligenceScenarioSimulate(scenarioId);
+    intelligenceScenarioBtn.disabled = true;
+    handleIntelligenceScenarioSimulate(scenarioId).finally(() => {
+      intelligenceScenarioBtn.disabled = false;
+    });
     return;
   }
   const trigger = event.target.closest("[data-open-tab]");
