@@ -17922,10 +17922,11 @@ function buildHomeIntelligenceMarkup() {
     : formatDateTime(new Date());
   const source = summaryPayload.source || intelligenceSummary.source || "inteligencia";
   const scopeProjectId = String(intelligenceSummary.projectId || activeProjectId || "").trim();
+  const scopeProjectLabel = formatTurnPlanProjectLabel(scopeProjectId || activeProjectId || "");
   const scopeFrom = String(intelligenceSummary.from || "").trim();
   const scopeTo = String(intelligenceSummary.to || "").trim();
   const scopeLine = [
-    `Projeto ${scopeProjectId || "-"}`,
+    `Projeto ${scopeProjectLabel}`,
     `Fonte ${formatIntelligenceSourceName(source)}`,
     scopeFrom || scopeTo ? `Período ${scopeFrom || "..."} até ${scopeTo || "..."}` : "",
   ]
