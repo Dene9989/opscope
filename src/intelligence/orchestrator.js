@@ -114,6 +114,8 @@ function matchesScope(event, { projectId, from, to, filters }) {
 
 function buildSummary({ events = [], inconsistencies = [], source = "all", projectId = "" }) {
   const totalEvents = events.length;
+  const eventsWithProjectId = events.filter((event) => safeText(event.projectId)).length;
+  const eventsWithoutProjectId = Math.max(0, totalEvents - eventsWithProjectId);
   const openEvents = events.filter((event) => event.signals && event.signals.isOpen).length;
   const closedEvents = events.filter((event) => event.signals && event.signals.isClosed).length;
   const overdueEvents = events.filter((event) => event.signals && event.signals.overdue).length;
@@ -174,6 +176,8 @@ function buildSummary({ events = [], inconsistencies = [], source = "all", proje
     source,
     projectId,
     totalEvents,
+    eventsWithProjectId,
+    eventsWithoutProjectId,
     openEvents,
     closedEvents,
     overdueEvents,

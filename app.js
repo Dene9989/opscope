@@ -5016,6 +5016,7 @@ let dashboardRequestToken = 0;
 let intelligenceSummary = null;
 let intelligenceSummaryProjectId = "";
 let intelligenceInconsistencies = [];
+let intelligenceLastSimulation = null;
 let intelligenceError = "";
 let intelligenceLastFetch = 0;
 let intelligenceRequest = null;
@@ -12945,6 +12946,7 @@ async function setActiveProjectId(nextId, options = {}) {
   intelligenceSummary = null;
   intelligenceSummaryProjectId = "";
   intelligenceInconsistencies = [];
+  intelligenceLastSimulation = null;
   intelligenceError = "";
   intelligenceLastFetch = 0;
   intelligenceRequest = null;
@@ -17504,6 +17506,165 @@ function resolveIntelligenceRiskLabel(levelRaw) {
   return { label: "Controlado", className: "intel-badge--low" };
 }
 
+const INTELLIGENCE_SOURCE_LABELS = Object.freeze({
+  manutencao: "Manutenção",
+  contingencias: "Contingências",
+  contingencias_timeline: "Timeline de contingências",
+  contingencias_anexos: "Anexos de contingências",
+  pmp_atividades: "PMP atividades",
+  pmp_execucoes: "PMP execuções",
+  rdo: "RDO",
+  auditoria: "Auditoria",
+  inteligencia: "Inteligência operacional",
+  inicio: "Início",
+});
+
+const INTELLIGENCE_RULE_LABELS = Object.freeze({
+  critical_open_overdue: "Crítico aberto e fora da janela",
+  contingency_missing_root_cause: "Contingência sem causa raiz",
+  pmp_without_procedure: "PMP sem procedimento",
+  status_text_conflict: "Conflito entre status e descrição",
+  project_scope_mismatch: "Dado fora do escopo do projeto",
+  recurring_failure_same_asset_7d: "Falha recorrente no mesmo ativo (7d)",
+  open_risk_backlog_cluster: "Cluster de risco aberto",
+});
+
+function humanizeIntelligenceToken(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "-";
+  }
+  return raw
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatIntelligenceSourceName(sourceRaw) {
+  const normalized = normalizeSearchValue(sourceRaw || "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return INTELLIGENCE_SOURCE_LABELS[normalized] || humanizeIntelligenceToken(sourceRaw);
+}
+
+function formatIntelligenceRuleName(ruleRaw) {
+  const normalized = normalizeSearchValue(ruleRaw || "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  if (!normalized) {
+    return "Regra";
+  }
+  return INTELLIGENCE_RULE_LABELS[normalized] || humanizeIntelligenceToken(normalized);
+}
+
+function formatIntelligenceScenarioDefaultValue(key, value) {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) {
+    const normalizedKey = String(key || "").toLowerCase();
+    if (normalizedKey.includes("percent")) {
+      return `${Math.round(numeric)}%`;
+    }
+    if (normalizedKey.includes("hour")) {
+      return `${Math.round(numeric)}h`;
+    }
+    if (normalizedKey.includes("factor") || normalizedKey.includes("multiplier")) {
+      return numeric.toFixed(2).replace(/\.00$/, "");
+    }
+    return String(Math.round(numeric * 100) / 100);
+  }
+  return String(value || "-");
+}
+
+function buildScenarioDefaultsLine(defaults) {
+  const entries = defaults && typeof defaults === "object" ? Object.entries(defaults) : [];
+  if (!entries.length) {
+    return "Sem parâmetros padrão.";
+  }
+  return entries
+    .slice(0, 3)
+    .map(([key, value]) => `${humanizeIntelligenceToken(key)}: ${formatIntelligenceScenarioDefaultValue(key, value)}`)
+    .join(" | ");
+}
+
+function formatIntelligenceDelta(currentValue, projectedValue) {
+  const current = Number(currentValue || 0);
+  const projected = Number(projectedValue || 0);
+  const delta = projected - current;
+  const signal = delta > 0 ? "+" : "";
+  return {
+    value: delta,
+    text: `${signal}${delta}`,
+    className: delta > 0 ? "is-up" : delta < 0 ? "is-down" : "is-flat",
+  };
+}
+
+function buildIntelligenceSimulationMarkup() {
+  const activeProject = String(activeProjectId || "").trim();
+  const simulation =
+    intelligenceLastSimulation &&
+    intelligenceLastSimulation.projectId &&
+    intelligenceLastSimulation.projectId === activeProject
+      ? intelligenceLastSimulation
+      : null;
+  if (!simulation) {
+    return "";
+  }
+  const projection = simulation.projection && typeof simulation.projection === "object" ? simulation.projection : {};
+  const base = simulation.base && typeof simulation.base === "object" ? simulation.base : {};
+  const comparisonRows = [
+    { key: "openEvents", label: "Abertos" },
+    { key: "overdueEvents", label: "Vencidos" },
+    { key: "criticalOpen", label: "Críticos" },
+    { key: "recurringFailures", label: "Reincidências" },
+  ]
+    .map((metric) => {
+      const before = Number(base[metric.key] || 0);
+      const after = Number(projection[metric.key] || 0);
+      const delta = formatIntelligenceDelta(before, after);
+      return `
+        <li class="home-intelligence-sim-row">
+          <span>${escapeHtml(metric.label)}</span>
+          <strong>${after}</strong>
+          <small>Base ${before}</small>
+          <em class="${delta.className}">${escapeHtml(delta.text)}</em>
+        </li>
+      `;
+    })
+    .join("");
+  const generatedAt = simulation.generatedAt
+    ? formatDateTime(parseTimestamp(simulation.generatedAt) || new Date())
+    : formatDateTime(new Date());
+  const priority = simulation.impact && simulation.impact.priority ? simulation.impact.priority : "-";
+  const escalation =
+    simulation.impact && simulation.impact.escalationIndex !== undefined
+      ? Number(simulation.impact.escalationIndex)
+      : 0;
+  const downtimeHours =
+    simulation.impact && Number.isFinite(Number(simulation.impact.estimatedDowntimeHours))
+      ? Number(simulation.impact.estimatedDowntimeHours)
+      : 0;
+  const headline = projection.headline || simulation.description || "Simulação concluída.";
+  return `
+    <section class="home-intelligence-sim">
+      <div class="home-intelligence-sim__head">
+        <h4>Última simulação</h4>
+        <small>${escapeHtml(generatedAt)}</small>
+      </div>
+      <p class="home-intelligence-sim__headline">
+        <strong>${escapeHtml(simulation.name || simulation.id || "Cenário")}</strong>
+        <span>${escapeHtml(headline)}</span>
+      </p>
+      <ul class="home-intelligence-sim__metrics">${comparisonRows}</ul>
+      <p class="home-intelligence-sim__impact">
+        Prioridade ${escapeHtml(priority)} | Índice ${escapeHtml(String(escalation))} | Downtime estimado ${escapeHtml(
+          String(downtimeHours)
+        )}h
+      </p>
+    </section>
+  `;
+}
+
 function buildHomeIntelligenceMarkup() {
   const summaryPayload =
     intelligenceSummary && intelligenceSummary.summary ? intelligenceSummary.summary : null;
@@ -17530,6 +17691,22 @@ function buildHomeIntelligenceMarkup() {
   const generatedAt = intelligenceSummary.generatedAt
     ? formatDateTime(parseTimestamp(intelligenceSummary.generatedAt) || new Date())
     : formatDateTime(new Date());
+  const source = summaryPayload.source || intelligenceSummary.source || "inteligencia";
+  const scopeProjectId = String(intelligenceSummary.projectId || activeProjectId || "").trim();
+  const scopeFrom = String(intelligenceSummary.from || "").trim();
+  const scopeTo = String(intelligenceSummary.to || "").trim();
+  const scopeLine = [
+    `Projeto ${scopeProjectId || "-"}`,
+    `Fonte ${formatIntelligenceSourceName(source)}`,
+    scopeFrom || scopeTo ? `Período ${scopeFrom || "..."} até ${scopeTo || "..."}` : "",
+  ]
+    .filter(Boolean)
+    .join(" | ");
+  const topSources = Array.isArray(summaryPayload.topSources) ? summaryPayload.topSources.slice(0, 4) : [];
+  const topRules = Array.isArray(summaryPayload.topRules) ? summaryPayload.topRules.slice(0, 4) : [];
+  const recommendations = Array.isArray(summaryPayload.recommendations)
+    ? summaryPayload.recommendations.slice(0, 3)
+    : [];
   const issues = Array.isArray(intelligenceInconsistencies) ? intelligenceInconsistencies.slice(0, 4) : [];
   const issueRows = issues.length
     ? issues
@@ -17564,6 +17741,9 @@ function buildHomeIntelligenceMarkup() {
                 <p>${escapeHtml(
                   (scenario.preview && scenario.preview.headline) || scenario.description || ""
                 )}</p>
+                <small>${escapeHtml(
+                  `Parâmetros padrão: ${buildScenarioDefaultsLine(scenario.defaults || {})}`
+                )}</small>
               </div>
               <button
                 type="button"
@@ -17577,6 +17757,32 @@ function buildHomeIntelligenceMarkup() {
         )
         .join("")
     : `<li class="home-intelligence-scenario home-intelligence-scenario--empty">Sem cenários cadastrados.</li>`;
+  const sourceRows = topSources.length
+    ? topSources
+        .map(
+          (entry) =>
+            `<li><span>${escapeHtml(formatIntelligenceSourceName(entry.name || ""))}</span><strong>${Number(
+              entry.count || 0
+            )}</strong></li>`
+        )
+        .join("")
+    : '<li class="home-intelligence-meta-list--empty">Sem composição por fonte.</li>';
+  const ruleRows = topRules.length
+    ? topRules
+        .map(
+          (entry) =>
+            `<li><span>${escapeHtml(formatIntelligenceRuleName(entry.name || ""))}</span><strong>${Number(
+              entry.count || 0
+            )}</strong></li>`
+        )
+        .join("")
+    : '<li class="home-intelligence-meta-list--empty">Nenhuma regra de inconsistência ativa.</li>';
+  const recommendationRows = recommendations.length
+    ? recommendations
+        .map((item) => `<li>${escapeHtml(String(item || ""))}</li>`)
+        .join("")
+    : '<li class="home-intelligence-meta-list--empty">Sem recomendações no momento.</li>';
+  const simulationMarkup = buildIntelligenceSimulationMarkup();
 
   return `
     <div class="home-intelligence-card">
@@ -17587,10 +17793,11 @@ function buildHomeIntelligenceMarkup() {
         </span>
       </div>
       <p class="panel-subtitle">Leitura automática de riscos e inconsistências para decisão rápida do turno.</p>
+      <p class="home-intelligence-scope">${escapeHtml(scopeLine)}</p>
       <div class="home-intelligence-kpis">
         <article class="kpi-card kpi-card--compact"><span>Eventos</span><strong>${Number(
           totals.events || 0
-        )}</strong><small>no escopo atual</small></article>
+        )}</strong><small>${Number(totals.eventsWithProjectId || totals.events || 0)} com projeto identificado</small></article>
         <article class="kpi-card kpi-card--compact"><span>Abertos</span><strong>${Number(
           totals.openEvents || 0
         )}</strong><small>em tratamento</small></article>
@@ -17599,7 +17806,7 @@ function buildHomeIntelligenceMarkup() {
         )}</strong><small>fora da janela</small></article>
         <article class="kpi-card kpi-card--compact"><span>Críticos</span><strong>${Number(
           totals.criticalOpen || 0
-        )}</strong><small>abertos</small></article>
+        )}</strong><small>${Number(totals.inconsistencyCount || 0)} regras ativas</small></article>
       </div>
       <div class="home-intelligence-grid">
         <div>
@@ -17611,6 +17818,21 @@ function buildHomeIntelligenceMarkup() {
           <ul class="home-intelligence-list">${scenarioRows}</ul>
         </div>
       </div>
+      <div class="home-intelligence-insights">
+        <div>
+          <h4>Composição de eventos</h4>
+          <ul class="home-intelligence-meta-list">${sourceRows}</ul>
+        </div>
+        <div>
+          <h4>Regras com maior incidência</h4>
+          <ul class="home-intelligence-meta-list">${ruleRows}</ul>
+        </div>
+      </div>
+      <div>
+        <h4>Recomendações do turno</h4>
+        <ul class="home-intelligence-recommendations">${recommendationRows}</ul>
+      </div>
+      ${simulationMarkup}
       <div class="home-intelligence-footer">
         <small>Atualizado em ${escapeHtml(generatedAt)}</small>
         <div class="home-intelligence-actions">
@@ -48378,6 +48600,7 @@ function renderAuthUI() {
     intelligenceSummary = null;
     intelligenceSummaryProjectId = "";
     intelligenceInconsistencies = [];
+    intelligenceLastSimulation = null;
     intelligenceError = "";
     intelligenceLastFetch = 0;
     intelligenceRequest = null;
@@ -56918,6 +57141,9 @@ function buildIntelligenceFallback(projectId = activeProjectId) {
       projectId: String(projectId || ""),
       totals: {
         events: scoped.length,
+        inconsistencyCount: 0,
+        eventsWithProjectId: scoped.filter((item) => item && item.projectId).length,
+        eventsWithoutProjectId: scoped.filter((item) => item && !item.projectId).length,
         openEvents,
         closedEvents: Math.max(0, scoped.length - openEvents),
         overdueEvents,
@@ -57745,6 +57971,7 @@ async function loadIntelligenceSummary(force = false) {
     intelligenceSummary = null;
     intelligenceSummaryProjectId = "";
     intelligenceInconsistencies = [];
+    intelligenceLastSimulation = null;
     intelligenceError = "";
     renderKpiIntelligencePanel();
     return;
@@ -57792,6 +58019,7 @@ async function loadIntelligenceSummary(force = false) {
     intelligenceInconsistencies = Array.isArray(inconsistenciesData && inconsistenciesData.items)
       ? inconsistenciesData.items
       : [];
+    intelligenceLastSimulation = null;
     intelligenceLastFetch = Date.now();
   } catch (error) {
     if (requestToken !== intelligenceRequestToken || projectId !== String(activeProjectId || "").trim()) {
@@ -57800,6 +58028,7 @@ async function loadIntelligenceSummary(force = false) {
     intelligenceSummary = null;
     intelligenceSummaryProjectId = "";
     intelligenceInconsistencies = [];
+    intelligenceLastSimulation = null;
     intelligenceError = "Falha ao carregar inteligência operacional. Tente novamente.";
   } finally {
     if (intelligenceRequest === requestPromise) {
@@ -57835,12 +58064,40 @@ async function handleIntelligenceScenarioSimulate(scenarioId) {
       showAuthToast("Simulação concluída sem retorno válido.");
       return;
     }
+    const summaryPayload =
+      intelligenceSummary && intelligenceSummary.summary && typeof intelligenceSummary.summary === "object"
+        ? intelligenceSummary.summary
+        : {};
+    const totals = summaryPayload.totals && typeof summaryPayload.totals === "object" ? summaryPayload.totals : {};
+    const base = {
+      openEvents: Number(totals.openEvents || 0),
+      overdueEvents: Number(totals.overdueEvents || 0),
+      criticalOpen: Number(totals.criticalOpen || 0),
+      recurringFailures: Number(totals.recurringFailures || 0),
+    };
+    intelligenceLastSimulation = {
+      id: scenario.id || safeScenarioId,
+      name: scenario.name || safeScenarioId,
+      description: scenario.description || "",
+      generatedAt: scenario.generatedAt || new Date().toISOString(),
+      impact: scenario.impact && typeof scenario.impact === "object" ? scenario.impact : {},
+      projection: scenario.projection && typeof scenario.projection === "object" ? scenario.projection : {},
+      base,
+      projectId: String(activeProjectId || "").trim(),
+    };
+    renderKpiIntelligencePanel();
     const priority = scenario.impact && scenario.impact.priority ? scenario.impact.priority : "-";
     const escalation =
       scenario.impact && scenario.impact.escalationIndex !== undefined
         ? scenario.impact.escalationIndex
         : "-";
-    showAuthToast(`Simulação ${scenario.name || safeScenarioId}: prioridade ${priority} | índice ${escalation}.`);
+    const downtime =
+      scenario.impact && scenario.impact.estimatedDowntimeHours !== undefined
+        ? scenario.impact.estimatedDowntimeHours
+        : "-";
+    showAuthToast(
+      `Simulação ${scenario.name || safeScenarioId}: prioridade ${priority} | índice ${escalation} | downtime ${downtime}h.`
+    );
   } catch (error) {
     const message =
       (error && error.message) || "Falha ao simular cenário de inteligência.";

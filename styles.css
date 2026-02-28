@@ -5605,6 +5605,20 @@ body.is-visitor .container.auth-only {
   color: var(--accent);
 }
 
+.home-intelligence-card h4 {
+  margin: 0 0 8px;
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.home-intelligence-scope {
+  margin: -4px 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
 .home-intelligence-kpis {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -5617,20 +5631,59 @@ body.is-visitor .container.auth-only {
   gap: 12px;
 }
 
-.home-intelligence-grid h4 {
-  margin: 0 0 8px;
-  font-size: 0.76rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
 .home-intelligence-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
   gap: 8px;
+}
+
+.home-intelligence-insights {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.home-intelligence-meta-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.home-intelligence-meta-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(19, 44, 65, 0.5);
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.home-intelligence-meta-list li strong {
+  color: var(--text);
+}
+
+.home-intelligence-meta-list--empty {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.home-intelligence-recommendations {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+
+.home-intelligence-recommendations li {
+  color: var(--muted);
+  font-size: 0.82rem;
 }
 
 .home-intelligence-issue,
@@ -5662,6 +5715,13 @@ body.is-visitor .container.auth-only {
   color: var(--muted);
 }
 
+.home-intelligence-scenario small {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.72rem;
+  color: rgba(234, 240, 246, 0.74);
+}
+
 .home-intelligence-scenario {
   display: flex;
   gap: 10px;
@@ -5674,6 +5734,106 @@ body.is-visitor .container.auth-only {
 .home-intelligence-empty {
   color: var(--muted);
   font-size: 0.84rem;
+}
+
+.home-intelligence-sim {
+  border: 1px solid rgba(59, 130, 246, 0.34);
+  border-radius: 12px;
+  background: linear-gradient(140deg, rgba(29, 78, 216, 0.2), rgba(30, 64, 175, 0.12));
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.home-intelligence-sim__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.home-intelligence-sim__head h4 {
+  margin: 0;
+}
+
+.home-intelligence-sim__head small {
+  color: rgba(219, 234, 254, 0.9);
+  font-size: 0.74rem;
+}
+
+.home-intelligence-sim__headline {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+}
+
+.home-intelligence-sim__headline strong {
+  color: #dbeafe;
+  font-size: 0.84rem;
+}
+
+.home-intelligence-sim__headline span {
+  color: #bfdbfe;
+  font-size: 0.78rem;
+}
+
+.home-intelligence-sim__metrics {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.home-intelligence-sim-row {
+  border: 1px solid rgba(147, 197, 253, 0.34);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.3);
+  padding: 8px 10px;
+  display: grid;
+  gap: 2px;
+}
+
+.home-intelligence-sim-row span {
+  font-size: 0.72rem;
+  color: #bfdbfe;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.home-intelligence-sim-row strong {
+  color: #eff6ff;
+  font-size: 0.95rem;
+}
+
+.home-intelligence-sim-row small {
+  font-size: 0.72rem;
+  color: rgba(191, 219, 254, 0.82);
+}
+
+.home-intelligence-sim-row em {
+  font-style: normal;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.home-intelligence-sim-row em.is-up {
+  color: #fecaca;
+}
+
+.home-intelligence-sim-row em.is-down {
+  color: #bbf7d0;
+}
+
+.home-intelligence-sim-row em.is-flat {
+  color: #dbeafe;
+}
+
+.home-intelligence-sim__impact {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #dbeafe;
 }
 
 .home-intelligence-footer {
@@ -14748,6 +14908,10 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 
+  .home-intelligence-insights {
+    grid-template-columns: 1fr;
+  }
+
   .topbar {
     padding: 8px 14px;
   }
@@ -14905,6 +15069,10 @@ textarea:focus {
   .home-intelligence-scenario {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .home-intelligence-sim__metrics {
+    grid-template-columns: 1fr;
   }
 
   .account-grid {

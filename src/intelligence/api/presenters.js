@@ -7,6 +7,9 @@ function presentSummary(summary = {}) {
     projectId: safeText(summary.projectId),
     totals: {
       events: Number(summary.totalEvents || 0),
+      inconsistencyCount: Number(summary.inconsistencyCount || 0),
+      eventsWithProjectId: Number(summary.eventsWithProjectId || 0),
+      eventsWithoutProjectId: Number(summary.eventsWithoutProjectId || 0),
       openEvents: Number(summary.openEvents || 0),
       closedEvents: Number(summary.closedEvents || 0),
       overdueEvents: Number(summary.overdueEvents || 0),
@@ -60,4 +63,3 @@ module.exports = {
   presentInconsistency,
   presentScenario,
 };
-
