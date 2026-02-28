@@ -123,6 +123,7 @@ const COMPAT_DATASETS = [
 ];
 const SSE_PING_INTERVAL_MS = 25000;
 const sseClients = new Map();
+const inflightApiRequests = new Map();
 
 function sendSse(res, event, payload) {
   res.write(`event: ${event}\n`);
@@ -533,6 +534,9 @@ const MAINTENANCE_LIST_MAX_PAGE = Math.max(
   1,
   Number(process.env.OPSCOPE_MAINTENANCE_MAX_PAGE) || 10000
 );
+const PROCESS_REPORT_ENABLED =
+  String(process.env.OPSCOPE_ENABLE_PROCESS_REPORT || "true").trim().toLowerCase() !== "false";
+const PROCESS_REPORT_DIR = String(process.env.OPSCOPE_REPORT_DIR || "/tmp").trim() || "/tmp";
 const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
 const AVATAR_TARGET_BYTES = 1024 * 1024;
 const AVATAR_SIZE = 512;
@@ -559,6 +563,32 @@ const FILE_ALLOWED_MIME = new Map([
   ["image/jpg", "jpg"],
   ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "docx"],
 ]);
+
+function configureProcessReport() {
+  if (!PROCESS_REPORT_ENABLED) {
+    return;
+  }
+  try {
+    if (!process.report || typeof process.report !== "object") {
+      return;
+    }
+    process.report.reportOnFatalError = true;
+    process.report.reportOnUncaughtException = true;
+    process.report.reportOnSignal = true;
+    process.report.directory = PROCESS_REPORT_DIR;
+    console.info("[process] diagnostic report habilitado.", {
+      directory: PROCESS_REPORT_DIR,
+      reportOnFatalError: process.report.reportOnFatalError,
+      reportOnUncaughtException: process.report.reportOnUncaughtException,
+      reportOnSignal: process.report.reportOnSignal,
+    });
+  } catch (error) {
+    console.warn("[process] falha ao configurar diagnostic report.", error.message || error);
+  }
+}
+
+configureProcessReport();
+
 const DEFAULT_PROJECT_CODE = "834";
 const DEFAULT_PROJECT_NAME = "PARACATU/SOLARIG (Boa Sorte II)";
 const DEFAULT_PROJECT_LOCAIS = ["LZC-BOS2", "LZC-PCT4", "LZC-LT", "LZC-BSO2/LZC-PCT4"];
@@ -6797,6 +6827,107 @@ function sanitizeLogValue(value, depth = 0) {
   }
   return String(value);
 }
+
+function getMemoryUsageSnapshot() {
+  const mem = process.memoryUsage();
+  return {
+    rss: Number(mem.rss || 0),
+    heapTotal: Number(mem.heapTotal || 0),
+    heapUsed: Number(mem.heapUsed || 0),
+    external: Number(mem.external || 0),
+    arrayBuffers: Number(mem.arrayBuffers || 0),
+  };
+}
+
+function getInflightApiSnapshot(limit = 12) {
+  return Array.from(inflightApiRequests.values())
+    .slice(0, Math.max(1, limit))
+    .map((entry) => ({
+      requestId: entry.requestId,
+      method: entry.method,
+      endpoint: entry.endpoint,
+      startedAt: entry.startedAt,
+      durationMs: Date.now() - entry.startedAtMs,
+      ip: entry.ip,
+      userId: entry.userId,
+    }));
+}
+
+function toErrorSummary(error) {
+  if (!error) {
+    return null;
+  }
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: String(error.stack || "")
+        .split("\n")
+        .slice(0, 8)
+        .join("\n"),
+    };
+  }
+  return sanitizeLogValue(error);
+}
+
+function logProcessDiagnostics(event, details = {}) {
+  let reportPath = "";
+  if (
+    process.report &&
+    typeof process.report.writeReport === "function" &&
+    ["uncaughtExceptionMonitor", "unhandledRejection", "SIGABRT"].includes(event)
+  ) {
+    try {
+      reportPath = process.report.writeReport();
+    } catch (error) {
+      reportPath = "";
+    }
+  }
+  console.error("[process] diagnostic", {
+    event,
+    pid: process.pid,
+    uptimeSec: Math.round(process.uptime()),
+    memory: getMemoryUsageSnapshot(),
+    inflight: getInflightApiSnapshot(),
+    reportPath,
+    ...details,
+  });
+}
+
+let processDiagnosticsBound = false;
+function bindProcessDiagnostics() {
+  if (processDiagnosticsBound) {
+    return;
+  }
+  processDiagnosticsBound = true;
+  process.on("uncaughtExceptionMonitor", (error, origin) => {
+    logProcessDiagnostics("uncaughtExceptionMonitor", {
+      origin: String(origin || ""),
+      error: toErrorSummary(error),
+    });
+  });
+  process.on("unhandledRejection", (reason) => {
+    logProcessDiagnostics("unhandledRejection", {
+      reason: toErrorSummary(reason),
+    });
+  });
+  process.on("warning", (warning) => {
+    logProcessDiagnostics("warning", {
+      warning: toErrorSummary(warning),
+    });
+  });
+  process.on("SIGABRT", () => {
+    logProcessDiagnostics("SIGABRT");
+  });
+  process.on("beforeExit", (code) => {
+    logProcessDiagnostics("beforeExit", { code: Number(code) || 0 });
+  });
+  process.on("exit", (code) => {
+    logProcessDiagnostics("exit", { code: Number(code) || 0 });
+  });
+}
+
+bindProcessDiagnostics();
 
 function normalizeHealthTasks(list) {
   const base = new Map(HEALTH_TASK_DEFAULTS.map((task) => [task.id, task]));
@@ -13396,13 +13527,31 @@ app.use((req, res, next) => {
     return next();
   }
   const startedAt = Date.now();
+  const endpoint = req.originalUrl.split("?")[0];
+  const requestId = crypto.randomUUID();
+  const userAtStart = getSessionUser(req);
+  inflightApiRequests.set(requestId, {
+    requestId,
+    method: req.method,
+    endpoint,
+    startedAt: new Date(startedAt).toISOString(),
+    startedAtMs: startedAt,
+    ip: getClientIp(req),
+    userId: userAtStart ? userAtStart.id : null,
+  });
+  const clearInflight = () => {
+    if (inflightApiRequests.has(requestId)) {
+      inflightApiRequests.delete(requestId);
+    }
+  };
   res.on("finish", () => {
+    clearInflight();
     const user = getSessionUser(req);
     const entry = {
-      id: crypto.randomUUID(),
+      id: requestId,
       timestamp: new Date().toISOString(),
       method: req.method,
-      endpoint: req.originalUrl.split("?")[0],
+      endpoint,
       status: res.statusCode,
       durationMs: Date.now() - startedAt,
       userId: user ? user.id : null,
@@ -13414,6 +13563,7 @@ app.use((req, res, next) => {
     };
     appendApiLog(entry);
   });
+  res.on("close", clearInflight);
   return next();
 });
 
