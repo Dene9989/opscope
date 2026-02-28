@@ -5619,13 +5619,13 @@ body.is-visitor .container.auth-only {
   font-size: 0.76rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: #d7e7f7;
 }
 
 .home-intelligence-scope {
   margin: -4px 0 0;
   font-size: 0.75rem;
-  color: var(--muted);
+  color: #d4e4f4;
 }
 
 .home-intelligence-kpis {
@@ -5671,7 +5671,7 @@ body.is-visitor .container.auth-only {
   background: rgba(19, 44, 65, 0.5);
   padding: 8px 10px;
   font-size: 0.8rem;
-  color: var(--muted);
+  color: #d2e2f2;
 }
 
 .home-intelligence-meta-list li strong {
@@ -5691,7 +5691,7 @@ body.is-visitor .container.auth-only {
 }
 
 .home-intelligence-recommendations li {
-  color: var(--muted);
+  color: #d6e5f4;
   font-size: 0.82rem;
 }
 
@@ -5721,14 +5721,14 @@ body.is-visitor .container.auth-only {
 .home-intelligence-scenario p {
   margin: 4px 0 0;
   font-size: 0.8rem;
-  color: var(--muted);
+  color: #d1e2f1;
 }
 
 .home-intelligence-scenario small {
   display: block;
   margin-top: 6px;
   font-size: 0.72rem;
-  color: rgba(234, 240, 246, 0.74);
+  color: rgba(234, 244, 252, 0.9);
 }
 
 .home-intelligence-scenario {
@@ -5741,8 +5741,24 @@ body.is-visitor .container.auth-only {
 .home-intelligence-issue--empty,
 .home-intelligence-scenario--empty,
 .home-intelligence-empty {
-  color: var(--muted);
+  color: #d0e1f1;
   font-size: 0.84rem;
+}
+
+.home-intelligence-kpis .kpi-card--compact span {
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  color: #e4f1ff;
+  font-weight: 700;
+}
+
+.home-intelligence-kpis .kpi-card--compact strong {
+  color: #f7fcff;
+}
+
+.home-intelligence-kpis .kpi-card--compact small {
+  color: #d3e3f3;
+  font-size: 0.74rem;
 }
 
 .home-intelligence-sim {
