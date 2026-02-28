@@ -5103,7 +5103,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
         0,
         pageSize[0],
         pageSize[1],
-        Math.min(1, Math.max(0, Number(process.env.OPSCOPE_CONTINGENCY_COVER_OPACITY) || 0.36))
+        Math.min(1, Math.max(0, Number(process.env.OPSCOPE_CONTINGENCY_COVER_OPACITY) || 0.52))
       );
       page.drawRectangle({
         x: 0,
@@ -5113,7 +5113,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
         color: rgb(1, 1, 1),
         opacity: Math.min(
           1,
-          Math.max(0, Number(process.env.OPSCOPE_CONTINGENCY_COVER_WHITE_OVERLAY) || 0.6)
+          Math.max(0, Number(process.env.OPSCOPE_CONTINGENCY_COVER_WHITE_OVERLAY) || 0.42)
         ),
       });
     }
