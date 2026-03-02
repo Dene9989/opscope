@@ -7998,7 +7998,7 @@ async function apiRequest(path, options = {}) {
     const error = new Error(message);
     error.status = response.status;
     error.data = data;
-    if ((response.status === 401 || response.status === 403) && !authPath) {
+    if (response.status === 401 && !authPath) {
       handleAuthSessionExpired(message || "Sessão expirada. Faça login novamente.");
     }
     throw error;
