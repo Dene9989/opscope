@@ -27042,10 +27042,6 @@ function buildRdoHtml(snapshot, options = {}) {
     ? calcDurationMinutes(manual.horaExtra.inicio, manual.horaExtra.fim)
     : 0;
   const aiText = snapshot.aiText || null;
-  const descricaoConsolidada = gerarDescricaoConsolidadaRdo(
-    snapshot.itens || [],
-    snapshot.metricas
-  );
   const atividadesConsolidado =
     (aiText && aiText.atividades_consolidado) ||
     buildAtividadesConsolidadoFallback(snapshot.itens || []);
@@ -27391,19 +27387,20 @@ function buildRdoHtml(snapshot, options = {}) {
     ? themeRaw
     : "enterprise";
 
-  
-  const descricaoValue = formatValue(descricaoConsolidada || "");
-  const descricaoText = descricaoValue.text;
-  const descricaoMuted = descricaoValue.muted;
-  const descricaoHtml = `
-    <p class="rdo-paragraph rdo-paragraph--narrow${descricaoMuted ? " rdo-muted" : ""}">${escapeHtml(
-      descricaoText
-    )}</p>
-  `;
+  const totalAtividadesDescricao =
+    snapshot.metricas.total ?? (snapshot.itens || []).length;
+  const totalConcluidasDescricao = snapshot.metricas.concluidas ?? 0;
+  const totalExecucaoDescricao = snapshot.metricas.emExecucao ?? 0;
+  const totalPendentesDescricao = snapshot.metricas.overdue ?? 0;
+  const descricaoPorAtividadeResumo = totalAtividadesDescricao
+    ? `Foram registradas ${totalAtividadesDescricao} atividades no período, com ${totalConcluidasDescricao} concluídas, ${totalExecucaoDescricao} em execução e ${totalPendentesDescricao} pendentes.`
+    : "Sem atividades registradas no período.";
   const descricaoPorAtividadeHtml = (snapshot.itens || []).length
     ? `
       <div class="rdo-editorial-activities">
-        <h4>Descrição por atividade</h4>
+        <p class="rdo-paragraph rdo-paragraph--narrow">${escapeHtml(
+          descricaoPorAtividadeResumo
+        )}</p>
         <div class="rdo-editorial-activities__list">
           ${(snapshot.itens || [])
             .map((item, index) => {
@@ -27452,7 +27449,13 @@ function buildRdoHtml(snapshot, options = {}) {
         </div>
       </div>
     `
-    : "";
+    : `
+      <div class="rdo-editorial-activities">
+        <p class="rdo-paragraph rdo-paragraph--narrow rdo-muted">${escapeHtml(
+          descricaoPorAtividadeResumo
+        )}</p>
+      </div>
+    `;
   const registroTexto = String(snapshot.registroGerencial || "").trim();
   const registroNormalizado =
     registroTexto && registroTexto !== "-" && registroTexto !== "\u2014" ? registroTexto : "";
@@ -27661,9 +27664,8 @@ function buildRdoHtml(snapshot, options = {}) {
 
       <section class="rdo-section rdo-editorial">
         <div class="rdo-section-head">
-          <h3>Descri\u00e7\u00e3o Consolidada do Dia</h3>
+          <h3>Descri\u00e7\u00e3o Consolidada do Dia por atividade</h3>
         </div>
-        ${descricaoHtml}
         ${descricaoPorAtividadeHtml}
       </section>
 
