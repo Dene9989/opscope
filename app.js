@@ -27400,6 +27400,59 @@ function buildRdoHtml(snapshot, options = {}) {
       descricaoText
     )}</p>
   `;
+  const descricaoPorAtividadeHtml = (snapshot.itens || []).length
+    ? `
+      <div class="rdo-editorial-activities">
+        <h4>Descrição por atividade</h4>
+        <div class="rdo-editorial-activities__list">
+          ${(snapshot.itens || [])
+            .map((item, index) => {
+              const statusKey = item.statusKey || "";
+              const statusClass =
+                statusKey === "concluida"
+                  ? "ok"
+                  : statusKey === "em_execucao" || statusKey === "encerramento"
+                    ? "warn"
+                    : statusKey === "backlog"
+                      ? "danger"
+                      : "neutral";
+              const descricaoAtividade = normalizeResumoRdoTexto(
+                item.descricao || item.observacaoExecucao || item.texto || ""
+              );
+              const descricaoFinal =
+                descricaoAtividade || "Atividade registrada sem descrição técnica detalhada.";
+              const meta = [];
+              if (item.subestacao && item.subestacao !== "-") {
+                meta.push(`Subestação: ${item.subestacao}`);
+              }
+              if (item.equipamento && item.equipamento !== "-") {
+                meta.push(`Equipamento: ${item.equipamento}`);
+              }
+              if (item.osReferencia) {
+                meta.push(`OS: ${item.osReferencia}`);
+              }
+              if (item.responsavel) {
+                meta.push(`Responsável: ${item.responsavel}`);
+              }
+              const metaLabel = meta.length ? meta.join(" • ") : "Sem metadados adicionais.";
+              return `
+                <article class="rdo-editorial-activity-card">
+                  <div class="rdo-editorial-activity-card__head">
+                    <strong>${escapeHtml(`${index + 1}. ${item.titulo || "Atividade"}`)}</strong>
+                    <span class="rdo-status rdo-status--${statusClass}">${escapeHtml(
+                item.statusLabel || "-"
+              )}</span>
+                  </div>
+                  <p class="rdo-editorial-activity-card__meta">${escapeHtml(metaLabel)}</p>
+                  <p class="rdo-editorial-activity-card__text">${escapeHtml(descricaoFinal)}</p>
+                </article>
+              `;
+            })
+            .join("")}
+        </div>
+      </div>
+    `
+    : "";
   const registroTexto = String(snapshot.registroGerencial || "").trim();
   const registroNormalizado =
     registroTexto && registroTexto !== "-" && registroTexto !== "\u2014" ? registroTexto : "";
@@ -27611,6 +27664,7 @@ function buildRdoHtml(snapshot, options = {}) {
           <h3>Descri\u00e7\u00e3o Consolidada do Dia</h3>
         </div>
         ${descricaoHtml}
+        ${descricaoPorAtividadeHtml}
       </section>
 
       <section class="rdo-section rdo-premium">
@@ -27748,6 +27802,14 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
     .rdo-kpi-card--primary { border-color: var(--rdo-accent); background: var(--rdo-accent-soft); }
     .rdo-kpi-card--primary strong { font-size: 1.05rem; }
     .rdo-editorial { border-left: 4px solid var(--rdo-accent); border-radius: 12px; padding: 10px; border: 1px solid var(--rdo-line); background: var(--rdo-card); }
+    .rdo-editorial-activities { margin-top: 10px; display: grid; gap: 8px; }
+    .rdo-editorial-activities h4 { margin: 2px 0 0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--rdo-ink-soft); }
+    .rdo-editorial-activities__list { display: grid; gap: 8px; }
+    .rdo-editorial-activity-card { border: 1px solid var(--rdo-line); border-radius: 10px; padding: 8px 10px; background: rgba(0, 0, 0, 0.015); display: grid; gap: 5px; }
+    .rdo-editorial-activity-card__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .rdo-editorial-activity-card__head strong { font-size: 0.8rem; color: var(--rdo-ink); }
+    .rdo-editorial-activity-card__meta { margin: 0; font-size: 0.68rem; color: var(--rdo-ink-soft); }
+    .rdo-editorial-activity-card__text { margin: 0; font-size: 0.78rem; line-height: 1.5; color: var(--rdo-ink); }
     .rdo-premium { border: 1px solid var(--rdo-line); border-radius: 12px; padding: 10px; background: var(--rdo-card); }
     .rdo-consolidado-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
     .rdo-consolidado-grid span { display: block; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.55rem; color: var(--rdo-ink-soft); }

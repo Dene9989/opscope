@@ -9251,6 +9251,59 @@ textarea:focus {
   border: 1px solid var(--rdo-line);
 }
 
+.rdo-template-a .rdo-editorial-activities {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.rdo-template-a .rdo-editorial-activities h4 {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--rdo-ink-soft);
+}
+
+.rdo-template-a .rdo-editorial-activities__list {
+  display: grid;
+  gap: 8px;
+}
+
+.rdo-template-a .rdo-editorial-activity-card {
+  border: 1px solid var(--rdo-line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.015);
+  display: grid;
+  gap: 5px;
+}
+
+.rdo-template-a .rdo-editorial-activity-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rdo-template-a .rdo-editorial-activity-card__head strong {
+  font-size: 0.8rem;
+  color: var(--rdo-ink);
+}
+
+.rdo-template-a .rdo-editorial-activity-card__meta {
+  margin: 0;
+  font-size: 0.68rem;
+  color: var(--rdo-ink-soft);
+}
+
+.rdo-template-a .rdo-editorial-activity-card__text {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--rdo-ink);
+}
+
 .rdo-template-a .rdo-premium {
   border: 1px solid var(--rdo-line);
   border-radius: 14px;
@@ -9810,6 +9863,11 @@ textarea:focus {
 
   .rdo-template-a .rdo-header-meta {
     text-align: left;
+  }
+
+  .rdo-template-a .rdo-editorial-activity-card__head {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .rdo-template-a .rdo-tech-grid {
