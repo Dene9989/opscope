@@ -26306,17 +26306,11 @@ function gerarDescricaoConsolidadaRdo(itensRdo, metricas) {
   const resumos = itensRdo
     .map((item) => buildResumoItemRdo(item))
     .filter(Boolean)
-    .map((texto) => ensureSentence(truncarTexto(texto, 220)))
+    .map((texto) => ensureSentence(texto))
     .filter(Boolean);
   let sintese = "Sem descrição técnica detalhada registrada.";
   if (resumos.length) {
-    const limite = 4;
-    const frases = resumos.slice(0, limite);
-    const restante = resumos.length - limite;
-    if (restante > 0) {
-      frases.push(`Outras ${restante} atividade(s) seguiram o escopo programado.`);
-    }
-    sintese = `Síntese técnica: ${frases.join(" ")}`.trim();
+    sintese = `Síntese técnica: ${resumos.join(" ")}`.trim();
   }
   return `${resumo} ${sintese}`.trim();
 }
