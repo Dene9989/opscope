@@ -26287,14 +26287,15 @@ function parseParticipantesLabel(label) {
 
 function buildResumoItemRdo(item) {
   const resumoBase = normalizeResumoRdoTexto(item.descricao || item.observacaoExecucao || "");
-  if (!resumoBase) {
-    return "";
-  }
   const titulo = item.titulo || "Atividade";
   const local = item.subestacao && item.subestacao !== "-" ? item.subestacao : "";
   const equipamento = item.equipamento && item.equipamento !== "-" ? item.equipamento : "";
   const contexto = [local, equipamento].filter(Boolean).join(" • ");
   const prefix = contexto ? `${titulo} (${contexto})` : titulo;
+  if (!resumoBase) {
+    const status = item.statusLabel || item.statusKey || "status não informado";
+    return `${prefix}: atividade registrada sem descrição técnica detalhada (${status}).`;
+  }
   return `${prefix}: ${resumoBase}`;
 }
 
@@ -27041,9 +27042,10 @@ function buildRdoHtml(snapshot, options = {}) {
     ? calcDurationMinutes(manual.horaExtra.inicio, manual.horaExtra.fim)
     : 0;
   const aiText = snapshot.aiText || null;
-  const descricaoConsolidada =
-    (aiText && aiText.descricao_consolidada) ||
-    gerarDescricaoConsolidadaRdo(snapshot.itens || [], snapshot.metricas);
+  const descricaoConsolidada = gerarDescricaoConsolidadaRdo(
+    snapshot.itens || [],
+    snapshot.metricas
+  );
   const atividadesConsolidado =
     (aiText && aiText.atividades_consolidado) ||
     buildAtividadesConsolidadoFallback(snapshot.itens || []);
