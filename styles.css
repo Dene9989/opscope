@@ -9299,8 +9299,8 @@ textarea:focus {
 
 .rdo-template-a .rdo-editorial-activity-card__text {
   margin: 0;
-  font-size: 0.78rem;
-  line-height: 1.5;
+  font-size: 0.88rem;
+  line-height: 1.62;
   color: var(--rdo-ink);
 }
 

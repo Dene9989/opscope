@@ -27392,17 +27392,41 @@ function buildRdoHtml(snapshot, options = {}) {
   const totalConcluidasDescricao = snapshot.metricas.concluidas ?? 0;
   const totalExecucaoDescricao = snapshot.metricas.emExecucao ?? 0;
   const totalPendentesDescricao = snapshot.metricas.overdue ?? 0;
+  const getActivityOrderTimestamp = (item) => {
+    const inicioDate = item && item.inicio ? parseTimestamp(item.inicio) : null;
+    if (inicioDate && !Number.isNaN(inicioDate.getTime())) {
+      return inicioDate.getTime();
+    }
+    const fimDate = item && item.fim ? parseTimestamp(item.fim) : null;
+    if (fimDate && !Number.isNaN(fimDate.getTime())) {
+      return fimDate.getTime();
+    }
+    return Number.POSITIVE_INFINITY;
+  };
+  const itensEmOrdemCronologica = (snapshot.itens || [])
+    .map((item, index) => ({
+      item,
+      index,
+      orderTs: getActivityOrderTimestamp(item),
+    }))
+    .sort((a, b) => {
+      if (a.orderTs !== b.orderTs) {
+        return a.orderTs - b.orderTs;
+      }
+      return a.index - b.index;
+    })
+    .map((entry) => entry.item);
   const descricaoPorAtividadeResumo = totalAtividadesDescricao
     ? `Foram registradas ${totalAtividadesDescricao} atividades no período, com ${totalConcluidasDescricao} concluídas, ${totalExecucaoDescricao} em execução e ${totalPendentesDescricao} pendentes.`
     : "Sem atividades registradas no período.";
-  const descricaoPorAtividadeHtml = (snapshot.itens || []).length
+  const descricaoPorAtividadeHtml = itensEmOrdemCronologica.length
     ? `
       <div class="rdo-editorial-activities">
         <p class="rdo-paragraph rdo-paragraph--narrow">${escapeHtml(
           descricaoPorAtividadeResumo
         )}</p>
         <div class="rdo-editorial-activities__list">
-          ${(snapshot.itens || [])
+          ${itensEmOrdemCronologica
             .map((item, index) => {
               const statusKey = item.statusKey || "";
               const statusClass =
@@ -27468,7 +27492,7 @@ function buildRdoHtml(snapshot, options = {}) {
     `
     : "";
 
-  const atividadesCardsHtml = (snapshot.itens || [])
+  const atividadesCardsHtml = itensEmOrdemCronologica
     .map((item) => {
       const statusKey = item.statusKey || "";
       const statusClass =
@@ -27811,7 +27835,7 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
     .rdo-editorial-activity-card__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .rdo-editorial-activity-card__head strong { font-size: 0.8rem; color: var(--rdo-ink); }
     .rdo-editorial-activity-card__meta { margin: 0; font-size: 0.68rem; color: var(--rdo-ink-soft); }
-    .rdo-editorial-activity-card__text { margin: 0; font-size: 0.78rem; line-height: 1.5; color: var(--rdo-ink); }
+    .rdo-editorial-activity-card__text { margin: 0; font-size: 0.88rem; line-height: 1.62; color: var(--rdo-ink); }
     .rdo-premium { border: 1px solid var(--rdo-line); border-radius: 12px; padding: 10px; background: var(--rdo-card); }
     .rdo-consolidado-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
     .rdo-consolidado-grid span { display: block; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.55rem; color: var(--rdo-ink-soft); }
