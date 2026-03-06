@@ -6008,6 +6008,7 @@ function buildMaintenanceLiteItem(item) {
     subestacao: item.subestacao || "",
     equipamento: item.equipamento || "",
     equipamentoId: item.equipamentoId || "",
+    equipamentoIds: getMaintenanceEquipamentoIds(item),
     data: item.data || "",
     prazo: item.prazo || "",
     dueDate: item.dueDate || "",
@@ -12149,7 +12150,11 @@ function atualizarTipoSelecionado() {
     }
     renderSubequipamentoSelectOptions(
       subequipamentoManutencao,
-      equipamentoManutencao ? equipamentoManutencao.value : ""
+      equipamentoManutencao
+        ? (equipamentoManutencao.multiple
+            ? getMultiSelectValues(equipamentoManutencao)
+            : equipamentoManutencao.value)
+        : []
     );
     if (template) {
       setMultiSelectValues(subequipamentoManutencao, template.subequipamentos || []);
@@ -14394,19 +14399,40 @@ function normalizarManutencoes(lista) {
     const procedimentos = normalizeMaintenanceProcedimentoIdsValue(
       item.procedimentoIds || item.procedimentosIds || []
     );
+    const equipamentoIds = normalizeMaintenanceEquipamentoIdsValue(
+      item.equipamentoIds || item.equipamentosIds || []
+    );
+    let equipamentoId = resolveEquipamentoIdFromValue(
+      item.equipamentoId ||
+        (conclusao && conclusao.equipamentoId) ||
+        (item.equipamento && typeof item.equipamento === "object" ? item.equipamento.id || "" : "")
+    );
+    if (!equipamentoId && equipamentoIds.length) {
+      equipamentoId = equipamentoIds[0];
+    }
+    if (equipamentoId && !equipamentoIds.includes(equipamentoId)) {
+      equipamentoIds.unshift(equipamentoId);
+    }
     const subequipamentosAtuais = Array.isArray(item.subequipamentos)
       ? item.subequipamentos
       : [];
     const procedimentosAtuais = Array.isArray(item.procedimentoIds)
       ? item.procedimentoIds
       : [];
+    const equipamentoIdsAtuais = Array.isArray(item.equipamentoIds)
+      ? normalizeMaintenanceEquipamentoIdsValue(item.equipamentoIds)
+      : [];
     const camposMudaram =
       !Array.isArray(item.subequipamentos) ||
       !Array.isArray(item.procedimentoIds) ||
+      !Array.isArray(item.equipamentoIds) ||
+      String(item.equipamentoId || "") !== String(equipamentoId || "") ||
       subequipamentosAtuais.length !== subequipamentos.length ||
       procedimentosAtuais.length !== procedimentos.length ||
+      equipamentoIdsAtuais.length !== equipamentoIds.length ||
       subequipamentos.some((value, index) => value !== subequipamentosAtuais[index]) ||
-      procedimentos.some((value, index) => value !== procedimentosAtuais[index]);
+      procedimentos.some((value, index) => value !== procedimentosAtuais[index]) ||
+      equipamentoIds.some((value, index) => value !== equipamentoIdsAtuais[index]);
     if (camposMudaram) {
       mudouCampos = true;
     }
@@ -14415,6 +14441,8 @@ function normalizarManutencoes(lista) {
       return {
         ...item,
         status: statusOriginal,
+        equipamentoId,
+        equipamentoIds,
         subequipamentos,
         procedimentoIds: procedimentos,
         createdAt,
@@ -14434,6 +14462,8 @@ function normalizarManutencoes(lista) {
       return {
         ...item,
         status: statusEsperado,
+        equipamentoId,
+        equipamentoIds,
         subequipamentos,
         procedimentoIds: procedimentos,
         updatedAt: statusEsperado !== statusOriginal ? toIsoUtc(new Date()) : updatedAt,
@@ -14463,6 +14493,8 @@ function normalizarManutencoes(lista) {
       return {
         ...item,
         status: statusCorrigido,
+        equipamentoId,
+        equipamentoIds,
         subequipamentos,
         procedimentoIds: procedimentos,
         registroExecucao: null,
@@ -14487,6 +14519,8 @@ function normalizarManutencoes(lista) {
       return {
         ...item,
         status: statusOriginal,
+        equipamentoId,
+        equipamentoIds,
         subequipamentos,
         procedimentoIds: procedimentos,
         createdAt,
@@ -14502,6 +14536,8 @@ function normalizarManutencoes(lista) {
       return {
         ...item,
         status: statusOriginal,
+        equipamentoId,
+        equipamentoIds,
         subequipamentos,
         procedimentoIds: procedimentos,
         createdAt,
@@ -14524,6 +14560,8 @@ function normalizarManutencoes(lista) {
         ...item,
         projectId: item.projectId || projectId,
         status: novoStatus,
+        equipamentoId,
+        equipamentoIds,
         subequipamentos,
         procedimentoIds: procedimentos,
         updatedAt: toIsoUtc(new Date()),
@@ -14539,6 +14577,8 @@ function normalizarManutencoes(lista) {
       ...item,
       projectId: item.projectId || projectId,
       status: statusOriginal,
+      equipamentoId,
+      equipamentoIds,
       subequipamentos,
       procedimentoIds: procedimentos,
       createdAt,
@@ -14589,6 +14629,15 @@ function getMaintenanceEquipamentoKey(item) {
   if (!item || typeof item !== "object") {
     return "";
   }
+  const equipamentoIds = getMaintenanceEquipamentoIds(item);
+  if (equipamentoIds.length) {
+    const normalizedIds = equipamentoIds
+      .map((equipamentoId) => normalizeSearchValue(String(equipamentoId || "")))
+      .filter(Boolean);
+    if (normalizedIds.length) {
+      return normalizedIds.join("|");
+    }
+  }
   const raw =
     item.equipamentoId ||
     (item.equipamento && item.equipamento.id) ||
@@ -14631,7 +14680,7 @@ function getMaintenanceItemScore(item) {
     return 0;
   }
   let score = 0;
-  if (item.equipamentoId) {
+  if (item.equipamentoId || getMaintenanceEquipamentoIds(item).length) {
     score += 4;
   }
   if (getMaintenanceOsReferencia(item)) {
@@ -15392,6 +15441,7 @@ function getMaintenanceItemFingerprint(item) {
     item.projectId || "",
     item.data || "",
     item.equipamentoId || "",
+    getMaintenanceEquipamentoIds(item).join(","),
     getMaintenanceResponsibleIds(item).join(","),
     getMaintenanceOsReferencia(item) || "",
     registro.registradoEm || registro.registrado_em || registro.executedAt || "",
@@ -15454,6 +15504,7 @@ function getMaintenanceListFingerprint(list) {
         item.equipamentoNome ||
         item.equipamentoTag ||
         "",
+      equipamentoIds: getMaintenanceEquipamentoIds(item).join(","),
       responsaveis: getMaintenanceResponsibleIds(item).join(","),
       executionStartedAt: item.executionStartedAt || "",
       executionFinishedAt: item.executionFinishedAt || "",
@@ -33787,31 +33838,74 @@ function getEquipamentoNomeById(projectId, equipamentoId) {
 }
 
 function getMaintenanceEquipamentoLabel(item) {
-  if (!item) {
+  const labels = getMaintenanceEquipamentoLabels(item);
+  if (!labels.length) {
     return "-";
   }
+  if (labels.length === 1) {
+    return labels[0];
+  }
+  return `${labels[0]} (+${labels.length - 1})`;
+}
+
+function getMaintenanceEquipamentoIds(item) {
+  if (!item || typeof item !== "object") {
+    return [];
+  }
+  const ids = normalizeMaintenanceEquipamentoIdsValue(
+    item.equipamentoIds ||
+      item.equipamentosIds ||
+      (item.conclusao && item.conclusao.equipamentoIds) ||
+      []
+  );
+  const primaryRaw =
+    item.equipamentoId ||
+    (item.conclusao && item.conclusao.equipamentoId) ||
+    (item.equipamento && typeof item.equipamento === "object" ? item.equipamento.id || "" : "");
+  const primary = resolveEquipamentoIdFromValue(primaryRaw);
+  if (primary && !ids.includes(primary)) {
+    ids.unshift(primary);
+  }
+  return ids;
+}
+
+function getMaintenanceEquipamentoLabels(item) {
+  if (!item) {
+    return [];
+  }
   const projectId = item.projectId || activeProjectId;
+  const ids = getMaintenanceEquipamentoIds(item);
+  if (ids.length) {
+    const labels = Array.from(
+      new Set(
+        ids
+          .map((equipamentoId) => getEquipamentoNomeById(projectId, equipamentoId))
+          .map((label) => String(label || "").trim())
+          .filter((label) => label && label !== "-")
+      )
+    );
+    if (labels.length) {
+      return labels;
+    }
+  }
   const nomeDireto = String(item.equipamentoNome || item.equipamentoTag || "").trim();
   if (nomeDireto) {
-    return nomeDireto;
+    return [nomeDireto];
   }
   if (item.equipamento && typeof item.equipamento === "object") {
     const tag = item.equipamento.tag || "";
     const nome = item.equipamento.nome || item.equipamento.name || "";
     if (tag || nome) {
-      return `${tag ? `${tag} - ` : ""}${nome}`.trim() || "-";
+      return [`${tag ? `${tag} - ` : ""}${nome}`.trim()];
     }
     if (item.equipamento.id) {
-      return getEquipamentoNomeById(projectId, item.equipamento.id);
+      return [getEquipamentoNomeById(projectId, item.equipamento.id)];
     }
   }
   if (typeof item.equipamento === "string" && item.equipamento.trim()) {
-    return item.equipamento.trim();
+    return [item.equipamento.trim()];
   }
-  if (item.equipamentoId) {
-    return getEquipamentoNomeById(projectId, item.equipamentoId);
-  }
-  return "-";
+  return [];
 }
 
 async function ensurePmpEquipamentos(projectId) {
@@ -40368,6 +40462,10 @@ function getSubequipamentosByEquipamentoId(equipamentoId) {
   return normalizeLocaisList(equipamento.subequipamentos || []);
 }
 
+function normalizeMaintenanceEquipamentoIdsValue(value) {
+  return normalizeStringIdList(value);
+}
+
 function normalizeMaintenanceSubequipamentosValue(value) {
   if (Array.isArray(value)) {
     return normalizeLocaisList(value);
@@ -40649,13 +40747,25 @@ function refreshProcedimentoManutencaoUi() {
   updateProcedimentoManutencaoStats();
 }
 
-function renderSubequipamentoSelectOptions(select, equipamentoId) {
+function renderSubequipamentoSelectOptions(select, equipamentoIdOrIds) {
   if (!select) {
     return;
   }
   const selected = getMultiSelectValues(select);
-  const subequipamentos = getSubequipamentosByEquipamentoId(equipamentoId);
+  const equipamentoIds = normalizeMaintenanceEquipamentoIdsValue(equipamentoIdOrIds);
+  const equipamentoId = equipamentoIds.length === 1 ? equipamentoIds[0] : "";
   select.innerHTML = "";
+  if (equipamentoIds.length > 1) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "Sub-equipamentos disponíveis apenas com 1 equipamento selecionado";
+    option.disabled = true;
+    option.selected = true;
+    select.append(option);
+    select.disabled = true;
+    return;
+  }
+  const subequipamentos = getSubequipamentosByEquipamentoId(equipamentoId);
   if (!subequipamentos.length) {
     const option = document.createElement("option");
     option.value = "";
@@ -40898,7 +41008,11 @@ function setEquipamentoSelectValue(select, rawValue) {
   }
   const equipamentoId = resolveEquipamentoIdFromValue(rawValue);
   if (!equipamentoId) {
-    select.value = "";
+    if (select.multiple) {
+      setMultiSelectValues(select, []);
+    } else {
+      select.value = "";
+    }
     return;
   }
   const existe = Array.from(select.options || []).some((opt) => opt.value === equipamentoId);
@@ -40911,33 +41025,56 @@ function setEquipamentoSelectValue(select, rawValue) {
       : "Equipamento removido";
     select.append(option);
   }
-  select.value = equipamentoId;
+  if (select.multiple) {
+    setMultiSelectValues(select, [equipamentoId]);
+  } else {
+    select.value = equipamentoId;
+  }
 }
 
 function renderEquipamentoSelectOptions(select, placeholder = "Selecione um equipamento") {
   if (!select) {
     return;
   }
-  const atual = select.value;
-  select.innerHTML = `<option value="">${placeholder}</option>`;
+  const selecionadosAtuais = select.multiple ? getMultiSelectValues(select) : [select.value];
+  select.innerHTML = "";
+  if (!select.multiple) {
+    select.innerHTML = `<option value="">${placeholder}</option>`;
+  } else if (!projectEquipamentos.length) {
+    const emptyOpt = document.createElement("option");
+    emptyOpt.value = "";
+    emptyOpt.textContent = "Nenhum equipamento cadastrado no projeto";
+    emptyOpt.disabled = true;
+    emptyOpt.selected = true;
+    select.append(emptyOpt);
+  }
   projectEquipamentos.forEach((equip) => {
     const option = document.createElement("option");
     option.value = equip.id;
     option.textContent = `${equip.tag || "-"} - ${equip.nome || "-"}`;
     select.append(option);
   });
-  if (atual) {
-    const existe = Array.from(select.options || []).some((opt) => opt.value === atual);
-    if (!existe) {
-      const equipamento = projectEquipamentos.find((equip) => equip.id === atual);
-      const option = document.createElement("option");
-      option.value = atual;
-      option.textContent = equipamento
-        ? `${equipamento.tag || "-"} - ${equipamento.nome || "-"}`
-        : "Equipamento removido";
-      select.append(option);
+  selecionadosAtuais
+    .filter(Boolean)
+    .forEach((equipamentoId) => {
+      const existe = Array.from(select.options || []).some((opt) => opt.value === equipamentoId);
+      if (!existe) {
+        const equipamento = projectEquipamentos.find((equip) => equip.id === equipamentoId);
+        const option = document.createElement("option");
+        option.value = equipamentoId;
+        option.textContent = equipamento
+          ? `${equipamento.tag || "-"} - ${equipamento.nome || "-"}`
+          : "Equipamento removido";
+        select.append(option);
+      }
+    });
+  if (select.multiple) {
+    setMultiSelectValues(select, selecionadosAtuais);
+  } else {
+    const atual = selecionadosAtuais[0] || "";
+    if (atual) {
+      select.value = atual;
     }
-    select.value = atual;
   }
 }
 
@@ -40945,9 +41082,14 @@ function renderEquipamentoOptions() {
   renderEquipamentoSelectOptions(equipamentoManutencao);
   renderEquipamentoSelectOptions(liberacaoEquipamento);
   renderEquipamentoSelectOptions(templateEquipamento);
+  bindFriendlyMultiSelect(equipamentoManutencao);
   renderSubequipamentoSelectOptions(
     subequipamentoManutencao,
-    equipamentoManutencao ? equipamentoManutencao.value : ""
+    equipamentoManutencao
+      ? (equipamentoManutencao.multiple
+          ? getMultiSelectValues(equipamentoManutencao)
+          : equipamentoManutencao.value)
+      : []
   );
   renderSubequipamentoSelectOptions(
     templateSubequipamentos,
@@ -49987,7 +50129,14 @@ async function adicionarManutencao() {
     (subestacaoManutencao ? subestacaoManutencao.value.trim() : "") ||
     getSubestacoesBase()[0] ||
     "";
-  const equipamentoId = equipamentoManutencao ? equipamentoManutencao.value.trim() : "";
+  const equipamentoIds = normalizeMaintenanceEquipamentoIdsValue(
+    equipamentoManutencao
+      ? (equipamentoManutencao.multiple
+          ? getMultiSelectValues(equipamentoManutencao)
+          : equipamentoManutencao.value)
+      : []
+  );
+  const equipamentoId = equipamentoIds[0] || "";
   const subequipamentos = normalizeMaintenanceSubequipamentosValue(
     getMultiSelectValues(subequipamentoManutencao)
   );
@@ -50124,6 +50273,7 @@ async function adicionarManutencao() {
       data,
       projectId: activeProjectId,
       equipamentoId,
+      equipamentoIds,
       observacao,
       observacaoHtml,
       templateId,
@@ -50322,7 +50472,11 @@ function limparFormularioManutencao() {
     subestacaoManutencao.value = baseSubestacoes[0];
   }
   if (equipamentoManutencao) {
-    equipamentoManutencao.value = "";
+    if (equipamentoManutencao.multiple) {
+      setMultiSelectValues(equipamentoManutencao, []);
+    } else {
+      equipamentoManutencao.value = "";
+    }
   }
   renderSubequipamentoSelectOptions(subequipamentoManutencao, "");
   if (procedimentoManutencao) {
@@ -50480,6 +50634,12 @@ function preencherFormularioManutencao(item) {
   }
 
   if (equipamentoManutencao) {
+    const equipamentoIds = normalizeMaintenanceEquipamentoIdsValue(
+      item.equipamentoIds ||
+        (similarItem && similarItem.equipamentoIds) ||
+        (item.conclusao && item.conclusao.equipamentoIds) ||
+        []
+    );
     const equipamentoRaw =
       pickItemValue(item, ["equipamentoId", "equipamento"]) ||
       (item.conclusao ? pickItemValue(item.conclusao, ["equipamentoId", "equipamento"]) : "") ||
@@ -50488,24 +50648,24 @@ function preencherFormularioManutencao(item) {
       equipamentoRaw && typeof equipamentoRaw === "object"
         ? equipamentoRaw.nome || equipamentoRaw.name || equipamentoRaw.label || ""
         : "";
-    let equipamentoId =
+    let equipamentoIdFallback =
       typeof equipamentoRaw === "object" && equipamentoRaw
         ? equipamentoRaw.id || ""
         : String(equipamentoRaw || "").trim();
-    if (!equipamentoId && equipamentoNome) {
+    if (!equipamentoIdFallback && equipamentoNome) {
       const matchByName = projectEquipamentos.find(
         (equip) =>
           normalizeSearchValue(equip.nome || "") === normalizeSearchValue(equipamentoNome) ||
           normalizeSearchValue(equip.tag || "") === normalizeSearchValue(equipamentoNome)
       );
       if (matchByName) {
-        equipamentoId = matchByName.id;
+        equipamentoIdFallback = matchByName.id;
       }
     }
-    if (equipamentoId) {
-      const matchById = projectEquipamentos.find((equip) => equip.id === equipamentoId);
+    if (equipamentoIdFallback) {
+      const matchById = projectEquipamentos.find((equip) => equip.id === equipamentoIdFallback);
       if (matchById) {
-        equipamentoId = matchById.id;
+        equipamentoIdFallback = matchById.id;
       } else if (equipamentoNome) {
         const matchByName = projectEquipamentos.find(
           (equip) =>
@@ -50513,14 +50673,15 @@ function preencherFormularioManutencao(item) {
             normalizeSearchValue(equip.tag || "") === normalizeSearchValue(equipamentoNome)
         );
         if (matchByName) {
-          equipamentoId = matchByName.id;
+          equipamentoIdFallback = matchByName.id;
         }
       }
     }
-    if (equipamentoId) {
-      const existe = Array.from(equipamentoManutencao.options || []).some(
-        (opt) => opt.value === equipamentoId
-      );
+    if (!equipamentoIds.length && equipamentoIdFallback) {
+      equipamentoIds.push(equipamentoIdFallback);
+    }
+    equipamentoIds.forEach((equipamentoId) => {
+      const existe = Array.from(equipamentoManutencao.options || []).some((opt) => opt.value === equipamentoId);
       if (!existe) {
         const equipamento = projectEquipamentos.find((equip) => equip.id === equipamentoId);
         const option = document.createElement("option");
@@ -50530,12 +50691,20 @@ function preencherFormularioManutencao(item) {
           : equipamentoNome || equipamentoId;
         equipamentoManutencao.append(option);
       }
+    });
+    if (equipamentoManutencao.multiple) {
+      setMultiSelectValues(equipamentoManutencao, equipamentoIds);
+    } else {
+      equipamentoManutencao.value = equipamentoIds[0] || "";
     }
-    equipamentoManutencao.value = equipamentoId;
   }
   renderSubequipamentoSelectOptions(
     subequipamentoManutencao,
-    equipamentoManutencao ? equipamentoManutencao.value : ""
+    equipamentoManutencao
+      ? (equipamentoManutencao.multiple
+          ? getMultiSelectValues(equipamentoManutencao)
+          : equipamentoManutencao.value)
+      : []
   );
   const subequipamentosFormValue = normalizeMaintenanceSubequipamentosValue(
     item.subequipamentos ||
@@ -50543,7 +50712,13 @@ function preencherFormularioManutencao(item) {
       (template && template.subequipamentos) ||
       []
   );
-  if (subequipamentoManutencao) {
+  const equipamentoSelecionadosForm = equipamentoManutencao
+    ? (equipamentoManutencao.multiple
+        ? getMultiSelectValues(equipamentoManutencao)
+        : [equipamentoManutencao.value])
+    : [];
+  const podeEditarSubequipamentos = equipamentoSelecionadosForm.length <= 1;
+  if (subequipamentoManutencao && podeEditarSubequipamentos) {
     subequipamentosFormValue.forEach((nome) => {
       const exists = Array.from(subequipamentoManutencao.options || []).some(
         (opt) => opt.value === nome
@@ -50556,7 +50731,10 @@ function preencherFormularioManutencao(item) {
       }
     });
   }
-  setMultiSelectValues(subequipamentoManutencao, subequipamentosFormValue);
+  setMultiSelectValues(
+    subequipamentoManutencao,
+    podeEditarSubequipamentos ? subequipamentosFormValue : []
+  );
   const procedimentoIdsFormValue = normalizeMaintenanceProcedimentoIdsValue(
     item.procedimentoIds ||
       (similarItem && similarItem.procedimentoIds) ||
@@ -50924,12 +51102,26 @@ async function salvarEdicaoManutencao() {
     getItemSubestacao(item) ||
     getSubestacoesBase()[0] ||
     "";
-  const equipamentoInput = equipamentoManutencao ? equipamentoManutencao.value.trim() : "";
+  const equipamentoInputIds = normalizeMaintenanceEquipamentoIdsValue(
+    equipamentoManutencao
+      ? (equipamentoManutencao.multiple
+          ? getMultiSelectValues(equipamentoManutencao)
+          : equipamentoManutencao.value)
+      : []
+  );
   const equipamentoId =
-    equipamentoInput ||
+    equipamentoInputIds[0] ||
     (typeof item.equipamentoId === "string" && item.equipamentoId) ||
     (typeof item.equipamento === "string" && item.equipamento) ||
     "";
+  const equipamentoIds = normalizeMaintenanceEquipamentoIdsValue(
+    equipamentoInputIds.length
+      ? equipamentoInputIds
+      : item.equipamentoIds || item.equipamentosIds || (equipamentoId ? [equipamentoId] : [])
+  );
+  if (equipamentoId && !equipamentoIds.includes(equipamentoId)) {
+    equipamentoIds.unshift(equipamentoId);
+  }
   const subequipamentosInput = normalizeMaintenanceSubequipamentosValue(
     getMultiSelectValues(subequipamentoManutencao)
   );
@@ -51038,6 +51230,14 @@ async function salvarEdicaoManutencao() {
     ? equipamentoObj.id || equipamentoObj.nome || equipamentoObj.name || equipamentoObj.tag || ""
     : "";
   const equipamentoFinal = equipamentoId || equipamentoFallback || "";
+  const equipamentoIdsFinal = normalizeMaintenanceEquipamentoIdsValue(
+    equipamentoIds.length
+      ? equipamentoIds
+      : item.equipamentoIds || item.equipamentosIds || (equipamentoFinal ? [equipamentoFinal] : [])
+  );
+  if (equipamentoFinal && !equipamentoIdsFinal.includes(equipamentoFinal)) {
+    equipamentoIdsFinal.unshift(equipamentoFinal);
+  }
   const subequipamentosFinal = subequipamentosInput;
   const procedimentoIdsFinal = procedimentoIdsInput;
   const localFinal = local || getItemSubestacao(item) || "";
@@ -51152,6 +51352,9 @@ async function salvarEdicaoManutencao() {
         categoria: categoriaFinal || item.conclusao.categoria,
         prioridade: prioridadeFinal || item.conclusao.prioridade,
         equipamentoId: equipamentoFinal || item.conclusao.equipamentoId,
+        equipamentoIds: equipamentoIdsFinal.length
+          ? equipamentoIdsFinal
+          : normalizeMaintenanceEquipamentoIdsValue(item.conclusao.equipamentoIds || []),
       }
     : item.conclusao;
 
@@ -51161,6 +51364,7 @@ async function salvarEdicaoManutencao() {
     local: localFinal,
     data: dataFinal,
     equipamentoId: equipamentoFinal,
+    equipamentoIds: equipamentoIdsFinal,
     subequipamentos: subequipamentosFinal,
     procedimentoIds: procedimentoIdsFinal,
     observacao: observacaoFinal,
@@ -53011,6 +53215,12 @@ async function finalizarLiberacao(index, item, liberacaoBase, overrideJustificat
     liberacao.equipamentoId ||
     item.equipamentoId ||
     resolveEquipamentoIdFromValue(item.equipamento);
+  const equipamentoIdsFinal = normalizeMaintenanceEquipamentoIdsValue(
+    item.equipamentoIds || item.equipamentosIds || (equipamentoFinal ? [equipamentoFinal] : [])
+  );
+  if (equipamentoFinal && !equipamentoIdsFinal.includes(equipamentoFinal)) {
+    equipamentoIdsFinal.unshift(equipamentoFinal);
+  }
   const equipeResponsavel = liberacao.equipeResponsavel || "";
   const executadoPorTime = equipeResponsavel ? `team:${equipeResponsavel}` : "";
   const registroExecucaoAtual = executadoPorTime
@@ -53030,6 +53240,7 @@ async function finalizarLiberacao(index, item, liberacaoBase, overrideJustificat
           ? "nao"
           : item.criticidade || "",
     equipamentoId: equipamentoFinal || item.equipamentoId,
+    equipamentoIds: equipamentoIdsFinal,
     participantes: participantesFinal.length ? participantesFinal : item.participantes,
     executadaPor: executadoPorTime || item.executadaPor,
     registroExecucao: registroExecucaoAtual,
@@ -55917,6 +56128,7 @@ async function salvarConclusao(event) {
         (item.equipamento && typeof item.equipamento === "object"
           ? item.equipamento.id || item.equipamento.nome || item.equipamento.name || ""
           : ""),
+      equipamentoIds: getMaintenanceEquipamentoIds(item),
       observacaoExecucao,
       descricaoBreve,
       assinatura: {
@@ -61589,7 +61801,9 @@ if (equipamentoManutencao) {
   equipamentoManutencao.addEventListener("change", () => {
     renderSubequipamentoSelectOptions(
       subequipamentoManutencao,
-      equipamentoManutencao.value
+      equipamentoManutencao.multiple
+        ? getMultiSelectValues(equipamentoManutencao)
+        : equipamentoManutencao.value
     );
   });
 }

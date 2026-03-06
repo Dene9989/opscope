@@ -10144,8 +10144,24 @@ function sanitizeMaintenanceLinkedData(item) {
   if (!item || typeof item !== "object") {
     return item;
   }
+  const equipamentoIds = normalizeStringIdList(
+    item.equipamentoIds || item.equipamentosIds || []
+  );
+  let equipamentoId = String(
+    item.equipamentoId ||
+      (item.conclusao && item.conclusao.equipamentoId) ||
+      (item.equipamento && typeof item.equipamento === "object" ? item.equipamento.id || "" : "")
+  ).trim();
+  if (!equipamentoId && equipamentoIds.length) {
+    equipamentoId = equipamentoIds[0];
+  }
+  if (equipamentoId && !equipamentoIds.includes(equipamentoId)) {
+    equipamentoIds.unshift(equipamentoId);
+  }
   return {
     ...item,
+    equipamentoId,
+    equipamentoIds,
     subequipamentos: normalizeSubequipamentosList(
       item.subequipamentos || item.subequipamentoIds || []
     ),
@@ -11204,6 +11220,7 @@ function getEquipmentLabel(item, projectId) {
   if (!item || typeof item !== "object") {
     return "nao informado";
   }
+  const equipamentoIds = normalizeStringIdList(item.equipamentoIds || item.equipamentosIds || []);
   const equipmentObj = item.equipamento || null;
   if (equipmentObj && typeof equipmentObj === "object") {
     const tag = equipmentObj.tag || "";
@@ -11228,6 +11245,30 @@ function getEquipmentLabel(item, projectId) {
     item.equipamentoId ||
     (item.conclusao && item.conclusao.equipamentoId) ||
     "";
+  if (equipamentoId && !equipamentoIds.includes(equipamentoId)) {
+    equipamentoIds.unshift(String(equipamentoId));
+  }
+  if (equipamentoIds.length) {
+    const labels = Array.from(
+      new Set(
+        equipamentoIds.map((id) => {
+          const match = equipamentos.find(
+            (equip) => equip && equip.id === id && equip.projectId === projectId
+          );
+          if (match) {
+            return `${match.tag ? `${match.tag} - ` : ""}${match.nome || ""}`.trim() || id;
+          }
+          return id;
+        })
+      )
+    ).filter(Boolean);
+    if (labels.length === 1) {
+      return labels[0];
+    }
+    if (labels.length > 1) {
+      return `${labels[0]} (+${labels.length - 1})`;
+    }
+  }
   if (equipamentoId) {
     const match = equipamentos.find(
       (equip) => equip && equip.id === equipamentoId && equip.projectId === projectId
@@ -11347,6 +11388,8 @@ function getMaintenanceSearchBlob(item) {
     item.subestacao,
     item.equipamento,
     item.equipamentoId,
+    Array.isArray(item.equipamentoIds) ? item.equipamentoIds.join(" ") : "",
+    getEquipmentLabel(item, item.projectId || ""),
     item.status,
     item.categoria,
     item.prioridade,
@@ -11446,6 +11489,9 @@ function buildMaintenanceSummaryItem(item) {
     subestacao: item.subestacao || "",
     equipamento: item.equipamento || "",
     equipamentoId: item.equipamentoId || "",
+    equipamentoIds: normalizeStringIdList(
+      item.equipamentoIds || item.equipamentosIds || (item.equipamentoId ? [item.equipamentoId] : [])
+    ),
     categoria: item.categoria || "",
     prioridade: item.prioridade || "",
     criticidade: item.criticidade || "",
