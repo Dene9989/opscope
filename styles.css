@@ -7375,6 +7375,25 @@ label {
   min-height: 190px;
 }
 
+#nova-manutencao .field--equipamento-wide {
+  grid-column: 1 / -1;
+}
+
+#nova-manutencao #equipamentoManutencao {
+  min-height: 220px;
+  font-size: 0.93rem;
+  line-height: 1.35;
+}
+
+#nova-manutencao #equipamentoManutencao option {
+  padding: 6px 8px;
+}
+
+#nova-manutencao #equipamentoManutencao option:checked {
+  background: rgba(200, 146, 61, 0.34);
+  color: #f4d39b;
+}
+
 #nova-manutencao .multi-select--procedimentos option {
   padding: 6px 8px;
   border-radius: 6px;
