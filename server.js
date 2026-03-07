@@ -11238,9 +11238,6 @@ function getEquipmentLabel(item, projectId) {
       return equipmentObj.id;
     }
   }
-  if (typeof item.equipamento === "string" && item.equipamento.trim()) {
-    return item.equipamento.trim();
-  }
   const equipamentoId =
     item.equipamentoId ||
     (item.conclusao && item.conclusao.equipamentoId) ||
@@ -11266,7 +11263,7 @@ function getEquipmentLabel(item, projectId) {
       return labels[0];
     }
     if (labels.length > 1) {
-      return `${labels[0]} (+${labels.length - 1})`;
+      return labels.join(" | ");
     }
   }
   if (equipamentoId) {
@@ -11277,6 +11274,9 @@ function getEquipmentLabel(item, projectId) {
       return `${match.tag ? `${match.tag} - ` : ""}${match.nome || ""}`.trim() || equipamentoId;
     }
     return equipamentoId;
+  }
+  if (typeof item.equipamento === "string" && item.equipamento.trim()) {
+    return item.equipamento.trim();
   }
   return "nao informado";
 }
@@ -11476,18 +11476,19 @@ function buildMaintenanceSummaryItem(item) {
   if (!item || typeof item !== "object") {
     return item;
   }
+  const itemProjectId = item.projectId || "";
   const liberacao =
     item.liberacao && typeof item.liberacao === "object" ? item.liberacao : {};
   const conclusao =
     item.conclusao && typeof item.conclusao === "object" ? item.conclusao : {};
   return {
     id: item.id || "",
-    projectId: item.projectId || "",
+    projectId: itemProjectId,
     status: item.status || "",
     titulo: item.titulo || item.nome || item.atividade || "",
     local: item.local || item.subestacao || "",
     subestacao: item.subestacao || "",
-    equipamento: item.equipamento || "",
+    equipamento: getEquipmentLabel(item, itemProjectId) || item.equipamento || "",
     equipamentoId: item.equipamentoId || "",
     equipamentoIds: normalizeStringIdList(
       item.equipamentoIds || item.equipamentosIds || (item.equipamentoId ? [item.equipamentoId] : [])
@@ -11546,13 +11547,21 @@ function sanitizeMaintenanceListItem(item, options = {}) {
   if (!source) {
     return item;
   }
+  const sourceProjectId = source.projectId || "";
   if (options.includeInlineDataUrls) {
-    return source;
+    return {
+      ...source,
+      equipamento: getEquipmentLabel(source, sourceProjectId) || source.equipamento || "",
+    };
   }
   const context = { removed: 0 };
   const sanitized = sanitizeInlineDataUrls(source, context);
   if (context.removed > 0 && sanitized && typeof sanitized === "object") {
     sanitized.inlineDataUrlsOmitted = context.removed;
+  }
+  if (sanitized && typeof sanitized === "object") {
+    sanitized.equipamento =
+      getEquipmentLabel(sanitized, sourceProjectId) || sanitized.equipamento || "";
   }
   return sanitized;
 }

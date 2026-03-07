@@ -33842,10 +33842,7 @@ function getMaintenanceEquipamentoLabel(item) {
   if (!labels.length) {
     return "-";
   }
-  if (labels.length === 1) {
-    return labels[0];
-  }
-  return `${labels[0]} (+${labels.length - 1})`;
+  return labels.join(" | ");
 }
 
 function getMaintenanceEquipamentoIds(item) {
