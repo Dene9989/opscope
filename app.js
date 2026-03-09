@@ -51487,7 +51487,6 @@ async function salvarEdicaoManutencao() {
   const registroAtualizado = item.registroExecucao
     ? {
         ...item.registroExecucao,
-        comentario: observacaoFinal,
         executadoPor: executadoPorTime || item.registroExecucao.executadoPor,
       }
     : item.registroExecucao;
