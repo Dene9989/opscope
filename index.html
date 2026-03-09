@@ -7,13 +7,13 @@
     <title>OPSCOPE - Sistema de Gestão Operacional e Manutenção</title>
     <link rel="icon" type="image/png" href="assets/img/opscope-logo.png" />
     <link rel="apple-touch-icon" href="assets/img/opscope-logo.png" />
-    <link rel="stylesheet" href="styles.css?v=20260306-1" />
+    <link rel="stylesheet" href="styles.css?v=20260309-2" />
     <link rel="stylesheet" href="assets/css/login.css" />
   </head>
   <body class="is-visitor">
     <div id="loadingOverlay" class="loading-overlay" hidden>
       <div class="loading-brand" aria-hidden="true">
-        <img src="assets/img/opscope-logo.png" alt="" width="120" height="120" loading="eager" />
+        <img src="assets/img/opscope-logo.png" alt="" width="180" height="180" loading="eager" />
       </div>
       <div class="loading-spinner" role="status" aria-live="polite">
         <span class="loading-dot"></span>
@@ -6022,9 +6022,18 @@
                   <h3>Limpezas controladas</h3>
                   <div class="field">
                     <label for="inputDiasLimpeza">Dias para limpar concluídas</label>
-                    <input id="inputDiasLimpeza" type="number" min="1" max="365" value="30" />
+                    <input id="inputDiasLimpeza" type="number" min="1" max="3650" value="300" />
+                  </div>
+                  <div class="field field--checkbox">
+                    <label class="checkbox-field" for="inputNuncaLimparConcluidas">
+                      <input id="inputNuncaLimparConcluidas" type="checkbox" />
+                      <span>Nunca limpar concluídas (proteger dados)</span>
+                    </label>
                   </div>
                   <div class="manager-actions">
+                    <button id="btnSalvarLimpeza" class="btn btn--ghost btn--small" type="button">
+                      Salvar regra
+                    </button>
                     <button id="btnLimparConcluidas" class="btn btn--ghost btn--small" type="button">
                       Limpar concluídas
                     </button>
@@ -6032,6 +6041,7 @@
                       Limpar auditoria
                     </button>
                   </div>
+                  <small id="limpezaControlInfo" class="hint"></small>
                 </div>
                 <div class="manager-card">
                   <h3>Cache local</h3>
@@ -8454,6 +8464,6 @@
     </footer>
 
     <script src="assets/js/powerbiExport.js?v=20260227-2"></script>
-    <script src="app.js?v=20260309-1"></script>
+    <script src="app.js?v=20260309-2"></script>
   </body>
 </html>

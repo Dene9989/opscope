@@ -1997,16 +1997,16 @@ body.is-visitor .notify.auth-only {
 }
 
 .loading-brand {
-  width: 96px;
-  height: 96px;
+  width: clamp(136px, 19vw, 188px);
+  height: clamp(136px, 19vw, 188px);
   display: grid;
   place-items: center;
   animation: loadingBrandFloat 2.4s ease-in-out infinite;
 }
 
 .loading-brand img {
-  width: 92px;
-  height: 92px;
+  width: clamp(128px, 18vw, 176px);
+  height: clamp(128px, 18vw, 176px);
   object-fit: contain;
   filter: drop-shadow(0 8px 22px rgba(0, 0, 0, 0.55));
 }

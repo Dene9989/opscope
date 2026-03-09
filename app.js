@@ -894,8 +894,11 @@ const btnExportarDados = document.getElementById("btnExportarDados");
 const inputImportarDados = document.getElementById("inputImportarDados");
 const btnImportarDados = document.getElementById("btnImportarDados");
 const inputDiasLimpeza = document.getElementById("inputDiasLimpeza");
+const inputNuncaLimparConcluidas = document.getElementById("inputNuncaLimparConcluidas");
+const btnSalvarLimpeza = document.getElementById("btnSalvarLimpeza");
 const btnLimparConcluidas = document.getElementById("btnLimparConcluidas");
 const btnLimparAuditoria = document.getElementById("btnLimparAuditoria");
+const limpezaControlInfo = document.getElementById("limpezaControlInfo");
 const btnRecalcularBacklog = document.getElementById("btnRecalcularBacklog");
 const btnGerarRelatorio = document.getElementById("btnGerarRelatorio");
 const relatorioGerencial = document.getElementById("relatorioGerencial");
@@ -1482,10 +1485,14 @@ const panels = document.querySelectorAll("[data-panel]");
 const adminElements = document.querySelectorAll("[data-admin-only]");
 
 const DEFAULT_REMINDER_DAYS = 7;
+const DEFAULT_CLEANUP_CONCLUIDAS_DAYS = 300;
+const MIN_CLEANUP_CONCLUIDAS_DAYS = 1;
+const MAX_CLEANUP_CONCLUIDAS_DAYS = 3650;
 const LOADING_DELAY_MS = 450;
 const BASE_DOCUMENT_TITLE = "OPSCOPE - Sistema de Gest\u00e3o Operacional e Manuten\u00e7\u00e3o";
 const HISTORY_PAGE_SIZE = 12;
 const REMINDER_KEY = "denemanu.reminderDays";
+const MAINT_CLEANUP_SETTINGS_KEY = "opscope.maintenance.cleanupSettings";
 const SIDEBAR_KEY = "opscope.sidebarCollapsed";
 const SIDEBAR_STATE_KEY = "sb_state";
 const NOTIFICATION_READ_KEY = "opscope.notifications.read";
@@ -4972,6 +4979,8 @@ let pmpCellContext = null;
 let pmpInfoContext = null;
 let adminPermissionCatalog = [];
 let reminderDays = DEFAULT_REMINDER_DAYS;
+let cleanupConcluidasDias = DEFAULT_CLEANUP_CONCLUIDAS_DAYS;
+let cleanupConcluidasDisabled = true;
 let loadingTimeout = null;
 let urlSyncReady = false;
 let bootInProgress = false;
@@ -11670,6 +11679,7 @@ function carregarConfiguracoes() {
   if (configDiasLembrete) {
     configDiasLembrete.value = reminderDays;
   }
+  carregarConfiguracoesLimpeza();
 }
 
 function salvarConfiguracoes() {
@@ -11686,7 +11696,91 @@ function salvarConfiguracoes() {
   writeJson(REMINDER_KEY, reminderDays);
   gerarManutencoesRecorrentes();
   renderTudo();
-mostrarMensagemGerencial("Configuração atualizada.");
+  mostrarMensagemGerencial("Configuração atualizada.");
+}
+
+function normalizeCleanupConcluidasDias(value, fallback = DEFAULT_CLEANUP_CONCLUIDAS_DAYS) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return fallback;
+  }
+  const rounded = Math.round(numeric);
+  if (rounded < MIN_CLEANUP_CONCLUIDAS_DAYS || rounded > MAX_CLEANUP_CONCLUIDAS_DAYS) {
+    return fallback;
+  }
+  return rounded;
+}
+
+function updateLimpezaControlUi() {
+  if (inputNuncaLimparConcluidas) {
+    inputNuncaLimparConcluidas.checked = cleanupConcluidasDisabled;
+  }
+  if (inputDiasLimpeza) {
+    inputDiasLimpeza.value = String(cleanupConcluidasDias);
+    inputDiasLimpeza.disabled = cleanupConcluidasDisabled;
+  }
+  if (btnLimparConcluidas) {
+    btnLimparConcluidas.disabled = cleanupConcluidasDisabled;
+    btnLimparConcluidas.classList.toggle("is-disabled", cleanupConcluidasDisabled);
+  }
+  if (!limpezaControlInfo) {
+    return;
+  }
+  limpezaControlInfo.textContent = cleanupConcluidasDisabled
+    ? "Proteção ativa: concluídas não serão limpas até desmarcar e salvar."
+    : `Regra salva: limpar apenas concluídas com mais de ${cleanupConcluidasDias} dias.`;
+}
+
+function carregarConfiguracoesLimpeza() {
+  const stored = readJson(MAINT_CLEANUP_SETTINGS_KEY, null);
+  const hasStored = stored && typeof stored === "object";
+  cleanupConcluidasDias = normalizeCleanupConcluidasDias(
+    hasStored ? stored.diasConcluidas : DEFAULT_CLEANUP_CONCLUIDAS_DAYS,
+    DEFAULT_CLEANUP_CONCLUIDAS_DAYS
+  );
+  if (hasStored && Object.prototype.hasOwnProperty.call(stored, "neverConcluidasCleanup")) {
+    cleanupConcluidasDisabled = Boolean(stored.neverConcluidasCleanup);
+  } else {
+    cleanupConcluidasDisabled = true;
+  }
+  updateLimpezaControlUi();
+}
+
+function salvarConfiguracoesLimpeza() {
+  if (!isAdmin()) {
+    mostrarMensagemGerencial("Apenas administradores podem alterar limpezas.", true);
+    return;
+  }
+  const nuncaLimpar = Boolean(inputNuncaLimparConcluidas && inputNuncaLimparConcluidas.checked);
+  const valorInput = inputDiasLimpeza ? Number(inputDiasLimpeza.value) : cleanupConcluidasDias;
+  if (
+    !nuncaLimpar &&
+    (!Number.isFinite(valorInput) ||
+      valorInput < MIN_CLEANUP_CONCLUIDAS_DAYS ||
+      valorInput > MAX_CLEANUP_CONCLUIDAS_DAYS)
+  ) {
+    mostrarMensagemGerencial(
+      `Informe um número entre ${MIN_CLEANUP_CONCLUIDAS_DAYS} e ${MAX_CLEANUP_CONCLUIDAS_DAYS}.`,
+      true
+    );
+    return;
+  }
+  cleanupConcluidasDias = normalizeCleanupConcluidasDias(
+    valorInput,
+    cleanupConcluidasDias || DEFAULT_CLEANUP_CONCLUIDAS_DAYS
+  );
+  cleanupConcluidasDisabled = nuncaLimpar;
+  writeJson(MAINT_CLEANUP_SETTINGS_KEY, {
+    diasConcluidas: cleanupConcluidasDias,
+    neverConcluidasCleanup: cleanupConcluidasDisabled,
+    updatedAt: toIsoUtc(new Date()),
+  });
+  updateLimpezaControlUi();
+  mostrarMensagemGerencial(
+    cleanupConcluidasDisabled
+      ? "Regra salva. Proteção ativa: nunca limpar concluídas."
+      : `Regra salva. Limpeza manual acima de ${cleanupConcluidasDias} dias.`
+  );
 }
 
 function startOfDay(date) {
@@ -49232,6 +49326,7 @@ function renderAuthUI() {
   if (configDiasLembrete && configDiasLembrete.value !== String(reminderDays)) {
     configDiasLembrete.value = reminderDays;
   }
+  updateLimpezaControlUi();
 
   renderFeedbackRecipients();
   atualizarFeedbackBadge();
@@ -49446,7 +49541,11 @@ function exportarDados() {
     users,
     requests,
     auditLog,
-    config: { reminderDays },
+    config: {
+      reminderDays,
+      cleanupConcluidasDias: cleanupConcluidasDias,
+      neverConcluidasCleanup: cleanupConcluidasDisabled,
+    },
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {
     type: "application/json",
@@ -49690,8 +49789,17 @@ function importarDados() {
         auditLog = data.auditLog;
       }
       iniciarAuditChain();
-      if (data.config && Number.isFinite(Number(data.config.reminderDays))) {
-        reminderDays = Number(data.config.reminderDays);
+      if (data.config && typeof data.config === "object") {
+        if (Number.isFinite(Number(data.config.reminderDays))) {
+          reminderDays = Number(data.config.reminderDays);
+        }
+        cleanupConcluidasDias = normalizeCleanupConcluidasDias(
+          data.config.cleanupConcluidasDias,
+          cleanupConcluidasDias
+        );
+        if (Object.prototype.hasOwnProperty.call(data.config, "neverConcluidasCleanup")) {
+          cleanupConcluidasDisabled = Boolean(data.config.neverConcluidasCleanup);
+        }
       }
       salvarManutencoes(manutencoes);
       salvarTemplates(templates);
@@ -49699,7 +49807,13 @@ function importarDados() {
       salvarSolicitacoes(requests);
       salvarAuditoria(auditLog);
       writeJson(REMINDER_KEY, reminderDays);
+      writeJson(MAINT_CLEANUP_SETTINGS_KEY, {
+        diasConcluidas: cleanupConcluidasDias,
+        neverConcluidasCleanup: cleanupConcluidasDisabled,
+        updatedAt: toIsoUtc(new Date()),
+      });
       gerarManutencoesRecorrentes();
+      updateLimpezaControlUi();
       renderTudo();
       mostrarMensagemGerencial("Dados importados com sucesso.");
     } catch (error) {
@@ -49709,26 +49823,67 @@ function importarDados() {
   leitor.readAsText(arquivo);
 }
 
-function limparConcluidas() {
+async function limparConcluidas() {
   if (!isAdmin()) {
     mostrarMensagemGerencial("Apenas administradores podem limpar dados.", true);
     return;
   }
-  const dias = Number(inputDiasLimpeza.value) || 30;
+  if (cleanupConcluidasDisabled) {
+    mostrarMensagemGerencial(
+      "Proteção ativa. Desmarque 'Nunca limpar concluídas' e salve para liberar.",
+      true
+    );
+    return;
+  }
+  const diasValor = inputDiasLimpeza ? Number(inputDiasLimpeza.value) : cleanupConcluidasDias;
+  if (
+    !Number.isFinite(diasValor) ||
+    diasValor < MIN_CLEANUP_CONCLUIDAS_DAYS ||
+    diasValor > MAX_CLEANUP_CONCLUIDAS_DAYS
+  ) {
+    mostrarMensagemGerencial(
+      `Informe um número entre ${MIN_CLEANUP_CONCLUIDAS_DAYS} e ${MAX_CLEANUP_CONCLUIDAS_DAYS}.`,
+      true
+    );
+    return;
+  }
+  const dias = normalizeCleanupConcluidasDias(diasValor, cleanupConcluidasDias);
+  cleanupConcluidasDias = dias;
   const limite = Date.now() - dias * DAY_MS;
-  const antes = manutencoes.length;
-  manutencoes = manutencoes.filter((item) => {
-    if (item.status !== "concluida") {
-      return true;
-    }
-    if (!item.doneAt) {
+  const shouldRemove = (item) => {
+    if (!item || item.status !== "concluida") {
       return false;
     }
     const doneAt = getTimeValue(item.doneAt);
-    return doneAt !== null && doneAt >= limite;
+    if (doneAt === null) {
+      return false;
+    }
+    return doneAt < limite;
+  };
+  const removidasPrevistas = manutencoes.reduce((acc, item) => acc + (shouldRemove(item) ? 1 : 0), 0);
+  if (!removidasPrevistas) {
+    mostrarMensagemGerencial(`Nenhuma concluída com mais de ${dias} dias para limpar.`);
+    return;
+  }
+  const confirmar = await openConfirmModal({
+    title: "Limpar concluídas",
+    message: `Serão removidas ${removidasPrevistas} manutenções concluídas com mais de ${dias} dias. Essa ação apaga somente deste cadastro local/sincronizado. Deseja continuar?`,
+    confirmText: "Limpar",
+    cancelText: "Cancelar",
   });
+  if (!confirmar) {
+    return;
+  }
+  const antes = manutencoes.length;
+  manutencoes = manutencoes.filter((item) => !shouldRemove(item));
   const removidas = antes - manutencoes.length;
   salvarManutencoes(manutencoes);
+  writeJson(MAINT_CLEANUP_SETTINGS_KEY, {
+    diasConcluidas: cleanupConcluidasDias,
+    neverConcluidasCleanup: cleanupConcluidasDisabled,
+    updatedAt: toIsoUtc(new Date()),
+  });
+  updateLimpezaControlUi();
   renderTudo();
   mostrarMensagemGerencial(`Concluidas removidas: ${removidas}.`);
 }
@@ -59832,12 +59987,40 @@ if (btnImportarDados) {
   btnImportarDados.addEventListener("click", importarDados);
 }
 
+if (btnSalvarLimpeza) {
+  btnSalvarLimpeza.addEventListener("click", salvarConfiguracoesLimpeza);
+}
+
 if (btnLimparConcluidas) {
   btnLimparConcluidas.addEventListener("click", limparConcluidas);
 }
 
 if (btnLimparAuditoria) {
   btnLimparAuditoria.addEventListener("click", limparAuditoria);
+}
+
+if (inputNuncaLimparConcluidas) {
+  inputNuncaLimparConcluidas.addEventListener("change", () => {
+    const nuncaLimpar = Boolean(inputNuncaLimparConcluidas.checked);
+    if (inputDiasLimpeza) {
+      inputDiasLimpeza.disabled = nuncaLimpar;
+    }
+    if (btnLimparConcluidas) {
+      btnLimparConcluidas.disabled = nuncaLimpar;
+      btnLimparConcluidas.classList.toggle("is-disabled", nuncaLimpar);
+    }
+    if (limpezaControlInfo) {
+      limpezaControlInfo.textContent = "Alteração pendente. Clique em Salvar regra.";
+    }
+  });
+}
+
+if (inputDiasLimpeza) {
+  inputDiasLimpeza.addEventListener("input", () => {
+    if (limpezaControlInfo) {
+      limpezaControlInfo.textContent = "Alteração pendente. Clique em Salvar regra.";
+    }
+  });
 }
 
 if (btnRecalcularBacklog) {
