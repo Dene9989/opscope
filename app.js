@@ -14361,7 +14361,25 @@ function hasExecucaoRegistradaCompleta(item) {
     "";
   const comentario = registro.comentario || registro.descricao || registro.resumo || "";
   const comentarioNormalizado = normalizeResumoRdoTexto(comentario);
-  return Boolean(executadoPor && comentarioNormalizado.length >= MIN_RESUMO_RDO_CHARS);
+  const registradoEm =
+    registro.registradoEm ||
+    registro.registrado_em ||
+    registro.executadoEm ||
+    registro.executedAt;
+  const resultado = registro.resultado || registro.status;
+  const observacao = registro.observacaoExecucao || registro.observacao;
+  const evidencias = Array.isArray(registro.evidencias) && registro.evidencias.length > 0;
+  const marcadorRegistro = Boolean(
+    String(registradoEm || "").trim() ||
+      String(resultado || "").trim() ||
+      String(observacao || "").trim() ||
+      evidencias
+  );
+  return Boolean(
+    marcadorRegistro &&
+      executadoPor &&
+      comentarioNormalizado.length >= MIN_RESUMO_RDO_CHARS
+  );
 }
 
 function getExecutionStartedIso(item) {
