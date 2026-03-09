@@ -55751,8 +55751,8 @@ function abrirConclusao(item) {
     conclusaoModeloBreve.value = "";
   }
   if (conclusaoDescricaoBreve) {
-    conclusaoDescricaoBreve.value =
-      (item.conclusao && item.conclusao.descricaoBreve) || "";
+    const descricaoBreveSalva = (item.conclusao && item.conclusao.descricaoBreve) || "";
+    conclusaoDescricaoBreve.value = descricaoBreveSalva || normalizeResumoRdoTexto(comentario);
   }
   const liberacao = getLiberacao(item) || {};
   if (conclusaoReferencia) {
@@ -55907,9 +55907,12 @@ async function salvarConclusao(event) {
     mostrarMensagemConclusao(comentarioMsg, true);
     return;
   }
-  const descricaoBreve = conclusaoDescricaoBreve
-    ? conclusaoDescricaoBreve.value.trim()
-    : "";
+  const descricaoBreveDigitada = conclusaoDescricaoBreve ? conclusaoDescricaoBreve.value : "";
+  const descricaoBreve =
+    normalizeResumoRdoTexto(descricaoBreveDigitada) || normalizeResumoRdoTexto(comentario);
+  if (conclusaoDescricaoBreve && !normalizeResumoRdoTexto(descricaoBreveDigitada)) {
+    conclusaoDescricaoBreve.value = descricaoBreve;
+  }
   if (!descricaoBreve || descricaoBreve.length < MIN_DESCRICAO_BREVE) {
     mostrarMensagemConclusao(
       `Informe a descricao tecnica (minimo ${MIN_DESCRICAO_BREVE} caracteres).`,
