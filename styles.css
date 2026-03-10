@@ -13724,6 +13724,12 @@ textarea:focus {
   border-color: rgba(14, 165, 233, 0.55);
 }
 
+.app .status--revalidacao-diaria {
+  background: rgba(245, 158, 11, 0.3);
+  color: #fff3d6;
+  border-color: rgba(245, 158, 11, 0.65);
+}
+
 .app .status--concluida {
   background: rgba(96, 165, 250, 0.2);
   color: #e0f0ff;
@@ -13891,6 +13897,12 @@ textarea:focus {
   background: rgba(14, 165, 233, 0.16);
   color: #0b5f82;
   border-color: rgba(14, 165, 233, 0.35);
+}
+
+.status--revalidacao-diaria {
+  background: rgba(245, 158, 11, 0.18);
+  color: #9a5c07;
+  border-color: rgba(245, 158, 11, 0.42);
 }
 
 .status--concluida {
@@ -17108,6 +17120,12 @@ textarea:focus {
   background: rgba(80, 119, 170, 0.26);
   border-color: rgba(94, 137, 192, 0.48);
   color: #deebfb;
+}
+
+#programacao .status--revalidacao-diaria {
+  background: rgba(170, 121, 70, 0.28);
+  border-color: rgba(191, 138, 78, 0.48);
+  color: #fff1d8;
 }
 
 @media (max-width: 980px) {

@@ -1198,8 +1198,11 @@ const registroOsNumero = document.getElementById("registroOsNumero");
 const registroParticipantes = document.getElementById("registroParticipantes");
 const registroDocs = document.getElementById("registroDocs");
 const registroResultado = document.getElementById("registroResultado");
+const registroDataExecucao = document.getElementById("registroDataExecucao");
+const registroDataExecucaoHint = document.getElementById("registroDataExecucaoHint");
 const registroComentario = document.getElementById("registroComentario");
 const registroObsExecucao = document.getElementById("registroObsExecucao");
+const registroEvidenciasLista = document.getElementById("registroEvidenciasLista");
 const btnFecharRegistroExecucao = document.getElementById("btnFecharRegistroExecucao");
 const btnCancelarRegistroExecucao = document.getElementById("btnCancelarRegistroExecucao");
 const btnCancelarExecucao = document.getElementById("btnCancelarExecucao");
@@ -1339,6 +1342,13 @@ const falhaFotoSlots = Array.from(document.querySelectorAll("[data-falha-photo-s
 const evidenciaInputs = Array.from(document.querySelectorAll("[data-evidencia-input]"));
 const evidenciaButtons = Array.from(document.querySelectorAll("[data-evidencia-btn]"));
 const fotoSlots = Array.from(document.querySelectorAll("[data-photo-slot]"));
+const registroEvidenciaInputs = Array.from(
+  document.querySelectorAll("[data-registro-evidencia-input]")
+);
+const registroEvidenciaButtons = Array.from(
+  document.querySelectorAll("[data-registro-evidencia-btn]")
+);
+const registroFotoSlots = Array.from(document.querySelectorAll("[data-registro-photo-slot]"));
 const btnFecharConclusao = document.getElementById("btnFecharConclusao");
 const btnCancelarConclusao = document.getElementById("btnCancelarConclusao");
 const modalRelatorio = document.getElementById("modalRelatorio");
@@ -5965,6 +5975,20 @@ function stripMaintenanceDataUrls(item) {
     }
     updated.registroExecucao = registro;
   }
+  if (Array.isArray(updated.registrosDiariosExecucao)) {
+    updated.registrosDiariosExecucao = updated.registrosDiariosExecucao
+      .map((entry) => {
+        if (!entry || typeof entry !== "object") {
+          return null;
+        }
+        const next = { ...entry };
+        if (Array.isArray(next.evidencias)) {
+          next.evidencias = stripEvidenceDataUrls(next.evidencias);
+        }
+        return next;
+      })
+      .filter(Boolean);
+  }
   if (updated.conclusao && typeof updated.conclusao === "object") {
     const conclusao = { ...updated.conclusao };
     if (Array.isArray(conclusao.evidencias)) {
@@ -6063,6 +6087,20 @@ function buildMaintenanceLiteItem(item) {
       registradoEm:
         registro.registradoEm || registro.registrado_em || registro.executadoEm || registro.executedAt || "",
     };
+  }
+  const registrosDiarios = getRegistrosDiariosExecucao(item);
+  if (registrosDiarios.length) {
+    lite.registrosDiariosExecucao = registrosDiarios.map((registro) => ({
+      dataRef: registro.dataRef || "",
+      executadoPor: registro.executadoPor || "",
+      comentario: registro.comentario || "",
+      observacaoExecucao: registro.observacaoExecucao || "",
+      resultado: registro.resultado || "",
+      registradoEm: registro.registradoEm || "",
+      evidencias: Array.isArray(registro.evidencias)
+        ? stripEvidenceDataUrls(registro.evidencias)
+        : [],
+    }));
   }
   if (item.conclusao && typeof item.conclusao === "object") {
     const conclusao = item.conclusao;
@@ -14322,7 +14360,10 @@ function hasExecucaoRegistrada(item) {
   if (!item) {
     return false;
   }
-  const registro = item.registroExecucao || {};
+  const registro =
+    (item.registroExecucao && typeof item.registroExecucao === "object"
+      ? item.registroExecucao
+      : getRegistroDiarioExecucaoMaisRecente(item)) || {};
   const registradoEm =
     registro.registradoEm ||
     registro.registrado_em ||
@@ -14351,7 +14392,10 @@ function hasExecucaoRegistradaCompleta(item) {
   if (!item) {
     return false;
   }
-  const registro = item.registroExecucao || {};
+  const registro =
+    (item.registroExecucao && typeof item.registroExecucao === "object"
+      ? item.registroExecucao
+      : getRegistroDiarioExecucaoMaisRecente(item)) || {};
   const executadoPor =
     registro.executadoPor ||
     registro.executedBy ||
@@ -14380,6 +14424,171 @@ function hasExecucaoRegistradaCompleta(item) {
       executadoPor &&
       comentarioNormalizado.length >= MIN_RESUMO_RDO_CHARS
   );
+}
+
+function normalizeRegistroExecucaoDiaKey(value) {
+  if (!value) {
+    return "";
+  }
+  const raw = String(value).trim();
+  if (!raw) {
+    return "";
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return raw;
+  }
+  const parsed = parseAnyDate(raw);
+  return parsed ? formatDateISO(startOfDay(parsed)) : "";
+}
+
+function normalizeRegistroExecucaoDiariaEntry(entry) {
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+  const comentario = normalizeResumoRdoTexto(
+    entry.comentario || entry.descricao || entry.resumo || ""
+  );
+  const observacaoExecucao = String(entry.observacaoExecucao || entry.observacao || "").trim();
+  const registradoEm = normalizeIso(
+    entry.registradoEm ||
+      entry.registrado_em ||
+      entry.executadoEm ||
+      entry.executedAt ||
+      entry.updatedAt ||
+      ""
+  );
+  const dataRef = normalizeRegistroExecucaoDiaKey(
+    entry.dataRef || entry.data || entry.dataExecucao || entry.dataRegistro || entry.dia || registradoEm
+  );
+  if (!dataRef) {
+    return null;
+  }
+  const evidencias = Array.isArray(entry.evidencias) ? dedupeEvidenceList(entry.evidencias) : [];
+  return {
+    ...entry,
+    dataRef,
+    executadoPor: String(entry.executadoPor || entry.executedBy || "").trim(),
+    resultado: String(entry.resultado || entry.status || "").trim(),
+    comentario,
+    observacaoExecucao,
+    registradoEm: registradoEm || "",
+    evidencias,
+  };
+}
+
+function getRegistrosDiariosExecucao(item) {
+  if (!item || typeof item !== "object") {
+    return [];
+  }
+  const source = Array.isArray(item.registrosDiariosExecucao)
+    ? item.registrosDiariosExecucao
+    : Array.isArray(item.registroExecucaoDiaria)
+      ? item.registroExecucaoDiaria
+      : [];
+  const map = new Map();
+  const applyEntry = (rawEntry) => {
+    const normalized = normalizeRegistroExecucaoDiariaEntry(rawEntry);
+    if (!normalized) {
+      return;
+    }
+    const current = map.get(normalized.dataRef);
+    if (!current) {
+      map.set(normalized.dataRef, normalized);
+      return;
+    }
+    const currentTime = getTimeValue(current.registradoEm || current.updatedAt || "") || 0;
+    const nextTime = getTimeValue(normalized.registradoEm || normalized.updatedAt || "") || 0;
+    if (nextTime > currentTime) {
+      map.set(normalized.dataRef, normalized);
+      return;
+    }
+    if (nextTime === currentTime) {
+      const currentEvidencias = Array.isArray(current.evidencias) ? current.evidencias.length : 0;
+      const nextEvidencias = Array.isArray(normalized.evidencias)
+        ? normalized.evidencias.length
+        : 0;
+      if (nextEvidencias >= currentEvidencias) {
+        map.set(normalized.dataRef, normalized);
+      }
+    }
+  };
+  source.forEach(applyEntry);
+  if (!map.size && item.registroExecucao && typeof item.registroExecucao === "object") {
+    applyEntry(item.registroExecucao);
+  }
+  return Array.from(map.values()).sort((a, b) => a.dataRef.localeCompare(b.dataRef));
+}
+
+function getRegistroDiarioExecucao(item, dateKey) {
+  const normalizedKey = normalizeRegistroExecucaoDiaKey(dateKey);
+  if (!normalizedKey) {
+    return null;
+  }
+  const registros = getRegistrosDiariosExecucao(item);
+  return registros.find((entry) => entry.dataRef === normalizedKey) || null;
+}
+
+function getRegistroDiarioExecucaoMaisRecente(item) {
+  const registros = getRegistrosDiariosExecucao(item);
+  return registros.length ? registros[registros.length - 1] : null;
+}
+
+function upsertRegistrosDiariosExecucao(list, entry) {
+  const nextEntry = normalizeRegistroExecucaoDiariaEntry(entry);
+  if (!nextEntry) {
+    return Array.isArray(list) ? list.slice() : [];
+  }
+  const map = new Map();
+  const base = Array.isArray(list) ? list : [];
+  base.forEach((rawEntry) => {
+    const normalized = normalizeRegistroExecucaoDiariaEntry(rawEntry);
+    if (normalized) {
+      map.set(normalized.dataRef, normalized);
+    }
+  });
+  map.set(nextEntry.dataRef, nextEntry);
+  return Array.from(map.values()).sort((a, b) => a.dataRef.localeCompare(b.dataRef));
+}
+
+function formatRegistroExecucaoDiaLabel(dateKey) {
+  const parsed = parseDate(dateKey);
+  return parsed ? formatDate(parsed) : dateKey || "-";
+}
+
+function getRegistroExecucaoPendenteDateKey(item, nowDate = new Date()) {
+  if (!item) {
+    return "";
+  }
+  const status = normalizeMaintenanceStatus(item.status);
+  if (status !== "em_execucao" && status !== "encerramento") {
+    return "";
+  }
+  const inicioExecucao = getItemInicioExecucaoDate(item);
+  if (!inicioExecucao) {
+    return "";
+  }
+  const inicioDia = startOfDay(inicioExecucao);
+  const hojeDia = startOfDay(nowDate);
+  const ultimoDiaObrigatorio = addDays(hojeDia, -1);
+  if (ultimoDiaObrigatorio.getTime() < inicioDia.getTime()) {
+    return "";
+  }
+  const fechados = new Set(getRegistrosDiariosExecucao(item).map((entry) => entry.dataRef));
+  for (
+    let cursor = new Date(inicioDia.getTime());
+    cursor.getTime() <= ultimoDiaObrigatorio.getTime();
+    cursor = addDays(cursor, 1)
+  ) {
+    const key = formatDateISO(cursor);
+    if (!fechados.has(key)) {
+      return key;
+    }
+  }
+  return "";
+}
+
+function getRegistroExecucaoDataRef(item, nowDate = new Date()) {
+  return getRegistroExecucaoPendenteDateKey(item, nowDate) || formatDateISO(startOfDay(nowDate));
 }
 
 function getExecutionStartedIso(item) {
@@ -14610,6 +14819,7 @@ function normalizarManutencoes(lista) {
         subequipamentos,
         procedimentoIds: procedimentos,
         registroExecucao: null,
+        registrosDiariosExecucao: [],
         conclusao: null,
         executionStartedAt: "",
         executionStartedBy: "",
@@ -15454,6 +15664,7 @@ const MAINTENANCE_EXECUTION_RESET_FIELDS = [
   "executionRegisteredAt",
   "execucaoRegistradaAt",
   "registroExecucao",
+  "registrosDiariosExecucao",
   "conclusao",
   "encerramento",
   "encerramentoEm",
@@ -15511,6 +15722,10 @@ function getMaintenanceUpdatedAtValue(item) {
     return 0;
   }
   const registro = item.registroExecucao || {};
+  const registrosDiarios = getRegistrosDiariosExecucao(item);
+  const ultimoRegistroDiario = registrosDiarios.length
+    ? registrosDiarios[registrosDiarios.length - 1]
+    : null;
   const candidates = [
     item.updatedAt,
     item.doneAt,
@@ -15525,6 +15740,7 @@ function getMaintenanceUpdatedAtValue(item) {
     registro.executadoEm,
     item.execucaoRegistradaEm,
     item.executionRegisteredAt,
+    ultimoRegistroDiario ? ultimoRegistroDiario.registradoEm || ultimoRegistroDiario.dataRef : "",
     item.createdAt,
   ];
   const times = candidates
@@ -15539,6 +15755,10 @@ function getMaintenanceItemFingerprint(item) {
   }
   const liberacao = item.liberacao || {};
   const registro = item.registroExecucao || {};
+  const registrosDiarios = getRegistrosDiariosExecucao(item);
+  const ultimoRegistroDiario = registrosDiarios.length
+    ? registrosDiarios[registrosDiarios.length - 1]
+    : null;
   const conclusao = item.conclusao || {};
   const backlogMotivo = item.backlogMotivo || {};
   const intercorrencia = getMaintenanceIntercorrencia(item) || {};
@@ -15557,6 +15777,10 @@ function getMaintenanceItemFingerprint(item) {
     getMaintenanceResponsibleIds(item).join(","),
     getMaintenanceOsReferencia(item) || "",
     registro.registradoEm || registro.registrado_em || registro.executedAt || "",
+    registrosDiarios.length,
+    ultimoRegistroDiario ? ultimoRegistroDiario.dataRef || "" : "",
+    ultimoRegistroDiario ? ultimoRegistroDiario.registradoEm || "" : "",
+    ultimoRegistroDiario ? ultimoRegistroDiario.comentario || "" : "",
     conclusao.fim || item.doneAt || "",
     execMark,
     liberacao.osNumero || "",
@@ -15628,6 +15852,15 @@ function getMaintenanceListFingerprint(list) {
         item.execucaoRegistradaEm ||
         item.executionRegisteredAt ||
         "",
+      execDiariaCount: getRegistrosDiariosExecucao(item).length,
+      execDiariaLastDate: (() => {
+        const registros = getRegistrosDiariosExecucao(item);
+        if (!registros.length) {
+          return "";
+        }
+        const last = registros[registros.length - 1];
+        return `${last.dataRef || ""}|${last.registradoEm || ""}`;
+      })(),
       prazoMaximo: item.prazoMaximo
         ? `${item.prazoMaximo.quantidade || ""}${item.prazoMaximo.unidade || ""}`
         : "",
@@ -15763,6 +15996,14 @@ function mergeLocalExecucaoRegistro(remote, local) {
   }
   if (local.executionFinishedAt && !remote.executionFinishedAt) {
     merged.executionFinishedAt = local.executionFinishedAt;
+  }
+  const localRegistrosDiarios = getRegistrosDiariosExecucao(local);
+  const remoteRegistrosDiarios = getRegistrosDiariosExecucao(remote);
+  if (
+    localRegistrosDiarios.length &&
+    (!remoteRegistrosDiarios.length || localRegistrosDiarios.length >= remoteRegistrosDiarios.length)
+  ) {
+    merged.registrosDiariosExecucao = localRegistrosDiarios;
   }
   if (local.updatedAt && (!remote.updatedAt || local.updatedAt > remote.updatedAt)) {
     merged.updatedAt = local.updatedAt;
@@ -20274,6 +20515,8 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const statusGroup = document.createElement("div");
   statusGroup.className = "status-group";
   const execucaoRegistrada = hasExecucaoRegistradaCompleta(item);
+  const pendenciaDiariaExecucao = getRegistroExecucaoPendenteDateKey(item);
+  const revalidacaoDiariaPendente = Boolean(pendenciaDiariaExecucao);
   const esconderEmExecucao =
     execucaoRegistrada && statusBase === "em_execucao" && statusNormalized !== "concluida";
   if (!esconderEmExecucao) {
@@ -20284,6 +20527,16 @@ function criarCardManutencao(item, permissoes, options = {}) {
     execBadge.className = "status status--execucao-registrada";
     execBadge.textContent = "Execução registrada";
     statusGroup.append(execBadge);
+  }
+  if (
+    revalidacaoDiariaPendente &&
+    (statusNormalized === "em_execucao" || statusNormalized === "encerramento")
+  ) {
+    const diariaBadge = document.createElement("span");
+    diariaBadge.className = "status status--revalidacao-diaria";
+    diariaBadge.textContent = "Revalidação diária pendente";
+    diariaBadge.title = `Dia pendente: ${formatRegistroExecucaoDiaLabel(pendenciaDiariaExecucao)}`;
+    statusGroup.append(diariaBadge);
   }
   if (prazoExpirado) {
     const prazoBadge = document.createElement("span");
@@ -20406,20 +20659,26 @@ function criarCardManutencao(item, permissoes, options = {}) {
       actions.append(criarBotaoAcao("Reagendar", "reschedule"));
     }
   } else if (statusNormalized === "em_execucao") {
-    if (permite("execute") && !execucaoRegistrada) {
-      actions.append(criarBotaoAcao("Registrar execução", "register"));
+    if (permite("execute") && (!execucaoRegistrada || revalidacaoDiariaPendente)) {
+      const labelRegistro = revalidacaoDiariaPendente
+        ? `Fechar dia ${formatRegistroExecucaoDiaLabel(pendenciaDiariaExecucao)}`
+        : "Registrar execução";
+      actions.append(criarBotaoAcao(labelRegistro, "register"));
     }
     if (permite("execute") && !execucaoRegistrada) {
       actions.append(criarBotaoAcao("Cancelar início", "cancel_start"));
     }
-    if (permite("finish") && execucaoRegistrada) {
+    if (permite("finish") && execucaoRegistrada && !revalidacaoDiariaPendente) {
       actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
     }
   } else if (statusNormalized === "encerramento") {
-    if (permite("execute") && !execucaoRegistrada) {
-      actions.append(criarBotaoAcao("Registrar execução", "register"));
+    if (permite("execute") && (!execucaoRegistrada || revalidacaoDiariaPendente)) {
+      const labelRegistro = revalidacaoDiariaPendente
+        ? `Fechar dia ${formatRegistroExecucaoDiaLabel(pendenciaDiariaExecucao)}`
+        : "Registrar execução";
+      actions.append(criarBotaoAcao(labelRegistro, "register"));
     }
-    if (permite("finish") && execucaoRegistrada) {
+    if (permite("finish") && execucaoRegistrada && !revalidacaoDiariaPendente) {
       actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
     }
   } else if (statusNormalized === "concluida") {
@@ -20585,6 +20844,17 @@ function criarCardProgramacaoCompacto(item) {
     execBadge.className = "status status--execucao-registrada";
     execBadge.textContent = "Execução registrada";
     statusGroup.append(execBadge);
+  }
+  const pendenciaDiariaExecucao = getRegistroExecucaoPendenteDateKey(item);
+  if (
+    pendenciaDiariaExecucao &&
+    (statusNormalized === "em_execucao" || statusNormalized === "encerramento")
+  ) {
+    const diariaBadge = document.createElement("span");
+    diariaBadge.className = "status status--revalidacao-diaria";
+    diariaBadge.textContent = "Revalidação diária pendente";
+    diariaBadge.title = `Dia pendente: ${formatRegistroExecucaoDiaLabel(pendenciaDiariaExecucao)}`;
+    statusGroup.append(diariaBadge);
   }
 
   const stateBadge = document.createElement("span");
@@ -25835,8 +26105,12 @@ function atualizarFiltrosRdo(baseItems) {
 
   if (rdoUI.usuario) {
     const atual = rdoUI.usuario.value;
+    const dataRef = rdoUI.data ? rdoUI.data.value : "";
     const usuariosBase = baseItems
-      .map((item) => getExecutadoPorId(item))
+      .map((item) => {
+        const diario = getRegistroDiarioExecucaoParaData(item, dataRef);
+        return (diario && diario.executadoPor) || getExecutadoPorId(item);
+      })
       .filter((id) => isRealUserId(id))
       .concat(getOperationalUsers().map((user) => user.id));
     const usuarios = Array.from(new Set(usuariosBase)).sort((a, b) =>
@@ -25874,19 +26148,34 @@ function isDateInRange(date, inicio, fim) {
   return time >= inicio.getTime() && time < fim.getTime();
 }
 
+function getRegistroDiarioExecucaoParaData(item, dataStr) {
+  const key = normalizeRegistroExecucaoDiaKey(dataStr);
+  if (!key) {
+    return null;
+  }
+  return getRegistroDiarioExecucao(item, key);
+}
+
 function filtrarItensRdo(dataStr, filtros) {
   const range = getRdoDateRange(dataStr);
   return manutencoes.filter((item) => {
+    const registroDiario = getRegistroDiarioExecucaoParaData(item, dataStr);
     const inicio = getItemInicioExecucaoDate(item);
     const fim = getItemFimExecucaoDate(item);
     const conclusao = getItemConclusaoDate(item);
     const agendada = parseAnyDate(item && item.data ? item.data : "") || getItemCriacaoDate(item);
+    const entrouDiario = Boolean(registroDiario);
     const entrouExec =
+      entrouDiario ||
       isDateInRange(inicio, range.inicio, range.fim) ||
       isDateInRange(fim, range.inicio, range.fim) ||
       isDateInRange(conclusao, range.inicio, range.fim);
     const entrouAgenda =
-      !inicio && !fim && !conclusao && isDateInRange(agendada, range.inicio, range.fim);
+      !entrouDiario &&
+      !inicio &&
+      !fim &&
+      !conclusao &&
+      isDateInRange(agendada, range.inicio, range.fim);
     const entrou = entrouExec || entrouAgenda;
     if (!entrou) {
       return false;
@@ -25900,8 +26189,12 @@ function filtrarItensRdo(dataStr, filtros) {
     if (filtros.prioridade && getItemPrioridade(item) !== filtros.prioridade) {
       return false;
     }
-    if (filtros.usuario && getExecutadoPorId(item) !== filtros.usuario) {
-      return false;
+    if (filtros.usuario) {
+      const executadoNoDia =
+        (registroDiario && registroDiario.executadoPor) || getExecutadoPorId(item);
+      if (executadoNoDia !== filtros.usuario) {
+        return false;
+      }
     }
     return true;
   });
@@ -25916,29 +26209,42 @@ function normalizarStatusRdo(valor) {
   return { key, label };
 }
 
-function getItemDescricaoRdo(item) {
+function getItemDescricaoRdo(item, registroDia = null) {
+  const diario = registroDia && typeof registroDia === "object" ? registroDia : null;
   const conclusaoBreve =
     item && item.conclusao ? item.conclusao.descricaoBreve || "" : "";
-  const registro = item && item.registroExecucao ? item.registroExecucao.comentario : "";
+  const registro = diario ? diario.comentario || "" : item && item.registroExecucao ? item.registroExecucao.comentario : "";
   const conclusao = item && item.conclusao ? item.conclusao.comentario : "";
-  return conclusaoBreve || registro || conclusao || item.observacao || "";
+  return registro || conclusaoBreve || conclusao || item.observacao || "";
 }
 
-function getItemObsExecucaoRdo(item) {
-  const registro = item && item.registroExecucao ? item.registroExecucao.observacaoExecucao : "";
+function getItemObsExecucaoRdo(item, registroDia = null) {
+  const diario = registroDia && typeof registroDia === "object" ? registroDia : null;
+  const registro = diario
+    ? diario.observacaoExecucao || ""
+    : item && item.registroExecucao
+      ? item.registroExecucao.observacaoExecucao
+      : "";
   const conclusao = item && item.conclusao ? item.conclusao.observacaoExecucao : "";
   return registro || conclusao || "";
 }
 
-function getResultadoLabelRdo(item) {
-  const registro = item && item.registroExecucao ? item.registroExecucao.resultado : "";
+function getResultadoLabelRdo(item, registroDia = null) {
+  const diario = registroDia && typeof registroDia === "object" ? registroDia : null;
+  const registro = diario
+    ? diario.resultado || ""
+    : item && item.registroExecucao
+      ? item.registroExecucao.resultado
+      : "";
   const conclusao = item && item.conclusao ? item.conclusao.resultado : "";
   const resultado = conclusao || registro;
   return resultado ? RESULTADO_LABELS[resultado] || resultado : "";
 }
 
-function getResponsavelRdo(item) {
-  const id = getExecutadoPorId(item) || item.doneBy || item.createdBy || "";
+function getResponsavelRdo(item, registroDia = null) {
+  const diario = registroDia && typeof registroDia === "object" ? registroDia : null;
+  const id =
+    (diario ? diario.executadoPor || "" : "") || getExecutadoPorId(item) || item.doneBy || item.createdBy || "";
   if (!id || !isRealUserId(id)) {
     return "";
   }
@@ -26056,21 +26362,27 @@ async function getEvidenceDataUrl(evidencia) {
   }
 }
 
-async function montarEvidenciasRdo(itens, limite) {
+async function montarEvidenciasRdo(itens, limite, dataKey = "") {
   const lista = [];
   const naoImagem = [];
   let total = 0;
   for (const item of itens) {
+    const registroDia = dataKey ? getRegistroDiarioExecucao(item, dataKey) : null;
     const evidencias =
-      item && item.conclusao && Array.isArray(item.conclusao.evidencias)
-        ? item.conclusao.evidencias
-        : [];
+      registroDia && Array.isArray(registroDia.evidencias) && registroDia.evidencias.length
+        ? registroDia.evidencias
+        : item && item.conclusao && Array.isArray(item.conclusao.evidencias)
+          ? item.conclusao.evidencias
+          : [];
     const dataRef =
+      (registroDia &&
+        (parseAnyDate(registroDia.registradoEm || "") ||
+          parseAnyDate(`${registroDia.dataRef || ""}T12:00:00`))) ||
       getItemFimExecucaoDate(item) ||
       getItemInicioExecucaoDate(item) ||
       getItemConclusaoDate(item);
     const dataHora = dataRef ? formatDateTime(dataRef) : "-";
-    const responsavel = getResponsavelRdo(item) || "-";
+    const responsavel = getResponsavelRdo(item, registroDia) || "-";
     for (const evidencia of evidencias) {
       const nome = evidencia.nome || evidencia.name || "Arquivo";
       if (!isImageEvidence(evidencia)) {
@@ -26101,13 +26413,16 @@ async function montarEvidenciasRdo(itens, limite) {
   return { lista, total, naoImagem };
 }
 
-async function buscarLogoRdo(itens) {
+async function buscarLogoRdo(itens, dataKey = "") {
   const regex = /ENGELMIG|LOGO/i;
   for (const item of itens) {
+    const registroDia = dataKey ? getRegistroDiarioExecucao(item, dataKey) : null;
     const evidencias =
-      item && item.conclusao && Array.isArray(item.conclusao.evidencias)
-        ? item.conclusao.evidencias
-        : [];
+      registroDia && Array.isArray(registroDia.evidencias) && registroDia.evidencias.length
+        ? registroDia.evidencias
+        : item && item.conclusao && Array.isArray(item.conclusao.evidencias)
+          ? item.conclusao.evidencias
+          : [];
     for (const evidencia of evidencias) {
       const nome = evidencia.nome || evidencia.name || "";
       if (!regex.test(nome)) {
@@ -26122,10 +26437,16 @@ async function buscarLogoRdo(itens) {
   return "";
 }
 
-function mapItemRdo(item) {
+function mapItemRdo(item, options = {}) {
+  const dateKey = normalizeRegistroExecucaoDiaKey(options.dateKey || "");
+  const registroDia = dateKey ? getRegistroDiarioExecucao(item, dateKey) : null;
   const statusInfo = normalizarStatusRdo(item.status);
-  const inicio = getItemInicioExecucaoDate(item);
-  const fim = getItemFimExecucaoDate(item) || getItemConclusaoDate(item);
+  const registroDiaData =
+    registroDia &&
+    (parseAnyDate(registroDia.registradoEm || "") ||
+      parseAnyDate(`${registroDia.dataRef || ""}T12:00:00`));
+  const inicio = registroDiaData || getItemInicioExecucaoDate(item);
+  const fim = registroDiaData || getItemFimExecucaoDate(item) || getItemConclusaoDate(item);
   const liberacao = getLiberacao(item) || {};
   const equipamento = getMaintenanceEquipamentoLabel(item);
   const osReferencia = getMaintenanceOsReferencia(item);
@@ -26141,9 +26462,11 @@ function mapItemRdo(item) {
       ? Math.max(0, Math.round((fim - inicio) / 60000))
       : null;
   const evidencias =
-    item && item.conclusao && Array.isArray(item.conclusao.evidencias)
-      ? item.conclusao.evidencias
-      : [];
+    registroDia && Array.isArray(registroDia.evidencias) && registroDia.evidencias.length
+      ? registroDia.evidencias
+      : item && item.conclusao && Array.isArray(item.conclusao.evidencias)
+        ? item.conclusao.evidencias
+        : [];
   const evidenciasCount = evidencias.filter((evidencia) => isImageEvidence(evidencia)).length;
   const evidenciasNaoImagem = evidencias
     .filter((evidencia) => !isImageEvidence(evidencia))
@@ -26161,16 +26484,16 @@ function mapItemRdo(item) {
     inicio: inicio ? toIsoUtc(inicio) : "",
     fim: fim ? toIsoUtc(fim) : "",
     duracaoMin,
-    responsavel: getResponsavelRdo(item),
+    responsavel: getResponsavelRdo(item, registroDia),
     participantes: getParticipantesLabel(participantes),
-    descricao: getItemDescricaoRdo(item),
-    observacaoExecucao: getItemObsExecucaoRdo(item),
+    descricao: getItemDescricaoRdo(item, registroDia),
+    observacaoExecucao: getItemObsExecucaoRdo(item, registroDia),
     evidenciasCount,
     evidenciasNaoImagem,
     docsStatus,
     docsResumo: buildDocsResumoRdo(docsStatus),
     docsCompliance: getDocCompliance(item),
-    resultadoLabel: getResultadoLabelRdo(item),
+    resultadoLabel: getResultadoLabelRdo(item, registroDia),
     critico: isItemCritico(item),
   };
 }
@@ -27006,16 +27329,30 @@ async function gerarSnapshotRdo(persistir = false) {
   mostrarMensagemRdo("Gerando RDO...");
   const itensBase = filtrarItensRdo(dataStr, filtros);
   const itensOrdenados = itensBase.slice().sort((a, b) => {
-    const dataA = getItemInicioExecucaoDate(a) || getItemConclusaoDate(a) || parseAnyDate(a.data);
-    const dataB = getItemInicioExecucaoDate(b) || getItemConclusaoDate(b) || parseAnyDate(b.data);
+    const diarioA = getRegistroDiarioExecucaoParaData(a, dataStr);
+    const diarioB = getRegistroDiarioExecucaoParaData(b, dataStr);
+    const dataA =
+      (diarioA &&
+        (parseAnyDate(diarioA.registradoEm || "") ||
+          parseAnyDate(`${diarioA.dataRef || ""}T12:00:00`))) ||
+      getItemInicioExecucaoDate(a) ||
+      getItemConclusaoDate(a) ||
+      parseAnyDate(a.data);
+    const dataB =
+      (diarioB &&
+        (parseAnyDate(diarioB.registradoEm || "") ||
+          parseAnyDate(`${diarioB.dataRef || ""}T12:00:00`))) ||
+      getItemInicioExecucaoDate(b) ||
+      getItemConclusaoDate(b) ||
+      parseAnyDate(b.data);
     return (getTimeValue(dataB) || 0) - (getTimeValue(dataA) || 0);
   });
-  const itensRdo = itensOrdenados.map((item) => mapItemRdo(item));
+  const itensRdo = itensOrdenados.map((item) => mapItemRdo(item, { dateKey: dataStr }));
   itensRdo.forEach((item) => {
     item.texto = gerarTextoItemRdo(item);
   });
-  const evidenciasInfo = await montarEvidenciasRdo(itensOrdenados, limite);
-  const logoDataUrl = await buscarLogoRdo(itensOrdenados);
+  const evidenciasInfo = await montarEvidenciasRdo(itensOrdenados, limite, dataStr);
+  const logoDataUrl = await buscarLogoRdo(itensOrdenados, dataStr);
   const metricas = calcularMetricasRdo(itensOrdenados, itensRdo, dataStr);
   const resumoDia = gerarResumoDiaRdo(itensRdo, metricas);
   const narrativaDia = gerarNarrativaDiaRdo(itensRdo, metricas);
@@ -36563,6 +36900,7 @@ function gerarManutencoesRecorrentes() {
         executionStartedBy: "",
         executionFinishedAt: "",
         registroExecucao: null,
+        registrosDiariosExecucao: [],
         prazoMaximo: prazoMaximo || null,
         status: "agendada",
         createdAt: agoraIso,
@@ -50519,6 +50857,8 @@ let manutencaoEmConclusao = null;
 let conclusaoItemAtual = null;
 let conclusaoFalhaFotosAtual = [];
 let manutencaoEmRegistro = null;
+let registroExecucaoFotosAtual = [];
+let registroExecucaoDataRefAtual = "";
 let manutencaoEmEdicao = null;
 let manutencaoEditSnapshot = null;
 let manutencaoEditDirty = false;
@@ -52800,6 +53140,25 @@ function abrirRegistroExecucao(item) {
     renderDocList(registroDocs, docs, isItemCritico(itemAtual));
   }
   const registroSalvo = itemAtual.registroExecucao || {};
+  const dataRef = getRegistroExecucaoDataRef(itemAtual);
+  const pendenteDataRef = getRegistroExecucaoPendenteDateKey(itemAtual);
+  const registroDoDia = getRegistroDiarioExecucao(itemAtual, dataRef);
+  const registroBase = registroDoDia || registroSalvo;
+  registroExecucaoDataRefAtual = dataRef;
+  if (registroDataExecucao) {
+    registroDataExecucao.value = formatRegistroExecucaoDiaLabel(dataRef);
+    registroDataExecucao.dataset.date = dataRef;
+  }
+  if (registroDataExecucaoHint) {
+    if (pendenteDataRef) {
+      registroDataExecucaoHint.textContent = `Feche o dia ${formatRegistroExecucaoDiaLabel(
+        pendenteDataRef
+      )} para seguir a execução.`;
+    } else {
+      registroDataExecucaoHint.textContent =
+        "O fechamento diário é usado para compor o RDO por dia.";
+    }
+  }
   if (registroExecutadaPor) {
     registroExecutadaPor.innerHTML = "";
     const placeholder = document.createElement("option");
@@ -52823,7 +53182,7 @@ function abrirRegistroExecucao(item) {
         registroExecutadaPor.append(option);
       });
     const defaultId =
-      registroSalvo.executadoPor || teamValue || (currentUser ? currentUser.id : "");
+      registroBase.executadoPor || teamValue || (currentUser ? currentUser.id : "");
     if (defaultId) {
       registroExecutadaPor.value = defaultId;
     }
@@ -52831,19 +53190,28 @@ function abrirRegistroExecucao(item) {
   if (registroResultado) {
     const resultadoField = registroResultado.closest(".field");
     const mostrarResultado =
-      itemAtual.status !== "em_execucao" || Boolean(registroSalvo.resultado);
+      itemAtual.status !== "em_execucao" || Boolean(registroBase.resultado);
     if (resultadoField) {
       resultadoField.hidden = !mostrarResultado;
     }
     registroResultado.required = mostrarResultado;
-    registroResultado.value = registroSalvo.resultado || "";
+    registroResultado.value = registroBase.resultado || "";
   }
   if (registroComentario) {
-    registroComentario.value = registroSalvo.comentario || "";
+    registroComentario.value = registroBase.comentario || "";
   }
   if (registroObsExecucao) {
-    registroObsExecucao.value = registroSalvo.observacaoExecucao || "";
+    registroObsExecucao.value = registroBase.observacaoExecucao || "";
   }
+  registroExecucaoFotosAtual = Array.isArray(registroBase.evidencias)
+    ? dedupeEvidenceList(registroBase.evidencias)
+    : [];
+  registroEvidenciaInputs.forEach((input) => {
+    if (input) {
+      input.value = "";
+    }
+  });
+  atualizarListaRegistroEvidencias();
   modalRegistroExecucao.hidden = false;
 }
 
@@ -52853,6 +53221,8 @@ function fecharRegistroExecucao() {
   }
   modalRegistroExecucao.hidden = true;
   manutencaoEmRegistro = null;
+  registroExecucaoFotosAtual = [];
+  registroExecucaoDataRefAtual = "";
   if (formRegistroExecucao) {
     formRegistroExecucao.hidden = false;
   }
@@ -52863,6 +53233,23 @@ function fecharRegistroExecucao() {
     cancelarExecucaoMotivo.value = "";
     cancelarExecucaoMotivo.required = false;
   }
+  if (registroDataExecucao) {
+    registroDataExecucao.value = "";
+    delete registroDataExecucao.dataset.date;
+  }
+  if (registroDataExecucaoHint) {
+    registroDataExecucaoHint.textContent =
+      "O fechamento diário é usado para compor o RDO por dia.";
+  }
+  registroEvidenciaInputs.forEach((input) => {
+    if (input) {
+      input.value = "";
+    }
+  });
+  if (registroEvidenciasLista) {
+    registroEvidenciasLista.innerHTML = "";
+  }
+  atualizarRegistroSlotsFoto([]);
   mostrarMensagemCancelarExecucao("");
 }
 
@@ -52953,7 +53340,7 @@ function salvarCancelamentoExecucao(event) {
   mostrarMensagemManutencao("Execução cancelada.");
 }
 
-function salvarRegistroExecucao(event) {
+async function salvarRegistroExecucao(event) {
   event.preventDefault();
   if (!requirePermission("complete")) {
     return;
@@ -52988,7 +53375,13 @@ function salvarRegistroExecucao(event) {
     mostrarMensagemRegistroExecucao("Selecione quem executou.", true);
     return;
   }
-  const registroSalvo = item.registroExecucao || {};
+  const pendenteDataRef = getRegistroExecucaoPendenteDateKey(item);
+  const dataRefInformada =
+    (registroDataExecucao && registroDataExecucao.dataset && registroDataExecucao.dataset.date) ||
+    registroExecucaoDataRefAtual ||
+    "";
+  const dataRef = pendenteDataRef || normalizeRegistroExecucaoDiaKey(dataRefInformada) || getRegistroExecucaoDataRef(item);
+  const registroDiaAtual = getRegistroDiarioExecucao(item, dataRef) || {};
   const resultadoField = registroResultado ? registroResultado.closest(".field") : null;
   const resultadoVisivel = !resultadoField || !resultadoField.hidden;
   const resultadoInformado = registroResultado ? registroResultado.value : "";
@@ -52996,7 +53389,7 @@ function salvarRegistroExecucao(event) {
     mostrarMensagemRegistroExecucao("Informe o resultado da execução.", true);
     return;
   }
-  const resultadoFinal = resultadoInformado || registroSalvo.resultado || "";
+  const resultadoFinal = resultadoInformado || registroDiaAtual.resultado || "";
   const comentarioRaw = registroComentario ? registroComentario.value : "";
   const comentario = normalizeResumoRdoTexto(comentarioRaw);
   const comentarioMsg = getMensagemResumoRdo(comentario);
@@ -53004,20 +53397,56 @@ function salvarRegistroExecucao(event) {
     mostrarMensagemRegistroExecucao(comentarioMsg, true);
     return;
   }
+  const arquivos = getRegistroEvidenciaFiles().filter(Boolean);
+  const arquivoInvalido = arquivos.find((file) => !(file.type && file.type.startsWith("image/")));
+  if (arquivoInvalido) {
+    mostrarMensagemRegistroExecucao("As evidências devem ser imagens válidas.", true);
+    return;
+  }
+  let evidencias = Array.isArray(registroExecucaoFotosAtual)
+    ? dedupeEvidenceList(registroExecucaoFotosAtual)
+    : [];
+  if (arquivos.length) {
+    try {
+      evidencias = await lerEvidencias(arquivos);
+    } catch (error) {
+      const message = error && error.message ? error.message : "Falha ao enviar evidências do dia.";
+      mostrarMensagemRegistroExecucao(message, true);
+      return;
+    }
+  }
+  if (evidencias.length < MIN_EVIDENCIAS) {
+    mostrarMensagemRegistroExecucao(
+      `Anexe no mínimo ${MIN_EVIDENCIAS} fotos para fechar o dia.`,
+      true
+    );
+    return;
+  }
   const observacaoExecucao = registroObsExecucao ? registroObsExecucao.value.trim() : "";
+  const registradoEm = toIsoUtc(new Date());
   const registroExecucao = {
     executadoPor,
     resultado: resultadoFinal,
     comentario,
     observacaoExecucao,
-    registradoEm: toIsoUtc(new Date()),
+    registradoEm,
+    dataRef,
+    evidencias,
   };
+  const registrosDiariosExecucao = upsertRegistrosDiariosExecucao(
+    getRegistrosDiariosExecucao(item),
+    registroExecucao
+  );
   const novoStatus = resultadoFinal ? "encerramento" : "em_execucao";
   const atualizado = {
     ...item,
     registroExecucao,
+    registrosDiariosExecucao,
+    execucaoRegistradaEm: registradoEm,
+    executionRegisteredAt: registradoEm,
+    execucaoRegistradaAt: registradoEm,
     status: novoStatus,
-    updatedAt: toIsoUtc(new Date()),
+    updatedAt: registradoEm,
     updatedBy: currentUser.id,
   };
   manutencoes[index] = atualizado;
@@ -53031,6 +53460,8 @@ function salvarRegistroExecucao(event) {
     executadoPor,
     resultado: resultadoFinal || undefined,
     observacaoExecucao,
+    dataRef,
+    evidenciasCount: evidencias.length,
     inicioExecucao: item.executionStartedAt || "",
     osNumero: liberacao.osNumero || "",
     participantes: liberacao.participantes || [],
@@ -53040,7 +53471,16 @@ function salvarRegistroExecucao(event) {
   });
   renderTudo();
   fecharRegistroExecucao();
-  mostrarMensagemManutencao("Registro de execução salvo.");
+  const pendenciaRestante = getRegistroExecucaoPendenteDateKey(atualizado);
+  if (pendenciaRestante) {
+    mostrarMensagemManutencao(
+      `Dia ${formatRegistroExecucaoDiaLabel(dataRef)} fechado. Ainda falta fechar ${formatRegistroExecucaoDiaLabel(
+        pendenciaRestante
+      )}.`
+    );
+    return;
+  }
+  mostrarMensagemManutencao(`Fechamento diário salvo (${formatRegistroExecucaoDiaLabel(dataRef)}).`);
 }
 
 function preencherParticipantesSelect(select, selecionados = []) {
@@ -53776,6 +54216,7 @@ function salvarCancelarInicio(event) {
     encerramentoPor: "",
     prazoMaximoInicio: "",
     registroExecucao: null,
+    registrosDiariosExecucao: [],
     updatedAt: toIsoUtc(new Date()),
     updatedBy: currentUser.id,
   };
@@ -55374,6 +55815,79 @@ function atualizarDuracaoConclusao() {
   conclusaoDuracao.value = formatDuracaoMin(minutos);
 }
 
+function getRegistroEvidenciaFiles() {
+  if (!registroEvidenciaInputs.length) {
+    return [];
+  }
+  const files = [];
+  registroEvidenciaInputs.forEach((input, index) => {
+    if (!input) {
+      return;
+    }
+    const slotValue = Number.parseInt(input.dataset.registroEvidenciaInput, 10);
+    const slotIndex = Number.isFinite(slotValue) && slotValue > 0 ? slotValue - 1 : index;
+    files[slotIndex] = input.files && input.files[0] ? input.files[0] : null;
+  });
+  return files;
+}
+
+function atualizarRegistroSlotsFoto(arquivos = []) {
+  if (!registroFotoSlots.length) {
+    return;
+  }
+  registroFotoSlots.forEach((slot, index) => {
+    const slotValue = Number.parseInt(slot.dataset.registroPhotoSlot, 10);
+    const labelIndex = Number.isFinite(slotValue) && slotValue > 0 ? slotValue : index + 1;
+    const fileIndex = Number.isFinite(slotValue) && slotValue > 0 ? slotValue - 1 : index;
+    const obrigatorio = labelIndex <= MIN_EVIDENCIAS;
+    const baseLabel = `Foto ${labelIndex}${obrigatorio ? "*" : ""}`;
+    const file = arquivos[fileIndex];
+    if (file) {
+      const nome = file.name ? ` - ${file.name}` : "";
+      slot.textContent = `${baseLabel}${nome}`;
+      slot.classList.add("is-filled");
+      const invalido = !(file.type && file.type.startsWith("image/"));
+      slot.classList.toggle("is-invalid", invalido);
+      return;
+    }
+    slot.textContent = baseLabel;
+    slot.classList.remove("is-filled");
+    slot.classList.remove("is-invalid");
+  });
+}
+
+function atualizarListaRegistroEvidencias() {
+  const arquivos = getRegistroEvidenciaFiles();
+  const temNovoArquivo = arquivos.some(Boolean);
+  const baseSlots = temNovoArquivo
+    ? arquivos
+    : registroExecucaoFotosAtual.map((foto) => ({
+        name:
+          (foto && (foto.name || foto.nome || foto.originalName)) || "Evidência registrada",
+        type: (foto && (foto.mime || foto.type)) || "image/*",
+      }));
+  atualizarRegistroSlotsFoto(baseSlots);
+  if (!registroEvidenciasLista) {
+    return;
+  }
+  registroEvidenciasLista.innerHTML = "";
+  const baseLista = temNovoArquivo ? arquivos : registroExecucaoFotosAtual;
+  baseLista.forEach((file, index) => {
+    if (!file) {
+      return;
+    }
+    const item = document.createElement("span");
+    item.className = "file-chip";
+    const nome = file.name || file.nome || file.originalName || `Foto ${index + 1}`;
+    item.textContent = `Foto ${index + 1}: ${nome}`;
+    const mime = file.mime || file.type || "";
+    if (mime && !mime.startsWith("image/")) {
+      item.classList.add("file-chip--invalid");
+    }
+    registroEvidenciasLista.append(item);
+  });
+}
+
 function getEvidenciaFiles() {
   if (conclusaoFotosToggle && !conclusaoFotosToggle.checked) {
     return [];
@@ -55845,6 +56359,16 @@ function abrirConclusao(item) {
   ) {
     return;
   }
+  const pendenciaDiaria = getRegistroExecucaoPendenteDateKey(item);
+  if (pendenciaDiaria) {
+    mostrarMensagemManutencao(
+      `Feche o dia ${formatRegistroExecucaoDiaLabel(
+        pendenciaDiaria
+      )} com descrição e evidências antes de concluir.`,
+      true
+    );
+    return;
+  }
   const executionStartedIso = getExecutionStartedIso(item);
   if (!executionStartedIso) {
     mostrarMensagemManutencao("Início da execução não encontrado.", true);
@@ -55911,6 +56435,12 @@ function abrirConclusao(item) {
   setConclusaoAssinaturaErro("");
   if (!hasUserSignatureConfigured(currentUser)) {
     mostrarMensagemConclusao("Cadastre sua assinatura no Perfil antes de concluir.");
+  } else if (pendenciaDiaria) {
+    mostrarMensagemConclusao(
+      `Feche o dia ${formatRegistroExecucaoDiaLabel(
+        pendenciaDiaria
+      )} com descrição e evidências antes de concluir.`
+    );
   } else if (!hasExecucaoRegistradaCompleta(item)) {
     mostrarMensagemConclusao("Finalize o registro da execução antes de concluir.");
   } else {
@@ -56038,6 +56568,16 @@ async function salvarConclusao(event) {
       ignorePrazoExpirado: true,
     })
   ) {
+    return;
+  }
+  const pendenciaDiaria = getRegistroExecucaoPendenteDateKey(item);
+  if (pendenciaDiaria) {
+    mostrarMensagemConclusao(
+      `Feche o dia ${formatRegistroExecucaoDiaLabel(
+        pendenciaDiaria
+      )} com descrição e evidências antes de concluir.`,
+      true
+    );
     return;
   }
   if (item.status !== "em_execucao" && item.status !== "encerramento") {
@@ -62188,6 +62728,25 @@ if (falhaFotoInputs.length) {
   falhaFotoInputs.forEach((input) => {
     input.addEventListener("change", atualizarListaFalhaFotos);
   });
+}
+if (registroEvidenciaButtons.length) {
+  registroEvidenciaButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const alvo = button.dataset.registroEvidenciaBtn;
+      const input = registroEvidenciaInputs.find(
+        (item) => item.dataset.registroEvidenciaInput === alvo
+      );
+      if (input) {
+        input.click();
+      }
+    });
+  });
+}
+if (registroEvidenciaInputs.length) {
+  registroEvidenciaInputs.forEach((input) => {
+    input.addEventListener("change", atualizarListaRegistroEvidencias);
+  });
+  atualizarListaRegistroEvidencias();
 }
 if (conclusaoFalhaToggle) {
   conclusaoFalhaToggle.addEventListener("change", toggleConclusaoFalhaUI);

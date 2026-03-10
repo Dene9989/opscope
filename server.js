@@ -8255,6 +8255,10 @@ function getMaintenanceUpdatedAtValue(item) {
     item.backlogMotivo && typeof item.backlogMotivo === "object"
       ? item.backlogMotivo
       : {};
+  const registrosDiarios = getMaintenanceDailyExecutionEntries(item);
+  const ultimoRegistroDiario = registrosDiarios.length
+    ? registrosDiarios[registrosDiarios.length - 1]
+    : null;
   const candidates = [
     item.updatedAt,
     item.doneAt,
@@ -8266,6 +8270,8 @@ function getMaintenanceUpdatedAtValue(item) {
     registroExecucao.registrado_em,
     registroExecucao.executedAt,
     registroExecucao.executadoEm,
+    ultimoRegistroDiario ? ultimoRegistroDiario.registradoEm : "",
+    ultimoRegistroDiario ? `${ultimoRegistroDiario.dataRef || ""}T12:00:00` : "",
     liberacao.liberadoEm,
     liberacao.liberado_em,
     item.backlogAutoEm,
@@ -8373,6 +8379,7 @@ const MAINTENANCE_EXECUTION_RESET_FIELDS = [
   "executionRegisteredAt",
   "execucaoRegistradaAt",
   "registroExecucao",
+  "registrosDiariosExecucao",
   "conclusao",
   "encerramento",
   "encerramentoEm",
@@ -8773,7 +8780,13 @@ function hasExecucaoRegistrada(item) {
   if (!item) {
     return false;
   }
-  const registro = item.registroExecucao || {};
+  const registrosDiarios = getMaintenanceDailyExecutionEntries(item);
+  const registro =
+    (item.registroExecucao && typeof item.registroExecucao === "object"
+      ? item.registroExecucao
+      : registrosDiarios.length
+        ? registrosDiarios[registrosDiarios.length - 1]
+        : null) || {};
   const registradoEm =
     registro.registradoEm ||
     registro.registrado_em ||
@@ -10099,6 +10112,7 @@ const MAINTENANCE_EXECUTION_FIELDS = [
   "executionRegisteredAt",
   "execucaoRegistradaAt",
   "registroExecucao",
+  "registrosDiariosExecucao",
   "conclusao",
   "encerramento",
   "encerramentoEm",
@@ -10349,6 +10363,40 @@ function sanitizePrazoRevalidacao(item, current, user) {
   return next;
 }
 
+function sanitizeMaintenanceDailyExecutionList(value) {
+  const source = Array.isArray(value) ? value : [];
+  if (!source.length) {
+    return [];
+  }
+  const map = new Map();
+  source.forEach((entry) => {
+    const normalized = normalizeMaintenanceDailyExecutionEntry(entry);
+    if (!normalized) {
+      return;
+    }
+    const current = map.get(normalized.dataRef);
+    if (!current) {
+      map.set(normalized.dataRef, normalized);
+      return;
+    }
+    const currentTime = getTimeValue(current.registradoEm || current.updatedAt || "") || 0;
+    const nextTime = getTimeValue(normalized.registradoEm || normalized.updatedAt || "") || 0;
+    if (nextTime >= currentTime) {
+      map.set(normalized.dataRef, normalized);
+    }
+  });
+  const ordered = Array.from(map.values())
+    .sort((a, b) => a.dataRef.localeCompare(b.dataRef))
+    .slice(-62)
+    .map((entry) => ({
+      ...entry,
+      evidencias: Array.isArray(entry.evidencias) ? entry.evidencias.slice(0, 10) : [],
+    }));
+  const context = { removed: 0, path: "maintenance.registrosDiariosExecucao" };
+  const sanitized = sanitizeInlineDataUrls(ordered, context);
+  return Array.isArray(sanitized) ? sanitized : [];
+}
+
 function sanitizeMaintenanceIncoming(item, current, user) {
   if (!item || typeof item !== "object") {
     return item;
@@ -10357,6 +10405,23 @@ function sanitizeMaintenanceIncoming(item, current, user) {
   next = sanitizeMaintenanceLinkedData(next);
   next = sanitizePrazoMaximoFields(next);
   next = sanitizePrazoRevalidacao(next, current, user);
+  if (
+    Object.prototype.hasOwnProperty.call(next, "registrosDiariosExecucao") ||
+    Object.prototype.hasOwnProperty.call(next, "registroExecucaoDiaria")
+  ) {
+    const dailyRaw = Array.isArray(next.registrosDiariosExecucao)
+      ? next.registrosDiariosExecucao
+      : Array.isArray(next.registroExecucaoDiaria)
+        ? next.registroExecucaoDiaria
+        : [];
+    const dailyList = sanitizeMaintenanceDailyExecutionList(dailyRaw);
+    if (dailyList.length) {
+      next.registrosDiariosExecucao = dailyList;
+    } else {
+      delete next.registrosDiariosExecucao;
+    }
+    delete next.registroExecucaoDiaria;
+  }
   const statusBeforeSanitize = normalizeStatus(next.status);
   const autoRecorrenteSemInicio =
     Boolean(next.templateId) &&
@@ -11281,6 +11346,97 @@ function getEquipmentLabel(item, projectId) {
   return "nao informado";
 }
 
+function normalizeMaintenanceDailyDateKey(value) {
+  if (!value) {
+    return "";
+  }
+  const raw = String(value).trim();
+  if (!raw) {
+    return "";
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return raw;
+  }
+  const parsed = parseDateTime(raw);
+  if (!parsed || Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+  return formatDateISO(startOfDay(parsed));
+}
+
+function normalizeMaintenanceDailyExecutionEntry(entry) {
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+  const registradoEmRaw =
+    entry.registradoEm ||
+    entry.registrado_em ||
+    entry.executadoEm ||
+    entry.executedAt ||
+    entry.updatedAt ||
+    "";
+  const registradoEmDate = parseDateTime(registradoEmRaw);
+  const registradoEm = registradoEmDate ? registradoEmDate.toISOString() : "";
+  const dataRef = normalizeMaintenanceDailyDateKey(
+    entry.dataRef || entry.data || entry.dataExecucao || entry.dataRegistro || entry.dia || registradoEm
+  );
+  if (!dataRef) {
+    return null;
+  }
+  return {
+    ...entry,
+    dataRef,
+    registradoEm,
+    executadoPor: String(entry.executadoPor || entry.executedBy || "").trim(),
+    comentario: String(entry.comentario || entry.descricao || entry.resumo || "").trim(),
+    observacaoExecucao: String(entry.observacaoExecucao || entry.observacao || "").trim(),
+    resultado: String(entry.resultado || entry.status || "").trim(),
+    evidencias: Array.isArray(entry.evidencias) ? entry.evidencias : [],
+  };
+}
+
+function getMaintenanceDailyExecutionEntries(item) {
+  if (!item || typeof item !== "object") {
+    return [];
+  }
+  const source = Array.isArray(item.registrosDiariosExecucao)
+    ? item.registrosDiariosExecucao
+    : Array.isArray(item.registroExecucaoDiaria)
+      ? item.registroExecucaoDiaria
+      : [];
+  const map = new Map();
+  const applyEntry = (rawEntry) => {
+    const normalized = normalizeMaintenanceDailyExecutionEntry(rawEntry);
+    if (!normalized) {
+      return;
+    }
+    const current = map.get(normalized.dataRef);
+    if (!current) {
+      map.set(normalized.dataRef, normalized);
+      return;
+    }
+    const currentTime = getTimeValue(current.registradoEm || current.updatedAt || "") || 0;
+    const nextTime = getTimeValue(normalized.registradoEm || normalized.updatedAt || "") || 0;
+    if (nextTime >= currentTime) {
+      map.set(normalized.dataRef, normalized);
+    }
+  };
+  source.forEach(applyEntry);
+  if (!map.size && item.registroExecucao && typeof item.registroExecucao === "object") {
+    applyEntry(item.registroExecucao);
+  }
+  return Array.from(map.values()).sort((a, b) => a.dataRef.localeCompare(b.dataRef));
+}
+
+function getMaintenanceDailyExecutionEntryForDate(item, dateStr) {
+  const key = normalizeMaintenanceDailyDateKey(dateStr);
+  if (!key) {
+    return null;
+  }
+  const list = getMaintenanceDailyExecutionEntries(item);
+  return list.find((entry) => entry.dataRef === key) || null;
+}
+
 function getMaintenanceDateCandidates(item) {
   const candidates = [
     item.executionStartedAt,
@@ -11293,6 +11449,10 @@ function getMaintenanceDateCandidates(item) {
   if (item.conclusao) {
     candidates.push(item.conclusao.inicio, item.conclusao.fim);
   }
+  const registrosDiarios = getMaintenanceDailyExecutionEntries(item);
+  registrosDiarios.forEach((entry) => {
+    candidates.push(entry.registradoEm || "", entry.dataRef || "");
+  });
   return candidates
     .map((value) => parseDateTime(value))
     .filter((date) => date && !Number.isNaN(date.getTime()));
@@ -11379,6 +11539,10 @@ function getMaintenanceSearchBlob(item) {
     item.registroExecucao && typeof item.registroExecucao === "object"
       ? item.registroExecucao
       : {};
+  const registrosDiarios = getMaintenanceDailyExecutionEntries(item);
+  const ultimoRegistroDiario = registrosDiarios.length
+    ? registrosDiarios[registrosDiarios.length - 1]
+    : null;
   const fields = [
     item.id,
     item.titulo,
@@ -11405,6 +11569,9 @@ function getMaintenanceSearchBlob(item) {
     registroExecucao.comentario,
     registroExecucao.observacaoExecucao,
     registroExecucao.resultado,
+    ultimoRegistroDiario ? ultimoRegistroDiario.comentario : "",
+    ultimoRegistroDiario ? ultimoRegistroDiario.observacaoExecucao : "",
+    ultimoRegistroDiario ? ultimoRegistroDiario.resultado : "",
   ];
   const labels = getMaintenanceResponsibleLabels(item);
   if (labels.length) {
@@ -11425,6 +11592,10 @@ function countMaintenanceEvidenceEntries(item) {
   if (item.registroExecucao && typeof item.registroExecucao === "object") {
     total += count(item.registroExecucao.evidencias);
   }
+  const registrosDiarios = getMaintenanceDailyExecutionEntries(item);
+  registrosDiarios.forEach((entry) => {
+    total += count(entry.evidencias);
+  });
   if (item.conclusao && typeof item.conclusao === "object") {
     total += count(item.conclusao.evidencias);
     if (item.conclusao.intercorrencia && typeof item.conclusao.intercorrencia === "object") {
@@ -11701,6 +11872,7 @@ function buildRdoPayload(dateStr, projectId) {
     (item) => item && item.projectId === projectId && isMaintenanceInRange(item, inicio, fim)
   );
   const atividades = list.map((item) => {
+    const registroDia = getMaintenanceDailyExecutionEntryForDate(item, dateStr);
     const statusLabel = normalizeStatusLabel(item.status);
     const equipamento = getEquipmentLabel(item, projectId);
     const tipo =
@@ -11710,10 +11882,12 @@ function buildRdoPayload(dateStr, projectId) {
       item.tipo_atividade ||
       "nao informado";
     const descricaoBreve =
+      (registroDia && (registroDia.comentario || registroDia.observacaoExecucao)) ||
       (item.conclusao && item.conclusao.descricaoBreve) ||
       (item.registroExecucao && item.registroExecucao.descricaoBreve) ||
       "";
     const acao =
+      (registroDia && (registroDia.comentario || registroDia.observacaoExecucao)) ||
       item.titulo ||
       (item.registroExecucao && item.registroExecucao.comentario) ||
       (item.conclusao && item.conclusao.comentario) ||
@@ -11750,7 +11924,19 @@ function buildRdoPayload(dateStr, projectId) {
   const tempoTotalMin = duracoes.reduce((acc, val) => acc + (Number.isFinite(val) ? val : 0), 0);
   const responsaveis = dedupeLabels(
     list
-      .map((item) => item && (item.doneBy || item.createdBy || item.executedBy || ""))
+      .map((item) => {
+        if (!item) {
+          return "";
+        }
+        const registroDia = getMaintenanceDailyExecutionEntryForDate(item, dateStr);
+        return (
+          (registroDia && registroDia.executadoPor) ||
+          item.doneBy ||
+          item.createdBy ||
+          item.executedBy ||
+          ""
+        );
+      })
       .filter(Boolean)
       .map((id) => getUserLabel(id))
   );
