@@ -51018,6 +51018,7 @@ let conclusaoFalhaFotosAtual = [];
 let manutencaoEmRegistro = null;
 let registroExecucaoFotosAtual = [];
 let registroExecucaoDataRefAtual = "";
+let registroExecucaoModoAtual = "register";
 let registroExecucaoRevalidacaoDocsAtual = {};
 let registroExecucaoRevalidacaoBaseDocsAtual = {};
 let manutencaoEmEdicao = null;
@@ -53192,7 +53193,7 @@ async function confirmarInicioExecucao() {
   mostrarMensagemManutencao("Execução iniciada.");
 }
 
-function abrirRegistroExecucao(item) {
+function abrirRegistroExecucao(item, options = {}) {
   if (!requirePermission("complete")) {
     return;
   }
@@ -53248,6 +53249,9 @@ function abrirRegistroExecucao(item) {
     mostrarMensagemManutencao("Início da execução não encontrado.", true);
     return;
   }
+  const modoRegistro =
+    options && options.mode === "daily_revalidate" ? "daily_revalidate" : "register";
+  registroExecucaoModoAtual = modoRegistro;
   manutencaoEmRegistro = itemAtual.id;
   mostrarMensagemRegistroExecucao("");
   mostrarMensagemCancelarExecucao("");
@@ -53364,11 +53368,9 @@ function abrirRegistroExecucao(item) {
   if (registroObsExecucao) {
     registroObsExecucao.value = registroBase.observacaoExecucao || "";
   }
-  const exibirRevalidacaoDiaria = deveExibirRegistroExecucaoRevalidacao(
-    itemAtual,
-    dataRef,
-    pendenteDataRef
-  );
+  const exibirRevalidacaoDiaria =
+    modoRegistro === "daily_revalidate" &&
+    deveExibirRegistroExecucaoRevalidacao(itemAtual, dataRef, pendenteDataRef);
   if (registroRevalidacaoField) {
     registroRevalidacaoField.hidden = !exibirRevalidacaoDiaria;
   }
@@ -53395,6 +53397,7 @@ function fecharRegistroExecucao() {
   }
   modalRegistroExecucao.hidden = true;
   manutencaoEmRegistro = null;
+  registroExecucaoModoAtual = "register";
   registroExecucaoFotosAtual = [];
   registroExecucaoDataRefAtual = "";
   if (formRegistroExecucao) {
@@ -57605,10 +57608,10 @@ function agirNaManutencao(event) {
     executarManutencao(index);
   }
   if (acao === "register") {
-    abrirRegistroExecucao(manutencoes[index]);
+    abrirRegistroExecucao(manutencoes[index], { mode: "register" });
   }
   if (acao === "daily_revalidate") {
-    abrirRegistroExecucao(manutencoes[index]);
+    abrirRegistroExecucao(manutencoes[index], { mode: "daily_revalidate" });
   }
   if (acao === "cancel_start") {
     abrirCancelarInicio(manutencoes[index]);
