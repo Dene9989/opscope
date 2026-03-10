@@ -14172,6 +14172,22 @@ textarea:focus {
   font-weight: 600;
 }
 
+.doc-head .checkbox-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.doc-head .checkbox-field input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
 .doc-actions {
   display: flex;
   flex-wrap: wrap;

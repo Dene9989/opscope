@@ -7,7 +7,7 @@
     <title>OPSCOPE - Sistema de Gestão Operacional e Manutenção</title>
     <link rel="icon" type="image/png" href="assets/img/opscope-logo.png" />
     <link rel="apple-touch-icon" href="assets/img/opscope-logo.png" />
-    <link rel="stylesheet" href="styles.css?v=20260310-1" />
+    <link rel="stylesheet" href="styles.css?v=20260310-2" />
     <link rel="stylesheet" href="assets/css/login.css" />
   </head>
   <body class="is-visitor">
@@ -7427,6 +7427,170 @@
             <label>Documentos anexados</label>
             <div id="registroDocs" class="doc-list"></div>
           </div>
+          <div class="field" data-full>
+            <label>Revalidacao documental diaria (opcional por tipo)</label>
+            <p class="hint">
+              Marque somente os documentos que exigem revalidacao hoje. Se marcar, o novo arquivo do tipo fica obrigatorio.
+            </p>
+            <div class="doc-grid doc-grid--compact">
+              <div class="doc-item" data-registro-revalida-doc="apr">
+                <div class="doc-head">
+                  <label class="checkbox-field">
+                    <input
+                      id="registroRevalidarApr"
+                      type="checkbox"
+                      data-registro-revalida-check="apr"
+                    />
+                    <span>Revalidar APR</span>
+                  </label>
+                  <button
+                    class="btn btn--ghost btn--small"
+                    type="button"
+                    data-registro-revalida-view="apr"
+                    disabled
+                  >
+                    Visualizar
+                  </button>
+                </div>
+                <div class="doc-actions">
+                  <button
+                    class="btn btn--ghost btn--small"
+                    type="button"
+                    data-registro-revalida-btn="apr"
+                    disabled
+                  >
+                    Anexar novo
+                  </button>
+                  <input
+                    id="registroRevalidacaoApr"
+                    type="file"
+                    accept=".pdf,image/*"
+                    data-registro-revalida-input="apr"
+                    hidden
+                    disabled
+                  />
+                  <span class="doc-name" data-registro-revalida-name="apr">Mantem documento atual</span>
+                </div>
+              </div>
+              <div class="doc-item" data-registro-revalida-doc="os">
+                <div class="doc-head">
+                  <label class="checkbox-field">
+                    <input
+                      id="registroRevalidarOs"
+                      type="checkbox"
+                      data-registro-revalida-check="os"
+                    />
+                    <span>Revalidar OS</span>
+                  </label>
+                  <button
+                    class="btn btn--ghost btn--small"
+                    type="button"
+                    data-registro-revalida-view="os"
+                    disabled
+                  >
+                    Visualizar
+                  </button>
+                </div>
+                <div class="doc-actions">
+                  <button
+                    class="btn btn--ghost btn--small"
+                    type="button"
+                    data-registro-revalida-btn="os"
+                    disabled
+                  >
+                    Anexar novo
+                  </button>
+                  <input
+                    id="registroRevalidacaoOs"
+                    type="file"
+                    accept=".pdf,image/*"
+                    data-registro-revalida-input="os"
+                    hidden
+                    disabled
+                  />
+                  <span class="doc-name" data-registro-revalida-name="os">Mantem documento atual</span>
+                </div>
+              </div>
+              <div class="doc-item" data-registro-revalida-doc="pte">
+                <div class="doc-head">
+                  <label class="checkbox-field">
+                    <input
+                      id="registroRevalidarPte"
+                      type="checkbox"
+                      data-registro-revalida-check="pte"
+                    />
+                    <span>Revalidar PTE</span>
+                  </label>
+                  <button
+                    class="btn btn--ghost btn--small"
+                    type="button"
+                    data-registro-revalida-view="pte"
+                    disabled
+                  >
+                    Visualizar
+                  </button>
+                </div>
+                <div class="doc-actions">
+                  <button
+                    class="btn btn--ghost btn--small"
+                    type="button"
+                    data-registro-revalida-btn="pte"
+                    disabled
+                  >
+                    Anexar novo
+                  </button>
+                  <input
+                    id="registroRevalidacaoPte"
+                    type="file"
+                    accept=".pdf,image/*"
+                    data-registro-revalida-input="pte"
+                    hidden
+                    disabled
+                  />
+                  <span class="doc-name" data-registro-revalida-name="pte">Mantem documento atual</span>
+                </div>
+              </div>
+              <div class="doc-item" data-registro-revalida-doc="pt">
+                <div class="doc-head">
+                  <label class="checkbox-field">
+                    <input
+                      id="registroRevalidarPt"
+                      type="checkbox"
+                      data-registro-revalida-check="pt"
+                    />
+                    <span>Revalidar PT</span>
+                  </label>
+                  <button
+                    class="btn btn--ghost btn--small"
+                    type="button"
+                    data-registro-revalida-view="pt"
+                    disabled
+                  >
+                    Visualizar
+                  </button>
+                </div>
+                <div class="doc-actions">
+                  <button
+                    class="btn btn--ghost btn--small"
+                    type="button"
+                    data-registro-revalida-btn="pt"
+                    disabled
+                  >
+                    Anexar novo
+                  </button>
+                  <input
+                    id="registroRevalidacaoPt"
+                    type="file"
+                    accept=".pdf,image/*"
+                    data-registro-revalida-input="pt"
+                    hidden
+                    disabled
+                  />
+                  <span class="doc-name" data-registro-revalida-name="pt">Mantem documento atual</span>
+                </div>
+              </div>
+            </div>
+          </div>
           <div class="field">
             <label for="registroResultado">Resultado</label>
             <select id="registroResultado" required>
@@ -8581,6 +8745,6 @@
     </footer>
 
     <script src="assets/js/powerbiExport.js?v=20260227-2"></script>
-    <script src="app.js?v=20260310-1"></script>
+    <script src="app.js?v=20260310-2"></script>
   </body>
 </html>

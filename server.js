@@ -11364,6 +11364,68 @@ function normalizeMaintenanceDailyDateKey(value) {
   return formatDateISO(startOfDay(parsed));
 }
 
+function normalizeMaintenanceDailyRevalidacaoRequiredMap(value) {
+  const source = value && typeof value === "object" ? value : {};
+  const output = {};
+  ["apr", "os", "pte", "pt"].forEach((key) => {
+    output[key] = Boolean(source[key]);
+  });
+  return output;
+}
+
+function normalizeMaintenanceDailyRevalidacao(entry) {
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+  const source =
+    entry.revalidacaoDocumental && typeof entry.revalidacaoDocumental === "object"
+      ? entry.revalidacaoDocumental
+      : {};
+  const required = normalizeMaintenanceDailyRevalidacaoRequiredMap(
+    source.required && typeof source.required === "object"
+      ? source.required
+      : entry.revalidacaoRequired && typeof entry.revalidacaoRequired === "object"
+        ? entry.revalidacaoRequired
+        : {}
+  );
+  const docsSource =
+    source.docs && typeof source.docs === "object"
+      ? source.docs
+      : entry.revalidacaoDocs && typeof entry.revalidacaoDocs === "object"
+        ? entry.revalidacaoDocs
+        : {};
+  const docs = {};
+  ["apr", "os", "pte", "pt"].forEach((key) => {
+    const doc = normalizeSstDocFile(docsSource[key]);
+    if (doc) {
+      docs[key] = doc;
+    }
+  });
+  const hasRevalidacao = ["apr", "os", "pte", "pt"].some(
+    (key) => Boolean(required[key]) || Boolean(docs[key])
+  );
+  if (!hasRevalidacao) {
+    return null;
+  }
+  const registradoEmDate = parseDateTime(
+    source.registradoEm ||
+      source.updatedAt ||
+      entry.revalidacaoDocumentalRegistradaEm ||
+      ""
+  );
+  return {
+    required,
+    docs,
+    registradoEm: registradoEmDate ? registradoEmDate.toISOString() : "",
+    registradoPor: String(
+      source.registradoPor ||
+        source.updatedBy ||
+        entry.revalidacaoDocumentalRegistradaPor ||
+        ""
+    ).trim(),
+  };
+}
+
 function normalizeMaintenanceDailyExecutionEntry(entry) {
   if (!entry || typeof entry !== "object") {
     return null;
@@ -11383,7 +11445,8 @@ function normalizeMaintenanceDailyExecutionEntry(entry) {
   if (!dataRef) {
     return null;
   }
-  return {
+  const revalidacaoDocumental = normalizeMaintenanceDailyRevalidacao(entry);
+  const normalized = {
     ...entry,
     dataRef,
     registradoEm,
@@ -11393,6 +11456,14 @@ function normalizeMaintenanceDailyExecutionEntry(entry) {
     resultado: String(entry.resultado || entry.status || "").trim(),
     evidencias: Array.isArray(entry.evidencias) ? entry.evidencias : [],
   };
+  if (revalidacaoDocumental) {
+    normalized.revalidacaoDocumental = revalidacaoDocumental;
+  } else {
+    delete normalized.revalidacaoDocumental;
+  }
+  delete normalized.revalidacaoRequired;
+  delete normalized.revalidacaoDocs;
+  return normalized;
 }
 
 function getMaintenanceDailyExecutionEntries(item) {
