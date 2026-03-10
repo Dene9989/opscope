@@ -7427,170 +7427,6 @@
             <label>Documentos anexados</label>
             <div id="registroDocs" class="doc-list"></div>
           </div>
-          <div id="registroRevalidacaoField" class="field" data-full hidden>
-            <label>Revalidação documental diária (opcional por tipo)</label>
-            <p class="hint">
-              Marque somente os documentos que exigem revalidação hoje. Se marcar, o novo arquivo do tipo fica obrigatório.
-            </p>
-            <div class="doc-grid doc-grid--compact">
-              <div class="doc-item" data-registro-revalida-doc="apr">
-                <div class="doc-head">
-                  <label class="checkbox-field">
-                    <input
-                      id="registroRevalidarApr"
-                      type="checkbox"
-                      data-registro-revalida-check="apr"
-                    />
-                    <span>Revalidar APR</span>
-                  </label>
-                  <button
-                    class="btn btn--ghost btn--small"
-                    type="button"
-                    data-registro-revalida-view="apr"
-                    disabled
-                  >
-                    Visualizar
-                  </button>
-                </div>
-                <div class="doc-actions">
-                  <button
-                    class="btn btn--ghost btn--small"
-                    type="button"
-                    data-registro-revalida-btn="apr"
-                    disabled
-                  >
-                    Anexar novo
-                  </button>
-                  <input
-                    id="registroRevalidacaoApr"
-                    type="file"
-                    accept=".pdf,image/*"
-                    data-registro-revalida-input="apr"
-                    hidden
-                    disabled
-                  />
-                    <span class="doc-name" data-registro-revalida-name="apr">Mantém documento atual</span>
-                </div>
-              </div>
-              <div class="doc-item" data-registro-revalida-doc="os">
-                <div class="doc-head">
-                  <label class="checkbox-field">
-                    <input
-                      id="registroRevalidarOs"
-                      type="checkbox"
-                      data-registro-revalida-check="os"
-                    />
-                    <span>Revalidar OS</span>
-                  </label>
-                  <button
-                    class="btn btn--ghost btn--small"
-                    type="button"
-                    data-registro-revalida-view="os"
-                    disabled
-                  >
-                    Visualizar
-                  </button>
-                </div>
-                <div class="doc-actions">
-                  <button
-                    class="btn btn--ghost btn--small"
-                    type="button"
-                    data-registro-revalida-btn="os"
-                    disabled
-                  >
-                    Anexar novo
-                  </button>
-                  <input
-                    id="registroRevalidacaoOs"
-                    type="file"
-                    accept=".pdf,image/*"
-                    data-registro-revalida-input="os"
-                    hidden
-                    disabled
-                  />
-                    <span class="doc-name" data-registro-revalida-name="os">Mantém documento atual</span>
-                </div>
-              </div>
-              <div class="doc-item" data-registro-revalida-doc="pte">
-                <div class="doc-head">
-                  <label class="checkbox-field">
-                    <input
-                      id="registroRevalidarPte"
-                      type="checkbox"
-                      data-registro-revalida-check="pte"
-                    />
-                    <span>Revalidar PTE</span>
-                  </label>
-                  <button
-                    class="btn btn--ghost btn--small"
-                    type="button"
-                    data-registro-revalida-view="pte"
-                    disabled
-                  >
-                    Visualizar
-                  </button>
-                </div>
-                <div class="doc-actions">
-                  <button
-                    class="btn btn--ghost btn--small"
-                    type="button"
-                    data-registro-revalida-btn="pte"
-                    disabled
-                  >
-                    Anexar novo
-                  </button>
-                  <input
-                    id="registroRevalidacaoPte"
-                    type="file"
-                    accept=".pdf,image/*"
-                    data-registro-revalida-input="pte"
-                    hidden
-                    disabled
-                  />
-                    <span class="doc-name" data-registro-revalida-name="pte">Mantém documento atual</span>
-                </div>
-              </div>
-              <div class="doc-item" data-registro-revalida-doc="pt">
-                <div class="doc-head">
-                  <label class="checkbox-field">
-                    <input
-                      id="registroRevalidarPt"
-                      type="checkbox"
-                      data-registro-revalida-check="pt"
-                    />
-                    <span>Revalidar PT</span>
-                  </label>
-                  <button
-                    class="btn btn--ghost btn--small"
-                    type="button"
-                    data-registro-revalida-view="pt"
-                    disabled
-                  >
-                    Visualizar
-                  </button>
-                </div>
-                <div class="doc-actions">
-                  <button
-                    class="btn btn--ghost btn--small"
-                    type="button"
-                    data-registro-revalida-btn="pt"
-                    disabled
-                  >
-                    Anexar novo
-                  </button>
-                  <input
-                    id="registroRevalidacaoPt"
-                    type="file"
-                    accept=".pdf,image/*"
-                    data-registro-revalida-input="pt"
-                    hidden
-                    disabled
-                  />
-                    <span class="doc-name" data-registro-revalida-name="pt">Mantém documento atual</span>
-                </div>
-              </div>
-            </div>
-          </div>
           <div class="field">
             <label for="registroResultado">Resultado</label>
             <select id="registroResultado" required>
@@ -7749,6 +7585,136 @@
           <button id="btnVoltarCancelarExecucao" class="btn btn--ghost" type="button">Voltar</button>
         </div>
         <p id="mensagemCancelarExecucao" class="mensagem" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalRevalidarManutencao" class="modal" hidden>
+    <div class="modal__content">
+      <div class="modal__header">
+        <h3>Revalidar manutenção</h3>
+        <button id="btnFecharRevalidarManutencao" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <form id="formRevalidarManutencao" class="modal__form">
+        <input id="revalidarManutencaoId" type="hidden" />
+        <div id="revalidarManutencaoResumo" class="history-summary modal-summary"></div>
+        <div class="form-grid">
+          <div class="field" data-full>
+            <label>Revalidação documental diária (opcional por tipo)</label>
+            <p class="hint">
+              Marque somente os documentos que exigem revalidação hoje. Se marcar, o novo arquivo do tipo fica obrigatório.
+            </p>
+            <div class="doc-grid doc-grid--compact">
+              <div class="doc-item" data-revalidar-doc="apr">
+                <div class="doc-head">
+                  <label class="checkbox-field">
+                    <input id="revalidarDocApr" type="checkbox" data-revalidar-doc-check="apr" />
+                    <span>Revalidar APR</span>
+                  </label>
+                  <button class="btn btn--ghost btn--small" type="button" data-revalidar-doc-view="apr" disabled>
+                    Visualizar
+                  </button>
+                </div>
+                <div class="doc-actions">
+                  <button class="btn btn--ghost btn--small" type="button" data-revalidar-doc-btn="apr" disabled>
+                    Anexar novo
+                  </button>
+                  <input
+                    id="revalidarDocAprFile"
+                    type="file"
+                    accept=".pdf,image/*"
+                    data-revalidar-doc-input="apr"
+                    hidden
+                    disabled
+                  />
+                  <span class="doc-name" data-revalidar-doc-name="apr">Mantém documento atual</span>
+                </div>
+              </div>
+              <div class="doc-item" data-revalidar-doc="os">
+                <div class="doc-head">
+                  <label class="checkbox-field">
+                    <input id="revalidarDocOs" type="checkbox" data-revalidar-doc-check="os" />
+                    <span>Revalidar OS</span>
+                  </label>
+                  <button class="btn btn--ghost btn--small" type="button" data-revalidar-doc-view="os" disabled>
+                    Visualizar
+                  </button>
+                </div>
+                <div class="doc-actions">
+                  <button class="btn btn--ghost btn--small" type="button" data-revalidar-doc-btn="os" disabled>
+                    Anexar novo
+                  </button>
+                  <input
+                    id="revalidarDocOsFile"
+                    type="file"
+                    accept=".pdf,image/*"
+                    data-revalidar-doc-input="os"
+                    hidden
+                    disabled
+                  />
+                  <span class="doc-name" data-revalidar-doc-name="os">Mantém documento atual</span>
+                </div>
+              </div>
+              <div class="doc-item" data-revalidar-doc="pte">
+                <div class="doc-head">
+                  <label class="checkbox-field">
+                    <input id="revalidarDocPte" type="checkbox" data-revalidar-doc-check="pte" />
+                    <span>Revalidar PTE</span>
+                  </label>
+                  <button class="btn btn--ghost btn--small" type="button" data-revalidar-doc-view="pte" disabled>
+                    Visualizar
+                  </button>
+                </div>
+                <div class="doc-actions">
+                  <button class="btn btn--ghost btn--small" type="button" data-revalidar-doc-btn="pte" disabled>
+                    Anexar novo
+                  </button>
+                  <input
+                    id="revalidarDocPteFile"
+                    type="file"
+                    accept=".pdf,image/*"
+                    data-revalidar-doc-input="pte"
+                    hidden
+                    disabled
+                  />
+                  <span class="doc-name" data-revalidar-doc-name="pte">Mantém documento atual</span>
+                </div>
+              </div>
+              <div class="doc-item" data-revalidar-doc="pt">
+                <div class="doc-head">
+                  <label class="checkbox-field">
+                    <input id="revalidarDocPt" type="checkbox" data-revalidar-doc-check="pt" />
+                    <span>Revalidar PT</span>
+                  </label>
+                  <button class="btn btn--ghost btn--small" type="button" data-revalidar-doc-view="pt" disabled>
+                    Visualizar
+                  </button>
+                </div>
+                <div class="doc-actions">
+                  <button class="btn btn--ghost btn--small" type="button" data-revalidar-doc-btn="pt" disabled>
+                    Anexar novo
+                  </button>
+                  <input
+                    id="revalidarDocPtFile"
+                    type="file"
+                    accept=".pdf,image/*"
+                    data-revalidar-doc-input="pt"
+                    hidden
+                    disabled
+                  />
+                  <span class="doc-name" data-revalidar-doc-name="pt">Mantém documento atual</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal__actions">
+          <button class="btn btn--primary" type="submit">Salvar revalidação</button>
+          <button id="btnCancelarRevalidarManutencao" class="btn btn--ghost" type="button">Cancelar</button>
+        </div>
+        <p id="mensagemRevalidarManutencao" class="mensagem" aria-live="polite"></p>
       </form>
     </div>
   </div>

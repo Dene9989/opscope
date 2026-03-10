@@ -1200,25 +1200,9 @@ const registroDocs = document.getElementById("registroDocs");
 const registroResultado = document.getElementById("registroResultado");
 const registroDataExecucao = document.getElementById("registroDataExecucao");
 const registroDataExecucaoHint = document.getElementById("registroDataExecucaoHint");
-const registroRevalidacaoField = document.getElementById("registroRevalidacaoField");
 const registroComentario = document.getElementById("registroComentario");
 const registroObsExecucao = document.getElementById("registroObsExecucao");
 const registroEvidenciasLista = document.getElementById("registroEvidenciasLista");
-const registroRevalidacaoChecks = Array.from(
-  document.querySelectorAll("[data-registro-revalida-check]")
-);
-const registroRevalidacaoInputs = Array.from(
-  document.querySelectorAll("[data-registro-revalida-input]")
-);
-const registroRevalidacaoButtons = Array.from(
-  document.querySelectorAll("[data-registro-revalida-btn]")
-);
-const registroRevalidacaoViews = Array.from(
-  document.querySelectorAll("[data-registro-revalida-view]")
-);
-const registroRevalidacaoNames = Array.from(
-  document.querySelectorAll("[data-registro-revalida-name]")
-);
 const btnFecharRegistroExecucao = document.getElementById("btnFecharRegistroExecucao");
 const btnCancelarRegistroExecucao = document.getElementById("btnCancelarRegistroExecucao");
 const btnCancelarExecucao = document.getElementById("btnCancelarExecucao");
@@ -1227,6 +1211,28 @@ const cancelarExecucaoMotivo = document.getElementById("cancelarExecucaoMotivo")
 const btnVoltarCancelarExecucao = document.getElementById("btnVoltarCancelarExecucao");
 const mensagemCancelarExecucao = document.getElementById("mensagemCancelarExecucao");
 const mensagemRegistroExecucao = document.getElementById("mensagemRegistroExecucao");
+const modalRevalidarManutencao = document.getElementById("modalRevalidarManutencao");
+const formRevalidarManutencao = document.getElementById("formRevalidarManutencao");
+const revalidarManutencaoId = document.getElementById("revalidarManutencaoId");
+const revalidarManutencaoResumo = document.getElementById("revalidarManutencaoResumo");
+const mensagemRevalidarManutencao = document.getElementById("mensagemRevalidarManutencao");
+const btnFecharRevalidarManutencao = document.getElementById("btnFecharRevalidarManutencao");
+const btnCancelarRevalidarManutencao = document.getElementById("btnCancelarRevalidarManutencao");
+const revalidarManutencaoChecks = Array.from(
+  document.querySelectorAll("[data-revalidar-doc-check]")
+);
+const revalidarManutencaoInputs = Array.from(
+  document.querySelectorAll("[data-revalidar-doc-input]")
+);
+const revalidarManutencaoButtons = Array.from(
+  document.querySelectorAll("[data-revalidar-doc-btn]")
+);
+const revalidarManutencaoViews = Array.from(
+  document.querySelectorAll("[data-revalidar-doc-view]")
+);
+const revalidarManutencaoNames = Array.from(
+  document.querySelectorAll("[data-revalidar-doc-name]")
+);
 const modalConclusao = document.getElementById("modalConclusao");
 const conclusaoResumo = document.getElementById("conclusaoResumo");
 const conclusaoAssinaturaPreview = document.getElementById("conclusaoAssinaturaPreview");
@@ -14719,6 +14725,114 @@ function deveExibirRegistroExecucaoRevalidacao(item, dataRef, pendenteDataRef, n
   return dataRefNormalizada === formatDateISO(startOfDay(nowDate));
 }
 
+function normalizeRevalidacaoDocumentalDiariaEntry(entry) {
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+  const dataRef = normalizeRegistroExecucaoDiaKey(
+    entry.dataRef || entry.data || entry.dia || entry.dataRegistro || entry.registradoEm
+  );
+  if (!dataRef) {
+    return null;
+  }
+  const required = normalizeRegistroExecucaoRevalidacaoRequiredMap(
+    entry.required && typeof entry.required === "object"
+      ? entry.required
+      : entry.revalidacaoRequired && typeof entry.revalidacaoRequired === "object"
+        ? entry.revalidacaoRequired
+        : {}
+  );
+  const docsSource =
+    entry.docs && typeof entry.docs === "object"
+      ? entry.docs
+      : entry.revalidacaoDocs && typeof entry.revalidacaoDocs === "object"
+        ? entry.revalidacaoDocs
+        : {};
+  const docs = {};
+  DOC_KEYS.forEach((key) => {
+    const doc = normalizeSstDocFile(docsSource[key]);
+    if (doc) {
+      docs[key] = doc;
+    }
+  });
+  const hasAny = DOC_KEYS.some((key) => Boolean(required[key]) || Boolean(docs[key]));
+  if (!hasAny) {
+    return null;
+  }
+  return {
+    dataRef,
+    required,
+    docs,
+    registradoEm: normalizeIso(entry.registradoEm || entry.updatedAt || entry.createdAt || ""),
+    registradoPor: String(entry.registradoPor || entry.updatedBy || entry.createdBy || "").trim(),
+  };
+}
+
+function getRevalidacoesDocumentaisDiarias(item) {
+  if (!item || typeof item !== "object") {
+    return [];
+  }
+  const source = Array.isArray(item.revalidacoesDocumentaisDiarias)
+    ? item.revalidacoesDocumentaisDiarias
+    : Array.isArray(item.revalidacaoDocumentalDiaria)
+      ? item.revalidacaoDocumentalDiaria
+      : [];
+  const map = new Map();
+  source.forEach((raw) => {
+    const normalized = normalizeRevalidacaoDocumentalDiariaEntry(raw);
+    if (!normalized) {
+      return;
+    }
+    const current = map.get(normalized.dataRef);
+    if (!current) {
+      map.set(normalized.dataRef, normalized);
+      return;
+    }
+    const currentTime = getTimeValue(current.registradoEm || current.updatedAt || "") || 0;
+    const nextTime = getTimeValue(normalized.registradoEm || normalized.updatedAt || "") || 0;
+    if (nextTime >= currentTime) {
+      map.set(normalized.dataRef, normalized);
+    }
+  });
+  return Array.from(map.values()).sort((a, b) => a.dataRef.localeCompare(b.dataRef));
+}
+
+function getRevalidacaoDocumentalDiaria(item, dateKey) {
+  const normalizedKey = normalizeRegistroExecucaoDiaKey(dateKey);
+  if (!normalizedKey) {
+    return null;
+  }
+  const list = getRevalidacoesDocumentaisDiarias(item);
+  return list.find((entry) => entry.dataRef === normalizedKey) || null;
+}
+
+function upsertRevalidacoesDocumentaisDiarias(list, entry) {
+  const normalized = normalizeRevalidacaoDocumentalDiariaEntry(entry);
+  if (!normalized) {
+    return Array.isArray(list) ? list.slice() : [];
+  }
+  const map = new Map();
+  const base = Array.isArray(list) ? list : [];
+  base.forEach((raw) => {
+    const parsed = normalizeRevalidacaoDocumentalDiariaEntry(raw);
+    if (parsed) {
+      map.set(parsed.dataRef, parsed);
+    }
+  });
+  map.set(normalized.dataRef, normalized);
+  return Array.from(map.values()).sort((a, b) => a.dataRef.localeCompare(b.dataRef));
+}
+
+function getRevalidacaoDocumentalDiariaDocsMap(item, registroDia = null) {
+  const legacy = registroDia ? getRegistroExecucaoRevalidacaoDocsMap(registroDia) : null;
+  if (legacy && Object.keys(legacy).length) {
+    return legacy;
+  }
+  const dateKey = registroDia ? registroDia.dataRef : "";
+  const entry = getRevalidacaoDocumentalDiaria(item, dateKey);
+  return entry && entry.docs ? entry.docs : {};
+}
+
 function getExecutionStartedIso(item) {
   if (!item || typeof item !== "object") {
     return "";
@@ -26408,7 +26522,7 @@ function getResponsavelRdo(item, registroDia = null) {
 
 function getDocsStatusRdo(item, registroDia = null) {
   const docsBase = getItemDocs(item) || {};
-  const docsDiarios = getRegistroExecucaoRevalidacaoDocsMap(registroDia);
+  const docsDiarios = getRevalidacaoDocumentalDiariaDocsMap(item, registroDia);
   const docs = { ...docsBase, ...docsDiarios };
   const critico = isItemCritico(item);
   const status = {};
@@ -29064,7 +29178,7 @@ function getItemDocs(item) {
 
 function getDocCompliance(item, registroDia = null) {
   const docsBase = getItemDocs(item) || {};
-  const docsDiarios = getRegistroExecucaoRevalidacaoDocsMap(registroDia);
+  const docsDiarios = getRevalidacaoDocumentalDiariaDocsMap(item, registroDia);
   const docs = { ...docsBase, ...docsDiarios };
   if (!Object.keys(docs).length) {
     return null;
@@ -51018,9 +51132,9 @@ let conclusaoFalhaFotosAtual = [];
 let manutencaoEmRegistro = null;
 let registroExecucaoFotosAtual = [];
 let registroExecucaoDataRefAtual = "";
-let registroExecucaoModoAtual = "register";
-let registroExecucaoRevalidacaoDocsAtual = {};
-let registroExecucaoRevalidacaoBaseDocsAtual = {};
+let revalidarManutencaoAtual = null;
+let revalidarManutencaoDocsAtual = {};
+let revalidarManutencaoBaseDocsAtual = {};
 let manutencaoEmEdicao = null;
 let manutencaoEditSnapshot = null;
 let manutencaoEditDirty = false;
@@ -53193,7 +53307,7 @@ async function confirmarInicioExecucao() {
   mostrarMensagemManutencao("Execução iniciada.");
 }
 
-function abrirRegistroExecucao(item, options = {}) {
+function abrirRegistroExecucao(item) {
   if (!requirePermission("complete")) {
     return;
   }
@@ -53249,9 +53363,6 @@ function abrirRegistroExecucao(item, options = {}) {
     mostrarMensagemManutencao("Início da execução não encontrado.", true);
     return;
   }
-  const modoRegistro =
-    options && options.mode === "daily_revalidate" ? "daily_revalidate" : "register";
-  registroExecucaoModoAtual = modoRegistro;
   manutencaoEmRegistro = itemAtual.id;
   mostrarMensagemRegistroExecucao("");
   mostrarMensagemCancelarExecucao("");
@@ -53368,17 +53479,6 @@ function abrirRegistroExecucao(item, options = {}) {
   if (registroObsExecucao) {
     registroObsExecucao.value = registroBase.observacaoExecucao || "";
   }
-  const exibirRevalidacaoDiaria =
-    modoRegistro === "daily_revalidate" &&
-    deveExibirRegistroExecucaoRevalidacao(itemAtual, dataRef, pendenteDataRef);
-  if (registroRevalidacaoField) {
-    registroRevalidacaoField.hidden = !exibirRevalidacaoDiaria;
-  }
-  if (exibirRevalidacaoDiaria) {
-    aplicarRegistroExecucaoRevalidacaoState(registroBase, docsExecucaoAtual);
-  } else {
-    resetRegistroExecucaoRevalidacaoState();
-  }
   registroExecucaoFotosAtual = Array.isArray(registroBase.evidencias)
     ? dedupeEvidenceList(registroBase.evidencias)
     : [];
@@ -53397,7 +53497,6 @@ function fecharRegistroExecucao() {
   }
   modalRegistroExecucao.hidden = true;
   manutencaoEmRegistro = null;
-  registroExecucaoModoAtual = "register";
   registroExecucaoFotosAtual = [];
   registroExecucaoDataRefAtual = "";
   if (formRegistroExecucao) {
@@ -53427,10 +53526,6 @@ function fecharRegistroExecucao() {
     registroEvidenciasLista.innerHTML = "";
   }
   atualizarRegistroSlotsFoto([]);
-  if (registroRevalidacaoField) {
-    registroRevalidacaoField.hidden = true;
-  }
-  resetRegistroExecucaoRevalidacaoState();
   mostrarMensagemCancelarExecucao("");
 }
 
@@ -53603,43 +53698,6 @@ async function salvarRegistroExecucao(event) {
     );
     return;
   }
-  const revalidacaoRequired = getRegistroExecucaoRevalidacaoRequiredMapFromForm();
-  const revalidacaoDocs = {};
-  DOC_KEYS.forEach((chave) => {
-    const doc = normalizeSstDocFile(registroExecucaoRevalidacaoDocsAtual[chave]);
-    if (doc) {
-      revalidacaoDocs[chave] = doc;
-    }
-  });
-  for (const chave of DOC_KEYS) {
-    if (!revalidacaoRequired[chave]) {
-      continue;
-    }
-    const input = getRegistroRevalidacaoInput(chave);
-    const file = input && input.files && input.files[0] ? input.files[0] : null;
-    if (file) {
-      try {
-        revalidacaoDocs[chave] = await uploadLiberacaoDoc(file, chave);
-      } catch (error) {
-        const message =
-          error && error.message
-            ? error.message
-            : `Não foi possível enviar a revalidação de ${DOC_LABELS[chave] || chave.toUpperCase()}.`;
-        mostrarMensagemRegistroExecucao(message, true);
-        return;
-      }
-    }
-    if (!revalidacaoDocs[chave]) {
-      mostrarMensagemRegistroExecucao(
-        `Anexe o novo documento de ${DOC_LABELS[chave] || chave.toUpperCase()} para revalidar.`,
-        true
-      );
-      return;
-    }
-  }
-  const possuiRevalidacaoDocumental = DOC_KEYS.some(
-    (chave) => Boolean(revalidacaoRequired[chave]) || Boolean(revalidacaoDocs[chave])
-  );
   const observacaoExecucao = registroObsExecucao ? registroObsExecucao.value.trim() : "";
   const registradoEm = toIsoUtc(new Date());
   const registroExecucao = {
@@ -53650,18 +53708,7 @@ async function salvarRegistroExecucao(event) {
     registradoEm,
     dataRef,
     evidencias,
-    ...(possuiRevalidacaoDocumental
-      ? {
-          revalidacaoDocumental: {
-            required: revalidacaoRequired,
-            docs: revalidacaoDocs,
-            registradoEm,
-            registradoPor: currentUser.id,
-          },
-        }
-      : {}),
   };
-  registroExecucaoRevalidacaoDocsAtual = { ...revalidacaoDocs };
   const registrosDiariosExecucao = upsertRegistrosDiariosExecucao(
     getRegistrosDiariosExecucao(item),
     registroExecucao
@@ -53696,9 +53743,6 @@ async function salvarRegistroExecucao(event) {
     participantes: liberacao.participantes || [],
     critico: liberacao.critico,
     documentos: documentosLista,
-    documentosRevalidados: DOC_KEYS.filter((chave) => Boolean(revalidacaoRequired[chave])).map(
-      (chave) => DOC_LABELS[chave] || chave
-    ),
     resumo: "Registro de execução salvo.",
   });
   renderTudo();
@@ -56120,70 +56164,70 @@ function atualizarListaRegistroEvidencias() {
   });
 }
 
-function getRegistroRevalidacaoCheck(chave) {
-  return registroRevalidacaoChecks.find(
-    (item) => item && item.dataset.registroRevalidaCheck === chave
+function getRevalidarManutencaoCheck(chave) {
+  return revalidarManutencaoChecks.find(
+    (item) => item && item.dataset.revalidarDocCheck === chave
   );
 }
 
-function getRegistroRevalidacaoInput(chave) {
-  return registroRevalidacaoInputs.find(
-    (item) => item && item.dataset.registroRevalidaInput === chave
+function getRevalidarManutencaoInput(chave) {
+  return revalidarManutencaoInputs.find(
+    (item) => item && item.dataset.revalidarDocInput === chave
   );
 }
 
-function getRegistroRevalidacaoButton(chave) {
-  return registroRevalidacaoButtons.find(
-    (item) => item && item.dataset.registroRevalidaBtn === chave
+function getRevalidarManutencaoButton(chave) {
+  return revalidarManutencaoButtons.find(
+    (item) => item && item.dataset.revalidarDocBtn === chave
   );
 }
 
-function getRegistroRevalidacaoView(chave) {
-  return registroRevalidacaoViews.find(
-    (item) => item && item.dataset.registroRevalidaView === chave
+function getRevalidarManutencaoView(chave) {
+  return revalidarManutencaoViews.find(
+    (item) => item && item.dataset.revalidarDocView === chave
   );
 }
 
-function getRegistroRevalidacaoName(chave) {
-  return registroRevalidacaoNames.find(
-    (item) => item && item.dataset.registroRevalidaName === chave
+function getRevalidarManutencaoName(chave) {
+  return revalidarManutencaoNames.find(
+    (item) => item && item.dataset.revalidarDocName === chave
   );
 }
 
-function getRegistroRevalidacaoDocName(doc, fallback = "Documento") {
+function getRevalidarManutencaoDocName(doc, fallback = "Documento") {
   if (!doc || typeof doc !== "object") {
     return fallback;
   }
   return String(doc.name || doc.nome || doc.originalName || fallback).trim() || fallback;
 }
 
-function limparRegistroExecucaoRevalidacaoArquivos() {
-  registroRevalidacaoInputs.forEach((input) => {
+function limparRevalidarManutencaoArquivos() {
+  revalidarManutencaoInputs.forEach((input) => {
     if (input) {
       input.value = "";
     }
   });
 }
 
-function getRegistroExecucaoRevalidacaoRequiredMapFromForm() {
+function getRevalidarManutencaoRequiredMapFromForm() {
   const required = {};
   DOC_KEYS.forEach((chave) => {
-    const checkbox = getRegistroRevalidacaoCheck(chave);
+    const checkbox = getRevalidarManutencaoCheck(chave);
     required[chave] = Boolean(checkbox && checkbox.checked);
   });
   return required;
 }
 
-function atualizarRegistroExecucaoRevalidacaoUI() {
+function atualizarRevalidarManutencaoUI() {
   DOC_KEYS.forEach((chave) => {
-    const checkbox = getRegistroRevalidacaoCheck(chave);
-    const input = getRegistroRevalidacaoInput(chave);
-    const button = getRegistroRevalidacaoButton(chave);
-    const viewButton = getRegistroRevalidacaoView(chave);
-    const nameEl = getRegistroRevalidacaoName(chave);
+    const checkbox = getRevalidarManutencaoCheck(chave);
+    const input = getRevalidarManutencaoInput(chave);
+    const button = getRevalidarManutencaoButton(chave);
+    const viewButton = getRevalidarManutencaoView(chave);
+    const nameEl = getRevalidarManutencaoName(chave);
     const marcado = Boolean(checkbox && checkbox.checked);
-    const docDia = normalizeSstDocFile(registroExecucaoRevalidacaoDocsAtual[chave]);
-    const docBase = normalizeSstDocFile(registroExecucaoRevalidacaoBaseDocsAtual[chave]);
+    const docDia = normalizeSstDocFile(revalidarManutencaoDocsAtual[chave]);
+    const docBase = normalizeSstDocFile(revalidarManutencaoBaseDocsAtual[chave]);
     if (input && !marcado && input.value) {
       input.value = "";
     }
@@ -56206,11 +56250,11 @@ function atualizarRegistroExecucaoRevalidacaoUI() {
         return;
       }
       if (docDia) {
-        nameEl.textContent = `Revalidado no dia: ${getRegistroRevalidacaoDocName(docDia, "Documento")}`;
+        nameEl.textContent = `Revalidado no dia: ${getRevalidarManutencaoDocName(docDia, "Documento")}`;
         return;
       }
       if (docBase) {
-        nameEl.textContent = `Obrigatório novo arquivo (atual: ${getRegistroRevalidacaoDocName(
+        nameEl.textContent = `Obrigatório novo arquivo (atual: ${getRevalidarManutencaoDocName(
           docBase,
           "Documento"
         )})`;
@@ -56220,43 +56264,46 @@ function atualizarRegistroExecucaoRevalidacaoUI() {
       return;
     }
     if (docDia) {
-      nameEl.textContent = `Revalidação do dia: ${getRegistroRevalidacaoDocName(docDia, "Documento")}`;
+      nameEl.textContent = `Revalidação do dia: ${getRevalidarManutencaoDocName(docDia, "Documento")}`;
       return;
     }
     if (docBase) {
-      nameEl.textContent = `Mantém válido: ${getRegistroRevalidacaoDocName(docBase, "Documento")}`;
+      nameEl.textContent = `Mantém válido: ${getRevalidarManutencaoDocName(docBase, "Documento")}`;
       return;
     }
     nameEl.textContent = "Sem documento vinculado";
   });
 }
 
-function aplicarRegistroExecucaoRevalidacaoState(registroBase, docsBase) {
-  const revalidacao = getRegistroExecucaoRevalidacaoDocumental(registroBase);
-  registroExecucaoRevalidacaoDocsAtual = { ...revalidacao.docs };
-  registroExecucaoRevalidacaoBaseDocsAtual =
+function aplicarRevalidarManutencaoState(registroBase, docsBase) {
+  const revalidacao = normalizeRevalidacaoDocumentalDiariaEntry(registroBase) || {
+    required: normalizeRegistroExecucaoRevalidacaoRequiredMap({}),
+    docs: {},
+  };
+  revalidarManutencaoDocsAtual = { ...(revalidacao.docs || {}) };
+  revalidarManutencaoBaseDocsAtual =
     docsBase && typeof docsBase === "object" ? { ...docsBase } : {};
   DOC_KEYS.forEach((chave) => {
-    const checkbox = getRegistroRevalidacaoCheck(chave);
+    const checkbox = getRevalidarManutencaoCheck(chave);
     if (checkbox) {
-      checkbox.checked = Boolean(revalidacao.required[chave]);
+      checkbox.checked = Boolean(revalidacao.required && revalidacao.required[chave]);
     }
   });
-  limparRegistroExecucaoRevalidacaoArquivos();
-  atualizarRegistroExecucaoRevalidacaoUI();
+  limparRevalidarManutencaoArquivos();
+  atualizarRevalidarManutencaoUI();
 }
 
-function resetRegistroExecucaoRevalidacaoState() {
-  registroExecucaoRevalidacaoDocsAtual = {};
-  registroExecucaoRevalidacaoBaseDocsAtual = {};
+function resetRevalidarManutencaoState() {
+  revalidarManutencaoDocsAtual = {};
+  revalidarManutencaoBaseDocsAtual = {};
   DOC_KEYS.forEach((chave) => {
-    const checkbox = getRegistroRevalidacaoCheck(chave);
+    const checkbox = getRevalidarManutencaoCheck(chave);
     if (checkbox) {
       checkbox.checked = false;
     }
   });
-  limparRegistroExecucaoRevalidacaoArquivos();
-  atualizarRegistroExecucaoRevalidacaoUI();
+  limparRevalidarManutencaoArquivos();
+  atualizarRevalidarManutencaoUI();
 }
 
 function getEvidenciaFiles() {
