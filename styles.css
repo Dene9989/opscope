@@ -3807,6 +3807,24 @@ body.is-visitor .container.auth-only {
   background: rgba(192, 84, 47, 0.12);
 }
 
+.mensal-override-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.mensal-override-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mensal-override-line span {
+  flex: 1;
+  min-width: 220px;
+}
+
 .edit-banner {
   margin: 10px 0 16px;
   padding: 12px 14px;

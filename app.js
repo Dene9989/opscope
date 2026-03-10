@@ -56,6 +56,7 @@ const lembretesVazio = document.getElementById("lembretesVazio");
 const listaAgendadas = document.getElementById("listaAgendadas");
 const listaAgendadasVazia = document.getElementById("listaAgendadasVazia");
 const alertaProgramacao = document.getElementById("alertaProgramacao");
+const mensalOverrideBanner = document.getElementById("mensalOverrideBanner");
 const programacaoListaConteudo = document.getElementById("programacaoListaConteudo");
 const programacaoDetalheView = document.getElementById("programacaoDetalheView");
 const programacaoDetalheTitulo = document.getElementById("programacaoDetalheTitulo");
@@ -1624,6 +1625,7 @@ const OUTROS_ALERT_THRESHOLD = 3;
 const MIN_EVIDENCIAS = 2;
 const MIN_DESCRICAO_BREVE = 60;
 const MIN_RESUMO_RDO_CHARS = 12;
+const INSPECTION_MONTHLY_OVERRIDE_MAX_DAYS = 62;
 const ALMOCO_MIN = 60;
 const MAX_EXECUCAO_HORAS = 12;
 const DOC_KEYS = ["apr", "os", "pte", "pt"];
@@ -4851,6 +4853,7 @@ const ACTION_LABELS = {
   daily_revalidate: "Revalidar manutenção",
   backlog_auto: "Backlog automático",
   backlog_reason: "Motivo não executada",
+  monthly_override: "Mensal do dia",
   rdo_delete: "RDO excluído",
 };
 
@@ -4865,6 +4868,7 @@ const PROGRAMACAO_ALLOWED_ACTIONS = [
   "edit",
   "release",
   "execute",
+  "monthly_override",
   "cancel_start",
   "reschedule",
   "register",
@@ -6181,6 +6185,10 @@ function buildMaintenanceLiteItem(item) {
       prazoAnterior: revalidacao.prazoAnterior || null,
       prazoNovo: revalidacao.prazoNovo || null,
     };
+  }
+  const mensalDoDia = normalizeManualMonthlyOverrideMap(item.mensalDoDia);
+  if (Object.keys(mensalDoDia).length) {
+    lite.mensalDoDia = mensalDoDia;
   }
   return lite;
 }
@@ -15054,6 +15062,22 @@ function normalizarManutencoes(lista) {
       return item;
     }
     const projectId = activeProjectId || item.projectId || "";
+    const mensalDoDiaMap = normalizeManualMonthlyOverrideMap(item.mensalDoDia);
+    const mensalDoDiaKeys = Object.keys(mensalDoDiaMap);
+    const mensalRawKeys =
+      item.mensalDoDia && typeof item.mensalDoDia === "object"
+        ? Object.keys(item.mensalDoDia).sort().join("|")
+        : "";
+    const mensalKeys = mensalDoDiaKeys.slice().sort().join("|");
+    if (mensalRawKeys !== mensalKeys) {
+      mudouCampos = true;
+    }
+    const baseItem = { ...item };
+    if (mensalDoDiaKeys.length) {
+      baseItem.mensalDoDia = mensalDoDiaMap;
+    } else if (Object.prototype.hasOwnProperty.call(baseItem, "mensalDoDia")) {
+      delete baseItem.mensalDoDia;
+    }
     const createdAt = normalizeIso(item.createdAt);
     const updatedAt = normalizeIso(item.updatedAt);
     const doneAt = normalizeIso(item.doneAt);
@@ -15145,7 +15169,7 @@ function normalizarManutencoes(lista) {
     const statusOriginal = normalizeMaintenanceStatus(item.status);
     if (statusOriginal === "concluida") {
       return {
-        ...item,
+        ...baseItem,
         status: statusOriginal,
         equipamentoId,
         equipamentoIds,
@@ -15166,7 +15190,7 @@ function normalizarManutencoes(lista) {
         changes.push({ id: item.id, from: statusOriginal, to: statusEsperado });
       }
       return {
-        ...item,
+        ...baseItem,
         status: statusEsperado,
         equipamentoId,
         equipamentoIds,
@@ -15197,7 +15221,7 @@ function normalizarManutencoes(lista) {
         changes.push({ id: item.id, from: statusOriginal, to: statusCorrigido });
       }
       return {
-        ...item,
+        ...baseItem,
         status: statusCorrigido,
         equipamentoId,
         equipamentoIds,
@@ -15224,7 +15248,7 @@ function normalizarManutencoes(lista) {
         mudouTempo = true;
       }
       return {
-        ...item,
+        ...baseItem,
         status: statusOriginal,
         equipamentoId,
         equipamentoIds,
@@ -15241,7 +15265,7 @@ function normalizarManutencoes(lista) {
     }
     if (statusOriginal === "backlog") {
       return {
-        ...item,
+        ...baseItem,
         status: statusOriginal,
         equipamentoId,
         equipamentoIds,
@@ -15264,7 +15288,7 @@ function normalizarManutencoes(lista) {
     if (novoStatus !== statusOriginal) {
       changes.push({ id: item.id, from: statusOriginal, to: novoStatus });
       return {
-        ...item,
+        ...baseItem,
         projectId: item.projectId || projectId,
         status: novoStatus,
         equipamentoId,
@@ -15281,7 +15305,7 @@ function normalizarManutencoes(lista) {
       };
     }
     return {
-      ...item,
+      ...baseItem,
       projectId: item.projectId || projectId,
       status: statusOriginal,
       equipamentoId,
@@ -16200,6 +16224,7 @@ function getMaintenanceItemFingerprint(item) {
       : "",
     item.backlogAutoEm || "",
     item.backlogAutoMonth || "",
+    getManualMonthlyOverrideKeys(item),
     normalizeIntercorrenciaStatus(intercorrencia.status || ""),
     normalizeIntercorrenciaCriticidade(intercorrencia.criticidade || ""),
     intercorrencia.descricao || "",
@@ -16234,6 +16259,7 @@ function getMaintenanceListFingerprint(list) {
       executionFinishedAt: item.executionFinishedAt || "",
       doneAt: item.doneAt || "",
       participantes: Array.isArray(item.participantes) ? item.participantes.length : 0,
+      mensalDoDia: getManualMonthlyOverrideKeys(item),
       execRegistrada: hasExecucaoRegistrada(item) ? 1 : 0,
       execRegistradaAt:
         (item.registroExecucao && (item.registroExecucao.registradoEm || item.registroExecucao.registrado_em || item.registroExecucao.executedAt || item.registroExecucao.executadoEm)) ||
@@ -18172,6 +18198,79 @@ function renderAlertaProgramacao() {
   }
   alertaProgramacao.hidden = true;
 }
+
+function collectManualMonthlyOverrideEntries(list) {
+  const source = Array.isArray(list) ? list : [];
+  const entries = [];
+  const seen = new Set();
+  source.forEach((item) => {
+    if (!item || !isInspectionMaintenance(item)) {
+      return;
+    }
+    const overrideMap = getManualMonthlyOverrideMap(item);
+    Object.keys(overrideMap).forEach((dateKey) => {
+      const suppressionKey = getInspectionSuppressionKey(item, dateKey);
+      if (!suppressionKey || seen.has(suppressionKey)) {
+        return;
+      }
+      seen.add(suppressionKey);
+      entries.push({
+        id: item.id,
+        dateKey,
+        titulo: item.titulo || item.nome || "Inspeção",
+        local: getItemSubestacao(item) || item.local || "-",
+        equipamento: getMaintenanceEquipamentoLabel(item) || "-",
+      });
+    });
+  });
+  entries.sort((a, b) => a.dateKey.localeCompare(b.dateKey));
+  return entries;
+}
+
+function renderMensalOverrideBanner() {
+  if (!mensalOverrideBanner) {
+    return;
+  }
+  const entries = collectManualMonthlyOverrideEntries(manutencoes);
+  if (!entries.length) {
+    mensalOverrideBanner.hidden = true;
+    mensalOverrideBanner.innerHTML = "";
+    return;
+  }
+  mensalOverrideBanner.hidden = false;
+  mensalOverrideBanner.innerHTML = "";
+  const title = document.createElement("strong");
+  title.textContent = "Mensal do dia (manual) ativo";
+  mensalOverrideBanner.append(title);
+  const list = document.createElement("div");
+  list.className = "mensal-override-list";
+  entries.forEach((entry) => {
+    const line = document.createElement("div");
+    line.className = "mensal-override-line";
+    const text = document.createElement("span");
+    text.textContent = `${entry.titulo} • ${entry.local} • ${entry.equipamento} • ${formatRegistroExecucaoDiaLabel(
+      entry.dateKey
+    )}`;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn--ghost btn--small";
+    btn.textContent = "Desfazer";
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const index = manutencoes.findIndex(
+        (item) => String(item && item.id ? item.id : "") === String(entry.id)
+      );
+      if (index >= 0) {
+        toggleMonthlyInspectionOverride(index, { dateKey: entry.dateKey });
+      }
+    });
+    line.append(text, btn);
+    list.append(line);
+  });
+  mensalOverrideBanner.append(list);
+}
+
 function atualizarResumo() {
   const contagem = {
     agendada: 0,
@@ -18183,7 +18282,9 @@ function atualizarResumo() {
   };
 
   const hoje = startOfDay(new Date());
-  manutencoes.forEach((item) => {
+  const suppressionMap = buildInspectionMonthlySuppressionMap(manutencoes);
+  const itensVisiveis = filterInspectionSuppressed(manutencoes, suppressionMap);
+  itensVisiveis.forEach((item) => {
     if (!item) {
       return;
     }
@@ -18208,7 +18309,7 @@ function atualizarResumo() {
     }
     contagem.agendada += 1;
   });
-  const intercorrenciasAbertas = manutencoes.reduce((acc, item) => {
+  const intercorrenciasAbertas = itensVisiveis.reduce((acc, item) => {
     const issue = getMaintenanceIntercorrencia(item);
     if (!issue) {
       return acc;
@@ -18219,7 +18320,7 @@ function atualizarResumo() {
     }
     return acc + 1;
   }, 0);
-  const execucoesRegistradas = manutencoes.filter((item) => {
+  const execucoesRegistradas = itensVisiveis.filter((item) => {
     if (!hasExecucaoRegistradaCompleta(item)) {
       return false;
     }
@@ -18239,7 +18340,7 @@ function atualizarResumo() {
     badgeIntercorrencias.textContent = String(intercorrenciasAbertas);
   }
   if (countEmExecucao) {
-    const emExecucaoAtivas = manutencoes.filter((item) => {
+    const emExecucaoAtivas = itensVisiveis.filter((item) => {
       if (!item) {
         return false;
       }
@@ -20576,7 +20677,9 @@ function renderLembretes() {
       )
     : [];
 
-  const proximos = scopedManutencoes
+  const suppressionMap = buildInspectionMonthlySuppressionMap(scopedManutencoes);
+  const scopedVisiveis = filterInspectionSuppressed(scopedManutencoes, suppressionMap);
+  const proximos = scopedVisiveis
     .filter((item) => item.status === "agendada" || item.status === "liberada")
     .map((item) => {
       const data = parseDate(item.data);
@@ -20989,6 +21092,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
       "history",
       "register",
       "daily_revalidate",
+      "monthly_override",
       "finish",
       "cancel_start",
       "revalidate",
@@ -20999,6 +21103,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
     const base =
       key === "register" ||
       key === "daily_revalidate" ||
+      key === "monthly_override" ||
       key === "finish" ||
       key === "release" ||
       key === "cancel_start"
@@ -21011,6 +21116,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
       key === "execute" ||
       key === "register" ||
       key === "daily_revalidate" ||
+      key === "monthly_override" ||
       key === "release" ||
       key === "cancel_start";
     if (executaAcao && !podeExecutarItem) {
@@ -21120,6 +21226,19 @@ function criarCardManutencao(item, permissoes, options = {}) {
     if (permite("reopen")) {
       actions.append(criarBotaoAcao("Reabrir", "reopen"));
     }
+  }
+
+  if (permite("monthly_override") && canToggleMonthlyOverride(item)) {
+    const dateKey = getInspectionDateKeyFromItem(item);
+    const ativo = dateKey ? hasManualMonthlyOverride(item, dateKey) : false;
+    const label = ativo ? "Desfazer mensal do dia" : "Mensal do dia";
+    const botaoMensal = criarBotaoAcao(label, "monthly_override");
+    if (ativo) {
+      botaoMensal.title = `Mensal do dia ativo (${formatRegistroExecucaoDiaLabel(dateKey)}).`;
+    } else if (dateKey) {
+      botaoMensal.title = `Marcar mensal do dia (${formatRegistroExecucaoDiaLabel(dateKey)}).`;
+    }
+    actions.append(botaoMensal);
   }
 
   if (permite("revalidate")) {
@@ -21346,6 +21465,23 @@ function criarCardProgramacaoCompacto(item) {
   if (can("edit") && podeEditar) {
     actions.append(criarBotaoAcao("Editar", "edit"));
   }
+  if (
+    PROGRAMACAO_ALLOWED_ACTIONS.includes("monthly_override") &&
+    can("complete") &&
+    canExecuteMaintenanceForUser(item, currentUser) &&
+    canToggleMonthlyOverride(item)
+  ) {
+    const dateKey = getInspectionDateKeyFromItem(item);
+    const ativo = dateKey ? hasManualMonthlyOverride(item, dateKey) : false;
+    const label = ativo ? "Desfazer mensal do dia" : "Mensal do dia";
+    const botaoMensal = criarBotaoAcao(label, "monthly_override");
+    if (ativo) {
+      botaoMensal.title = `Mensal do dia ativo (${formatRegistroExecucaoDiaLabel(dateKey)}).`;
+    } else if (dateKey) {
+      botaoMensal.title = `Marcar mensal do dia (${formatRegistroExecucaoDiaLabel(dateKey)}).`;
+    }
+    actions.append(botaoMensal);
+  }
 
   card.addEventListener("click", (event) => {
     const rawTarget = event.target;
@@ -21522,8 +21658,10 @@ function renderListaStatus(status, container, emptyEl, options = {}) {
     reopen: canReopenMaintenance(currentUser),
     history: true,
   };
+  const suppressionMap = buildInspectionMonthlySuppressionMap(manutencoes);
   const items = manutencoes
     .filter((item) => normalizeMaintenanceStatus(item && item.status) === status)
+    .filter((item) => !isInspectionSuppressed(item, suppressionMap))
     .sort((a, b) => {
       const dataA = parseDate(a.data);
       const dataB = parseDate(b.data);
@@ -21557,6 +21695,7 @@ function renderProgramacao() {
   }
   listaAgendadas.innerHTML = "";
   renderAlertaProgramacao();
+  renderMensalOverrideBanner();
 
   const hoje = startOfDay(new Date());
   const filtroStatus = filtroProgramacaoStatus ? filtroProgramacaoStatus.value : "";
@@ -21684,7 +21823,10 @@ function renderProgramacao() {
     return true;
   });
 
-  if (!filtrados.length) {
+  const suppressionMap = buildInspectionMonthlySuppressionMap(manutencoes);
+  const filtradosVisiveis = filterInspectionSuppressed(filtrados, suppressionMap);
+
+  if (!filtradosVisiveis.length) {
     listaAgendadasVazia.textContent = "Nenhuma manutenção encontrada.";
     listaAgendadasVazia.hidden = false;
     sincronizarProgramacaoDetalheComLista([]);
@@ -21701,7 +21843,7 @@ function renderProgramacao() {
     return 2;
   };
 
-  const ordenados = filtrados.sort((a, b) => {
+  const ordenados = filtradosVisiveis.sort((a, b) => {
     const dataA = parseDate(a.data);
     const dataB = parseDate(b.data);
     const stateA = getMaintenanceState(a, dataA, hoje);
@@ -21776,6 +21918,7 @@ function renderExecucao() {
     return;
   }
   const hoje = startOfDay(new Date());
+  const suppressionMap = buildInspectionMonthlySuppressionMap(manutencoes);
 
   const agendadasHoje = manutencoes
     .filter((item) => item.status === "agendada" || item.status === "liberada")
@@ -21804,34 +21947,40 @@ function renderExecucao() {
 
   const vencidas = vencidasInfo.map((entry) => entry.item);
   const criticas = vencidasInfo.filter((entry) => entry.diff <= -3).map((entry) => entry.item);
+  const agendadasHojeFiltradas = filterInspectionSuppressed(agendadasHoje, suppressionMap);
+  const vencidasFiltradas = filterInspectionSuppressed(vencidas, suppressionMap);
+  const criticasFiltradas = filterInspectionSuppressed(criticas, suppressionMap);
 
-  renderListaCustom(agendadasHoje, listaExecucaoHoje, listaExecucaoHojeVazia, [
+  renderListaCustom(agendadasHojeFiltradas, listaExecucaoHoje, listaExecucaoHojeVazia, [
     "edit",
     "note",
     "release",
     "execute",
+    "monthly_override",
     "reschedule",
     "history",
     "backlog_reason",
     "daily_revalidate",
     "revalidate",
   ]);
-  renderListaCustom(vencidas, listaExecucaoVencidas, listaExecucaoVencidasVazia, [
+  renderListaCustom(vencidasFiltradas, listaExecucaoVencidas, listaExecucaoVencidasVazia, [
     "edit",
     "note",
     "release",
     "execute",
+    "monthly_override",
     "reschedule",
     "history",
     "backlog_reason",
     "daily_revalidate",
     "revalidate",
   ]);
-  renderListaCustom(criticas, listaExecucaoCriticas, listaExecucaoCriticasVazia, [
+  renderListaCustom(criticasFiltradas, listaExecucaoCriticas, listaExecucaoCriticasVazia, [
     "edit",
     "note",
     "release",
     "execute",
+    "monthly_override",
     "reschedule",
     "history",
     "backlog_reason",
@@ -26615,28 +26764,45 @@ function getRegistroDiarioExecucaoParaData(item, dataStr) {
   return getRegistroDiarioExecucao(item, key);
 }
 
-function filtrarItensRdo(dataStr, filtros) {
+function getMaintenanceRdoPresence(item, dataStr) {
   const range = getRdoDateRange(dataStr);
+  const registroDiario = getRegistroDiarioExecucaoParaData(item, dataStr);
+  const inicio = getItemInicioExecucaoDate(item);
+  const fim = getItemFimExecucaoDate(item);
+  const conclusao = getItemConclusaoDate(item);
+  const agendada = parseAnyDate(item && item.data ? item.data : "") || getItemCriacaoDate(item);
+  const entrouDiario = Boolean(registroDiario);
+  const entrouExec =
+    entrouDiario ||
+    isDateInRange(inicio, range.inicio, range.fim) ||
+    isDateInRange(fim, range.inicio, range.fim) ||
+    isDateInRange(conclusao, range.inicio, range.fim);
+  const entrouAgenda =
+    !entrouDiario &&
+    !inicio &&
+    !fim &&
+    !conclusao &&
+    isDateInRange(agendada, range.inicio, range.fim);
+  const entrou = entrouExec || entrouAgenda;
+  return { entrou, registroDiario };
+}
+
+function isMaintenanceInRdoDate(item, dataStr) {
+  const presence = getMaintenanceRdoPresence(item, dataStr);
+  return Boolean(presence && presence.entrou);
+}
+
+function filtrarItensRdo(dataStr, filtros) {
+  const suppressionMap = buildInspectionMonthlySuppressionMap(manutencoes, {
+    dateKey: dataStr,
+    rdoDate: true,
+  });
   return manutencoes.filter((item) => {
-    const registroDiario = getRegistroDiarioExecucaoParaData(item, dataStr);
-    const inicio = getItemInicioExecucaoDate(item);
-    const fim = getItemFimExecucaoDate(item);
-    const conclusao = getItemConclusaoDate(item);
-    const agendada = parseAnyDate(item && item.data ? item.data : "") || getItemCriacaoDate(item);
-    const entrouDiario = Boolean(registroDiario);
-    const entrouExec =
-      entrouDiario ||
-      isDateInRange(inicio, range.inicio, range.fim) ||
-      isDateInRange(fim, range.inicio, range.fim) ||
-      isDateInRange(conclusao, range.inicio, range.fim);
-    const entrouAgenda =
-      !entrouDiario &&
-      !inicio &&
-      !fim &&
-      !conclusao &&
-      isDateInRange(agendada, range.inicio, range.fim);
-    const entrou = entrouExec || entrouAgenda;
-    if (!entrou) {
+    const presence = getMaintenanceRdoPresence(item, dataStr);
+    if (!presence.entrou) {
+      return false;
+    }
+    if (isInspectionSuppressed(item, suppressionMap, { dateKey: dataStr })) {
       return false;
     }
     if (filtros.subestacao && getItemSubestacao(item) !== filtros.subestacao) {
@@ -26650,7 +26816,8 @@ function filtrarItensRdo(dataStr, filtros) {
     }
     if (filtros.usuario) {
       const executadoNoDia =
-        (registroDiario && registroDiario.executadoPor) || getExecutadoPorId(item);
+        (presence.registroDiario && presence.registroDiario.executadoPor) ||
+        getExecutadoPorId(item);
       if (executadoNoDia !== filtros.usuario) {
         return false;
       }
@@ -34153,6 +34320,253 @@ function normalizePmpTipoFromMaintenance(item) {
     return "inspecao";
   }
   return "";
+}
+
+function getInspectionFrequencyKey(item) {
+  const frequencia = normalizePmpFrequencyFromMaintenance(item);
+  if (!frequencia) {
+    return "";
+  }
+  if (frequencia === "diaria" || frequencia === "semanal" || frequencia === "mensal") {
+    return frequencia;
+  }
+  return "";
+}
+
+function isInspectionMaintenance(item) {
+  if (!item) {
+    return false;
+  }
+  if (normalizePmpTipoFromMaintenance(item) === "inspecao") {
+    return true;
+  }
+  const titulo = normalizeSearchValue(item.titulo || item.nome || "");
+  if (titulo.includes("inspec")) {
+    return true;
+  }
+  const template = item.templateId ? getTemplateById(item.templateId) : null;
+  const templateNome = normalizeSearchValue(
+    template && (template.nome || template.name) ? template.nome || template.name : ""
+  );
+  if (templateNome.includes("inspec")) {
+    return true;
+  }
+  const categoria = normalizeSearchValue(getItemCategoria(item) || "");
+  return categoria.includes("inspec");
+}
+
+function getInspectionDateKeyFromItem(item) {
+  if (!item) {
+    return "";
+  }
+  return normalizeRegistroExecucaoDiaKey(item.data || "");
+}
+
+function getInspectionAssetKey(item) {
+  if (!item) {
+    return "";
+  }
+  const equipamentoIds = getMaintenanceEquipamentoIds(item)
+    .map((id) => normalizeSearchValue(String(id || "")))
+    .filter(Boolean);
+  if (equipamentoIds.length) {
+    return `eq:${Array.from(new Set(equipamentoIds)).sort().join(",")}`;
+  }
+  const equipamentos = getMaintenanceEquipamentoLabels(item)
+    .map((label) => normalizeSearchValue(String(label || "")))
+    .filter(Boolean);
+  if (equipamentos.length) {
+    return `eq:${Array.from(new Set(equipamentos)).sort().join(",")}`;
+  }
+  const template = item.templateId ? getTemplateById(item.templateId) : null;
+  const templateNome = normalizeSearchValue(
+    template && (template.nome || template.name) ? template.nome || template.name : ""
+  );
+  const titulo = normalizeSearchValue(item.titulo || item.nome || "");
+  if (templateNome.includes("subestacao") || titulo.includes("subestacao")) {
+    return "subestacao";
+  }
+  if (templateNome) {
+    return `tpl:${templateNome}`;
+  }
+  if (titulo) {
+    return `title:${titulo}`;
+  }
+  return "inspecao";
+}
+
+function getInspectionSuppressionKey(item, dateKey) {
+  if (!item) {
+    return "";
+  }
+  const dataKey = normalizeRegistroExecucaoDiaKey(dateKey || "");
+  if (!dataKey) {
+    return "";
+  }
+  const projectId = String(item.projectId || activeProjectId || "").trim() || "-";
+  const subestacao = normalizeSearchValue(getItemSubestacao(item) || "") || "-";
+  const assetKey = getInspectionAssetKey(item);
+  if (!assetKey) {
+    return "";
+  }
+  return `${projectId}|${subestacao}|${assetKey}|${dataKey}`;
+}
+
+function normalizeManualMonthlyOverrideEntry(entry) {
+  if (!entry || typeof entry !== "object") {
+    return { registradoEm: "", registradoPor: "" };
+  }
+  const registradoEm = normalizeIso(
+    entry.registradoEm || entry.registrado_em || entry.at || ""
+  );
+  const registradoPor = String(
+    entry.registradoPor || entry.registrado_por || entry.by || entry.userId || ""
+  ).trim();
+  return { registradoEm, registradoPor };
+}
+
+function normalizeManualMonthlyOverrideMap(value) {
+  const output = {};
+  if (Array.isArray(value)) {
+    value.forEach((entry) => {
+      const key = normalizeRegistroExecucaoDiaKey(entry);
+      if (!key) {
+        return;
+      }
+      output[key] = { registradoEm: "", registradoPor: "" };
+    });
+  } else if (value && typeof value === "object") {
+    Object.keys(value).forEach((rawKey) => {
+      const key = normalizeRegistroExecucaoDiaKey(rawKey);
+      if (!key) {
+        return;
+      }
+      output[key] = normalizeManualMonthlyOverrideEntry(value[rawKey]);
+    });
+  }
+  const orderedKeys = Object.keys(output).sort();
+  if (orderedKeys.length <= INSPECTION_MONTHLY_OVERRIDE_MAX_DAYS) {
+    return output;
+  }
+  const trimmed = {};
+  orderedKeys
+    .slice(-INSPECTION_MONTHLY_OVERRIDE_MAX_DAYS)
+    .forEach((key) => {
+      trimmed[key] = output[key];
+    });
+  return trimmed;
+}
+
+function getManualMonthlyOverrideMap(item) {
+  if (!item) {
+    return {};
+  }
+  return normalizeManualMonthlyOverrideMap(item.mensalDoDia);
+}
+
+function hasManualMonthlyOverride(item, dateKey) {
+  const key = normalizeRegistroExecucaoDiaKey(dateKey || "");
+  if (!key) {
+    return false;
+  }
+  const map = getManualMonthlyOverrideMap(item);
+  return Boolean(map[key]);
+}
+
+function getManualMonthlyOverrideKeys(item) {
+  const map = getManualMonthlyOverrideMap(item);
+  return Object.keys(map).sort().join(",");
+}
+
+function buildInspectionMonthlySuppressionMap(list, options = {}) {
+  const source = Array.isArray(list) ? list : [];
+  if (!source.length) {
+    return new Set();
+  }
+  const dateKey = normalizeRegistroExecucaoDiaKey(options.dateKey || "");
+  const requireRdoPresence = Boolean(options.rdoDate);
+  const map = new Set();
+  source.forEach((item) => {
+    if (!item || !isInspectionMaintenance(item)) {
+      return;
+    }
+    const freq = getInspectionFrequencyKey(item);
+    if (!freq) {
+      return;
+    }
+    const dataRef = dateKey || getInspectionDateKeyFromItem(item);
+    if (!dataRef) {
+      return;
+    }
+    const suppressionKey = getInspectionSuppressionKey(item, dataRef);
+    if (!suppressionKey) {
+      return;
+    }
+    if (hasManualMonthlyOverride(item, dataRef)) {
+      map.add(suppressionKey);
+      return;
+    }
+    if (freq === "mensal") {
+      if (dateKey && requireRdoPresence && !isMaintenanceInRdoDate(item, dataRef)) {
+        return;
+      }
+      map.add(suppressionKey);
+    }
+  });
+  return map;
+}
+
+function isInspectionSuppressed(item, suppressionMap, options = {}) {
+  if (!item || !suppressionMap || suppressionMap.size === 0) {
+    return false;
+  }
+  if (!isInspectionMaintenance(item)) {
+    return false;
+  }
+  const freq = getInspectionFrequencyKey(item);
+  if (freq !== "diaria" && freq !== "semanal") {
+    return false;
+  }
+  const dateKey =
+    normalizeRegistroExecucaoDiaKey(options.dateKey || "") ||
+    getInspectionDateKeyFromItem(item);
+  if (!dateKey) {
+    return false;
+  }
+  const suppressionKey = getInspectionSuppressionKey(item, dateKey);
+  if (!suppressionKey) {
+    return false;
+  }
+  return suppressionMap.has(suppressionKey);
+}
+
+function filterInspectionSuppressed(list, suppressionMap, options = {}) {
+  if (!Array.isArray(list) || !list.length) {
+    return Array.isArray(list) ? list : [];
+  }
+  if (!suppressionMap || suppressionMap.size === 0) {
+    return list;
+  }
+  return list.filter((item) => !isInspectionSuppressed(item, suppressionMap, options));
+}
+
+function canToggleMonthlyOverride(item) {
+  if (!item) {
+    return false;
+  }
+  const status = normalizeMaintenanceStatus(item.status);
+  if (status === "concluida" || status === "cancelada") {
+    return false;
+  }
+  if (!isInspectionMaintenance(item)) {
+    return false;
+  }
+  const freq = getInspectionFrequencyKey(item);
+  if (freq !== "diaria" && freq !== "semanal") {
+    return false;
+  }
+  const dateKey = getInspectionDateKeyFromItem(item);
+  return Boolean(dateKey);
 }
 
 function resolvePmpResponsibleUserId(identityRaw) {
@@ -50976,11 +51390,18 @@ function renderTudo() {
   renderLembretes();
   renderProgramacao();
   renderListaStatus("backlog", listaBacklog, listaBacklogVazia, {
-    allowedActions: ["edit", "reschedule", "history", "backlog_reason", "revalidate"],
+    allowedActions: [
+      "edit",
+      "reschedule",
+      "history",
+      "backlog_reason",
+      "monthly_override",
+      "revalidate",
+    ],
   });
   renderListaStatus("concluida", listaConcluidas, listaConcluidasVazia, {
     limit: 6,
-    allowedActions: ["edit", "history", "reopen", "remove", "revalidate"],
+    allowedActions: ["edit", "history", "reopen", "remove", "monthly_override", "revalidate"],
   });
   renderExecucao();
   renderIntercorrencias();
@@ -52810,6 +53231,70 @@ function registrarObservacao(index) {
   logAction("note", atualizado, { resumo: "Observação registrada" });
   renderTudo();
   mostrarMensagemManutencao("Observação registrada.");
+}
+
+function toggleMonthlyInspectionOverride(index, options = {}) {
+  if (!requirePermission("complete")) {
+    return;
+  }
+  const item = manutencoes[index];
+  if (!item) {
+    mostrarMensagemManutencao("Manutenção não encontrada.", true);
+    return;
+  }
+  if (!canExecuteMaintenanceForUser(item, currentUser)) {
+    mostrarMensagemManutencao("Sem permissão para alterar esta manutenção.", true);
+    return;
+  }
+  const dateKey = normalizeRegistroExecucaoDiaKey(
+    options.dateKey || getInspectionDateKeyFromItem(item)
+  );
+  if (!dateKey) {
+    mostrarMensagemManutencao("Data inválida para marcar mensal do dia.", true);
+    return;
+  }
+  const atualMap = getManualMonthlyOverrideMap(item);
+  const ativo = Boolean(atualMap[dateKey]);
+  if (!ativo && !canToggleMonthlyOverride(item)) {
+    mostrarMensagemManutencao(
+      "Disponível apenas para inspeções diárias ou semanais com data válida.",
+      true
+    );
+    return;
+  }
+  const nextMap = { ...atualMap };
+  if (ativo) {
+    delete nextMap[dateKey];
+  } else {
+    nextMap[dateKey] = {
+      registradoEm: toIsoUtc(new Date()),
+      registradoPor: currentUser ? currentUser.id : "",
+    };
+  }
+  const normalized = normalizeManualMonthlyOverrideMap(nextMap);
+  const atualizado = {
+    ...item,
+    mensalDoDia: Object.keys(normalized).length ? normalized : undefined,
+    updatedAt: toIsoUtc(new Date()),
+    updatedBy: currentUser ? currentUser.id : item.updatedBy || "",
+  };
+  if (!Object.keys(normalized).length) {
+    delete atualizado.mensalDoDia;
+  }
+  manutencoes[index] = atualizado;
+  const resultado = normalizarManutencoes(manutencoes);
+  manutencoes = resultado.normalizadas;
+  salvarManutencoes(manutencoes);
+  logAction("monthly_override", atualizado, {
+    resumo: ativo ? "Mensal do dia removido" : "Mensal do dia marcado",
+    dataRef: dateKey,
+  });
+  renderTudo();
+  mostrarMensagemManutencao(
+    ativo
+      ? "Mensal do dia removido."
+      : `Mensal do dia marcado (${formatRegistroExecucaoDiaLabel(dateKey)}).`
+  );
 }
 
 function registrarMotivoBacklog(index) {
@@ -58062,6 +58547,9 @@ function agirNaManutencao(event) {
   }
   if (acao === "register") {
     abrirRegistroExecucao(manutencoes[index], { mode: "register" });
+  }
+  if (acao === "monthly_override") {
+    toggleMonthlyInspectionOverride(index);
   }
   if (acao === "daily_revalidate") {
     abrirRevalidarManutencao(manutencoes[index]);
