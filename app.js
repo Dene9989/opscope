@@ -10793,6 +10793,14 @@ function mostrarMensagemRevalidarPrazo(texto, erro = false) {
   mensagemRevalidarPrazo.classList.toggle("mensagem--erro", erro);
 }
 
+function mostrarMensagemRevalidarManutencao(texto, erro = false) {
+  if (!mensagemRevalidarManutencao) {
+    return;
+  }
+  mensagemRevalidarManutencao.textContent = texto;
+  mensagemRevalidarManutencao.classList.toggle("mensagem--erro", erro);
+}
+
 function mostrarMensagemInicioExecucao(texto, erro = false) {
   if (!mensagemInicioExecucao) {
     return;
@@ -15907,6 +15915,8 @@ const MAINTENANCE_EXECUTION_RESET_FIELDS = [
   "execucaoRegistradaAt",
   "registroExecucao",
   "registrosDiariosExecucao",
+  "revalidacoesDocumentaisDiarias",
+  "revalidacaoDocumentalDiaria",
   "conclusao",
   "encerramento",
   "encerramentoEm",
@@ -57658,7 +57668,7 @@ function agirNaManutencao(event) {
     abrirRegistroExecucao(manutencoes[index], { mode: "register" });
   }
   if (acao === "daily_revalidate") {
-    abrirRegistroExecucao(manutencoes[index], { mode: "daily_revalidate" });
+    abrirRevalidarManutencao(manutencoes[index]);
   }
   if (acao === "cancel_start") {
     abrirCancelarInicio(manutencoes[index]);
