@@ -1200,6 +1200,7 @@ const registroDocs = document.getElementById("registroDocs");
 const registroResultado = document.getElementById("registroResultado");
 const registroDataExecucao = document.getElementById("registroDataExecucao");
 const registroDataExecucaoHint = document.getElementById("registroDataExecucaoHint");
+const registroRevalidacaoField = document.getElementById("registroRevalidacaoField");
 const registroComentario = document.getElementById("registroComentario");
 const registroObsExecucao = document.getElementById("registroObsExecucao");
 const registroEvidenciasLista = document.getElementById("registroEvidenciasLista");
@@ -4841,6 +4842,7 @@ const ACTION_LABELS = {
   reopen: "Reaberta",
   note: "Observação",
   revalidate: "Revalidar prazo",
+  daily_revalidate: "Revalidar manutenção",
   backlog_auto: "Backlog automático",
   backlog_reason: "Motivo não executada",
   rdo_delete: "RDO excluído",
@@ -4860,6 +4862,7 @@ const PROGRAMACAO_ALLOWED_ACTIONS = [
   "cancel_start",
   "reschedule",
   "register",
+  "daily_revalidate",
   "finish",
   "reopen",
   "remove",
@@ -14688,6 +14691,34 @@ function getRegistroExecucaoDataRef(item, nowDate = new Date()) {
   return getRegistroExecucaoPendenteDateKey(item, nowDate) || formatDateISO(startOfDay(nowDate));
 }
 
+function isRegistroExecucaoRevalidacaoDisponivel(item, nowDate = new Date()) {
+  if (!item) {
+    return false;
+  }
+  if (normalizeMaintenanceStatus(item.status) !== "em_execucao") {
+    return false;
+  }
+  const inicio = getItemInicioExecucaoDate(item);
+  if (!inicio) {
+    return false;
+  }
+  return startOfDay(nowDate).getTime() > startOfDay(inicio).getTime();
+}
+
+function deveExibirRegistroExecucaoRevalidacao(item, dataRef, pendenteDataRef, nowDate = new Date()) {
+  if (!isRegistroExecucaoRevalidacaoDisponivel(item, nowDate)) {
+    return false;
+  }
+  if (pendenteDataRef) {
+    return false;
+  }
+  const dataRefNormalizada = normalizeRegistroExecucaoDiaKey(dataRef);
+  if (!dataRefNormalizada) {
+    return false;
+  }
+  return dataRefNormalizada === formatDateISO(startOfDay(nowDate));
+}
+
 function getExecutionStartedIso(item) {
   if (!item || typeof item !== "object") {
     return "";
@@ -20614,6 +20645,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const execucaoRegistrada = hasExecucaoRegistradaCompleta(item);
   const pendenciaDiariaExecucao = getRegistroExecucaoPendenteDateKey(item);
   const revalidacaoDiariaPendente = Boolean(pendenciaDiariaExecucao);
+  const revalidacaoManutencaoDisponivel = isRegistroExecucaoRevalidacaoDisponivel(item);
   const esconderEmExecucao =
     execucaoRegistrada && statusBase === "em_execucao" && statusNormalized !== "concluida";
   if (!esconderEmExecucao) {
@@ -20673,6 +20705,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
     const acoesPermitidasComPrazoExpirado = new Set([
       "history",
       "register",
+      "daily_revalidate",
       "finish",
       "cancel_start",
       "revalidate",
@@ -20681,14 +20714,22 @@ function criarCardManutencao(item, permissoes, options = {}) {
       return false;
     }
     const base =
-      key === "register" || key === "finish" || key === "release" || key === "cancel_start"
+      key === "register" ||
+      key === "daily_revalidate" ||
+      key === "finish" ||
+      key === "release" ||
+      key === "cancel_start"
         ? permissoes.execute
         : permissoes[key];
     if (key === "finish") {
       return (allowed ? allowed.includes(key) : true) && base && podeConcluirItem;
     }
     const executaAcao =
-      key === "execute" || key === "register" || key === "release" || key === "cancel_start";
+      key === "execute" ||
+      key === "register" ||
+      key === "daily_revalidate" ||
+      key === "release" ||
+      key === "cancel_start";
     if (executaAcao && !podeExecutarItem) {
       return false;
     }
@@ -20761,6 +20802,20 @@ function criarCardManutencao(item, permissoes, options = {}) {
         ? `Fechar dia ${formatRegistroExecucaoDiaLabel(pendenciaDiariaExecucao)}`
         : "Registrar execução";
       actions.append(criarBotaoAcao(labelRegistro, "register"));
+    }
+    if (permite("daily_revalidate") && revalidacaoManutencaoDisponivel) {
+      const botaoRevalidarManutencao = criarBotaoAcao(
+        "Revalidar manutenção",
+        "daily_revalidate"
+      );
+      if (revalidacaoDiariaPendente || !execucaoRegistrada) {
+        botaoRevalidarManutencao.disabled = true;
+        botaoRevalidarManutencao.classList.add("is-disabled");
+        botaoRevalidarManutencao.title = revalidacaoDiariaPendente
+          ? `Feche primeiro o dia ${formatRegistroExecucaoDiaLabel(pendenciaDiariaExecucao)}.`
+          : "Feche o dia anterior para liberar a revalidação.";
+      }
+      actions.append(botaoRevalidarManutencao);
     }
     if (permite("execute") && !execucaoRegistrada) {
       actions.append(criarBotaoAcao("Cancelar início", "cancel_start"));
@@ -21454,6 +21509,7 @@ function renderExecucao() {
     "reschedule",
     "history",
     "backlog_reason",
+    "daily_revalidate",
     "revalidate",
   ]);
   renderListaCustom(vencidas, listaExecucaoVencidas, listaExecucaoVencidasVazia, [
@@ -21464,6 +21520,7 @@ function renderExecucao() {
     "reschedule",
     "history",
     "backlog_reason",
+    "daily_revalidate",
     "revalidate",
   ]);
   renderListaCustom(criticas, listaExecucaoCriticas, listaExecucaoCriticasVazia, [
@@ -21474,6 +21531,7 @@ function renderExecucao() {
     "reschedule",
     "history",
     "backlog_reason",
+    "daily_revalidate",
     "revalidate",
   ]);
 }
@@ -53256,7 +53314,7 @@ function abrirRegistroExecucao(item) {
     if (pendenteDataRef) {
       registroDataExecucaoHint.textContent = `Feche o dia ${formatRegistroExecucaoDiaLabel(
         pendenteDataRef
-      )} para seguir a execução.`;
+      )} para liberar a revalidação diária.`;
     } else {
       registroDataExecucaoHint.textContent =
         "O fechamento diário é usado para compor o RDO por dia.";
@@ -53306,7 +53364,19 @@ function abrirRegistroExecucao(item) {
   if (registroObsExecucao) {
     registroObsExecucao.value = registroBase.observacaoExecucao || "";
   }
-  aplicarRegistroExecucaoRevalidacaoState(registroBase, docsExecucaoAtual);
+  const exibirRevalidacaoDiaria = deveExibirRegistroExecucaoRevalidacao(
+    itemAtual,
+    dataRef,
+    pendenteDataRef
+  );
+  if (registroRevalidacaoField) {
+    registroRevalidacaoField.hidden = !exibirRevalidacaoDiaria;
+  }
+  if (exibirRevalidacaoDiaria) {
+    aplicarRegistroExecucaoRevalidacaoState(registroBase, docsExecucaoAtual);
+  } else {
+    resetRegistroExecucaoRevalidacaoState();
+  }
   registroExecucaoFotosAtual = Array.isArray(registroBase.evidencias)
     ? dedupeEvidenceList(registroBase.evidencias)
     : [];
@@ -53354,6 +53424,9 @@ function fecharRegistroExecucao() {
     registroEvidenciasLista.innerHTML = "";
   }
   atualizarRegistroSlotsFoto([]);
+  if (registroRevalidacaoField) {
+    registroRevalidacaoField.hidden = true;
+  }
   resetRegistroExecucaoRevalidacaoState();
   mostrarMensagemCancelarExecucao("");
 }
@@ -53548,7 +53621,7 @@ async function salvarRegistroExecucao(event) {
         const message =
           error && error.message
             ? error.message
-            : `Nao foi possivel enviar a revalidacao de ${DOC_LABELS[chave] || chave.toUpperCase()}.`;
+            : `Não foi possível enviar a revalidação de ${DOC_LABELS[chave] || chave.toUpperCase()}.`;
         mostrarMensagemRegistroExecucao(message, true);
         return;
       }
@@ -56134,21 +56207,21 @@ function atualizarRegistroExecucaoRevalidacaoUI() {
         return;
       }
       if (docBase) {
-        nameEl.textContent = `Obrigatorio novo arquivo (atual: ${getRegistroRevalidacaoDocName(
+        nameEl.textContent = `Obrigatório novo arquivo (atual: ${getRegistroRevalidacaoDocName(
           docBase,
           "Documento"
         )})`;
         return;
       }
-      nameEl.textContent = "Obrigatorio anexar novo arquivo";
+      nameEl.textContent = "Obrigatório anexar novo arquivo";
       return;
     }
     if (docDia) {
-      nameEl.textContent = `Revalidacao do dia: ${getRegistroRevalidacaoDocName(docDia, "Documento")}`;
+      nameEl.textContent = `Revalidação do dia: ${getRegistroRevalidacaoDocName(docDia, "Documento")}`;
       return;
     }
     if (docBase) {
-      nameEl.textContent = `Mantem valido: ${getRegistroRevalidacaoDocName(docBase, "Documento")}`;
+      nameEl.textContent = `Mantém válido: ${getRegistroRevalidacaoDocName(docBase, "Documento")}`;
       return;
     }
     nameEl.textContent = "Sem documento vinculado";
@@ -57502,6 +57575,7 @@ function agirNaManutencao(event) {
     acao !== "view_details" &&
     acao !== "edit" &&
     acao !== "register" &&
+    acao !== "daily_revalidate" &&
     acao !== "cancel_start" &&
     acao !== "finish"
   ) {
@@ -57531,6 +57605,9 @@ function agirNaManutencao(event) {
     executarManutencao(index);
   }
   if (acao === "register") {
+    abrirRegistroExecucao(manutencoes[index]);
+  }
+  if (acao === "daily_revalidate") {
     abrirRegistroExecucao(manutencoes[index]);
   }
   if (acao === "cancel_start") {
