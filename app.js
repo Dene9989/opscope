@@ -52981,6 +52981,179 @@ function salvarRevalidarPrazo(event) {
   mostrarMensagemManutencao("Prazo revalidado.");
 }
 
+function abrirRevalidarManutencao(item) {
+  if (!requirePermission("complete")) {
+    return;
+  }
+  if (!modalRevalidarManutencao || !formRevalidarManutencao) {
+    return;
+  }
+  if (!item) {
+    return;
+  }
+  if (
+    !ensureExecucaoPermitida(item, mostrarMensagemManutencao, {
+      ignorePrazoExpirado: true,
+    })
+  ) {
+    return;
+  }
+  if (normalizeMaintenanceStatus(item.status) !== "em_execucao") {
+    mostrarMensagemManutencao("A manutenção precisa estar em execução.", true);
+    return;
+  }
+  if (!isRegistroExecucaoRevalidacaoDisponivel(item)) {
+    mostrarMensagemManutencao("Revalidação disponível somente após a virada do dia.", true);
+    return;
+  }
+  const pendencia = getRegistroExecucaoPendenteDateKey(item);
+  if (pendencia) {
+    mostrarMensagemManutencao(
+      `Feche primeiro o dia ${formatRegistroExecucaoDiaLabel(pendencia)} para liberar a revalidação.`,
+      true
+    );
+    return;
+  }
+  revalidarManutencaoAtual = item.id;
+  mostrarMensagemRevalidarManutencao("");
+  if (revalidarManutencaoId) {
+    revalidarManutencaoId.value = item.id;
+  }
+  if (revalidarManutencaoResumo) {
+    revalidarManutencaoResumo.textContent = buildManutencaoResumoTexto(item);
+  }
+  const dataRef = formatDateISO(startOfDay(new Date()));
+  const registro = getRevalidacaoDocumentalDiaria(item, dataRef);
+  const docsBase = getMaintenanceDocsMap(item);
+  aplicarRevalidarManutencaoState(registro, docsBase);
+  modalRevalidarManutencao.hidden = false;
+}
+
+function fecharRevalidarManutencao() {
+  if (!modalRevalidarManutencao) {
+    return;
+  }
+  modalRevalidarManutencao.hidden = true;
+  revalidarManutencaoAtual = null;
+  if (revalidarManutencaoId) {
+    revalidarManutencaoId.value = "";
+  }
+  if (revalidarManutencaoResumo) {
+    revalidarManutencaoResumo.textContent = "";
+  }
+  resetRevalidarManutencaoState();
+  mostrarMensagemRevalidarManutencao("");
+}
+
+async function salvarRevalidarManutencao(event) {
+  event.preventDefault();
+  if (!requirePermission("complete")) {
+    return;
+  }
+  if (!revalidarManutencaoAtual) {
+    mostrarMensagemRevalidarManutencao("Selecione uma manutenção.", true);
+    return;
+  }
+  const index = manutencoes.findIndex((item) => item.id === revalidarManutencaoAtual);
+  if (index < 0) {
+    mostrarMensagemRevalidarManutencao("Manutenção não encontrada.", true);
+    return;
+  }
+  const item = manutencoes[index];
+  if (
+    !ensureExecucaoPermitida(item, mostrarMensagemRevalidarManutencao, {
+      ignorePrazoExpirado: true,
+    })
+  ) {
+    return;
+  }
+  if (normalizeMaintenanceStatus(item.status) !== "em_execucao") {
+    mostrarMensagemRevalidarManutencao("A manutenção precisa estar em execução.", true);
+    return;
+  }
+  if (!isRegistroExecucaoRevalidacaoDisponivel(item)) {
+    mostrarMensagemRevalidarManutencao("Revalidação disponível somente após a virada do dia.", true);
+    return;
+  }
+  const pendencia = getRegistroExecucaoPendenteDateKey(item);
+  if (pendencia) {
+    mostrarMensagemRevalidarManutencao(
+      `Feche primeiro o dia ${formatRegistroExecucaoDiaLabel(pendencia)} para liberar a revalidação.`,
+      true
+    );
+    return;
+  }
+  const required = getRevalidarManutencaoRequiredMapFromForm();
+  const hasRequired = DOC_KEYS.some((key) => required[key]);
+  if (!hasRequired) {
+    mostrarMensagemRevalidarManutencao("Selecione ao menos um documento para revalidar.", true);
+    return;
+  }
+  const docsAtual = { ...(revalidarManutencaoDocsAtual || {}) };
+  try {
+    for (const chave of DOC_KEYS) {
+      if (!required[chave]) {
+        continue;
+      }
+      const input = getRevalidarManutencaoInput(chave);
+      const file = input && input.files && input.files[0] ? input.files[0] : null;
+      if (file) {
+        const uploaded = await uploadLiberacaoDoc(file, chave);
+        if (!uploaded) {
+          throw new Error(`Falha ao enviar ${DOC_LABELS[chave] || chave}.`);
+        }
+        docsAtual[chave] = uploaded;
+        continue;
+      }
+      const existente = normalizeSstDocFile(docsAtual[chave]);
+      if (!existente) {
+        mostrarMensagemRevalidarManutencao(
+          `Anexe o novo arquivo de ${DOC_LABELS[chave] || chave}.`,
+          true
+        );
+        return;
+      }
+    }
+  } catch (error) {
+    const message =
+      error && error.message ? error.message : "Falha ao enviar documentação.";
+    mostrarMensagemRevalidarManutencao(message, true);
+    return;
+  }
+  const agora = new Date();
+  const dataRef = formatDateISO(startOfDay(agora));
+  const registro = {
+    dataRef,
+    required,
+    docs: docsAtual,
+    registradoEm: toIsoUtc(agora),
+    registradoPor: currentUser ? currentUser.id : SYSTEM_USER_ID,
+  };
+  const revalidacoes = upsertRevalidacoesDocumentaisDiarias(
+    getRevalidacoesDocumentaisDiarias(item),
+    registro
+  );
+  const atualizado = {
+    ...item,
+    revalidacoesDocumentaisDiarias: revalidacoes,
+    updatedAt: toIsoUtc(agora),
+    updatedBy: currentUser ? currentUser.id : SYSTEM_USER_ID,
+  };
+  manutencoes[index] = atualizado;
+  salvarManutencoes(manutencoes);
+  const documentosLista = DOC_KEYS.filter((key) => docsAtual[key]).map(
+    (key) => DOC_LABELS[key] || key
+  );
+  logAction("daily_revalidate", atualizado, {
+    dataRef,
+    documentos: documentosLista,
+    resumo: `Revalidação diária registrada (${formatRegistroExecucaoDiaLabel(dataRef)}).`,
+  });
+  renderTudo();
+  fecharRevalidarManutencao();
+  mostrarMensagemManutencao("Revalidação registrada.");
+}
+
 function collectDrawerPermissions() {
   const permissions = {};
   if (!drawerPermissions) {
@@ -62765,6 +62938,15 @@ if (btnFecharRevalidarPrazo) {
 }
 if (btnCancelarRevalidarPrazo) {
   btnCancelarRevalidarPrazo.addEventListener("click", fecharRevalidarPrazo);
+}
+if (formRevalidarManutencao) {
+  formRevalidarManutencao.addEventListener("submit", salvarRevalidarManutencao);
+}
+if (btnFecharRevalidarManutencao) {
+  btnFecharRevalidarManutencao.addEventListener("click", fecharRevalidarManutencao);
+}
+if (btnCancelarRevalidarManutencao) {
+  btnCancelarRevalidarManutencao.addEventListener("click", fecharRevalidarManutencao);
 }
 if (revalidarPrazoMotivo) {
   revalidarPrazoMotivo.addEventListener("input", () => {
