@@ -1531,6 +1531,12 @@
               <option value="mes">Mês</option>
             </select>
           </div>
+          <div class="field field--compact">
+            <label>Mensal do dia</label>
+            <button id="btnMensalOverride" class="btn btn--ghost btn--small" type="button" hidden>
+              Mensal do dia
+            </button>
+          </div>
         </div>
         <div id="programacaoListaConteudo" class="programacao-lista">
           <p id="alertaProgramacao" class="alert alert--warning" hidden></p>
@@ -6601,6 +6607,21 @@
     </div>
   </div>
 
+  <div id="modalMensalOverride" class="modal" hidden>
+    <div class="modal__content">
+      <div class="modal__header">
+        <h3>Mensal do dia (manual)</h3>
+        <button id="btnMensalOverrideClose" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <div id="mensalOverrideBody" class="modal__form"></div>
+      <div class="modal__actions">
+        <button id="btnMensalOverrideCloseFooter" class="btn btn--ghost" type="button">Fechar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="modalBacklogMotivo" class="modal" hidden>
     <div class="modal__content">
       <div class="modal__header">
@@ -8712,6 +8733,6 @@
     </footer>
 
     <script src="assets/js/powerbiExport.js?v=20260227-2"></script>
-    <script src="app.js?v=20260310-7"></script>
+    <script src="app.js?v=20260310-8"></script>
   </body>
 </html>

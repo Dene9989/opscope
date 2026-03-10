@@ -57,6 +57,11 @@ const listaAgendadas = document.getElementById("listaAgendadas");
 const listaAgendadasVazia = document.getElementById("listaAgendadasVazia");
 const alertaProgramacao = document.getElementById("alertaProgramacao");
 const mensalOverrideBanner = document.getElementById("mensalOverrideBanner");
+const btnMensalOverride = document.getElementById("btnMensalOverride");
+const modalMensalOverride = document.getElementById("modalMensalOverride");
+const mensalOverrideBody = document.getElementById("mensalOverrideBody");
+const btnMensalOverrideClose = document.getElementById("btnMensalOverrideClose");
+const btnMensalOverrideCloseFooter = document.getElementById("btnMensalOverrideCloseFooter");
 const programacaoListaConteudo = document.getElementById("programacaoListaConteudo");
 const programacaoDetalheView = document.getElementById("programacaoDetalheView");
 const programacaoDetalheTitulo = document.getElementById("programacaoDetalheTitulo");
@@ -6189,6 +6194,11 @@ function buildMaintenanceLiteItem(item) {
   const mensalDoDia = normalizeManualMonthlyOverrideMap(item.mensalDoDia);
   if (Object.keys(mensalDoDia).length) {
     lite.mensalDoDia = mensalDoDia;
+  } else if (
+    Object.prototype.hasOwnProperty.call(item, "mensalDoDia") &&
+    item.mensalDoDia === null
+  ) {
+    lite.mensalDoDia = null;
   }
   return lite;
 }
@@ -15064,6 +15074,7 @@ function normalizarManutencoes(lista) {
     const projectId = activeProjectId || item.projectId || "";
     const mensalDoDiaMap = normalizeManualMonthlyOverrideMap(item.mensalDoDia);
     const mensalDoDiaKeys = Object.keys(mensalDoDiaMap);
+    const mensalDoDiaExplicit = Object.prototype.hasOwnProperty.call(item, "mensalDoDia");
     const mensalRawKeys =
       item.mensalDoDia && typeof item.mensalDoDia === "object"
         ? Object.keys(item.mensalDoDia).sort().join("|")
@@ -15075,6 +15086,8 @@ function normalizarManutencoes(lista) {
     const baseItem = { ...item };
     if (mensalDoDiaKeys.length) {
       baseItem.mensalDoDia = mensalDoDiaMap;
+    } else if (mensalDoDiaExplicit && item.mensalDoDia === null) {
+      baseItem.mensalDoDia = null;
     } else if (Object.prototype.hasOwnProperty.call(baseItem, "mensalDoDia")) {
       delete baseItem.mensalDoDia;
     }
@@ -16321,30 +16334,48 @@ function pickMaintenanceMerge(remote, local) {
   if (!local) {
     return { item: remote, source: "remote" };
   }
+  const applySourceOverride = (item, source) => {
+    if (source === "local") {
+      return applyMensalDoDiaOverride(item, local);
+    }
+    if (source === "remote") {
+      return applyMensalDoDiaOverride(item, remote);
+    }
+    return item;
+  };
   const remoteTime = getMaintenanceUpdatedAtValue(remote);
   const localTime = getMaintenanceUpdatedAtValue(local);
   const remoteConcluida = isMaintenanceConcluded(remote);
   const localConcluida = isMaintenanceConcluded(local);
   if (shouldKeepLocalExecutionReset(local, remote)) {
     return {
-      item: applyLocalExecutionReset(mergePreferLocal(local, remote), local),
+      item: applySourceOverride(
+        applyLocalExecutionReset(mergePreferLocal(local, remote), local),
+        "local"
+      ),
       source: "local",
     };
   }
 
   if (localConcluida && !remoteConcluida && (!remoteTime || localTime >= remoteTime)) {
-    return { item: mergePreferLocal(local, remote), source: "local" };
+    return { item: applySourceOverride(mergePreferLocal(local, remote), "local"), source: "local" };
   }
   if (remoteConcluida && !localConcluida && (!localTime || remoteTime >= localTime)) {
-    return { item: mergePreferLocal(remote, local), source: "remote" };
+    return {
+      item: applySourceOverride(mergePreferLocal(remote, local), "remote"),
+      source: "remote",
+    };
   }
   if (localTime && (!remoteTime || localTime > remoteTime + 1000)) {
-    return { item: mergePreferLocal(local, remote), source: "local" };
+    return { item: applySourceOverride(mergePreferLocal(local, remote), "local"), source: "local" };
   }
   if (remoteTime && (!localTime || remoteTime > localTime + 1000)) {
-    return { item: mergePreferLocal(remote, local), source: "remote" };
+    return {
+      item: applySourceOverride(mergePreferLocal(remote, local), "remote"),
+      source: "remote",
+    };
   }
-  return { item: mergePreferLocal(remote, local), source: "remote" };
+  return { item: applySourceOverride(mergePreferLocal(remote, local), "remote"), source: "remote" };
 }
 
 function mergeMaintenanceFallback(remote, local) {
@@ -16364,30 +16395,30 @@ function mergeLocalExecucaoRegistro(remote, local) {
   const localConcluida = localStatus === "concluida";
   const localReopened = Boolean(local.reopenedAt || local.reopenedBy);
   if (shouldKeepLocalExecutionReset(local, remote)) {
-    return applyLocalExecutionReset(mergePreferLocal(local, remote), local);
+    return applyLocalExecutionReset(mergePreferWithMonthlyOverride(local, remote), local);
   }
   if (remoteConcluida && !localConcluida) {
     if (!localReopened) {
-      return mergePreferLocal(remote, local);
+      return mergePreferWithMonthlyOverride(remote, local);
     }
     if (!localTime || (remoteTime && remoteTime >= localTime - 1000)) {
-      return mergePreferLocal(remote, local);
+      return mergePreferWithMonthlyOverride(remote, local);
     }
   }
   if (localConcluida && !remoteConcluida && (!remoteTime || localTime >= remoteTime)) {
-    return mergePreferLocal(local, remote);
+    return mergePreferWithMonthlyOverride(local, remote);
   }
   if (localDirty && (!remoteTime || localTime >= remoteTime)) {
-    return mergePreferLocal(local, remote);
+    return mergePreferWithMonthlyOverride(local, remote);
   }
   if (localTime && (!remoteTime || localTime > remoteTime + 1000)) {
-    return mergePreferLocal(local, remote);
+    return mergePreferWithMonthlyOverride(local, remote);
   }
   if (remoteTime && (!localTime || remoteTime > localTime + 1000)) {
     return remote;
   }
   if (localStatus === "concluida" && remoteStatus !== "concluida") {
-    return mergePreferLocal(local, remote);
+    return mergePreferWithMonthlyOverride(local, remote);
   }
   if (!hasExecucaoRegistrada(local) || hasExecucaoRegistrada(remote)) {
     return remote;
@@ -16425,7 +16456,7 @@ function mergeLocalExecucaoRegistro(remote, local) {
   if (local.updatedBy && !remote.updatedBy) {
     merged.updatedBy = local.updatedBy;
   }
-  return merged;
+  return applyMensalDoDiaOverride(merged, local);
 }
 
 function getParticipantesLabel(participantes) {
@@ -18227,24 +18258,22 @@ function collectManualMonthlyOverrideEntries(list) {
   return entries;
 }
 
-function renderMensalOverrideBanner() {
-  if (!mensalOverrideBanner) {
+function renderMensalOverrideModal(entries) {
+  if (!mensalOverrideBody) {
     return;
   }
-  const entries = collectManualMonthlyOverrideEntries(manutencoes);
-  if (!entries.length) {
-    mensalOverrideBanner.hidden = true;
-    mensalOverrideBanner.innerHTML = "";
+  const lista = Array.isArray(entries) ? entries : collectManualMonthlyOverrideEntries(manutencoes);
+  mensalOverrideBody.innerHTML = "";
+  if (!lista.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "Nenhuma marcação manual ativa.";
+    mensalOverrideBody.append(empty);
     return;
   }
-  mensalOverrideBanner.hidden = false;
-  mensalOverrideBanner.innerHTML = "";
-  const title = document.createElement("strong");
-  title.textContent = "Mensal do dia (manual) ativo";
-  mensalOverrideBanner.append(title);
   const list = document.createElement("div");
   list.className = "mensal-override-list";
-  entries.forEach((entry) => {
+  lista.forEach((entry) => {
     const line = document.createElement("div");
     line.className = "mensal-override-line";
     const text = document.createElement("span");
@@ -18268,7 +18297,41 @@ function renderMensalOverrideBanner() {
     line.append(text, btn);
     list.append(line);
   });
-  mensalOverrideBanner.append(list);
+  mensalOverrideBody.append(list);
+}
+
+function abrirMensalOverrideModal() {
+  if (!modalMensalOverride) {
+    return;
+  }
+  renderMensalOverrideModal();
+  modalMensalOverride.hidden = false;
+}
+
+function fecharMensalOverrideModal() {
+  if (!modalMensalOverride) {
+    return;
+  }
+  modalMensalOverride.hidden = true;
+}
+
+function renderMensalOverrideBanner() {
+  const entries = collectManualMonthlyOverrideEntries(manutencoes);
+  if (mensalOverrideBanner) {
+    mensalOverrideBanner.hidden = true;
+    mensalOverrideBanner.innerHTML = "";
+  }
+  if (btnMensalOverride) {
+    if (!entries.length) {
+      btnMensalOverride.hidden = true;
+    } else {
+      btnMensalOverride.hidden = false;
+      btnMensalOverride.textContent = `Mensal do dia (${entries.length})`;
+    }
+  }
+  if (modalMensalOverride && !modalMensalOverride.hidden) {
+    renderMensalOverrideModal(entries);
+  }
 }
 
 function atualizarResumo() {
@@ -34757,6 +34820,35 @@ function applyPmpImportSourceToPayload(basePayload, projectId, sourceMaintenance
     sourceSyncCount: Number(basePayload.sourceSyncCount || 0),
   };
   return merged;
+}
+
+function applyMensalDoDiaOverride(target, source) {
+  if (!target || !source || typeof target !== "object" || typeof source !== "object") {
+    return target;
+  }
+  if (!Object.prototype.hasOwnProperty.call(source, "mensalDoDia")) {
+    return target;
+  }
+  const raw = source.mensalDoDia;
+  const next = { ...target };
+  if (raw === null) {
+    next.mensalDoDia = null;
+    return next;
+  }
+  if (raw === undefined) {
+    delete next.mensalDoDia;
+    return next;
+  }
+  if (typeof raw === "object" && !Array.isArray(raw) && Object.keys(raw).length === 0) {
+    next.mensalDoDia = null;
+    return next;
+  }
+  next.mensalDoDia = raw;
+  return next;
+}
+
+function mergePreferWithMonthlyOverride(primary, secondary) {
+  return applyMensalDoDiaOverride(mergePreferLocal(primary, secondary), primary);
 }
 
 function findPmpMaintenanceSource(activity, maintenanceList) {
@@ -53272,19 +53364,18 @@ function toggleMonthlyInspectionOverride(index, options = {}) {
     };
   }
   const normalized = normalizeManualMonthlyOverrideMap(nextMap);
+  const hasEntries = Object.keys(normalized).length > 0;
   const atualizado = {
     ...item,
-    mensalDoDia: Object.keys(normalized).length ? normalized : undefined,
+    mensalDoDia: hasEntries ? normalized : null,
     updatedAt: toIsoUtc(new Date()),
     updatedBy: currentUser ? currentUser.id : item.updatedBy || "",
   };
-  if (!Object.keys(normalized).length) {
-    delete atualizado.mensalDoDia;
-  }
   manutencoes[index] = atualizado;
   const resultado = normalizarManutencoes(manutencoes);
   manutencoes = resultado.normalizadas;
   salvarManutencoes(manutencoes);
+  scheduleMaintenanceSync(manutencoes, true);
   logAction("monthly_override", atualizado, {
     resumo: ativo ? "Mensal do dia removido" : "Mensal do dia marcado",
     dataRef: dateKey,
@@ -55514,6 +55605,7 @@ function salvarReagendamento(event) {
   const resultado = normalizarManutencoes(manutencoes);
   manutencoes = resultado.normalizadas;
   salvarManutencoes(manutencoes);
+  scheduleMaintenanceSync(manutencoes, true);
   logAction("reschedule", atualizado, {
     dataAnterior,
     dataNova: dataLimpa,
@@ -63626,6 +63718,22 @@ if (btnFecharReagendar) {
 }
 if (btnCancelarReagendar) {
   btnCancelarReagendar.addEventListener("click", fecharReagendamento);
+}
+if (btnMensalOverride) {
+  btnMensalOverride.addEventListener("click", abrirMensalOverrideModal);
+}
+if (btnMensalOverrideClose) {
+  btnMensalOverrideClose.addEventListener("click", fecharMensalOverrideModal);
+}
+if (btnMensalOverrideCloseFooter) {
+  btnMensalOverrideCloseFooter.addEventListener("click", fecharMensalOverrideModal);
+}
+if (modalMensalOverride) {
+  modalMensalOverride.addEventListener("click", (event) => {
+    if (event.target === modalMensalOverride) {
+      fecharMensalOverrideModal();
+    }
+  });
 }
 if (reagendarMotivo) {
   reagendarMotivo.addEventListener("change", () => {

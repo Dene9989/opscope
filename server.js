@@ -8366,6 +8366,27 @@ function mergePreferMeaningful(primary, fallback) {
   return merged;
 }
 
+function applyMensalDoDiaOverride(target, incoming) {
+  if (!target || !incoming || typeof target !== "object" || typeof incoming !== "object") {
+    return target;
+  }
+  if (!Object.prototype.hasOwnProperty.call(incoming, "mensalDoDia")) {
+    return target;
+  }
+  const raw = incoming.mensalDoDia;
+  const next = { ...target };
+  const emptyObject =
+    raw && typeof raw === "object" && !Array.isArray(raw) && Object.keys(raw).length === 0;
+  if (raw === null || raw === undefined || emptyObject) {
+    if (Object.prototype.hasOwnProperty.call(next, "mensalDoDia")) {
+      delete next.mensalDoDia;
+    }
+    return next;
+  }
+  next.mensalDoDia = raw;
+  return next;
+}
+
 const MAINTENANCE_EXECUTION_RESET_FIELDS = [
   "inicioExecucao",
   "executionStartedAt",
@@ -8598,6 +8619,9 @@ function pickMaintenanceMerge(existing, incoming) {
       responsavelIds,
       responsavel: responsavelTexto,
     };
+  }
+  if (usedIncoming) {
+    result = applyMensalDoDiaOverride(result, incoming);
   }
   return result;
 }
