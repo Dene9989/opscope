@@ -6776,6 +6776,33 @@ function writeRecurrenceSuppressions(map) {
   writeJson(getProjectStorageKey(RECURRENCE_SUPPRESS_KEY), payload);
 }
 
+function mergeRecurrenceSuppressions(incoming) {
+  if (!incoming) {
+    return false;
+  }
+  const map = readRecurrenceSuppressions();
+  let changed = false;
+  const addKey = (key) => {
+    const trimmed = String(key || "").trim();
+    if (!trimmed) {
+      return;
+    }
+    if (!map[trimmed]) {
+      map[trimmed] = true;
+      changed = true;
+    }
+  };
+  if (Array.isArray(incoming)) {
+    incoming.forEach(addKey);
+  } else if (incoming && typeof incoming === "object") {
+    Object.keys(incoming).forEach(addKey);
+  }
+  if (changed) {
+    writeRecurrenceSuppressions(map);
+  }
+  return changed;
+}
+
 function addRecurrenceSuppression(templateId, dateStr) {
   const template = String(templateId || "").trim();
   const date = String(dateStr || "").trim();
@@ -13426,6 +13453,13 @@ function resolveUserByIdentity(value) {
   if (Array.isArray(users) && users.length) {
     candidates.push(...users);
   }
+  if (Array.isArray(projectEquipe) && projectEquipe.length) {
+    projectEquipe.forEach((entry) => {
+      if (entry && entry.user) {
+        candidates.push(entry.user);
+      }
+    });
+  }
   const dedupe = new Set();
   const unique = candidates.filter((user) => {
     if (!user || typeof user !== "object") {
@@ -13534,6 +13568,31 @@ function getOperationalUsers() {
   return users.filter(isRealUser);
 }
 
+function decodeUserDisplayName(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "";
+  }
+  const hasPercent = /%[0-9a-fA-F]{2}/.test(raw);
+  const hasPlus = raw.includes("+");
+  if (!hasPercent && !hasPlus) {
+    return raw;
+  }
+  let candidate = raw;
+  if (hasPlus && !candidate.includes(" ")) {
+    candidate = candidate.replace(/\+/g, " ");
+  }
+  if (hasPercent) {
+    try {
+      const decoded = decodeURIComponent(candidate);
+      return decoded || candidate;
+    } catch (error) {
+      return candidate;
+    }
+  }
+  return candidate;
+}
+
 function getUserLabel(id) {
   if (!id) {
     return "Desconhecido";
@@ -13553,7 +13612,12 @@ function getUserLabel(id) {
   if (!user) {
     return String(id);
   }
-  return `${user.name} (${user.matricula})`;
+  const name = decodeUserDisplayName(user.name || user.nome || "");
+  const matricula = user.matricula || "";
+  if (!name) {
+    return String(id);
+  }
+  return matricula ? `${name} (${matricula})` : name;
 }
 
 function getProjectLabel(project) {
@@ -50072,6 +50136,9 @@ async function carregarManutencoesServidor(force = false) {
   try {
     const data = await apiMaintenanceList(activeProjectId);
     if (data && Array.isArray(data.items)) {
+      if (data.recurrenceSuppressions) {
+        mergeRecurrenceSuppressions(data.recurrenceSuppressions);
+      }
       let needsSync = false;
       const previousServerIds = maintenanceServerIdsByProject.get(activeProjectId) || null;
       const remoteIds = new Set(

@@ -217,6 +217,7 @@ const DATA_FILE_NAMES = [
   "maintenance.json",
   "maintenance_templates.json",
   "maintenance_tombstones.json",
+  "maintenance_recurrence_suppressions.json",
   "maintenance_monthly.json",
   "rdo_snapshots.json",
   "maintenance_ss_counter.json",
@@ -270,6 +271,10 @@ const AUDIT_FILE = path.join(DATA_DIR, "audit.json");
 const MAINTENANCE_FILE = path.join(DATA_DIR, "maintenance.json");
 const MAINTENANCE_TEMPLATES_FILE = path.join(DATA_DIR, "maintenance_templates.json");
 const MAINTENANCE_TOMBSTONES_FILE = path.join(DATA_DIR, "maintenance_tombstones.json");
+const MAINTENANCE_RECURRENCE_SUPPRESS_FILE = path.join(
+  DATA_DIR,
+  "maintenance_recurrence_suppressions.json"
+);
 const MAINTENANCE_MONTHLY_FILE = path.join(DATA_DIR, "maintenance_monthly.json");
 const RDO_SNAPSHOTS_FILE = path.join(DATA_DIR, "rdo_snapshots.json");
 const MAINTENANCE_SS_COUNTER_FILE = path.join(DATA_DIR, "maintenance_ss_counter.json");
@@ -329,6 +334,7 @@ const STORE_FILES = [
   MAINTENANCE_FILE,
   MAINTENANCE_TEMPLATES_FILE,
   MAINTENANCE_TOMBSTONES_FILE,
+  MAINTENANCE_RECURRENCE_SUPPRESS_FILE,
   MAINTENANCE_MONTHLY_FILE,
   RDO_SNAPSHOTS_FILE,
   MAINTENANCE_SS_COUNTER_FILE,
@@ -11270,6 +11276,73 @@ function addMaintenanceTombstone(projectId, maintenanceId, userId) {
   return entry;
 }
 
+function loadMaintenanceRecurrenceSuppressions() {
+  const data = readJson(MAINTENANCE_RECURRENCE_SUPPRESS_FILE, {});
+  if (Array.isArray(data)) {
+    return data.reduce((acc, entry) => {
+      const key = String(entry || "").trim();
+      if (key) {
+        acc[key] = true;
+      }
+      return acc;
+    }, {});
+  }
+  if (data && typeof data === "object") {
+    return data;
+  }
+  return {};
+}
+
+function saveMaintenanceRecurrenceSuppressions(map) {
+  const payload = map && typeof map === "object" ? map : {};
+  writeJson(MAINTENANCE_RECURRENCE_SUPPRESS_FILE, payload);
+}
+
+function addMaintenanceRecurrenceSuppression(projectId, templateId, dateStr, userId) {
+  const projectRef = String(projectId || "").trim();
+  const template = String(templateId || "").trim();
+  const date = String(dateStr || "").trim();
+  if (!template || !date) {
+    return false;
+  }
+  const map = loadMaintenanceRecurrenceSuppressions();
+  const key = projectRef ? `${projectRef}|${template}|${date}` : `${template}|${date}`;
+  const legacyKey = `${template}|${date}`;
+  let changed = false;
+  if (!map[key]) {
+    map[key] = true;
+    changed = true;
+  }
+  if (!map[legacyKey]) {
+    map[legacyKey] = true;
+    changed = true;
+  }
+  if (changed) {
+    saveMaintenanceRecurrenceSuppressions(map);
+    appendAudit(
+      "maintenance_recurrence_suppressed",
+      userId || null,
+      { projectId: projectRef, templateId: template, date },
+      null,
+      projectRef || null
+    );
+  }
+  return changed;
+}
+
+function getMaintenanceRecurrenceSuppressionsForProject(projectId) {
+  const projectRef = String(projectId || "").trim();
+  const map = loadMaintenanceRecurrenceSuppressions();
+  const prefix = projectRef ? `${projectRef}|` : "";
+  return Object.keys(map).filter((key) => {
+    if (prefix && key.startsWith(prefix)) {
+      return true;
+    }
+    const parts = String(key || "").split("|");
+    return parts.length === 2;
+  });
+}
+
 const RDO_AI_SCHEMA = {
   name: "rdo_text",
   strict: true,
@@ -18549,6 +18622,7 @@ app.get("/api/maintenance", requireAuth, (req, res) => {
   if (includeSummary) {
     payload.summary = summarizeMaintenanceList(list);
   }
+  payload.recurrenceSuppressions = getMaintenanceRecurrenceSuppressionsForProject(projectId);
 
   const responseBytes = estimateJsonBytes(payload);
   const durationMs = Date.now() - startedAt;
@@ -18598,6 +18672,7 @@ app.delete("/api/maintenance/:id", requireAuth, requireStorageWritable, (req, re
   if (index === -1) {
     return res.status(404).json({ message: "Manutenção não encontrada." });
   }
+  const removed = dataset[index];
   dataset.splice(index, 1);
   const writeOk = writeJson(MAINTENANCE_FILE, dataset);
   if (!writeOk) {
@@ -18608,6 +18683,14 @@ app.delete("/api/maintenance/:id", requireAuth, requireStorageWritable, (req, re
   }
   touchCompat("maintenance", projectId);
   addMaintenanceTombstone(projectId, maintenanceId, user ? user.id : null);
+  if (removed && removed.templateId && removed.data) {
+    addMaintenanceRecurrenceSuppression(
+      projectId,
+      removed.templateId,
+      removed.data,
+      user ? user.id : null
+    );
+  }
   DASHBOARD_CACHE.delete(projectId);
   appendAudit(
     "maintenance_delete",
