@@ -63362,51 +63362,51 @@ if (registroEvidenciaInputs.length) {
   });
   atualizarListaRegistroEvidencias();
 }
-if (registroRevalidacaoButtons.length) {
-  registroRevalidacaoButtons.forEach((button) => {
+if (revalidarManutencaoButtons.length) {
+  revalidarManutencaoButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      const alvo = button.dataset.registroRevalidaBtn;
-      const input = getRegistroRevalidacaoInput(alvo);
+      const alvo = button.dataset.revalidarDocBtn;
+      const input = getRevalidarManutencaoInput(alvo);
       if (input && !input.disabled) {
         input.click();
       }
     });
   });
 }
-if (registroRevalidacaoInputs.length) {
-  registroRevalidacaoInputs.forEach((input) => {
+if (revalidarManutencaoInputs.length) {
+  revalidarManutencaoInputs.forEach((input) => {
     input.addEventListener("change", () => {
-      atualizarRegistroExecucaoRevalidacaoUI();
-      mostrarMensagemRegistroExecucao("");
+      atualizarRevalidarManutencaoUI();
+      mostrarMensagemRevalidarManutencao("");
     });
   });
 }
-if (registroRevalidacaoChecks.length) {
-  registroRevalidacaoChecks.forEach((checkbox) => {
+if (revalidarManutencaoChecks.length) {
+  revalidarManutencaoChecks.forEach((checkbox) => {
     checkbox.addEventListener("change", () => {
-      atualizarRegistroExecucaoRevalidacaoUI();
-      mostrarMensagemRegistroExecucao("");
+      atualizarRevalidarManutencaoUI();
+      mostrarMensagemRevalidarManutencao("");
     });
   });
-  atualizarRegistroExecucaoRevalidacaoUI();
+  atualizarRevalidarManutencaoUI();
 }
-if (registroRevalidacaoViews.length) {
-  registroRevalidacaoViews.forEach((button) => {
+if (revalidarManutencaoViews.length) {
+  revalidarManutencaoViews.forEach((button) => {
     button.addEventListener("click", () => {
-      const alvo = button.dataset.registroRevalidaView;
-      const input = getRegistroRevalidacaoInput(alvo);
+      const alvo = button.dataset.revalidarDocView;
+      const input = getRevalidarManutencaoInput(alvo);
       const file = input && input.files && input.files[0] ? input.files[0] : null;
       if (file) {
         const blobUrl = URL.createObjectURL(file);
         abrirPreview(blobUrl, blobUrl);
         return;
       }
-      const docDia = normalizeSstDocFile(registroExecucaoRevalidacaoDocsAtual[alvo]);
+      const docDia = normalizeSstDocFile(revalidarManutencaoDocsAtual[alvo]);
       if (docDia) {
         abrirDocumento(docDia);
         return;
       }
-      const docBase = normalizeSstDocFile(registroExecucaoRevalidacaoBaseDocsAtual[alvo]);
+      const docBase = normalizeSstDocFile(revalidarManutencaoBaseDocsAtual[alvo]);
       if (docBase) {
         abrirDocumento(docBase);
       }

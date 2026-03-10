@@ -8380,6 +8380,8 @@ const MAINTENANCE_EXECUTION_RESET_FIELDS = [
   "execucaoRegistradaAt",
   "registroExecucao",
   "registrosDiariosExecucao",
+  "revalidacoesDocumentaisDiarias",
+  "revalidacaoDocumentalDiaria",
   "conclusao",
   "encerramento",
   "encerramentoEm",
@@ -10113,6 +10115,8 @@ const MAINTENANCE_EXECUTION_FIELDS = [
   "execucaoRegistradaAt",
   "registroExecucao",
   "registrosDiariosExecucao",
+  "revalidacoesDocumentaisDiarias",
+  "revalidacaoDocumentalDiaria",
   "conclusao",
   "encerramento",
   "encerramentoEm",
@@ -10397,6 +10401,36 @@ function sanitizeMaintenanceDailyExecutionList(value) {
   return Array.isArray(sanitized) ? sanitized : [];
 }
 
+function sanitizeMaintenanceDailyRevalidacaoList(value) {
+  const source = Array.isArray(value) ? value : [];
+  if (!source.length) {
+    return [];
+  }
+  const map = new Map();
+  source.forEach((entry) => {
+    const normalized = normalizeMaintenanceDailyRevalidacaoEntry(entry);
+    if (!normalized) {
+      return;
+    }
+    const current = map.get(normalized.dataRef);
+    if (!current) {
+      map.set(normalized.dataRef, normalized);
+      return;
+    }
+    const currentTime = getTimeValue(current.registradoEm || current.updatedAt || "") || 0;
+    const nextTime = getTimeValue(normalized.registradoEm || normalized.updatedAt || "") || 0;
+    if (nextTime >= currentTime) {
+      map.set(normalized.dataRef, normalized);
+    }
+  });
+  const ordered = Array.from(map.values())
+    .sort((a, b) => a.dataRef.localeCompare(b.dataRef))
+    .slice(-62);
+  const context = { removed: 0, path: "maintenance.revalidacoesDocumentaisDiarias" };
+  const sanitized = sanitizeInlineDataUrls(ordered, context);
+  return Array.isArray(sanitized) ? sanitized : [];
+}
+
 function sanitizeMaintenanceIncoming(item, current, user) {
   if (!item || typeof item !== "object") {
     return item;
@@ -10421,6 +10455,23 @@ function sanitizeMaintenanceIncoming(item, current, user) {
       delete next.registrosDiariosExecucao;
     }
     delete next.registroExecucaoDiaria;
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(next, "revalidacoesDocumentaisDiarias") ||
+    Object.prototype.hasOwnProperty.call(next, "revalidacaoDocumentalDiaria")
+  ) {
+    const revalidacaoRaw = Array.isArray(next.revalidacoesDocumentaisDiarias)
+      ? next.revalidacoesDocumentaisDiarias
+      : Array.isArray(next.revalidacaoDocumentalDiaria)
+        ? next.revalidacaoDocumentalDiaria
+        : [];
+    const revalidacaoList = sanitizeMaintenanceDailyRevalidacaoList(revalidacaoRaw);
+    if (revalidacaoList.length) {
+      next.revalidacoesDocumentaisDiarias = revalidacaoList;
+    } else {
+      delete next.revalidacoesDocumentaisDiarias;
+    }
+    delete next.revalidacaoDocumentalDiaria;
   }
   const statusBeforeSanitize = normalizeStatus(next.status);
   const autoRecorrenteSemInicio =
@@ -11421,6 +11472,76 @@ function normalizeMaintenanceDailyRevalidacao(entry) {
       source.registradoPor ||
         source.updatedBy ||
         entry.revalidacaoDocumentalRegistradaPor ||
+        ""
+    ).trim(),
+  };
+}
+
+function normalizeMaintenanceDailyRevalidacaoEntry(entry) {
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+  const dataRef = normalizeMaintenanceDailyDateKey(
+    entry.dataRef || entry.data || entry.dia || entry.dataRegistro || entry.registradoEm
+  );
+  if (!dataRef) {
+    return null;
+  }
+  const source =
+    entry.revalidacaoDocumental && typeof entry.revalidacaoDocumental === "object"
+      ? entry.revalidacaoDocumental
+      : {};
+  const required = normalizeMaintenanceDailyRevalidacaoRequiredMap(
+    entry.required && typeof entry.required === "object"
+      ? entry.required
+      : source.required && typeof source.required === "object"
+        ? source.required
+        : entry.revalidacaoRequired && typeof entry.revalidacaoRequired === "object"
+          ? entry.revalidacaoRequired
+          : {}
+  );
+  const docsSource =
+    entry.docs && typeof entry.docs === "object"
+      ? entry.docs
+      : source.docs && typeof source.docs === "object"
+        ? source.docs
+        : entry.revalidacaoDocs && typeof entry.revalidacaoDocs === "object"
+          ? entry.revalidacaoDocs
+          : {};
+  const docs = {};
+  ["apr", "os", "pte", "pt"].forEach((key) => {
+    const doc = normalizeSstDocFile(docsSource[key]);
+    if (doc) {
+      docs[key] = doc;
+    }
+  });
+  const hasAny = ["apr", "os", "pte", "pt"].some(
+    (key) => Boolean(required[key]) || Boolean(docs[key])
+  );
+  if (!hasAny) {
+    return null;
+  }
+  const registradoEmDate = parseDateTime(
+    entry.registradoEm ||
+      entry.updatedAt ||
+      entry.createdAt ||
+      source.registradoEm ||
+      source.updatedAt ||
+      source.createdAt ||
+      ""
+  );
+  return {
+    dataRef,
+    required,
+    docs,
+    registradoEm: registradoEmDate ? registradoEmDate.toISOString() : "",
+    registradoPor: String(
+      entry.registradoPor ||
+        entry.updatedBy ||
+        entry.createdBy ||
+        source.registradoPor ||
+        source.updatedBy ||
+        source.createdBy ||
         ""
     ).trim(),
   };
