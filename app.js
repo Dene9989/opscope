@@ -14828,7 +14828,9 @@ function upsertRevalidacoesDocumentaisDiarias(list, entry) {
     }
   });
   map.set(normalized.dataRef, normalized);
-  return Array.from(map.values()).sort((a, b) => a.dataRef.localeCompare(b.dataRef));
+  return Array.from(map.values())
+    .sort((a, b) => a.dataRef.localeCompare(b.dataRef))
+    .slice(-62);
 }
 
 function getRevalidacaoDocumentalDiariaDocsMap(item, registroDia = null) {
