@@ -14669,6 +14669,33 @@ function formatRegistroExecucaoDiaLabel(dateKey) {
   return parsed ? formatDate(parsed) : dateKey || "-";
 }
 
+function getExecucaoRegistradaLabel(item, nowDate = new Date()) {
+  if (!hasExecucaoRegistradaCompleta(item)) {
+    return "";
+  }
+  const todayKey = formatDateISO(startOfDay(nowDate));
+  const registroHoje = getRegistroDiarioExecucao(item, todayKey);
+  if (registroHoje) {
+    return "Execução registrada (hoje)";
+  }
+  const ultimoRegistro = getRegistroDiarioExecucaoMaisRecente(item);
+  const ultimoDia = normalizeRegistroExecucaoDiaKey(
+    ultimoRegistro &&
+      (ultimoRegistro.dataRef ||
+        ultimoRegistro.registradoEm ||
+        ultimoRegistro.registrado_em ||
+        ultimoRegistro.executadoEm ||
+        ultimoRegistro.executedAt)
+  );
+  if (!ultimoDia) {
+    return "Execução registrada";
+  }
+  if (ultimoDia === todayKey) {
+    return "Execução registrada (hoje)";
+  }
+  return "Execução do dia anterior registrada";
+}
+
 function getRegistroExecucaoPendenteDateKey(item, nowDate = new Date()) {
   if (!item) {
     return "";
@@ -14763,14 +14790,16 @@ function normalizeRevalidacaoDocumentalDiariaEntry(entry) {
       docs[key] = doc;
     }
   });
+  const revalidado = Boolean(entry.revalidado || entry.revalidacao || entry.revalidadoNoDia);
   const hasAny = DOC_KEYS.some((key) => Boolean(required[key]) || Boolean(docs[key]));
-  if (!hasAny) {
+  if (!hasAny && !revalidado) {
     return null;
   }
   return {
     dataRef,
     required,
     docs,
+    revalidado,
     registradoEm: normalizeIso(entry.registradoEm || entry.updatedAt || entry.createdAt || ""),
     registradoPor: String(entry.registradoPor || entry.updatedBy || entry.createdBy || "").trim(),
   };
@@ -14812,6 +14841,11 @@ function getRevalidacaoDocumentalDiaria(item, dateKey) {
   }
   const list = getRevalidacoesDocumentaisDiarias(item);
   return list.find((entry) => entry.dataRef === normalizedKey) || null;
+}
+
+function isManutencaoRevalidadaNoDia(item, nowDate = new Date()) {
+  const dateKey = formatDateISO(startOfDay(nowDate));
+  return Boolean(getRevalidacaoDocumentalDiaria(item, dateKey));
 }
 
 function upsertRevalidacoesDocumentaisDiarias(list, entry) {
@@ -14858,6 +14892,25 @@ function getExecutionStartedIso(item) {
         registro.inicioExecucao ||
         registro.registradoEm ||
         registro.registrado_em ||
+        item.updatedAt ||
+        item.createdAt ||
+        ""
+    ) || ""
+  );
+}
+
+function getExecutionStartedFirstIso(item) {
+  if (!item || typeof item !== "object") {
+    return "";
+  }
+  return (
+    normalizeIso(
+      item.executionStartedAtFirst ||
+        item.executionStartedAtOriginal ||
+        item.executionStartedAt ||
+        item.inicioExecucao ||
+        item.inicio ||
+        (item.registroExecucao && item.registroExecucao.registradoEm) ||
         item.updatedAt ||
         item.createdAt ||
         ""
@@ -15906,6 +15959,7 @@ function mergePreferLocal(remote, local) {
 const MAINTENANCE_EXECUTION_RESET_FIELDS = [
   "inicioExecucao",
   "executionStartedAt",
+  "executionStartedAtFirst",
   "executionStartedBy",
   "executionFinishedAt",
   "doneAt",
@@ -20624,6 +20678,19 @@ function criarCardManutencao(item, permissoes, options = {}) {
   if (statusInfo.textContent) {
     info.append(statusInfo);
   }
+  const inicioPrimeiroIso = getExecutionStartedFirstIso(item);
+  const inicioPrimeiro = parseTimestamp(inicioPrimeiroIso);
+  const inicioAtual = parseTimestamp(item.executionStartedAt);
+  if (
+    (statusNormalized === "em_execucao" || statusNormalized === "encerramento") &&
+    inicioPrimeiro &&
+    (!inicioAtual || inicioPrimeiro.getTime() !== inicioAtual.getTime())
+  ) {
+    const inicioPrimeiroLinha = document.createElement("p");
+    inicioPrimeiroLinha.className = "submeta";
+    inicioPrimeiroLinha.textContent = `Iniciada no 1º dia: ${formatDateTime(inicioPrimeiro)}`;
+    info.append(inicioPrimeiroLinha);
+  }
   if (lockInfo) {
     const lockLine = document.createElement("p");
     lockLine.className = "submeta submeta--lock";
@@ -20769,18 +20836,28 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const statusGroup = document.createElement("div");
   statusGroup.className = "status-group";
   const execucaoRegistrada = hasExecucaoRegistradaCompleta(item);
+  const execucaoRegistradaLabel = execucaoRegistrada ? getExecucaoRegistradaLabel(item) : "";
   const pendenciaDiariaExecucao = getRegistroExecucaoPendenteDateKey(item);
   const revalidacaoDiariaPendente = Boolean(pendenciaDiariaExecucao);
   const revalidacaoManutencaoDisponivel = isRegistroExecucaoRevalidacaoDisponivel(item);
   const esconderEmExecucao =
-    execucaoRegistrada && statusBase === "em_execucao" && statusNormalized !== "concluida";
+    Boolean(execucaoRegistradaLabel) &&
+    statusBase === "em_execucao" &&
+    statusNormalized !== "concluida";
   if (!esconderEmExecucao) {
     statusGroup.append(badge);
   }
-  if (execucaoRegistrada && statusNormalized !== "concluida") {
+  const revalidadaHoje = isManutencaoRevalidadaNoDia(item);
+  if (revalidadaHoje && statusNormalized === "em_execucao") {
+    const revalidadaBadge = document.createElement("span");
+    revalidadaBadge.className = "status status--revalidada";
+    revalidadaBadge.textContent = "Manutenção revalidada";
+    statusGroup.append(revalidadaBadge);
+  }
+  if (execucaoRegistradaLabel && statusNormalized !== "concluida") {
     const execBadge = document.createElement("span");
     execBadge.className = "status status--execucao-registrada";
-    execBadge.textContent = "Execução registrada";
+    execBadge.textContent = execucaoRegistradaLabel;
     statusGroup.append(execBadge);
   }
   if (
@@ -21098,6 +21175,19 @@ function criarCardProgramacaoCompacto(item) {
   if (resumo.textContent) {
     info.append(resumo);
   }
+  const inicioPrimeiroIso = getExecutionStartedFirstIso(item);
+  const inicioPrimeiro = parseTimestamp(inicioPrimeiroIso);
+  const inicioAtual = parseTimestamp(item.executionStartedAt);
+  if (
+    (statusNormalized === "em_execucao" || statusNormalized === "encerramento") &&
+    inicioPrimeiro &&
+    (!inicioAtual || inicioPrimeiro.getTime() !== inicioAtual.getTime())
+  ) {
+    const inicioPrimeiroLinha = document.createElement("p");
+    inicioPrimeiroLinha.className = "submeta";
+    inicioPrimeiroLinha.textContent = `Iniciada no 1º dia: ${formatDateTime(inicioPrimeiro)}`;
+    info.append(inicioPrimeiroLinha);
+  }
   if (lockInfo) {
     const lockLine = document.createElement("p");
     lockLine.className = "submeta submeta--lock";
@@ -21117,10 +21207,18 @@ function criarCardProgramacaoCompacto(item) {
   badge.textContent = badgeInfo.label;
   statusGroup.append(badge);
 
-  if (hasExecucaoRegistradaCompleta(item) && statusNormalized !== "concluida") {
+  const revalidadaHoje = isManutencaoRevalidadaNoDia(item);
+  if (revalidadaHoje && statusNormalized === "em_execucao") {
+    const revalidadaBadge = document.createElement("span");
+    revalidadaBadge.className = "status status--revalidada";
+    revalidadaBadge.textContent = "Manutenção revalidada";
+    statusGroup.append(revalidadaBadge);
+  }
+  const execucaoRegistradaLabel = getExecucaoRegistradaLabel(item);
+  if (execucaoRegistradaLabel && statusNormalized !== "concluida") {
     const execBadge = document.createElement("span");
     execBadge.className = "status status--execucao-registrada";
-    execBadge.textContent = "Execução registrada";
+    execBadge.textContent = execucaoRegistradaLabel;
     statusGroup.append(execBadge);
   }
   const pendenciaDiariaExecucao = getRegistroExecucaoPendenteDateKey(item);
@@ -53086,11 +53184,6 @@ async function salvarRevalidarManutencao(event) {
     return;
   }
   const required = getRevalidarManutencaoRequiredMapFromForm();
-  const hasRequired = DOC_KEYS.some((key) => required[key]);
-  if (!hasRequired) {
-    mostrarMensagemRevalidarManutencao("Selecione ao menos um documento para revalidar.", true);
-    return;
-  }
   const docsAtual = { ...(revalidarManutencaoDocsAtual || {}) };
   try {
     for (const chave of DOC_KEYS) {
@@ -53128,6 +53221,7 @@ async function salvarRevalidarManutencao(event) {
     dataRef,
     required,
     docs: docsAtual,
+    revalidado: true,
     registradoEm: toIsoUtc(agora),
     registradoPor: currentUser ? currentUser.id : SYSTEM_USER_ID,
   };
@@ -53135,9 +53229,22 @@ async function salvarRevalidarManutencao(event) {
     getRevalidacoesDocumentaisDiarias(item),
     registro
   );
+  const inicioPrimeiro =
+    item.executionStartedAtFirst ||
+    item.executionStartedAt ||
+    getExecutionStartedIso(item) ||
+    toIsoUtc(agora);
   const atualizado = {
     ...item,
     revalidacoesDocumentaisDiarias: revalidacoes,
+    executionStartedAtFirst: inicioPrimeiro,
+    executionStartedAt: toIsoUtc(agora),
+    executionStartedBy: currentUser ? currentUser.id : SYSTEM_USER_ID,
+    registroExecucao: null,
+    execucaoRegistradaEm: "",
+    executionRegisteredAt: "",
+    execucaoRegistradaAt: "",
+    status: "em_execucao",
     updatedAt: toIsoUtc(agora),
     updatedBy: currentUser ? currentUser.id : SYSTEM_USER_ID,
   };
@@ -53149,6 +53256,8 @@ async function salvarRevalidarManutencao(event) {
   logAction("daily_revalidate", atualizado, {
     dataRef,
     documentos: documentosLista,
+    inicioExecucaoAnterior: item.executionStartedAt || "",
+    inicioExecucao: atualizado.executionStartedAt || "",
     resumo: `Revalidação diária registrada (${formatRegistroExecucaoDiaLabel(dataRef)}).`,
   });
   renderTudo();
@@ -53461,6 +53570,7 @@ async function confirmarInicioExecucao() {
     status: "em_execucao",
     executionStartedAt: inicioIso,
     executionStartedBy: currentUser.id,
+    executionStartedAtFirst: item.executionStartedAtFirst || inicioIso,
     ...(item.prazoMaximo && !item.prazoMaximoInicio ? { prazoMaximoInicio: inicioIso } : {}),
     updatedAt: inicioIso,
     updatedBy: currentUser.id,

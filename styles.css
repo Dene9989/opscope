@@ -13724,6 +13724,12 @@ textarea:focus {
   border-color: rgba(14, 165, 233, 0.55);
 }
 
+.app .status--revalidada {
+  background: rgba(16, 185, 129, 0.24);
+  color: #dcfce7;
+  border-color: rgba(16, 185, 129, 0.6);
+}
+
 .app .status--revalidacao-diaria {
   background: rgba(245, 158, 11, 0.3);
   color: #fff3d6;
@@ -13897,6 +13903,12 @@ textarea:focus {
   background: rgba(14, 165, 233, 0.16);
   color: #0b5f82;
   border-color: rgba(14, 165, 233, 0.35);
+}
+
+.status--revalidada {
+  background: rgba(16, 185, 129, 0.16);
+  color: #0f6b4a;
+  border-color: rgba(16, 185, 129, 0.35);
 }
 
 .status--revalidacao-diaria {
@@ -17136,6 +17148,12 @@ textarea:focus {
   background: rgba(80, 119, 170, 0.26);
   border-color: rgba(94, 137, 192, 0.48);
   color: #deebfb;
+}
+
+#programacao .status--revalidada {
+  background: rgba(82, 173, 123, 0.26);
+  border-color: rgba(97, 191, 139, 0.48);
+  color: #dcf8e6;
 }
 
 #programacao .status--revalidacao-diaria {

@@ -8369,6 +8369,7 @@ function mergePreferMeaningful(primary, fallback) {
 const MAINTENANCE_EXECUTION_RESET_FIELDS = [
   "inicioExecucao",
   "executionStartedAt",
+  "executionStartedAtFirst",
   "executionStartedBy",
   "executionFinishedAt",
   "doneAt",
@@ -10104,6 +10105,7 @@ const MAINTENANCE_EXECUTION_FIELDS = [
   "status",
   "inicioExecucao",
   "executionStartedAt",
+  "executionStartedAtFirst",
   "executionStartedBy",
   "executionFinishedAt",
   "doneAt",
@@ -11515,10 +11517,11 @@ function normalizeMaintenanceDailyRevalidacaoEntry(entry) {
       docs[key] = doc;
     }
   });
+  const revalidado = Boolean(entry.revalidado || entry.revalidacao || entry.revalidadoNoDia);
   const hasAny = ["apr", "os", "pte", "pt"].some(
     (key) => Boolean(required[key]) || Boolean(docs[key])
   );
-  if (!hasAny) {
+  if (!hasAny && !revalidado) {
     return null;
   }
   const registradoEmDate = parseDateTime(
@@ -11534,6 +11537,7 @@ function normalizeMaintenanceDailyRevalidacaoEntry(entry) {
     dataRef,
     required,
     docs,
+    revalidado,
     registradoEm: registradoEmDate ? registradoEmDate.toISOString() : "",
     registradoPor: String(
       entry.registradoPor ||
