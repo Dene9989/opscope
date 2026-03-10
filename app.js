@@ -14642,6 +14642,70 @@ function getRegistroDiarioExecucao(item, dateKey) {
   return registros.find((entry) => entry.dataRef === normalizedKey) || null;
 }
 
+function getRegistroExecucaoAtual(item, dateKey) {
+  const registroDia = getRegistroDiarioExecucao(item, dateKey);
+  if (registroDia) {
+    return registroDia;
+  }
+  const registro =
+    item && item.registroExecucao && typeof item.registroExecucao === "object"
+      ? item.registroExecucao
+      : null;
+  if (!registro) {
+    return null;
+  }
+  const registroRef = normalizeRegistroExecucaoDiaKey(
+    registro.dataRef ||
+      registro.data ||
+      registro.dia ||
+      registro.registradoEm ||
+      registro.registrado_em ||
+      registro.executadoEm ||
+      registro.executedAt ||
+      ""
+  );
+  const alvo = normalizeRegistroExecucaoDiaKey(dateKey);
+  if (!registroRef || !alvo || registroRef !== alvo) {
+    return null;
+  }
+  return registro;
+}
+
+function isRegistroExecucaoDoCicloAtual(item, registro, dateKey) {
+  if (!registro || typeof registro !== "object") {
+    return false;
+  }
+  const alvo = normalizeRegistroExecucaoDiaKey(dateKey);
+  const registroRef = normalizeRegistroExecucaoDiaKey(
+    registro.dataRef ||
+      registro.data ||
+      registro.dia ||
+      registro.registradoEm ||
+      registro.registrado_em ||
+      registro.executadoEm ||
+      registro.executedAt ||
+      ""
+  );
+  if (registroRef && alvo) {
+    return registroRef === alvo;
+  }
+  const registroTime = getTimeValue(
+    registro.registradoEm ||
+      registro.registrado_em ||
+      registro.executadoEm ||
+      registro.executedAt ||
+      ""
+  );
+  if (!registroTime) {
+    return false;
+  }
+  const inicio = getTimeValue(getExecutionStartedAtualIso(item));
+  if (inicio && registroTime < inicio) {
+    return false;
+  }
+  return true;
+}
+
 function getRegistroDiarioExecucaoMaisRecente(item) {
   const registros = getRegistrosDiariosExecucao(item);
   return registros.length ? registros[registros.length - 1] : null;
@@ -14916,6 +14980,22 @@ function getExecutionStartedFirstIso(item) {
         ""
     ) || ""
   );
+}
+
+function getExecutionStartedAtualIso(item) {
+  const base = getExecutionStartedIso(item);
+  const revalidacoes = getRevalidacoesDocumentaisDiarias(item);
+  if (!revalidacoes.length) {
+    return base;
+  }
+  const ultima = revalidacoes[revalidacoes.length - 1];
+  const revalidadoEm = normalizeIso(ultima && ultima.registradoEm ? ultima.registradoEm : "");
+  if (!revalidadoEm) {
+    return base;
+  }
+  const baseTime = getTimeValue(base) || 0;
+  const revalidadoTime = getTimeValue(revalidadoEm) || 0;
+  return revalidadoTime > baseTime ? revalidadoEm : base;
 }
 
 function hasRegistroExecucaoBloqueante(item) {
@@ -20623,7 +20703,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
   } else if (statusNormalized === "backlog") {
     statusInfo.textContent = formatOverdue(diff);
   } else if (statusNormalized === "em_execucao") {
-    const inicio = parseTimestamp(item.executionStartedAt);
+    const inicio = parseTimestamp(getExecutionStartedAtualIso(item));
     statusInfo.textContent = inicio
       ? `Em execução desde ${formatDateTime(inicio)}`
       : "Em execução";
@@ -20680,7 +20760,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
   }
   const inicioPrimeiroIso = getExecutionStartedFirstIso(item);
   const inicioPrimeiro = parseTimestamp(inicioPrimeiroIso);
-  const inicioAtual = parseTimestamp(item.executionStartedAt);
+  const inicioAtual = parseTimestamp(getExecutionStartedAtualIso(item));
   if (
     (statusNormalized === "em_execucao" || statusNormalized === "encerramento") &&
     inicioPrimeiro &&
@@ -21164,7 +21244,7 @@ function criarCardProgramacaoCompacto(item) {
   } else if (statusNormalized === "backlog") {
     resumo.textContent = formatOverdue(diff);
   } else if (statusNormalized === "em_execucao") {
-    const inicio = parseTimestamp(item.executionStartedAt);
+    const inicio = parseTimestamp(getExecutionStartedAtualIso(item));
     resumo.textContent = inicio ? `Em execução desde ${formatDateTime(inicio)}` : "Em execução";
   } else if (statusNormalized === "encerramento") {
     resumo.textContent = "Encerramento em preenchimento";
@@ -21177,7 +21257,7 @@ function criarCardProgramacaoCompacto(item) {
   }
   const inicioPrimeiroIso = getExecutionStartedFirstIso(item);
   const inicioPrimeiro = parseTimestamp(inicioPrimeiroIso);
-  const inicioAtual = parseTimestamp(item.executionStartedAt);
+  const inicioAtual = parseTimestamp(getExecutionStartedAtualIso(item));
   if (
     (statusNormalized === "em_execucao" || statusNormalized === "encerramento") &&
     inicioPrimeiro &&
@@ -29150,7 +29230,7 @@ function getItemCriacaoDate(item) {
 }
 
 function getItemInicioExecucaoDate(item) {
-  const direto = pickItemValue(item, ["executionStartedAt", "inicioExecucao", "inicio"]);
+  const direto = getExecutionStartedAtualIso(item);
   const registro = item && item.registroExecucao ? item.registroExecucao.inicio : null;
   const conclusao = item && item.conclusao ? item.conclusao.inicio : null;
   return parseAnyDate(direto || registro || conclusao);
@@ -53238,12 +53318,22 @@ async function salvarRevalidarManutencao(event) {
     ...item,
     revalidacoesDocumentaisDiarias: revalidacoes,
     executionStartedAtFirst: inicioPrimeiro,
+    inicioExecucao: toIsoUtc(agora),
     executionStartedAt: toIsoUtc(agora),
     executionStartedBy: currentUser ? currentUser.id : SYSTEM_USER_ID,
     registroExecucao: null,
     execucaoRegistradaEm: "",
     executionRegisteredAt: "",
     execucaoRegistradaAt: "",
+    conclusao: null,
+    executionFinishedAt: "",
+    doneAt: "",
+    doneBy: "",
+    concluidaEm: "",
+    dataConclusao: "",
+    encerramento: null,
+    encerramentoEm: "",
+    encerramentoPor: "",
     status: "em_execucao",
     updatedAt: toIsoUtc(agora),
     updatedBy: currentUser ? currentUser.id : SYSTEM_USER_ID,
@@ -53710,11 +53800,15 @@ function abrirRegistroExecucao(item) {
   if (registroDocs) {
     renderDocList(registroDocs, docsExecucaoAtual, isItemCritico(itemAtual));
   }
-  const registroSalvo = itemAtual.registroExecucao || {};
+  const registroSalvo =
+    itemAtual.registroExecucao && typeof itemAtual.registroExecucao === "object"
+      ? itemAtual.registroExecucao
+      : null;
   const dataRef = getRegistroExecucaoDataRef(itemAtual);
   const pendenteDataRef = getRegistroExecucaoPendenteDateKey(itemAtual);
-  const registroDoDia = getRegistroDiarioExecucao(itemAtual, dataRef);
-  const registroBase = registroDoDia || registroSalvo;
+  const registroBase =
+    getRegistroExecucaoAtual(itemAtual, dataRef) ||
+    (isRegistroExecucaoDoCicloAtual(itemAtual, registroSalvo, dataRef) ? registroSalvo : {});
   registroExecucaoDataRefAtual = dataRef;
   if (registroDataExecucao) {
     registroDataExecucao.value = formatRegistroExecucaoDiaLabel(dataRef);
@@ -57082,12 +57176,21 @@ function abrirConclusao(item) {
     );
     return;
   }
-  const executionStartedIso = getExecutionStartedIso(item);
+  const executionStartedIso = getExecutionStartedAtualIso(item);
   if (!executionStartedIso) {
     mostrarMensagemManutencao("Início da execução não encontrado.", true);
     return;
   }
-  const registro = item.registroExecucao || {};
+  const dataRefAtual = getRegistroExecucaoDataRef(item);
+  const registroSalvo =
+    item.registroExecucao && typeof item.registroExecucao === "object"
+      ? item.registroExecucao
+      : null;
+  const registro =
+    getRegistroExecucaoAtual(item, dataRefAtual) ||
+    (isRegistroExecucaoDoCicloAtual(item, registroSalvo, dataRefAtual)
+      ? registroSalvo
+      : {});
   const executadoPor =
     registro.executadoPor ||
     registro.executedBy ||
@@ -57166,7 +57269,15 @@ function abrirConclusao(item) {
     conclusaoModeloBreve.value = "";
   }
   if (conclusaoDescricaoBreve) {
-    const descricaoBreveSalva = (item.conclusao && item.conclusao.descricaoBreve) || "";
+    const conclusaoAtual =
+      item.conclusao && typeof item.conclusao === "object" ? item.conclusao : null;
+    const inicioConclusao = conclusaoAtual ? parseTimestamp(conclusaoAtual.inicio) : null;
+    const inicioCiclo = executionStartedIso ? parseTimestamp(executionStartedIso) : null;
+    const conclusaoValida =
+      conclusaoAtual && inicioConclusao && inicioCiclo
+        ? inicioConclusao.getTime() >= inicioCiclo.getTime()
+        : conclusaoAtual;
+    const descricaoBreveSalva = (conclusaoValida && conclusaoValida.descricaoBreve) || "";
     conclusaoDescricaoBreve.value = descricaoBreveSalva || normalizeResumoRdoTexto(comentario);
   }
   const liberacao = getLiberacao(item) || {};
