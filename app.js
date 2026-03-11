@@ -36248,6 +36248,9 @@ function getPmpFilteredActivities() {
   const filtroStatus = pmpFiltroStatus ? pmpFiltroStatus.value : "";
   const manualMap = getExecutionsByActivity();
   const autoMap = buildAutoExecutionMap(pmpActivities, periods, viewMode, year, monthIndex);
+  const suppressionMap = filtroStatus
+    ? buildPmpMonthlySuppressionMap(pmpActivities, periods, viewMode, year, monthIndex)
+    : null;
   return pmpActivities.filter((activity) => {
     if (filtroProjeto && activity.projectId !== filtroProjeto) {
       return false;
@@ -36296,7 +36299,8 @@ function getPmpFilteredActivities() {
           manualMap,
           autoMap,
           today,
-          isScheduled
+          isScheduled,
+          suppressionMap
         );
         return statusInfo.status === targetStatus;
       });
@@ -36619,6 +36623,7 @@ function renderPmpModule() {
     periods,
     manualMap,
     autoMap,
+    suppressionMap,
     activities: filtrados,
   };
 
@@ -37721,7 +37726,8 @@ function openPmpCellModal(activityId, periodKey) {
     pmpLastSnapshot.manualMap,
     pmpLastSnapshot.autoMap,
     startOfDay(new Date()),
-    isScheduled
+    isScheduled,
+    pmpLastSnapshot.suppressionMap
   );
   const project = availableProjects.find((item) => item.id === activity.projectId);
   if (pmpCellTitle) {
@@ -37733,9 +37739,8 @@ function openPmpCellModal(activityId, periodKey) {
       pmpLastSnapshot.viewMode === "day"
         ? `Data: ${formatDate(period.start)}`
         : `Período: ${period.label} (${formatDate(period.start)} - ${formatDate(period.end)})`;
-    pmpCellMeta.textContent = `Projeto: ${projectLabel} | ${periodoTexto} | Status: ${
-      PMP_STATUS_LABELS[statusInfo.status] || "-"
-    }`;
+    const statusLabel = statusInfo.statusLabel || PMP_STATUS_LABELS[statusInfo.status] || "-";
+    pmpCellMeta.textContent = `Projeto: ${projectLabel} | ${periodoTexto} | Status: ${statusLabel}`;
   }
   const execEntries = [];
   if (statusInfo.exec) {
@@ -38040,10 +38045,28 @@ function buildPmpSnapshot() {
   const rescheduleMap = buildPmpRescheduleMap(activities, periods, viewMode, year, monthIndex);
   mergeExecutionMapFallback(manualMap, replanMap);
   mergeExecutionMapFallback(manualMap, rescheduleMap);
+  const suppressionMap = buildPmpMonthlySuppressionMap(
+    activities,
+    periods,
+    viewMode,
+    year,
+    monthIndex
+  );
   const autoMap = buildAutoExecutionMap(activities, periods, viewMode, year, monthIndex);
   const today = startOfDay(new Date());
   const monthLabel = PMP_MONTH_LABELS[monthIndex] || String(monthIndex + 1).padStart(2, "0");
-  return { year, viewMode, monthIndex, monthLabel, activities, periods, manualMap, autoMap, today };
+  return {
+    year,
+    viewMode,
+    monthIndex,
+    monthLabel,
+    activities,
+    periods,
+    manualMap,
+    suppressionMap,
+    autoMap,
+    today,
+  };
 }
 
 function exportarPmpExcel() {
@@ -38103,12 +38126,15 @@ function exportarPmpExcel() {
         snapshot.manualMap,
         snapshot.autoMap,
         snapshot.today,
-        isScheduled
+        isScheduled,
+        snapshot.suppressionMap
       );
+      const statusLabel =
+        statusInfo.statusLabel || PMP_STATUS_LABELS[statusInfo.status] || "Planejada";
       values.push(
         statusInfo.status === "empty"
           ? PMP_STATUS_LABELS.empty || "Não prevista"
-          : PMP_STATUS_LABELS[statusInfo.status] || "Planejada"
+          : statusLabel
       );
     });
     return values.map(escapeCsv).join(",");
@@ -38193,7 +38219,8 @@ function exportarPmpPdf() {
             snapshot.manualMap,
             snapshot.autoMap,
             snapshot.today,
-            isScheduled
+            isScheduled,
+            snapshot.suppressionMap
           );
           const status = statusInfo.status;
           if (status === "empty") {
@@ -38216,7 +38243,7 @@ function exportarPmpPdf() {
             totalExecutedMinutes += Number(activity.duracaoMinutos || 0);
           }
           const statusClass = statusClassMap[status] || "scheduled";
-          const label = PMP_STATUS_LABELS[status] || "Planejada";
+          const label = statusInfo.statusLabel || PMP_STATUS_LABELS[status] || "Planejada";
           return `<td class="pmp-cell ${statusClass}">${label}</td>`;
         })
         .join("");
