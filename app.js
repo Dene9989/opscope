@@ -34046,6 +34046,10 @@ function getScheduledWeeks(activity, year, weeks) {
 }
 
 function getScheduledPeriodKeys(activity, year, viewMode, periods, monthIndex) {
+  const templateSchedule = getPmpScheduleTemplate(activity);
+  if (templateSchedule) {
+    return getScheduledPeriodKeysFromTemplate(templateSchedule, periods, viewMode);
+  }
   if (viewMode === "day") {
     const daysSet = getScheduledDays(activity, year, monthIndex);
     return new Set(Array.from(daysSet).map((value) => `D${String(value).padStart(2, "0")}`));
@@ -34056,6 +34060,52 @@ function getScheduledPeriodKeys(activity, year, viewMode, periods, monthIndex) {
   }
   const months = getScheduledMonths(activity, year);
   return new Set(Array.from(months).map((value) => `M${String(value + 1).padStart(2, "0")}`));
+}
+
+function getPmpScheduleTemplate(activity) {
+  if (!activity) {
+    return null;
+  }
+  const templateId = String(
+    activity.templateIdOrigem || activity.templateId || activity.template || ""
+  ).trim();
+  if (!templateId) {
+    return null;
+  }
+  const template = getTemplateById(templateId);
+  if (!template) {
+    return null;
+  }
+  const normalized = normalizarTemplate(template);
+  return normalized && normalized.template ? normalized.template : template;
+}
+
+function getScheduledPeriodKeysFromTemplate(template, periods, viewMode) {
+  const keys = new Set();
+  if (!template || !Array.isArray(periods) || !periods.length) {
+    return keys;
+  }
+  periods.forEach((period) => {
+    if (!period) {
+      return;
+    }
+    if (viewMode === "day") {
+      if (matchesRecorrencia(template, period.start)) {
+        keys.add(period.key);
+      }
+      return;
+    }
+    let current = startOfDay(period.start);
+    const end = startOfDay(period.end);
+    while (current <= end) {
+      if (matchesRecorrencia(template, current)) {
+        keys.add(period.key);
+        break;
+      }
+      current = addDays(current, 1);
+    }
+  });
+  return keys;
 }
 
 function getPeriodKeyForDate(viewMode, date, year, monthIndex) {
