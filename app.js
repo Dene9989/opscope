@@ -34119,6 +34119,178 @@ function getScheduledPeriodKeys(activity, year, viewMode, periods, monthIndex) {
   return new Set(Array.from(months).map((value) => `M${String(value + 1).padStart(2, "0")}`));
 }
 
+function isInspectionPmpActivity(activity) {
+  if (!activity) {
+    return false;
+  }
+  const tipo = normalizeSearchValue(activity.tipoManutencao || activity.tipo || "");
+  if (tipo.includes("inspec")) {
+    return true;
+  }
+  const nome = normalizeSearchValue(activity.nome || "");
+  return nome.includes("inspec");
+}
+
+function getPmpActivityFrequencyKey(activity) {
+  const freq = getPmpFrequency(activity && activity.frequencia);
+  return freq ? freq.value : "";
+}
+
+function getPmpActivityAssetKey(activity) {
+  if (!activity) {
+    return "";
+  }
+  const projectId = String(activity.projectId || "").trim() || "-";
+  const equipId = String(activity.equipamentoId || "").trim();
+  if (equipId) {
+    return `${projectId}|eq:${normalizeSearchValue(equipId)}`;
+  }
+  const nome = normalizeSearchValue(activity.nome || activity.codigo || "");
+  if (nome) {
+    return `${projectId}|name:${nome}`;
+  }
+  return `${projectId}|unknown`;
+}
+
+function buildPmpMonthlySuppressionMap(activities, periods, viewMode, year, monthIndex) {
+  const map = new Map();
+  if (!Array.isArray(activities) || !activities.length) {
+    return map;
+  }
+  const periodDateMap = new Map(
+    Array.isArray(periods) ? periods.map((period) => [period.key, period.start]) : []
+  );
+  const monthlyDaysByAsset = new Map();
+  const monthlyWeeksByAsset = new Map();
+  const addAssetDay = (assetKey, date) => {
+    if (!assetKey || !date) {
+      return;
+    }
+    const dayKey = getPeriodKeyForDate("day", date, year, monthIndex);
+    if (dayKey) {
+      if (!monthlyDaysByAsset.has(assetKey)) {
+        monthlyDaysByAsset.set(assetKey, new Set());
+      }
+      monthlyDaysByAsset.get(assetKey).add(dayKey);
+    }
+    const weekKey = `W${String(getWeekNumber(date)).padStart(2, "0")}`;
+    if (weekKey) {
+      if (!monthlyWeeksByAsset.has(assetKey)) {
+        monthlyWeeksByAsset.set(assetKey, new Set());
+      }
+      monthlyWeeksByAsset.get(assetKey).add(weekKey);
+    }
+  };
+
+  activities.forEach((activity) => {
+    if (!isInspectionPmpActivity(activity)) {
+      return;
+    }
+    const freqKey = getPmpActivityFrequencyKey(activity);
+    if (freqKey !== "mensal") {
+      return;
+    }
+    const assetKey = getPmpActivityAssetKey(activity);
+    if (!assetKey) {
+      return;
+    }
+    const template = getPmpScheduleTemplate(activity);
+    if (viewMode === "day") {
+      if (template) {
+        periods.forEach((period) => {
+          if (period && matchesRecorrencia(template, period.start)) {
+            addAssetDay(assetKey, period.start);
+          }
+        });
+      } else {
+        const days = getScheduledDays(activity, year, monthIndex);
+        days.forEach((day) => {
+          const date = new Date(year, monthIndex, day);
+          addAssetDay(assetKey, date);
+        });
+      }
+      return;
+    }
+    if (viewMode === "week") {
+      if (template) {
+        periods.forEach((period) => {
+          if (!period) {
+            return;
+          }
+          let current = startOfDay(period.start);
+          const end = startOfDay(period.end);
+          while (current <= end) {
+            if (matchesRecorrencia(template, current)) {
+              addAssetDay(assetKey, current);
+              break;
+            }
+            current = addDays(current, 1);
+          }
+        });
+      } else {
+        const months = getScheduledMonths(activity, year);
+        months.forEach((m) => {
+          const date = getScheduledDateForMonth(activity, year, m);
+          addAssetDay(assetKey, date);
+        });
+      }
+    }
+  });
+
+  const markSuppressed = (activityId, periodKey) => {
+    if (!activityId || !periodKey) {
+      return;
+    }
+    if (!map.has(activityId)) {
+      map.set(activityId, new Set());
+    }
+    map.get(activityId).add(periodKey);
+  };
+
+  activities.forEach((activity) => {
+    if (!isInspectionPmpActivity(activity)) {
+      return;
+    }
+    const freqKey = getPmpActivityFrequencyKey(activity);
+    if (freqKey !== "diaria" && freqKey !== "semanal") {
+      return;
+    }
+    const assetKey = getPmpActivityAssetKey(activity);
+    if (!assetKey) {
+      return;
+    }
+    const scheduledKeys = getScheduledPeriodKeys(activity, year, viewMode, periods, monthIndex);
+    scheduledKeys.forEach((periodKey) => {
+      if (viewMode === "day") {
+        const date = periodDateMap.get(periodKey);
+        if (!date) {
+          return;
+        }
+        if (freqKey === "diaria") {
+          if (monthlyDaysByAsset.get(assetKey)?.has(periodKey)) {
+            markSuppressed(activity.id, periodKey);
+          }
+          return;
+        }
+        if (freqKey === "semanal") {
+          const weekKey = `W${String(getWeekNumber(date)).padStart(2, "0")}`;
+          if (monthlyWeeksByAsset.get(assetKey)?.has(weekKey)) {
+            markSuppressed(activity.id, periodKey);
+          }
+        }
+        return;
+      }
+      if (viewMode === "week" && freqKey === "semanal") {
+        if (monthlyWeeksByAsset.get(assetKey)?.has(periodKey)) {
+          markSuppressed(activity.id, periodKey);
+        }
+      }
+    });
+  });
+
+  return map;
+}
+
 function getPmpScheduleTemplate(activity) {
   if (!activity) {
     return null;
@@ -34243,18 +34415,39 @@ function getPmpStatusForPeriod(
   manualMap,
   autoMap,
   today,
-  isScheduled = true
+  isScheduled = true,
+  suppressionMap = null
 ) {
   const manual = manualMap.get(activity.id) ? manualMap.get(activity.id).get(periodKey) : null;
   const auto = autoMap.get(activity.id) ? autoMap.get(activity.id).get(periodKey) : null;
   const exec = manual || auto;
   const scheduledDate = exec && exec.scheduledFor ? parseAnyDate(exec.scheduledFor) : null;
   const dueDate = scheduledDate || getDueDateForPeriod(activity, period, viewMode);
+  if (!exec && suppressionMap) {
+    const suppressed =
+      suppressionMap.get(activity.id) && suppressionMap.get(activity.id).has(periodKey);
+    if (suppressed) {
+      return {
+        status: "cancelled",
+        statusLabel: "Removida devido a mensal",
+        exec: { status: "cancelada", reason: "mensal" },
+        executedAt: null,
+        dueDate,
+      };
+    }
+  }
   if (exec && exec.status === "removida") {
     return { status: "empty", exec, executedAt: null, dueDate };
   }
   if (exec && exec.status === "cancelada") {
-    return { status: "cancelled", exec, executedAt: null, dueDate };
+    const label = exec.reason === "mensal" ? "Removida devido a mensal" : null;
+    return {
+      status: "cancelled",
+      statusLabel: label || undefined,
+      exec,
+      executedAt: null,
+      dueDate,
+    };
   }
   const executedAt = exec ? resolvePmpExecutionDate(exec.executedAt) : null;
   if (executedAt) {
@@ -36410,6 +36603,13 @@ function renderPmpModule() {
   const rescheduleMap = buildPmpRescheduleMap(filtrados, periods, viewMode, year, monthIndex);
   mergeExecutionMapFallback(manualMap, replanMap);
   mergeExecutionMapFallback(manualMap, rescheduleMap);
+  const suppressionMap = buildPmpMonthlySuppressionMap(
+    filtrados,
+    periods,
+    viewMode,
+    year,
+    monthIndex
+  );
   const autoMap = buildAutoExecutionMap(filtrados, periods, viewMode, year, monthIndex);
   const today = startOfDay(new Date());
   pmpLastSnapshot = {
@@ -36571,16 +36771,17 @@ function renderPmpModule() {
       const isScheduled = scheduledKeys.has(periodKey) || Boolean(manualEntry);
       const duracaoBase = Number(activity.duracaoMinutos || 0);
       const tecnicosBase = Number(activity.tecnicosEstimados || 1);
-      const statusInfo = getPmpStatusForPeriod(
-        activity,
-        period,
-        periodKey,
-        viewMode,
-        manualMap,
-        autoMap,
-        today,
-        isScheduled
-      );
+    const statusInfo = getPmpStatusForPeriod(
+      activity,
+      period,
+      periodKey,
+      viewMode,
+      manualMap,
+      autoMap,
+      today,
+      isScheduled,
+      suppressionMap
+    );
       const status = statusInfo.status;
       if (status !== "empty") {
         totalCells += 1;
@@ -36626,7 +36827,8 @@ function renderPmpModule() {
           tooltipLines.push(`OS/RDO: ${statusInfo.exec.manutencaoId}`);
         }
       }
-      tooltipLines.push(`Status: ${PMP_STATUS_LABELS[status] || status}`);
+      const statusLabel = statusInfo.statusLabel || PMP_STATUS_LABELS[status] || status;
+      tooltipLines.push(`Status: ${statusLabel}`);
       cell.title = tooltipLines.join("\\n");
       cell.dataset.pmpCell = "true";
       cell.dataset.activityId = activity.id;
