@@ -16997,6 +16997,9 @@ textarea:focus {
   grid-template-columns: 1fr;
   grid-auto-flow: row;
   gap: 12px;
+  --programacao-title-height: 22px;
+  --programacao-label-height: 18px;
+  --programacao-control-height: 38px;
 }
 
 #programacao #lista-programacao .programacao-toolbar__top {
@@ -17026,10 +17029,10 @@ textarea:focus {
 }
 
 #programacao #lista-programacao .programacao-toolbar__grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 12px;
-  align-items: stretch;
+  align-items: start;
 }
 
 #programacao #lista-programacao .programacao-toolbar__block {
@@ -17040,11 +17043,14 @@ textarea:focus {
   padding: 10px;
   background: rgba(9, 24, 38, 0.5);
   display: grid;
+  grid-template-rows: var(--programacao-title-height) auto auto;
   gap: 10px;
+  align-content: start;
 }
 
 #programacao #lista-programacao .programacao-toolbar__block--export {
   flex: 1 1 320px;
+  padding-top: 10px;
 }
 
 #programacao #lista-programacao .programacao-toolbar__block-title {
@@ -17052,17 +17058,21 @@ textarea:focus {
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: rgba(186, 203, 219, 0.85);
+  min-height: var(--programacao-title-height);
+  display: flex;
+  align-items: center;
 }
 
 #programacao #lista-programacao .programacao-toolbar__fields {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 10px;
-  align-items: start;
+  align-items: end;
 }
 
 #programacao #lista-programacao .programacao-toolbar__fields--export {
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  align-items: end;
 }
 
 #programacao #lista-programacao .programacao-toolbar__block--export {
@@ -17070,7 +17080,30 @@ textarea:focus {
 }
 
 #programacao #lista-programacao .programacao-toolbar__fields--export .field {
-  align-self: start;
+  align-self: stretch;
+}
+
+#programacao #lista-programacao .programacao-toolbar__fields .field,
+#programacao #lista-programacao .programacao-toolbar__fields--export .field {
+  margin-bottom: 0;
+  grid-template-rows: var(--programacao-label-height) var(--programacao-control-height);
+  align-content: end;
+}
+
+#programacao #lista-programacao .programacao-toolbar__fields .field label,
+#programacao #lista-programacao .programacao-toolbar__fields--export .field label {
+  min-height: var(--programacao-label-height);
+  display: flex;
+  align-items: flex-end;
+}
+
+#programacao #lista-programacao .programacao-toolbar__fields input,
+#programacao #lista-programacao .programacao-toolbar__fields select,
+#programacao #lista-programacao .programacao-toolbar__fields button,
+#programacao #lista-programacao .programacao-toolbar__fields--export input,
+#programacao #lista-programacao .programacao-toolbar__fields--export select,
+#programacao #lista-programacao .programacao-toolbar__fields--export button {
+  height: var(--programacao-control-height);
 }
 
 #programacao #lista-programacao .programacao-toolbar__block-actions {
@@ -17081,6 +17114,7 @@ textarea:focus {
 
 #programacao #lista-programacao .programacao-toolbar__block-actions .btn {
   min-width: 190px;
+  height: var(--programacao-control-height);
 }
 
 @media (max-width: 1200px) {
