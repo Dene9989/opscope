@@ -18303,6 +18303,9 @@ app.post(
     }
 
     const incoming = Array.isArray(req.body.items) ? req.body.items : [];
+    const incomingSuppressions = Array.isArray(req.body.recurrenceSuppressions)
+      ? req.body.recurrenceSuppressions
+      : [];
     const incomingList = incoming
       .filter((item) => item && typeof item === "object")
       .map((item) => ({
@@ -18318,6 +18321,47 @@ app.post(
     });
 
     const existing = loadMaintenanceData();
+    if (incomingSuppressions.length) {
+      let suppressionsChanged = false;
+      incomingSuppressions.forEach((entry) => {
+        const key = String(entry || "").trim();
+        if (!key) {
+          return;
+        }
+        const parts = key.split("|");
+        let keyProjectId = projectId;
+        let templateId = "";
+        let dateStr = "";
+        if (parts.length === 3) {
+          keyProjectId = parts[0];
+          templateId = parts[1];
+          dateStr = parts[2];
+        } else if (parts.length === 2) {
+          templateId = parts[0];
+          dateStr = parts[1];
+        } else {
+          return;
+        }
+        if (!templateId || !dateStr) {
+          return;
+        }
+        if (keyProjectId && keyProjectId !== projectId) {
+          return;
+        }
+        const changed = addMaintenanceRecurrenceSuppression(
+          projectId,
+          templateId,
+          dateStr,
+          user ? user.id : null
+        );
+        if (changed) {
+          suppressionsChanged = true;
+        }
+      });
+      if (suppressionsChanged) {
+        touchCompat("maintenance", projectId);
+      }
+    }
     const tombstones = getMaintenanceTombstonesMap(projectId);
     const existingProject = existing
       .filter((item) => item && item.projectId === projectId)

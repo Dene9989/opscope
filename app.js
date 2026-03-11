@@ -1579,6 +1579,7 @@ const ACCESS_USERS_BACKUP_KEY = "opscope.access.users.backup";
 const ACCESS_ROLES_BACKUP_KEY = "opscope.access.roles.backup";
 const TEMPLATE_SEED_DISABLED_KEY = "opscope.templates.seed.disabled";
 const RECURRENCE_SUPPRESS_KEY = "opscope.maintenance.recurring.suppressed";
+const RECURRENCE_SUPPRESS_DIRTY_KEY = "opscope.maintenance.recurring.suppressed.dirty";
 const GERENCIAL_PERMISSOES_KEY = "opscope.gerencial.permissoes";
 const GERENCIAL_AUTOMATIONS_KEY = "opscope.gerencial.automations";
 const GERENCIAL_FILES_KEY = "opscope.gerencial.files";
@@ -6778,6 +6779,52 @@ function readRecurrenceSuppressions() {
   return normalized.map;
 }
 
+function readRecurrenceSuppressionsDirty() {
+  const stored = readJson(getProjectStorageKey(RECURRENCE_SUPPRESS_DIRTY_KEY), {});
+  if (Array.isArray(stored)) {
+    return stored.reduce((acc, entry) => {
+      const key = String(entry || "").trim();
+      if (key) {
+        acc[key] = true;
+      }
+      return acc;
+    }, {});
+  }
+  if (stored && typeof stored === "object") {
+    return stored;
+  }
+  return {};
+}
+
+function writeRecurrenceSuppressionsDirty(map) {
+  const payload = map && typeof map === "object" ? map : {};
+  writeJson(getProjectStorageKey(RECURRENCE_SUPPRESS_DIRTY_KEY), payload);
+}
+
+function markRecurrenceSuppressionsDirty(keys) {
+  const list = Array.isArray(keys) ? keys : [keys];
+  const map = readRecurrenceSuppressionsDirty();
+  let changed = false;
+  list.forEach((key) => {
+    const trimmed = String(key || "").trim();
+    if (!trimmed) {
+      return;
+    }
+    if (!map[trimmed]) {
+      map[trimmed] = true;
+      changed = true;
+    }
+  });
+  if (changed) {
+    writeRecurrenceSuppressionsDirty(map);
+  }
+  return changed;
+}
+
+function clearRecurrenceSuppressionsDirty() {
+  writeRecurrenceSuppressionsDirty({});
+}
+
 function normalizeRecurrenceDateKey(value) {
   if (!value) {
     return "";
@@ -6868,20 +6915,24 @@ function addRecurrenceSuppression(templateId, dateStr) {
   const dateKeys = new Set([date, normalizedDate].filter(Boolean));
   const map = readRecurrenceSuppressions();
   let changed = false;
+  const dirtyKeys = [];
   dateKeys.forEach((dateKey) => {
     const key = projectRef ? `${projectRef}|${template}|${dateKey}` : `${template}|${dateKey}`;
     const legacyKey = `${template}|${dateKey}`;
     if (!map[key]) {
       map[key] = true;
       changed = true;
+      dirtyKeys.push(key);
     }
     if (!map[legacyKey]) {
       map[legacyKey] = true;
       changed = true;
+      dirtyKeys.push(legacyKey);
     }
   });
   if (changed) {
     writeRecurrenceSuppressions(map);
+    markRecurrenceSuppressionsDirty(dirtyKeys);
   }
 }
 
@@ -15515,12 +15566,6 @@ function isSuppressedRecurrenceItem(item, suppressions) {
     item.executionFinishedAt ||
     item.doneAt
   ) {
-    return false;
-  }
-  const createdBy = String(item.createdBy || "");
-  const updatedBy = String(item.updatedBy || "");
-  const isSystem = createdBy === SYSTEM_USER_ID && updatedBy === SYSTEM_USER_ID;
-  if (!isSystem) {
     return false;
   }
   return true;
@@ -60389,9 +60434,15 @@ async function apiDeleteAvatar() {
 }
 
 async function apiMaintenanceSync(items, projectId = activeProjectId) {
+  const suppressionsDirty = readRecurrenceSuppressionsDirty();
+  const recurrenceSuppressions = Object.keys(suppressionsDirty || {});
   return apiRequest("/api/maintenance/sync", {
     method: "POST",
-    body: JSON.stringify({ projectId: projectId || "", items }),
+    body: JSON.stringify({
+      projectId: projectId || "",
+      items,
+      recurrenceSuppressions: recurrenceSuppressions.length ? recurrenceSuppressions : undefined,
+    }),
   });
 }
 
@@ -61795,6 +61846,7 @@ async function syncMaintenanceNow(items, force) {
     maintenanceSyncFailed = false;
     maintenancePendingSync = false;
     clearMaintenanceDirtyIds();
+    clearRecurrenceSuppressionsDirty();
     logSyncDebug("maintenance.sync.ok", { count: payloadItems.length });
     return { ok: true };
   } catch (error) {
