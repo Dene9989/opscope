@@ -71,6 +71,9 @@ const btnProgramacaoVoltar = document.getElementById("btnProgramacaoVoltar");
 const filtroProgramacaoSubestacao = document.getElementById("filtroProgramacaoSubestacao");
 const filtroProgramacaoStatus = document.getElementById("filtroProgramacaoStatus");
 const filtroProgramacaoPeriodo = document.getElementById("filtroProgramacaoPeriodo");
+const programacaoExportMes = document.getElementById("programacaoExportMes");
+const programacaoExportStatus = document.getElementById("programacaoExportStatus");
+const btnProgramacaoExportPdf = document.getElementById("btnProgramacaoExportPdf");
 const listaBacklog = document.getElementById("listaBacklog");
 const listaBacklogVazia = document.getElementById("listaBacklogVazia");
 const listaConcluidas = document.getElementById("listaConcluidas");
@@ -21820,6 +21823,7 @@ function renderProgramacao() {
   if (!listaAgendadas || !listaAgendadasVazia) {
     return;
   }
+  ensureProgramacaoExportMonthDefault();
   listaAgendadas.innerHTML = "";
   renderAlertaProgramacao();
   renderMensalOverrideBanner();
@@ -22017,6 +22021,316 @@ function renderProgramacao() {
   listaAgendadasVazia.textContent = "Nenhuma manutenção agendada.";
   listaAgendadasVazia.hidden = true;
   sincronizarProgramacaoDetalheComLista(ordenados);
+}
+
+function ensureProgramacaoExportMonthDefault() {
+  if (!programacaoExportMes) {
+    return;
+  }
+  if (programacaoExportMes.value) {
+    return;
+  }
+  const hoje = new Date();
+  const year = hoje.getFullYear();
+  const month = String(hoje.getMonth() + 1).padStart(2, "0");
+  programacaoExportMes.value = `${year}-${month}`;
+}
+
+function getProgramacaoExportMonthInfo() {
+  const hoje = new Date();
+  const raw = programacaoExportMes ? String(programacaoExportMes.value || "").trim() : "";
+  const match = raw.match(/^(\d{4})-(\d{2})/);
+  const year = match ? Number(match[1]) : hoje.getFullYear();
+  const monthIndex = match ? Math.max(0, Math.min(11, Number(match[2]) - 1)) : hoje.getMonth();
+  const monthLabel = PMP_MONTH_LABELS[monthIndex] || String(monthIndex + 1).padStart(2, "0");
+  return { year, monthIndex, monthLabel, rawValue: raw };
+}
+
+function getProgramacaoExportStatusFilter() {
+  return programacaoExportStatus ? programacaoExportStatus.value || "todas" : "todas";
+}
+
+function getProgramacaoStatusLabel(item) {
+  const statusKey = normalizeMaintenanceStatus(item && item.status);
+  let label = STATUS_LABELS[statusKey] || (statusKey === "cancelada" ? "Cancelada" : item.status || "-");
+  if (
+    hasExecucaoRegistradaCompleta(item) &&
+    (statusKey === "em_execucao" || statusKey === "encerramento")
+  ) {
+    label = `${label} (execução registrada)`;
+  }
+  return label;
+}
+
+function getProgramacaoScheduledDate(item) {
+  if (!item) {
+    return null;
+  }
+  return parseAnyDate(item.data || "") || parseDate(item.data) || null;
+}
+
+function getProgramacaoProcedimentoLinks(item) {
+  const ids = getMaintenanceProcedimentoIds(item);
+  if (!ids.length) {
+    return [];
+  }
+  return ids.map((id) => {
+    const procedimento = getPmpProcedimentoById(item.projectId, id) || getProcedimentoById(id);
+    const label = getProcedimentoLabel(procedimento) || id;
+    const doc = procedimento ? getProcedimentoPdfDoc(procedimento) : null;
+    const docName = doc ? doc.originalName || doc.name || "PDF" : "";
+    const url = doc && doc.url ? resolvePublicUrl(doc.url) : "";
+    return { label, url, name: docName };
+  });
+}
+
+function buildProgramacaoExportList(options = {}) {
+  const year = Number(options.year);
+  const monthIndex = Number(options.monthIndex);
+  const statusFilter = options.statusFilter || "todas";
+  const subestacaoFiltro = options.subestacao || "";
+  const projectFilter = options.projectId || "";
+  const suppressionMap = buildInspectionMonthlySuppressionMap(manutencoes);
+  const base = manutencoes.filter((item) => {
+    if (!item) {
+      return false;
+    }
+    if (projectFilter && item.projectId && item.projectId !== projectFilter) {
+      return false;
+    }
+    if (subestacaoFiltro && item.local !== subestacaoFiltro) {
+      return false;
+    }
+    const programada = getProgramacaoScheduledDate(item);
+    if (!programada) {
+      return false;
+    }
+    if (programada.getFullYear() !== year || programada.getMonth() !== monthIndex) {
+      return false;
+    }
+    const statusKey = normalizeMaintenanceStatus(item.status);
+    if (statusFilter === "concluidas") {
+      return statusKey === "concluida";
+    }
+    if (statusFilter === "previstas") {
+      return statusKey !== "concluida" && statusKey !== "cancelada";
+    }
+    return true;
+  });
+  const visible = filterInspectionSuppressed(base, suppressionMap);
+  return visible.sort((a, b) => {
+    const dateA = getProgramacaoScheduledDate(a);
+    const dateB = getProgramacaoScheduledDate(b);
+    if (dateA && dateB) {
+      if (dateA.getTime() !== dateB.getTime()) {
+        return dateA - dateB;
+      }
+    } else if (dateA) {
+      return -1;
+    } else if (dateB) {
+      return 1;
+    }
+    return String(a.titulo || a.nome || "").localeCompare(String(b.titulo || b.nome || ""), "pt-BR", {
+      numeric: true,
+      sensitivity: "base",
+    });
+  });
+}
+
+function buildProgramacaoExportHtml(items, options = {}) {
+  const monthLabel = options.monthLabel || "-";
+  const year = options.year || "";
+  const statusFilter = options.statusFilter || "todas";
+  const statusLabel =
+    statusFilter === "concluidas" ? "Concluídas" : statusFilter === "previstas" ? "Previstas" : "Todas";
+  const subestacaoLabel = options.subestacao || "Todas";
+  const projectLabel = options.projectLabel || "Todos os projetos";
+  const geradoEm = formatDateTime(new Date());
+  const total = items.length;
+  const totalConcluidas = items.filter(
+    (item) => normalizeMaintenanceStatus(item.status) === "concluida"
+  ).length;
+  const totalPrevistas = items.filter((item) => {
+    const statusKey = normalizeMaintenanceStatus(item.status);
+    return statusKey !== "concluida" && statusKey !== "cancelada";
+  }).length;
+  const rows = items
+    .map((item) => {
+      const titulo = item.titulo || item.nome || "-";
+      const subestacao = item.local || "-";
+      const equipamento = getMaintenanceEquipamentoLabel(item) || "-";
+      const osReferencia = getMaintenanceOsReferencia(item) || "-";
+      const programada = getProgramacaoScheduledDate(item);
+      const programadaLabel = programada ? formatDate(programada) : "-";
+      const concluidaEm = getItemConclusaoDate(item) || getItemFimExecucaoDate(item);
+      const conclusaoLabel = concluidaEm ? formatDate(concluidaEm) : "-";
+      const status = getProgramacaoStatusLabel(item);
+      const procedimentos = getProgramacaoProcedimentoLinks(item);
+      const procedimentosHtml = procedimentos.length
+        ? procedimentos
+            .map((proc) =>
+              proc.url
+                ? `<a href="${escapeHtml(proc.url)}" target="_blank" rel="noopener" title="${escapeHtml(
+                    proc.name || proc.label
+                  )}">${escapeHtml(proc.label || "-")}</a>`
+                : `${escapeHtml(proc.label || "-")}<span class="muted"> (sem PDF)</span>`
+            )
+            .join("<br />")
+        : "-";
+      return `
+        <tr>
+          <td>${escapeHtml(titulo)}</td>
+          <td>${escapeHtml(subestacao)}</td>
+          <td>${escapeHtml(equipamento)}</td>
+          <td>${escapeHtml(osReferencia)}</td>
+          <td>${escapeHtml(programadaLabel)}</td>
+          <td>${escapeHtml(status)}</td>
+          <td>${escapeHtml(conclusaoLabel)}</td>
+          <td>${procedimentosHtml}</td>
+        </tr>
+      `;
+    })
+    .join("");
+  return `
+    <div class="report report--programacao">
+      <div class="report__header">
+        <div class="report__brand">
+          <strong>OPSCOPE</strong>
+          <span>Programação mensal</span>
+        </div>
+        <div class="report__meta">
+          <div>Período: ${escapeHtml(`${monthLabel}/${year}`)}</div>
+          <div>Projeto: ${escapeHtml(projectLabel)}</div>
+          <div>Subestação: ${escapeHtml(subestacaoLabel)}</div>
+          <div>Status: ${escapeHtml(statusLabel)}</div>
+          <div>Gerado em: ${escapeHtml(geradoEm)}</div>
+        </div>
+      </div>
+      <div class="report__grid">
+        <div><span>Total</span><strong>${escapeHtml(String(total))}</strong></div>
+        <div><span>Concluídas</span><strong>${escapeHtml(String(totalConcluidas))}</strong></div>
+        <div><span>Previstas</span><strong>${escapeHtml(String(totalPrevistas))}</strong></div>
+      </div>
+      <div class="report__body">
+        <table class="report__table report__table--programacao">
+          <thead>
+            <tr>
+              <th>Manutenção</th>
+              <th>Subestação</th>
+              <th>Equipamento</th>
+              <th>OS/RDO</th>
+              <th>Data prevista</th>
+              <th>Status</th>
+              <th>Concluída em</th>
+              <th>Procedimentos</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || `<tr><td colspan="8">Nenhuma manutenção encontrada para os filtros.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function preencherProgramacaoPdf(popup, html, titulo) {
+  popup.document.open();
+  popup.document.write(`
+    <html>
+      <head>
+        <title>${escapeHtml(titulo)}</title>
+        <style>
+          body { font-family: "Segoe UI", sans-serif; margin: 18px; color: #16202a; }
+          .report__header { display: flex; justify-content: space-between; gap: 16px; border-bottom: 2px solid #d9d4c8; padding-bottom: 10px; }
+          .report__brand strong { font-size: 1.05rem; letter-spacing: 0.2em; display: block; }
+          .report__brand span { font-size: 0.85rem; color: #5c6772; }
+          .report__meta { font-size: 0.75rem; color: #5c6772; display: grid; gap: 4px; text-align: right; }
+          .report__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 16px 0; }
+          .report__grid div { border: 1px solid #d9d4c8; border-radius: 10px; padding: 8px; }
+          .report__grid span { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: #5c6772; }
+          .report__grid strong { font-size: 0.95rem; }
+          .report__table { width: 100%; border-collapse: collapse; font-size: 0.78rem; table-layout: fixed; }
+          .report__table th, .report__table td { border-bottom: 1px solid #e2ddd2; padding: 6px; text-align: left; vertical-align: top; }
+          .report__table th { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.6rem; background: #f6f2ea; }
+          .report__table td { word-break: break-word; }
+          .report__table--programacao th:nth-child(1),
+          .report__table--programacao td:nth-child(1) { width: 24%; }
+          .report__table--programacao th:nth-child(2),
+          .report__table--programacao td:nth-child(2) { width: 12%; }
+          .report__table--programacao th:nth-child(3),
+          .report__table--programacao td:nth-child(3) { width: 14%; }
+          .report__table--programacao th:nth-child(4),
+          .report__table--programacao td:nth-child(4) { width: 9%; }
+          .report__table--programacao th:nth-child(5),
+          .report__table--programacao td:nth-child(5) { width: 10%; }
+          .report__table--programacao th:nth-child(6),
+          .report__table--programacao td:nth-child(6) { width: 12%; }
+          .report__table--programacao th:nth-child(7),
+          .report__table--programacao td:nth-child(7) { width: 10%; }
+          .report__table--programacao th:nth-child(8),
+          .report__table--programacao td:nth-child(8) { width: 19%; }
+          .muted { color: #6b7280; font-size: 0.7rem; }
+          a { color: #0b5fc6; text-decoration: none; }
+          a:hover { text-decoration: underline; }
+          @media print {
+            body { margin: 10px; }
+            .report__table th { background: #f6f2ea !important; -webkit-print-color-adjust: exact; }
+          }
+        </style>
+      </head>
+      <body>
+        ${html}
+      </body>
+    </html>
+  `);
+  popup.document.close();
+}
+
+async function exportarProgramacaoPdf() {
+  const popup = window.open("", "_blank");
+  if (!popup) {
+    alert("Popup bloqueado. Permita a abertura para exportar o PDF.");
+    return;
+  }
+  popup.document.write("<p>Gerando PDF da programação...</p>");
+  popup.document.close();
+
+  const monthInfo = getProgramacaoExportMonthInfo();
+  const statusFilter = getProgramacaoExportStatusFilter();
+  const subestacaoFiltro = filtroProgramacaoSubestacao ? filtroProgramacaoSubestacao.value : "";
+  const projectLabel = activeProjectId
+    ? (() => {
+        const project = getProjectById(activeProjectId);
+        return project ? getProjectLabel(project) : activeProjectId;
+      })()
+    : "Todos os projetos";
+
+  const items = buildProgramacaoExportList({
+    year: monthInfo.year,
+    monthIndex: monthInfo.monthIndex,
+    statusFilter,
+    subestacao: subestacaoFiltro,
+    projectId: activeProjectId || "",
+  });
+
+  const projectIds = Array.from(
+    new Set(items.map((item) => String(item.projectId || "").trim()).filter(Boolean))
+  );
+  if (projectIds.length) {
+    await Promise.all(projectIds.map((projectId) => ensurePmpProcedimentos(projectId)));
+  }
+
+  const html = buildProgramacaoExportHtml(items, {
+    year: monthInfo.year,
+    monthLabel: monthInfo.monthLabel,
+    statusFilter,
+    subestacao: subestacaoFiltro || "Todas",
+    projectLabel,
+  });
+  preencherProgramacaoPdf(popup, html, `Programação - ${monthInfo.monthLabel}/${monthInfo.year}`);
+  popup.focus();
+  popup.print();
 }
 
 function renderListaCustom(items, container, emptyEl, allowedActions) {
@@ -63056,6 +63370,11 @@ if (filtroProgramacaoStatus) {
 }
 if (filtroProgramacaoPeriodo) {
   filtroProgramacaoPeriodo.addEventListener("change", renderProgramacao);
+}
+if (btnProgramacaoExportPdf) {
+  btnProgramacaoExportPdf.addEventListener("click", () => {
+    exportarProgramacaoPdf();
+  });
 }
 if (kpiPeriodo) {
   kpiPeriodo.addEventListener("change", () => {

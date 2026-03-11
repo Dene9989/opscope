@@ -1537,6 +1537,24 @@
               Mensal do dia
             </button>
           </div>
+          <div class="field field--compact">
+            <label for="programacaoExportMes">Mês PDF</label>
+            <input id="programacaoExportMes" type="month" />
+          </div>
+          <div class="field field--compact">
+            <label for="programacaoExportStatus">Status PDF</label>
+            <select id="programacaoExportStatus">
+              <option value="todas">Todas</option>
+              <option value="concluidas">Concluídas</option>
+              <option value="previstas">Previstas</option>
+            </select>
+          </div>
+          <div class="field field--compact">
+            <label>&nbsp;</label>
+            <button id="btnProgramacaoExportPdf" class="btn btn--primary btn--small" type="button">
+              Exportar como PDF
+            </button>
+          </div>
         </div>
         <div id="programacaoListaConteudo" class="programacao-lista">
           <p id="alertaProgramacao" class="alert alert--warning" hidden></p>
@@ -8733,6 +8751,6 @@
     </footer>
 
     <script src="assets/js/powerbiExport.js?v=20260227-2"></script>
-    <script src="app.js?v=20260311-9"></script>
+    <script src="app.js?v=20260311-10"></script>
   </body>
 </html>
