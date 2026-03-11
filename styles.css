@@ -17024,19 +17024,25 @@ textarea:focus {
 }
 
 #programacao #lista-programacao .programacao-toolbar__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
-  gap: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
   align-items: stretch;
 }
 
 #programacao #lista-programacao .programacao-toolbar__block {
+  flex: 1 1 520px;
+  min-width: 0;
   border: 1px solid rgba(110, 138, 161, 0.24);
   border-radius: 14px;
   padding: 12px;
   background: rgba(9, 24, 38, 0.5);
   display: grid;
   gap: 12px;
+}
+
+#programacao #lista-programacao .programacao-toolbar__block--export {
+  flex: 1 1 320px;
 }
 
 #programacao #lista-programacao .programacao-toolbar__block-title {
@@ -17048,18 +17054,19 @@ textarea:focus {
 
 #programacao #lista-programacao .programacao-toolbar__fields {
   display: grid;
-  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 12px;
   align-items: end;
 }
 
 #programacao #lista-programacao .programacao-toolbar__fields--export {
-  grid-template-columns: repeat(2, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
 #programacao #lista-programacao .programacao-toolbar__block-actions {
   display: flex;
   justify-content: flex-end;
+  margin-top: auto;
 }
 
 #programacao #lista-programacao .programacao-toolbar__block-actions .btn {
@@ -17067,11 +17074,8 @@ textarea:focus {
 }
 
 @media (max-width: 1200px) {
-  #programacao #lista-programacao .programacao-toolbar__grid {
-    grid-template-columns: 1fr;
-  }
   #programacao #lista-programacao .programacao-toolbar__fields {
-    grid-template-columns: repeat(2, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   }
   #programacao #lista-programacao .programacao-toolbar__block-actions {
     justify-content: flex-start;
