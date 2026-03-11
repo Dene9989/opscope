@@ -33568,8 +33568,31 @@ function isWeekend(date) {
   return day === 0 || day === 6;
 }
 
+function isActivityWeekdaysOnly(activity) {
+  if (!activity) {
+    return false;
+  }
+  if (activity.onlyWeekdays) {
+    return true;
+  }
+  const originKey = normalizeSearchValue(activity.origem || "");
+  if (originKey !== "importado") {
+    return false;
+  }
+  const freq = getPmpFrequency(activity.frequencia);
+  if (!freq || freq.unit !== "day") {
+    return false;
+  }
+  const template = getPmpScheduleTemplate(activity);
+  if (template && template.frequencia === "daily") {
+    const dias = normalizeDailyDays(template.dailyDays);
+    return dias.every((value) => value >= 1 && value <= 5);
+  }
+  return false;
+}
+
 function shouldSkipWeekend(activity, date) {
-  return Boolean(activity && activity.onlyWeekdays) && isWeekend(date);
+  return Boolean(isActivityWeekdaysOnly(activity)) && isWeekend(date);
 }
 
 function parseDurationToMinutes(value) {
@@ -33818,6 +33841,40 @@ function getPmpPeriods(viewMode, year, monthIndex) {
 }
 
 function getActivityStartDate(activity, year) {
+  if (activity && normalizeSearchValue(activity.origem || "") === "importado") {
+    const snapshot = activity.sourceSnapshot || null;
+    const snapshotDate = snapshot
+      ? parseAnyDate(
+          snapshot.dataProgramada || snapshot.concluidaEm || snapshot.inicioExecucao || ""
+        )
+      : null;
+    if (snapshotDate) {
+      return snapshotDate;
+    }
+    if (activity.maintenanceSourceId && activity.projectId) {
+      const list = getPmpMaintenanceList(activity.projectId) || [];
+      const match = list.find(
+        (item) => item && String(item.id || "") === String(activity.maintenanceSourceId)
+      );
+      if (match) {
+        const planned = parseAnyDate(match.data || match.prazo || match.dueDate || "");
+        if (planned) {
+          return planned;
+        }
+        const doneDate = getItemConclusaoDate(match) || getItemFimExecucaoDate(match);
+        if (doneDate) {
+          return doneDate;
+        }
+      }
+    }
+    const template = getPmpScheduleTemplate(activity);
+    if (template && template.inicio) {
+      const templateStart = parseAnyDate(template.inicio);
+      if (templateStart) {
+        return templateStart;
+      }
+    }
+  }
   const parsed = activity && activity.inicio ? parseAnyDate(activity.inicio) : null;
   if (parsed) {
     return parsed;
@@ -34106,6 +34163,40 @@ function getScheduledPeriodKeysFromTemplate(template, periods, viewMode) {
     }
   });
   return keys;
+}
+
+function doesMaintenanceMatchPmpActivity(activity, item) {
+  if (!activity || !item) {
+    return false;
+  }
+  const activityTemplateId = String(
+    activity.templateIdOrigem || activity.templateId || activity.template || ""
+  ).trim();
+  const itemTemplateId = String(
+    item.templateId || item.template || item.modeloId || ""
+  ).trim();
+  const templateMatch =
+    activityTemplateId && itemTemplateId && activityTemplateId === itemTemplateId;
+  const sourceMatch =
+    activity.maintenanceSourceId &&
+    String(item.id || "") === String(activity.maintenanceSourceId);
+  const itemEquipIds = getMaintenanceEquipamentoIds(item);
+  const equipMatch =
+    activity.equipamentoId &&
+    ((item.equipamentoId && activity.equipamentoId === item.equipamentoId) ||
+      itemEquipIds.includes(activity.equipamentoId));
+  const tituloBase = normalizeSearchValue(
+    item.titulo || item.nome || item.descricao || ""
+  );
+  const nomeMatch = activity.nome
+    ? tituloBase.includes(normalizeSearchValue(activity.nome))
+    : false;
+  const codigoMatch = activity.codigo
+    ? tituloBase.includes(normalizeSearchValue(activity.codigo))
+    : false;
+  return Boolean(
+    equipMatch || nomeMatch || codigoMatch || templateMatch || sourceMatch
+  );
 }
 
 function getPeriodKeyForDate(viewMode, date, year, monthIndex) {
@@ -35306,31 +35397,7 @@ function buildAutoExecutionMap(activities, periods, viewMode, year, monthIndex) 
           return;
         }
         const itemEquipIds = getMaintenanceEquipamentoIds(item);
-        const equipMatch =
-          activity.equipamentoId &&
-          ((item.equipamentoId && activity.equipamentoId === item.equipamentoId) ||
-            itemEquipIds.includes(activity.equipamentoId));
-        const activityTemplateId = String(
-          activity.templateIdOrigem || activity.templateId || activity.template || ""
-        ).trim();
-        const itemTemplateId = String(
-          item.templateId || item.template || item.modeloId || ""
-        ).trim();
-        const templateMatch =
-          activityTemplateId && itemTemplateId && activityTemplateId === itemTemplateId;
-        const sourceMatch =
-          activity.maintenanceSourceId &&
-          String(item.id || "") === String(activity.maintenanceSourceId);
-        const tituloBase = normalizeSearchValue(
-          item.titulo || item.nome || item.descricao || ""
-        );
-        const nomeMatch = activity.nome
-          ? tituloBase.includes(normalizeSearchValue(activity.nome))
-          : false;
-        const codigoMatch = activity.codigo
-          ? tituloBase.includes(normalizeSearchValue(activity.codigo))
-          : false;
-        if (!equipMatch && !nomeMatch && !codigoMatch && !templateMatch && !sourceMatch) {
+        if (!doesMaintenanceMatchPmpActivity(activity, item)) {
           return;
         }
       const meta = scheduleMeta.get(activity.id);
@@ -35384,6 +35451,88 @@ function buildAutoExecutionMap(activities, periods, viewMode, year, monthIndex) 
     });
   });
   return auto;
+}
+
+function buildPmpReplanMap(activities, periods, viewMode, year, monthIndex) {
+  const map = new Map();
+  if (!activities.length) {
+    return map;
+  }
+  const byProject = new Map();
+  activities.forEach((activity) => {
+    if (!activity) {
+      return;
+    }
+    const list = byProject.get(activity.projectId) || [];
+    list.push(activity);
+    byProject.set(activity.projectId, list);
+  });
+  byProject.forEach((projectActivities, projectId) => {
+    const items = getPmpMaintenanceList(projectId);
+    if (!items.length) {
+      return;
+    }
+    projectActivities.forEach((activity) => {
+      items.forEach((item) => {
+        if (!item || !doesMaintenanceMatchPmpActivity(activity, item)) {
+          return;
+        }
+        const motivo = item.backlogMotivo || {};
+        if (!motivo.replanejamentoValido || !motivo.replanejamentoData) {
+          return;
+        }
+        const newDate = parseAnyDate(motivo.replanejamentoData || item.data || "");
+        if (newDate && newDate.getFullYear() === year) {
+          const newKey = getPeriodKeyForDate(viewMode, newDate, year, monthIndex);
+          setExecutionMap(map, activity.id, newKey, {
+            scheduledFor: newDate,
+            source: "replan",
+            status: "agendada",
+            manutencaoId: item.id,
+            osReferencia: getMaintenanceOsReferencia(item),
+          });
+        }
+        const originalDate = parseAnyDate(
+          motivo.registradoEm || item.backlogAutoEm || item.updatedAt || ""
+        );
+        if (originalDate && originalDate.getFullYear() === year) {
+          const originalKey = getPeriodKeyForDate(
+            viewMode,
+            originalDate,
+            year,
+            monthIndex
+          );
+          setExecutionMap(map, activity.id, originalKey, {
+            scheduledFor: originalDate,
+            source: "replan",
+            status: "cancelada",
+            manutencaoId: item.id,
+            osReferencia: getMaintenanceOsReferencia(item),
+          });
+        }
+      });
+    });
+  });
+  return map;
+}
+
+function mergeExecutionMapFallback(target, fallback) {
+  if (!target || !fallback) {
+    return target;
+  }
+  fallback.forEach((periodMap, activityId) => {
+    if (!target.has(activityId)) {
+      target.set(activityId, new Map(periodMap));
+      return;
+    }
+    const targetMap = target.get(activityId);
+    periodMap.forEach((value, key) => {
+      if (!targetMap.has(key)) {
+        targetMap.set(key, value);
+      }
+    });
+  });
+  return target;
 }
 
 function getDueDateForPeriod(activity, period, viewMode) {
@@ -36187,6 +36336,8 @@ function renderPmpModule() {
   const periods = getPmpPeriods(viewMode, year, monthIndex);
   const scheduledKeysMap = new Map();
   const manualMap = getExecutionsByActivity();
+  const replanMap = buildPmpReplanMap(filtrados, periods, viewMode, year, monthIndex);
+  mergeExecutionMapFallback(manualMap, replanMap);
   const autoMap = buildAutoExecutionMap(filtrados, periods, viewMode, year, monthIndex);
   const today = startOfDay(new Date());
   pmpLastSnapshot = {
@@ -37611,6 +37762,8 @@ function buildPmpSnapshot() {
   const activities = getPmpFilteredActivities();
   const periods = getPmpPeriods(viewMode, year, monthIndex);
   const manualMap = getExecutionsByActivity();
+  const replanMap = buildPmpReplanMap(activities, periods, viewMode, year, monthIndex);
+  mergeExecutionMapFallback(manualMap, replanMap);
   const autoMap = buildAutoExecutionMap(activities, periods, viewMode, year, monthIndex);
   const today = startOfDay(new Date());
   const monthLabel = PMP_MONTH_LABELS[monthIndex] || String(monthIndex + 1).padStart(2, "0");
