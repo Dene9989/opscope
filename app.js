@@ -22146,8 +22146,8 @@ function buildProgramacaoExportHtml(items, options = {}) {
   const subestacaoLabel = options.subestacao || "Todas";
   const projectLabel = options.projectLabel || "Todos os projetos";
   const geradoEm = formatDateTime(new Date());
-  const opscopeLogo = resolvePublicUrl("assets/img/opscope-logo.png");
-  const engelmigLogo = resolvePublicUrl("assets/engelmig-logo.png");
+  const opscopeLogo = options.opscopeLogo || resolvePublicUrl("assets/img/opscope-logo.png");
+  const engelmigLogo = options.engelmigLogo || resolvePublicUrl("assets/engelmig-logo.png");
   const total = items.length;
   const totalConcluidas = items.filter(
     (item) => normalizeMaintenanceStatus(item.status) === "concluida"
@@ -22312,6 +22312,71 @@ function preencherProgramacaoPdf(popup, html, titulo) {
   popup.document.close();
 }
 
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    if (!blob) {
+      resolve("");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Falha ao ler imagem."));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function loadProgramacaoPdfLogo(url) {
+  const resolved = resolvePublicUrl(url);
+  if (!resolved) {
+    return "";
+  }
+  try {
+    const response = await fetch(resolved, { cache: "force-cache" });
+    if (!response.ok) {
+      return resolved;
+    }
+    const blob = await response.blob();
+    const dataUrl = await blobToDataUrl(blob);
+    return dataUrl || resolved;
+  } catch (error) {
+    return resolved;
+  }
+}
+
+function waitForDocumentImages(doc, timeoutMs = 2500) {
+  const images = Array.from((doc && doc.images) || []);
+  if (!images.length) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    let remaining = images.length;
+    let settled = false;
+    const finish = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      resolve();
+    };
+    const timer = setTimeout(finish, timeoutMs);
+    const check = () => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearTimeout(timer);
+        finish();
+      }
+    };
+    images.forEach((img) => {
+      if (img.complete) {
+        check();
+        return;
+      }
+      img.addEventListener("load", check, { once: true });
+      img.addEventListener("error", check, { once: true });
+    });
+  });
+}
+
 async function exportarProgramacaoPdf() {
   const popup = window.open("", "_blank");
   if (!popup) {
@@ -22346,15 +22411,23 @@ async function exportarProgramacaoPdf() {
     await Promise.all(projectIds.map((projectId) => ensurePmpProcedimentos(projectId)));
   }
 
+  const [opscopeLogo, engelmigLogo] = await Promise.all([
+    loadProgramacaoPdfLogo("assets/img/opscope-logo.png"),
+    loadProgramacaoPdfLogo("assets/engelmig-logo.png"),
+  ]);
+
   const html = buildProgramacaoExportHtml(items, {
     year: monthInfo.year,
     monthLabel: monthInfo.monthLabel,
     statusFilter,
     subestacao: subestacaoFiltro || "Todas",
     projectLabel,
+    opscopeLogo,
+    engelmigLogo,
   });
   preencherProgramacaoPdf(popup, html, `Programação - ${monthInfo.monthLabel}/${monthInfo.year}`);
   popup.focus();
+  await waitForDocumentImages(popup.document);
   popup.print();
 }
 

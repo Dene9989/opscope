@@ -16994,64 +16994,103 @@ textarea:focus {
 
 #programacao #lista-programacao .programacao-toolbar {
   display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: start;
   gap: 16px;
 }
 
-#programacao #lista-programacao .programacao-toolbar__filters {
+#programacao #lista-programacao .programacao-toolbar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#programacao #lista-programacao .programacao-toolbar__title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #e6eef7;
+}
+
+#programacao #lista-programacao .programacao-toolbar__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+#programacao #lista-programacao .programacao-toolbar__actions [data-powerbi-export-slot='1'] {
+  display: flex;
+  align-items: center;
+}
+
+#programacao #lista-programacao .programacao-toolbar__content {
   display: grid;
-  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  grid-template-columns: minmax(0, 1fr) 1px minmax(260px, 360px);
+  gap: 16px;
+  align-items: stretch;
+}
+
+#programacao #lista-programacao .programacao-toolbar__divider {
+  background: rgba(110, 138, 161, 0.24);
+  border-radius: 999px;
+}
+
+#programacao #lista-programacao .programacao-toolbar__section {
+  display: grid;
+  gap: 10px;
+}
+
+#programacao #lista-programacao .programacao-toolbar__section-title {
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(186, 203, 219, 0.8);
+}
+
+#programacao #lista-programacao .programacao-toolbar__section-body {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
   gap: 12px;
   align-items: end;
 }
 
-#programacao #lista-programacao .programacao-toolbar__export {
-  display: grid;
-  gap: 10px;
-  align-content: start;
-  min-width: 260px;
-}
-
-#programacao #lista-programacao .programacao-toolbar__export-fields {
-  display: grid;
+#programacao #lista-programacao .programacao-toolbar__section-body--export {
   grid-template-columns: repeat(2, minmax(140px, 1fr));
-  gap: 10px;
 }
 
-#programacao #lista-programacao .programacao-toolbar__export-actions {
+#programacao #lista-programacao .programacao-toolbar__section-footer {
   display: flex;
   justify-content: flex-end;
 }
 
-#programacao #lista-programacao .programacao-toolbar__export-actions .btn {
-  min-width: 180px;
+#programacao #lista-programacao .programacao-toolbar__section-footer .btn {
+  min-width: 190px;
 }
 
 @media (max-width: 1200px) {
-  #programacao #lista-programacao .programacao-toolbar {
+  #programacao #lista-programacao .programacao-toolbar__content {
     grid-template-columns: 1fr;
   }
-  #programacao #lista-programacao .programacao-toolbar__filters {
+  #programacao #lista-programacao .programacao-toolbar__divider {
+    height: 1px;
+  }
+  #programacao #lista-programacao .programacao-toolbar__section-body {
     grid-template-columns: repeat(2, minmax(180px, 1fr));
   }
-  #programacao #lista-programacao .programacao-toolbar__export {
-    min-width: 0;
-  }
-  #programacao #lista-programacao .programacao-toolbar__export-fields {
-    grid-template-columns: repeat(2, minmax(160px, 1fr));
-  }
-  #programacao #lista-programacao .programacao-toolbar__export-actions {
+  #programacao #lista-programacao .programacao-toolbar__section-footer {
     justify-content: flex-start;
   }
 }
 
 @media (max-width: 760px) {
-  #programacao #lista-programacao .programacao-toolbar__filters,
-  #programacao #lista-programacao .programacao-toolbar__export-fields {
+  #programacao #lista-programacao .programacao-toolbar__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  #programacao #lista-programacao .programacao-toolbar__section-body,
+  #programacao #lista-programacao .programacao-toolbar__section-body--export {
     grid-template-columns: 1fr;
   }
-  #programacao #lista-programacao .programacao-toolbar__export-actions .btn {
+  #programacao #lista-programacao .programacao-toolbar__section-footer .btn {
     width: 100%;
   }
 }
