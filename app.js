@@ -21205,14 +21205,16 @@ function criarCardManutencao(item, permissoes, options = {}) {
 
   const statusGroup = document.createElement("div");
   statusGroup.className = "status-group";
-  const execucaoRegistrada = hasExecucaoRegistradaCompleta(item);
-  const execucaoRegistradaLabel = execucaoRegistrada ? getExecucaoRegistradaLabel(item) : "";
+  const execucaoRegistrada = hasExecucaoRegistrada(item);
+  const execucaoRegistradaLabel = hasExecucaoRegistradaCompleta(item)
+    ? getExecucaoRegistradaLabel(item)
+    : "";
   const pendenciaDiariaExecucao = getRegistroExecucaoPendenteDateKey(item);
   const revalidacaoDiariaPendente = Boolean(pendenciaDiariaExecucao);
   const revalidacaoManutencaoDisponivel = isRegistroExecucaoRevalidacaoDisponivel(item);
   const revalidadaHoje = isManutencaoRevalidadaNoDia(item);
   const esconderEmExecucao =
-    Boolean(execucaoRegistradaLabel) &&
+    execucaoRegistrada &&
     statusBase === "em_execucao" &&
     statusNormalized !== "concluida" &&
     !revalidadaHoje;
@@ -21592,10 +21594,13 @@ function criarCardProgramacaoCompacto(item) {
   const badge = document.createElement("span");
   badge.className = `status status--${badgeInfo.base}`;
   badge.textContent = badgeInfo.label;
-  const execucaoRegistradaLabel = getExecucaoRegistradaLabel(item);
+  const execucaoRegistrada = hasExecucaoRegistrada(item);
+  const execucaoRegistradaLabel = hasExecucaoRegistradaCompleta(item)
+    ? getExecucaoRegistradaLabel(item)
+    : "";
   const revalidadaHoje = isManutencaoRevalidadaNoDia(item);
   const esconderEmExecucao =
-    execucaoRegistradaLabel &&
+    execucaoRegistrada &&
     badgeInfo.base === "em_execucao" &&
     statusNormalized !== "concluida" &&
     !revalidadaHoje;
