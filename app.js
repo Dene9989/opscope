@@ -35568,6 +35568,13 @@ function getActivityAllowedMonths(activity) {
   if (!mesesRaw) {
     return null;
   }
+  if (!mesesRaw.length) {
+    const originKey = normalizeSearchValue(activity && activity.origem || "");
+    const hasImportMeta =
+      originKey === "importado" ||
+      Boolean(activity && (activity.maintenanceSourceId || activity.templateIdOrigem));
+    return hasImportMeta ? null : new Set();
+  }
   const meses = mesesRaw
     ? activity.meses.map((value) => Number(value)).filter((value) => value >= 0 && value <= 11)
     : [];
