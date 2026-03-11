@@ -21210,14 +21210,15 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const pendenciaDiariaExecucao = getRegistroExecucaoPendenteDateKey(item);
   const revalidacaoDiariaPendente = Boolean(pendenciaDiariaExecucao);
   const revalidacaoManutencaoDisponivel = isRegistroExecucaoRevalidacaoDisponivel(item);
+  const revalidadaHoje = isManutencaoRevalidadaNoDia(item);
   const esconderEmExecucao =
     Boolean(execucaoRegistradaLabel) &&
     statusBase === "em_execucao" &&
-    statusNormalized !== "concluida";
+    statusNormalized !== "concluida" &&
+    !revalidadaHoje;
   if (!esconderEmExecucao) {
     statusGroup.append(badge);
   }
-  const revalidadaHoje = isManutencaoRevalidadaNoDia(item);
   if (revalidadaHoje && statusNormalized === "em_execucao") {
     const revalidadaBadge = document.createElement("span");
     revalidadaBadge.className = "status status--revalidada";
@@ -21591,16 +21592,23 @@ function criarCardProgramacaoCompacto(item) {
   const badge = document.createElement("span");
   badge.className = `status status--${badgeInfo.base}`;
   badge.textContent = badgeInfo.label;
-  statusGroup.append(badge);
-
+  const execucaoRegistradaLabel = getExecucaoRegistradaLabel(item);
   const revalidadaHoje = isManutencaoRevalidadaNoDia(item);
+  const esconderEmExecucao =
+    execucaoRegistradaLabel &&
+    badgeInfo.base === "em_execucao" &&
+    statusNormalized !== "concluida" &&
+    !revalidadaHoje;
+  if (!esconderEmExecucao) {
+    statusGroup.append(badge);
+  }
+
   if (revalidadaHoje && statusNormalized === "em_execucao") {
     const revalidadaBadge = document.createElement("span");
     revalidadaBadge.className = "status status--revalidada";
     revalidadaBadge.textContent = "Manutenção revalidada";
     statusGroup.append(revalidadaBadge);
   }
-  const execucaoRegistradaLabel = getExecucaoRegistradaLabel(item);
   if (execucaoRegistradaLabel && statusNormalized !== "concluida") {
     const execBadge = document.createElement("span");
     execBadge.className = "status status--execucao-registrada";
@@ -55762,31 +55770,9 @@ async function salvarRegistroExecucao(event) {
     mostrarMensagemRegistroExecucao(comentarioMsg, true);
     return;
   }
-  const arquivos = getRegistroEvidenciaFiles().filter(Boolean);
-  const arquivoInvalido = arquivos.find((file) => !(file.type && file.type.startsWith("image/")));
-  if (arquivoInvalido) {
-    mostrarMensagemRegistroExecucao("As evidências devem ser imagens válidas.", true);
-    return;
-  }
-  let evidencias = Array.isArray(registroExecucaoFotosAtual)
+  const evidencias = Array.isArray(registroExecucaoFotosAtual)
     ? dedupeEvidenceList(registroExecucaoFotosAtual)
     : [];
-  if (arquivos.length) {
-    try {
-      evidencias = await lerEvidencias(arquivos);
-    } catch (error) {
-      const message = error && error.message ? error.message : "Falha ao enviar evidências do dia.";
-      mostrarMensagemRegistroExecucao(message, true);
-      return;
-    }
-  }
-  if (evidencias.length < MIN_EVIDENCIAS) {
-    mostrarMensagemRegistroExecucao(
-      `Anexe no mínimo ${MIN_EVIDENCIAS} fotos para fechar o dia.`,
-      true
-    );
-    return;
-  }
   const observacaoExecucao = registroObsExecucao ? registroObsExecucao.value.trim() : "";
   const registradoEm = toIsoUtc(new Date());
   const registroExecucao = {
