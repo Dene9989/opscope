@@ -7,7 +7,7 @@
     <title>OPSCOPE - Sistema de Gestão Operacional e Manutenção</title>
     <link rel="icon" type="image/png" href="assets/img/opscope-logo.png" />
     <link rel="apple-touch-icon" href="assets/img/opscope-logo.png" />
-    <link rel="stylesheet" href="styles.css?v=20260310-6" />
+    <link rel="stylesheet" href="styles.css?v=20260311-12" />
     <link rel="stylesheet" href="assets/css/login.css" />
   </head>
   <body class="is-visitor">
@@ -1502,58 +1502,63 @@
       <section class="card" id="lista-programacao">
         <h2>Programação</h2>
         <div class="programacao-toolbar">
-          <div class="field">
-            <label for="filtroProgramacaoSubestacao">Subestação</label>
-            <select id="filtroProgramacaoSubestacao">
-              <option value="">Todas</option>
-            </select>
+          <div class="programacao-toolbar__filters">
+            <div class="field">
+              <label for="filtroProgramacaoSubestacao">Subestação</label>
+              <select id="filtroProgramacaoSubestacao">
+                <option value="">Todas</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="filtroProgramacaoStatus">Status</label>
+              <select id="filtroProgramacaoStatus">
+                <option value="">Todos</option>
+                <option value="agendada">Agendada</option>
+                <option value="liberada">Liberada</option>
+                <option value="em_execucao">Em execução</option>
+                <option value="encerramento">Encerrada</option>
+                <option value="execucao_registrada">Execução registrada</option>
+                <option value="concluida">Executadas</option>
+                <option value="hoje">Vence hoje</option>
+                <option value="backlog">Backlog</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="filtroProgramacaoPeriodo">Período</label>
+              <select id="filtroProgramacaoPeriodo">
+                <option value="">Todos</option>
+                <option value="hoje">Hoje</option>
+                <option value="semana">Semana</option>
+                <option value="mes">Mês</option>
+              </select>
+            </div>
+            <div class="field field--compact">
+              <label>Mensal do dia</label>
+              <button id="btnMensalOverride" class="btn btn--ghost btn--small" type="button" hidden>
+                Mensal do dia
+              </button>
+            </div>
           </div>
-          <div class="field">
-            <label for="filtroProgramacaoStatus">Status</label>
-            <select id="filtroProgramacaoStatus">
-              <option value="">Todos</option>
-              <option value="agendada">Agendada</option>
-              <option value="liberada">Liberada</option>
-              <option value="em_execucao">Em execução</option>
-              <option value="encerramento">Encerrada</option>
-              <option value="execucao_registrada">Execução registrada</option>
-              <option value="concluida">Executadas</option>
-              <option value="hoje">Vence hoje</option>
-              <option value="backlog">Backlog</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="filtroProgramacaoPeriodo">Período</label>
-            <select id="filtroProgramacaoPeriodo">
-              <option value="">Todos</option>
-              <option value="hoje">Hoje</option>
-              <option value="semana">Semana</option>
-              <option value="mes">Mês</option>
-            </select>
-          </div>
-          <div class="field field--compact">
-            <label>Mensal do dia</label>
-            <button id="btnMensalOverride" class="btn btn--ghost btn--small" type="button" hidden>
-              Mensal do dia
-            </button>
-          </div>
-          <div class="field field--compact">
-            <label for="programacaoExportMes">Mês PDF</label>
-            <input id="programacaoExportMes" type="month" />
-          </div>
-          <div class="field field--compact">
-            <label for="programacaoExportStatus">Status PDF</label>
-            <select id="programacaoExportStatus">
-              <option value="todas">Todas</option>
-              <option value="concluidas">Concluídas</option>
-              <option value="previstas">Previstas</option>
-            </select>
-          </div>
-          <div class="field field--compact">
-            <label>&nbsp;</label>
-            <button id="btnProgramacaoExportPdf" class="btn btn--primary btn--small" type="button">
-              Exportar como PDF
-            </button>
+          <div class="programacao-toolbar__export">
+            <div class="programacao-toolbar__export-fields">
+              <div class="field field--compact">
+                <label for="programacaoExportMes">Mês PDF</label>
+                <input id="programacaoExportMes" type="month" />
+              </div>
+              <div class="field field--compact">
+                <label for="programacaoExportStatus">Status PDF</label>
+                <select id="programacaoExportStatus">
+                  <option value="todas">Todas</option>
+                  <option value="concluidas">Concluídas</option>
+                  <option value="previstas">Previstas</option>
+                </select>
+              </div>
+            </div>
+            <div class="programacao-toolbar__export-actions">
+              <button id="btnProgramacaoExportPdf" class="btn btn--primary btn--small" type="button">
+                Exportar como PDF
+              </button>
+            </div>
           </div>
         </div>
         <div id="programacaoListaConteudo" class="programacao-lista">
@@ -8751,6 +8756,6 @@
     </footer>
 
     <script src="assets/js/powerbiExport.js?v=20260227-2"></script>
-    <script src="app.js?v=20260311-10"></script>
+    <script src="app.js?v=20260311-11"></script>
   </body>
 </html>

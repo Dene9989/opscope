@@ -22146,6 +22146,8 @@ function buildProgramacaoExportHtml(items, options = {}) {
   const subestacaoLabel = options.subestacao || "Todas";
   const projectLabel = options.projectLabel || "Todos os projetos";
   const geradoEm = formatDateTime(new Date());
+  const opscopeLogo = resolvePublicUrl("assets/img/opscope-logo.png");
+  const engelmigLogo = resolvePublicUrl("assets/engelmig-logo.png");
   const total = items.length;
   const totalConcluidas = items.filter(
     (item) => normalizeMaintenanceStatus(item.status) === "concluida"
@@ -22193,20 +22195,29 @@ function buildProgramacaoExportHtml(items, options = {}) {
     .join("");
   return `
     <div class="report report--programacao">
-      <div class="report__header">
+      <div class="report__header report__header--programacao">
         <div class="report__brand">
-          <strong>OPSCOPE</strong>
-          <span>Programação mensal</span>
+          <img class="report__logo" src="${escapeHtml(opscopeLogo)}" alt="OPSCOPE" />
+          <div class="report__brand-text">
+            <span class="report__brand-eyebrow">OPSCOPE</span>
+            <strong>Programação mensal</strong>
+          </div>
         </div>
-        <div class="report__meta">
-          <div>Período: ${escapeHtml(`${monthLabel}/${year}`)}</div>
-          <div>Projeto: ${escapeHtml(projectLabel)}</div>
-          <div>Subestação: ${escapeHtml(subestacaoLabel)}</div>
-          <div>Status: ${escapeHtml(statusLabel)}</div>
-          <div>Gerado em: ${escapeHtml(geradoEm)}</div>
+        <div class="report__title">
+          <h1>Programação de Manutenções</h1>
+          <p>Período ${escapeHtml(`${monthLabel}/${year}`)}</p>
+        </div>
+        <div class="report__brand report__brand--right">
+          <img class="report__logo report__logo--right" src="${escapeHtml(engelmigLogo)}" alt="Engelmig" />
         </div>
       </div>
-      <div class="report__grid">
+      <div class="report__meta-grid">
+        <div><span>Projeto</span><strong>${escapeHtml(projectLabel)}</strong></div>
+        <div><span>Subestação</span><strong>${escapeHtml(subestacaoLabel)}</strong></div>
+        <div><span>Status</span><strong>${escapeHtml(statusLabel)}</strong></div>
+        <div><span>Gerado em</span><strong>${escapeHtml(geradoEm)}</strong></div>
+      </div>
+      <div class="report__grid report__grid--kpis">
         <div><span>Total</span><strong>${escapeHtml(String(total))}</strong></div>
         <div><span>Concluídas</span><strong>${escapeHtml(String(totalConcluidas))}</strong></div>
         <div><span>Previstas</span><strong>${escapeHtml(String(totalPrevistas))}</strong></div>
@@ -22241,19 +22252,33 @@ function preencherProgramacaoPdf(popup, html, titulo) {
       <head>
         <title>${escapeHtml(titulo)}</title>
         <style>
-          body { font-family: "Segoe UI", sans-serif; margin: 18px; color: #16202a; }
-          .report__header { display: flex; justify-content: space-between; gap: 16px; border-bottom: 2px solid #d9d4c8; padding-bottom: 10px; }
-          .report__brand strong { font-size: 1.05rem; letter-spacing: 0.2em; display: block; }
-          .report__brand span { font-size: 0.85rem; color: #5c6772; }
-          .report__meta { font-size: 0.75rem; color: #5c6772; display: grid; gap: 4px; text-align: right; }
-          .report__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 16px 0; }
-          .report__grid div { border: 1px solid #d9d4c8; border-radius: 10px; padding: 8px; }
+          @page { size: A4 landscape; margin: 12mm; }
+          body { font-family: "Segoe UI", sans-serif; margin: 0; color: #16202a; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .report { padding: 18px; }
+          .report__header--programacao { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; border-bottom: 2px solid #d9d4c8; padding-bottom: 12px; }
+          .report__brand { display: flex; align-items: center; gap: 12px; }
+          .report__brand--right { justify-content: flex-end; }
+          .report__logo { width: 72px; height: auto; object-fit: contain; }
+          .report__logo--right { width: 88px; }
+          .report__brand-text { display: grid; gap: 2px; }
+          .report__brand-eyebrow { font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase; color: #5c6772; }
+          .report__brand strong { font-size: 1.05rem; letter-spacing: 0.08em; text-transform: uppercase; }
+          .report__title { text-align: center; }
+          .report__title h1 { margin: 0; font-size: 1.35rem; letter-spacing: 0.05em; text-transform: uppercase; }
+          .report__title p { margin: 4px 0 0; color: #5c6772; font-size: 0.85rem; }
+          .report__meta-grid { margin: 14px 0 10px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; font-size: 0.75rem; color: #425363; }
+          .report__meta-grid div { border: 1px solid #d9d4c8; border-radius: 10px; padding: 8px; background: #fdfbf7; }
+          .report__meta-grid span { display: block; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: #6b7280; }
+          .report__meta-grid strong { font-size: 0.8rem; color: #1f2a33; }
+          .report__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 10px 0 14px; }
+          .report__grid div { border: 1px solid #d9d4c8; border-radius: 10px; padding: 8px; background: #fff; }
           .report__grid span { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: #5c6772; }
           .report__grid strong { font-size: 0.95rem; }
-          .report__table { width: 100%; border-collapse: collapse; font-size: 0.78rem; table-layout: fixed; }
-          .report__table th, .report__table td { border-bottom: 1px solid #e2ddd2; padding: 6px; text-align: left; vertical-align: top; }
-          .report__table th { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.6rem; background: #f6f2ea; }
-          .report__table td { word-break: break-word; }
+          .report__table { width: 100%; border-collapse: collapse; font-size: 0.8rem; table-layout: fixed; }
+          .report__table th, .report__table td { border-bottom: 1px solid #e2ddd2; padding: 7px 6px; text-align: left; vertical-align: top; }
+          .report__table th { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.62rem; background: #f6f2ea; }
+          .report__table td { word-break: break-word; line-height: 1.35; }
+          .report__table tbody tr:nth-child(even) td { background: #fbf9f3; }
           .report__table--programacao th:nth-child(1),
           .report__table--programacao td:nth-child(1) { width: 24%; }
           .report__table--programacao th:nth-child(2),
@@ -22274,7 +22299,7 @@ function preencherProgramacaoPdf(popup, html, titulo) {
           a { color: #0b5fc6; text-decoration: none; }
           a:hover { text-decoration: underline; }
           @media print {
-            body { margin: 10px; }
+            body { margin: 0; }
             .report__table th { background: #f6f2ea !important; -webkit-print-color-adjust: exact; }
           }
         </style>
