@@ -6759,19 +6759,65 @@ function readProjectFlag(key) {
 
 function readRecurrenceSuppressions() {
   const stored = readJson(getProjectStorageKey(RECURRENCE_SUPPRESS_KEY), {});
+  let map = {};
   if (Array.isArray(stored)) {
-    return stored.reduce((acc, entry) => {
+    map = stored.reduce((acc, entry) => {
       const key = String(entry || "").trim();
       if (key) {
         acc[key] = true;
       }
       return acc;
     }, {});
+  } else if (stored && typeof stored === "object") {
+    map = stored;
   }
-  if (stored && typeof stored === "object") {
-    return stored;
+  const normalized = normalizeRecurrenceSuppressionsMap(map);
+  if (normalized.changed) {
+    writeRecurrenceSuppressions(normalized.map);
   }
-  return {};
+  return normalized.map;
+}
+
+function normalizeRecurrenceDateKey(value) {
+  if (!value) {
+    return "";
+  }
+  const raw = String(value).trim();
+  if (!raw) {
+    return "";
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return raw;
+  }
+  const parsed = parseAnyDate(raw);
+  return parsed ? formatDateISO(startOfDay(parsed)) : "";
+}
+
+function normalizeRecurrenceSuppressionsMap(map) {
+  const source = map && typeof map === "object" ? map : {};
+  const output = { ...source };
+  let changed = false;
+  Object.keys(source).forEach((key) => {
+    const trimmed = String(key || "").trim();
+    if (!trimmed) {
+      return;
+    }
+    const parts = trimmed.split("|");
+    if (parts.length < 2) {
+      return;
+    }
+    const datePart = parts[parts.length - 1];
+    const normalizedDate = normalizeRecurrenceDateKey(datePart);
+    if (!normalizedDate || normalizedDate === datePart) {
+      return;
+    }
+    const normalizedKey = [...parts.slice(0, -1), normalizedDate].join("|");
+    if (!output[normalizedKey]) {
+      output[normalizedKey] = true;
+      changed = true;
+    }
+  });
+  return { map: output, changed };
 }
 
 function writeRecurrenceSuppressions(map) {
@@ -6800,6 +6846,11 @@ function mergeRecurrenceSuppressions(incoming) {
   } else if (incoming && typeof incoming === "object") {
     Object.keys(incoming).forEach(addKey);
   }
+  const normalized = normalizeRecurrenceSuppressionsMap(map);
+  if (normalized.changed) {
+    Object.assign(map, normalized.map);
+    changed = true;
+  }
   if (changed) {
     writeRecurrenceSuppressions(map);
   }
@@ -6809,22 +6860,26 @@ function mergeRecurrenceSuppressions(incoming) {
 function addRecurrenceSuppression(templateId, dateStr) {
   const template = String(templateId || "").trim();
   const date = String(dateStr || "").trim();
+  const normalizedDate = normalizeRecurrenceDateKey(date);
   if (!template || !date) {
     return;
   }
   const projectRef = String(activeProjectId || "").trim();
-  const key = projectRef ? `${projectRef}|${template}|${date}` : `${template}|${date}`;
-  const legacyKey = `${template}|${date}`;
+  const dateKeys = new Set([date, normalizedDate].filter(Boolean));
   const map = readRecurrenceSuppressions();
   let changed = false;
-  if (!map[key]) {
-    map[key] = true;
-    changed = true;
-  }
-  if (!map[legacyKey]) {
-    map[legacyKey] = true;
-    changed = true;
-  }
+  dateKeys.forEach((dateKey) => {
+    const key = projectRef ? `${projectRef}|${template}|${dateKey}` : `${template}|${dateKey}`;
+    const legacyKey = `${template}|${dateKey}`;
+    if (!map[key]) {
+      map[key] = true;
+      changed = true;
+    }
+    if (!map[legacyKey]) {
+      map[legacyKey] = true;
+      changed = true;
+    }
+  });
   if (changed) {
     writeRecurrenceSuppressions(map);
   }
@@ -15429,10 +15484,21 @@ function isSuppressedRecurrenceItem(item, suppressions) {
   if (!templateId || !dataStr) {
     return false;
   }
+  const normalizedDate = normalizeRecurrenceDateKey(dataStr);
   const projectRef = String(item.projectId || activeProjectId || "").trim();
-  const key = projectRef ? `${projectRef}|${templateId}|${dataStr}` : `${templateId}|${dataStr}`;
-  const legacyKey = `${templateId}|${dataStr}`;
-  if (!suppressions[key] && !suppressions[legacyKey]) {
+  const dateKeys = new Set([dataStr, normalizedDate].filter(Boolean));
+  let suppressed = false;
+  dateKeys.forEach((dateKey) => {
+    if (suppressed) {
+      return;
+    }
+    const key = projectRef ? `${projectRef}|${templateId}|${dateKey}` : `${templateId}|${dateKey}`;
+    const legacyKey = `${templateId}|${dateKey}`;
+    if (suppressions[key] || suppressions[legacyKey]) {
+      suppressed = true;
+    }
+  });
+  if (!suppressed) {
     return false;
   }
   const status = normalizeMaintenanceStatus(item.status);
@@ -56658,7 +56724,13 @@ function isRescheduleAutoDuplicate(entry, templateId, oldDate, keepId) {
   if (String(entry.templateId || "").trim() !== String(templateId).trim()) {
     return false;
   }
-  if (String(entry.data || "").trim() !== String(oldDate).trim()) {
+  const normalizedEntryDate = normalizeRecurrenceDateKey(entry.data || "");
+  const normalizedOldDate = normalizeRecurrenceDateKey(oldDate);
+  if (normalizedEntryDate && normalizedOldDate) {
+    if (normalizedEntryDate !== normalizedOldDate) {
+      return false;
+    }
+  } else if (String(entry.data || "").trim() !== String(oldDate).trim()) {
     return false;
   }
   const status = normalizeMaintenanceStatus(entry.status);
