@@ -29488,6 +29488,10 @@ function parseAnyDate(value) {
     if (!text) {
       return null;
     }
+    const brDate = parseDateBr(text);
+    if (brDate) {
+      return brDate;
+    }
     if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
       const byDate = parseDate(text);
       if (byDate) {
@@ -29504,6 +29508,36 @@ function parseAnyDate(value) {
     }
   }
   return null;
+}
+
+function parseDateBr(value) {
+  if (!value) {
+    return null;
+  }
+  const text = String(value).trim();
+  if (!text) {
+    return null;
+  }
+  const match = text.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}))?$/);
+  if (!match) {
+    return null;
+  }
+  const dia = Number.parseInt(match[1], 10);
+  const mes = Number.parseInt(match[2], 10);
+  const ano = Number.parseInt(match[3], 10);
+  const hora = match[4] ? Number.parseInt(match[4], 10) : 0;
+  const minuto = match[5] ? Number.parseInt(match[5], 10) : 0;
+  if (![dia, mes, ano, hora, minuto].every(Number.isFinite)) {
+    return null;
+  }
+  const data = new Date(ano, mes - 1, dia, hora, minuto);
+  if (Number.isNaN(data.getTime())) {
+    return null;
+  }
+  if (data.getFullYear() !== ano || data.getMonth() !== mes - 1 || data.getDate() !== dia) {
+    return null;
+  }
+  return data;
 }
 
 function pickItemValue(item, keys) {
@@ -59528,7 +59562,7 @@ function getMaintenanceCompletedAt(item) {
   if (!item) {
     return null;
   }
-  return parseDateTime(
+  return parseAnyDate(
     item.dataConclusao || item.doneAt || item.concluidaEm || item.concluidoEm || item.completedAt
   );
 }
