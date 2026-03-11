@@ -35214,7 +35214,10 @@ function buildAutoExecutionMap(activities, periods, viewMode, year, monthIndex) 
       if (!item || !isMaintenanceConcluded(item)) {
         return;
       }
-      const execDate = getItemConclusaoDate(item) || getItemFimExecucaoDate(item);
+      const execDate =
+        getItemConclusaoDate(item) ||
+        getMaintenanceCompletedAt(item) ||
+        getItemFimExecucaoDate(item);
       if (!execDate || execDate.getFullYear() !== year) {
         return;
       }
@@ -35222,10 +35225,11 @@ function buildAutoExecutionMap(activities, periods, viewMode, year, monthIndex) 
         if (!activity || activity.projectId !== projectId) {
           return;
         }
+        const itemEquipIds = getMaintenanceEquipamentoIds(item);
         const equipMatch =
           activity.equipamentoId &&
-          item.equipamentoId &&
-          activity.equipamentoId === item.equipamentoId;
+          ((item.equipamentoId && activity.equipamentoId === item.equipamentoId) ||
+            itemEquipIds.includes(activity.equipamentoId));
         const activityTemplateId = String(
           activity.templateIdOrigem || activity.templateId || activity.template || ""
         ).trim();
