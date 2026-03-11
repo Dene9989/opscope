@@ -35211,7 +35211,7 @@ function buildAutoExecutionMap(activities, periods, viewMode, year, monthIndex) 
       scheduleMeta.set(activity.id, { scheduledKeys, dueDates });
     });
     items.forEach((item) => {
-      if (!item || item.status !== "concluida") {
+      if (!item || !isMaintenanceConcluded(item)) {
         return;
       }
       const execDate = getItemConclusaoDate(item) || getItemFimExecucaoDate(item);
@@ -35226,6 +35226,17 @@ function buildAutoExecutionMap(activities, periods, viewMode, year, monthIndex) 
           activity.equipamentoId &&
           item.equipamentoId &&
           activity.equipamentoId === item.equipamentoId;
+        const activityTemplateId = String(
+          activity.templateIdOrigem || activity.templateId || activity.template || ""
+        ).trim();
+        const itemTemplateId = String(
+          item.templateId || item.template || item.modeloId || ""
+        ).trim();
+        const templateMatch =
+          activityTemplateId && itemTemplateId && activityTemplateId === itemTemplateId;
+        const sourceMatch =
+          activity.maintenanceSourceId &&
+          String(item.id || "") === String(activity.maintenanceSourceId);
         const tituloBase = normalizeSearchValue(
           item.titulo || item.nome || item.descricao || ""
         );
@@ -35235,7 +35246,7 @@ function buildAutoExecutionMap(activities, periods, viewMode, year, monthIndex) 
         const codigoMatch = activity.codigo
           ? tituloBase.includes(normalizeSearchValue(activity.codigo))
           : false;
-        if (!equipMatch && !nomeMatch && !codigoMatch) {
+        if (!equipMatch && !nomeMatch && !codigoMatch && !templateMatch && !sourceMatch) {
           return;
         }
         const meta = scheduleMeta.get(activity.id);
@@ -37593,6 +37604,14 @@ function exportarPmpPdf() {
   if (!popup) {
     return;
   }
+  const totalColumns = 6 + snapshot.periods.length;
+  const printScale =
+    totalColumns > 34 ? 0.68 : totalColumns > 30 ? 0.75 : totalColumns > 26 ? 0.82 : totalColumns > 22 ? 0.9 : 1;
+  const fontSize = printScale < 0.8 ? 8 : printScale < 0.9 ? 9 : 11;
+  const headerFontSize = printScale < 0.8 ? 8 : printScale < 0.9 ? 9 : 10;
+  const cellPadding = printScale < 0.8 ? 3 : printScale < 0.9 ? 4 : 6;
+  const pageSize = totalColumns > 26 ? "A3 landscape" : "A4 landscape";
+  const bodyMargin = printScale < 0.9 ? 12 : 24;
   let totalCells = 0;
   let onTimeCells = 0;
   let lateCells = 0;
@@ -37736,12 +37755,23 @@ function exportarPmpPdf() {
       <head>
         <title>PMP ${snapshot.year}</title>
         <style>
-          body { font-family: Arial, sans-serif; color: #1f2a33; margin: 24px; }
+          :root {
+            --pmp-font-size: ${fontSize}px;
+            --pmp-header-font-size: ${headerFontSize}px;
+            --pmp-cell-padding: ${cellPadding}px;
+            --pmp-print-scale: ${printScale};
+          }
+          body { font-family: Arial, sans-serif; color: #1f2a33; margin: ${bodyMargin}px; }
           h1 { margin: 0 0 8px; font-size: 20px; }
           p { margin: 0 0 16px; color: #425363; }
-          table { width: 100%; border-collapse: collapse; font-size: 11px; }
-          th, td { border: 1px solid #d7d7d7; padding: 6px; text-align: left; }
-          th { background: #f0f2f4; text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; }
+          table { width: 100%; border-collapse: collapse; font-size: var(--pmp-font-size); table-layout: fixed; }
+          th, td {
+            border: 1px solid #d7d7d7;
+            padding: var(--pmp-cell-padding);
+            text-align: left;
+            word-break: break-word;
+          }
+          th { background: #f0f2f4; text-transform: uppercase; letter-spacing: 0.08em; font-size: var(--pmp-header-font-size); }
           .pmp-cell { text-align: center; font-weight: 600; }
           .pmp-cell.on-time { background: #d1fae5; }
           .pmp-cell.late { background: #fef3c7; }
@@ -37765,7 +37795,10 @@ function exportarPmpPdf() {
           .chart-scheduled { background: #3b82f6; }
           .chart-late { background: #f59e0b; }
           .chart-missed { background: #ef4444; }
-          @page { size: A4 landscape; margin: 16mm; }
+          @page { size: ${pageSize}; margin: 12mm; }
+          @media print {
+            body { zoom: var(--pmp-print-scale); }
+          }
         </style>
       </head>
       <body>
