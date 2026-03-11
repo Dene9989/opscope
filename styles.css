@@ -17065,6 +17065,14 @@ textarea:focus {
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
+#programacao #lista-programacao .programacao-toolbar__block--export {
+  padding-top: 12px;
+}
+
+#programacao #lista-programacao .programacao-toolbar__fields--export .field {
+  align-self: start;
+}
+
 #programacao #lista-programacao .programacao-toolbar__block-actions {
   display: flex;
   justify-content: flex-end;

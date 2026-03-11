@@ -15134,6 +15134,8 @@ function normalizarManutencoes(lista) {
   const changes = [];
   let mudouTempo = false;
   let mudouCampos = false;
+  let mudouRemocoes = false;
+  const suppressions = readRecurrenceSuppressions();
   const normalizadas = lista.map((item) => {
     if (!item || typeof item !== "object") {
       return item;
@@ -15400,7 +15402,62 @@ function normalizarManutencoes(lista) {
       conclusao,
     };
   });
-  return { normalizadas, mudou: changes.length > 0 || mudouTempo || mudouCampos, changes };
+  if (suppressions && Object.keys(suppressions).length) {
+    const filtered = normalizadas.filter((item) => !isSuppressedRecurrenceItem(item, suppressions));
+    if (filtered.length !== normalizadas.length) {
+      mudouRemocoes = true;
+      return {
+        normalizadas: filtered,
+        mudou: changes.length > 0 || mudouTempo || mudouCampos || mudouRemocoes,
+        changes,
+      };
+    }
+  }
+  return {
+    normalizadas,
+    mudou: changes.length > 0 || mudouTempo || mudouCampos || mudouRemocoes,
+    changes,
+  };
+}
+
+function isSuppressedRecurrenceItem(item, suppressions) {
+  if (!item || !suppressions) {
+    return false;
+  }
+  const templateId = String(item.templateId || "").trim();
+  const dataStr = String(item.data || "").trim();
+  if (!templateId || !dataStr) {
+    return false;
+  }
+  const projectRef = String(item.projectId || activeProjectId || "").trim();
+  const key = projectRef ? `${projectRef}|${templateId}|${dataStr}` : `${templateId}|${dataStr}`;
+  const legacyKey = `${templateId}|${dataStr}`;
+  if (!suppressions[key] && !suppressions[legacyKey]) {
+    return false;
+  }
+  const status = normalizeMaintenanceStatus(item.status);
+  if (status !== "agendada" && status !== "liberada") {
+    return false;
+  }
+  if (hasExecucaoRegistrada(item)) {
+    return false;
+  }
+  if (
+    item.conclusao ||
+    item.registroExecucao ||
+    item.executionStartedAt ||
+    item.executionFinishedAt ||
+    item.doneAt
+  ) {
+    return false;
+  }
+  const createdBy = String(item.createdBy || "");
+  const updatedBy = String(item.updatedBy || "");
+  const isSystem = createdBy === SYSTEM_USER_ID && updatedBy === SYSTEM_USER_ID;
+  if (!isSystem) {
+    return false;
+  }
+  return true;
 }
 
 function aplicarBacklogMensalLocal(lista) {
