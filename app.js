@@ -33818,13 +33818,9 @@ function getPmpPeriods(viewMode, year, monthIndex) {
 }
 
 function getActivityStartDate(activity, year) {
-  const byDate = activity && activity.inicio ? parseDate(activity.inicio) : null;
-  const byDateTime = activity && activity.inicio ? parseTimestamp(activity.inicio) : null;
-  if (byDate) {
-    return byDate;
-  }
-  if (byDateTime) {
-    return byDateTime;
+  const parsed = activity && activity.inicio ? parseAnyDate(activity.inicio) : null;
+  if (parsed) {
+    return parsed;
   }
   return new Date(year, 0, 1);
 }
