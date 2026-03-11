@@ -56600,6 +56600,38 @@ function reagendarManutencao(index) {
   abrirReagendamento(item);
 }
 
+function isRescheduleAutoDuplicate(entry, templateId, oldDate, keepId) {
+  if (!entry || !templateId || !oldDate) {
+    return false;
+  }
+  if (keepId && String(entry.id || "") === String(keepId)) {
+    return false;
+  }
+  if (String(entry.templateId || "").trim() !== String(templateId).trim()) {
+    return false;
+  }
+  if (String(entry.data || "").trim() !== String(oldDate).trim()) {
+    return false;
+  }
+  const status = normalizeMaintenanceStatus(entry.status);
+  if (status !== "agendada" && status !== "liberada") {
+    return false;
+  }
+  if (hasExecucaoRegistrada(entry)) {
+    return false;
+  }
+  if (
+    entry.conclusao ||
+    entry.registroExecucao ||
+    entry.executionStartedAt ||
+    entry.executionFinishedAt ||
+    entry.doneAt
+  ) {
+    return false;
+  }
+  return true;
+}
+
 function salvarReagendamento(event) {
   event.preventDefault();
   if (!requirePermission("reschedule")) {
@@ -56669,6 +56701,15 @@ function salvarReagendamento(event) {
   };
 
   manutencoes[index] = atualizado;
+  let duplicatesRemoved = 0;
+  if (item.templateId && dataAnterior) {
+    addRecurrenceSuppression(item.templateId, dataAnterior);
+    const before = manutencoes.length;
+    manutencoes = manutencoes.filter(
+      (entry) => !isRescheduleAutoDuplicate(entry, item.templateId, dataAnterior, atualizado.id)
+    );
+    duplicatesRemoved = before - manutencoes.length;
+  }
   const resultado = normalizarManutencoes(manutencoes);
   manutencoes = resultado.normalizadas;
   salvarManutencoes(manutencoes);
@@ -56678,6 +56719,8 @@ function salvarReagendamento(event) {
     dataNova: dataLimpa,
     motivo,
     observacao,
+    recurrenceSuppressed: Boolean(item.templateId && dataAnterior),
+    duplicatesRemovidas: duplicatesRemoved,
     templateId: item.templateId || "",
     resumo: `Reagendada de ${dataAnterior || "-"} para ${dataLimpa} (${motivo})`,
   });
