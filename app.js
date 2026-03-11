@@ -35287,10 +35287,15 @@ function buildAutoExecutionMap(activities, periods, viewMode, year, monthIndex) 
         if (!equipMatch && !nomeMatch && !codigoMatch && !templateMatch && !sourceMatch) {
           return;
         }
-        const meta = scheduleMeta.get(activity.id);
-        if (!meta) {
-          return;
-        }
+      const meta = scheduleMeta.get(activity.id);
+      if (!meta) {
+        return;
+      }
+      const originKey = normalizeSearchValue(activity.origem || "");
+      const allowOutsideSchedule =
+        originKey === "importado" ||
+        Boolean(activity.maintenanceSourceId) ||
+        Boolean(activity.templateIdOrigem);
         let bestKey = "";
         let bestDiff = Infinity;
         meta.scheduledKeys.forEach((key) => {
@@ -35307,7 +35312,10 @@ function buildAutoExecutionMap(activities, periods, viewMode, year, monthIndex) 
         });
         if (!bestKey) {
           const periodKey = getPeriodKeyForDate(viewMode, execDate, year, monthIndex);
-          if (periodKey && meta.scheduledKeys.has(periodKey)) {
+          if (
+            periodKey &&
+            (meta.scheduledKeys.has(periodKey) || allowOutsideSchedule)
+          ) {
             bestKey = periodKey;
           }
         }
