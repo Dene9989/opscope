@@ -35516,6 +35516,76 @@ function buildPmpReplanMap(activities, periods, viewMode, year, monthIndex) {
   return map;
 }
 
+function buildPmpRescheduleMap(activities, periods, viewMode, year, monthIndex) {
+  const map = new Map();
+  if (!activities.length || !Array.isArray(auditLog) || !auditLog.length) {
+    return map;
+  }
+  const byProject = new Map();
+  activities.forEach((activity) => {
+    if (!activity) {
+      return;
+    }
+    const list = byProject.get(activity.projectId) || [];
+    list.push(activity);
+    byProject.set(activity.projectId, list);
+  });
+  const reschedules = auditLog
+    .filter((entry) => entry && entry.action === "reschedule" && entry.manutencaoId)
+    .sort((a, b) => (getTimeValue(a.timestamp) || 0) - (getTimeValue(b.timestamp) || 0));
+  if (!reschedules.length) {
+    return map;
+  }
+  byProject.forEach((projectActivities, projectId) => {
+    const items = getPmpMaintenanceList(projectId);
+    if (!items.length) {
+      return;
+    }
+    const byId = new Map(
+      items.filter(Boolean).map((item) => [String(item.id || ""), item])
+    );
+    reschedules.forEach((entry) => {
+      const maintenanceId = String(entry.manutencaoId || "");
+      if (!maintenanceId) {
+        return;
+      }
+      const item = byId.get(maintenanceId);
+      if (!item || String(item.projectId || "") !== String(projectId || "")) {
+        return;
+      }
+      const detalhes = entry.detalhes || {};
+      const dataAnterior = parseAnyDate(detalhes.dataAnterior || "");
+      const dataNova = parseAnyDate(detalhes.dataNova || "");
+      projectActivities.forEach((activity) => {
+        if (!doesMaintenanceMatchPmpActivity(activity, item)) {
+          return;
+        }
+        if (dataAnterior && dataAnterior.getFullYear() === year) {
+          const key = getPeriodKeyForDate(viewMode, dataAnterior, year, monthIndex);
+          setExecutionMap(map, activity.id, key, {
+            scheduledFor: dataAnterior,
+            source: "reagendamento",
+            status: "cancelada",
+            manutencaoId: item.id,
+            osReferencia: getMaintenanceOsReferencia(item),
+          });
+        }
+        if (dataNova && dataNova.getFullYear() === year) {
+          const key = getPeriodKeyForDate(viewMode, dataNova, year, monthIndex);
+          setExecutionMap(map, activity.id, key, {
+            scheduledFor: dataNova,
+            source: "reagendamento",
+            status: "agendada",
+            manutencaoId: item.id,
+            osReferencia: getMaintenanceOsReferencia(item),
+          });
+        }
+      });
+    });
+  });
+  return map;
+}
+
 function mergeExecutionMapFallback(target, fallback) {
   if (!target || !fallback) {
     return target;
@@ -36337,7 +36407,9 @@ function renderPmpModule() {
   const scheduledKeysMap = new Map();
   const manualMap = getExecutionsByActivity();
   const replanMap = buildPmpReplanMap(filtrados, periods, viewMode, year, monthIndex);
+  const rescheduleMap = buildPmpRescheduleMap(filtrados, periods, viewMode, year, monthIndex);
   mergeExecutionMapFallback(manualMap, replanMap);
+  mergeExecutionMapFallback(manualMap, rescheduleMap);
   const autoMap = buildAutoExecutionMap(filtrados, periods, viewMode, year, monthIndex);
   const today = startOfDay(new Date());
   pmpLastSnapshot = {
@@ -37763,7 +37835,9 @@ function buildPmpSnapshot() {
   const periods = getPmpPeriods(viewMode, year, monthIndex);
   const manualMap = getExecutionsByActivity();
   const replanMap = buildPmpReplanMap(activities, periods, viewMode, year, monthIndex);
+  const rescheduleMap = buildPmpRescheduleMap(activities, periods, viewMode, year, monthIndex);
   mergeExecutionMapFallback(manualMap, replanMap);
+  mergeExecutionMapFallback(manualMap, rescheduleMap);
   const autoMap = buildAutoExecutionMap(activities, periods, viewMode, year, monthIndex);
   const today = startOfDay(new Date());
   const monthLabel = PMP_MONTH_LABELS[monthIndex] || String(monthIndex + 1).padStart(2, "0");
