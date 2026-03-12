@@ -6104,6 +6104,22 @@ async function generateContingencyReportPdf(payload, options = {}) {
     const bDate = parseDateTime(b && b.occurredAt ? b.occurredAt : "");
     return (aDate ? aDate.getTime() : 0) - (bDate ? bDate.getTime() : 0);
   });
+  const recurrenceAttachmentIds = new Set(
+    recurrenceEntriesSorted
+      .flatMap((entry) =>
+        Array.isArray(entry && entry.attachmentIds)
+          ? entry.attachmentIds.map((id) => String(id || "").trim())
+          : []
+      )
+      .filter(Boolean)
+  );
+  const isRecurrenceAttachment = (attachment) => {
+    const key = attachmentKey(attachment);
+    if (!key) {
+      return false;
+    }
+    return recurrenceAttachmentIds.has(String(key));
+  };
   const recurrenceOccurred = normalizeContingencyRecurrenceYesNo(recurrence.occurred);
   const recurrenceCount = recurrenceEntriesSorted.length;
   const recurrenceFirstAt = recurrenceCount
@@ -6262,6 +6278,100 @@ async function generateContingencyReportPdf(payload, options = {}) {
     }
     cursorY -= 6.4;
   };
+
+  const renderAttachmentPhotoGrid = async (photos, options = {}) => {
+    const title = options.title || "";
+    const emptyMessage =
+      options.emptyMessage || "Nenhuma foto válida foi incorporada ao PDF.";
+    const labelOffset = Number(options.labelOffset || 0);
+    if (title) {
+      writeText(title, { bold: true, size: 10.6, leading: 13, color: palette.primary });
+      cursorY -= 2.8;
+    }
+    const renderedPhotos = [];
+    const failedPhotos = [];
+    for (const attachment of photos) {
+      const embedded = await embedAttachmentImage(attachment);
+      if (embedded) {
+        renderedPhotos.push(embedded);
+        continue;
+      }
+      failedPhotos.push(attachment);
+    }
+    if (!renderedPhotos.length) {
+      kv("Fotos", emptyMessage);
+      return { renderedPhotos, failedPhotos };
+    }
+    const cols = 2;
+    const gap = 10;
+    const cardWidth = (contentWidth - gap) / cols;
+    const cardHeight = 184;
+    let col = 0;
+    renderedPhotos.forEach((photo, index) => {
+      if (col === 0) {
+        ensureSpace(cardHeight + 10);
+      }
+      const x = margin + col * (cardWidth + gap);
+      const topY = cursorY;
+      page.drawRectangle({
+        x,
+        y: topY - cardHeight,
+        width: cardWidth,
+        height: cardHeight,
+        color: rgb(0.99, 0.995, 1),
+        borderColor: palette.border,
+        borderWidth: 0.7,
+      });
+      const frameX = x + 8;
+      const frameY = topY - cardHeight + 42;
+      const frameW = cardWidth - 16;
+      const frameH = cardHeight - 52;
+      page.drawRectangle({
+        x: frameX,
+        y: frameY,
+        width: frameW,
+        height: frameH,
+        color: rgb(0.95, 0.97, 1),
+      });
+      const scale = Math.min(frameW / photo.image.width, frameH / photo.image.height, 1);
+      const drawW = photo.image.width * scale;
+      const drawH = photo.image.height * scale;
+      page.drawImage(photo.image, {
+        x: frameX + (frameW - drawW) / 2,
+        y: frameY + (frameH - drawH) / 2,
+        width: drawW,
+        height: drawH,
+      });
+      const representation = getAttachmentRepresentation(photo.attachment || null, index + labelOffset);
+      const repLabel = `${index + 1 + labelOffset}. ${representation}`;
+      const repLines = wrapPdfText(repLabel, cardWidth - 14, 8.2, fontBold);
+      page.drawText(repLines[0] || repLabel, {
+        x: x + 7,
+        y: topY - cardHeight + 30,
+        size: 8.2,
+        font: fontBold,
+        color: palette.text,
+      });
+      const refLabel = `Registro fotográfico ${index + 1 + labelOffset}`;
+      const refLines = wrapPdfText(refLabel, cardWidth - 14, 8, font);
+      page.drawText(refLines[0] || refLabel, {
+        x: x + 7,
+        y: topY - cardHeight + 20,
+        size: 8,
+        font,
+        color: palette.muted,
+      });
+      col += 1;
+      if (col >= cols) {
+        col = 0;
+        cursorY -= cardHeight + 10;
+      }
+    });
+    if (col !== 0) {
+      cursorY -= cardHeight + 10;
+    }
+    return { renderedPhotos, failedPhotos };
+  };
   addCoverPage();
 
   addPage();
@@ -6412,7 +6522,77 @@ async function generateContingencyReportPdf(payload, options = {}) {
   }
   drawDivider();
 
-  section("6. Reincidência");
+  section("6. Status Atual / Risco Residual");
+  kv("Status", getContingencyLabel(CONTINGENCY_STATUS_LABELS, safePayload.status, "Rascunho"));
+  kv("Normalizada em", formatContingencyDateTime(safePayload.normalizedAt));
+  kv("Risco residual", safePayload.residualRisk || "-");
+  drawDivider();
+
+  section("7. Evidências Fotográficas e Anexos");
+  const imageCandidates = attachments.filter((attachment) => {
+    const mime = String(attachment && attachment.mimeType ? attachment.mimeType : "").toLowerCase();
+    const fileName = String(attachment && attachment.fileName ? attachment.fileName : "").toLowerCase();
+    const category = String(attachment && attachment.category ? attachment.category : "").toUpperCase();
+    return mime.startsWith("image/") || /\.(png|jpe?g)$/i.test(fileName) || category === "PHOTO";
+  });
+  const baseImageCandidates = imageCandidates.filter((attachment) => !isRecurrenceAttachment(attachment));
+  const { renderedPhotos: baseRendered, failedPhotos: baseFailed } =
+    await renderAttachmentPhotoGrid(baseImageCandidates);
+  if (baseFailed.length) {
+    writeText(`${baseFailed.length} foto(s) não puderam ser incorporadas nesta versão do PDF.`, {
+      size: 9.2,
+      leading: 11,
+      color: palette.warning,
+    });
+  }
+  drawDivider();
+
+  const nonImageAttachments = attachments.filter((attachment) => {
+    if (imageCandidates.some((img) => attachmentKey(img) === attachmentKey(attachment))) {
+      return false;
+    }
+    return !isRecurrenceAttachment(attachment);
+  });
+  if (nonImageAttachments.length) {
+    writeText("Anexos complementares:", {
+      bold: true,
+      size: 10.4,
+      leading: 12.6,
+      color: palette.primary,
+    });
+    nonImageAttachments.forEach((attachment, index) => {
+      const categoryLabel = getContingencyLabel(
+        CONTINGENCY_ATTACHMENT_CATEGORY_LABELS,
+        attachment && attachment.category ? attachment.category : "",
+        "Outro"
+      );
+      const description = getAttachmentRepresentation(attachment, index + baseRendered.length);
+      const line = `${index + 1}. ${description} | Categoria: ${categoryLabel} | Data: ${formatContingencyDateTime(
+        attachment.uploadedAt
+      )}`;
+      writeText(line, { size: 9.4, leading: 11.4 });
+      cursorY -= 5.4;
+    });
+  }
+
+  drawDivider();
+  section("8. Conclusão e Recomendações da Engenharia");
+  writeText(toTextMultiline(safePayload.engineeringConclusion || "-"), {
+    size: 10,
+    leading: 12.4,
+    color: palette.text,
+  });
+  drawDivider();
+
+  section("9. Reincidência");
+  if (recurrenceOccurred === "SIM") {
+    writeText("REINCIDÊNCIA OCORRIDA", {
+      bold: true,
+      size: 11.2,
+      leading: 13.2,
+      color: palette.warning,
+    });
+  }
   drawCompactKeyValueTable(
     [
       { label: "Houve reincidência", value: formatRecurrenceYesNoLabel(recurrenceOccurred) },
@@ -6456,6 +6636,29 @@ async function generateContingencyReportPdf(payload, options = {}) {
     cursorY -= 8.2;
   }
 
+  const recurrenceImageCandidates = imageCandidates.filter((attachment) =>
+    isRecurrenceAttachment(attachment)
+  );
+  if (recurrenceImageCandidates.length) {
+    const { failedPhotos: recurrenceFailed } = await renderAttachmentPhotoGrid(
+      recurrenceImageCandidates,
+      {
+        title: "Evidências da reincidência",
+        emptyMessage: "Nenhuma foto de reincidência foi anexada.",
+        labelOffset: baseRendered.length,
+      }
+    );
+    if (recurrenceFailed.length) {
+      writeText(`${recurrenceFailed.length} foto(s) não puderam ser incorporadas nesta versão do PDF.`, {
+        size: 9.2,
+        leading: 11,
+        color: palette.warning,
+      });
+    }
+  } else if (recurrenceOccurred === "SIM") {
+    kv("Fotos de reincidência", "Nenhuma foto de reincidência foi anexada.");
+  }
+
   drawCompactKeyValueTable(
     [
       {
@@ -6479,144 +6682,6 @@ async function generateContingencyReportPdf(payload, options = {}) {
   );
   kvParagraph("Conclusão técnica sobre reincidência", recurrenceAnalysis.conclusion || "-");
   kvParagraph("Recomendação preventiva/corretiva", recurrenceAnalysis.recommendation || "-");
-  drawDivider();
-
-  section("7. Status Atual / Risco Residual");
-  kv("Status", getContingencyLabel(CONTINGENCY_STATUS_LABELS, safePayload.status, "Rascunho"));
-  kv("Normalizada em", formatContingencyDateTime(safePayload.normalizedAt));
-  kv("Risco residual", safePayload.residualRisk || "-");
-  drawDivider();
-
-  section("8. Evidências Fotográficas e Anexos");
-  const imageCandidates = attachments.filter((attachment) => {
-    const mime = String(attachment && attachment.mimeType ? attachment.mimeType : "").toLowerCase();
-    const fileName = String(attachment && attachment.fileName ? attachment.fileName : "").toLowerCase();
-    const category = String(attachment && attachment.category ? attachment.category : "").toUpperCase();
-    return mime.startsWith("image/") || /\.(png|jpe?g)$/i.test(fileName) || category === "PHOTO";
-  });
-  const renderedPhotos = [];
-  const failedPhotos = [];
-  for (const attachment of imageCandidates) {
-    const embedded = await embedAttachmentImage(attachment);
-    if (embedded) {
-      renderedPhotos.push(embedded);
-      continue;
-    }
-    failedPhotos.push(attachment);
-  }
-  if (!renderedPhotos.length) {
-    kv("Fotos", "Nenhuma foto válida foi incorporada ao PDF.");
-  } else {
-    const cols = 2;
-    const gap = 10;
-    const cardWidth = (contentWidth - gap) / cols;
-    const cardHeight = 184;
-    let col = 0;
-    renderedPhotos.forEach((photo, index) => {
-      if (col === 0) {
-        ensureSpace(cardHeight + 10);
-      }
-      const x = margin + col * (cardWidth + gap);
-      const topY = cursorY;
-      page.drawRectangle({
-        x,
-        y: topY - cardHeight,
-        width: cardWidth,
-        height: cardHeight,
-        color: rgb(0.99, 0.995, 1),
-        borderColor: palette.border,
-        borderWidth: 0.7,
-      });
-      const frameX = x + 8;
-      const frameY = topY - cardHeight + 42;
-      const frameW = cardWidth - 16;
-      const frameH = cardHeight - 52;
-      page.drawRectangle({
-        x: frameX,
-        y: frameY,
-        width: frameW,
-        height: frameH,
-        color: rgb(0.95, 0.97, 1),
-      });
-      const scale = Math.min(frameW / photo.image.width, frameH / photo.image.height, 1);
-      const drawW = photo.image.width * scale;
-      const drawH = photo.image.height * scale;
-      page.drawImage(photo.image, {
-        x: frameX + (frameW - drawW) / 2,
-        y: frameY + (frameH - drawH) / 2,
-        width: drawW,
-        height: drawH,
-      });
-      const representation = getAttachmentRepresentation(photo.attachment || null, index);
-      const repLabel = `${index + 1}. ${representation}`;
-      const repLines = wrapPdfText(repLabel, cardWidth - 14, 8.2, fontBold);
-      page.drawText(repLines[0] || repLabel, {
-        x: x + 7,
-        y: topY - cardHeight + 30,
-        size: 8.2,
-        font: fontBold,
-        color: palette.text,
-      });
-      const refLabel = `Registro fotográfico ${index + 1}`;
-      const refLines = wrapPdfText(refLabel, cardWidth - 14, 8, font);
-      page.drawText(refLines[0] || refLabel, {
-        x: x + 7,
-        y: topY - cardHeight + 20,
-        size: 8,
-        font,
-        color: palette.muted,
-      });
-      col += 1;
-      if (col >= cols) {
-        col = 0;
-        cursorY -= cardHeight + 10;
-      }
-    });
-    if (col !== 0) {
-      cursorY -= cardHeight + 10;
-    }
-  }
-  if (failedPhotos.length) {
-    writeText(`${failedPhotos.length} foto(s) não puderam ser incorporadas nesta versão do PDF.`, {
-      size: 9.2,
-      leading: 11,
-      color: palette.warning,
-    });
-  }
-  drawDivider();
-
-  const nonImageAttachments = attachments.filter(
-    (attachment) => !imageCandidates.some((img) => attachmentKey(img) === attachmentKey(attachment))
-  );
-  if (nonImageAttachments.length) {
-    writeText("Anexos complementares:", {
-      bold: true,
-      size: 10.4,
-      leading: 12.6,
-      color: palette.primary,
-    });
-    nonImageAttachments.forEach((attachment, index) => {
-      const categoryLabel = getContingencyLabel(
-        CONTINGENCY_ATTACHMENT_CATEGORY_LABELS,
-        attachment && attachment.category ? attachment.category : "",
-        "Outro"
-      );
-      const description = getAttachmentRepresentation(attachment, index + renderedPhotos.length);
-      const line = `${index + 1}. ${description} | Categoria: ${categoryLabel} | Data: ${formatContingencyDateTime(
-        attachment.uploadedAt
-      )}`;
-      writeText(line, { size: 9.4, leading: 11.4 });
-      cursorY -= 5.4;
-    });
-  }
-
-  drawDivider();
-  section("9. Conclusão e Recomendações da Engenharia");
-  writeText(toTextMultiline(safePayload.engineeringConclusion || "-"), {
-    size: 10,
-    leading: 12.4,
-    color: palette.text,
-  });
   drawDivider();
 
   const signGap = 12;
