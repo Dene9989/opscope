@@ -4225,6 +4225,11 @@ function normalizeContingency(record) {
     protocolRef: normalizeContingencyText(
       record && (record.protocolRef || record.protocolo) ? record.protocolRef || record.protocolo : ""
     ),
+    reportTitle: normalizeContingencyText(
+      record && (record.reportTitle || record.tituloRelatorio || record.titulo)
+        ? record.reportTitle || record.tituloRelatorio || record.titulo
+        : ""
+    ),
     recurrence,
     revision: Number.isFinite(revisionRaw) && revisionRaw >= 0 ? Math.floor(revisionRaw) : 1,
     createdBy: String(record && record.createdBy ? record.createdBy : "").trim(),
@@ -5291,7 +5296,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     } else {
       drawSolarigFallback(pageSize[0] - margin - 118, pageHeight - headerHeight + 12, 110, 32);
     }
-    const headerTitle = "RELAT\u00d3RIO DE CONTING\u00caNCIA";
+    const headerTitle = truncatePdfText(reportTitle, contentWidth, 12.6, fontBold) || reportTitle;
     const titleWidth = fontBold.widthOfTextAtSize(headerTitle, 12.6);
     page.drawText(headerTitle, {
       x: margin + (contentWidth - titleWidth) / 2,
@@ -5563,7 +5568,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
       color: palette.line,
     });
     drawCenteredText(toText(safePayload.substation || projectLabel || "SUBESTACAO"), titleBlockTop - 31, 14.2, true);
-    drawCenteredText("RELAT\u00d3RIO DE CONTING\u00caNCIA", rowA - 44, 16, true, palette.primary);
+    drawCenteredText(reportTitle, rowA - 44, 16, true, palette.primary);
     drawCenteredText(
       `${getContingencyLabel(CONTINGENCY_EVENT_LABELS, safePayload.eventType, "Outro")} | ${
         toText(safePayload.assetName || safePayload.assetId)
@@ -6021,6 +6026,8 @@ async function generateContingencyReportPdf(payload, options = {}) {
 
   const project = getProjectById(safePayload.projectId);
   const projectLabel = project ? getProjectLabel(project) : safePayload.projectId || "-";
+  const reportTitleRaw = String(safePayload.reportTitle || "").trim();
+  const reportTitle = reportTitleRaw || "RELATÓRIO DE CONTINGÊNCIA";
   const timeline = (Array.isArray(safePayload.timeline) ? safePayload.timeline : []).slice().sort((a, b) => {
     const aDate = parseDateTime(a && a.occurredAt ? a.occurredAt : "");
     const bDate = parseDateTime(b && b.occurredAt ? b.occurredAt : "");
@@ -6269,6 +6276,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
   addPage();
   section("Dados Gerais");
   drawCompactKeyValueTable([
+    { label: "Título do relatório", value: reportTitle },
     {
       label: "Status",
       value: getContingencyLabel(CONTINGENCY_STATUS_LABELS, safePayload.status, "Rascunho"),
@@ -6360,7 +6368,51 @@ async function generateContingencyReportPdf(payload, options = {}) {
   }
   drawDivider();
 
-  section("4. Reincidência");
+  section("4. Diagnóstico");
+  kvParagraph("Sintomas", formatSymptomsForPdf(safePayload.symptoms || "-"));
+  kvParagraph("Diagnóstico técnico", safePayload.diagnosis || "-");
+  kv(
+    "Status da causa raiz",
+    getContingencyLabel(
+      CONTINGENCY_ROOT_CAUSE_STATUS_LABELS,
+      safePayload.rootCauseStatus,
+      "Preliminar"
+    )
+  );
+  kv(
+    "Categoria da causa raiz",
+    getContingencyLabel(
+      CONTINGENCY_ROOT_CAUSE_CATEGORY_LABELS,
+      safePayload.rootCauseCategory,
+      "Outro"
+    )
+  );
+  kvParagraph("Descrição da causa raiz", safePayload.rootCauseDescription || "-");
+  drawDivider();
+
+  section("5. Ações Executadas e Plano");
+  kv("Ações de contenção/normalização", safePayload.containmentActions || "-");
+  renderActionList("Ações corretivas:", correctiveActions);
+  renderActionList("Ações preventivas:", preventiveActions);
+  if (communications.length) {
+    writeText("Comunicações:", { bold: true, size: 10.6, leading: 13, color: palette.primary });
+    cursorY -= 2.8;
+    communications.forEach((entry, index) => {
+      const statusValue = entry.done ? "Concluída" : "Pendente";
+      const noteLabel = entry.note ? ` | Nota: ${entry.note}` : "";
+      writeText(`[${entry.done ? "x" : " "}] ${index + 1}. ${toText(entry.label)} | ${statusValue}${noteLabel}`, {
+        size: 9.3,
+        leading: 11.3,
+        color: entry.done ? palette.success : palette.text,
+      });
+      cursorY -= 6.2;
+    });
+  } else {
+    kv("Comunicações", "Sem checklist de comunicações.");
+  }
+  drawDivider();
+
+  section("6. Reincidência");
   drawCompactKeyValueTable(
     [
       { label: "Houve reincidência", value: formatRecurrenceYesNoLabel(recurrenceOccurred) },
@@ -6427,50 +6479,6 @@ async function generateContingencyReportPdf(payload, options = {}) {
   );
   kvParagraph("Conclusão técnica sobre reincidência", recurrenceAnalysis.conclusion || "-");
   kvParagraph("Recomendação preventiva/corretiva", recurrenceAnalysis.recommendation || "-");
-  drawDivider();
-
-  section("5. Diagnóstico");
-  kvParagraph("Sintomas", formatSymptomsForPdf(safePayload.symptoms || "-"));
-  kvParagraph("Diagnóstico técnico", safePayload.diagnosis || "-");
-  kv(
-    "Status da causa raiz",
-    getContingencyLabel(
-      CONTINGENCY_ROOT_CAUSE_STATUS_LABELS,
-      safePayload.rootCauseStatus,
-      "Preliminar"
-    )
-  );
-  kv(
-    "Categoria da causa raiz",
-    getContingencyLabel(
-      CONTINGENCY_ROOT_CAUSE_CATEGORY_LABELS,
-      safePayload.rootCauseCategory,
-      "Outro"
-    )
-  );
-  kvParagraph("Descrição da causa raiz", safePayload.rootCauseDescription || "-");
-  drawDivider();
-
-  section("6. Ações Executadas e Plano");
-  kv("Ações de contenção/normalização", safePayload.containmentActions || "-");
-  renderActionList("Ações corretivas:", correctiveActions);
-  renderActionList("Ações preventivas:", preventiveActions);
-  if (communications.length) {
-    writeText("Comunicações:", { bold: true, size: 10.6, leading: 13, color: palette.primary });
-    cursorY -= 2.8;
-    communications.forEach((entry, index) => {
-      const statusValue = entry.done ? "Concluída" : "Pendente";
-      const noteLabel = entry.note ? ` | Nota: ${entry.note}` : "";
-      writeText(`[${entry.done ? "x" : " "}] ${index + 1}. ${toText(entry.label)} | ${statusValue}${noteLabel}`, {
-        size: 9.3,
-        leading: 11.3,
-        color: entry.done ? palette.success : palette.text,
-      });
-      cursorY -= 6.2;
-    });
-  } else {
-    kv("Comunicações", "Sem checklist de comunicações.");
-  }
   drawDivider();
 
   section("7. Status Atual / Risco Residual");

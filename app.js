@@ -1433,6 +1433,7 @@ const contingencySeverityInput = document.getElementById("contingencySeverity");
 const contingencyStartAtInput = document.getElementById("contingencyStartAt");
 const contingencyNormalizedAtInput = document.getElementById("contingencyNormalizedAt");
 const contingencyProtocolRefInput = document.getElementById("contingencyProtocolRef");
+const contingencyReportTitleInput = document.getElementById("contingencyReportTitle");
 const contingencyReviewNatureInput = document.getElementById("contingencyReviewNature");
 const contingencyRevisionInput = document.getElementById("contingencyRevision");
 const contingencyPreparedByInput = document.getElementById("contingencyPreparedBy");
@@ -48594,6 +48595,9 @@ function resetContingencyForm(options = {}) {
   if (contingencyPreparedByInput) {
     contingencyPreparedByInput.value = "O&M HV BSO2";
   }
+  if (contingencyReportTitleInput) {
+    contingencyReportTitleInput.value = "";
+  }
   clearContingencySignature("technical", { clearFileInput: true });
   clearContingencySignature("engineering", { clearFileInput: true });
   contingencyTimelineDraft = [];
@@ -48732,6 +48736,7 @@ function buildContingencyPayloadFromForm() {
     startAt: toIsoFromDatetimeLocal(contingencyStartAtInput ? contingencyStartAtInput.value : ""),
     normalizedAt: toIsoFromDatetimeLocal(contingencyNormalizedAtInput ? contingencyNormalizedAtInput.value : ""),
     protocolRef: contingencyProtocolRefInput ? contingencyProtocolRefInput.value.trim() : "",
+    reportTitle: contingencyReportTitleInput ? contingencyReportTitleInput.value.trim() : "",
     reviewNature: contingencyReviewNatureInput ? contingencyReviewNatureInput.value.trim() : "",
     revision: revisionValue,
     preparedBy: contingencyPreparedByInput ? contingencyPreparedByInput.value.trim() : "",
@@ -48834,6 +48839,9 @@ function populateContingencyForm(item) {
   }
   if (contingencyProtocolRefInput) {
     contingencyProtocolRefInput.value = safe.protocolRef || "";
+  }
+  if (contingencyReportTitleInput) {
+    contingencyReportTitleInput.value = safe.reportTitle || "";
   }
   if (contingencyReviewNatureInput) {
     contingencyReviewNatureInput.value = safe.reviewNature || "Emissão";
