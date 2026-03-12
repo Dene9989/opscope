@@ -6590,43 +6590,30 @@ async function generateContingencyReportPdf(payload, options = {}) {
   const recurrenceSectionTitle =
     recurrenceOccurred === "SIM" ? "9. Reincidência Ocorrida" : "9. Reincidência";
   section(recurrenceSectionTitle);
-  writeText("Resumo da reincidência", { bold: true, size: 10.6, leading: 13, color: palette.primary });
-  cursorY -= 2.8;
-  drawCompactKeyValueTable(
-    [
-      { label: "Houve reincidência", value: formatRecurrenceYesNoLabel(recurrenceOccurred) },
-      { label: "Quantidade de reincidências", value: String(recurrenceCount) },
-      { label: "Primeira reincidência", value: recurrenceFirstLabel },
-      { label: "Última reincidência", value: recurrenceLastLabel },
-      { label: "Intervalo", value: recurrenceIntervalLabel },
-      { label: "Impacto acumulado", value: recurrenceImpactSummary || "-" },
-    ],
-    { labelRatio: 0.46 }
-  );
+  const recurrenceSpacing = {
+    afterSection: 6,
+    afterEntryTitle: 6,
+    afterSubtitle: 4,
+    afterTable: 6,
+    afterParagraph: 8,
+    afterEntry: 12,
+  };
+  const addRecurrenceGap = (value) => {
+    cursorY -= Number(value || 0);
+  };
+  addRecurrenceGap(recurrenceSpacing.afterSection);
 
-  if (recurrenceOccurred !== "SIM") {
+  if (recurrenceOccurred !== "SIM" || !recurrenceCount) {
     writeText(
       recurrenceOccurred === "NAO"
         ? "Não houve reincidência registrada após o evento principal."
-        : "Sem informação de reincidência registrada.",
+        : recurrenceOccurred === "SIM"
+          ? "Não há reincidências registradas para detalhamento."
+          : "Sem informação de reincidência registrada.",
       { size: 9.6, leading: 12, color: palette.muted }
     );
-    cursorY -= 6;
-  } else if (!recurrenceCount) {
-    writeText("Reincidência marcada como sim, porém sem registros detalhados.", {
-      size: 9.6,
-      leading: 12,
-      color: palette.muted,
-    });
-    cursorY -= 6;
+    addRecurrenceGap(recurrenceSpacing.afterEntry);
   } else {
-    writeText("Detalhamento das reincidências registradas", {
-      bold: true,
-      size: 10.6,
-      leading: 13,
-      color: palette.primary,
-    });
-    cursorY -= 2.8;
     recurrenceEntriesSorted.forEach((entry, index) => {
       const entryLabel = `Reincidência ${index + 1}`;
       const occurredLabel = formatContingencyDateTime(entry.occurredAt);
@@ -6641,9 +6628,9 @@ async function generateContingencyReportPdf(payload, options = {}) {
         entry.eventType,
         "Outro"
       );
-      ensureSpace(180);
+      ensureSpace(220);
       writeText(entryLabel, { bold: true, size: 10.4, leading: 12.6, color: palette.text });
-      cursorY -= 2.6;
+      addRecurrenceGap(recurrenceSpacing.afterEntryTitle);
 
       writeText("Identificação da ocorrência", {
         bold: true,
@@ -6651,7 +6638,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
         leading: 11.6,
         color: palette.primary,
       });
-      cursorY -= 1.8;
+      addRecurrenceGap(recurrenceSpacing.afterSubtitle);
       drawCompactKeyValueTable(
         [
           { label: "Data/hora da reincidência", value: occurredLabel },
@@ -6663,6 +6650,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
         ],
         { labelRatio: 0.46 }
       );
+      addRecurrenceGap(recurrenceSpacing.afterTable);
 
       writeText("Descrição objetiva da reincidência", {
         bold: true,
@@ -6670,8 +6658,8 @@ async function generateContingencyReportPdf(payload, options = {}) {
         leading: 11.6,
         color: palette.primary,
       });
-      cursorY -= 1.8;
-      kvParagraph("Descrição", entry.description || "-");
+      addRecurrenceGap(recurrenceSpacing.afterSubtitle);
+      kvParagraph("Descrição", entry.description || "-", { after: recurrenceSpacing.afterParagraph });
 
       writeText("Condição da ocorrência", {
         bold: true,
@@ -6679,7 +6667,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
         leading: 11.6,
         color: palette.primary,
       });
-      cursorY -= 1.8;
+      addRecurrenceGap(recurrenceSpacing.afterSubtitle);
       drawCompactKeyValueTable(
         [
           {
@@ -6700,14 +6688,8 @@ async function generateContingencyReportPdf(payload, options = {}) {
         ],
         { labelRatio: 0.46 }
       );
+      addRecurrenceGap(recurrenceSpacing.afterTable);
 
-      writeText("Anexos relacionados", {
-        bold: true,
-        size: 9.6,
-        leading: 11.6,
-        color: palette.primary,
-      });
-      cursorY -= 1.8;
       const attachmentLabels = Array.isArray(entry.attachmentIds)
         ? entry.attachmentIds
             .map((id) => String(id || "").trim())
@@ -6715,15 +6697,19 @@ async function generateContingencyReportPdf(payload, options = {}) {
             .map((key) => recurrenceAttachmentLabels.get(key))
             .filter(Boolean)
         : [];
-      if (!attachmentLabels.length) {
-        writeText("Sem anexos vinculados.", { size: 9.2, leading: 11.2, color: palette.muted });
-        cursorY -= 4;
-      } else {
+      if (attachmentLabels.length) {
+        writeText("Anexos relacionados", {
+          bold: true,
+          size: 9.6,
+          leading: 11.6,
+          color: palette.primary,
+        });
+        addRecurrenceGap(recurrenceSpacing.afterSubtitle);
         ensureSpace(attachmentLabels.length * 11.2 + 8);
         attachmentLabels.forEach((label) => {
           writeText(`- ${label}`, { size: 9.2, leading: 11.2, color: palette.text });
         });
-        cursorY -= 4;
+        addRecurrenceGap(recurrenceSpacing.afterTable);
       }
 
       writeText("Observação técnica", {
@@ -6732,9 +6718,9 @@ async function generateContingencyReportPdf(payload, options = {}) {
         leading: 11.6,
         color: palette.primary,
       });
-      cursorY -= 1.8;
-      kvParagraph("Observação", entry.notes || "-");
-      cursorY -= 4;
+      addRecurrenceGap(recurrenceSpacing.afterSubtitle);
+      kvParagraph("Observação", entry.notes || "-", { after: recurrenceSpacing.afterParagraph });
+      addRecurrenceGap(recurrenceSpacing.afterEntry);
     });
   }
 
