@@ -21349,14 +21349,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const revalidacaoDiariaPendente = Boolean(pendenciaDiariaExecucao);
   const revalidacaoManutencaoDisponivel = isRegistroExecucaoRevalidacaoDisponivel(item);
   const revalidadaHoje = isManutencaoRevalidadaNoDia(item);
-  const esconderEmExecucao =
-    execucaoRegistrada &&
-    statusBase === "em_execucao" &&
-    statusNormalized !== "concluida" &&
-    !revalidadaHoje;
-  if (!esconderEmExecucao) {
-    statusGroup.append(badge);
-  }
+  statusGroup.append(badge);
   if (revalidadaHoje && statusNormalized === "em_execucao") {
     const revalidadaBadge = document.createElement("span");
     revalidadaBadge.className = "status status--revalidada";
@@ -21512,7 +21505,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
       actions.append(criarBotaoAcao("Reagendar", "reschedule"));
     }
   } else if (statusNormalized === "em_execucao") {
-    if (permite("execute") && (!execucaoRegistrada || revalidacaoDiariaPendente)) {
+    if (permite("execute")) {
       const labelRegistro = revalidacaoDiariaPendente
         ? `Fechar dia ${formatRegistroExecucaoDiaLabel(pendenciaDiariaExecucao)}`
         : "Registrar execução";
@@ -21539,7 +21532,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
       actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
     }
   } else if (statusNormalized === "encerramento") {
-    if (permite("execute") && (!execucaoRegistrada || revalidacaoDiariaPendente)) {
+    if (permite("execute")) {
       const labelRegistro = revalidacaoDiariaPendente
         ? `Fechar dia ${formatRegistroExecucaoDiaLabel(pendenciaDiariaExecucao)}`
         : "Registrar execução";
@@ -21735,14 +21728,7 @@ function criarCardProgramacaoCompacto(item) {
     ? getExecucaoRegistradaLabel(item)
     : "";
   const revalidadaHoje = isManutencaoRevalidadaNoDia(item);
-  const esconderEmExecucao =
-    execucaoRegistrada &&
-    badgeInfo.base === "em_execucao" &&
-    statusNormalized !== "concluida" &&
-    !revalidadaHoje;
-  if (!esconderEmExecucao) {
-    statusGroup.append(badge);
-  }
+  statusGroup.append(badge);
 
   if (revalidadaHoje && statusNormalized === "em_execucao") {
     const revalidadaBadge = document.createElement("span");
