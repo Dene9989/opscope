@@ -4455,6 +4455,7 @@ function stripContingencyInternalDetails(record) {
         description: entry.description,
         durationMinutes: entry.durationMinutes,
         attachmentIds: Array.isArray(entry.attachmentIds) ? entry.attachmentIds : [],
+        notes: entry.notes || "",
       })),
       analysis: {
         patternIdentified: copy.recurrence.analysis
@@ -6389,6 +6390,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     const emptyMessage =
       options.emptyMessage || "Nenhuma foto válida foi incorporada ao PDF.";
     const labelOffset = Number(options.labelOffset || 0);
+    const emptyAsKv = options.emptyAsKv !== false;
     if (title) {
       writeText(title, { bold: true, size: 10.6, leading: 13, color: palette.primary });
       cursorY -= 2.8;
@@ -6404,7 +6406,11 @@ async function generateContingencyReportPdf(payload, options = {}) {
       failedPhotos.push(attachment);
     }
     if (!renderedPhotos.length) {
-      kv("Fotos", emptyMessage);
+      if (emptyAsKv) {
+        kv("Fotos", emptyMessage);
+      } else {
+        writeText(emptyMessage, { size: 9.2, leading: 11.2, color: palette.muted });
+      }
       return { renderedPhotos, failedPhotos };
     }
     const cols = 2;
@@ -6633,13 +6639,14 @@ async function generateContingencyReportPdf(payload, options = {}) {
   kv("Risco residual", safePayload.residualRisk || "-");
   drawDivider();
 
-  section("7. Evidências Fotográficas e Anexos");
-  const imageCandidates = attachments.filter((attachment) => {
+  const isImageAttachment = (attachment) => {
     const mime = String(attachment && attachment.mimeType ? attachment.mimeType : "").toLowerCase();
     const fileName = String(attachment && attachment.fileName ? attachment.fileName : "").toLowerCase();
     const category = String(attachment && attachment.category ? attachment.category : "").toUpperCase();
     return mime.startsWith("image/") || /\.(png|jpe?g)$/i.test(fileName) || category === "PHOTO";
-  });
+  };
+  section("7. Evidências Fotográficas e Anexos");
+  const imageCandidates = attachments.filter((attachment) => isImageAttachment(attachment));
   const baseImageCandidates = imageCandidates.filter(
     (attachment) => !isRecurrenceAttachment(attachment)
   );
@@ -6695,12 +6702,12 @@ async function generateContingencyReportPdf(payload, options = {}) {
     recurrenceOccurred === "SIM" ? "9. Reincidência Ocorrida" : "9. Reincidência";
   section(recurrenceSectionTitle);
   const recurrenceSpacing = {
-    afterSection: 6,
-    afterEntryTitle: 6,
-    afterSubtitle: 4,
-    afterTable: 6,
-    afterParagraph: 8,
-    afterEntry: 12,
+    afterSection: 4,
+    afterEntryTitle: 4,
+    afterSubtitle: 3,
+    afterTable: 4,
+    afterParagraph: 6,
+    afterEntry: 8,
   };
   const addRecurrenceGap = (value) => {
     cursorY -= Number(value || 0);
@@ -6718,7 +6725,8 @@ async function generateContingencyReportPdf(payload, options = {}) {
     );
     addRecurrenceGap(recurrenceSpacing.afterEntry);
   } else {
-    recurrenceEntriesSorted.forEach((entry, index) => {
+    for (let index = 0; index < recurrenceEntriesSorted.length; index += 1) {
+      const entry = recurrenceEntriesSorted[index];
       const entryLabel = `Reincidência ${index + 1}`;
       const occurredLabel = formatContingencyDateTime(entry.occurredAt);
       const normalizedLabel = formatContingencyDateTime(entry.normalizedAt);
@@ -6732,7 +6740,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
         entry.eventType,
         "Outro"
       );
-      ensureSpace(220);
+      ensureSpace(160);
       writeText(entryLabel, { bold: true, size: 10.4, leading: 12.6, color: palette.text });
       addRecurrenceGap(recurrenceSpacing.afterEntryTitle);
 
@@ -6795,9 +6803,6 @@ async function generateContingencyReportPdf(payload, options = {}) {
       addRecurrenceGap(recurrenceSpacing.afterTable);
 
       const relatedAttachments = resolveRecurrenceAttachments(entry, index);
-      const attachmentLabels = relatedAttachments
-        .map((attachment) => getRecurrenceAttachmentLabel(attachment))
-        .filter(Boolean);
       writeText("Anexos relacionados", {
         bold: true,
         size: 9.6,
@@ -6805,11 +6810,39 @@ async function generateContingencyReportPdf(payload, options = {}) {
         color: palette.primary,
       });
       addRecurrenceGap(recurrenceSpacing.afterSubtitle);
-      if (attachmentLabels.length) {
-        ensureSpace(attachmentLabels.length * 11.2 + 8);
-        attachmentLabels.forEach((label) => {
-          writeText(`- ${label}`, { size: 9.2, leading: 11.2, color: palette.text });
-        });
+      if (relatedAttachments.length) {
+        const relatedImages = relatedAttachments.filter((attachment) => isImageAttachment(attachment));
+        const relatedNonImages = relatedAttachments.filter((attachment) => !isImageAttachment(attachment));
+        if (relatedImages.length) {
+          const { failedPhotos } = await renderAttachmentPhotoGrid(relatedImages, {
+            emptyAsKv: false,
+            emptyMessage: "Nenhuma foto válida foi incorporada ao PDF.",
+          });
+          if (failedPhotos.length) {
+            writeText(
+              `${failedPhotos.length} foto(s) não puderam ser incorporadas nesta versão do PDF.`,
+              { size: 9.1, leading: 11, color: palette.warning }
+            );
+          }
+        }
+        if (relatedNonImages.length) {
+          if (relatedImages.length) {
+            cursorY -= 4;
+          }
+          writeText("Outros anexos:", {
+            size: 9.2,
+            leading: 11.2,
+            color: palette.muted,
+          });
+          ensureSpace(relatedNonImages.length * 11.2 + 6);
+          relatedNonImages.forEach((attachment) => {
+            writeText(`- ${getRecurrenceAttachmentLabel(attachment)}`, {
+              size: 9.2,
+              leading: 11.2,
+              color: palette.text,
+            });
+          });
+        }
       } else {
         writeText("Sem anexos vinculados.", { size: 9.2, leading: 11.2, color: palette.muted });
       }
@@ -6824,7 +6857,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
       addRecurrenceGap(recurrenceSpacing.afterSubtitle);
       kvParagraph("Observação", entry.notes || "-", { after: recurrenceSpacing.afterParagraph });
       addRecurrenceGap(recurrenceSpacing.afterEntry);
-    });
+    }
   }
 
   writeText("Conclusão sobre reincidência", {
@@ -6856,21 +6889,6 @@ async function generateContingencyReportPdf(payload, options = {}) {
     { labelRatio: 0.56 }
   );
   addRecurrenceGap(recurrenceSpacing.afterTable);
-  writeText("Avaliação conclusiva", {
-    bold: true,
-    size: 9.6,
-    leading: 11.6,
-    color: palette.primary,
-  });
-  addRecurrenceGap(recurrenceSpacing.afterSubtitle);
-  const conclusivaParts = [
-    `Padrão recorrente: ${formatRecurrenceYesNoLabel(recurrenceAnalysis.patternIdentified, "-")}`,
-    `Falha persistente: ${formatRecurrenceYesNoLabel(recurrenceAnalysis.persistentFailure, "-")}`,
-    `Garantia: ${formatRecurrenceYesNoLabel(recurrenceAnalysis.warrantyRecommended, "-")}`,
-    `Inspeção/especialista: ${formatRecurrenceYesNoLabel(recurrenceAnalysis.specialistRecommended, "-")}`,
-  ];
-  writeText(`${conclusivaParts.join(". ")}.`, { size: 10, leading: 12.4 });
-  addRecurrenceGap(recurrenceSpacing.afterParagraph);
   kvParagraph("Conclusão técnica sobre reincidência", recurrenceAnalysis.conclusion || "-", {
     after: recurrenceSpacing.afterParagraph,
   });
@@ -6881,11 +6899,14 @@ async function generateContingencyReportPdf(payload, options = {}) {
 
   const signGap = 12;
   const signWidth = (contentWidth - signGap * 2) / 3;
-  const signYFixed = footerY + 88;
-  if (cursorY < signYFixed + 26) {
+  const signatureBlockHeight = signatureImageHeight + 24;
+  const signatureTopGap = 8;
+  const signMinY = footerY + 32;
+  let signY = cursorY - signatureBlockHeight - signatureTopGap;
+  if (signY < signMinY) {
     addPage();
+    signY = pageSize[1] - headerHeight - signatureBlockHeight - 24;
   }
-  const signY = signYFixed;
   const signSlotOneX = margin;
   const signSlotTwoX = margin + signWidth + signGap;
   const signSlotThreeX = margin + signWidth * 2 + signGap * 2;
