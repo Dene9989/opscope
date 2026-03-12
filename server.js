@@ -1,4 +1,4 @@
-try {
+﻿try {
   require("dotenv").config();
 } catch (error) {
   // ignore if dotenv is not installed
@@ -561,13 +561,13 @@ const STORE_UPLOADS = String(process.env.OPSCOPE_STORE_UPLOADS || "true").toLowe
 const STORE_UPLOADS_MAX_BYTES = Number(process.env.OPSCOPE_STORE_UPLOADS_MAX_BYTES) || FILE_MAX_BYTES;
 const STORE_UPLOADS_BACKFILL_LIMIT = Number(process.env.OPSCOPE_STORE_UPLOADS_BACKFILL_LIMIT || 0);
 const FILE_TYPE_CONFIG = {
-  evidence: { label: "Evidências", dir: "evidencias" },
+  evidence: { label: "EvidÃªncias", dir: "evidencias" },
   rdo: { label: "Anexos de RDO", dir: "rdos" },
   audit: { label: "Documentos de auditoria", dir: "auditoria" },
   procedure: { label: "Procedimentos PMP", dir: "procedimentos" },
-  liberacao: { label: "Documentos de liberação", dir: "liberacao" },
+  liberacao: { label: "Documentos de liberaÃ§Ã£o", dir: "liberacao" },
 };
-FILE_TYPE_CONFIG.contingency = { label: "Anexos de contingência", dir: "contingencias" };
+FILE_TYPE_CONFIG.contingency = { label: "Anexos de contingÃªncia", dir: "contingencias" };
 const LIBERACAO_DOC_TYPES = new Set(["apr", "os", "pte", "pt"]);
 const FILE_ALLOWED_MIME = new Map([
   ["application/pdf", "pdf"],
@@ -609,7 +609,7 @@ const DEFAULT_PROJECT_TEAM = "O&M BSO2";
 const AUTOMATION_DEFAULTS = [
   {
     id: "maintenance_critical_email",
-    name: "Notificar manutenção crítica",
+    name: "Notificar manutenÃ§Ã£o crÃ­tica",
     enabled: true,
     event: "maintenance_created",
     condition: { type: "critical" },
@@ -744,7 +744,7 @@ const RELEASE_OVERRIDE_ROLES = new Set([
 const PERMISSION_CATALOG = [
   {
     id: "manutencao",
-    label: "Manutenções",
+    label: "ManutenÃ§Ãµes",
     permissions: [
       { key: "create", label: "Criar" },
       { key: "edit", label: "Editar" },
@@ -755,10 +755,10 @@ const PERMISSION_CATALOG = [
   },
   {
     id: "usuarios",
-    label: "Usuários",
+    label: "UsuÃ¡rios",
     permissions: [
-      { key: "admin:users:read", label: "Ler usuários" },
-      { key: "admin:users:write", label: "Editar usuários" },
+      { key: "admin:users:read", label: "Ler usuÃ¡rios" },
+      { key: "admin:users:write", label: "Editar usuÃ¡rios" },
     ],
   },
 ];
@@ -766,14 +766,14 @@ const PERMISSION_CATALOG = [
 const GRANULAR_PERMISSION_CATALOG = [
   { key: "editarPerfil", label: "Editar perfil (UEN/Projeto)" },
   { key: "editarPerfilOutros", label: "Editar perfil de outros" },
-  { key: "verAnuncios", label: "Ver anúncios" },
-  { key: "criarAnuncios", label: "Criar anúncios" },
-  { key: "verUsuarios", label: "Ver usuários" },
-  { key: "convidarUsuarios", label: "Convidar usuários" },
-  { key: "desativarUsuarios", label: "Desativar usuários" },
+  { key: "verAnuncios", label: "Ver anÃºncios" },
+  { key: "criarAnuncios", label: "Criar anÃºncios" },
+  { key: "verUsuarios", label: "Ver usuÃ¡rios" },
+  { key: "convidarUsuarios", label: "Convidar usuÃ¡rios" },
+  { key: "desativarUsuarios", label: "Desativar usuÃ¡rios" },
   { key: "limparCacheLocal", label: "Limpar cache local" },
-  { key: "executarManutencaoTerceiros", label: "Executar manutenção de terceiros" },
-  { key: "revalidarPrazoManutencao", label: "Revalidar prazo de manuten��o" },
+  { key: "executarManutencaoTerceiros", label: "Executar manutenÃ§Ã£o de terceiros" },
+  { key: "revalidarPrazoManutencao", label: "Revalidar prazo de manutenï¿½ï¿½o" },
   { key: "verArquivos", label: "Ver arquivos" },
   { key: "uploadArquivos", label: "Enviar arquivos" },
   { key: "excluirArquivos", label: "Excluir arquivos" },
@@ -781,14 +781,14 @@ const GRANULAR_PERMISSION_CATALOG = [
   { key: "verRDOs", label: "Ver RDOs" },
   { key: "gerarRDOs", label: "Gerar RDOs" },
   { key: "excluirRDOs", label: "Excluir RDOs" },
-  { key: "verRelatorios", label: "Ver relatórios" },
-  { key: "exportarRelatorios", label: "Exportar relatórios" },
+  { key: "verRelatorios", label: "Ver relatÃ³rios" },
+  { key: "exportarRelatorios", label: "Exportar relatÃ³rios" },
   { key: "reexecutarTarefas", label: "Reexecutar tarefas" },
   { key: "verLogsAPI", label: "Ver logs de API" },
   { key: "limparLogsAPI", label: "Limpar logs de API" },
-  { key: "gerenciarAutomacoes", label: "Gerenciar automações" },
-  { key: "verAutomacoes", label: "Ver automações" },
-  { key: "verDiagnostico", label: "Ver diagnóstico" },
+  { key: "gerenciarAutomacoes", label: "Gerenciar automaÃ§Ãµes" },
+  { key: "verAutomacoes", label: "Ver automaÃ§Ãµes" },
+  { key: "verDiagnostico", label: "Ver diagnÃ³stico" },
   { key: "verPainelGerencial", label: "Ver painel gerencial" },
   { key: "gerenciarProjetos", label: "Gerenciar projetos" },
   { key: "gerenciarEquipamentos", label: "Gerenciar equipamentos" },
@@ -1010,8 +1010,8 @@ const ACCESS_SECTION_PERMISSIONS = [
 ];
 
 const ACCESS_PERMISSION_ALIASES = {
-  "programação": "programacao",
-  "execução": "execucao",
+  "programaÃ§Ã£o": "programacao",
+  "execuÃ§Ã£o": "execucao",
 };
 const ACCESS_MAINTENANCE_PERMISSION_MAP = {
   create: "MAINT_CREATE",
@@ -1762,7 +1762,7 @@ function createFileSessionStore() {
           });
         });
       } catch (error) {
-        console.warn("[session] Falha ao carregar sessões persistidas:", error.message || error);
+        console.warn("[session] Falha ao carregar sessÃµes persistidas:", error.message || error);
       }
     }
 
@@ -1795,7 +1795,7 @@ function createFileSessionStore() {
         );
         fs.renameSync(tempPath, this.filePath);
       } catch (error) {
-        console.warn("[session] Falha ao persistir sessões:", error.message || error);
+        console.warn("[session] Falha ao persistir sessÃµes:", error.message || error);
       }
     }
 
@@ -1854,7 +1854,7 @@ function createFileSessionStore() {
       try {
         const key = String(sid || "");
         if (!key) {
-          if (callback) callback(new Error("Session ID inválido."));
+          if (callback) callback(new Error("Session ID invÃ¡lido."));
           return;
         }
         this.sessions.set(key, {
@@ -1909,7 +1909,7 @@ try {
   sessionStore = createFileSessionStore();
 } catch (error) {
   sessionStore = null;
-  console.warn("[session] Falha ao iniciar armazenamento persistente de sessões:", error.message || error);
+  console.warn("[session] Falha ao iniciar armazenamento persistente de sessÃµes:", error.message || error);
 }
 
 function migrateLegacyAvatars() {
@@ -3681,6 +3681,128 @@ function normalizeContingencyActionStatus(value) {
   return "PENDENTE";
 }
 
+function normalizeContingencyRecurrenceYesNo(value) {
+  if (typeof value === "boolean") {
+    return value ? "SIM" : "NAO";
+  }
+  const normalized = String(value || "")
+    .trim()
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  if (normalized === "SIM" || normalized === "NAO") {
+    return normalized;
+  }
+  return "";
+}
+
+function normalizeContingencyRecurrenceCause(value) {
+  if (typeof value === "boolean") {
+    return value ? "SIM" : "NAO";
+  }
+  const normalized = String(value || "")
+    .trim()
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  if (normalized === "SIM" || normalized === "NAO" || normalized === "EM_ANALISE") {
+    return normalized;
+  }
+  return "";
+}
+
+function normalizeContingencyRecurrenceEntry(record) {
+  const now = new Date().toISOString();
+  const occurredAtDate = parseDateTime(
+    record && (record.occurredAt || record.recurrenceAt || record.dataHora)
+  );
+  const normalizedAtDate = parseDateTime(
+    record && (record.normalizedAt || record.normalizadoEm || record.dataNormalizacao)
+  );
+  const attachmentIdsRaw = record && (record.attachmentIds || record.anexosIds || record.anexos);
+  const attachmentIds = Array.isArray(attachmentIdsRaw)
+    ? attachmentIdsRaw.map((id) => String(id || "").trim()).filter(Boolean)
+    : typeof attachmentIdsRaw === "string"
+      ? attachmentIdsRaw
+          .split(/[,;]+/)
+          .map((id) => String(id || "").trim())
+          .filter(Boolean)
+      : [];
+  const durationMinutes =
+    occurredAtDate && normalizedAtDate && normalizedAtDate.getTime() >= occurredAtDate.getTime()
+      ? Math.round((normalizedAtDate.getTime() - occurredAtDate.getTime()) / 60000)
+      : null;
+  return {
+    id: record && record.id ? String(record.id) : crypto.randomUUID(),
+    occurredAt: occurredAtDate ? occurredAtDate.toISOString() : "",
+    normalizedAt: normalizedAtDate ? normalizedAtDate.toISOString() : "",
+    substation: String(record && (record.substation || record.subestacao) ? record.substation || record.subestacao : "").trim(),
+    bay: String(record && record.bay ? record.bay : "").trim(),
+    feeder: String(record && record.feeder ? record.feeder : "").trim(),
+    assetName: String(
+      record && (record.assetName || record.equipmentName || record.equipamento)
+        ? record.assetName || record.equipmentName || record.equipamento
+        : ""
+    ).trim(),
+    eventType: normalizeContingencyEventType(record && (record.eventType || record.tipoEvento)),
+    description: String(record && (record.description || record.descricao) ? record.description || record.descricao : "").trim(),
+    sameCause: normalizeContingencyRecurrenceCause(
+      record && (record.sameCause || record.mesmaCausa || record.mesmaCausaProvavel)
+    ),
+    protection: normalizeContingencyRecurrenceYesNo(
+      record && (record.protection || record.atuacaoProtecao || record.protecao)
+    ),
+    interruption: normalizeContingencyRecurrenceYesNo(
+      record && (record.interruption || record.indisponibilidade || record.interrupcao)
+    ),
+    protocolRef: String(
+      record && (record.protocolRef || record.protocolo || record.os)
+        ? record.protocolRef || record.protocolo || record.os
+        : ""
+    ).trim(),
+    attachmentIds,
+    notes: String(record && (record.notes || record.observacao) ? record.notes || record.observacao : "").trim(),
+    durationMinutes,
+    createdAt: record && record.createdAt ? String(record.createdAt) : now,
+  };
+}
+
+function normalizeContingencyRecurrenceState(value) {
+  const source = value && typeof value === "object" ? value : {};
+  const analysis = source.analysis && typeof source.analysis === "object" ? source.analysis : {};
+  const entriesRaw = source.entries || source.recurrences || source.items || [];
+  const entries = Array.isArray(entriesRaw)
+    ? entriesRaw
+        .map(normalizeContingencyRecurrenceEntry)
+        .filter((entry) => entry.description || entry.occurredAt || entry.substation || entry.assetName || entry.eventType)
+    : [];
+  return {
+    occurred: normalizeContingencyRecurrenceYesNo(source.occurred || source.houve),
+    impactSummary: String(source.impactSummary || source.impactoAcumulado || "").trim(),
+    entries,
+    analysis: {
+      patternIdentified: normalizeContingencyRecurrenceYesNo(
+        analysis.patternIdentified || analysis.padraoRecorrente
+      ),
+      persistentFailure: normalizeContingencyRecurrenceYesNo(
+        analysis.persistentFailure || analysis.falhaPersistente
+      ),
+      warrantyRecommended: normalizeContingencyRecurrenceYesNo(
+        analysis.warrantyRecommended || analysis.garantia
+      ),
+      specialistRecommended: normalizeContingencyRecurrenceYesNo(
+        analysis.specialistRecommended || analysis.inspecaoEspecialista
+      ),
+      conclusion: String(analysis.conclusion || analysis.conclusao || "").trim(),
+      recommendation: String(analysis.recommendation || analysis.recomendacao || "").trim(),
+    },
+  };
+}
+
 function normalizeContingencyCommunicationStatusToken(value) {
   const normalized = String(value || "")
     .trim()
@@ -3913,6 +4035,9 @@ function normalizeContingency(record) {
     Boolean(record && (record.impactMwNotApplicable || record.impactMwND)) ||
     (impactMw === null && normalizeSearchValue(record && record.impactMw) === "n/d");
   const revisionRaw = Number(record && record.revision);
+  const recurrence = normalizeContingencyRecurrenceState(
+    record && (record.recurrence || record.reincidencia) ? record.recurrence || record.reincidencia : {}
+  );
   return {
     id: record && record.id ? String(record.id) : crypto.randomUUID(),
     code: String(record && record.code ? record.code : "").trim(),
@@ -3937,7 +4062,7 @@ function normalizeContingency(record) {
       record && (record.reviewNature || record.naturezaRevisao || record.naturezaDaRevisao)
         ? record.reviewNature || record.naturezaRevisao || record.naturezaDaRevisao
         : ""
-    ).trim() || "Emissão",
+    ).trim() || "EmissÃ£o",
     preparedBy: String(
       record && (record.preparedBy || record.elaboradoPor || record.elaborado)
         ? record.preparedBy || record.elaboradoPor || record.elaborado
@@ -4057,6 +4182,7 @@ function normalizeContingency(record) {
       record && (record.communications || record.comunicacoes)
     ),
     protocolRef: String(record && (record.protocolRef || record.protocolo) ? record.protocolRef || record.protocolo : "").trim(),
+    recurrence,
     revision: Number.isFinite(revisionRaw) && revisionRaw >= 0 ? Math.floor(revisionRaw) : 1,
     createdBy: String(record && record.createdBy ? record.createdBy : "").trim(),
     createdAt: record && record.createdAt ? String(record.createdAt) : now,
@@ -4241,6 +4367,41 @@ function canEditContingency(user, record) {
 function stripContingencyInternalDetails(record) {
   const copy = normalizeContingency(record);
   copy.diagnosis = copy.diagnosis ? `Resumo tecnico: ${copy.diagnosis}` : "";
+  if (copy.recurrence && typeof copy.recurrence === "object") {
+    const entries = Array.isArray(copy.recurrence.entries) ? copy.recurrence.entries : [];
+    copy.recurrence = {
+      occurred: copy.recurrence.occurred || "",
+      impactSummary: copy.recurrence.impactSummary || "",
+      entries: entries.map((entry) => ({
+        id: entry.id,
+        occurredAt: entry.occurredAt,
+        normalizedAt: entry.normalizedAt,
+        substation: entry.substation,
+        bay: entry.bay,
+        feeder: entry.feeder,
+        assetName: entry.assetName,
+        eventType: entry.eventType,
+        description: entry.description,
+        durationMinutes: entry.durationMinutes,
+      })),
+      analysis: {
+        patternIdentified: copy.recurrence.analysis
+          ? copy.recurrence.analysis.patternIdentified || ""
+          : "",
+        persistentFailure: copy.recurrence.analysis
+          ? copy.recurrence.analysis.persistentFailure || ""
+          : "",
+        warrantyRecommended: copy.recurrence.analysis
+          ? copy.recurrence.analysis.warrantyRecommended || ""
+          : "",
+        specialistRecommended: copy.recurrence.analysis
+          ? copy.recurrence.analysis.specialistRecommended || ""
+          : "",
+        conclusion: copy.recurrence.analysis ? copy.recurrence.analysis.conclusion || "" : "",
+        recommendation: copy.recurrence.analysis ? copy.recurrence.analysis.recommendation || "" : "",
+      },
+    };
+  }
   return copy;
 }
 
@@ -4261,17 +4422,17 @@ function parseBooleanLike(value) {
 function validateContingencyRecord(record) {
   const errors = [];
   if (!record.projectId) {
-    errors.push("Projeto obrigatório.");
+    errors.push("Projeto obrigatÃ³rio.");
   }
   if (!record.startAt || !parseDateTime(record.startAt)) {
-    errors.push("Data/hora de início obrigatória.");
+    errors.push("Data/hora de inÃ­cio obrigatÃ³ria.");
   }
   const status = normalizeContingencyStatus(record.status);
   if ((status === "NORMALIZED" || status === "CLOSED") && !parseDateTime(record.normalizedAt)) {
-    errors.push("Data/hora de normalização obrigatória para status NORMALIZED/CLOSED.");
+    errors.push("Data/hora de normalizaÃ§Ã£o obrigatÃ³ria para status NORMALIZED/CLOSED.");
   }
   if (record.systemCondition !== "NORMAL" && !record.impactDescription) {
-    errors.push("Descrição de impacto obrigatória quando condição do sistema não for NORMAL.");
+    errors.push("DescriÃ§Ã£o de impacto obrigatÃ³ria quando condiÃ§Ã£o do sistema nÃ£o for NORMAL.");
   }
   if (record.impactMw === null && !record.impactMwNotApplicable) {
     errors.push("Informe impacto em MW ou marque N/D.");
@@ -4285,7 +4446,7 @@ function validateContingencyRecord(record) {
       !haystack.includes("dispositivo")
     ) {
       errors.push(
-        "Para TRIP/DESARME, informe dispositivo/relé/proteção nos sintomas ou em função de proteção."
+        "Para TRIP/DESARME, informe dispositivo/relÃ©/proteÃ§Ã£o nos sintomas ou em funÃ§Ã£o de proteÃ§Ã£o."
       );
     }
   }
@@ -4293,8 +4454,28 @@ function validateContingencyRecord(record) {
     const symptoms = normalizeSearchValue(record.symptoms || "");
     if (!symptoms.includes("remoto") || (!symptoms.includes("local") && !symptoms.includes("mecan"))) {
       errors.push(
-        "Para FALHA_FECHAMENTO, descreva o resultado remoto e local/mecânico nos sintomas."
+        "Para FALHA_FECHAMENTO, descreva o resultado remoto e local/mecÃ¢nico nos sintomas."
       );
+    }
+  }
+  if (record.recurrence && typeof record.recurrence === "object") {
+    const occurred = normalizeContingencyRecurrenceYesNo(record.recurrence.occurred);
+    if (occurred === "SIM") {
+      const entries = Array.isArray(record.recurrence.entries) ? record.recurrence.entries : [];
+      if (!entries.length) {
+        errors.push("ReincidÃƒÂªncia: informe ao menos 1 registro quando houver reincidÃƒÂªncia.");
+      }
+      entries.forEach((entry, index) => {
+        if (!entry || !parseDateTime(entry.occurredAt)) {
+          errors.push(`ReincidÃƒÂªncia ${index + 1}: data/hora obrigatÃƒÂ³ria.`);
+        }
+        if (!String(entry && entry.description ? entry.description : "").trim()) {
+          errors.push(`ReincidÃƒÂªncia ${index + 1}: descriÃƒÂ§ÃƒÂ£o obrigatÃƒÂ³ria.`);
+        }
+        if (!normalizeContingencyRecurrenceCause(entry && entry.sameCause)) {
+          errors.push(`ReincidÃƒÂªncia ${index + 1}: mesma causa provÃƒÂ¡vel obrigatÃƒÂ³ria.`);
+        }
+      });
     }
   }
   return errors;
@@ -4313,10 +4494,10 @@ function normalizeContingencyTimelineList(value, contingencyId) {
     .filter((entry) => entry.event || entry.occurredAt || entry.responsible);
   list.forEach((entry, index) => {
     if (!entry.occurredAt || !parseDateTime(entry.occurredAt)) {
-      errors.push(`Timeline item ${index + 1}: horário obrigatório.`);
+      errors.push(`Timeline item ${index + 1}: horÃ¡rio obrigatÃ³rio.`);
     }
     if (!entry.event) {
-      errors.push(`Timeline item ${index + 1}: descrição obrigatória.`);
+      errors.push(`Timeline item ${index + 1}: descriÃ§Ã£o obrigatÃ³ria.`);
     }
   });
   list.sort((a, b) => {
@@ -4420,14 +4601,14 @@ const CONTINGENCY_EVENT_LABELS = {
   TRIP: "Trip",
   FALHA_FECHAMENTO: "Falha de fechamento",
   FALHA_COMANDO: "Falha de comando",
-  PERDA_REDUNDANCIA: "Perda de redundância",
-  FALHA_COMUNICACAO: "Falha de comunicação",
+  PERDA_REDUNDANCIA: "Perda de redundÃ¢ncia",
+  FALHA_COMUNICACAO: "Falha de comunicaÃ§Ã£o",
   OUTRO: "Outro",
 };
 
 const CONTINGENCY_STATUS_LABELS = {
   DRAFT: "Rascunho",
-  IN_ANALYSIS: "Em análise",
+  IN_ANALYSIS: "Em anÃ¡lise",
   NORMALIZED: "Normalizada",
   CLOSED: "Encerrada",
   REOPENED: "Reaberta",
@@ -4437,7 +4618,7 @@ const CONTINGENCY_SYSTEM_CONDITION_LABELS = {
   NORMAL: "Normal",
   DEGRADED: "Degradada",
   RESTRICTED: "Restrita",
-  UNAVAILABLE: "Indisponível",
+  UNAVAILABLE: "IndisponÃ­vel",
 };
 
 const CONTINGENCY_ROOT_CAUSE_STATUS_LABELS = {
@@ -4450,8 +4631,8 @@ const CONTINGENCY_ROOT_CAUSE_CATEGORY_LABELS = {
   DC_CIRCUIT: "Circuito de CC",
   COIL: "Bobina",
   INTERLOCK: "Intertravamento",
-  MECHANICAL: "Mecânica",
-  COMMS_RTU: "Comunicação/RTU",
+  MECHANICAL: "MecÃ¢nica",
+  COMMS_RTU: "ComunicaÃ§Ã£o/RTU",
   OPERATIONAL_ERROR: "Erro operacional",
   EXTERNAL: "Externo",
   OTHER: "Outro",
@@ -4477,7 +4658,7 @@ const CONTINGENCY_ATTACHMENT_CATEGORY_LABELS = {
 const CONTINGENCY_ACTION_STATUS_LABELS = {
   PENDENTE: "Pendente",
   EM_ANDAMENTO: "Em andamento",
-  CONCLUIDA: "Concluída",
+  CONCLUIDA: "ConcluÃ­da",
   CANCELADA: "Cancelada",
 };
 const CONTINGENCY_REPORT_TIMEZONE = String(
@@ -4776,7 +4957,7 @@ function truncatePdfText(text, maxWidth, size, font) {
 
 async function generateContingencyReportPdf(payload, options = {}) {
   if (!PDFDocument || !StandardFonts) {
-    throw new Error("Dependência pdf-lib não instalada.");
+    throw new Error("DependÃªncia pdf-lib nÃ£o instalada.");
   }
   const safePayload = payload && typeof payload === "object" ? payload : {};
   const reportType = String(options.reportType || "internal").trim().toLowerCase() === "client"
@@ -4784,7 +4965,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     : "internal";
   const generatedBy = String(options.generatedBy || "").trim() || "-";
   const generatedAt = options.generatedAt ? String(options.generatedAt) : new Date().toISOString();
-  const reportTypeLabel = reportType === "client" ? "Versão Cliente" : "Versão Interna";
+  const reportTypeLabel = reportType === "client" ? "VersÃ£o Cliente" : "VersÃ£o Interna";
   const footerGeneratedBy = "O&M HV BSO2";
   const pdfDoc = await PDFDocument.create();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -4811,24 +4992,24 @@ async function generateContingencyReportPdf(payload, options = {}) {
     border: rgb(0, 0, 0),
   };
   const PDF_TEXT_REPLACEMENTS = {
-    "→": "->",
-    "←": "<-",
-    "↔": "<->",
-    "⇒": "=>",
-    "•": "-",
-    "–": "-",
-    "—": "-",
-    "“": "\"",
-    "”": "\"",
-    "‘": "'",
-    "’": "'",
-    "…": "...",
-    "≤": "<=",
-    "≥": ">=",
-    "✓": "OK",
-    "✔": "OK",
-    "✗": "X",
-    "✘": "X",
+    "â†’": "->",
+    "â†": "<-",
+    "â†”": "<->",
+    "â‡’": "=>",
+    "â€¢": "-",
+    "â€“": "-",
+    "â€”": "-",
+    "â€œ": "\"",
+    "â€": "\"",
+    "â€˜": "'",
+    "â€™": "'",
+    "â€¦": "...",
+    "â‰¤": "<=",
+    "â‰¥": ">=",
+    "âœ“": "OK",
+    "âœ”": "OK",
+    "âœ—": "X",
+    "âœ˜": "X",
     "\u00A0": " ",
   };
   const sanitizePdfText = (value, activeFont = font, options = {}) => {
@@ -5212,7 +5393,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     const firstRow = [
       "0",
       formatContingencyDateOnly(generatedAt),
-      toText(safePayload.reviewNature, "Emissão"),
+      toText(safePayload.reviewNature, "EmissÃ£o"),
       toText(safePayload.preparedBy, footerGeneratedBy),
       formatApprovalCoverCell(safePayload.verifiedBy, safePayload.verifiedAt),
       formatApprovalCoverCell(safePayload.approvedBy, safePayload.approvedAt),
@@ -5333,7 +5514,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
       true
     );
     drawCenteredText(
-      `Código: ${toText(safePayload.code)}  |  Revisão: ${toText(safePayload.revision || 1)}  |  Emissão: ${formatContingencyDateOnly(
+      `CÃ³digo: ${toText(safePayload.code)}  |  RevisÃ£o: ${toText(safePayload.revision || 1)}  |  EmissÃ£o: ${formatContingencyDateOnly(
         generatedAt
       )}`,
       rowC - 24,
@@ -5774,9 +5955,9 @@ async function generateContingencyReportPdf(payload, options = {}) {
       return note;
     }
     if (String(attachment && attachment.category ? attachment.category : "").trim().toUpperCase() === "PHOTO") {
-      return `Imagem evidência ${index + 1} da contingência`;
+      return `Imagem evidÃªncia ${index + 1} da contingÃªncia`;
     }
-    return `Evidência ${index + 1} - ${categoryLabel}`;
+    return `EvidÃªncia ${index + 1} - ${categoryLabel}`;
   };
 
   const project = getProjectById(safePayload.projectId);
@@ -5809,12 +5990,96 @@ async function generateContingencyReportPdf(payload, options = {}) {
     chunks.push(`${String(minutes).padStart(2, "0")}m`);
     return chunks.join(" ");
   };
+  const formatDurationMinutes = (minutes) => {
+    if (!Number.isFinite(Number(minutes))) {
+      return "-";
+    }
+    const totalMin = Math.max(0, Math.round(Number(minutes)));
+    const days = Math.floor(totalMin / 1440);
+    const hours = Math.floor((totalMin % 1440) / 60);
+    const mins = totalMin % 60;
+    const chunks = [];
+    if (days > 0) {
+      chunks.push(`${days}d`);
+    }
+    chunks.push(`${String(hours).padStart(2, "0")}h`);
+    chunks.push(`${String(mins).padStart(2, "0")}m`);
+    return chunks.join(" ");
+  };
+  const formatRecurrenceYesNoLabel = (value, fallback = "N\u00e3o informado") => {
+    const normalized = normalizeContingencyRecurrenceYesNo(value);
+    if (normalized === "SIM") {
+      return "Sim";
+    }
+    if (normalized === "NAO") {
+      return "N\u00e3o";
+    }
+    return fallback;
+  };
+  const formatRecurrenceCauseLabel = (value) => {
+    const normalized = normalizeContingencyRecurrenceCause(value);
+    if (normalized === "SIM") {
+      return "Sim";
+    }
+    if (normalized === "NAO") {
+      return "N\u00e3o";
+    }
+    if (normalized === "EM_ANALISE") {
+      return "Em an\u00e1lise";
+    }
+    return "-";
+  };
+  const recurrence = safePayload.recurrence && typeof safePayload.recurrence === "object"
+    ? safePayload.recurrence
+    : {};
+  const recurrenceEntries = Array.isArray(recurrence.entries) ? recurrence.entries : [];
+  const recurrenceEntriesSorted = recurrenceEntries.slice().sort((a, b) => {
+    const aDate = parseDateTime(a && a.occurredAt ? a.occurredAt : "");
+    const bDate = parseDateTime(b && b.occurredAt ? b.occurredAt : "");
+    return (aDate ? aDate.getTime() : 0) - (bDate ? bDate.getTime() : 0);
+  });
+  const recurrenceOccurred = normalizeContingencyRecurrenceYesNo(recurrence.occurred);
+  const recurrenceCount = recurrenceEntriesSorted.length;
+  const recurrenceFirstAt = recurrenceCount
+    ? parseDateTime(recurrenceEntriesSorted[0] && recurrenceEntriesSorted[0].occurredAt)
+    : null;
+  const recurrenceLastAt = recurrenceCount
+    ? parseDateTime(recurrenceEntriesSorted[recurrenceCount - 1] && recurrenceEntriesSorted[recurrenceCount - 1].occurredAt)
+    : null;
+  const recurrenceIntervalLabel =
+    recurrenceFirstAt && recurrenceLastAt ? formatWindow(recurrenceFirstAt, recurrenceLastAt) : "-";
+  const recurrenceFirstLabel = recurrenceCount
+    ? formatContingencyDateTime(recurrenceEntriesSorted[0] && recurrenceEntriesSorted[0].occurredAt)
+    : "-";
+  const recurrenceLastLabel = recurrenceCount
+    ? formatContingencyDateTime(
+        recurrenceEntriesSorted[recurrenceCount - 1] && recurrenceEntriesSorted[recurrenceCount - 1].occurredAt
+      )
+    : "-";
+  const recurrenceImpactSummary = String(recurrence.impactSummary || "").trim();
+  const recurrenceAnalysis = recurrence.analysis && typeof recurrence.analysis === "object"
+    ? recurrence.analysis
+    : {};
+  const recurrenceChecklistOk = recurrenceOccurred === "SIM" ? recurrenceCount > 0 : true;
+  const recurrenceAttachmentLabels = new Map(
+    attachments
+      .map((attachment) => {
+        const key = String(attachment && (attachment.id || attachment.fileId || attachment.fileName) ? attachment.id || attachment.fileId || attachment.fileName : "").trim();
+        if (!key) {
+          return null;
+        }
+        const label = String(attachment.fileName || attachment.fileId || key).trim();
+        return [key, label || key];
+      })
+      .filter(Boolean)
+  );
   const checklist = [
     safePayload.code,
     safePayload.substation,
     safePayload.assetName || safePayload.assetId,
     safePayload.symptoms,
     safePayload.diagnosis,
+    recurrenceChecklistOk,
     safePayload.engineeringConclusion,
     safePayload.residualRisk,
     timeline.length > 0,
@@ -5825,7 +6090,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     writeText(title, { bold: true, size: 10.6, leading: 13, color: palette.primary });
     cursorY -= 2.8;
     if (!actions.length) {
-      writeText("Sem ações registradas.", { size: 9.4, leading: 11.4, color: palette.muted });
+      writeText("Sem aÃ§Ãµes registradas.", { size: 9.4, leading: 11.4, color: palette.muted });
       cursorY -= 8.8;
       return;
     }
@@ -5871,11 +6136,71 @@ async function generateContingencyReportPdf(payload, options = {}) {
       cursorY -= 8.8;
     });
   };
+  const renderRecurrenceEntry = (entry, index) => {
+    const safeEntry = entry && typeof entry === "object" ? entry : {};
+    const occurredAt = safeEntry.occurredAt || "";
+    const normalizedAt = safeEntry.normalizedAt || "";
+    const occurredLabel = formatContingencyDateTime(occurredAt);
+    const normalizedLabel = formatContingencyDateTime(normalizedAt);
+    const durationLabel = Number.isFinite(Number(safeEntry.durationMinutes))
+      ? formatDurationMinutes(safeEntry.durationMinutes)
+      : occurredAt && normalizedAt
+        ? formatWindow(parseDateTime(occurredAt), parseDateTime(normalizedAt))
+        : "-";
+    const eventTypeLabel = getContingencyLabel(
+      CONTINGENCY_EVENT_LABELS,
+      safeEntry.eventType,
+      "Outro"
+    );
+    const substation = safeEntry.substation || safePayload.substation || "-";
+    const assetName = safeEntry.assetName || safePayload.assetName || safePayload.assetId || "-";
+    const header = `${index + 1}. ${occurredLabel} | ${substation} | ${assetName}`;
+    writeText(header, { size: 10, bold: true, leading: 12.6, color: palette.primary });
+    writeText(safeEntry.description || "-", { size: 9.6, leading: 12.2 });
+    writeText(
+      `Bay: ${safeEntry.bay || "-"} | Alimentador: ${safeEntry.feeder || "-"} | Tipo: ${eventTypeLabel}`,
+      { size: 9.1, leading: 11.2, color: palette.muted }
+    );
+    writeText(`Normaliza\u00e7\u00e3o: ${normalizedLabel} | Dura\u00e7\u00e3o: ${durationLabel}`, {
+      size: 9.1,
+      leading: 11.2,
+      color: palette.muted,
+    });
+    if (reportType === "internal") {
+      writeText(
+        `Mesma causa prov\u00e1vel: ${formatRecurrenceCauseLabel(safeEntry.sameCause)} | Atua\u00e7\u00e3o de prote\u00e7\u00e3o: ${formatRecurrenceYesNoLabel(
+          safeEntry.protection,
+          "-"
+        )} | Indisponibilidade: ${formatRecurrenceYesNoLabel(safeEntry.interruption, "-")}`,
+        { size: 9.1, leading: 11.2 }
+      );
+      writeText(`OS/Protocolo: ${safeEntry.protocolRef || "-"}`, { size: 9.1, leading: 11.2 });
+      if (Array.isArray(safeEntry.attachmentIds) && safeEntry.attachmentIds.length) {
+        const attachmentLabels = safeEntry.attachmentIds
+          .map((id) => {
+            const key = String(id || "").trim();
+            return recurrenceAttachmentLabels.get(key) || key;
+          })
+          .filter(Boolean)
+          .join("; ");
+        if (attachmentLabels) {
+          writeText(`Anexos relacionados: ${attachmentLabels}`, { size: 9.1, leading: 11.2 });
+        }
+      }
+      if (safeEntry.notes) {
+        writeText(`Observa\u00e7\u00e3o t\u00e9cnica: ${safeEntry.notes}`, {
+          size: 9.1,
+          leading: 11.2,
+        });
+      }
+    }
+    cursorY -= 6.4;
+  };
   addCoverPage();
 
   addPage();
   indexPage = page;
-  drawCenteredText("ÍNDICE", pageSize[1] - headerHeight - 42, 22, false, palette.text);
+  drawCenteredText("ÃNDICE", pageSize[1] - headerHeight - 42, 22, false, palette.text);
   page.drawLine({
     start: { x: margin + 10, y: pageSize[1] - headerHeight - 52 },
     end: { x: pageSize[0] - margin - 10, y: pageSize[1] - headerHeight - 52 },
@@ -5891,20 +6216,21 @@ async function generateContingencyReportPdf(payload, options = {}) {
     },
     { label: "Severidade", value: severity },
     {
-      label: "Condição do sistema",
+      label: "CondiÃ§Ã£o do sistema",
       value: getContingencyLabel(CONTINGENCY_SYSTEM_CONDITION_LABELS, safePayload.systemCondition, "Normal"),
     },
     { label: "Janela do evento", value: formatWindow(startAt, endAt) },
-    { label: "Completude do relatório", value: `${completion}%` },
+    { label: "Completude do relatÃ³rio", value: `${completion}%` },
     { label: "Total de eventos de timeline", value: String(timeline.length) },
+    { label: "Total de reincidÃƒÂªncias", value: String(recurrenceCount) },
     { label: "Total de anexos", value: String(attachments.length) },
     { label: "Emitido por", value: footerGeneratedBy },
   ]);
 
-  section("1. Identificação do Evento");
+  section("1. IdentificaÃ§Ã£o do Evento");
   drawCompactKeyValueTable([
-    { label: "Contingência", value: safePayload.code || "-" },
-    { label: "Subestação", value: safePayload.substation || "-" },
+    { label: "ContingÃªncia", value: safePayload.code || "-" },
+    { label: "SubestaÃ§Ã£o", value: safePayload.substation || "-" },
     { label: "Bay", value: safePayload.bay || "-" },
     { label: "Alimentador", value: safePayload.feeder || "-" },
     { label: "Equipamento", value: safePayload.assetName || safePayload.assetId || "-" },
@@ -5917,14 +6243,14 @@ async function generateContingencyReportPdf(payload, options = {}) {
       label: "Status",
       value: getContingencyLabel(CONTINGENCY_STATUS_LABELS, safePayload.status, "Rascunho"),
     },
-    { label: "Início", value: formatContingencyDateTime(safePayload.startAt) },
-    { label: "Normalização", value: formatContingencyDateTime(safePayload.normalizedAt) },
-    { label: "Revisão", value: String(safePayload.revision || 1) },
+    { label: "InÃ­cio", value: formatContingencyDateTime(safePayload.startAt) },
+    { label: "NormalizaÃ§Ã£o", value: formatContingencyDateTime(safePayload.normalizedAt) },
+    { label: "RevisÃ£o", value: String(safePayload.revision || 1) },
   ]);
 
   section("2. Impacto Operacional");
   kv(
-    "Condição do sistema",
+    "CondiÃ§Ã£o do sistema",
     getContingencyLabel(
       CONTINGENCY_SYSTEM_CONDITION_LABELS,
       safePayload.systemCondition,
@@ -5939,7 +6265,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
         ? "-"
         : String(safePayload.impactMw)
   );
-  kv("Descrição do impacto", safePayload.impactDescription || "-");
+  kv("DescriÃ§Ã£o do impacto", safePayload.impactDescription || "-");
   kv("Risco residual", safePayload.residualRisk || "-");
   drawDivider();
 
@@ -5975,9 +6301,78 @@ async function generateContingencyReportPdf(payload, options = {}) {
   }
   drawDivider();
 
-  section("4. Diagnóstico");
+  section("4. ReincidÃªncia");
+  drawCompactKeyValueTable(
+    [
+      { label: "Houve reincidÃªncia", value: formatRecurrenceYesNoLabel(recurrenceOccurred) },
+      { label: "Quantidade de reincidÃªncias", value: String(recurrenceCount) },
+      { label: "Primeira reincidÃªncia", value: recurrenceFirstLabel },
+      { label: "Ãšltima reincidÃªncia", value: recurrenceLastLabel },
+      { label: "Intervalo", value: recurrenceIntervalLabel },
+      { label: "Impacto acumulado", value: recurrenceImpactSummary || "-" },
+    ],
+    { labelRatio: 0.46 }
+  );
+
+  if (recurrenceOccurred === "SIM") {
+    if (!recurrenceCount) {
+      kv("ReincidÃªncias", "Marcada como Sim, mas nenhuma reincidÃªncia foi registrada.");
+    } else {
+      writeText("ReincidÃªncias registradas:", {
+        bold: true,
+        size: 10.6,
+        leading: 13,
+        color: palette.primary,
+      });
+      cursorY -= 2.8;
+      recurrenceEntriesSorted.forEach((entry, index) => {
+        renderRecurrenceEntry(entry, index);
+      });
+    }
+  } else if (recurrenceOccurred === "NAO") {
+    writeText("Sem reincidÃªncia registrada apÃ³s o evento principal.", {
+      size: 9.4,
+      leading: 11.4,
+      color: palette.muted,
+    });
+    cursorY -= 8.2;
+  } else {
+    writeText("Sem informaÃ§Ã£o de reincidÃªncia registrada.", {
+      size: 9.4,
+      leading: 11.4,
+      color: palette.muted,
+    });
+    cursorY -= 8.2;
+  }
+
+  drawCompactKeyValueTable(
+    [
+      {
+        label: "PadrÃ£o recorrente identificado",
+        value: formatRecurrenceYesNoLabel(recurrenceAnalysis.patternIdentified, "-"),
+      },
+      {
+        label: "Indica falha persistente",
+        value: formatRecurrenceYesNoLabel(recurrenceAnalysis.persistentFailure, "-"),
+      },
+      {
+        label: "Recomenda acionamento de garantia",
+        value: formatRecurrenceYesNoLabel(recurrenceAnalysis.warrantyRecommended, "-"),
+      },
+      {
+        label: "Recomenda inspeÃ§Ã£o/fabricante/especialista",
+        value: formatRecurrenceYesNoLabel(recurrenceAnalysis.specialistRecommended, "-"),
+      },
+    ],
+    { labelRatio: 0.56 }
+  );
+  kvParagraph("ConclusÃ£o tÃ©cnica sobre reincidÃªncia", recurrenceAnalysis.conclusion || "-");
+  kvParagraph("RecomendaÃ§Ã£o preventiva/corretiva", recurrenceAnalysis.recommendation || "-");
+  drawDivider();
+
+  section("5. DiagnÃ³stico");
   kvParagraph("Sintomas", formatSymptomsForPdf(safePayload.symptoms || "-"));
-  kvParagraph("Diagnóstico técnico", safePayload.diagnosis || "-");
+  kvParagraph("DiagnÃ³stico tÃ©cnico", safePayload.diagnosis || "-");
   kv(
     "Status da causa raiz",
     getContingencyLabel(
@@ -5994,18 +6389,18 @@ async function generateContingencyReportPdf(payload, options = {}) {
       "Outro"
     )
   );
-  kvParagraph("Descrição da causa raiz", safePayload.rootCauseDescription || "-");
+  kvParagraph("DescriÃ§Ã£o da causa raiz", safePayload.rootCauseDescription || "-");
   drawDivider();
 
-  section("5. Ações Executadas e Plano");
-  kv("Ações de contenção/normalização", safePayload.containmentActions || "-");
-  renderActionList("Ações corretivas:", correctiveActions);
-  renderActionList("Ações preventivas:", preventiveActions);
+  section("6. AÃ§Ãµes Executadas e Plano");
+  kv("AÃ§Ãµes de contenÃ§Ã£o/normalizaÃ§Ã£o", safePayload.containmentActions || "-");
+  renderActionList("AÃ§Ãµes corretivas:", correctiveActions);
+  renderActionList("AÃ§Ãµes preventivas:", preventiveActions);
   if (communications.length) {
-    writeText("Comunicações:", { bold: true, size: 10.6, leading: 13, color: palette.primary });
+    writeText("ComunicaÃ§Ãµes:", { bold: true, size: 10.6, leading: 13, color: palette.primary });
     cursorY -= 2.8;
     communications.forEach((entry, index) => {
-      const statusValue = entry.done ? "Concluída" : "Pendente";
+      const statusValue = entry.done ? "ConcluÃ­da" : "Pendente";
       const noteLabel = entry.note ? ` | Nota: ${entry.note}` : "";
       writeText(`[${entry.done ? "x" : " "}] ${index + 1}. ${toText(entry.label)} | ${statusValue}${noteLabel}`, {
         size: 9.3,
@@ -6015,17 +6410,17 @@ async function generateContingencyReportPdf(payload, options = {}) {
       cursorY -= 6.2;
     });
   } else {
-    kv("Comunicações", "Sem checklist de comunicações.");
+    kv("ComunicaÃ§Ãµes", "Sem checklist de comunicaÃ§Ãµes.");
   }
   drawDivider();
 
-  section("6. Status Atual / Risco Residual");
+  section("7. Status Atual / Risco Residual");
   kv("Status", getContingencyLabel(CONTINGENCY_STATUS_LABELS, safePayload.status, "Rascunho"));
   kv("Normalizada em", formatContingencyDateTime(safePayload.normalizedAt));
   kv("Risco residual", safePayload.residualRisk || "-");
   drawDivider();
 
-  section("7. Evidências Fotográficas e Anexos");
+  section("8. EvidÃªncias FotogrÃ¡ficas e Anexos");
   const imageCandidates = attachments.filter((attachment) => {
     const mime = String(attachment && attachment.mimeType ? attachment.mimeType : "").toLowerCase();
     const fileName = String(attachment && attachment.fileName ? attachment.fileName : "").toLowerCase();
@@ -6043,7 +6438,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     failedPhotos.push(attachment);
   }
   if (!renderedPhotos.length) {
-    kv("Fotos", "Nenhuma foto válida foi incorporada ao PDF.");
+    kv("Fotos", "Nenhuma foto vÃ¡lida foi incorporada ao PDF.");
   } else {
     const cols = 2;
     const gap = 10;
@@ -6095,7 +6490,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
         font: fontBold,
         color: palette.text,
       });
-      const refLabel = `Registro fotográfico ${index + 1}`;
+      const refLabel = `Registro fotogrÃ¡fico ${index + 1}`;
       const refLines = wrapPdfText(refLabel, cardWidth - 14, 8, font);
       page.drawText(refLines[0] || refLabel, {
         x: x + 7,
@@ -6115,7 +6510,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     }
   }
   if (failedPhotos.length) {
-    writeText(`${failedPhotos.length} foto(s) não puderam ser incorporadas nesta versão do PDF.`, {
+    writeText(`${failedPhotos.length} foto(s) nÃ£o puderam ser incorporadas nesta versÃ£o do PDF.`, {
       size: 9.2,
       leading: 11,
       color: palette.warning,
@@ -6149,7 +6544,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
   }
 
   drawDivider();
-  section("8. Conclusão e Recomendações da Engenharia");
+  section("9. ConclusÃ£o e RecomendaÃ§Ãµes da Engenharia");
   writeText(toTextMultiline(safePayload.engineeringConclusion || "-"), {
     size: 10,
     leading: 12.4,
@@ -6214,9 +6609,9 @@ async function generateContingencyReportPdf(payload, options = {}) {
     thickness: 0.8,
     color: palette.line,
   });
-  drawSignatureLabel("Responsável Técnico Engelmig", signSlotOneX);
+  drawSignatureLabel("ResponsÃ¡vel TÃ©cnico Engelmig", signSlotOneX);
   drawSignatureLabel("Engenharia Engelmig", signSlotTwoX);
-  drawSignatureLabel("Aprovação/Gestão Cliente", signSlotThreeX);
+  drawSignatureLabel("AprovaÃ§Ã£o/GestÃ£o Cliente", signSlotThreeX);
 
   if (indexPage) {
     const indexTitleY = pageSize[1] - headerHeight - 42;
@@ -6282,9 +6677,9 @@ async function generateContingencyReportPdf(payload, options = {}) {
   const pages = pdfDoc.getPages();
   const footer = `Gerado em ${formatContingencyDateTime(generatedAt)} por ${footerGeneratedBy}`;
   const footerNotice =
-    "Documento controlado e interno. É totalmente proibida qualquer cópia sem autorização.";
+    "Documento controlado e interno. Ã‰ totalmente proibida qualquer cÃ³pia sem autorizaÃ§Ã£o.";
   pages.forEach((itemPage, index) => {
-    const pageText = `Página ${index + 1} de ${pages.length}`;
+    const pageText = `PÃ¡gina ${index + 1} de ${pages.length}`;
     itemPage.drawLine({
       start: { x: margin, y: footerY + 10 },
       end: { x: pageSize[0] - margin, y: footerY + 10 },
@@ -6655,7 +7050,7 @@ function normalizePmpActivity(record) {
           };
         }
         return {
-          nome: String(entry.nome || entry.name || "Evidência").trim(),
+          nome: String(entry.nome || entry.name || "EvidÃªncia").trim(),
           url: String(entry.url || entry.dataUrl || "").trim(),
           categoria: String(entry.categoria || entry.tipo || "evidencia").trim(),
           observacao: String(entry.observacao || entry.obs || "").trim(),
@@ -7276,7 +7671,7 @@ function canManageFiles(user) {
 function requireSupervisor(req, res, next) {
   const user = req.currentUser || getSessionUser(req);
   if (!user || !canManageFiles(user)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   return next();
 }
@@ -7330,7 +7725,7 @@ function runIntegrityChecks() {
   let duplicateUsers = 0;
   users.forEach((user) => {
     if (!user || !user.id) {
-      issues.push({ level: "error", message: "Usuário sem ID detectado." });
+      issues.push({ level: "error", message: "UsuÃ¡rio sem ID detectado." });
       return;
     }
     if (userIds.has(user.id)) {
@@ -7339,7 +7734,7 @@ function runIntegrityChecks() {
     userIds.add(user.id);
   });
   if (duplicateUsers) {
-    issues.push({ level: "error", message: `IDs duplicados em usuários: ${duplicateUsers}.` });
+    issues.push({ level: "error", message: `IDs duplicados em usuÃ¡rios: ${duplicateUsers}.` });
   }
 
   const validStatuses = new Set([
@@ -7369,7 +7764,7 @@ function runIntegrityChecks() {
     issues.push({ level: "error", message: `Manutencoes sem ID: ${missingIds}.` });
   }
   if (invalidStatus) {
-    issues.push({ level: "warn", message: `Manutenções com status desconhecido: ${invalidStatus}.` });
+    issues.push({ level: "warn", message: `ManutenÃ§Ãµes com status desconhecido: ${invalidStatus}.` });
   }
   maintenance.forEach((item) => {
     const createdBy = item && (item.createdBy || item.createdById || item.userId);
@@ -7380,7 +7775,7 @@ function runIntegrityChecks() {
   if (orphanUsers) {
     issues.push({
       level: "warn",
-      message: `Manutenções com usuários inexistentes: ${orphanUsers}.`,
+      message: `ManutenÃ§Ãµes com usuÃ¡rios inexistentes: ${orphanUsers}.`,
     });
   }
 
@@ -7393,7 +7788,7 @@ function runIntegrityChecks() {
   if (orphanAuditUsers) {
     issues.push({
       level: "warn",
-      message: `Auditoria com usuários inexistentes: ${orphanAuditUsers}.`,
+      message: `Auditoria com usuÃ¡rios inexistentes: ${orphanAuditUsers}.`,
     });
   }
   return issues;
@@ -7402,7 +7797,7 @@ function runIntegrityChecks() {
 function buildHealthSnapshot(tasks) {
   const now = new Date();
   const files = [
-    checkJsonFile(USERS_FILE, "Usuários"),
+    checkJsonFile(USERS_FILE, "UsuÃ¡rios"),
     checkJsonFile(MAINTENANCE_FILE, "Manutencoes"),
     checkJsonFile(AUDIT_FILE, "Auditoria"),
     checkJsonFile(INVITES_FILE, "Convites"),
@@ -8948,7 +9343,7 @@ function normalizeAnnouncementRecord(record) {
   const createdAt = record.createdAt || record.created || new Date().toISOString();
   return {
     id: record.id ? String(record.id) : crypto.randomUUID(),
-    title: title || "Anúncio",
+    title: title || "AnÃºncio",
     message,
     type: normalizeAnnouncementType(record.type || record.tipo || "info"),
     severity: normalizeAnnouncementSeverity(record.severity || record.criticidade || "baixa"),
@@ -9757,24 +10152,24 @@ function matchesAutomationCondition(automation, item) {
 async function executeAutomationAction(automation, item, actor) {
   const action = automation && automation.action ? automation.action : {};
   if (action.type !== "notify_email") {
-    return { status: "skipped", message: "Ação não suportada." };
+    return { status: "skipped", message: "AÃ§Ã£o nÃ£o suportada." };
   }
   const customTo = String(action.to || "").trim();
   const to = isValidEmail(customTo) ? customTo : getUserEmail(actor);
   if (!isValidEmail(to)) {
-    console.warn("Automação sem destinatário válido.");
-    return { status: "skipped", message: "Sem destinatário válido." };
+    console.warn("AutomaÃ§Ã£o sem destinatÃ¡rio vÃ¡lido.");
+    return { status: "skipped", message: "Sem destinatÃ¡rio vÃ¡lido." };
   }
   const title = getItemTitle(item);
   const due = getDueDate(item);
   const dueLabel = due ? due.toLocaleDateString("pt-BR") : "-";
-  const subject = "OPSCOPE - Manutenção crítica criada";
-  const text = `Uma manutenção crítica foi criada.\n\nAtividade: ${title}\nPrazo: ${dueLabel}\nResponsável: ${getItemOwner(item)}\n\nAcesse o OPSCOPE para detalhes.`;
+  const subject = "OPSCOPE - ManutenÃ§Ã£o crÃ­tica criada";
+  const text = `Uma manutenÃ§Ã£o crÃ­tica foi criada.\n\nAtividade: ${title}\nPrazo: ${dueLabel}\nResponsÃ¡vel: ${getItemOwner(item)}\n\nAcesse o OPSCOPE para detalhes.`;
   const html = `
-    <p>Uma manutenção <strong>crítica</strong> foi criada.</p>
+    <p>Uma manutenÃ§Ã£o <strong>crÃ­tica</strong> foi criada.</p>
     <p><strong>Atividade:</strong> ${title}</p>
     <p><strong>Prazo:</strong> ${dueLabel}</p>
-    <p><strong>Responsável:</strong> ${getItemOwner(item)}</p>
+    <p><strong>ResponsÃ¡vel:</strong> ${getItemOwner(item)}</p>
     <p>Acesse o OPSCOPE para detalhes.</p>
   `;
   const resendOk = await sendEmailViaResend({ to, subject, text, html });
@@ -9785,9 +10180,9 @@ async function executeAutomationAction(automation, item, actor) {
   if (smtpOk) {
     return { status: "ok", message: "E-mail enviado via SMTP." };
   }
-  console.warn("Automação sem envio de e-mail. Fallback console log.");
+  console.warn("AutomaÃ§Ã£o sem envio de e-mail. Fallback console log.");
   console.log(`[automation] ${subject} -> ${to}`, { id: item.id, title });
-  return { status: "warn", message: "Envio de e-mail indisponível." };
+  return { status: "warn", message: "Envio de e-mail indisponÃ­vel." };
 }
 
 async function runAutomationsForItems(event, items, actor, ip) {
@@ -10690,18 +11085,18 @@ async function notifyProjectTeamMaintenanceCreated(items, actor, ip, projectId) 
     if (!destinatarios.size) {
       continue;
     }
-    const subject = `OPSCOPE - Nova manutenção criada (${projectLabel})`;
-    const text = `Uma nova manutenção foi criada no projeto ${projectLabel}.\n\nAtividade: ${title}\nPrazo: ${dueLabel}\nEquipe: ${teamName}\nEquipamento: ${equipamento}\nOS/Referência: ${
+    const subject = `OPSCOPE - Nova manutenÃ§Ã£o criada (${projectLabel})`;
+    const text = `Uma nova manutenÃ§Ã£o foi criada no projeto ${projectLabel}.\n\nAtividade: ${title}\nPrazo: ${dueLabel}\nEquipe: ${teamName}\nEquipamento: ${equipamento}\nOS/ReferÃªncia: ${
       osRef || "-"
-    }\nResponsáveis: ${responsavelTexto || "-"}\nCriada por: ${createdBy}\n\nAcesse o OPSCOPE para detalhes.`;
+    }\nResponsÃ¡veis: ${responsavelTexto || "-"}\nCriada por: ${createdBy}\n\nAcesse o OPSCOPE para detalhes.`;
     const html = `
-      <p>Uma nova manutenção foi criada no projeto <strong>${escapeHtml(projectLabel)}</strong>.</p>
+      <p>Uma nova manutenÃ§Ã£o foi criada no projeto <strong>${escapeHtml(projectLabel)}</strong>.</p>
       <p><strong>Atividade:</strong> ${escapeHtml(title)}</p>
       <p><strong>Prazo:</strong> ${escapeHtml(dueLabel)}</p>
       <p><strong>Equipe:</strong> ${escapeHtml(teamName || "-")}</p>
       <p><strong>Equipamento:</strong> ${escapeHtml(equipamento)}</p>
-      <p><strong>OS/Referência:</strong> ${escapeHtml(osRef || "-")}</p>
-      <p><strong>Responsáveis:</strong> ${escapeHtml(responsavelTexto || "-")}</p>
+      <p><strong>OS/ReferÃªncia:</strong> ${escapeHtml(osRef || "-")}</p>
+      <p><strong>ResponsÃ¡veis:</strong> ${escapeHtml(responsavelTexto || "-")}</p>
       <p><strong>Criada por:</strong> ${escapeHtml(createdBy)}</p>
       <p>Acesse o OPSCOPE para detalhes.</p>
     `;
@@ -10876,10 +11271,10 @@ function getMaintenanceStatusLabel(status) {
   const labels = {
     agendada: "Agendada",
     liberada: "Liberada",
-    em_execucao: "Em execução",
+    em_execucao: "Em execuÃ§Ã£o",
     encerramento: "Encerramento",
     backlog: "Backlog",
-    concluida: "Concluída",
+    concluida: "ConcluÃ­da",
     cancelada: "Cancelada",
   };
   return labels[normalized] || "Agendada";
@@ -10958,7 +11353,7 @@ async function notifyMaintenanceMonthlyAlerts(items, projectId, today, penultima
           : `- ${titulo} | ${equipamento} | Prazo: ${dueLabel} | Status: ${statusLabel}`;
         linhas.push(lineText);
         const linkHtml = link
-          ? `<a href="${escapeHtml(link)}">Abrir manutenção</a>`
+          ? `<a href="${escapeHtml(link)}">Abrir manutenÃ§Ã£o</a>`
           : "";
         return `<li><strong>${escapeHtml(titulo)}</strong> | ${escapeHtml(
           equipamento
@@ -10969,21 +11364,21 @@ async function notifyMaintenanceMonthlyAlerts(items, projectId, today, penultima
       .join("");
     const subject = `Alerta de fechamento mensal (${monthLabel}) - ${projectLabel}`;
     const text = [
-      `Olá ${nome},`,
+      `OlÃ¡ ${nome},`,
       "",
-      `Hoje é o penúltimo dia do mês (${penultimateLabel}). As manutenções abaixo ainda estão abertas no projeto ${projectLabel}:`,
+      `Hoje Ã© o penÃºltimo dia do mÃªs (${penultimateLabel}). As manutenÃ§Ãµes abaixo ainda estÃ£o abertas no projeto ${projectLabel}:`,
       "",
       ...linhas,
       "",
-      "Se não concluir até o fim do mês, elas serão movidas para backlog automaticamente no primeiro dia do próximo mês.",
+      "Se nÃ£o concluir atÃ© o fim do mÃªs, elas serÃ£o movidas para backlog automaticamente no primeiro dia do prÃ³ximo mÃªs.",
     ].join("\n");
     const html = `
-      <p>Olá ${escapeHtml(nome)},</p>
-      <p>Hoje é o penúltimo dia do mês (${escapeHtml(penultimateLabel)}). As manutenções abaixo ainda estão abertas no projeto <strong>${escapeHtml(
+      <p>OlÃ¡ ${escapeHtml(nome)},</p>
+      <p>Hoje Ã© o penÃºltimo dia do mÃªs (${escapeHtml(penultimateLabel)}). As manutenÃ§Ãµes abaixo ainda estÃ£o abertas no projeto <strong>${escapeHtml(
         projectLabel
       )}</strong>:</p>
       <ul>${htmlItems}</ul>
-      <p>Se não concluir até o fim do mês, elas serão movidas para backlog automaticamente no primeiro dia do próximo mês.</p>
+      <p>Se nÃ£o concluir atÃ© o fim do mÃªs, elas serÃ£o movidas para backlog automaticamente no primeiro dia do prÃ³ximo mÃªs.</p>
     `;
     const sent = await sendMaintenanceMonthlyAlertEmail({
       to,
@@ -11383,8 +11778,8 @@ const RDO_AI_SCHEMA = {
 const RDO_AI_PROMPT_VERSION = String(process.env.OPSCOPE_RDO_AI_PROMPT_VERSION || "v3");
 
 const RDO_STATUS_LABELS = {
-  concluida: "Concluída",
-  em_execucao: "Em execução",
+  concluida: "ConcluÃ­da",
+  em_execucao: "Em execuÃ§Ã£o",
   encerramento: "Encerramento",
   backlog: "Backlog",
   liberada: "Liberada",
@@ -12075,10 +12470,10 @@ function classifyEquipmentGroup(name) {
     return "";
   }
   if (base.includes("SERVICOS AUXILIARES") || /\bTSA-\d+\b/.test(base)) {
-    return "Transformadores de serviços auxiliares";
+    return "Transformadores de serviÃ§os auxiliares";
   }
   if (base.includes("POTENCIA") || /\bT-\d+\b/.test(base)) {
-    return "Transformadores de potência";
+    return "Transformadores de potÃªncia";
   }
   if (base.includes("TRANSFORMADOR")) {
     return "Transformadores";
@@ -12152,7 +12547,7 @@ function getAcaoPrincipal(atividades) {
   if (acoes.length > 1 && acoes.length <= 2) {
     return acoes.join(" / ");
   }
-  return "Atividades de manutenção";
+  return "Atividades de manutenÃ§Ã£o";
 }
 
 function buildRdoPayload(dateStr, projectId) {
@@ -13031,7 +13426,7 @@ function ensureMasterAccount() {
   users.push(master);
   writeJson(USERS_FILE, users);
   appendAudit("seed_master", master.id, { username: MASTER_USERNAME }, "local");
-  console.log("Admin master criado: usuário", MASTER_USERNAME);
+  console.log("Admin master criado: usuÃ¡rio", MASTER_USERNAME);
 }
 
 function seedAdmin() {
@@ -13067,7 +13462,7 @@ function seedAdmin() {
   users.push(admin);
   writeJson(USERS_FILE, users);
   appendAudit("seed_admin", admin.id, { resumo: "Admin inicial criado." }, "local");
-  console.log("Admin criado: usuário admin / senha", ADMIN_PASSWORD);
+  console.log("Admin criado: usuÃ¡rio admin / senha", ADMIN_PASSWORD);
 }
 
 function cleanupInvites() {
@@ -13520,7 +13915,7 @@ function hasPermission(user, permissionKey) {
 function requireAuth(req, res, next) {
   const user = getSessionUser(req);
   if (!user) {
-    return res.status(401).json({ message: "Não autorizado." });
+    return res.status(401).json({ message: "NÃ£o autorizado." });
   }
   req.currentUser = user;
   return next();
@@ -13536,7 +13931,7 @@ function requirePermission(permissionKey) {
     const isLegacy = key.startsWith("admin:") || LEGACY_PERMISSION_KEYS.has(key);
     const allowed = isLegacy ? hasPermission(user, key) : hasGranularPermission(user, key);
     if (!allowed) {
-      return res.status(403).json({ message: "Não autorizado." });
+      return res.status(403).json({ message: "NÃ£o autorizado." });
     }
     return next();
   };
@@ -13545,7 +13940,7 @@ function requirePermission(permissionKey) {
 function requireAdmin(req, res, next) {
   const user = req.currentUser || getSessionUser(req);
   if (!user || (!isMasterUser(user) && !isFullAccessRole(user.rbacRole || user.role))) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   return next();
 }
@@ -13553,7 +13948,7 @@ function requireAdmin(req, res, next) {
 function requireAccessView(req, res, next) {
   const user = req.currentUser || getSessionUser(req);
   if (!user || !canViewAccessForUser(user)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   return next();
 }
@@ -13561,7 +13956,7 @@ function requireAccessView(req, res, next) {
 function requireAccessManage(req, res, next) {
   const user = req.currentUser || getSessionUser(req);
   if (!user || !canManageAccessForUser(user)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   return next();
 }
@@ -13614,10 +14009,10 @@ function requireProjectAccess(req, res, next) {
   const projectId =
     String(req.params.id || req.body.projectId || req.query.projectId || "").trim();
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto obrigatório." });
+    return res.status(400).json({ message: "Projeto obrigatÃ³rio." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   req.projectId = projectId;
   return next();
@@ -13952,7 +14347,7 @@ async function bootstrap() {
   try {
     await syncStoreFiles();
   } catch (error) {
-    console.warn("[db] Sincronização inicial do store falhou. Sistema seguirá com dados locais.", {
+    console.warn("[db] SincronizaÃ§Ã£o inicial do store falhou. Sistema seguirÃ¡ com dados locais.", {
       message: error && error.message ? error.message : String(error || ""),
     });
   }
@@ -14284,7 +14679,7 @@ app.get("/api/events", requireAuth, (req, res) => {
     }
   }
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto ativo obrigatório." });
+    return res.status(400).json({ message: "Projeto ativo obrigatÃ³rio." });
   }
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -14416,17 +14811,17 @@ app.get("/uploads/files/:dir/:file", async (req, res) => {
 app.post("/api/auth/login", async (req, res) => {
   const ip = getClientIp(req);
   if (isIpBlocked(ip)) {
-    return res.status(429).json({ message: "Credenciais inválidas." });
+    return res.status(429).json({ message: "Credenciais invÃ¡lidas." });
   }
   const login = String(req.body.login || "").trim().toLowerCase();
   const senha = String(req.body.senha || "").trim();
   if (!login || !senha) {
     recordIpFailure(ip);
-    return res.status(401).json({ message: "Credenciais inválidas." });
+    return res.status(401).json({ message: "Credenciais invÃ¡lidas." });
   }
   if (isUserLocked(login)) {
     recordIpFailure(ip);
-    return res.status(429).json({ message: "Credenciais inválidas." });
+    return res.status(429).json({ message: "Credenciais invÃ¡lidas." });
   }
   const user = users.find((u) => {
     const username = String(u.username || "").toLowerCase();
@@ -14437,7 +14832,7 @@ app.post("/api/auth/login", async (req, res) => {
     recordIpFailure(ip);
     recordUserFailure(login);
     appendAudit("login_fail", null, { login }, ip);
-    return res.status(401).json({ message: "Credenciais inválidas." });
+    return res.status(401).json({ message: "Credenciais invÃ¡lidas." });
   }
   if (user.active === false || String(user.status || "").toUpperCase() === "INATIVO") {
     appendAudit("login_inactive", user.id, { login }, ip);
@@ -14448,7 +14843,7 @@ app.post("/api/auth/login", async (req, res) => {
     recordIpFailure(ip);
     recordUserFailure(login);
     appendAudit("login_fail", user.id, { login }, ip);
-    return res.status(401).json({ message: "Credenciais inválidas." });
+    return res.status(401).json({ message: "Credenciais invÃ¡lidas." });
   }
   if (user.emailVerified === false) {
     appendAudit("login_unverified", user.id, { login }, ip);
@@ -14521,10 +14916,10 @@ app.post("/api/projetos/active", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   const projectId = String(req.body.projectId || "").trim();
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto inválido." });
+    return res.status(400).json({ message: "Projeto invÃ¡lido." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   req.session.activeProjectId = projectId;
   return res.json({ ok: true, activeProjectId: projectId });
@@ -14558,7 +14953,7 @@ app.post("/api/projetos", requireAuth, requirePermission("gerenciarProjetos"), (
   const locais = normalizeLocaisList(payload.locais || []);
   const pmpHorasDisponiveis = Number(payload.pmpHorasDisponiveis);
   if (!codigo || !nome) {
-    return res.status(400).json({ message: "Código e nome são obrigatórios." });
+    return res.status(400).json({ message: "CÃ³digo e nome sÃ£o obrigatÃ³rios." });
   }
   if (projects.some((project) => String(project.codigo || "").trim() === codigo)) {
     return res.status(409).json({ message: "Codigo de projeto ja existe." });
@@ -14597,7 +14992,7 @@ app.put("/api/projetos/:id", requireAuth, requirePermission("gerenciarProjetos")
   const projectId = String(req.params.id || "").trim();
   const index = projects.findIndex((project) => project && project.id === projectId);
   if (index === -1) {
-    return res.status(404).json({ message: "Projeto não encontrado." });
+    return res.status(404).json({ message: "Projeto nÃ£o encontrado." });
   }
   const payload = req.body && typeof req.body === "object" ? req.body : {};
   const current = projects[index];
@@ -14610,7 +15005,7 @@ app.put("/api/projetos/:id", requireAuth, requirePermission("gerenciarProjetos")
       ? Number(payload.pmpHorasDisponiveis)
       : Number(current.pmpHorasDisponiveis);
   if (!codigo || !nome) {
-    return res.status(400).json({ message: "Código e nome são obrigatórios." });
+    return res.status(400).json({ message: "CÃ³digo e nome sÃ£o obrigatÃ³rios." });
   }
   if (
     codigo !== current.codigo &&
@@ -14641,11 +15036,11 @@ app.delete(
     const projectId = String(req.params.id || "").trim();
     const defaultProject = ensureDefaultProject();
     if (defaultProject && defaultProject.id === projectId) {
-      return res.status(400).json({ message: "Projeto inicial não pode ser removido." });
+      return res.status(400).json({ message: "Projeto inicial nÃ£o pode ser removido." });
     }
     const index = projects.findIndex((project) => project && project.id === projectId);
     if (index === -1) {
-      return res.status(404).json({ message: "Projeto não encontrado." });
+      return res.status(404).json({ message: "Projeto nÃ£o encontrado." });
     }
     projects.splice(index, 1);
     saveProjects(projects);
@@ -14690,7 +15085,7 @@ app.post(
         : [];
     const userIds = ids.map((value) => String(value || "").trim()).filter(Boolean);
     if (!userIds.length) {
-      return res.status(400).json({ message: "Usuários obrigatórios." });
+      return res.status(400).json({ message: "UsuÃ¡rios obrigatÃ³rios." });
     }
     const created = [];
     for (const userId of userIds) {
@@ -14712,7 +15107,7 @@ app.post(
       created.push(entry);
     }
     if (!created.length) {
-      return res.status(409).json({ message: "Usuários já vinculados ou inválidos." });
+      return res.status(409).json({ message: "UsuÃ¡rios jÃ¡ vinculados ou invÃ¡lidos." });
     }
     projectUsers = projectUsers.concat(created);
     saveProjectUsers(projectUsers);
@@ -14734,7 +15129,7 @@ app.delete(
       (entry) => !(entry.projectId === projectId && entry.userId === userId)
     );
     if (projectUsers.length === before) {
-      return res.status(404).json({ message: "Vínculo não encontrado." });
+      return res.status(404).json({ message: "VÃ­nculo nÃ£o encontrado." });
     }
     saveProjectUsers(projectUsers);
     broadcastSse("project.team.updated", { projectId, removedId: userId, source: "remove" });
@@ -14764,7 +15159,7 @@ app.post(
     const tag = String(payload.tag || "").trim();
     const nome = String(payload.nome || "").trim();
     if (!tag || !nome) {
-      return res.status(400).json({ message: "Tag e nome são obrigatórios." });
+      return res.status(400).json({ message: "Tag e nome sÃ£o obrigatÃ³rios." });
     }
     const record = {
       id: crypto.randomUUID(),
@@ -14793,12 +15188,12 @@ app.put(
     const equipamentoId = String(req.params.id || "").trim();
     const index = equipamentos.findIndex((item) => item.id === equipamentoId);
     if (index === -1) {
-      return res.status(404).json({ message: "Equipamento não encontrado." });
+      return res.status(404).json({ message: "Equipamento nÃ£o encontrado." });
     }
     const equipamento = equipamentos[index];
     const user = req.currentUser || getSessionUser(req);
     if (!userHasProjectAccess(user, equipamento.projectId)) {
-      return res.status(403).json({ message: "Não autorizado." });
+      return res.status(403).json({ message: "NÃ£o autorizado." });
     }
     const payload = req.body && typeof req.body === "object" ? req.body : {};
     const updated = {
@@ -14834,12 +15229,12 @@ app.delete(
     const equipamentoId = String(req.params.id || "").trim();
     const index = equipamentos.findIndex((item) => item.id === equipamentoId);
     if (index === -1) {
-      return res.status(404).json({ message: "Equipamento não encontrado." });
+      return res.status(404).json({ message: "Equipamento nÃ£o encontrado." });
     }
     const equipamento = equipamentos[index];
     const user = req.currentUser || getSessionUser(req);
     if (!userHasProjectAccess(user, equipamento.projectId)) {
-      return res.status(403).json({ message: "Não autorizado." });
+      return res.status(403).json({ message: "NÃ£o autorizado." });
     }
     equipamentos.splice(index, 1);
     saveEquipamentos(equipamentos);
@@ -14864,7 +15259,7 @@ app.post(
     const projectId = req.projectId;
     const parsed = parseMultipartForm(req);
     if (!parsed || !parsed.file) {
-      return res.status(400).json({ message: "Arquivo não enviado." });
+      return res.status(400).json({ message: "Arquivo nÃ£o enviado." });
     }
     const originalName = String(parsed.file.originalName || "").trim();
     const mimeRaw = String(parsed.file.mime || "").trim().toLowerCase();
@@ -14982,7 +15377,7 @@ app.put(
     const user = req.currentUser || getSessionUser(req);
     const current = procedimentos[index];
     if (!userHasProjectAccess(user, current.projectId)) {
-      return res.status(403).json({ message: "Não autorizado." });
+      return res.status(403).json({ message: "NÃ£o autorizado." });
     }
     const payload = req.body && typeof req.body === "object" ? req.body : {};
     const hasArquivoPayload =
@@ -15055,7 +15450,7 @@ app.delete(
     const user = req.currentUser || getSessionUser(req);
     const current = procedimentos[index];
     if (!userHasProjectAccess(user, current.projectId)) {
-      return res.status(403).json({ message: "Não autorizado." });
+      return res.status(403).json({ message: "NÃ£o autorizado." });
     }
     const fileId = String(current.arquivo && current.arquivo.id ? current.arquivo.id : "").trim();
     procedimentos.splice(index, 1);
@@ -15081,7 +15476,7 @@ app.get("/api/pmp/activities", requireAuth, (req, res) => {
   const year = Number(req.query.year || 0);
   const allowed = new Set(getUserProjectIds(user));
   if (projectId && !allowed.has(projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   let list = pmpActivities.filter((item) => item && allowed.has(item.projectId));
   if (projectId) {
@@ -15101,20 +15496,20 @@ app.post("/api/pmp/activities", requireAuth, requirePermission("gerenciarPMP"), 
   const payload = req.body && typeof req.body === "object" ? req.body : {};
   const projectId = String(payload.projectId || "").trim();
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto obrigatório." });
+    return res.status(400).json({ message: "Projeto obrigatÃ³rio." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const nome = String(payload.nome || "").trim();
   if (!nome) {
-    return res.status(400).json({ message: "Nome da atividade obrigatório." });
+    return res.status(400).json({ message: "Nome da atividade obrigatÃ³rio." });
   }
   const equipamentoId = String(payload.equipamentoId || "").trim();
   if (equipamentoId) {
     const equipamento = equipamentos.find((item) => item.id === equipamentoId);
     if (!equipamento || equipamento.projectId !== projectId) {
-      return res.status(400).json({ message: "Equipamento inválido para o projeto." });
+      return res.status(400).json({ message: "Equipamento invÃ¡lido para o projeto." });
     }
   }
   const record = normalizePmpActivity({
@@ -15136,27 +15531,27 @@ app.put("/api/pmp/activities/:id", requireAuth, requirePermission("gerenciarPMP"
   const activityId = String(req.params.id || "").trim();
   const index = pmpActivities.findIndex((item) => item && item.id === activityId);
   if (index === -1) {
-    return res.status(404).json({ message: "Atividade não encontrada." });
+    return res.status(404).json({ message: "Atividade nÃ£o encontrada." });
   }
   const current = pmpActivities[index];
   if (!userHasProjectAccess(user, current.projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const payload = req.body && typeof req.body === "object" ? req.body : {};
   const projectId =
     "projectId" in payload ? String(payload.projectId || "").trim() : current.projectId;
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto obrigatório." });
+    return res.status(400).json({ message: "Projeto obrigatÃ³rio." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const equipamentoId =
     "equipamentoId" in payload ? String(payload.equipamentoId || "").trim() : current.equipamentoId;
   if (equipamentoId) {
     const equipamento = equipamentos.find((item) => item.id === equipamentoId);
     if (!equipamento || equipamento.projectId !== projectId) {
-      return res.status(400).json({ message: "Equipamento inválido para o projeto." });
+      return res.status(400).json({ message: "Equipamento invÃ¡lido para o projeto." });
     }
   }
   const updated = normalizePmpActivity({
@@ -15184,11 +15579,11 @@ app.delete(
     const activityId = String(req.params.id || "").trim();
     const index = pmpActivities.findIndex((item) => item && item.id === activityId);
     if (index === -1) {
-      return res.status(404).json({ message: "Atividade não encontrada." });
+      return res.status(404).json({ message: "Atividade nÃ£o encontrada." });
     }
     const current = pmpActivities[index];
     if (!userHasProjectAccess(user, current.projectId)) {
-      return res.status(403).json({ message: "Não autorizado." });
+      return res.status(403).json({ message: "NÃ£o autorizado." });
     }
     pmpActivities.splice(index, 1);
     savePmpActivities(pmpActivities);
@@ -15204,7 +15599,7 @@ app.get("/api/pmp/executions", requireAuth, (req, res) => {
   const year = Number(req.query.year || 0);
   const allowed = new Set(getUserProjectIds(user));
   if (projectId && !allowed.has(projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   let list = pmpExecutions.filter((item) => item && allowed.has(item.projectId));
   if (projectId) {
@@ -15231,10 +15626,10 @@ app.post("/api/pmp/executions", requireAuth, (req, res) => {
   }
   const activity = pmpActivities.find((item) => item.id === activityId);
   if (!activity) {
-    return res.status(404).json({ message: "Atividade não encontrada." });
+    return res.status(404).json({ message: "Atividade nÃ£o encontrada." });
   }
   if (!userHasProjectAccess(user, activity.projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const periodKey = String(payload.periodKey || "").trim();
   const scheduledFor = String(payload.scheduledFor || "").trim();
@@ -15278,11 +15673,11 @@ app.delete(
     const execId = String(req.params.id || "").trim();
     const index = pmpExecutions.findIndex((item) => item && item.id === execId);
     if (index === -1) {
-      return res.status(404).json({ message: "Execução não encontrada." });
+      return res.status(404).json({ message: "ExecuÃ§Ã£o nÃ£o encontrada." });
     }
     const exec = pmpExecutions[index];
     if (!userHasProjectAccess(user, exec.projectId)) {
-      return res.status(403).json({ message: "Não autorizado." });
+      return res.status(403).json({ message: "NÃ£o autorizado." });
     }
     pmpExecutions.splice(index, 1);
     savePmpExecutions(pmpExecutions);
@@ -15300,10 +15695,10 @@ app.post("/api/pmp/duplicate", requireAuth, requirePermission("gerenciarPMP"), (
   const sourceYear = Number(payload.sourceYear || 0);
   const targetYear = Number(payload.targetYear || 0);
   if (!projectId || !sourceYear || !targetYear) {
-    return res.status(400).json({ message: "Projeto e anos são obrigatórios." });
+    return res.status(400).json({ message: "Projeto e anos sÃ£o obrigatÃ³rios." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const existentes = pmpActivities.filter(
     (item) => item.projectId === projectId && Number(item.ano) === targetYear
@@ -15464,7 +15859,7 @@ app.get("/api/almox/stock", requireAuth, requirePermission("verAlmoxarifado"), (
   const projectId = String(req.query.projectId || "").trim();
   const allowed = new Set(getUserProjectIds(user));
   if (projectId && !allowed.has(projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   let list = almoxStock.filter((entry) => entry && allowed.has(entry.projectId));
   if (projectId) {
@@ -15486,7 +15881,7 @@ app.put(
     const user = req.currentUser || getSessionUser(req);
     const entry = almoxStock[index];
     if (!userHasProjectAccess(user, entry.projectId)) {
-      return res.status(403).json({ message: "Não autorizado." });
+      return res.status(403).json({ message: "NÃ£o autorizado." });
     }
     const payload = req.body && typeof req.body === "object" ? req.body : {};
     const updated = {
@@ -15523,7 +15918,7 @@ app.get(
     const projectId = String(req.query.projectId || "").trim();
     const allowed = new Set(getUserProjectIds(user));
     if (projectId && !allowed.has(projectId)) {
-      return res.status(403).json({ message: "Não autorizado." });
+      return res.status(403).json({ message: "NÃ£o autorizado." });
     }
     let list = almoxMovements.filter((entry) => entry && allowed.has(entry.projectId));
     if (projectId) {
@@ -15549,7 +15944,7 @@ app.post(
     }
     const user = req.currentUser || getSessionUser(req);
     if (!userHasProjectAccess(user, projectId)) {
-      return res.status(403).json({ message: "Não autorizado." });
+      return res.status(403).json({ message: "NÃ£o autorizado." });
     }
     if (!ALMOX_MOVEMENT_TYPES.has(type)) {
       return res.status(400).json({ message: "Tipo de movimentacao invalido." });
@@ -15612,7 +16007,7 @@ app.get(
   requirePermission("verAlmoxarifado"),
   async (req, res) => {
     if (!PDFDocument || !StandardFonts) {
-      return res.status(501).json({ message: "Dependência pdf-lib não instalada." });
+      return res.status(501).json({ message: "DependÃªncia pdf-lib nÃ£o instalada." });
     }
     const movementId = String(req.params.id || "").trim();
     const movement = almoxMovements.find((entry) => entry && entry.id === movementId);
@@ -15919,7 +16314,7 @@ app.get("/api/sst/inspections", requireAuth, requirePermission("verSST"), (req, 
   const projectId = String(req.query.projectId || "").trim();
   const allowed = new Set(getUserProjectIds(user));
   if (projectId && !allowed.has(projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   let list = sstInspections.filter((item) => !item.projectId || allowed.has(item.projectId));
   if (projectId) {
@@ -15937,7 +16332,7 @@ app.post("/api/sst/inspections", requireAuth, requirePermission("gerenciarSST"),
   }
   const user = req.currentUser || getSessionUser(req);
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const record = normalizeSstInspection({
     ...payload,
@@ -15966,7 +16361,7 @@ app.put("/api/sst/inspections/:id", requireAuth, requirePermission("gerenciarSST
   const current = sstInspections[index];
   const user = req.currentUser || getSessionUser(req);
   if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const updated = normalizeSstInspection({
     ...current,
@@ -15997,7 +16392,7 @@ app.delete("/api/sst/inspections/:id", requireAuth, requirePermission("gerenciar
   const user = req.currentUser || getSessionUser(req);
   const current = sstInspections[index];
   if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   sstInspections.splice(index, 1);
   saveSstInspections(sstInspections);
@@ -16020,7 +16415,7 @@ app.get(
     const projectId = String(req.query.projectId || "").trim();
     const allowed = new Set(getUserProjectIds(user));
     if (projectId && !allowed.has(projectId)) {
-      return res.status(403).json({ message: "Não autorizado." });
+      return res.status(403).json({ message: "NÃ£o autorizado." });
     }
     let list = sstNonconformities.filter((item) => !item.projectId || allowed.has(item.projectId));
     if (projectId) {
@@ -16039,7 +16434,7 @@ app.post("/api/sst/nonconformities", requireAuth, requirePermission("gerenciarSS
   }
   const user = req.currentUser || getSessionUser(req);
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const record = normalizeSstNonconformity({
     ...payload,
@@ -16068,7 +16463,7 @@ app.put("/api/sst/nonconformities/:id", requireAuth, requirePermission("gerencia
   const current = sstNonconformities[index];
   const user = req.currentUser || getSessionUser(req);
   if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const updated = normalizeSstNonconformity({
     ...current,
@@ -16099,7 +16494,7 @@ app.delete("/api/sst/nonconformities/:id", requireAuth, requirePermission("geren
   const user = req.currentUser || getSessionUser(req);
   const current = sstNonconformities[index];
   if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   sstNonconformities.splice(index, 1);
   saveSstNonconformities(sstNonconformities);
@@ -16118,7 +16513,7 @@ app.get("/api/sst/incidents", requireAuth, requirePermission("verSST"), (req, re
   const projectId = String(req.query.projectId || "").trim();
   const allowed = new Set(getUserProjectIds(user));
   if (projectId && !allowed.has(projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   let list = sstIncidents.filter((item) => !item.projectId || allowed.has(item.projectId));
   if (projectId) {
@@ -16136,7 +16531,7 @@ app.post("/api/sst/incidents", requireAuth, requirePermission("gerenciarSST"), (
   }
   const user = req.currentUser || getSessionUser(req);
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const record = normalizeSstIncident({
     ...payload,
@@ -16165,7 +16560,7 @@ app.put("/api/sst/incidents/:id", requireAuth, requirePermission("gerenciarSST")
   const current = sstIncidents[index];
   const user = req.currentUser || getSessionUser(req);
   if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const updated = normalizeSstIncident({
     ...current,
@@ -16196,7 +16591,7 @@ app.delete("/api/sst/incidents/:id", requireAuth, requirePermission("gerenciarSS
   const user = req.currentUser || getSessionUser(req);
   const current = sstIncidents[index];
   if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   sstIncidents.splice(index, 1);
   saveSstIncidents(sstIncidents);
@@ -16215,7 +16610,7 @@ app.get("/api/sst/aprs", requireAuth, requirePermission("verSST"), (req, res) =>
   const projectId = String(req.query.projectId || "").trim();
   const allowed = new Set(getUserProjectIds(user));
   if (projectId && !allowed.has(projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   let list = sstAprs.filter((item) => !item.projectId || allowed.has(item.projectId));
   if (projectId) {
@@ -16233,7 +16628,7 @@ app.post("/api/sst/aprs", requireAuth, requirePermission("gerenciarSST"), (req, 
   }
   const user = req.currentUser || getSessionUser(req);
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const record = normalizeSstApr({
     ...payload,
@@ -16262,7 +16657,7 @@ app.put("/api/sst/aprs/:id", requireAuth, requirePermission("gerenciarSST"), (re
   const current = sstAprs[index];
   const user = req.currentUser || getSessionUser(req);
   if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const updated = normalizeSstApr({
     ...current,
@@ -16293,7 +16688,7 @@ app.delete("/api/sst/aprs/:id", requireAuth, requirePermission("gerenciarSST"), 
   const user = req.currentUser || getSessionUser(req);
   const current = sstAprs[index];
   if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   sstAprs.splice(index, 1);
   saveSstAprs(sstAprs);
@@ -16378,7 +16773,7 @@ app.get("/api/sst/vehicles", requireAuth, (req, res) => {
   let list = sstVehicles.slice();
   if (projectId) {
     if (!userHasProjectAccess(user, projectId)) {
-      return res.status(403).json({ message: "Não autorizado." });
+      return res.status(403).json({ message: "NÃ£o autorizado." });
     }
     list = list.filter((item) => String(item.projectId) === projectId);
   } else {
@@ -16410,7 +16805,7 @@ app.get("/api/sst/vehicles/:id", requireAuth, (req, res) => {
   }
   const user = req.currentUser || getSessionUser(req);
   if (vehicle.projectId && !userHasProjectAccess(user, vehicle.projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   return res.json({ vehicle });
 });
@@ -16423,7 +16818,7 @@ app.post("/api/sst/vehicles", requireAuth, requirePermission("gerenciarProjetos"
     return res.status(400).json({ message: "Projeto obrigatorio." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const plate = normalizeVehiclePlate(payload.plate || payload.placa || "");
   if (!plate) {
@@ -16476,7 +16871,7 @@ app.put("/api/sst/vehicles/:id", requireAuth, requirePermission("gerenciarProjet
     return res.status(400).json({ message: "Projeto obrigatorio." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const plate = normalizeVehiclePlate(payload.plate || payload.placa || current.plate || "");
   if (!plate) {
@@ -16523,7 +16918,7 @@ app.delete("/api/sst/vehicles/:id", requireAuth, requirePermission("gerenciarPro
   }
   const current = sstVehicles[index];
   if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const updated = normalizeSstVehicle({
     ...current,
@@ -16549,7 +16944,7 @@ app.post(
   (req, res) => {
     const user = req.currentUser || getSessionUser(req);
     if (!canUpsertSstDocFromMaintenance(user)) {
-      return res.status(403).json({ message: "Não autorizado." });
+      return res.status(403).json({ message: "NÃ£o autorizado." });
     }
     const payload = req.body && typeof req.body === "object" ? req.body : {};
     const projectId = String(payload.projectId || "").trim();
@@ -16561,7 +16956,7 @@ app.post(
       return res.status(400).json({ message: "relatedId obrigatorio." });
     }
     if (!userHasProjectAccess(user, projectId)) {
-      return res.status(403).json({ message: "Não autorizado." });
+      return res.status(403).json({ message: "NÃ£o autorizado." });
     }
     const nowIso = new Date().toISOString();
     const prepared = normalizeSstDoc({
@@ -16612,7 +17007,7 @@ app.post(
   (req, res) => {
     const user = req.currentUser || getSessionUser(req);
     if (!canUpsertSstDocFromMaintenance(user)) {
-      return res.status(403).json({ message: "Não autorizado." });
+      return res.status(403).json({ message: "NÃ£o autorizado." });
     }
     const payload = req.body && typeof req.body === "object" ? req.body : {};
     const projectId = String(payload.projectId || getActiveProjectId(req, user) || "").trim();
@@ -16620,7 +17015,7 @@ app.post(
       return res.status(400).json({ message: "Projeto obrigatorio." });
     }
     if (!userHasProjectAccess(user, projectId)) {
-      return res.status(403).json({ message: "Não autorizado." });
+      return res.status(403).json({ message: "NÃ£o autorizado." });
     }
     const tombstones = getMaintenanceTombstonesMap(projectId);
     const maintenanceList = loadMaintenanceData().filter((item) => {
@@ -16675,7 +17070,7 @@ app.get("/api/sst/docs", requireAuth, requirePermission("verSST"), (req, res) =>
   const projectId = String(req.query.projectId || "").trim();
   const allowed = new Set(getUserProjectIds(user));
   if (projectId && !allowed.has(projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   let list = sstDocs.filter((item) => !item.projectId || allowed.has(item.projectId));
   if (projectId) {
@@ -16717,7 +17112,7 @@ app.post(
     }
     const user = req.currentUser || getSessionUser(req);
     if (!userHasProjectAccess(user, projectId)) {
-      return res.status(403).json({ message: "Não autorizado." });
+      return res.status(403).json({ message: "NÃ£o autorizado." });
     }
     const record = normalizeSstDoc({
       ...payload,
@@ -16758,7 +17153,7 @@ app.put(
     const current = sstDocs[index];
     const user = req.currentUser || getSessionUser(req);
     if (current.projectId && !userHasProjectAccess(user, current.projectId)) {
-      return res.status(403).json({ message: "Não autorizado." });
+      return res.status(403).json({ message: "NÃ£o autorizado." });
     }
     const canManage =
       isMasterUser(user) ||
@@ -16774,7 +17169,7 @@ app.put(
         payload.correctionInstructions ||
         payload.notifiedAt;
       if (!isLiberacao || !canSyncMaintenance(user) || (status && status !== "PENDENTE") || hasReviewFields) {
-        return res.status(403).json({ message: "Não autorizado." });
+        return res.status(403).json({ message: "NÃ£o autorizado." });
       }
     }
     const updated = normalizeSstDoc({
@@ -16804,7 +17199,7 @@ app.put(
 app.patch("/api/profile", requireAuth, (req, res) => {
   const actor = req.currentUser || getSessionUser(req);
   if (!actor) {
-    return res.status(401).json({ message: "Não autorizado." });
+    return res.status(401).json({ message: "NÃ£o autorizado." });
   }
   const targetId = String(req.body.userId || "").trim();
   const targetUser =
@@ -16812,7 +17207,7 @@ app.patch("/api/profile", requireAuth, (req, res) => {
       ? users.find((item) => item.id === targetId)
       : actor;
   if (!targetUser) {
-    return res.status(404).json({ message: "Usuário não encontrado." });
+    return res.status(404).json({ message: "UsuÃ¡rio nÃ£o encontrado." });
   }
   const isSelfProfile = actor.id === targetUser.id;
   const wantsSensitiveUpdate =
@@ -16830,11 +17225,11 @@ app.patch("/api/profile", requireAuth, (req, res) => {
     (wantsSettingsUpdate && !(isSelfProfile || canEdit)) ||
     (wantsSignatureUpdate && !(isSelfProfile || canEdit))
   ) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const index = users.findIndex((item) => item.id === targetUser.id);
   if (index === -1) {
-    return res.status(404).json({ message: "Usuário não encontrado." });
+    return res.status(404).json({ message: "UsuÃ¡rio nÃ£o encontrado." });
   }
   const updates = {};
   if ("uen" in req.body) {
@@ -16848,7 +17243,7 @@ app.patch("/api/profile", requireAuth, (req, res) => {
     if (projectId) {
       const project = getProjectById(projectId);
       if (!project) {
-        return res.status(400).json({ message: "Projeto inválido." });
+        return res.status(400).json({ message: "Projeto invÃ¡lido." });
       }
       const label = getProjectLabel(project);
       updates.projectId = projectId;
@@ -16913,23 +17308,23 @@ app.patch("/api/profile", requireAuth, (req, res) => {
 app.post("/api/profile/avatar", requireAuth, async (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   if (!user) {
-    return res.status(401).json({ message: "Não autorizado." });
+    return res.status(401).json({ message: "NÃ£o autorizado." });
   }
   const dataUrl = String(req.body.dataUrl || "").trim();
   if (!dataUrl) {
-    return res.status(400).json({ message: "Imagem não enviada." });
+    return res.status(400).json({ message: "Imagem nÃ£o enviada." });
   }
   const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
   if (!match) {
-    return res.status(400).json({ message: "Formato de imagem inválido." });
+    return res.status(400).json({ message: "Formato de imagem invÃ¡lido." });
   }
   const mime = String(match[1] || "").toLowerCase();
   if (!ALLOWED_AVATAR_TYPES.has(mime)) {
-    return res.status(415).json({ message: "Formato de imagem não suportado." });
+    return res.status(415).json({ message: "Formato de imagem nÃ£o suportado." });
   }
   const buffer = Buffer.from(match[2], "base64");
   if (!buffer.length) {
-    return res.status(400).json({ message: "Imagem inválida." });
+    return res.status(400).json({ message: "Imagem invÃ¡lida." });
   }
   if (buffer.length > AVATAR_MAX_BYTES) {
     return res.status(413).json({ message: "Imagem acima de 10 MB." });
@@ -16954,7 +17349,7 @@ app.post("/api/profile/avatar", requireAuth, async (req, res) => {
   const avatarUpdatedAt = new Date().toISOString();
   const index = users.findIndex((item) => item.id === user.id);
   if (index === -1) {
-    return res.status(404).json({ message: "Usuário não encontrado." });
+    return res.status(404).json({ message: "UsuÃ¡rio nÃ£o encontrado." });
   }
   const updated = normalizeUserRecord({
     ...users[index],
@@ -16975,11 +17370,11 @@ app.post("/api/profile/avatar", requireAuth, async (req, res) => {
 app.delete("/api/profile/avatar", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   if (!user) {
-    return res.status(401).json({ message: "Não autorizado." });
+    return res.status(401).json({ message: "NÃ£o autorizado." });
   }
   const index = users.findIndex((item) => item.id === user.id);
   if (index === -1) {
-    return res.status(404).json({ message: "Usuário não encontrado." });
+    return res.status(404).json({ message: "UsuÃ¡rio nÃ£o encontrado." });
   }
   const current = users[index];
   const existingUrl = String(current.avatarUrl || "");
@@ -17780,7 +18175,7 @@ app.post(
   const taskId = String(req.params.id || "").trim();
   const updated = runHealthTask(taskId, user);
   if (!updated) {
-    return res.status(404).json({ message: "Tarefa não encontrada." });
+    return res.status(404).json({ message: "Tarefa nÃ£o encontrada." });
   }
   appendAudit(
     "health_task_run",
@@ -17839,7 +18234,7 @@ app.get("/api/admin/automations", requireAuth, requirePermission("verAutomacoes"
   const user = req.currentUser || getSessionUser(req);
   const projectId = getActiveProjectId(req, user);
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto ativo obrigatório." });
+    return res.status(400).json({ message: "Projeto ativo obrigatÃ³rio." });
   }
   const list = automations.filter((item) => item && item.projectId === projectId);
   return res.json({ automations: list });
@@ -17853,16 +18248,16 @@ app.patch(
   const user = req.currentUser || getSessionUser(req);
   const projectId = getActiveProjectId(req, user);
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto ativo obrigatório." });
+    return res.status(400).json({ message: "Projeto ativo obrigatÃ³rio." });
   }
   const automationId = String(req.params.id || "").trim();
   const index = automations.findIndex((item) => item.id === automationId);
   if (index === -1) {
-    return res.status(404).json({ message: "Automação não encontrada." });
+    return res.status(404).json({ message: "AutomaÃ§Ã£o nÃ£o encontrada." });
   }
   const current = automations[index];
   if (current.projectId && current.projectId !== projectId) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const payload = req.body && typeof req.body === "object" ? req.body : {};
   const updated = {
@@ -17891,7 +18286,7 @@ app.get("/api/admin/files", requireAuth, requirePermission("verArquivos"), (req,
   const user = req.currentUser || getSessionUser(req);
   const projectId = getActiveProjectId(req, user);
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto ativo obrigatório." });
+    return res.status(400).json({ message: "Projeto ativo obrigatÃ³rio." });
   }
   const type = String(req.query.type || "").trim().toLowerCase();
   const search = String(req.query.search || "").trim().toLowerCase();
@@ -17915,16 +18310,16 @@ app.get("/api/files/:id", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   const fileId = String(req.params.id || "").trim();
   if (!fileId) {
-    return res.status(400).json({ message: "Arquivo inválido." });
+    return res.status(400).json({ message: "Arquivo invÃ¡lido." });
   }
   const file = Array.isArray(filesMeta)
     ? filesMeta.find((item) => item && String(item.id || "") === fileId)
     : null;
   if (!file) {
-    return res.status(404).json({ message: "Arquivo não encontrado." });
+    return res.status(404).json({ message: "Arquivo nÃ£o encontrado." });
   }
   if (file.projectId && !userHasProjectAccess(user, file.projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   return res.json({
     file: {
@@ -17942,17 +18337,17 @@ app.get("/api/files/:id/content", requireAuth, async (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   const fileId = String(req.params.id || "").trim();
   if (!fileId) {
-    return res.status(400).json({ message: "Arquivo inválido." });
+    return res.status(400).json({ message: "Arquivo invÃ¡lido." });
   }
   const file = Array.isArray(filesMeta)
     ? filesMeta.find((item) => item && String(item.id || "") === fileId)
     : null;
   if (file && file.projectId && !userHasProjectAccess(user, file.projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const blob = await fetchUploadBlobById(fileId);
   if (!file && blob && blob.projectId && !userHasProjectAccess(user, blob.projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   if (blob && blob.buffer) {
     const fileName = file && file.name ? file.name : blob.name || `arquivo-${fileId}`;
@@ -17963,11 +18358,11 @@ app.get("/api/files/:id/content", requireAuth, async (req, res) => {
     return res.end(blob.buffer);
   }
   if (!file) {
-    return res.status(404).json({ message: "Arquivo não encontrado." });
+    return res.status(404).json({ message: "Arquivo nÃ£o encontrado." });
   }
   const typeConfig = getFileTypeConfig(file.type);
   if (!typeConfig) {
-    return res.status(404).json({ message: "Arquivo não encontrado." });
+    return res.status(404).json({ message: "Arquivo nÃ£o encontrado." });
   }
   const filePath = path.join(FILES_DIR, typeConfig.dir, file.name);
   if (fs.existsSync(filePath)) {
@@ -17977,7 +18372,7 @@ app.get("/api/files/:id/content", requireAuth, async (req, res) => {
   if (fs.existsSync(legacyPath)) {
     return res.sendFile(legacyPath);
   }
-  return res.status(404).json({ message: "Arquivo não encontrado." });
+  return res.status(404).json({ message: "Arquivo nÃ£o encontrado." });
 });
 
 app.post(
@@ -17989,22 +18384,22 @@ app.post(
     const user = req.currentUser || getSessionUser(req);
     const projectId = getActiveProjectId(req, user);
     if (!projectId) {
-      return res.status(400).json({ message: "Projeto ativo obrigatório." });
+      return res.status(400).json({ message: "Projeto ativo obrigatÃ³rio." });
     }
     const parsed = parseMultipartForm(req);
     if (!parsed || !parsed.file) {
-      return res.status(400).json({ message: "Arquivo não enviado." });
+      return res.status(400).json({ message: "Arquivo nÃ£o enviado." });
     }
     const docType = String(parsed.fields.type || "").trim().toLowerCase();
     if (!LIBERACAO_DOC_TYPES.has(docType)) {
-      return res.status(400).json({ message: "Tipo de documento inválido." });
+      return res.status(400).json({ message: "Tipo de documento invÃ¡lido." });
     }
     const mime = String(parsed.file.mime || "").toLowerCase();
     if (!FILE_ALLOWED_MIME.has(mime)) {
-      return res.status(415).json({ message: "Tipo de arquivo não suportado." });
+      return res.status(415).json({ message: "Tipo de arquivo nÃ£o suportado." });
     }
     if (!parsed.file.buffer || parsed.file.buffer.length === 0) {
-      return res.status(400).json({ message: "Arquivo inválido." });
+      return res.status(400).json({ message: "Arquivo invÃ¡lido." });
     }
     if (parsed.file.buffer.length > FILE_MAX_BYTES) {
       return res.status(413).json({ message: "Arquivo acima de 10 MB." });
@@ -18069,18 +18464,18 @@ app.post(
     const user = req.currentUser || getSessionUser(req);
     const projectId = getActiveProjectId(req, user);
     if (!projectId) {
-      return res.status(400).json({ message: "Projeto ativo obrigatório." });
+      return res.status(400).json({ message: "Projeto ativo obrigatÃ³rio." });
     }
     const parsed = parseMultipartForm(req);
     if (!parsed || !parsed.file) {
-      return res.status(400).json({ message: "Arquivo não enviado." });
+      return res.status(400).json({ message: "Arquivo nÃ£o enviado." });
     }
     const mime = String(parsed.file.mime || "").toLowerCase();
     if (!mime || !mime.startsWith("image/") || !FILE_ALLOWED_MIME.has(mime)) {
-      return res.status(415).json({ message: "Apenas imagens são permitidas." });
+      return res.status(415).json({ message: "Apenas imagens sÃ£o permitidas." });
     }
     if (!parsed.file.buffer || parsed.file.buffer.length === 0) {
-      return res.status(400).json({ message: "Arquivo inválido." });
+      return res.status(400).json({ message: "Arquivo invÃ¡lido." });
     }
     if (parsed.file.buffer.length > FILE_MAX_BYTES) {
       return res.status(413).json({ message: "Arquivo acima de 10 MB." });
@@ -18136,22 +18531,22 @@ app.post(
     const user = req.currentUser || getSessionUser(req);
     const projectId = getActiveProjectId(req, user);
     if (!projectId) {
-      return res.status(400).json({ message: "Projeto ativo obrigatório." });
+      return res.status(400).json({ message: "Projeto ativo obrigatÃ³rio." });
     }
     const parsed = parseMultipartForm(req);
     if (!parsed || !parsed.file) {
-      return res.status(400).json({ message: "Arquivo não enviado." });
+      return res.status(400).json({ message: "Arquivo nÃ£o enviado." });
     }
     const typeConfig = getFileTypeConfig(parsed.fields.type);
     if (!typeConfig) {
-      return res.status(400).json({ message: "Tipo de arquivo inválido." });
+      return res.status(400).json({ message: "Tipo de arquivo invÃ¡lido." });
     }
     const mime = String(parsed.file.mime || "").toLowerCase();
     if (!FILE_ALLOWED_MIME.has(mime)) {
-      return res.status(415).json({ message: "Tipo de arquivo não suportado." });
+      return res.status(415).json({ message: "Tipo de arquivo nÃ£o suportado." });
     }
     if (!parsed.file.buffer || parsed.file.buffer.length === 0) {
-      return res.status(400).json({ message: "Arquivo inválido." });
+      return res.status(400).json({ message: "Arquivo invÃ¡lido." });
     }
     if (parsed.file.buffer.length > FILE_MAX_BYTES) {
       return res.status(413).json({ message: "Arquivo acima de 10 MB." });
@@ -18201,11 +18596,11 @@ app.delete("/api/admin/files/:id", requireAuth, requirePermission("excluirArquiv
   const fileId = String(req.params.id || "").trim();
   const index = Array.isArray(filesMeta) ? filesMeta.findIndex((item) => item.id === fileId) : -1;
   if (index === -1) {
-    return res.status(404).json({ message: "Arquivo não encontrado." });
+    return res.status(404).json({ message: "Arquivo nÃ£o encontrado." });
   }
   const file = filesMeta[index];
   if (!userHasProjectAccess(user, file.projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const typeConfig = getFileTypeConfig(file.type);
   if (typeConfig) {
@@ -18271,7 +18666,7 @@ app.post(
     };
 
     if (requestedProjectId && !userHasProjectAccess(user, requestedProjectId)) {
-      return respondSyncError(403, "project_access_denied", "Não autorizado.", {
+      return respondSyncError(403, "project_access_denied", "NÃ£o autorizado.", {
         projectId: requestedProjectId,
       });
     }
@@ -18279,10 +18674,10 @@ app.post(
     const projectId = requestedProjectId || getActiveProjectId(req, user);
     markMaintenanceSyncResponse(res, { projectId: projectId || "" });
     if (!projectId) {
-      return respondSyncError(400, "missing_active_project", "Projeto ativo obrigatório.");
+      return respondSyncError(400, "missing_active_project", "Projeto ativo obrigatÃ³rio.");
     }
     if (!userHasProjectAccess(user, projectId)) {
-      return respondSyncError(403, "project_access_denied", "Não autorizado.", { projectId });
+      return respondSyncError(403, "project_access_denied", "NÃ£o autorizado.", { projectId });
     }
     if (req.session && req.session.activeProjectId !== projectId) {
       req.session.activeProjectId = projectId;
@@ -18508,10 +18903,10 @@ app.get("/api/maintenance/templates", requireAuth, (req, res) => {
   const fromQuery = String(req.query.projectId || "").trim();
   const projectId = fromQuery || getActiveProjectId(req, user);
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto ativo obrigatório." });
+    return res.status(400).json({ message: "Projeto ativo obrigatÃ³rio." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const dataset = loadMaintenanceTemplates();
   const list = dataset.filter((item) => item && item.projectId === projectId);
@@ -18524,10 +18919,10 @@ app.post("/api/maintenance/templates/sync", requireAuth, requireStorageWritable,
   const fromBody = String(req.body.projectId || "").trim();
   const projectId = fromBody || fromQuery || getActiveProjectId(req, user);
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto ativo obrigatório." });
+    return res.status(400).json({ message: "Projeto ativo obrigatÃ³rio." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   if (!canManageMaintenanceTemplates(user)) {
     return res.status(403).json({ message: "Sem permissao para atualizar modelos." });
@@ -18562,10 +18957,10 @@ app.get("/api/maintenance", requireAuth, (req, res) => {
   const fromQuery = String(req.query.projectId || "").trim();
   const projectId = fromQuery || getActiveProjectId(req, user);
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto ativo obrigatório." });
+    return res.status(400).json({ message: "Projeto ativo obrigatÃ³rio." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const tombstones = getMaintenanceTombstonesMap(projectId);
   let dataset = loadMaintenanceData();
@@ -18617,7 +19012,7 @@ app.get("/api/maintenance", requireAuth, (req, res) => {
     if (totalItems > MAINTENANCE_LIST_FULL_MAX_ITEMS) {
       return res.status(413).json({
         message:
-          "Resultado muito grande para retorno completo. Use paginação com page/limit.",
+          "Resultado muito grande para retorno completo. Use paginaÃ§Ã£o com page/limit.",
         reason: "maintenance_full_limit_exceeded",
         projectId,
         totalItems,
@@ -18698,23 +19093,23 @@ app.delete("/api/maintenance/:id", requireAuth, requireStorageWritable, (req, re
   const fromQuery = String(req.query.projectId || "").trim();
   const projectId = fromQuery || getActiveProjectId(req, user);
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto ativo obrigatório." });
+    return res.status(400).json({ message: "Projeto ativo obrigatÃ³rio." });
   }
   if (!maintenanceId) {
-    return res.status(400).json({ message: "Manutenção inválida." });
+    return res.status(400).json({ message: "ManutenÃ§Ã£o invÃ¡lida." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   if (!canDeleteMaintenance(user)) {
-    return res.status(403).json({ message: "Sem permissão para remover manutenções." });
+    return res.status(403).json({ message: "Sem permissÃ£o para remover manutenÃ§Ãµes." });
   }
   const dataset = loadMaintenanceData();
   const index = dataset.findIndex(
     (item) => item && String(item.id || "") === maintenanceId && item.projectId === projectId
   );
   if (index === -1) {
-    return res.status(404).json({ message: "Manutenção não encontrada." });
+    return res.status(404).json({ message: "ManutenÃ§Ã£o nÃ£o encontrada." });
   }
   const removed = dataset[index];
   dataset.splice(index, 1);
@@ -18755,25 +19150,25 @@ app.post("/api/maintenance/reopen", requireAuth, requireStorageWritable, (req, r
   const user = req.currentUser || getSessionUser(req);
   const projectId = getActiveProjectId(req, user);
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto ativo obrigatório." });
+    return res.status(400).json({ message: "Projeto ativo obrigatÃ³rio." });
   }
   if (!canReopenMaintenance(user)) {
-    return res.status(403).json({ message: "Sem permissão para reabrir manutenções." });
+    return res.status(403).json({ message: "Sem permissÃ£o para reabrir manutenÃ§Ãµes." });
   }
   const maintenanceId = String(req.body.id || req.body.maintenanceId || "").trim();
   if (!maintenanceId) {
-    return res.status(400).json({ message: "Manutenção inválida." });
+    return res.status(400).json({ message: "ManutenÃ§Ã£o invÃ¡lida." });
   }
   const dataset = loadMaintenanceData();
   const index = dataset.findIndex(
     (item) => item && String(item.id || "") === maintenanceId && item.projectId === projectId
   );
   if (index === -1) {
-    return res.status(404).json({ message: "Manutenção não encontrada." });
+    return res.status(404).json({ message: "ManutenÃ§Ã£o nÃ£o encontrada." });
   }
   const item = dataset[index];
   if (normalizeStatus(item.status) !== "concluida") {
-    return res.status(409).json({ message: "Manutenção não está concluída." });
+    return res.status(409).json({ message: "ManutenÃ§Ã£o nÃ£o estÃ¡ concluÃ­da." });
   }
   const now = new Date().toISOString();
   const historico = Array.isArray(item.conclusoesAnteriores)
@@ -18834,14 +19229,14 @@ app.get("/api/contingencies/enums", requireAuth, (req, res) => {
 app.get("/api/contingencies", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   if (!user) {
-    return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
+    return respondContingencyError(res, 401, "unauthenticated", "SessÃ£o invÃ¡lida.");
   }
   const allowedProjects = new Set(getUserProjectIds(user));
   const queryProjectId = String(req.query.projectId || "").trim();
   const activeProjectId = getActiveProjectId(req, user) || "";
   const projectId = queryProjectId || activeProjectId;
   if (projectId && !allowedProjects.has(projectId)) {
-    return respondContingencyError(res, 403, "project_access_denied", "Não autorizado.", {
+    return respondContingencyError(res, 403, "project_access_denied", "NÃ£o autorizado.", {
       userId: user.id,
       projectId,
     });
@@ -18851,7 +19246,7 @@ app.get("/api/contingencies", requireAuth, (req, res) => {
       res,
       400,
       "missing_active_project",
-      "Projeto ativo obrigatório.",
+      "Projeto ativo obrigatÃ³rio.",
       { userId: user.id }
     );
   }
@@ -18887,7 +19282,7 @@ app.get("/api/contingencies", requireAuth, (req, res) => {
 app.get("/api/contingencies/:id", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   if (!user) {
-    return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
+    return respondContingencyError(res, 401, "unauthenticated", "SessÃ£o invÃ¡lida.");
   }
   const contingencyId = String(req.params.id || "").trim();
   if (!contingencyId) {
@@ -18895,7 +19290,7 @@ app.get("/api/contingencies/:id", requireAuth, (req, res) => {
       res,
       400,
       "invalid_id",
-      "Contingência inválida.",
+      "ContingÃªncia invÃ¡lida.",
       { userId: user.id }
     );
   }
@@ -18905,12 +19300,12 @@ app.get("/api/contingencies/:id", requireAuth, (req, res) => {
       res,
       404,
       "not_found",
-      "Contingência não encontrada.",
+      "ContingÃªncia nÃ£o encontrada.",
       { userId: user.id, contingencyId }
     );
   }
   if (!userHasProjectAccess(user, found.item.projectId)) {
-    return respondContingencyError(res, 403, "project_access_denied", "Não autorizado.", {
+    return respondContingencyError(res, 403, "project_access_denied", "NÃ£o autorizado.", {
       userId: user.id,
       contingencyId,
       projectId: found.item.projectId,
@@ -18928,7 +19323,7 @@ app.post("/api/contingencies", requireAuth, requireStorageWritable, (req, res) =
   const user = req.currentUser || getSessionUser(req);
   const payload = req.body && typeof req.body === "object" ? req.body : {};
   if (!user) {
-    return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
+    return respondContingencyError(res, 401, "unauthenticated", "SessÃ£o invÃ¡lida.");
   }
   const projectId = resolveContingencyProjectId(req, user, { payload });
   if (!projectId) {
@@ -18936,12 +19331,12 @@ app.post("/api/contingencies", requireAuth, requireStorageWritable, (req, res) =
       res,
       400,
       "missing_active_project",
-      "Projeto ativo obrigatório.",
+      "Projeto ativo obrigatÃ³rio.",
       { userId: user.id }
     );
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return respondContingencyError(res, 403, "project_access_denied", "Não autorizado.", {
+    return respondContingencyError(res, 403, "project_access_denied", "NÃ£o autorizado.", {
       userId: user.id,
       projectId,
     });
@@ -18989,7 +19384,7 @@ app.post("/api/contingencies", requireAuth, requireStorageWritable, (req, res) =
       res,
       403,
       "close_permission_denied",
-      "Sem permissão para encerrar contingências.",
+      "Sem permissÃ£o para encerrar contingÃªncias.",
       { userId: user.id, projectId }
     );
   }
@@ -19079,14 +19474,14 @@ app.put("/api/contingencies/:id", requireAuth, requireStorageWritable, (req, res
   const contingencyId = String(req.params.id || "").trim();
   const payload = req.body && typeof req.body === "object" ? req.body : {};
   if (!user) {
-    return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
+    return respondContingencyError(res, 401, "unauthenticated", "SessÃ£o invÃ¡lida.");
   }
   if (!contingencyId) {
     return respondContingencyError(
       res,
       400,
       "invalid_id",
-      "Contingência inválida.",
+      "ContingÃªncia invÃ¡lida.",
       { userId: user.id }
     );
   }
@@ -19096,12 +19491,12 @@ app.put("/api/contingencies/:id", requireAuth, requireStorageWritable, (req, res
       res,
       404,
       "not_found",
-      "Contingência não encontrada.",
+      "ContingÃªncia nÃ£o encontrada.",
       { userId: user.id, contingencyId }
     );
   }
   if (!userHasProjectAccess(user, found.item.projectId)) {
-    return respondContingencyError(res, 403, "project_access_denied", "Não autorizado.", {
+    return respondContingencyError(res, 403, "project_access_denied", "NÃ£o autorizado.", {
       userId: user.id,
       contingencyId,
       projectId: found.item.projectId,
@@ -19112,7 +19507,7 @@ app.put("/api/contingencies/:id", requireAuth, requireStorageWritable, (req, res
       res,
       403,
       "edit_permission_denied",
-      "Sem permissão para editar esta contingência.",
+      "Sem permissÃ£o para editar esta contingÃªncia.",
       {
         userId: user.id,
         contingencyId,
@@ -19126,7 +19521,7 @@ app.put("/api/contingencies/:id", requireAuth, requireStorageWritable, (req, res
       res,
       403,
       "close_permission_denied",
-      "Sem permissão para encerrar contingências.",
+      "Sem permissÃ£o para encerrar contingÃªncias.",
       { userId: user.id, contingencyId, projectId: found.item.projectId }
     );
   }
@@ -19258,14 +19653,14 @@ app.delete("/api/contingencies/:id", requireAuth, requireStorageWritable, async 
   const user = req.currentUser || getSessionUser(req);
   const contingencyId = String(req.params.id || "").trim();
   if (!user) {
-    return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
+    return respondContingencyError(res, 401, "unauthenticated", "SessÃ£o invÃ¡lida.");
   }
   if (!contingencyId) {
     return respondContingencyError(
       res,
       400,
       "invalid_id",
-      "Contingência inválida.",
+      "ContingÃªncia invÃ¡lida.",
       { userId: user.id }
     );
   }
@@ -19275,12 +19670,12 @@ app.delete("/api/contingencies/:id", requireAuth, requireStorageWritable, async 
       res,
       404,
       "not_found",
-      "Contingência não encontrada.",
+      "ContingÃªncia nÃ£o encontrada.",
       { userId: user.id, contingencyId }
     );
   }
   if (!userHasProjectAccess(user, found.item.projectId)) {
-    return respondContingencyError(res, 403, "project_access_denied", "Não autorizado.", {
+    return respondContingencyError(res, 403, "project_access_denied", "NÃ£o autorizado.", {
       userId: user.id,
       contingencyId,
       projectId: found.item.projectId,
@@ -19292,7 +19687,7 @@ app.delete("/api/contingencies/:id", requireAuth, requireStorageWritable, async 
       res,
       403,
       "delete_permission_denied",
-      "Sem permissão para excluir contingência encerrada.",
+      "Sem permissÃ£o para excluir contingÃªncia encerrada.",
       { userId: user.id, contingencyId, projectId: found.item.projectId }
     );
   }
@@ -19370,7 +19765,7 @@ app.post(
     const user = req.currentUser || getSessionUser(req);
     const contingencyId = String(req.params.id || "").trim();
     if (!user) {
-      return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
+      return respondContingencyError(res, 401, "unauthenticated", "SessÃ£o invÃ¡lida.");
     }
     const found = getContingencyById(contingencyId);
     if (!found.item) {
@@ -19378,7 +19773,7 @@ app.post(
         res,
         404,
         "not_found",
-        "Contingência não encontrada.",
+        "ContingÃªncia nÃ£o encontrada.",
         { userId: user.id, contingencyId }
       );
     }
@@ -19387,7 +19782,7 @@ app.post(
         res,
         403,
         "edit_permission_denied",
-        "Sem permissão para anexar arquivos.",
+        "Sem permissÃ£o para anexar arquivos.",
         { userId: user.id, contingencyId, projectId: found.item.projectId }
       );
     }
@@ -19397,7 +19792,7 @@ app.post(
         res,
         400,
         "missing_file",
-        "Arquivo não enviado.",
+        "Arquivo nÃ£o enviado.",
         { userId: user.id, contingencyId }
       );
     }
@@ -19407,7 +19802,7 @@ app.post(
         res,
         415,
         "invalid_mime",
-        "Tipo de arquivo não suportado.",
+        "Tipo de arquivo nÃ£o suportado.",
         { userId: user.id, contingencyId, mime }
       );
     }
@@ -19709,7 +20104,7 @@ app.put(
     const contingencyId = String(req.params.id || "").trim();
     const attachmentId = String(req.params.attachmentId || "").trim();
     if (!user) {
-      return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
+      return respondContingencyError(res, 401, "unauthenticated", "SessÃ£o invÃ¡lida.");
     }
     const found = getContingencyById(contingencyId);
     if (!found.item) {
@@ -19717,7 +20112,7 @@ app.put(
         res,
         404,
         "not_found",
-        "Contingência não encontrada.",
+        "ContingÃªncia nÃ£o encontrada.",
         { userId: user.id, contingencyId }
       );
     }
@@ -19726,7 +20121,7 @@ app.put(
         res,
         403,
         "edit_permission_denied",
-        "Sem permissão para editar anexos.",
+        "Sem permissÃ£o para editar anexos.",
         { userId: user.id, contingencyId, projectId: found.item.projectId }
       );
     }
@@ -19741,7 +20136,7 @@ app.put(
         res,
         404,
         "attachment_not_found",
-        "Anexo não encontrado.",
+        "Anexo nÃ£o encontrado.",
         { userId: user.id, contingencyId, attachmentId }
       );
     }
@@ -19819,7 +20214,7 @@ app.delete(
     const contingencyId = String(req.params.id || "").trim();
     const attachmentId = String(req.params.attachmentId || "").trim();
     if (!user) {
-      return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
+      return respondContingencyError(res, 401, "unauthenticated", "SessÃ£o invÃ¡lida.");
     }
     const found = getContingencyById(contingencyId);
     if (!found.item) {
@@ -19827,7 +20222,7 @@ app.delete(
         res,
         404,
         "not_found",
-        "Contingência não encontrada.",
+        "ContingÃªncia nÃ£o encontrada.",
         { userId: user.id, contingencyId }
       );
     }
@@ -19836,7 +20231,7 @@ app.delete(
         res,
         403,
         "edit_permission_denied",
-        "Sem permissão para excluir anexos.",
+        "Sem permissÃ£o para excluir anexos.",
         { userId: user.id, contingencyId, projectId: found.item.projectId }
       );
     }
@@ -19851,7 +20246,7 @@ app.delete(
         res,
         404,
         "attachment_not_found",
-        "Anexo não encontrado.",
+        "Anexo nÃ£o encontrado.",
         { userId: user.id, contingencyId, attachmentId }
       );
     }
@@ -19915,14 +20310,14 @@ app.get("/api/contingencies/:id/report", requireAuth, async (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   const contingencyId = String(req.params.id || "").trim();
   if (!user) {
-    return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
+    return respondContingencyError(res, 401, "unauthenticated", "SessÃ£o invÃ¡lida.");
   }
   if (!contingencyId) {
     return respondContingencyError(
       res,
       400,
       "invalid_id",
-      "Contingência inválida.",
+      "ContingÃªncia invÃ¡lida.",
       { userId: user.id }
     );
   }
@@ -19932,12 +20327,12 @@ app.get("/api/contingencies/:id/report", requireAuth, async (req, res) => {
       res,
       404,
       "not_found",
-      "Contingência não encontrada.",
+      "ContingÃªncia nÃ£o encontrada.",
       { userId: user.id, contingencyId }
     );
   }
   if (!userHasProjectAccess(user, found.item.projectId)) {
-    return respondContingencyError(res, 403, "project_access_denied", "Não autorizado.", {
+    return respondContingencyError(res, 403, "project_access_denied", "NÃ£o autorizado.", {
       userId: user.id,
       contingencyId,
       projectId: found.item.projectId,
@@ -20027,11 +20422,11 @@ app.post(
       senderRoleLabel: user ? (user.cargo || user.roleName || user.role || "") : "",
     });
     if (!record) {
-      return res.status(400).json({ message: "Anúncio inválido." });
+      return res.status(400).json({ message: "AnÃºncio invÃ¡lido." });
     }
     if (record.scope === "project" && record.projectId) {
       if (!userHasProjectAccess(user, record.projectId)) {
-        return res.status(403).json({ message: "Não autorizado." });
+        return res.status(403).json({ message: "NÃ£o autorizado." });
       }
     }
     announcements = [record, ...announcements];
@@ -20095,10 +20490,10 @@ app.get("/api/feedbacks", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   const projectId = String(req.query.projectId || "").trim() || getActiveProjectId(req, user);
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto ativo obrigatório." });
+    return res.status(400).json({ message: "Projeto ativo obrigatÃ³rio." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const list = Array.isArray(feedbacks) ? feedbacks : [];
   const visible = list.filter(
@@ -20114,10 +20509,10 @@ app.post("/api/feedbacks", requireAuth, requireStorageWritable, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   const projectId = String(req.body.projectId || "").trim() || getActiveProjectId(req, user);
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto ativo obrigatório." });
+    return res.status(400).json({ message: "Projeto ativo obrigatÃ³rio." });
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   const payload = {
     ...req.body,
@@ -20127,7 +20522,7 @@ app.post("/api/feedbacks", requireAuth, requireStorageWritable, (req, res) => {
   };
   const record = normalizeFeedbackRecord(payload);
   if (!record) {
-    return res.status(400).json({ message: "Feedback inválido." });
+    return res.status(400).json({ message: "Feedback invÃ¡lido." });
   }
   const receiver = users.find((entry) => entry && String(entry.id) === String(record.to));
   if (receiver) {
@@ -20192,7 +20587,7 @@ app.get(
       return res.status(400).json({ message: "Projeto ativo obrigat\u00f3rio." });
     }
     if (!userHasProjectAccess(user, projectId)) {
-      return res.status(403).json({ message: "Não autorizado." });
+      return res.status(403).json({ message: "NÃ£o autorizado." });
     }
     const list = loadRdoSnapshots().filter((item) => item && item.projectId === projectId);
     return res.json({ items: list, projectId });
@@ -20213,7 +20608,7 @@ app.post(
       return res.status(400).json({ message: "Projeto ativo obrigat\u00f3rio." });
     }
     if (!userHasProjectAccess(user, projectId)) {
-      return res.status(403).json({ message: "Não autorizado." });
+      return res.status(403).json({ message: "NÃ£o autorizado." });
     }
 
     const incoming = Array.isArray(req.body.items)
@@ -20256,10 +20651,10 @@ app.post(
     const projectId =
       String(body.projectId || "").trim() || getActiveProjectId(req, user);
     if (!projectId) {
-      return res.status(400).json({ message: "Projeto ativo obrigatório." });
+      return res.status(400).json({ message: "Projeto ativo obrigatÃ³rio." });
     }
     if (!userHasProjectAccess(user, projectId)) {
-      return res.status(403).json({ message: "Não autorizado." });
+      return res.status(403).json({ message: "NÃ£o autorizado." });
     }
     const dateRaw = String(body.date || body.rdoDate || body.day || "").trim();
     const date = parseDateOnly(dateRaw) || startOfDay(new Date());
@@ -20322,10 +20717,10 @@ app.post("/api/maintenance/release", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   const projectId = getActiveProjectId(req, user);
   if (!projectId) {
-    return res.status(400).json({ message: "Projeto ativo obrigatório." });
+    return res.status(400).json({ message: "Projeto ativo obrigatÃ³rio." });
   }
   if (!canSyncMaintenance(user)) {
-    return res.status(403).json({ message: "Sem permissão para editar manutenções." });
+    return res.status(403).json({ message: "Sem permissÃ£o para editar manutenÃ§Ãµes." });
   }
   const maintenanceId = String(req.body.id || "").trim();
   const justificativa = String(req.body.justificativa || "").trim();
@@ -20344,10 +20739,10 @@ app.post("/api/maintenance/release", requireAuth, (req, res) => {
     return item && item.projectId === projectId;
   });
   if (!candidate) {
-    return res.status(404).json({ message: "ManutenÃ§Ã£o nÃ£o encontrada." });
+    return res.status(404).json({ message: "ManutenÃƒÂ§ÃƒÂ£o nÃƒÂ£o encontrada." });
   }
   if (!canExecuteMaintenanceForUser(candidate, user)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
 
   const dueDate = getDueDate(candidate) || parseDateOnly(payloadDate);
@@ -20368,12 +20763,12 @@ app.post("/api/maintenance/release", requireAuth, (req, res) => {
       );
       return res
         .status(403)
-        .json({ message: "Liberação antes da data prevista não autorizada." });
+        .json({ message: "LiberaÃ§Ã£o antes da data prevista nÃ£o autorizada." });
     }
     if (!justificativa) {
       return res
         .status(400)
-        .json({ message: "Justificativa obrigatória para liberação antecipada." });
+        .json({ message: "Justificativa obrigatÃ³ria para liberaÃ§Ã£o antecipada." });
     }
     appendAudit(
       "maintenance_release_override",
@@ -20405,7 +20800,7 @@ app.post("/api/maintenance/release", requireAuth, (req, res) => {
 app.patch("/api/admin/users/:id", requireAuth, requirePermission("verUsuarios"), (req, res) => {
   const userIndex = users.findIndex((item) => item.id === req.params.id);
   if (userIndex === -1) {
-    return res.status(404).json({ message: "Usuário não encontrado." });
+    return res.status(404).json({ message: "UsuÃ¡rio nÃ£o encontrado." });
   }
   const current = users[userIndex];
   const actor = req.currentUser || getSessionUser(req);
@@ -20433,10 +20828,10 @@ app.patch("/api/admin/users/:id", requireAuth, requirePermission("verUsuarios"),
     "securitySettings" in req.body;
 
   if (wantsProfileUpdate && !canEditProfile(actor, current)) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   if (wantsActive && !hasGranularPermission(actor, "desativarUsuarios")) {
-    return res.status(403).json({ message: "Não autorizado." });
+    return res.status(403).json({ message: "NÃ£o autorizado." });
   }
   if ("name" in req.body) {
     updates.name = String(req.body.name || "").trim();
@@ -20451,7 +20846,7 @@ app.patch("/api/admin/users/:id", requireAuth, requirePermission("verUsuarios"),
     if (projectId) {
       const project = getProjectById(projectId);
       if (!project) {
-        return res.status(400).json({ message: "Projeto inválido." });
+        return res.status(400).json({ message: "Projeto invÃ¡lido." });
       }
       const label = getProjectLabel(project);
       updates.projectId = projectId;
@@ -20556,16 +20951,16 @@ app.post("/api/auth/register", async (req, res) => {
   const passwordCheck = validatePassword(senha);
   const errors = {};
   if (!email || !isValidEmail(email)) {
-    errors.matricula = "Informe um e-mail corporativo válido.";
+    errors.matricula = "Informe um e-mail corporativo vÃ¡lido.";
   }
   if (!nome) {
     errors.nome = "Informe o nome completo.";
   }
   if (!senha || !passwordCheck.ok) {
-    errors.senha = "Senha fora da política.";
+    errors.senha = "Senha fora da polÃ­tica.";
   }
   if (!senhaConfirm || senhaConfirm !== senha) {
-    errors.senhaConfirm = "As senhas não conferem.";
+    errors.senhaConfirm = "As senhas nÃ£o conferem.";
   }
   if (!convite) {
     errors.convite = "Informe o codigo de convite.";
@@ -20573,7 +20968,7 @@ app.post("/api/auth/register", async (req, res) => {
   const invite = invites.find((item) => item.code === convite);
   const inviteValido = invite && new Date(invite.expiresAt).getTime() > Date.now();
   if (!inviteValido) {
-    errors.convite = "Convite inválido ou expirado.";
+    errors.convite = "Convite invÃ¡lido ou expirado.";
   }
   const jaExiste = users.some(
     (user) =>
@@ -20582,11 +20977,11 @@ app.post("/api/auth/register", async (req, res) => {
       String(user.email || "").toLowerCase() === email
   );
   if (jaExiste) {
-    errors.matricula = "Dados inválidos.";
+    errors.matricula = "Dados invÃ¡lidos.";
   }
 
   if (Object.keys(errors).length) {
-    return res.status(400).json({ message: "Dados inválidos.", errors, rules: passwordCheck.rules });
+    return res.status(400).json({ message: "Dados invÃ¡lidos.", errors, rules: passwordCheck.rules });
   }
 
   const role = normalizeRbacRole(invite.role || "tecnico_junior");
@@ -20636,11 +21031,11 @@ app.post("/api/auth/register", async (req, res) => {
   }
   if (!emailSent) {
     if (!IS_DEV) {
-      return res.status(503).json({ message: "Envio de e-mail indisponível." });
+      return res.status(503).json({ message: "Envio de e-mail indisponÃ­vel." });
     }
     user.emailVerified = true;
     verificationRequired = false;
-    console.warn("SMTP não configurado. Verificação de e-mail ignorada em dev.");
+    console.warn("SMTP nÃ£o configurado. VerificaÃ§Ã£o de e-mail ignorada em dev.");
   }
   if (emailSent) {
     verifications.push(verification);
@@ -20971,12 +21366,12 @@ app.get("/api/auth/verify", (req, res) => {
   cleanupVerifications();
   const token = String(req.query.token || "").trim();
   if (!token) {
-    return res.status(400).json({ message: "Token inválido." });
+    return res.status(400).json({ message: "Token invÃ¡lido." });
   }
   const tokenHash = hashToken(token);
   const recordIndex = verifications.findIndex((item) => item.tokenHash === tokenHash);
   if (recordIndex === -1) {
-    return res.status(400).json({ message: "Token inválido ou expirado." });
+    return res.status(400).json({ message: "Token invÃ¡lido ou expirado." });
   }
   const record = verifications[recordIndex];
   if (isVerificationExpired(record)) {
@@ -21051,3 +21446,5 @@ bootstrap()
     console.error("Falha ao iniciar OPSCOPE:", error);
     process.exit(1);
   });
+
+

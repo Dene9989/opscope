@@ -3028,12 +3028,13 @@
               <button class="btn btn--ghost btn--small" type="button" data-contingency-tab="timeline">Timeline</button>
               <button class="btn btn--ghost btn--small" type="button" data-contingency-tab="diagnostico">Diagn&oacute;stico</button>
               <button class="btn btn--ghost btn--small" type="button" data-contingency-tab="acoes">A&ccedil;&otilde;es</button>
+              <button class="btn btn--ghost btn--small" type="button" data-contingency-tab="reincidencia">Reincid&ecirc;ncia</button>
               <button class="btn btn--ghost btn--small" type="button" data-contingency-tab="anexos">Anexos</button>
             </div>
           </div>
           <div class="field contingency-flow" data-full>
             <div class="contingency-flow__header">
-              <span id="contingencyStepBadge" class="badge badge--warn">Etapa 1/6</span>
+              <span id="contingencyStepBadge" class="badge badge--warn">Etapa 1/7</span>
               <span id="contingencyFlowHint" class="hint">
                 Preencha a identifica&ccedil;&atilde;o e salve para habilitar anexos e relat&oacute;rios.
               </span>
@@ -3317,6 +3318,102 @@
                   rows="4"
                   placeholder="Preenchimento manual do t&eacute;cnico respons&aacute;vel para conclus&atilde;o e recomenda&ccedil;&otilde;es finais."
                 ></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="field contingency-pane" data-contingency-pane="reincidencia" data-full>
+            <div class="contingency-section">
+              <div class="contingency-section__title">Resumo da reincid&ecirc;ncia</div>
+              <div class="form-grid">
+                <div class="field">
+                  <label for="contingencyRecurrenceOccurred">Houve reincid&ecirc;ncia?</label>
+                  <select id="contingencyRecurrenceOccurred">
+                    <option value="NAO">N&atilde;o</option>
+                    <option value="SIM">Sim</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="contingencyRecurrenceCount">Quantidade de reincid&ecirc;ncias registradas</label>
+                  <input id="contingencyRecurrenceCount" type="number" readonly />
+                </div>
+                <div class="field">
+                  <label for="contingencyRecurrenceFirst">Primeira reincid&ecirc;ncia</label>
+                  <input id="contingencyRecurrenceFirst" type="datetime-local" readonly />
+                </div>
+                <div class="field">
+                  <label for="contingencyRecurrenceLast">&Uacute;ltima reincid&ecirc;ncia</label>
+                  <input id="contingencyRecurrenceLast" type="datetime-local" readonly />
+                </div>
+                <div class="field field--full">
+                  <label for="contingencyRecurrenceImpact">Impacto acumulado</label>
+                  <input
+                    id="contingencyRecurrenceImpact"
+                    type="text"
+                    placeholder="Resumo do impacto acumulado (se aplic&aacute;vel)"
+                  />
+                </div>
+              </div>
+              <p id="contingencyRecurrenceSummary" class="hint"></p>
+            </div>
+
+            <div id="contingencyRecurrenceListWrap" class="contingency-section">
+              <div class="contingency-section__header">
+                <div>
+                  <div class="contingency-section__title">Reincid&ecirc;ncias registradas</div>
+                  <span class="hint">Adicione ocorr&ecirc;ncias relacionadas ao evento principal.</span>
+                </div>
+                <button id="contingencyRecurrenceAddBtn" class="btn btn--ghost btn--small" type="button">
+                  Adicionar reincid&ecirc;ncia
+                </button>
+              </div>
+              <div id="contingencyRecurrenceList" class="contingency-recurrence-list"></div>
+              <p id="contingencyRecurrenceEmpty" class="empty-state">Nenhuma reincid&ecirc;ncia adicionada.</p>
+            </div>
+
+            <div class="contingency-section">
+              <div class="contingency-section__title">Conclus&atilde;o sobre reincid&ecirc;ncia</div>
+              <div class="form-grid">
+                <div class="field">
+                  <label for="contingencyRecurrencePattern">Padr&atilde;o recorrente identificado?</label>
+                  <select id="contingencyRecurrencePattern">
+                    <option value="">Selecione</option>
+                    <option value="SIM">Sim</option>
+                    <option value="NAO">N&atilde;o</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="contingencyRecurrencePersistent">Indica falha persistente?</label>
+                  <select id="contingencyRecurrencePersistent">
+                    <option value="">Selecione</option>
+                    <option value="SIM">Sim</option>
+                    <option value="NAO">N&atilde;o</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="contingencyRecurrenceWarranty">Recomenda acionamento de garantia?</label>
+                  <select id="contingencyRecurrenceWarranty">
+                    <option value="">Selecione</option>
+                    <option value="SIM">Sim</option>
+                    <option value="NAO">N&atilde;o</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="contingencyRecurrenceSpecialist">Recomenda inspe&ccedil;&atilde;o/fabricante/especialista?</label>
+                  <select id="contingencyRecurrenceSpecialist">
+                    <option value="">Selecione</option>
+                    <option value="SIM">Sim</option>
+                    <option value="NAO">N&atilde;o</option>
+                  </select>
+                </div>
+                <div class="field" data-full>
+                  <label for="contingencyRecurrenceConclusion">Conclus&atilde;o t&eacute;cnica sobre reincid&ecirc;ncia</label>
+                  <textarea id="contingencyRecurrenceConclusion" rows="3"></textarea>
+                </div>
+                <div class="field" data-full>
+                  <label for="contingencyRecurrenceRecommendation">Recomenda&ccedil;&atilde;o preventiva/corretiva</label>
+                  <textarea id="contingencyRecurrenceRecommendation" rows="3"></textarea>
+                </div>
               </div>
             </div>
           </div>

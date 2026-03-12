@@ -1499,6 +1499,22 @@ const contingencyCorrectiveActionsTextInput = document.getElementById("contingen
 const contingencyPreventiveActionsTextInput = document.getElementById("contingencyPreventiveActionsText");
 const contingencyCommunicationsTextInput = document.getElementById("contingencyCommunicationsText");
 const contingencyEngineeringConclusionInput = document.getElementById("contingencyEngineeringConclusion");
+const contingencyRecurrenceOccurredInput = document.getElementById("contingencyRecurrenceOccurred");
+const contingencyRecurrenceCountInput = document.getElementById("contingencyRecurrenceCount");
+const contingencyRecurrenceFirstInput = document.getElementById("contingencyRecurrenceFirst");
+const contingencyRecurrenceLastInput = document.getElementById("contingencyRecurrenceLast");
+const contingencyRecurrenceImpactInput = document.getElementById("contingencyRecurrenceImpact");
+const contingencyRecurrenceSummary = document.getElementById("contingencyRecurrenceSummary");
+const contingencyRecurrenceListWrap = document.getElementById("contingencyRecurrenceListWrap");
+const contingencyRecurrenceList = document.getElementById("contingencyRecurrenceList");
+const contingencyRecurrenceEmpty = document.getElementById("contingencyRecurrenceEmpty");
+const contingencyRecurrenceAddBtn = document.getElementById("contingencyRecurrenceAddBtn");
+const contingencyRecurrencePatternInput = document.getElementById("contingencyRecurrencePattern");
+const contingencyRecurrencePersistentInput = document.getElementById("contingencyRecurrencePersistent");
+const contingencyRecurrenceWarrantyInput = document.getElementById("contingencyRecurrenceWarranty");
+const contingencyRecurrenceSpecialistInput = document.getElementById("contingencyRecurrenceSpecialist");
+const contingencyRecurrenceConclusionInput = document.getElementById("contingencyRecurrenceConclusion");
+const contingencyRecurrenceRecommendationInput = document.getElementById("contingencyRecurrenceRecommendation");
 const contingencyAttachmentFileInput = document.getElementById("contingencyAttachmentFile");
 const contingencyAttachmentCategoryInput = document.getElementById("contingencyAttachmentCategory");
 const contingencyAttachmentNotesInput = document.getElementById("contingencyAttachmentNotes");
@@ -1554,6 +1570,7 @@ const CONTINGENCY_TAB_SEQUENCE = [
   "timeline",
   "diagnostico",
   "acoes",
+  "reincidencia",
   "anexos",
 ];
 const CONTINGENCY_TAB_LABELS = {
@@ -1562,6 +1579,7 @@ const CONTINGENCY_TAB_LABELS = {
   timeline: "Timeline",
   diagnostico: "Diagnóstico",
   acoes: "Ações",
+  reincidencia: "Reincidência",
   anexos: "Anexos",
 };
 const MAINT_STORAGE_MODE_KEY = "opscope.maintenance.storageMode";
@@ -4991,6 +5009,7 @@ let contingenciesLoading = false;
 let contingenciesEnums = null;
 let contingencyTimelineDraft = [];
 let contingencyAttachmentsDraft = [];
+let contingencyRecurrenceDraft = [];
 let contingencyAttachmentReorderBusy = false;
 let contingencyActiveTab = "identificacao";
 let contingencyFilterSearchTimer = null;
@@ -47247,6 +47266,97 @@ function toIsoFromDatetimeLocal(value) {
   return parsed.toISOString();
 }
 
+const CONTINGENCY_RECURRENCE_YESNO_OPTIONS = [
+  { value: "SIM", label: "Sim" },
+  { value: "NAO", label: "Não" },
+];
+const CONTINGENCY_RECURRENCE_CAUSE_OPTIONS = [
+  { value: "SIM", label: "Sim" },
+  { value: "NAO", label: "Não" },
+  { value: "EM_ANALISE", label: "Em análise" },
+];
+
+function normalizeContingencyRecurrenceYesNo(value) {
+  if (typeof value === "boolean") {
+    return value ? "SIM" : "NAO";
+  }
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "";
+  }
+  const normalized = raw
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  if (normalized === "SIM" || normalized === "NAO") {
+    return normalized;
+  }
+  if (normalized === "NAO_APLICA" || normalized === "N_A") {
+    return "NAO";
+  }
+  return "";
+}
+
+function normalizeContingencyRecurrenceCause(value) {
+  if (typeof value === "boolean") {
+    return value ? "SIM" : "NAO";
+  }
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "";
+  }
+  const normalized = raw
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  if (normalized === "SIM" || normalized === "NAO" || normalized === "EM_ANALISE") {
+    return normalized;
+  }
+  if (normalized === "EM_ANALISES" || normalized === "EM_ANALISES") {
+    return "EM_ANALISE";
+  }
+  return "";
+}
+
+function formatContingencyRecurrenceChoice(value, fallback = "-") {
+  const normalized = String(value || "").trim().toUpperCase();
+  if (normalized === "SIM") {
+    return "Sim";
+  }
+  if (normalized === "NAO") {
+    return "Não";
+  }
+  if (normalized === "EM_ANALISE") {
+    return "Em análise";
+  }
+  return fallback;
+}
+
+function buildContingencyOptionsHtml(options, selected, placeholder = "Selecione") {
+  const current = String(selected || "");
+  const list = Array.isArray(options) ? options : [];
+  const head = placeholder !== null ? `<option value="">${escapeHtml(placeholder)}</option>` : "";
+  return (
+    head +
+    list
+      .map((item) => {
+        if (!item || !item.value) {
+          return "";
+        }
+        const value = String(item.value);
+        const label = item.label || item.value;
+        const isSelected = value === current ? " selected" : "";
+        return `<option value="${escapeHtml(value)}"${isSelected}>${escapeHtml(label)}</option>`;
+      })
+      .filter(Boolean)
+      .join("")
+  );
+}
+
 function normalizeContingencyActionStatusInput(value) {
   const raw = String(value || "").trim();
   if (!raw) {
@@ -47503,6 +47613,9 @@ function getContingencyStepIsReady(tabName, state) {
   if (tabName === "acoes") {
     return state.actionsReady;
   }
+  if (tabName === "reincidencia") {
+    return state.recurrenceReady;
+  }
   if (tabName === "anexos") {
     return state.attachmentsReady;
   }
@@ -47518,6 +47631,7 @@ function getContingencyFlowState() {
   const attachmentsCount = Array.isArray(contingencyAttachmentsDraft)
     ? contingencyAttachmentsDraft.length
     : 0;
+  const recurrenceState = getContingencyRecurrenceSummaryState();
   const status = String(payload.status || "").trim().toUpperCase();
   const identificationReady = Boolean(
     payload.projectId &&
@@ -47551,17 +47665,21 @@ function getContingencyFlowState() {
       timelineReady &&
       diagnosisReady &&
       engineeringConclusionReady &&
+      recurrenceState.ready &&
       normalizedInfoReady
   );
   return {
     hasId,
     timelineCount,
     attachmentsCount,
+    recurrenceCount: recurrenceState.count,
+    recurrenceOccurred: recurrenceState.occurred,
     identificationReady,
     impactReady,
     timelineReady,
     diagnosisReady,
     actionsReady,
+    recurrenceReady: recurrenceState.ready,
     engineeringConclusionReady,
     attachmentsReady: attachmentsCount > 0,
     reportCoreReady,
@@ -47600,6 +47718,16 @@ function renderContingencyChecklist(state) {
       ok: flow.actionsReady,
       label: "Ações",
       detail: "Contenção e plano corretivo/preventivo.",
+    },
+    {
+      ok: flow.recurrenceReady,
+      label: "Reincidência",
+      detail:
+        flow.recurrenceOccurred === "SIM"
+          ? `Reincidências registradas: ${flow.recurrenceCount}.`
+          : flow.recurrenceOccurred === "NAO"
+            ? "Sem reincidência registrada."
+            : "Informe se houve reincidência.",
     },
     {
       ok: flow.engineeringConclusionReady,
@@ -47818,6 +47946,275 @@ function renderContingencyAttachmentsDraft() {
     })
     .join("");
   renderContingencyFlowState();
+  renderContingencyRecurrenceDraft();
+}
+
+function getContingencyRecurrenceEntries() {
+  return Array.isArray(contingencyRecurrenceDraft) ? contingencyRecurrenceDraft : [];
+}
+
+function getContingencyRecurrenceDurationMinutes(entry) {
+  if (!entry) {
+    return null;
+  }
+  const start = parseDateTime(entry.occurredAt || "");
+  const end = parseDateTime(entry.normalizedAt || "");
+  if (!start || !end || end.getTime() < start.getTime()) {
+    return null;
+  }
+  return Math.round((end.getTime() - start.getTime()) / 60000);
+}
+
+function getContingencyRecurrenceAttachmentOptions() {
+  const attachments = Array.isArray(contingencyAttachmentsDraft) ? contingencyAttachmentsDraft : [];
+  return attachments.map((entry) => {
+    const labelParts = [];
+    if (entry.fileName) {
+      labelParts.push(entry.fileName);
+    }
+    if (entry.category) {
+      labelParts.push(entry.category);
+    }
+    return {
+      value: String(entry.id || ""),
+      label: labelParts.length ? labelParts.join(" | ") : "Anexo",
+    };
+  });
+}
+
+function buildContingencyRecurrenceAttachmentOptionsHtml(selectedIds) {
+  const options = getContingencyRecurrenceAttachmentOptions();
+  if (!options.length) {
+    return `<option value="">Sem anexos dispon&iacute;veis</option>`;
+  }
+  const selectedSet = new Set(
+    Array.isArray(selectedIds) ? selectedIds.map((id) => String(id || "")) : []
+  );
+  return options
+    .map((option) => {
+      if (!option || !option.value) {
+        return "";
+      }
+      const selected = selectedSet.has(option.value) ? " selected" : "";
+      return `<option value="${escapeHtml(option.value)}"${selected}>${escapeHtml(
+        option.label || option.value
+      )}</option>`;
+    })
+    .filter(Boolean)
+    .join("");
+}
+
+function getContingencyRecurrenceSummaryState() {
+  const occurred = normalizeContingencyRecurrenceYesNo(
+    contingencyRecurrenceOccurredInput ? contingencyRecurrenceOccurredInput.value : ""
+  );
+  const entries = getContingencyRecurrenceEntries();
+  const dates = entries
+    .map((entry) => parseDateTime(entry && entry.occurredAt ? entry.occurredAt : ""))
+    .filter(Boolean)
+    .map((date) => date.getTime());
+  const firstDate = dates.length ? new Date(Math.min(...dates)) : null;
+  const lastDate = dates.length ? new Date(Math.max(...dates)) : null;
+  const missing = [];
+  const validEntries = entries.filter((entry, index) => {
+    const hasDate = Boolean(parseDateTime(entry && entry.occurredAt ? entry.occurredAt : ""));
+    const hasDescription = Boolean(String(entry && entry.description ? entry.description : "").trim());
+    const hasSameCause = Boolean(normalizeContingencyRecurrenceCause(entry && entry.sameCause));
+    if (!hasDate) {
+      missing.push(`Reincid&ecirc;ncia ${index + 1}: data/hora obrigat&oacute;ria.`);
+    }
+    if (!hasDescription) {
+      missing.push(`Reincid&ecirc;ncia ${index + 1}: descri&ccedil;&atilde;o obrigat&oacute;ria.`);
+    }
+    if (!hasSameCause) {
+      missing.push(`Reincid&ecirc;ncia ${index + 1}: mesma causa prov&aacute;vel obrigat&oacute;ria.`);
+    }
+    return hasDate && hasDescription && hasSameCause;
+  });
+  const requiresEntries = occurred === "SIM";
+  const ready = requiresEntries ? validEntries.length > 0 && missing.length === 0 : Boolean(occurred);
+  return {
+    occurred,
+    entries,
+    validEntries,
+    count: entries.length,
+    firstDate,
+    lastDate,
+    missing,
+    ready,
+  };
+}
+
+function renderContingencyRecurrenceSummary() {
+  const state = getContingencyRecurrenceSummaryState();
+  if (contingencyRecurrenceCountInput) {
+    contingencyRecurrenceCountInput.value = String(state.count || 0);
+  }
+  if (contingencyRecurrenceFirstInput) {
+    contingencyRecurrenceFirstInput.value = state.firstDate
+      ? toDatetimeLocalValue(state.firstDate)
+      : "";
+  }
+  if (contingencyRecurrenceLastInput) {
+    contingencyRecurrenceLastInput.value = state.lastDate
+      ? toDatetimeLocalValue(state.lastDate)
+      : "";
+  }
+  if (contingencyRecurrenceListWrap) {
+    contingencyRecurrenceListWrap.hidden = state.occurred !== "SIM";
+  }
+  if (contingencyRecurrenceAddBtn) {
+    contingencyRecurrenceAddBtn.disabled = state.occurred !== "SIM";
+  }
+  if (contingencyRecurrenceSummary) {
+    if (state.occurred === "SIM" && !state.count) {
+      contingencyRecurrenceSummary.textContent =
+        "Obrigat&oacute;rio registrar ao menos uma reincid&ecirc;ncia para marcar Sim.";
+    } else if (state.occurred === "NAO") {
+      contingencyRecurrenceSummary.textContent =
+        "Sem reincid&ecirc;ncia registrada ap&oacute;s o evento principal.";
+    } else {
+      contingencyRecurrenceSummary.textContent = state.count
+        ? `${state.count} reincid&ecirc;ncia(s) registradas.`
+        : "Informe se houve reincid&ecirc;ncia.";
+    }
+  }
+}
+
+function renderContingencyRecurrenceDraft() {
+  if (!contingencyRecurrenceList) {
+    return;
+  }
+  const entries = getContingencyRecurrenceEntries();
+  const eventOptions = (selected) =>
+    buildContingencyOptionsHtml(getContingencyEnumList("eventTypes"), selected, "Selecione");
+  const yesNoOptions = (selected) =>
+    buildContingencyOptionsHtml(CONTINGENCY_RECURRENCE_YESNO_OPTIONS, selected, "Selecione");
+  const causeOptions = (selected) =>
+    buildContingencyOptionsHtml(CONTINGENCY_RECURRENCE_CAUSE_OPTIONS, selected, "Selecione");
+  const hasAttachments = getContingencyRecurrenceAttachmentOptions().length > 0;
+  contingencyRecurrenceList.innerHTML = entries
+    .map((entry, index) => {
+      const entryId = String(entry.id || "");
+      const occurredAtLabel = formatContingencyDateTimeLabel(entry.occurredAt);
+      const durationMinutes = getContingencyRecurrenceDurationMinutes(entry);
+      const durationLabel =
+        durationMinutes === null ? "-" : formatDuracaoMin(durationMinutes);
+      const attachmentOptions = buildContingencyRecurrenceAttachmentOptionsHtml(entry.attachmentIds || []);
+      return `
+        <div class="contingency-recurrence-card" data-recurrence-id="${escapeHtml(entryId)}">
+          <div class="contingency-recurrence-card__header">
+            <div>
+              <strong>Reincid&ecirc;ncia ${index + 1}</strong><br />
+              <span class="contingency-recurrence-card__meta">Data: ${escapeHtml(
+                occurredAtLabel
+              )}</span>
+            </div>
+            <div class="contingency-recurrence-card__actions">
+              <button class="btn btn--ghost btn--small" type="button" data-action="contingency-recurrence-up">Subir</button>
+              <button class="btn btn--ghost btn--small" type="button" data-action="contingency-recurrence-down">Descer</button>
+              <button class="btn btn--danger btn--small" type="button" data-action="contingency-recurrence-remove">Remover</button>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="field">
+              <label>Data/hora da reincid&ecirc;ncia</label>
+              <input type="datetime-local" data-recurrence-field="occurredAt" value="${escapeHtml(
+                toDatetimeLocalValue(entry.occurredAt)
+              )}" />
+            </div>
+            <div class="field">
+              <label>Subesta&ccedil;&atilde;o</label>
+              <input type="text" data-recurrence-field="substation" value="${escapeHtml(
+                entry.substation || ""
+              )}" />
+            </div>
+            <div class="field">
+              <label>Bay</label>
+              <input type="text" data-recurrence-field="bay" value="${escapeHtml(entry.bay || "")}" />
+            </div>
+            <div class="field">
+              <label>Alimentador</label>
+              <input type="text" data-recurrence-field="feeder" value="${escapeHtml(
+                entry.feeder || ""
+              )}" />
+            </div>
+            <div class="field">
+              <label>Equipamento</label>
+              <input type="text" data-recurrence-field="assetName" value="${escapeHtml(
+                entry.assetName || ""
+              )}" />
+            </div>
+            <div class="field">
+              <label>Tipo de evento</label>
+              <select data-recurrence-field="eventType">
+                ${eventOptions(entry.eventType)}
+              </select>
+            </div>
+            <div class="field" data-full>
+              <label>Descri&ccedil;&atilde;o objetiva da reincid&ecirc;ncia</label>
+              <textarea rows="2" data-recurrence-field="description">${escapeHtml(
+                entry.description || ""
+              )}</textarea>
+            </div>
+            <div class="field">
+              <label>Mesma causa prov&aacute;vel do evento principal?</label>
+              <select data-recurrence-field="sameCause">
+                ${causeOptions(entry.sameCause)}
+              </select>
+            </div>
+            <div class="field">
+              <label>Houve atua&ccedil;&atilde;o de prote&ccedil;&atilde;o?</label>
+              <select data-recurrence-field="protection">
+                ${yesNoOptions(entry.protection)}
+              </select>
+            </div>
+            <div class="field">
+              <label>Houve indisponibilidade/interrup&ccedil;&atilde;o?</label>
+              <select data-recurrence-field="interruption">
+                ${yesNoOptions(entry.interruption)}
+              </select>
+            </div>
+            <div class="field">
+              <label>Data/hora da normaliza&ccedil;&atilde;o</label>
+              <input type="datetime-local" data-recurrence-field="normalizedAt" value="${escapeHtml(
+                toDatetimeLocalValue(entry.normalizedAt)
+              )}" />
+            </div>
+            <div class="field">
+              <label>Tempo de dura&ccedil;&atilde;o</label>
+              <input type="text" data-recurrence-field="duration" value="${escapeHtml(
+                durationLabel
+              )}" readonly />
+            </div>
+            <div class="field">
+              <label>OS / protocolo / refer&ecirc;ncia</label>
+              <input type="text" data-recurrence-field="protocolRef" value="${escapeHtml(
+                entry.protocolRef || ""
+              )}" />
+            </div>
+            <div class="field" data-full>
+              <label>Anexos relacionados</label>
+              <select data-recurrence-field="attachmentIds" multiple ${hasAttachments ? "" : "disabled"}>
+                ${attachmentOptions}
+              </select>
+            </div>
+            <div class="field" data-full>
+              <label>Observa&ccedil;&atilde;o t&eacute;cnica</label>
+              <textarea rows="2" data-recurrence-field="notes">${escapeHtml(
+                entry.notes || ""
+              )}</textarea>
+            </div>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+  if (contingencyRecurrenceEmpty) {
+    contingencyRecurrenceEmpty.hidden = entries.length > 0;
+  }
+  renderContingencyRecurrenceSummary();
+  renderContingencyFlowState();
 }
 
 function renderContingencyList() {
@@ -48035,14 +48432,113 @@ function resetContingencyForm(options = {}) {
   clearContingencySignature("engineering", { clearFileInput: true });
   contingencyTimelineDraft = [];
   contingencyAttachmentsDraft = [];
+  contingencyRecurrenceDraft = [];
+  if (contingencyRecurrenceOccurredInput) {
+    contingencyRecurrenceOccurredInput.value = "NAO";
+  }
+  if (contingencyRecurrenceImpactInput) {
+    contingencyRecurrenceImpactInput.value = "";
+  }
+  if (contingencyRecurrencePatternInput) {
+    contingencyRecurrencePatternInput.value = "";
+  }
+  if (contingencyRecurrencePersistentInput) {
+    contingencyRecurrencePersistentInput.value = "";
+  }
+  if (contingencyRecurrenceWarrantyInput) {
+    contingencyRecurrenceWarrantyInput.value = "";
+  }
+  if (contingencyRecurrenceSpecialistInput) {
+    contingencyRecurrenceSpecialistInput.value = "";
+  }
+  if (contingencyRecurrenceConclusionInput) {
+    contingencyRecurrenceConclusionInput.value = "";
+  }
+  if (contingencyRecurrenceRecommendationInput) {
+    contingencyRecurrenceRecommendationInput.value = "";
+  }
   renderContingencyTimelineDraft();
   renderContingencyAttachmentsDraft();
+  renderContingencyRecurrenceDraft();
   syncContingencyImpactState();
   updateContingencyActionButtons();
   setContingencyTab("identificacao");
   if (!options.keepMessage) {
     setContingencyMessage("");
   }
+}
+
+function buildContingencyRecurrencePayload() {
+  const occurred = normalizeContingencyRecurrenceYesNo(
+    contingencyRecurrenceOccurredInput ? contingencyRecurrenceOccurredInput.value : ""
+  );
+  const impactSummary = contingencyRecurrenceImpactInput
+    ? contingencyRecurrenceImpactInput.value.trim()
+    : "";
+  const entries = getContingencyRecurrenceEntries()
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+      const occurredAt = String(entry.occurredAt || "").trim();
+      const normalizedAt = String(entry.normalizedAt || "").trim();
+      const attachmentIds = Array.isArray(entry.attachmentIds)
+        ? entry.attachmentIds.map((id) => String(id || "").trim()).filter(Boolean)
+        : [];
+      const record = {
+        id: String(entry.id || criarId()),
+        occurredAt,
+        normalizedAt,
+        substation: String(entry.substation || "").trim(),
+        bay: String(entry.bay || "").trim(),
+        feeder: String(entry.feeder || "").trim(),
+        assetName: String(entry.assetName || "").trim(),
+        eventType: String(entry.eventType || "").trim(),
+        description: String(entry.description || "").trim(),
+        sameCause: normalizeContingencyRecurrenceCause(entry.sameCause),
+        protection: normalizeContingencyRecurrenceYesNo(entry.protection),
+        interruption: normalizeContingencyRecurrenceYesNo(entry.interruption),
+        protocolRef: String(entry.protocolRef || "").trim(),
+        attachmentIds,
+        notes: String(entry.notes || "").trim(),
+      };
+      const hasContent = Boolean(
+        record.occurredAt ||
+          record.description ||
+          record.substation ||
+          record.assetName ||
+          record.eventType ||
+          record.protocolRef ||
+          record.notes
+      );
+      return hasContent ? record : null;
+    })
+    .filter(Boolean);
+  return {
+    occurred,
+    impactSummary,
+    entries,
+    analysis: {
+      patternIdentified: normalizeContingencyRecurrenceYesNo(
+        contingencyRecurrencePatternInput ? contingencyRecurrencePatternInput.value : ""
+      ),
+      persistentFailure: normalizeContingencyRecurrenceYesNo(
+        contingencyRecurrencePersistentInput ? contingencyRecurrencePersistentInput.value : ""
+      ),
+      warrantyRecommended: normalizeContingencyRecurrenceYesNo(
+        contingencyRecurrenceWarrantyInput ? contingencyRecurrenceWarrantyInput.value : ""
+      ),
+      specialistRecommended: normalizeContingencyRecurrenceYesNo(
+        contingencyRecurrenceSpecialistInput ? contingencyRecurrenceSpecialistInput.value : ""
+      ),
+      conclusion: contingencyRecurrenceConclusionInput
+        ? contingencyRecurrenceConclusionInput.value.trim()
+        : "",
+      recommendation: contingencyRecurrenceRecommendationInput
+        ? contingencyRecurrenceRecommendationInput.value.trim()
+        : "",
+    },
+  };
 }
 
 function buildContingencyPayloadFromForm() {
@@ -48128,6 +48624,7 @@ function buildContingencyPayloadFromForm() {
       ? contingencyEngineeringConclusionInput.value.trim()
       : "",
     timeline: Array.isArray(contingencyTimelineDraft) ? contingencyTimelineDraft : [],
+    recurrence: buildContingencyRecurrencePayload(),
   };
 }
 
@@ -48268,6 +48765,63 @@ function populateContingencyForm(item) {
   if (contingencyEngineeringConclusionInput) {
     contingencyEngineeringConclusionInput.value = safe.engineeringConclusion || "";
   }
+  const recurrence = safe.recurrence && typeof safe.recurrence === "object" ? safe.recurrence : {};
+  if (contingencyRecurrenceOccurredInput) {
+    contingencyRecurrenceOccurredInput.value =
+      normalizeContingencyRecurrenceYesNo(recurrence.occurred) || "NAO";
+  }
+  if (contingencyRecurrenceImpactInput) {
+    contingencyRecurrenceImpactInput.value = recurrence.impactSummary || "";
+  }
+  if (contingencyRecurrencePatternInput) {
+    contingencyRecurrencePatternInput.value = recurrence.analysis
+      ? normalizeContingencyRecurrenceYesNo(recurrence.analysis.patternIdentified)
+      : "";
+  }
+  if (contingencyRecurrencePersistentInput) {
+    contingencyRecurrencePersistentInput.value = recurrence.analysis
+      ? normalizeContingencyRecurrenceYesNo(recurrence.analysis.persistentFailure)
+      : "";
+  }
+  if (contingencyRecurrenceWarrantyInput) {
+    contingencyRecurrenceWarrantyInput.value = recurrence.analysis
+      ? normalizeContingencyRecurrenceYesNo(recurrence.analysis.warrantyRecommended)
+      : "";
+  }
+  if (contingencyRecurrenceSpecialistInput) {
+    contingencyRecurrenceSpecialistInput.value = recurrence.analysis
+      ? normalizeContingencyRecurrenceYesNo(recurrence.analysis.specialistRecommended)
+      : "";
+  }
+  if (contingencyRecurrenceConclusionInput) {
+    contingencyRecurrenceConclusionInput.value = recurrence.analysis
+      ? recurrence.analysis.conclusion || ""
+      : "";
+  }
+  if (contingencyRecurrenceRecommendationInput) {
+    contingencyRecurrenceRecommendationInput.value = recurrence.analysis
+      ? recurrence.analysis.recommendation || ""
+      : "";
+  }
+  contingencyRecurrenceDraft = Array.isArray(recurrence.entries)
+    ? recurrence.entries.map((entry) => ({
+        id: entry.id || criarId(),
+        occurredAt: entry.occurredAt || "",
+        normalizedAt: entry.normalizedAt || "",
+        substation: entry.substation || "",
+        bay: entry.bay || "",
+        feeder: entry.feeder || "",
+        assetName: entry.assetName || "",
+        eventType: entry.eventType || "",
+        description: entry.description || "",
+        sameCause: entry.sameCause || "",
+        protection: entry.protection || "",
+        interruption: entry.interruption || "",
+        protocolRef: entry.protocolRef || "",
+        attachmentIds: Array.isArray(entry.attachmentIds) ? entry.attachmentIds : [],
+        notes: entry.notes || "",
+      }))
+    : [];
   contingencyTimelineDraft = Array.isArray(safe.timeline)
     ? safe.timeline.map((entry) => ({
         id: entry.id || criarId(),
@@ -48282,6 +48836,7 @@ function populateContingencyForm(item) {
     : [];
   renderContingencyTimelineDraft();
   renderContingencyAttachmentsDraft();
+  renderContingencyRecurrenceDraft();
   syncContingencyImpactState();
   updateContingencyActionButtons();
 }
@@ -48329,6 +48884,9 @@ function handleContingencyFormFieldChange(event) {
   const target = event && event.target ? event.target : null;
   if (target === contingencyImpactMwNDInput) {
     syncContingencyImpactState();
+  }
+  if (target === contingencyRecurrenceOccurredInput) {
+    renderContingencyRecurrenceSummary();
   }
   renderContingencyFlowState();
 }
@@ -48455,6 +49013,11 @@ async function handleContingencyFormSubmit(event) {
     setContingencyMessage("Informe a data/hora de início.", true);
     return;
   }
+  const recurrenceState = getContingencyRecurrenceSummaryState();
+  if (recurrenceState.occurred === "SIM" && recurrenceState.missing.length) {
+    setContingencyMessage(recurrenceState.missing[0], true);
+    return;
+  }
   const currentId = getCurrentContingencyId();
   try {
     if (currentId) {
@@ -48497,6 +49060,132 @@ async function handleContingencyDelete() {
   } catch (error) {
     setContingencyMessage(error && error.message ? error.message : "Falha ao excluir contingência.", true);
   }
+}
+
+function buildContingencyRecurrenceDraftEntry() {
+  return {
+    id: criarId(),
+    occurredAt: "",
+    normalizedAt: "",
+    substation: contingencySubstationInput ? contingencySubstationInput.value.trim() : "",
+    bay: contingencyBayInput ? contingencyBayInput.value.trim() : "",
+    feeder: contingencyFeederInput ? contingencyFeederInput.value.trim() : "",
+    assetName: contingencyAssetNameInput ? contingencyAssetNameInput.value.trim() : "",
+    eventType: contingencyEventTypeInput ? contingencyEventTypeInput.value : "",
+    description: "",
+    sameCause: "",
+    protection: "",
+    interruption: "",
+    protocolRef: contingencyProtocolRefInput ? contingencyProtocolRefInput.value.trim() : "",
+    attachmentIds: [],
+    notes: "",
+  };
+}
+
+function handleContingencyRecurrenceAdd() {
+  const occurredValue = contingencyRecurrenceOccurredInput ? contingencyRecurrenceOccurredInput.value : "";
+  if (normalizeContingencyRecurrenceYesNo(occurredValue) !== "SIM") {
+    setContingencyMessage("Marque 'Houve reincidência' como Sim para adicionar.", true);
+    return;
+  }
+  contingencyRecurrenceDraft = getContingencyRecurrenceEntries().concat(
+    buildContingencyRecurrenceDraftEntry()
+  );
+  renderContingencyRecurrenceDraft();
+}
+
+function handleContingencyRecurrenceListClick(event) {
+  const trigger = event.target.closest("button[data-action]");
+  if (!trigger) {
+    return;
+  }
+  const card = trigger.closest("[data-recurrence-id]");
+  if (!card) {
+    return;
+  }
+  const entryId = String(card.dataset.recurrenceId || "");
+  const entries = getContingencyRecurrenceEntries();
+  const index = entries.findIndex((entry) => String(entry.id || "") === entryId);
+  if (index < 0) {
+    return;
+  }
+  const action = trigger.dataset.action || "";
+  if (action === "contingency-recurrence-remove") {
+    contingencyRecurrenceDraft = entries.filter((entry) => String(entry.id || "") !== entryId);
+    renderContingencyRecurrenceDraft();
+    return;
+  }
+  if (action === "contingency-recurrence-up" && index > 0) {
+    const next = entries.slice();
+    const temp = next[index - 1];
+    next[index - 1] = next[index];
+    next[index] = temp;
+    contingencyRecurrenceDraft = next;
+    renderContingencyRecurrenceDraft();
+    return;
+  }
+  if (action === "contingency-recurrence-down" && index < entries.length - 1) {
+    const next = entries.slice();
+    const temp = next[index + 1];
+    next[index + 1] = next[index];
+    next[index] = temp;
+    contingencyRecurrenceDraft = next;
+    renderContingencyRecurrenceDraft();
+  }
+}
+
+function handleContingencyRecurrenceListInput(event) {
+  const target = event && event.target ? event.target : null;
+  if (!target) {
+    return;
+  }
+  const field = target.dataset.recurrenceField;
+  if (!field) {
+    return;
+  }
+  const card = target.closest("[data-recurrence-id]");
+  if (!card) {
+    return;
+  }
+  const entryId = String(card.dataset.recurrenceId || "");
+  const entries = getContingencyRecurrenceEntries();
+  const index = entries.findIndex((entry) => String(entry.id || "") === entryId);
+  if (index < 0) {
+    return;
+  }
+  const entry = { ...entries[index] };
+  let value = "";
+  if (field === "attachmentIds") {
+    value = Array.from(target.selectedOptions || [])
+      .map((option) => String(option.value || "").trim())
+      .filter(Boolean);
+  } else if (field === "occurredAt" || field === "normalizedAt") {
+    value = toIsoFromDatetimeLocal(target.value || "");
+  } else if (field === "duration") {
+    return;
+  } else {
+    value = String(target.value || "");
+  }
+  if (field === "sameCause") {
+    entry.sameCause = normalizeContingencyRecurrenceCause(value);
+  } else if (field === "protection") {
+    entry.protection = normalizeContingencyRecurrenceYesNo(value);
+  } else if (field === "interruption") {
+    entry.interruption = normalizeContingencyRecurrenceYesNo(value);
+  } else if (field === "attachmentIds") {
+    entry.attachmentIds = Array.isArray(value) ? value : [];
+  } else {
+    entry[field] = value;
+  }
+  entries[index] = entry;
+  contingencyRecurrenceDraft = entries;
+  const durationField = card.querySelector("[data-recurrence-field='duration']");
+  if (durationField) {
+    const durationMinutes = getContingencyRecurrenceDurationMinutes(entry);
+    durationField.value = durationMinutes === null ? "-" : formatDuracaoMin(durationMinutes);
+  }
+  renderContingencyRecurrenceSummary();
+  renderContingencyFlowState();
 }
 
 function handleContingencyTimelineAdd() {
@@ -64570,6 +65259,9 @@ if (contingencyResetBtn) {
 if (contingencyTimelineAddBtn) {
   contingencyTimelineAddBtn.addEventListener("click", handleContingencyTimelineAdd);
 }
+if (contingencyRecurrenceAddBtn) {
+  contingencyRecurrenceAddBtn.addEventListener("click", handleContingencyRecurrenceAdd);
+}
 if (contingencyAttachmentUploadBtn) {
   contingencyAttachmentUploadBtn.addEventListener("click", handleContingencyAttachmentUpload);
 }
@@ -64612,6 +65304,11 @@ if (contingencyTimelineBody) {
 if (contingencyAttachmentsBody) {
   contingencyAttachmentsBody.addEventListener("click", handleContingencyAttachmentsClick);
   contingencyAttachmentsBody.addEventListener("change", handleContingencyAttachmentsChange);
+}
+if (contingencyRecurrenceList) {
+  contingencyRecurrenceList.addEventListener("click", handleContingencyRecurrenceListClick);
+  contingencyRecurrenceList.addEventListener("input", handleContingencyRecurrenceListInput);
+  contingencyRecurrenceList.addEventListener("change", handleContingencyRecurrenceListInput);
 }
 const contingencyFilterFields = [
   contingencyFilterProject,

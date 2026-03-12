@@ -16841,6 +16841,71 @@ textarea:focus {
   margin-top: 4px;
 }
 
+.contingency-section {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(78, 120, 166, 0.3);
+  background: rgba(8, 22, 36, 0.4);
+}
+
+.contingency-section + .contingency-section {
+  margin-top: 12px;
+}
+
+.contingency-section__title {
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(186, 203, 219, 0.85);
+}
+
+.contingency-section__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.contingency-recurrence-list {
+  display: grid;
+  gap: 12px;
+}
+
+.contingency-recurrence-card {
+  border-radius: 12px;
+  border: 1px solid rgba(110, 138, 161, 0.28);
+  background: rgba(9, 24, 38, 0.45);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.contingency-recurrence-card__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.contingency-recurrence-card__meta {
+  font-size: 0.82rem;
+  color: rgba(206, 220, 235, 0.9);
+}
+
+.contingency-recurrence-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.contingency-recurrence-card select[multiple] {
+  min-height: 96px;
+}
+
 .contingency-signature-grid {
   gap: 12px;
 }
