@@ -505,6 +505,7 @@ const almoxItemCaValid = document.getElementById("almoxItemCaValid");
 const almoxItemValid = document.getElementById("almoxItemValid");
 const almoxItemDesc = document.getElementById("almoxItemDesc");
 const almoxItemSubmit = document.getElementById("almoxItemSubmit");
+const almoxItemCancel = document.getElementById("almoxItemCancel");
 const almoxItemMsg = document.getElementById("almoxItemMsg");
 const almoxItemTableBody = document.getElementById("almoxItemTableBody");
 const almoxItemEmpty = document.getElementById("almoxItemEmpty");
@@ -4004,6 +4005,10 @@ function hasGranularPermission(user, permissionKey) {
     const derived = mapAccessPermissionsToGranular(user.rolePermissions);
     return Boolean(derived[permissionKey]);
   }
+  if (Array.isArray(user.accessPermissions)) {
+    const derived = mapAccessPermissionsToGranular(user.accessPermissions);
+    return Boolean(derived[permissionKey]);
+  }
   return false;
 }
 
@@ -4992,6 +4997,7 @@ let almoxMovements = [];
 let almoxKits = [];
 let almoxEpiByUser = [];
 let almoxLoaded = false;
+let almoxItemEditId = "";
 let sstTrainings = [];
 let sstTrainingRecords = [];
 let sstInspectionTemplates = [];
@@ -27506,23 +27512,10 @@ function getRegistroDiarioExecucaoParaData(item, dataStr) {
 function getMaintenanceRdoPresence(item, dataStr) {
   const range = getRdoDateRange(dataStr);
   const registroDiario = getRegistroDiarioExecucaoParaData(item, dataStr);
-  const inicio = getItemInicioExecucaoDate(item);
-  const fim = getItemFimExecucaoDate(item);
-  const conclusao = getItemConclusaoDate(item);
-  const agendada = parseAnyDate(item && item.data ? item.data : "") || getItemCriacaoDate(item);
+  const conclusao = getItemConclusaoDate(item) || getItemFimExecucaoDate(item);
   const entrouDiario = Boolean(registroDiario);
-  const entrouExec =
-    entrouDiario ||
-    isDateInRange(inicio, range.inicio, range.fim) ||
-    isDateInRange(fim, range.inicio, range.fim) ||
-    isDateInRange(conclusao, range.inicio, range.fim);
-  const entrouAgenda =
-    !entrouDiario &&
-    !inicio &&
-    !fim &&
-    !conclusao &&
-    isDateInRange(agendada, range.inicio, range.fim);
-  const entrou = entrouExec || entrouAgenda;
+  const entrouConclusao = isDateInRange(conclusao, range.inicio, range.fim);
+  const entrou = entrouConclusao || entrouDiario;
   return { entrou, registroDiario };
 }
 
@@ -44211,22 +44204,31 @@ function renderAlmoxItens() {
   if (!almoxItemTableBody || !almoxLoaded) {
     return;
   }
+  const canManage = currentUser && canManageAlmoxarifado(currentUser);
   const list = almoxItems.filter((item) => item && item.status !== "INATIVO");
   almoxItemTableBody.innerHTML = list
     .map((item) => {
+      const itemId = item.id ? escapeHtml(item.id) : "";
       const qrLink = item.id
         ? `<a class="btn btn--ghost btn--small" target="_blank" href="/api/almox/items/${encodeURIComponent(
             item.id
           )}/qrcode">QR</a>`
         : "-";
+      const actions = canManage
+        ? `
+          <button class="btn btn--ghost btn--small" type="button" data-action="almox-edit">Editar</button>
+          <button class="btn btn--ghost btn--small btn--danger" type="button" data-action="almox-delete">Excluir</button>
+        `
+        : "-";
       return `
-        <tr>
+        <tr ${itemId ? `data-item-id="${itemId}"` : ""}>
           <td>${escapeHtml(item.name || "-")}</td>
           <td>${escapeHtml(item.type || "-")}</td>
           <td>${escapeHtml(item.unit || "-")}</td>
           <td>${escapeHtml(item.status || "ATIVO")}</td>
           <td>${escapeHtml(item.ca || "-")}</td>
           <td>${qrLink}</td>
+          <td class="table-actions">${actions}</td>
         </tr>
       `;
     })
@@ -44235,6 +44237,102 @@ function renderAlmoxItens() {
     almoxItemEmpty.hidden = list.length > 0;
   }
   renderAlmoxItemOptions();
+}
+
+function setAlmoxItemEditState(item = null) {
+  const editId = item && item.id ? String(item.id) : "";
+  almoxItemEditId = editId;
+  if (almoxItemForm) {
+    if (editId) {
+      almoxItemForm.dataset.editId = editId;
+    } else {
+      delete almoxItemForm.dataset.editId;
+    }
+  }
+  if (almoxItemSubmit) {
+    almoxItemSubmit.textContent = editId ? "Salvar alterações" : "Salvar item";
+  }
+  if (almoxItemCancel) {
+    almoxItemCancel.hidden = !editId;
+  }
+  if (!editId) {
+    return;
+  }
+  if (almoxItemType && item.type) almoxItemType.value = item.type;
+  if (almoxItemUnit && item.unit) almoxItemUnit.value = item.unit;
+  if (almoxItemName) {
+    almoxItemName.value = item.name || "";
+    almoxItemName.focus();
+  }
+  if (almoxItemCode) almoxItemCode.value = item.internalCode || "";
+  if (almoxItemBarcode) almoxItemBarcode.value = item.barcode || "";
+  if (almoxItemCA) almoxItemCA.value = item.ca || "";
+  if (almoxItemCaValid) almoxItemCaValid.value = item.caValidUntil || "";
+  if (almoxItemValid) almoxItemValid.value = item.itemValidUntil || "";
+  if (almoxItemDesc) almoxItemDesc.value = item.description || "";
+  if (almoxItemMsg) {
+    setInlineMessage(almoxItemMsg, `Editando item: ${item.name || item.id || ""}`);
+  }
+}
+
+function resetAlmoxItemFormState() {
+  setAlmoxItemEditState(null);
+  if (almoxItemForm) {
+    almoxItemForm.reset();
+  }
+  if (almoxItemMsg) {
+    setInlineMessage(almoxItemMsg, "");
+  }
+}
+
+async function handleAlmoxItemTableClick(event) {
+  const action = event.target.closest("button[data-action]");
+  if (!action) {
+    return;
+  }
+  const row = action.closest("tr");
+  if (!row) {
+    return;
+  }
+  const itemId = row.dataset.itemId;
+  if (!itemId) {
+    return;
+  }
+  if (!currentUser || !canManageAlmoxarifado(currentUser)) {
+    return;
+  }
+  const item = almoxItems.find((entry) => entry && entry.id === itemId);
+  if (!item) {
+    return;
+  }
+  if (action.dataset.action === "almox-edit") {
+    setAlmoxItemEditState(item);
+    return;
+  }
+  if (action.dataset.action === "almox-delete") {
+    const ok = confirm(`Excluir o item "${item.name || "sem nome"}"?`);
+    if (!ok) {
+      return;
+    }
+    try {
+      const data = await apiAlmoxItemDelete(itemId);
+      if (data && data.item) {
+        const index = almoxItems.findIndex((entry) => entry && entry.id === itemId);
+        if (index >= 0) {
+          almoxItems[index] = data.item;
+        }
+      } else {
+        almoxItems = almoxItems.filter((entry) => entry && entry.id !== itemId);
+      }
+      if (almoxItemEditId === itemId) {
+        resetAlmoxItemFormState();
+      }
+      renderAlmoxItens();
+      renderAlmoxarifado();
+    } catch (error) {
+      alert(error && error.message ? error.message : "Falha ao excluir item.");
+    }
+  }
 }
 
 function renderAlmoxEstoque() {
@@ -49514,14 +49612,21 @@ async function handleAlmoxItemSubmit(event) {
     return;
   }
   try {
-    const data = await apiAlmoxItemCreate(payload);
+    const editId = almoxItemEditId || (almoxItemForm ? almoxItemForm.dataset.editId : "");
+    const data = editId ? await apiAlmoxItemUpdate(editId, payload) : await apiAlmoxItemCreate(payload);
     if (data && data.item) {
-      almoxItems = almoxItems.concat(data.item);
-      almoxLoaded = true;
-      if (almoxItemForm) {
-        almoxItemForm.reset();
+      const index = almoxItems.findIndex((entry) => entry && entry.id === data.item.id);
+      if (index >= 0) {
+        almoxItems[index] = data.item;
+      } else {
+        almoxItems = almoxItems.concat(data.item);
       }
-      setInlineMessage(almoxItemMsg, "Item salvo com sucesso.");
+      almoxLoaded = true;
+      resetAlmoxItemFormState();
+      setInlineMessage(
+        almoxItemMsg,
+        editId ? "Item atualizado com sucesso." : "Item salvo com sucesso."
+      );
       renderAlmoxItens();
       renderAlmoxarifado();
     }
@@ -62238,6 +62343,21 @@ async function apiAlmoxItemCreate(payload) {
   });
 }
 
+async function apiAlmoxItemUpdate(itemId, payload) {
+  const safeId = encodeURIComponent(String(itemId || ""));
+  return apiRequest(`/api/almox/items/${safeId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiAlmoxItemDelete(itemId) {
+  const safeId = encodeURIComponent(String(itemId || ""));
+  return apiRequest(`/api/almox/items/${safeId}`, {
+    method: "DELETE",
+  });
+}
+
 async function apiAlmoxMovementsList(params = {}) {
   const query = new URLSearchParams(params);
   const suffix = query.toString();
@@ -67548,6 +67668,12 @@ if (almoxMovType) {
 }
 if (almoxItemForm) {
   almoxItemForm.addEventListener("submit", handleAlmoxItemSubmit);
+}
+if (almoxItemCancel) {
+  almoxItemCancel.addEventListener("click", resetAlmoxItemFormState);
+}
+if (almoxItemTableBody) {
+  almoxItemTableBody.addEventListener("click", handleAlmoxItemTableClick);
 }
 if (almoxMovForm) {
   almoxMovForm.addEventListener("submit", handleAlmoxMovSubmit);
