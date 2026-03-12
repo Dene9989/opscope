@@ -16906,6 +16906,17 @@ textarea:focus {
   min-height: 96px;
 }
 
+.contingency-recurrence-upload {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.contingency-recurrence-upload input[type="file"] {
+  display: none;
+}
+
 .contingency-signature-grid {
   gap: 12px;
 }

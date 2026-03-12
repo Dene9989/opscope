@@ -561,13 +561,13 @@ const STORE_UPLOADS = String(process.env.OPSCOPE_STORE_UPLOADS || "true").toLowe
 const STORE_UPLOADS_MAX_BYTES = Number(process.env.OPSCOPE_STORE_UPLOADS_MAX_BYTES) || FILE_MAX_BYTES;
 const STORE_UPLOADS_BACKFILL_LIMIT = Number(process.env.OPSCOPE_STORE_UPLOADS_BACKFILL_LIMIT || 0);
 const FILE_TYPE_CONFIG = {
-  evidence: { label: "EvidÃªncias", dir: "evidencias" },
+  evidence: { label: "Evidências", dir: "evidencias" },
   rdo: { label: "Anexos de RDO", dir: "rdos" },
   audit: { label: "Documentos de auditoria", dir: "auditoria" },
   procedure: { label: "Procedimentos PMP", dir: "procedimentos" },
   liberacao: { label: "Documentos de liberaÃ§Ã£o", dir: "liberacao" },
 };
-FILE_TYPE_CONFIG.contingency = { label: "Anexos de contingÃªncia", dir: "contingencias" };
+FILE_TYPE_CONFIG.contingency = { label: "Anexos de contingência", dir: "contingencias" };
 const LIBERACAO_DOC_TYPES = new Set(["apr", "os", "pte", "pt"]);
 const FILE_ALLOWED_MIME = new Map([
   ["application/pdf", "pdf"],
@@ -3578,6 +3578,29 @@ function saveSstPermits(list) {
   writeJson(SST_PERMITS_FILE, list);
 }
 
+function fixMojibakeText(value) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  const text = String(value);
+  if (!/[ÃÂâ]/.test(text)) {
+    return text;
+  }
+  try {
+    const decoded = Buffer.from(text, "latin1").toString("utf8");
+    if (!decoded || decoded.includes("�")) {
+      return text;
+    }
+    return decoded;
+  } catch (error) {
+    return text;
+  }
+}
+
+function normalizeContingencyText(value) {
+  return fixMojibakeText(value ?? "").trim();
+}
+
 function normalizeContingencyEventType(value) {
   const normalized = normalizeSearchValue(value || "");
   if (!normalized) {
@@ -3740,16 +3763,20 @@ function normalizeContingencyRecurrenceEntry(record) {
     id: record && record.id ? String(record.id) : crypto.randomUUID(),
     occurredAt: occurredAtDate ? occurredAtDate.toISOString() : "",
     normalizedAt: normalizedAtDate ? normalizedAtDate.toISOString() : "",
-    substation: String(record && (record.substation || record.subestacao) ? record.substation || record.subestacao : "").trim(),
-    bay: String(record && record.bay ? record.bay : "").trim(),
-    feeder: String(record && record.feeder ? record.feeder : "").trim(),
-    assetName: String(
+    substation: normalizeContingencyText(
+      record && (record.substation || record.subestacao) ? record.substation || record.subestacao : ""
+    ),
+    bay: normalizeContingencyText(record && record.bay ? record.bay : ""),
+    feeder: normalizeContingencyText(record && record.feeder ? record.feeder : ""),
+    assetName: normalizeContingencyText(
       record && (record.assetName || record.equipmentName || record.equipamento)
         ? record.assetName || record.equipmentName || record.equipamento
         : ""
-    ).trim(),
+    ),
     eventType: normalizeContingencyEventType(record && (record.eventType || record.tipoEvento)),
-    description: String(record && (record.description || record.descricao) ? record.description || record.descricao : "").trim(),
+    description: normalizeContingencyText(
+      record && (record.description || record.descricao) ? record.description || record.descricao : ""
+    ),
     sameCause: normalizeContingencyRecurrenceCause(
       record && (record.sameCause || record.mesmaCausa || record.mesmaCausaProvavel)
     ),
@@ -3759,13 +3786,15 @@ function normalizeContingencyRecurrenceEntry(record) {
     interruption: normalizeContingencyRecurrenceYesNo(
       record && (record.interruption || record.indisponibilidade || record.interrupcao)
     ),
-    protocolRef: String(
+    protocolRef: normalizeContingencyText(
       record && (record.protocolRef || record.protocolo || record.os)
         ? record.protocolRef || record.protocolo || record.os
         : ""
-    ).trim(),
+    ),
     attachmentIds,
-    notes: String(record && (record.notes || record.observacao) ? record.notes || record.observacao : "").trim(),
+    notes: normalizeContingencyText(
+      record && (record.notes || record.observacao) ? record.notes || record.observacao : ""
+    ),
     durationMinutes,
     createdAt: record && record.createdAt ? String(record.createdAt) : now,
   };
@@ -3782,7 +3811,7 @@ function normalizeContingencyRecurrenceState(value) {
     : [];
   return {
     occurred: normalizeContingencyRecurrenceYesNo(source.occurred || source.houve),
-    impactSummary: String(source.impactSummary || source.impactoAcumulado || "").trim(),
+    impactSummary: normalizeContingencyText(source.impactSummary || source.impactoAcumulado || ""),
     entries,
     analysis: {
       patternIdentified: normalizeContingencyRecurrenceYesNo(
@@ -3797,8 +3826,8 @@ function normalizeContingencyRecurrenceState(value) {
       specialistRecommended: normalizeContingencyRecurrenceYesNo(
         analysis.specialistRecommended || analysis.inspecaoEspecialista
       ),
-      conclusion: String(analysis.conclusion || analysis.conclusao || "").trim(),
-      recommendation: String(analysis.recommendation || analysis.recomendacao || "").trim(),
+      conclusion: normalizeContingencyText(analysis.conclusion || analysis.conclusao || ""),
+      recommendation: normalizeContingencyText(analysis.recommendation || analysis.recomendacao || ""),
     },
   };
 }
@@ -3864,7 +3893,7 @@ function normalizeContingencyCommunicationList(value) {
           const explicitStatus = normalizeContingencyCommunicationStatusToken(
             entry.status || entry.state || entry.situacao || ""
           );
-          const rawLabel = String(entry.label || entry.name || entry.title || "")
+          const rawLabel = fixMojibakeText(String(entry.label || entry.name || entry.title || ""))
             .replace(/^\[(x|X|\s)\]\s*/, "")
             .trim();
           const parts = rawLabel.split("|").map((part) => part.trim()).filter(Boolean);
@@ -3876,11 +3905,14 @@ function normalizeContingencyCommunicationList(value) {
               parts.pop();
             }
           }
-          let note = String(entry.note || entry.notes || "").trim();
+          let note = normalizeContingencyText(entry.note || entry.notes || "");
           if (!note && parts.length >= 2 && isContingencyCommunicationDateToken(parts[parts.length - 1])) {
             note = parts.pop();
           }
-          const label = parts.join(" | ").trim();
+          if (note) {
+            note = normalizeContingencyText(note);
+          }
+          const label = normalizeContingencyText(parts.join(" | "));
           if (!label) {
             return null;
           }
@@ -3891,7 +3923,7 @@ function normalizeContingencyCommunicationList(value) {
             note,
           };
         }
-        const raw = String(entry || "").trim();
+        const raw = fixMojibakeText(String(entry || "")).trim();
         if (!raw) {
           return null;
         }
@@ -3910,7 +3942,10 @@ function normalizeContingencyCommunicationList(value) {
         if (parts.length >= 2 && isContingencyCommunicationDateToken(parts[parts.length - 1])) {
           note = parts.pop();
         }
-        const label = parts.join(" | ").trim();
+        if (note) {
+          note = normalizeContingencyText(note);
+        }
+        const label = normalizeContingencyText(parts.join(" | "));
         if (!label) {
           return null;
         }
@@ -3965,11 +4000,11 @@ function normalizeContingencyActionList(value) {
   if (Array.isArray(value)) {
     return value
       .map((entry) => {
-        const action = String(
+        const action = normalizeContingencyText(
           entry && typeof entry === "object"
             ? entry.action || entry.acao || entry.title || entry.name
             : entry || ""
-        ).trim();
+        );
         if (!action) {
           return null;
         }
@@ -3979,11 +4014,11 @@ function normalizeContingencyActionList(value) {
         return {
           id: entry && entry.id ? String(entry.id) : crypto.randomUUID(),
           action,
-          responsible: String(
+          responsible: normalizeContingencyText(
             entry && typeof entry === "object"
               ? entry.responsible || entry.responsavel || entry.owner
               : ""
-          ).trim(),
+          ),
           dueDate,
           status: normalizeContingencyActionStatus(
             entry && typeof entry === "object" ? entry.status || entry.situacao : ""
@@ -3995,7 +4030,7 @@ function normalizeContingencyActionList(value) {
   if (typeof value === "string") {
     return normalizeTextList(value).map((action) => ({
       id: crypto.randomUUID(),
-      action,
+      action: normalizeContingencyText(action),
       responsible: "",
       dueDate: "",
       status: "PENDENTE",
@@ -4042,49 +4077,51 @@ function normalizeContingency(record) {
     id: record && record.id ? String(record.id) : crypto.randomUUID(),
     code: String(record && record.code ? record.code : "").trim(),
     projectId: String(record && record.projectId ? record.projectId : "").trim(),
-    site: String(record && (record.site || record.local) ? record.site || record.local : "").trim(),
-    plant: String(record && (record.plant || record.usina) ? record.plant || record.usina : "").trim(),
-    substation: String(
+    site: normalizeContingencyText(record && (record.site || record.local) ? record.site || record.local : ""),
+    plant: normalizeContingencyText(record && (record.plant || record.usina) ? record.plant || record.usina : ""),
+    substation: normalizeContingencyText(
       record && (record.substation || record.subestacao) ? record.substation || record.subestacao : ""
-    ).trim(),
-    bay: String(record && record.bay ? record.bay : "").trim(),
-    feeder: String(record && record.feeder ? record.feeder : "").trim(),
+    ),
+    bay: normalizeContingencyText(record && record.bay ? record.bay : ""),
+    feeder: normalizeContingencyText(record && record.feeder ? record.feeder : ""),
     assetId: String(record && (record.assetId || record.equipmentId) ? record.assetId || record.equipmentId : "").trim(),
-    assetName: String(
+    assetName: normalizeContingencyText(
       record && (record.assetName || record.equipmentName) ? record.assetName || record.equipmentName : ""
-    ).trim(),
+    ),
     eventType: normalizeContingencyEventType(record && (record.eventType || record.tipoEvento)),
     severity: normalizeContingencySeverity(record && (record.severity || record.criticidade)),
     status: normalizeContingencyStatus(record && (record.status || record.situacao)),
     startAt,
     normalizedAt,
-    reviewNature: String(
-      record && (record.reviewNature || record.naturezaRevisao || record.naturezaDaRevisao)
-        ? record.reviewNature || record.naturezaRevisao || record.naturezaDaRevisao
-        : ""
-    ).trim() || "EmissÃ£o",
-    preparedBy: String(
-      record && (record.preparedBy || record.elaboradoPor || record.elaborado)
-        ? record.preparedBy || record.elaboradoPor || record.elaborado
-        : ""
-    ).trim() || "O&M HV BSO2",
-    verifiedBy: String(
+    reviewNature:
+      normalizeContingencyText(
+        record && (record.reviewNature || record.naturezaRevisao || record.naturezaDaRevisao)
+          ? record.reviewNature || record.naturezaRevisao || record.naturezaDaRevisao
+          : ""
+      ) || "Emissão",
+    preparedBy:
+      normalizeContingencyText(
+        record && (record.preparedBy || record.elaboradoPor || record.elaborado)
+          ? record.preparedBy || record.elaboradoPor || record.elaborado
+          : ""
+      ) || "O&M HV BSO2",
+    verifiedBy: normalizeContingencyText(
       record && (record.verifiedBy || record.verificadoPor || record.verificado)
         ? record.verifiedBy || record.verificadoPor || record.verificado
         : ""
-    ).trim(),
+    ),
     verifiedAt,
-    approvedBy: String(
+    approvedBy: normalizeContingencyText(
       record && (record.approvedBy || record.aprovadoPor || record.aprovacao)
         ? record.approvedBy || record.aprovadoPor || record.aprovacao
         : ""
-    ).trim(),
+    ),
     approvedAt,
-    finalApprovedBy: String(
+    finalApprovedBy: normalizeContingencyText(
       record && (record.finalApprovedBy || record.aprovacaoFinalPor || record.aprovFinal)
         ? record.finalApprovedBy || record.aprovacaoFinalPor || record.aprovFinal
         : ""
-    ).trim(),
+    ),
     finalApprovedAt,
     technicalSignature: normalizeContingencySignature(
       record &&
@@ -4120,38 +4157,42 @@ function normalizeContingency(record) {
     ),
     impactMw,
     impactMwNotApplicable,
-    impactDescription: String(
+    impactDescription: normalizeContingencyText(
       record && (record.impactDescription || record.descricaoImpacto)
         ? record.impactDescription || record.descricaoImpacto
         : ""
-    ).trim(),
+    ),
     systemCondition: normalizeContingencySystemCondition(
       record && (record.systemCondition || record.condicaoSistema)
     ),
-    residualRisk: String(
+    residualRisk: normalizeContingencyText(
       record && (record.residualRisk || record.riscoResidual)
         ? record.residualRisk || record.riscoResidual
         : ""
-    ).trim(),
-    symptoms: String(record && (record.symptoms || record.sintomas) ? record.symptoms || record.sintomas : "").trim(),
-    protectionFunction: String(
+    ),
+    symptoms: normalizeContingencyText(
+      record && (record.symptoms || record.sintomas) ? record.symptoms || record.sintomas : ""
+    ),
+    protectionFunction: normalizeContingencyText(
       record && (record.protectionFunction || record.funcaoProtecao)
         ? record.protectionFunction || record.funcaoProtecao
         : ""
-    ).trim(),
-    diagnosis: String(record && (record.diagnosis || record.diagnostico) ? record.diagnosis || record.diagnostico : "").trim(),
+    ),
+    diagnosis: normalizeContingencyText(
+      record && (record.diagnosis || record.diagnostico) ? record.diagnosis || record.diagnostico : ""
+    ),
     rootCauseStatus: normalizeContingencyRootCauseStatus(
       record && (record.rootCauseStatus || record.statusCausaRaiz)
     ),
     rootCauseCategory: normalizeContingencyRootCauseCategory(
       record && (record.rootCauseCategory || record.categoriaCausaRaiz)
     ),
-    rootCauseDescription: String(
+    rootCauseDescription: normalizeContingencyText(
       record && (record.rootCauseDescription || record.descricaoCausaRaiz)
         ? record.rootCauseDescription || record.descricaoCausaRaiz
         : ""
-    ).trim(),
-    engineeringConclusion: String(
+    ),
+    engineeringConclusion: normalizeContingencyText(
       record &&
         (
           record.engineeringConclusion ||
@@ -4166,12 +4207,12 @@ function normalizeContingency(record) {
             record.conclusaoFinal
           )
         : ""
-    ).trim(),
-    containmentActions: String(
+    ),
+    containmentActions: normalizeContingencyText(
       record && (record.containmentActions || record.acoesContencao)
         ? record.containmentActions || record.acoesContencao
         : ""
-    ).trim(),
+    ),
     correctiveActions: normalizeContingencyActionList(
       record && (record.correctiveActions || record.acoesCorretivas)
     ),
@@ -4181,7 +4222,9 @@ function normalizeContingency(record) {
     communications: normalizeContingencyCommunicationList(
       record && (record.communications || record.comunicacoes)
     ),
-    protocolRef: String(record && (record.protocolRef || record.protocolo) ? record.protocolRef || record.protocolo : "").trim(),
+    protocolRef: normalizeContingencyText(
+      record && (record.protocolRef || record.protocolo) ? record.protocolRef || record.protocolo : ""
+    ),
     recurrence,
     revision: Number.isFinite(revisionRaw) && revisionRaw >= 0 ? Math.floor(revisionRaw) : 1,
     createdBy: String(record && record.createdBy ? record.createdBy : "").trim(),
@@ -4205,9 +4248,11 @@ function normalizeContingencyTimelineEvent(record) {
         : ""
     ).trim(),
     occurredAt: occurredAtDate ? occurredAtDate.toISOString() : "",
-    event: String(record && (record.event || record.evento) ? record.event || record.evento : "").trim(),
+    event: normalizeContingencyText(record && (record.event || record.evento) ? record.event || record.evento : ""),
     source: CONTINGENCY_TIMELINE_SOURCES.has(sourceRaw) ? sourceRaw : "OTHER",
-    responsible: String(record && (record.responsible || record.responsavel) ? record.responsible || record.responsavel : "").trim(),
+    responsible: normalizeContingencyText(
+      record && (record.responsible || record.responsavel) ? record.responsible || record.responsavel : ""
+    ),
     createdAt: record && record.createdAt ? String(record.createdAt) : now,
   };
 }
@@ -4229,7 +4274,9 @@ function normalizeContingencyAttachment(record) {
         : ""
     ).trim(),
     fileId: String(record && (record.fileId || record.idArquivo) ? record.fileId || record.idArquivo : "").trim(),
-    fileName: String(record && (record.fileName || record.nomeArquivo) ? record.fileName || record.nomeArquivo : "").trim(),
+    fileName: normalizeContingencyText(
+      record && (record.fileName || record.nomeArquivo) ? record.fileName || record.nomeArquivo : ""
+    ),
     mimeType: String(record && (record.mimeType || record.mime) ? record.mimeType || record.mime : "").trim(),
     size: normalizeNumber(record && record.size, 0),
     storagePath: String(record && (record.storagePath || record.path || record.url) ? record.storagePath || record.path || record.url : "").trim(),
@@ -4240,9 +4287,13 @@ function normalizeContingencyAttachment(record) {
           record.includeClient ||
           String(record.includeInClientReport).toLowerCase() === "true")
     ),
-    uploadedBy: String(record && (record.uploadedBy || record.createdBy) ? record.uploadedBy || record.createdBy : "").trim(),
+    uploadedBy: normalizeContingencyText(
+      record && (record.uploadedBy || record.createdBy) ? record.uploadedBy || record.createdBy : ""
+    ),
     uploadedAt: String(record && (record.uploadedAt || record.createdAt) ? record.uploadedAt || record.createdAt : now).trim(),
-    notes: String(record && (record.notes || record.observacao) ? record.notes || record.observacao : "").trim(),
+    notes: normalizeContingencyText(
+      record && (record.notes || record.observacao) ? record.notes || record.observacao : ""
+    ),
     sortOrder: Number.isFinite(sortOrderRaw) ? Math.max(1, Math.floor(sortOrderRaw)) : null,
   };
 }
@@ -4422,17 +4473,17 @@ function parseBooleanLike(value) {
 function validateContingencyRecord(record) {
   const errors = [];
   if (!record.projectId) {
-    errors.push("Projeto obrigatÃ³rio.");
+    errors.push("Projeto obrigatório.");
   }
   if (!record.startAt || !parseDateTime(record.startAt)) {
-    errors.push("Data/hora de inÃ­cio obrigatÃ³ria.");
+    errors.push("Data/hora de início obrigatória.");
   }
   const status = normalizeContingencyStatus(record.status);
   if ((status === "NORMALIZED" || status === "CLOSED") && !parseDateTime(record.normalizedAt)) {
-    errors.push("Data/hora de normalizaÃ§Ã£o obrigatÃ³ria para status NORMALIZED/CLOSED.");
+    errors.push("Data/hora de normalização obrigatória para status NORMALIZED/CLOSED.");
   }
   if (record.systemCondition !== "NORMAL" && !record.impactDescription) {
-    errors.push("DescriÃ§Ã£o de impacto obrigatÃ³ria quando condiÃ§Ã£o do sistema nÃ£o for NORMAL.");
+    errors.push("Descrição de impacto obrigatória quando condição do sistema não for NORMAL.");
   }
   if (record.impactMw === null && !record.impactMwNotApplicable) {
     errors.push("Informe impacto em MW ou marque N/D.");
@@ -4446,7 +4497,7 @@ function validateContingencyRecord(record) {
       !haystack.includes("dispositivo")
     ) {
       errors.push(
-        "Para TRIP/DESARME, informe dispositivo/relÃ©/proteÃ§Ã£o nos sintomas ou em funÃ§Ã£o de proteÃ§Ã£o."
+        "Para TRIP/DESARME, informe dispositivo/relé/proteção nos sintomas ou em função de proteção."
       );
     }
   }
@@ -4454,7 +4505,7 @@ function validateContingencyRecord(record) {
     const symptoms = normalizeSearchValue(record.symptoms || "");
     if (!symptoms.includes("remoto") || (!symptoms.includes("local") && !symptoms.includes("mecan"))) {
       errors.push(
-        "Para FALHA_FECHAMENTO, descreva o resultado remoto e local/mecÃ¢nico nos sintomas."
+        "Para FALHA_FECHAMENTO, descreva o resultado remoto e local/mecânico nos sintomas."
       );
     }
   }
@@ -4463,17 +4514,17 @@ function validateContingencyRecord(record) {
     if (occurred === "SIM") {
       const entries = Array.isArray(record.recurrence.entries) ? record.recurrence.entries : [];
       if (!entries.length) {
-        errors.push("ReincidÃƒÂªncia: informe ao menos 1 registro quando houver reincidÃƒÂªncia.");
+        errors.push("Reincidência: informe ao menos 1 registro quando houver reincidência.");
       }
       entries.forEach((entry, index) => {
         if (!entry || !parseDateTime(entry.occurredAt)) {
-          errors.push(`ReincidÃƒÂªncia ${index + 1}: data/hora obrigatÃƒÂ³ria.`);
+          errors.push(`Reincidência ${index + 1}: data/hora obrigatória.`);
         }
         if (!String(entry && entry.description ? entry.description : "").trim()) {
-          errors.push(`ReincidÃƒÂªncia ${index + 1}: descriÃƒÂ§ÃƒÂ£o obrigatÃƒÂ³ria.`);
+          errors.push(`Reincidência ${index + 1}: descrição obrigatória.`);
         }
         if (!normalizeContingencyRecurrenceCause(entry && entry.sameCause)) {
-          errors.push(`ReincidÃƒÂªncia ${index + 1}: mesma causa provÃƒÂ¡vel obrigatÃƒÂ³ria.`);
+          errors.push(`Reincidência ${index + 1}: mesma causa provável obrigatória.`);
         }
       });
     }
@@ -4494,10 +4545,10 @@ function normalizeContingencyTimelineList(value, contingencyId) {
     .filter((entry) => entry.event || entry.occurredAt || entry.responsible);
   list.forEach((entry, index) => {
     if (!entry.occurredAt || !parseDateTime(entry.occurredAt)) {
-      errors.push(`Timeline item ${index + 1}: horÃ¡rio obrigatÃ³rio.`);
+      errors.push(`Timeline item ${index + 1}: horário obrigatório.`);
     }
     if (!entry.event) {
-      errors.push(`Timeline item ${index + 1}: descriÃ§Ã£o obrigatÃ³ria.`);
+      errors.push(`Timeline item ${index + 1}: descrição obrigatória.`);
     }
   });
   list.sort((a, b) => {
@@ -4601,14 +4652,14 @@ const CONTINGENCY_EVENT_LABELS = {
   TRIP: "Trip",
   FALHA_FECHAMENTO: "Falha de fechamento",
   FALHA_COMANDO: "Falha de comando",
-  PERDA_REDUNDANCIA: "Perda de redundÃ¢ncia",
-  FALHA_COMUNICACAO: "Falha de comunicaÃ§Ã£o",
+  PERDA_REDUNDANCIA: "Perda de redundância",
+  FALHA_COMUNICACAO: "Falha de comunicação",
   OUTRO: "Outro",
 };
 
 const CONTINGENCY_STATUS_LABELS = {
   DRAFT: "Rascunho",
-  IN_ANALYSIS: "Em anÃ¡lise",
+  IN_ANALYSIS: "Em análise",
   NORMALIZED: "Normalizada",
   CLOSED: "Encerrada",
   REOPENED: "Reaberta",
@@ -4618,7 +4669,7 @@ const CONTINGENCY_SYSTEM_CONDITION_LABELS = {
   NORMAL: "Normal",
   DEGRADED: "Degradada",
   RESTRICTED: "Restrita",
-  UNAVAILABLE: "IndisponÃ­vel",
+  UNAVAILABLE: "Indisponível",
 };
 
 const CONTINGENCY_ROOT_CAUSE_STATUS_LABELS = {
@@ -4631,8 +4682,8 @@ const CONTINGENCY_ROOT_CAUSE_CATEGORY_LABELS = {
   DC_CIRCUIT: "Circuito de CC",
   COIL: "Bobina",
   INTERLOCK: "Intertravamento",
-  MECHANICAL: "MecÃ¢nica",
-  COMMS_RTU: "ComunicaÃ§Ã£o/RTU",
+  MECHANICAL: "Mecânica",
+  COMMS_RTU: "Comunicação/RTU",
   OPERATIONAL_ERROR: "Erro operacional",
   EXTERNAL: "Externo",
   OTHER: "Outro",
@@ -4651,14 +4702,14 @@ const CONTINGENCY_ATTACHMENT_CATEGORY_LABELS = {
   OSCILLOGRAPHY: "Oscilografia",
   SCADA_LOG: "Log SCADA",
   PHOTO: "Foto",
-  MEASUREMENTS: "Medicoes",
+  MEASUREMENTS: "Medições",
   OTHER: "Outro",
 };
 
 const CONTINGENCY_ACTION_STATUS_LABELS = {
   PENDENTE: "Pendente",
   EM_ANDAMENTO: "Em andamento",
-  CONCLUIDA: "ConcluÃ­da",
+  CONCLUIDA: "Concluída",
   CANCELADA: "Cancelada",
 };
 const CONTINGENCY_REPORT_TIMEZONE = String(
@@ -4902,8 +4953,94 @@ function getContingencyEnumsPayload() {
   };
 }
 
+const PDF_TEXT_REPLACEMENTS = {
+  "â†’": "->",
+  "â†": "<-",
+  "â†”": "<->",
+  "â‡’": "=>",
+  "â€¢": "-",
+  "â€“": "-",
+  "â€”": "-",
+  "â€œ": "\"",
+  "â€": "\"",
+  "â€˜": "'",
+  "â€™": "'",
+  "â€¦": "...",
+  "â‰¤": "<=",
+  "â‰¥": ">=",
+  "âœ“": "OK",
+  "âœ”": "OK",
+  "âœ—": "X",
+  "âœ˜": "X",
+  "\u00A0": " ",
+};
+
+function sanitizePdfText(value, activeFont, options = {}) {
+  const preserveLineBreaks = Boolean(options && options.preserveLineBreaks);
+  if (value === null || value === undefined) {
+    return "";
+  }
+  const source = String(value).replace(/\r\n?/g, "\n");
+  if (!source) {
+    return "";
+  }
+  const canEncode = Boolean(activeFont && typeof activeFont.encodeText === "function");
+  const result = [];
+  for (const rawChar of source) {
+    const normalized = Object.prototype.hasOwnProperty.call(PDF_TEXT_REPLACEMENTS, rawChar)
+      ? PDF_TEXT_REPLACEMENTS[rawChar]
+      : rawChar;
+    for (const candidate of String(normalized)) {
+      if (candidate === "\n") {
+        result.push(preserveLineBreaks ? "\n" : " ");
+        continue;
+      }
+      if (canEncode) {
+        try {
+          activeFont.encodeText(candidate);
+          result.push(candidate);
+          continue;
+        } catch (error) {
+          // continue with fallback normalization below
+        }
+      }
+      const plain = candidate.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      if (!plain) {
+        result.push(" ");
+        continue;
+      }
+      let inserted = false;
+      for (const plainChar of plain) {
+        if (canEncode) {
+          try {
+            activeFont.encodeText(plainChar);
+            result.push(plainChar);
+            inserted = true;
+            continue;
+          } catch (error) {
+            // keep trying
+          }
+        }
+      }
+      if (!inserted) {
+        result.push(" ");
+      }
+    }
+  }
+  const output = result.join("");
+  if (preserveLineBreaks) {
+    return output
+      .split("\n")
+      .map((line) => line.replace(/[ \t]+/g, " ").trimEnd())
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trimEnd();
+  }
+  return output.replace(/[ \t]+/g, " ").trimEnd();
+}
+
 function wrapPdfText(text, maxWidth, size, font) {
-  const input = String(text || "").replace(/\s+/g, " ").trim();
+  const input = sanitizePdfText(text, font).replace(/\s+/g, " ").trim();
   if (!input) {
     return [""];
   }
@@ -4927,7 +5064,7 @@ function wrapPdfText(text, maxWidth, size, font) {
 }
 
 function truncatePdfText(text, maxWidth, size, font) {
-  const input = String(text || "").replace(/\s+/g, " ").trim();
+  const input = sanitizePdfText(text, font).replace(/\s+/g, " ").trim();
   if (!input) {
     return "";
   }
@@ -4957,7 +5094,7 @@ function truncatePdfText(text, maxWidth, size, font) {
 
 async function generateContingencyReportPdf(payload, options = {}) {
   if (!PDFDocument || !StandardFonts) {
-    throw new Error("DependÃªncia pdf-lib nÃ£o instalada.");
+    throw new Error("Dependência pdf-lib não instalada.");
   }
   const safePayload = payload && typeof payload === "object" ? payload : {};
   const reportType = String(options.reportType || "internal").trim().toLowerCase() === "client"
@@ -4965,7 +5102,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     : "internal";
   const generatedBy = String(options.generatedBy || "").trim() || "-";
   const generatedAt = options.generatedAt ? String(options.generatedAt) : new Date().toISOString();
-  const reportTypeLabel = reportType === "client" ? "VersÃ£o Cliente" : "VersÃ£o Interna";
+  const reportTypeLabel = reportType === "client" ? "Versão Cliente" : "Versão Interna";
   const footerGeneratedBy = "O&M HV BSO2";
   const pdfDoc = await PDFDocument.create();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -4990,84 +5127,6 @@ async function generateContingencyReportPdf(payload, options = {}) {
     section: rgb(0.985, 0.985, 0.985),
     card: rgb(1, 1, 1),
     border: rgb(0, 0, 0),
-  };
-  const PDF_TEXT_REPLACEMENTS = {
-    "â†’": "->",
-    "â†": "<-",
-    "â†”": "<->",
-    "â‡’": "=>",
-    "â€¢": "-",
-    "â€“": "-",
-    "â€”": "-",
-    "â€œ": "\"",
-    "â€": "\"",
-    "â€˜": "'",
-    "â€™": "'",
-    "â€¦": "...",
-    "â‰¤": "<=",
-    "â‰¥": ">=",
-    "âœ“": "OK",
-    "âœ”": "OK",
-    "âœ—": "X",
-    "âœ˜": "X",
-    "\u00A0": " ",
-  };
-  const sanitizePdfText = (value, activeFont = font, options = {}) => {
-    const preserveLineBreaks = Boolean(options && options.preserveLineBreaks);
-    if (value === null || value === undefined) {
-      return "";
-    }
-    const source = String(value).replace(/\r\n?/g, "\n");
-    if (!source) {
-      return "";
-    }
-    const result = [];
-    for (const rawChar of source) {
-      const normalized = Object.prototype.hasOwnProperty.call(PDF_TEXT_REPLACEMENTS, rawChar)
-        ? PDF_TEXT_REPLACEMENTS[rawChar]
-        : rawChar;
-      for (const candidate of String(normalized)) {
-        if (candidate === "\n") {
-          result.push(preserveLineBreaks ? "\n" : " ");
-          continue;
-        }
-        try {
-          activeFont.encodeText(candidate);
-          result.push(candidate);
-          continue;
-        } catch (error) {
-          // continue with fallback normalization below
-        }
-        const plain = candidate.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        if (!plain) {
-          result.push(" ");
-          continue;
-        }
-        let inserted = false;
-        for (const plainChar of plain) {
-          try {
-            activeFont.encodeText(plainChar);
-            result.push(plainChar);
-            inserted = true;
-          } catch (error) {
-            // keep trying
-          }
-        }
-        if (!inserted) {
-          result.push(" ");
-        }
-      }
-    }
-    const output = result.join("");
-    if (preserveLineBreaks) {
-      return output
-        .split("\n")
-        .map((line) => line.replace(/[ \t]+/g, " ").trimEnd())
-        .join("\n")
-        .replace(/\n{3,}/g, "\n\n")
-        .trimEnd();
-    }
-    return output.replace(/[ \t]+/g, " ").trimEnd();
   };
   const toText = (value, fallback = "-") => {
     if (value === null || value === undefined) {
@@ -5393,7 +5452,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     const firstRow = [
       "0",
       formatContingencyDateOnly(generatedAt),
-      toText(safePayload.reviewNature, "EmissÃ£o"),
+      toText(safePayload.reviewNature, "Emissão"),
       toText(safePayload.preparedBy, footerGeneratedBy),
       formatApprovalCoverCell(safePayload.verifiedBy, safePayload.verifiedAt),
       formatApprovalCoverCell(safePayload.approvedBy, safePayload.approvedAt),
@@ -5514,7 +5573,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
       true
     );
     drawCenteredText(
-      `CÃ³digo: ${toText(safePayload.code)}  |  RevisÃ£o: ${toText(safePayload.revision || 1)}  |  EmissÃ£o: ${formatContingencyDateOnly(
+      `Código: ${toText(safePayload.code)}  |  Revisão: ${toText(safePayload.revision || 1)}  |  Emissão: ${formatContingencyDateOnly(
         generatedAt
       )}`,
       rowC - 24,
@@ -5955,9 +6014,9 @@ async function generateContingencyReportPdf(payload, options = {}) {
       return note;
     }
     if (String(attachment && attachment.category ? attachment.category : "").trim().toUpperCase() === "PHOTO") {
-      return `Imagem evidÃªncia ${index + 1} da contingÃªncia`;
+      return `Imagem evidência ${index + 1} da contingência`;
     }
-    return `EvidÃªncia ${index + 1} - ${categoryLabel}`;
+    return `Evidência ${index + 1} - ${categoryLabel}`;
   };
 
   const project = getProjectById(safePayload.projectId);
@@ -6090,7 +6149,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     writeText(title, { bold: true, size: 10.6, leading: 13, color: palette.primary });
     cursorY -= 2.8;
     if (!actions.length) {
-      writeText("Sem aÃ§Ãµes registradas.", { size: 9.4, leading: 11.4, color: palette.muted });
+      writeText("Sem ações registradas.", { size: 9.4, leading: 11.4, color: palette.muted });
       cursorY -= 8.8;
       return;
     }
@@ -6200,7 +6259,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
 
   addPage();
   indexPage = page;
-  drawCenteredText("ÃNDICE", pageSize[1] - headerHeight - 42, 22, false, palette.text);
+  drawCenteredText("ÍNDICE", pageSize[1] - headerHeight - 42, 22, false, palette.text);
   page.drawLine({
     start: { x: margin + 10, y: pageSize[1] - headerHeight - 52 },
     end: { x: pageSize[0] - margin - 10, y: pageSize[1] - headerHeight - 52 },
@@ -6216,21 +6275,21 @@ async function generateContingencyReportPdf(payload, options = {}) {
     },
     { label: "Severidade", value: severity },
     {
-      label: "CondiÃ§Ã£o do sistema",
+      label: "Condição do sistema",
       value: getContingencyLabel(CONTINGENCY_SYSTEM_CONDITION_LABELS, safePayload.systemCondition, "Normal"),
     },
     { label: "Janela do evento", value: formatWindow(startAt, endAt) },
-    { label: "Completude do relatÃ³rio", value: `${completion}%` },
+    { label: "Completude do relatório", value: `${completion}%` },
     { label: "Total de eventos de timeline", value: String(timeline.length) },
-    { label: "Total de reincidÃƒÂªncias", value: String(recurrenceCount) },
+    { label: "Total de reincidências", value: String(recurrenceCount) },
     { label: "Total de anexos", value: String(attachments.length) },
     { label: "Emitido por", value: footerGeneratedBy },
   ]);
 
-  section("1. IdentificaÃ§Ã£o do Evento");
+  section("1. Identificação do Evento");
   drawCompactKeyValueTable([
-    { label: "ContingÃªncia", value: safePayload.code || "-" },
-    { label: "SubestaÃ§Ã£o", value: safePayload.substation || "-" },
+    { label: "Contingência", value: safePayload.code || "-" },
+    { label: "Subestação", value: safePayload.substation || "-" },
     { label: "Bay", value: safePayload.bay || "-" },
     { label: "Alimentador", value: safePayload.feeder || "-" },
     { label: "Equipamento", value: safePayload.assetName || safePayload.assetId || "-" },
@@ -6243,14 +6302,14 @@ async function generateContingencyReportPdf(payload, options = {}) {
       label: "Status",
       value: getContingencyLabel(CONTINGENCY_STATUS_LABELS, safePayload.status, "Rascunho"),
     },
-    { label: "InÃ­cio", value: formatContingencyDateTime(safePayload.startAt) },
-    { label: "NormalizaÃ§Ã£o", value: formatContingencyDateTime(safePayload.normalizedAt) },
-    { label: "RevisÃ£o", value: String(safePayload.revision || 1) },
+    { label: "Início", value: formatContingencyDateTime(safePayload.startAt) },
+    { label: "Normalização", value: formatContingencyDateTime(safePayload.normalizedAt) },
+    { label: "Revisão", value: String(safePayload.revision || 1) },
   ]);
 
   section("2. Impacto Operacional");
   kv(
-    "CondiÃ§Ã£o do sistema",
+    "Condição do sistema",
     getContingencyLabel(
       CONTINGENCY_SYSTEM_CONDITION_LABELS,
       safePayload.systemCondition,
@@ -6265,7 +6324,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
         ? "-"
         : String(safePayload.impactMw)
   );
-  kv("DescriÃ§Ã£o do impacto", safePayload.impactDescription || "-");
+  kv("Descrição do impacto", safePayload.impactDescription || "-");
   kv("Risco residual", safePayload.residualRisk || "-");
   drawDivider();
 
@@ -6301,13 +6360,13 @@ async function generateContingencyReportPdf(payload, options = {}) {
   }
   drawDivider();
 
-  section("4. ReincidÃªncia");
+  section("4. Reincidência");
   drawCompactKeyValueTable(
     [
-      { label: "Houve reincidÃªncia", value: formatRecurrenceYesNoLabel(recurrenceOccurred) },
-      { label: "Quantidade de reincidÃªncias", value: String(recurrenceCount) },
-      { label: "Primeira reincidÃªncia", value: recurrenceFirstLabel },
-      { label: "Ãšltima reincidÃªncia", value: recurrenceLastLabel },
+      { label: "Houve reincidência", value: formatRecurrenceYesNoLabel(recurrenceOccurred) },
+      { label: "Quantidade de reincidências", value: String(recurrenceCount) },
+      { label: "Primeira reincidência", value: recurrenceFirstLabel },
+      { label: "Última reincidência", value: recurrenceLastLabel },
       { label: "Intervalo", value: recurrenceIntervalLabel },
       { label: "Impacto acumulado", value: recurrenceImpactSummary || "-" },
     ],
@@ -6316,9 +6375,9 @@ async function generateContingencyReportPdf(payload, options = {}) {
 
   if (recurrenceOccurred === "SIM") {
     if (!recurrenceCount) {
-      kv("ReincidÃªncias", "Marcada como Sim, mas nenhuma reincidÃªncia foi registrada.");
+      kv("Reincidências", "Marcada como Sim, mas nenhuma reincidência foi registrada.");
     } else {
-      writeText("ReincidÃªncias registradas:", {
+      writeText("Reincidências registradas:", {
         bold: true,
         size: 10.6,
         leading: 13,
@@ -6330,14 +6389,14 @@ async function generateContingencyReportPdf(payload, options = {}) {
       });
     }
   } else if (recurrenceOccurred === "NAO") {
-    writeText("Sem reincidÃªncia registrada apÃ³s o evento principal.", {
+    writeText("Sem reincidência registrada após o evento principal.", {
       size: 9.4,
       leading: 11.4,
       color: palette.muted,
     });
     cursorY -= 8.2;
   } else {
-    writeText("Sem informaÃ§Ã£o de reincidÃªncia registrada.", {
+    writeText("Sem informação de reincidência registrada.", {
       size: 9.4,
       leading: 11.4,
       color: palette.muted,
@@ -6348,7 +6407,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
   drawCompactKeyValueTable(
     [
       {
-        label: "PadrÃ£o recorrente identificado",
+        label: "Padrão recorrente identificado",
         value: formatRecurrenceYesNoLabel(recurrenceAnalysis.patternIdentified, "-"),
       },
       {
@@ -6360,19 +6419,19 @@ async function generateContingencyReportPdf(payload, options = {}) {
         value: formatRecurrenceYesNoLabel(recurrenceAnalysis.warrantyRecommended, "-"),
       },
       {
-        label: "Recomenda inspeÃ§Ã£o/fabricante/especialista",
+        label: "Recomenda inspeção/fabricante/especialista",
         value: formatRecurrenceYesNoLabel(recurrenceAnalysis.specialistRecommended, "-"),
       },
     ],
     { labelRatio: 0.56 }
   );
-  kvParagraph("ConclusÃ£o tÃ©cnica sobre reincidÃªncia", recurrenceAnalysis.conclusion || "-");
-  kvParagraph("RecomendaÃ§Ã£o preventiva/corretiva", recurrenceAnalysis.recommendation || "-");
+  kvParagraph("Conclusão técnica sobre reincidência", recurrenceAnalysis.conclusion || "-");
+  kvParagraph("Recomendação preventiva/corretiva", recurrenceAnalysis.recommendation || "-");
   drawDivider();
 
-  section("5. DiagnÃ³stico");
+  section("5. Diagnóstico");
   kvParagraph("Sintomas", formatSymptomsForPdf(safePayload.symptoms || "-"));
-  kvParagraph("DiagnÃ³stico tÃ©cnico", safePayload.diagnosis || "-");
+  kvParagraph("Diagnóstico técnico", safePayload.diagnosis || "-");
   kv(
     "Status da causa raiz",
     getContingencyLabel(
@@ -6389,18 +6448,18 @@ async function generateContingencyReportPdf(payload, options = {}) {
       "Outro"
     )
   );
-  kvParagraph("DescriÃ§Ã£o da causa raiz", safePayload.rootCauseDescription || "-");
+  kvParagraph("Descrição da causa raiz", safePayload.rootCauseDescription || "-");
   drawDivider();
 
-  section("6. AÃ§Ãµes Executadas e Plano");
-  kv("AÃ§Ãµes de contenÃ§Ã£o/normalizaÃ§Ã£o", safePayload.containmentActions || "-");
-  renderActionList("AÃ§Ãµes corretivas:", correctiveActions);
-  renderActionList("AÃ§Ãµes preventivas:", preventiveActions);
+  section("6. Ações Executadas e Plano");
+  kv("Ações de contenção/normalização", safePayload.containmentActions || "-");
+  renderActionList("Ações corretivas:", correctiveActions);
+  renderActionList("Ações preventivas:", preventiveActions);
   if (communications.length) {
-    writeText("ComunicaÃ§Ãµes:", { bold: true, size: 10.6, leading: 13, color: palette.primary });
+    writeText("Comunicações:", { bold: true, size: 10.6, leading: 13, color: palette.primary });
     cursorY -= 2.8;
     communications.forEach((entry, index) => {
-      const statusValue = entry.done ? "ConcluÃ­da" : "Pendente";
+      const statusValue = entry.done ? "Concluída" : "Pendente";
       const noteLabel = entry.note ? ` | Nota: ${entry.note}` : "";
       writeText(`[${entry.done ? "x" : " "}] ${index + 1}. ${toText(entry.label)} | ${statusValue}${noteLabel}`, {
         size: 9.3,
@@ -6410,7 +6469,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
       cursorY -= 6.2;
     });
   } else {
-    kv("ComunicaÃ§Ãµes", "Sem checklist de comunicaÃ§Ãµes.");
+    kv("Comunicações", "Sem checklist de comunicações.");
   }
   drawDivider();
 
@@ -6420,7 +6479,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
   kv("Risco residual", safePayload.residualRisk || "-");
   drawDivider();
 
-  section("8. EvidÃªncias FotogrÃ¡ficas e Anexos");
+  section("8. Evidências Fotográficas e Anexos");
   const imageCandidates = attachments.filter((attachment) => {
     const mime = String(attachment && attachment.mimeType ? attachment.mimeType : "").toLowerCase();
     const fileName = String(attachment && attachment.fileName ? attachment.fileName : "").toLowerCase();
@@ -6438,7 +6497,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     failedPhotos.push(attachment);
   }
   if (!renderedPhotos.length) {
-    kv("Fotos", "Nenhuma foto vÃ¡lida foi incorporada ao PDF.");
+    kv("Fotos", "Nenhuma foto válida foi incorporada ao PDF.");
   } else {
     const cols = 2;
     const gap = 10;
@@ -6490,7 +6549,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
         font: fontBold,
         color: palette.text,
       });
-      const refLabel = `Registro fotogrÃ¡fico ${index + 1}`;
+      const refLabel = `Registro fotográfico ${index + 1}`;
       const refLines = wrapPdfText(refLabel, cardWidth - 14, 8, font);
       page.drawText(refLines[0] || refLabel, {
         x: x + 7,
@@ -6510,7 +6569,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     }
   }
   if (failedPhotos.length) {
-    writeText(`${failedPhotos.length} foto(s) nÃ£o puderam ser incorporadas nesta versÃ£o do PDF.`, {
+    writeText(`${failedPhotos.length} foto(s) não puderam ser incorporadas nesta versão do PDF.`, {
       size: 9.2,
       leading: 11,
       color: palette.warning,
@@ -6544,7 +6603,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
   }
 
   drawDivider();
-  section("9. ConclusÃ£o e RecomendaÃ§Ãµes da Engenharia");
+  section("9. Conclusão e Recomendações da Engenharia");
   writeText(toTextMultiline(safePayload.engineeringConclusion || "-"), {
     size: 10,
     leading: 12.4,
@@ -6609,9 +6668,9 @@ async function generateContingencyReportPdf(payload, options = {}) {
     thickness: 0.8,
     color: palette.line,
   });
-  drawSignatureLabel("ResponsÃ¡vel TÃ©cnico Engelmig", signSlotOneX);
+  drawSignatureLabel("Responsável Técnico Engelmig", signSlotOneX);
   drawSignatureLabel("Engenharia Engelmig", signSlotTwoX);
-  drawSignatureLabel("AprovaÃ§Ã£o/GestÃ£o Cliente", signSlotThreeX);
+  drawSignatureLabel("Aprovação/Gestão Cliente", signSlotThreeX);
 
   if (indexPage) {
     const indexTitleY = pageSize[1] - headerHeight - 42;
@@ -6677,9 +6736,9 @@ async function generateContingencyReportPdf(payload, options = {}) {
   const pages = pdfDoc.getPages();
   const footer = `Gerado em ${formatContingencyDateTime(generatedAt)} por ${footerGeneratedBy}`;
   const footerNotice =
-    "Documento controlado e interno. Ã‰ totalmente proibida qualquer cÃ³pia sem autorizaÃ§Ã£o.";
+    "Documento controlado e interno. É totalmente proibida qualquer cópia sem autorização.";
   pages.forEach((itemPage, index) => {
-    const pageText = `PÃ¡gina ${index + 1} de ${pages.length}`;
+    const pageText = `Página ${index + 1} de ${pages.length}`;
     itemPage.drawLine({
       start: { x: margin, y: footerY + 10 },
       end: { x: pageSize[0] - margin, y: footerY + 10 },
@@ -7050,7 +7109,7 @@ function normalizePmpActivity(record) {
           };
         }
         return {
-          nome: String(entry.nome || entry.name || "EvidÃªncia").trim(),
+          nome: String(entry.nome || entry.name || "Evidência").trim(),
           url: String(entry.url || entry.dataUrl || "").trim(),
           categoria: String(entry.categoria || entry.tipo || "evidencia").trim(),
           observacao: String(entry.observacao || entry.obs || "").trim(),
@@ -16425,7 +16484,7 @@ app.get(
   requirePermission("verAlmoxarifado"),
   async (req, res) => {
     if (!PDFDocument || !StandardFonts) {
-      return res.status(501).json({ message: "DependÃªncia pdf-lib nÃ£o instalada." });
+      return res.status(501).json({ message: "Dependência pdf-lib não instalada." });
     }
     const movementId = String(req.params.id || "").trim();
     const movement = almoxMovements.find((entry) => entry && entry.id === movementId);
@@ -19647,14 +19706,14 @@ app.get("/api/contingencies/enums", requireAuth, (req, res) => {
 app.get("/api/contingencies", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   if (!user) {
-    return respondContingencyError(res, 401, "unauthenticated", "SessÃ£o invÃ¡lida.");
+    return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
   }
   const allowedProjects = new Set(getUserProjectIds(user));
   const queryProjectId = String(req.query.projectId || "").trim();
   const activeProjectId = getActiveProjectId(req, user) || "";
   const projectId = queryProjectId || activeProjectId;
   if (projectId && !allowedProjects.has(projectId)) {
-    return respondContingencyError(res, 403, "project_access_denied", "NÃ£o autorizado.", {
+    return respondContingencyError(res, 403, "project_access_denied", "Não autorizado.", {
       userId: user.id,
       projectId,
     });
@@ -19664,7 +19723,7 @@ app.get("/api/contingencies", requireAuth, (req, res) => {
       res,
       400,
       "missing_active_project",
-      "Projeto ativo obrigatÃ³rio.",
+      "Projeto ativo obrigatório.",
       { userId: user.id }
     );
   }
@@ -19700,7 +19759,7 @@ app.get("/api/contingencies", requireAuth, (req, res) => {
 app.get("/api/contingencies/:id", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   if (!user) {
-    return respondContingencyError(res, 401, "unauthenticated", "SessÃ£o invÃ¡lida.");
+    return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
   }
   const contingencyId = String(req.params.id || "").trim();
   if (!contingencyId) {
@@ -19708,7 +19767,7 @@ app.get("/api/contingencies/:id", requireAuth, (req, res) => {
       res,
       400,
       "invalid_id",
-      "ContingÃªncia invÃ¡lida.",
+      "Contingência inválida.",
       { userId: user.id }
     );
   }
@@ -19718,12 +19777,12 @@ app.get("/api/contingencies/:id", requireAuth, (req, res) => {
       res,
       404,
       "not_found",
-      "ContingÃªncia nÃ£o encontrada.",
+      "Contingência não encontrada.",
       { userId: user.id, contingencyId }
     );
   }
   if (!userHasProjectAccess(user, found.item.projectId)) {
-    return respondContingencyError(res, 403, "project_access_denied", "NÃ£o autorizado.", {
+    return respondContingencyError(res, 403, "project_access_denied", "Não autorizado.", {
       userId: user.id,
       contingencyId,
       projectId: found.item.projectId,
@@ -19741,7 +19800,7 @@ app.post("/api/contingencies", requireAuth, requireStorageWritable, (req, res) =
   const user = req.currentUser || getSessionUser(req);
   const payload = req.body && typeof req.body === "object" ? req.body : {};
   if (!user) {
-    return respondContingencyError(res, 401, "unauthenticated", "SessÃ£o invÃ¡lida.");
+    return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
   }
   const projectId = resolveContingencyProjectId(req, user, { payload });
   if (!projectId) {
@@ -19749,12 +19808,12 @@ app.post("/api/contingencies", requireAuth, requireStorageWritable, (req, res) =
       res,
       400,
       "missing_active_project",
-      "Projeto ativo obrigatÃ³rio.",
+      "Projeto ativo obrigatório.",
       { userId: user.id }
     );
   }
   if (!userHasProjectAccess(user, projectId)) {
-    return respondContingencyError(res, 403, "project_access_denied", "NÃ£o autorizado.", {
+    return respondContingencyError(res, 403, "project_access_denied", "Não autorizado.", {
       userId: user.id,
       projectId,
     });
@@ -19802,7 +19861,7 @@ app.post("/api/contingencies", requireAuth, requireStorageWritable, (req, res) =
       res,
       403,
       "close_permission_denied",
-      "Sem permissÃ£o para encerrar contingÃªncias.",
+      "Sem permissão para encerrar contingências.",
       { userId: user.id, projectId }
     );
   }
@@ -19892,14 +19951,14 @@ app.put("/api/contingencies/:id", requireAuth, requireStorageWritable, (req, res
   const contingencyId = String(req.params.id || "").trim();
   const payload = req.body && typeof req.body === "object" ? req.body : {};
   if (!user) {
-    return respondContingencyError(res, 401, "unauthenticated", "SessÃ£o invÃ¡lida.");
+    return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
   }
   if (!contingencyId) {
     return respondContingencyError(
       res,
       400,
       "invalid_id",
-      "ContingÃªncia invÃ¡lida.",
+      "Contingência inválida.",
       { userId: user.id }
     );
   }
@@ -19909,12 +19968,12 @@ app.put("/api/contingencies/:id", requireAuth, requireStorageWritable, (req, res
       res,
       404,
       "not_found",
-      "ContingÃªncia nÃ£o encontrada.",
+      "Contingência não encontrada.",
       { userId: user.id, contingencyId }
     );
   }
   if (!userHasProjectAccess(user, found.item.projectId)) {
-    return respondContingencyError(res, 403, "project_access_denied", "NÃ£o autorizado.", {
+    return respondContingencyError(res, 403, "project_access_denied", "Não autorizado.", {
       userId: user.id,
       contingencyId,
       projectId: found.item.projectId,
@@ -19925,7 +19984,7 @@ app.put("/api/contingencies/:id", requireAuth, requireStorageWritable, (req, res
       res,
       403,
       "edit_permission_denied",
-      "Sem permissÃ£o para editar esta contingÃªncia.",
+      "Sem permissão para editar esta contingência.",
       {
         userId: user.id,
         contingencyId,
@@ -19939,7 +19998,7 @@ app.put("/api/contingencies/:id", requireAuth, requireStorageWritable, (req, res
       res,
       403,
       "close_permission_denied",
-      "Sem permissÃ£o para encerrar contingÃªncias.",
+      "Sem permissão para encerrar contingências.",
       { userId: user.id, contingencyId, projectId: found.item.projectId }
     );
   }
@@ -20071,14 +20130,14 @@ app.delete("/api/contingencies/:id", requireAuth, requireStorageWritable, async 
   const user = req.currentUser || getSessionUser(req);
   const contingencyId = String(req.params.id || "").trim();
   if (!user) {
-    return respondContingencyError(res, 401, "unauthenticated", "SessÃ£o invÃ¡lida.");
+    return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
   }
   if (!contingencyId) {
     return respondContingencyError(
       res,
       400,
       "invalid_id",
-      "ContingÃªncia invÃ¡lida.",
+      "Contingência inválida.",
       { userId: user.id }
     );
   }
@@ -20088,12 +20147,12 @@ app.delete("/api/contingencies/:id", requireAuth, requireStorageWritable, async 
       res,
       404,
       "not_found",
-      "ContingÃªncia nÃ£o encontrada.",
+      "Contingência não encontrada.",
       { userId: user.id, contingencyId }
     );
   }
   if (!userHasProjectAccess(user, found.item.projectId)) {
-    return respondContingencyError(res, 403, "project_access_denied", "NÃ£o autorizado.", {
+    return respondContingencyError(res, 403, "project_access_denied", "Não autorizado.", {
       userId: user.id,
       contingencyId,
       projectId: found.item.projectId,
@@ -20105,7 +20164,7 @@ app.delete("/api/contingencies/:id", requireAuth, requireStorageWritable, async 
       res,
       403,
       "delete_permission_denied",
-      "Sem permissÃ£o para excluir contingÃªncia encerrada.",
+      "Sem permissão para excluir contingência encerrada.",
       { userId: user.id, contingencyId, projectId: found.item.projectId }
     );
   }
@@ -20183,7 +20242,7 @@ app.post(
     const user = req.currentUser || getSessionUser(req);
     const contingencyId = String(req.params.id || "").trim();
     if (!user) {
-      return respondContingencyError(res, 401, "unauthenticated", "SessÃ£o invÃ¡lida.");
+      return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
     }
     const found = getContingencyById(contingencyId);
     if (!found.item) {
@@ -20191,7 +20250,7 @@ app.post(
         res,
         404,
         "not_found",
-        "ContingÃªncia nÃ£o encontrada.",
+        "Contingência não encontrada.",
         { userId: user.id, contingencyId }
       );
     }
@@ -20200,7 +20259,7 @@ app.post(
         res,
         403,
         "edit_permission_denied",
-        "Sem permissÃ£o para anexar arquivos.",
+        "Sem permissão para anexar arquivos.",
         { userId: user.id, contingencyId, projectId: found.item.projectId }
       );
     }
@@ -20210,7 +20269,7 @@ app.post(
         res,
         400,
         "missing_file",
-        "Arquivo nÃ£o enviado.",
+        "Arquivo não enviado.",
         { userId: user.id, contingencyId }
       );
     }
@@ -20220,7 +20279,7 @@ app.post(
         res,
         415,
         "invalid_mime",
-        "Tipo de arquivo nÃ£o suportado.",
+        "Tipo de arquivo não suportado.",
         { userId: user.id, contingencyId, mime }
       );
     }
@@ -20229,7 +20288,7 @@ app.post(
         res,
         400,
         "invalid_file",
-        "Arquivo invalido.",
+        "Arquivo inválido.",
         { userId: user.id, contingencyId }
       );
     }
@@ -20386,7 +20445,7 @@ app.put(
     const user = req.currentUser || getSessionUser(req);
     const contingencyId = String(req.params.id || "").trim();
     if (!user) {
-      return respondContingencyError(res, 401, "unauthenticated", "Sessao invalida.");
+      return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
     }
     const found = getContingencyById(contingencyId);
     if (!found.item) {
@@ -20394,7 +20453,7 @@ app.put(
         res,
         404,
         "not_found",
-        "Contingencia nao encontrada.",
+        "Contingência não encontrada.",
         { userId: user.id, contingencyId }
       );
     }
@@ -20403,7 +20462,7 @@ app.put(
         res,
         403,
         "edit_permission_denied",
-        "Sem permissao para reordenar anexos.",
+        "Sem permissão para reordenar anexos.",
         { userId: user.id, contingencyId, projectId: found.item.projectId }
       );
     }
@@ -20447,7 +20506,7 @@ app.put(
         res,
         400,
         "invalid_order",
-        "A ordem informada nao possui anexos validos.",
+        "A ordem informada não possui anexos válidos.",
         { userId: user.id, contingencyId }
       );
     }
@@ -20522,7 +20581,7 @@ app.put(
     const contingencyId = String(req.params.id || "").trim();
     const attachmentId = String(req.params.attachmentId || "").trim();
     if (!user) {
-      return respondContingencyError(res, 401, "unauthenticated", "SessÃ£o invÃ¡lida.");
+      return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
     }
     const found = getContingencyById(contingencyId);
     if (!found.item) {
@@ -20530,7 +20589,7 @@ app.put(
         res,
         404,
         "not_found",
-        "ContingÃªncia nÃ£o encontrada.",
+        "Contingência não encontrada.",
         { userId: user.id, contingencyId }
       );
     }
@@ -20539,7 +20598,7 @@ app.put(
         res,
         403,
         "edit_permission_denied",
-        "Sem permissÃ£o para editar anexos.",
+        "Sem permissão para editar anexos.",
         { userId: user.id, contingencyId, projectId: found.item.projectId }
       );
     }
@@ -20554,7 +20613,7 @@ app.put(
         res,
         404,
         "attachment_not_found",
-        "Anexo nÃ£o encontrado.",
+        "Anexo não encontrado.",
         { userId: user.id, contingencyId, attachmentId }
       );
     }
@@ -20632,7 +20691,7 @@ app.delete(
     const contingencyId = String(req.params.id || "").trim();
     const attachmentId = String(req.params.attachmentId || "").trim();
     if (!user) {
-      return respondContingencyError(res, 401, "unauthenticated", "SessÃ£o invÃ¡lida.");
+      return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
     }
     const found = getContingencyById(contingencyId);
     if (!found.item) {
@@ -20640,7 +20699,7 @@ app.delete(
         res,
         404,
         "not_found",
-        "ContingÃªncia nÃ£o encontrada.",
+        "Contingência não encontrada.",
         { userId: user.id, contingencyId }
       );
     }
@@ -20649,7 +20708,7 @@ app.delete(
         res,
         403,
         "edit_permission_denied",
-        "Sem permissÃ£o para excluir anexos.",
+        "Sem permissão para excluir anexos.",
         { userId: user.id, contingencyId, projectId: found.item.projectId }
       );
     }
@@ -20664,7 +20723,7 @@ app.delete(
         res,
         404,
         "attachment_not_found",
-        "Anexo nÃ£o encontrado.",
+        "Anexo não encontrado.",
         { userId: user.id, contingencyId, attachmentId }
       );
     }
@@ -20728,14 +20787,14 @@ app.get("/api/contingencies/:id/report", requireAuth, async (req, res) => {
   const user = req.currentUser || getSessionUser(req);
   const contingencyId = String(req.params.id || "").trim();
   if (!user) {
-    return respondContingencyError(res, 401, "unauthenticated", "SessÃ£o invÃ¡lida.");
+    return respondContingencyError(res, 401, "unauthenticated", "Sessão inválida.");
   }
   if (!contingencyId) {
     return respondContingencyError(
       res,
       400,
       "invalid_id",
-      "ContingÃªncia invÃ¡lida.",
+      "Contingência inválida.",
       { userId: user.id }
     );
   }
@@ -20745,12 +20804,12 @@ app.get("/api/contingencies/:id/report", requireAuth, async (req, res) => {
       res,
       404,
       "not_found",
-      "ContingÃªncia nÃ£o encontrada.",
+      "Contingência não encontrada.",
       { userId: user.id, contingencyId }
     );
   }
   if (!userHasProjectAccess(user, found.item.projectId)) {
-    return respondContingencyError(res, 403, "project_access_denied", "NÃ£o autorizado.", {
+    return respondContingencyError(res, 403, "project_access_denied", "Não autorizado.", {
       userId: user.id,
       contingencyId,
       projectId: found.item.projectId,

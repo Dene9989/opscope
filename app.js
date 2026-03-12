@@ -47288,11 +47288,65 @@ async function carregarSst(force = false) {
   renderSstAprPt();
 }
 
+const MOJIBAKE_REPLACEMENTS = Object.freeze({
+  "Ã¡": "á",
+  "Ã¢": "â",
+  "Ã£": "ã",
+  "Ã¤": "ä",
+  "Ã©": "é",
+  "Ãª": "ê",
+  "Ã­": "í",
+  "Ã³": "ó",
+  "Ã´": "ô",
+  "Ãµ": "õ",
+  "Ã¶": "ö",
+  "Ãº": "ú",
+  "Ã¼": "ü",
+  "Ã§": "ç",
+  "Ã€": "À",
+  "Ã": "Á",
+  "Ã‚": "Â",
+  "Ãƒ": "Ã",
+  "Ã„": "Ä",
+  "Ã‰": "É",
+  "ÃŠ": "Ê",
+  "Ã“": "Ó",
+  "Ã”": "Ô",
+  "Ã•": "Õ",
+  "Ã–": "Ö",
+  "Ãš": "Ú",
+  "Ãœ": "Ü",
+  "Âº": "º",
+  "Âª": "ª",
+  "Â°": "°",
+  "Â·": "·",
+  "Â": "",
+});
+
+function fixMojibakeText(value) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  const text = String(value);
+  if (!/[ÃÂ]/.test(text)) {
+    return text;
+  }
+  let output = text;
+  Object.keys(MOJIBAKE_REPLACEMENTS).forEach((key) => {
+    if (output.includes(key)) {
+      output = output.split(key).join(MOJIBAKE_REPLACEMENTS[key]);
+    }
+  });
+  return output;
+}
+
 function getContingencyEnumList(key) {
   const source = contingenciesEnums && Array.isArray(contingenciesEnums[key]) ? contingenciesEnums[key] : [];
   return source.map((item) => ({
     value: String(item && item.value ? item.value : "").trim(),
-    label: String(item && item.label ? item.label : item && item.value ? item.value : "").trim(),
+    label: fixMojibakeText(
+      String(item && item.label ? item.label : item && item.value ? item.value : "")
+    ).trim(),
   }));
 }
 
@@ -48118,13 +48172,13 @@ function getContingencyRecurrenceSummaryState() {
     const hasDescription = Boolean(String(entry && entry.description ? entry.description : "").trim());
     const hasSameCause = Boolean(normalizeContingencyRecurrenceCause(entry && entry.sameCause));
     if (!hasDate) {
-      missing.push(`Reincid&ecirc;ncia ${index + 1}: data/hora obrigat&oacute;ria.`);
+      missing.push(`Reincidência ${index + 1}: data/hora obrigatória.`);
     }
     if (!hasDescription) {
-      missing.push(`Reincid&ecirc;ncia ${index + 1}: descri&ccedil;&atilde;o obrigat&oacute;ria.`);
+      missing.push(`Reincidência ${index + 1}: descrição obrigatória.`);
     }
     if (!hasSameCause) {
-      missing.push(`Reincid&ecirc;ncia ${index + 1}: mesma causa prov&aacute;vel obrigat&oacute;ria.`);
+      missing.push(`Reincidência ${index + 1}: mesma causa provável obrigatória.`);
     }
     return hasDate && hasDescription && hasSameCause;
   });
@@ -48166,14 +48220,14 @@ function renderContingencyRecurrenceSummary() {
   if (contingencyRecurrenceSummary) {
     if (state.occurred === "SIM" && !state.count) {
       contingencyRecurrenceSummary.textContent =
-        "Obrigat&oacute;rio registrar ao menos uma reincid&ecirc;ncia para marcar Sim.";
+        "Obrigatório registrar ao menos uma reincidência para marcar Sim.";
     } else if (state.occurred === "NAO") {
       contingencyRecurrenceSummary.textContent =
-        "Sem reincid&ecirc;ncia registrada ap&oacute;s o evento principal.";
+        "Sem reincidência registrada após o evento principal.";
     } else {
       contingencyRecurrenceSummary.textContent = state.count
-        ? `${state.count} reincid&ecirc;ncia(s) registradas.`
-        : "Informe se houve reincid&ecirc;ncia.";
+        ? `${state.count} reincidência(s) registradas.`
+        : "Informe se houve reincidência.";
     }
   }
 }
@@ -48297,6 +48351,16 @@ function renderContingencyRecurrenceDraft() {
               </select>
             </div>
             <div class="field" data-full>
+              <label>Evidências da reincidência (fotos)</label>
+              <div class="contingency-recurrence-upload">
+                <input type="file" accept="image/*" data-action="contingency-recurrence-file" />
+                <button class="btn btn--ghost btn--small" type="button" data-action="contingency-recurrence-upload">
+                  Anexar foto
+                </button>
+                <span class="hint">A foto entra em Anexos e já fica vinculada a esta reincidência.</span>
+              </div>
+            </div>
+            <div class="field" data-full>
               <label>Observa&ccedil;&atilde;o t&eacute;cnica</label>
               <textarea rows="2" data-recurrence-field="notes">${escapeHtml(
                 entry.notes || ""
@@ -48320,14 +48384,18 @@ function renderContingencyList() {
   }
   const rows = Array.isArray(contingencyItems) ? contingencyItems : [];
   contingencyTableBody.innerHTML = rows
-    .map((item) => `
+    .map((item) => {
+      const assetLabel = fixMojibakeText(item.assetName || "-");
+      const eventLabel = fixMojibakeText(item.eventTypeLabel || item.eventType || "-");
+      const statusLabel = fixMojibakeText(item.statusLabel || item.status || "-");
+      return `
       <tr data-contingency-id="${escapeHtml(String(item.id || ""))}">
         <td>${escapeHtml(item.code || "-")}</td>
         <td>${escapeHtml(formatContingencyDateTimeLabel(item.startAt))}</td>
-        <td>${escapeHtml(item.assetName || "-")}</td>
-        <td>${escapeHtml(item.eventTypeLabel || item.eventType || "-")}</td>
+        <td>${escapeHtml(assetLabel)}</td>
+        <td>${escapeHtml(eventLabel)}</td>
         <td>${escapeHtml(item.severity || "-")}</td>
-        <td>${escapeHtml(item.statusLabel || item.status || "-")}</td>
+        <td>${escapeHtml(statusLabel)}</td>
         <td>${escapeHtml(item.normalizedAt ? "Sim" : "Não")}</td>
         <td>${escapeHtml(getUserLabel(item.updatedBy || item.createdBy || ""))}</td>
         <td>
@@ -48338,7 +48406,8 @@ function renderContingencyList() {
           </div>
         </td>
       </tr>
-    `)
+    `;
+    })
     .join("");
   if (contingencyListEmpty) {
     contingencyListEmpty.hidden = rows.length > 0;
@@ -49191,6 +49260,54 @@ function handleContingencyRecurrenceAdd() {
   renderContingencyRecurrenceDraft();
 }
 
+async function handleContingencyRecurrenceUpload(entryId, file) {
+  const currentId = getCurrentContingencyId();
+  if (!currentId) {
+    setContingencyMessage("Salve a contingência antes de anexar fotos.", true);
+    return;
+  }
+  if (!file) {
+    setContingencyMessage("Selecione uma foto para anexar.", true);
+    return;
+  }
+  const entries = getContingencyRecurrenceEntries();
+  const index = entries.findIndex((entry) => String(entry.id || "") === String(entryId || ""));
+  if (index < 0) {
+    return;
+  }
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("category", "PHOTO");
+  formData.append("notes", `Reincidência ${index + 1}`);
+  formData.append("includeInClientReport", "true");
+  try {
+    const data = await apiContingencyAttachmentUpload(currentId, formData);
+    const attachment = data && data.attachment ? data.attachment : null;
+    if (attachment && attachment.id) {
+      const exists = contingencyAttachmentsDraft.some(
+        (entry) => String(entry && entry.id) === String(attachment.id)
+      );
+      if (!exists) {
+        contingencyAttachmentsDraft = contingencyAttachmentsDraft.concat({ ...attachment });
+      }
+      const entry = { ...entries[index] };
+      const currentIds = Array.isArray(entry.attachmentIds) ? entry.attachmentIds : [];
+      const nextIds = Array.from(
+        new Set(currentIds.map((id) => String(id || "")).concat(String(attachment.id)))
+      ).filter(Boolean);
+      entry.attachmentIds = nextIds;
+      entries[index] = entry;
+      contingencyRecurrenceDraft = entries;
+      renderContingencyAttachmentsDraft();
+      setContingencyMessage("Foto anexada à reincidência. Salve para manter o vínculo.");
+      return;
+    }
+    setContingencyMessage("Foto anexada. Salve para manter o vínculo.");
+  } catch (error) {
+    setContingencyMessage(error && error.message ? error.message : "Falha ao anexar foto.", true);
+  }
+}
+
 function handleContingencyRecurrenceListClick(event) {
   const trigger = event.target.closest("button[data-action]");
   if (!trigger) {
@@ -49210,6 +49327,13 @@ function handleContingencyRecurrenceListClick(event) {
   if (action === "contingency-recurrence-remove") {
     contingencyRecurrenceDraft = entries.filter((entry) => String(entry.id || "") !== entryId);
     renderContingencyRecurrenceDraft();
+    return;
+  }
+  if (action === "contingency-recurrence-upload") {
+    const fileInput = card.querySelector("input[data-action='contingency-recurrence-file']");
+    if (fileInput) {
+      fileInput.click();
+    }
     return;
   }
   if (action === "contingency-recurrence-up" && index > 0) {
@@ -49234,6 +49358,18 @@ function handleContingencyRecurrenceListClick(event) {
 function handleContingencyRecurrenceListInput(event) {
   const target = event && event.target ? event.target : null;
   if (!target) {
+    return;
+  }
+  if (target.matches("input[data-action='contingency-recurrence-file']")) {
+    const card = target.closest("[data-recurrence-id]");
+    if (!card) {
+      return;
+    }
+    const entryId = String(card.dataset.recurrenceId || "");
+    const file =
+      target.files && target.files.length ? target.files[0] : null;
+    target.value = "";
+    handleContingencyRecurrenceUpload(entryId, file);
     return;
   }
   const field = target.dataset.recurrenceField;
