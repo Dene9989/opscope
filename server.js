@@ -6538,9 +6538,8 @@ async function generateContingencyReportPdf(payload, options = {}) {
     const category = String(attachment && attachment.category ? attachment.category : "").toUpperCase();
     return mime.startsWith("image/") || /\.(png|jpe?g)$/i.test(fileName) || category === "PHOTO";
   });
-  const baseImageCandidates = imageCandidates.filter((attachment) => !isRecurrenceAttachment(attachment));
   const { renderedPhotos: baseRendered, failedPhotos: baseFailed } =
-    await renderAttachmentPhotoGrid(baseImageCandidates);
+    await renderAttachmentPhotoGrid(imageCandidates);
   if (baseFailed.length) {
     writeText(`${baseFailed.length} foto(s) não puderam ser incorporadas nesta versão do PDF.`, {
       size: 9.2,
@@ -6554,7 +6553,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     if (imageCandidates.some((img) => attachmentKey(img) === attachmentKey(attachment))) {
       return false;
     }
-    return !isRecurrenceAttachment(attachment);
+    return true;
   });
   if (nonImageAttachments.length) {
     writeText("Anexos complementares:", {
