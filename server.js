@@ -6697,20 +6697,22 @@ async function generateContingencyReportPdf(payload, options = {}) {
             .map((key) => recurrenceAttachmentLabels.get(key))
             .filter(Boolean)
         : [];
+      writeText("Anexos relacionados", {
+        bold: true,
+        size: 9.6,
+        leading: 11.6,
+        color: palette.primary,
+      });
+      addRecurrenceGap(recurrenceSpacing.afterSubtitle);
       if (attachmentLabels.length) {
-        writeText("Anexos relacionados", {
-          bold: true,
-          size: 9.6,
-          leading: 11.6,
-          color: palette.primary,
-        });
-        addRecurrenceGap(recurrenceSpacing.afterSubtitle);
         ensureSpace(attachmentLabels.length * 11.2 + 8);
         attachmentLabels.forEach((label) => {
           writeText(`- ${label}`, { size: 9.2, leading: 11.2, color: palette.text });
         });
-        addRecurrenceGap(recurrenceSpacing.afterTable);
+      } else {
+        writeText("Sem anexos vinculados.", { size: 9.2, leading: 11.2, color: palette.muted });
       }
+      addRecurrenceGap(recurrenceSpacing.afterTable);
 
       writeText("Observação técnica", {
         bold: true,
@@ -6730,7 +6732,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     leading: 13,
     color: palette.primary,
   });
-  cursorY -= 2.8;
+  addRecurrenceGap(recurrenceSpacing.afterSubtitle);
   drawCompactKeyValueTable(
     [
       {
@@ -6752,8 +6754,28 @@ async function generateContingencyReportPdf(payload, options = {}) {
     ],
     { labelRatio: 0.56 }
   );
-  kvParagraph("Conclusão técnica sobre reincidência", recurrenceAnalysis.conclusion || "-");
-  kvParagraph("Recomendação preventiva/corretiva", recurrenceAnalysis.recommendation || "-");
+  addRecurrenceGap(recurrenceSpacing.afterTable);
+  writeText("Avaliação conclusiva", {
+    bold: true,
+    size: 9.6,
+    leading: 11.6,
+    color: palette.primary,
+  });
+  addRecurrenceGap(recurrenceSpacing.afterSubtitle);
+  const conclusivaParts = [
+    `Padrão recorrente: ${formatRecurrenceYesNoLabel(recurrenceAnalysis.patternIdentified, "-")}`,
+    `Falha persistente: ${formatRecurrenceYesNoLabel(recurrenceAnalysis.persistentFailure, "-")}`,
+    `Garantia: ${formatRecurrenceYesNoLabel(recurrenceAnalysis.warrantyRecommended, "-")}`,
+    `Inspeção/especialista: ${formatRecurrenceYesNoLabel(recurrenceAnalysis.specialistRecommended, "-")}`,
+  ];
+  writeText(`${conclusivaParts.join(". ")}.`, { size: 10, leading: 12.4 });
+  addRecurrenceGap(recurrenceSpacing.afterParagraph);
+  kvParagraph("Conclusão técnica sobre reincidência", recurrenceAnalysis.conclusion || "-", {
+    after: recurrenceSpacing.afterParagraph,
+  });
+  kvParagraph("Recomendação preventiva/corretiva", recurrenceAnalysis.recommendation || "-", {
+    after: recurrenceSpacing.afterParagraph,
+  });
   drawDivider();
 
   const signGap = 12;
