@@ -4439,11 +4439,12 @@ function stripContingencyInternalDetails(record) {
         eventType: entry.eventType,
         description: entry.description,
         durationMinutes: entry.durationMinutes,
+        attachmentIds: Array.isArray(entry.attachmentIds) ? entry.attachmentIds : [],
       })),
       analysis: {
         patternIdentified: copy.recurrence.analysis
           ? copy.recurrence.analysis.patternIdentified || ""
-          : "",
+        : "",
         persistentFailure: copy.recurrence.analysis
           ? copy.recurrence.analysis.persistentFailure || ""
           : "",
@@ -6113,13 +6114,6 @@ async function generateContingencyReportPdf(payload, options = {}) {
       )
       .filter(Boolean)
   );
-  const isRecurrenceAttachment = (attachment) => {
-    const key = attachmentKey(attachment);
-    if (!key) {
-      return false;
-    }
-    return recurrenceAttachmentIds.has(String(key));
-  };
   const recurrenceOccurred = normalizeContingencyRecurrenceYesNo(recurrence.occurred);
   const recurrenceCount = recurrenceEntriesSorted.length;
   const recurrenceFirstAt = recurrenceCount
@@ -6155,6 +6149,16 @@ async function generateContingencyReportPdf(payload, options = {}) {
       })
       .filter(Boolean)
   );
+  const recurrenceAttachmentAllowed = new Set(
+    Array.from(recurrenceAttachmentIds).filter((id) => recurrenceAttachmentLabels.has(id))
+  );
+  const isRecurrenceAttachment = (attachment) => {
+    const key = attachmentKey(attachment);
+    if (!key) {
+      return false;
+    }
+    return recurrenceAttachmentAllowed.has(String(key));
+  };
   const checklist = [
     safePayload.code,
     safePayload.substation,
@@ -6259,10 +6263,9 @@ async function generateContingencyReportPdf(payload, options = {}) {
       writeText(`OS/Protocolo: ${safeEntry.protocolRef || "-"}`, { size: 9.1, leading: 11.2 });
       if (Array.isArray(safeEntry.attachmentIds) && safeEntry.attachmentIds.length) {
         const attachmentLabels = safeEntry.attachmentIds
-          .map((id) => {
-            const key = String(id || "").trim();
-            return recurrenceAttachmentLabels.get(key) || key;
-          })
+          .map((id) => String(id || "").trim())
+          .filter((key) => recurrenceAttachmentLabels.has(key))
+          .map((key) => recurrenceAttachmentLabels.get(key))
           .filter(Boolean)
           .join("; ");
         if (attachmentLabels) {
@@ -6707,10 +6710,9 @@ async function generateContingencyReportPdf(payload, options = {}) {
       cursorY -= 1.8;
       const attachmentLabels = Array.isArray(entry.attachmentIds)
         ? entry.attachmentIds
-            .map((id) => {
-              const key = String(id || "").trim();
-              return recurrenceAttachmentLabels.get(key) || key;
-            })
+            .map((id) => String(id || "").trim())
+            .filter((key) => recurrenceAttachmentLabels.has(key))
+            .map((key) => recurrenceAttachmentLabels.get(key))
             .filter(Boolean)
         : [];
       if (!attachmentLabels.length) {
