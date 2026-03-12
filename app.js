@@ -30315,8 +30315,21 @@ function buildPeriodoJanela(periodoDias) {
   return { inicio, fim: hoje, anteriorInicio, anteriorFim };
 }
 
+function filterDashboardMaintenanceItems(items) {
+  let list = Array.isArray(items)
+    ? items.filter((item) => item && !isMaintenanceDeletedId(item.id))
+    : [];
+  const suppressions = readRecurrenceSuppressions();
+  if (suppressions && Object.keys(suppressions).length) {
+    list = list.filter((item) => !isSuppressedRecurrenceItem(item, suppressions));
+  }
+  const suppressionMap = buildInspectionMonthlySuppressionMap(list);
+  return filterInspectionSuppressed(list, suppressionMap);
+}
+
 function aplicarFiltrosBase(items, filtros) {
-  return items.filter((item) => {
+  const base = filterDashboardMaintenanceItems(items);
+  return base.filter((item) => {
     if (filtros.subestacao && getItemSubestacao(item) !== filtros.subestacao) {
       return false;
     }
@@ -61535,7 +61548,7 @@ function getMaintenanceOwner(item) {
 }
 
 function buildLocalDashboardSummary(items, projectId) {
-  const list = Array.isArray(items) ? items : [];
+  const list = filterDashboardMaintenanceItems(items);
   const today = startOfDay(new Date());
   const pendingItems = [];
   const completedItems = [];

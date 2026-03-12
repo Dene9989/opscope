@@ -9250,9 +9250,421 @@ function getItemOwner(item) {
         item.executadaPor ||
         item.owner ||
         item.responsavelManutencao ||
-        "Equipe"
+      "Equipe"
     ).trim() || "Equipe"
   );
+}
+
+function normalizeRegistroExecucaoDiaKey(value) {
+  const parsed = parseDateOnly(value);
+  return parsed ? formatDateISO(parsed) : "";
+}
+
+function normalizeRecurrenceDateKey(value) {
+  return normalizeRegistroExecucaoDiaKey(value);
+}
+
+function getItemSubestacao(item) {
+  if (!item) {
+    return "";
+  }
+  return item.local || item.subestacao || "";
+}
+
+function getItemCategoria(item) {
+  if (!item) {
+    return "";
+  }
+  return (
+    item.categoria ||
+    item.tipo ||
+    item.tipoManutencao ||
+    (item.conclusao ? item.conclusao.categoria || item.conclusao.tipo : "") ||
+    (item.registroExecucao
+      ? item.registroExecucao.categoria || item.registroExecucao.tipo
+      : "") ||
+    ""
+  );
+}
+
+function mapTemplateFrequencyToPmp(template) {
+  if (!template || !template.frequencia) {
+    return "";
+  }
+  const freq = String(template.frequencia).toLowerCase();
+  if (freq === "daily") {
+    return "diaria";
+  }
+  if (freq === "weekly") {
+    return "semanal";
+  }
+  if (freq === "monthly") {
+    return "mensal";
+  }
+  return "";
+}
+
+function buildMaintenanceTemplateMap(projectId) {
+  const dataset = loadMaintenanceTemplates();
+  const map = new Map();
+  dataset.forEach((item) => {
+    if (!item || !item.id) {
+      return;
+    }
+    if (projectId && String(item.projectId || "") !== String(projectId)) {
+      return;
+    }
+    map.set(String(item.id), item);
+  });
+  return map;
+}
+
+function getMaintenanceTemplateById(templateMap, templateId) {
+  if (!templateMap || !templateId) {
+    return null;
+  }
+  return templateMap.get(String(templateId)) || null;
+}
+
+function normalizePmpFrequencyFromMaintenance(item, templateMap) {
+  const raw = normalizeSearchValue(
+    (item && (item.frequencia || item.periodicidade || item.recurrence || item.recorrencia)) || ""
+  ).replace(/\s+/g, "");
+  const rawMap = {
+    diaria: "diaria",
+    daily: "diaria",
+    semanal: "semanal",
+    weekly: "semanal",
+    mensal: "mensal",
+    monthly: "mensal",
+    bimestral: "bimestral",
+    trimestral: "trimestral",
+    semestral: "semestral",
+    annual: "anual",
+    anual: "anual",
+    bienal: "bienal",
+    trienal: "trienal",
+  };
+  if (raw && rawMap[raw]) {
+    return rawMap[raw];
+  }
+  const template = item && item.templateId ? getMaintenanceTemplateById(templateMap, item.templateId) : null;
+  return mapTemplateFrequencyToPmp(template);
+}
+
+function normalizePmpTipoFromMaintenance(item) {
+  const category = normalizeSearchValue(getItemCategoria(item) || "");
+  if (category.includes("prevent")) {
+    return "preventiva";
+  }
+  if (category.includes("corret")) {
+    return "corretiva";
+  }
+  if (category.includes("prediti")) {
+    return "preditiva";
+  }
+  if (category.includes("inspec")) {
+    return "inspecao";
+  }
+  return "";
+}
+
+function getInspectionFrequencyKey(item, templateMap) {
+  const frequencia = normalizePmpFrequencyFromMaintenance(item, templateMap);
+  if (!frequencia) {
+    return "";
+  }
+  if (frequencia === "diaria" || frequencia === "semanal" || frequencia === "mensal") {
+    return frequencia;
+  }
+  return "";
+}
+
+function isInspectionMaintenance(item, templateMap) {
+  if (!item) {
+    return false;
+  }
+  if (normalizePmpTipoFromMaintenance(item) === "inspecao") {
+    return true;
+  }
+  const titulo = normalizeSearchValue(item.titulo || item.nome || "");
+  if (titulo.includes("inspec")) {
+    return true;
+  }
+  const template = item.templateId ? getMaintenanceTemplateById(templateMap, item.templateId) : null;
+  const templateNome = normalizeSearchValue(
+    template && (template.nome || template.name) ? template.nome || template.name : ""
+  );
+  if (templateNome.includes("inspec")) {
+    return true;
+  }
+  return false;
+}
+
+function getInspectionDateKeyFromItem(item) {
+  if (!item) {
+    return "";
+  }
+  return normalizeRegistroExecucaoDiaKey(item.data || "");
+}
+
+function getMaintenanceEquipamentoIds(item) {
+  if (!item || typeof item !== "object") {
+    return [];
+  }
+  const equipamentoIds = normalizeStringIdList(
+    item.equipamentoIds || item.equipamentosIds || []
+  );
+  const equipamentoId = String(
+    item.equipamentoId ||
+      (item.conclusao && item.conclusao.equipamentoId) ||
+      (item.equipamento && typeof item.equipamento === "object" ? item.equipamento.id || "" : "")
+  ).trim();
+  if (equipamentoId && !equipamentoIds.includes(equipamentoId)) {
+    equipamentoIds.unshift(equipamentoId);
+  }
+  return equipamentoIds;
+}
+
+function getInspectionAssetKey(item, projectId, templateMap) {
+  if (!item) {
+    return "";
+  }
+  const equipamentoIds = getMaintenanceEquipamentoIds(item)
+    .map((id) => normalizeSearchValue(String(id || "")))
+    .filter(Boolean);
+  if (equipamentoIds.length) {
+    return `eq:${Array.from(new Set(equipamentoIds)).sort().join(",")}`;
+  }
+  const nomeDireto = String(item.equipamentoNome || item.equipamentoTag || "").trim();
+  if (nomeDireto) {
+    const normalized = normalizeSearchValue(nomeDireto);
+    if (normalized) {
+      return `eq:${normalized}`;
+    }
+  }
+  if (item.equipamento && typeof item.equipamento === "object") {
+    const tag = item.equipamento.tag || "";
+    const nome = item.equipamento.nome || item.equipamento.name || "";
+    if (tag || nome) {
+      const normalized = normalizeSearchValue(`${tag ? `${tag} - ` : ""}${nome}`.trim());
+      if (normalized) {
+        return `eq:${normalized}`;
+      }
+    }
+    if (item.equipamento.id) {
+      const normalized = normalizeSearchValue(String(item.equipamento.id || ""));
+      if (normalized) {
+        return `eq:${normalized}`;
+      }
+    }
+  }
+  if (typeof item.equipamento === "string" && item.equipamento.trim()) {
+    const normalized = normalizeSearchValue(item.equipamento.trim());
+    if (normalized) {
+      return `eq:${normalized}`;
+    }
+  }
+  const template = item.templateId ? getMaintenanceTemplateById(templateMap, item.templateId) : null;
+  const templateNome = normalizeSearchValue(
+    template && (template.nome || template.name) ? template.nome || template.name : ""
+  );
+  const titulo = normalizeSearchValue(item.titulo || item.nome || "");
+  if (templateNome.includes("subestacao") || titulo.includes("subestacao")) {
+    return "subestacao";
+  }
+  if (templateNome) {
+    return `tpl:${templateNome}`;
+  }
+  if (titulo) {
+    return `title:${titulo}`;
+  }
+  return "inspecao";
+}
+
+function getInspectionSuppressionKey(item, dateKey, projectId, templateMap) {
+  if (!item) {
+    return "";
+  }
+  const dataKey = normalizeRegistroExecucaoDiaKey(dateKey || "");
+  if (!dataKey) {
+    return "";
+  }
+  const projectRef = String(item.projectId || projectId || "").trim() || "-";
+  const subestacao = normalizeSearchValue(getItemSubestacao(item) || "") || "-";
+  const assetKey = getInspectionAssetKey(item, projectRef, templateMap);
+  if (!assetKey) {
+    return "";
+  }
+  return `${projectRef}|${subestacao}|${assetKey}|${dataKey}`;
+}
+
+function normalizeManualMonthlyOverrideMap(value) {
+  const output = {};
+  if (Array.isArray(value)) {
+    value.forEach((entry) => {
+      const key = normalizeRegistroExecucaoDiaKey(entry);
+      if (key) {
+        output[key] = true;
+      }
+    });
+  } else if (value && typeof value === "object") {
+    Object.keys(value).forEach((rawKey) => {
+      const key = normalizeRegistroExecucaoDiaKey(rawKey);
+      if (key) {
+        output[key] = true;
+      }
+    });
+  }
+  return output;
+}
+
+function getManualMonthlyOverrideMap(item) {
+  if (!item) {
+    return {};
+  }
+  return normalizeManualMonthlyOverrideMap(item.mensalDoDia);
+}
+
+function hasManualMonthlyOverride(item, dateKey) {
+  const key = normalizeRegistroExecucaoDiaKey(dateKey || "");
+  if (!key) {
+    return false;
+  }
+  const map = getManualMonthlyOverrideMap(item);
+  return Boolean(map[key]);
+}
+
+function buildInspectionMonthlySuppressionMap(list, options = {}) {
+  const source = Array.isArray(list) ? list : [];
+  if (!source.length) {
+    return new Set();
+  }
+  const dateKey = normalizeRegistroExecucaoDiaKey(options.dateKey || "");
+  const templateMap = options.templateMap || null;
+  const projectId = options.projectId || "";
+  const map = new Set();
+  source.forEach((item) => {
+    if (!item || !isInspectionMaintenance(item, templateMap)) {
+      return;
+    }
+    const freq = getInspectionFrequencyKey(item, templateMap);
+    if (!freq) {
+      return;
+    }
+    const dataRef = dateKey || getInspectionDateKeyFromItem(item);
+    if (!dataRef) {
+      return;
+    }
+    const suppressionKey = getInspectionSuppressionKey(item, dataRef, projectId, templateMap);
+    if (!suppressionKey) {
+      return;
+    }
+    if (hasManualMonthlyOverride(item, dataRef)) {
+      map.add(suppressionKey);
+      return;
+    }
+    if (freq === "mensal") {
+      map.add(suppressionKey);
+    }
+  });
+  return map;
+}
+
+function isInspectionSuppressed(item, suppressionMap, options = {}) {
+  if (!item || !suppressionMap || suppressionMap.size === 0) {
+    return false;
+  }
+  const templateMap = options.templateMap || null;
+  const projectId = options.projectId || "";
+  if (!isInspectionMaintenance(item, templateMap)) {
+    return false;
+  }
+  const freq = getInspectionFrequencyKey(item, templateMap);
+  if (freq !== "diaria" && freq !== "semanal") {
+    return false;
+  }
+  const dateKey =
+    normalizeRegistroExecucaoDiaKey(options.dateKey || "") || getInspectionDateKeyFromItem(item);
+  if (!dateKey) {
+    return false;
+  }
+  const suppressionKey = getInspectionSuppressionKey(item, dateKey, projectId, templateMap);
+  if (!suppressionKey) {
+    return false;
+  }
+  return suppressionMap.has(suppressionKey);
+}
+
+function filterInspectionSuppressed(list, suppressionMap, options = {}) {
+  if (!Array.isArray(list) || !list.length) {
+    return Array.isArray(list) ? list : [];
+  }
+  if (!suppressionMap || suppressionMap.size === 0) {
+    return list;
+  }
+  return list.filter((item) => !isInspectionSuppressed(item, suppressionMap, options));
+}
+
+function isSuppressedRecurrenceItem(item, suppressions, projectId) {
+  if (!item || !suppressions) {
+    return false;
+  }
+  const templateId = String(item.templateId || "").trim();
+  const dataStr = String(item.data || "").trim();
+  if (!templateId || !dataStr) {
+    return false;
+  }
+  const normalizedDate = normalizeRecurrenceDateKey(dataStr);
+  const projectRef = String(item.projectId || projectId || "").trim();
+  const dateKeys = new Set([dataStr, normalizedDate].filter(Boolean));
+  let suppressed = false;
+  dateKeys.forEach((dateKey) => {
+    if (suppressed) {
+      return;
+    }
+    const key = projectRef ? `${projectRef}|${templateId}|${dateKey}` : `${templateId}|${dateKey}`;
+    const legacyKey = `${templateId}|${dateKey}`;
+    if (suppressions[key] || suppressions[legacyKey]) {
+      suppressed = true;
+    }
+  });
+  if (!suppressed) {
+    return false;
+  }
+  const status = normalizeStatus(item.status);
+  if (status !== "agendada" && status !== "liberada") {
+    return false;
+  }
+  if (hasExecucaoRegistrada(item)) {
+    return false;
+  }
+  if (
+    item.conclusao ||
+    item.registroExecucao ||
+    item.executionStartedAt ||
+    item.executionFinishedAt ||
+    item.doneAt
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function filterDashboardMaintenanceItems(items, projectId, templateMap) {
+  let list = Array.isArray(items) ? items : [];
+  if (!list.length) {
+    return list;
+  }
+  const suppressions = loadMaintenanceRecurrenceSuppressions();
+  if (suppressions && Object.keys(suppressions).length) {
+    list = list.filter((item) => !isSuppressedRecurrenceItem(item, suppressions, projectId));
+  }
+  const suppressionMap = buildInspectionMonthlySuppressionMap(list, {
+    projectId,
+    templateMap,
+  });
+  return filterInspectionSuppressed(list, suppressionMap, { projectId, templateMap });
 }
 
 function normalizeAnnouncementType(value) {
@@ -14283,14 +14695,20 @@ function getDashboardSummaryForProject(projectId) {
     return cached.payload;
   }
   const dataset = loadMaintenanceData();
-  const filtered = dataset.filter((item) => {
-    const itemProject = item && item.projectId ? item.projectId : fallbackId;
-    return itemProject && itemProject === resolved;
-  });
+  const tombstones = getMaintenanceTombstonesMap(resolved);
+  const filtered = dataset
+    .filter((item) => {
+      const itemProject = item && item.projectId ? item.projectId : fallbackId;
+      return itemProject && itemProject === resolved;
+    })
+    .filter((item) => !tombstones.has(String(item && item.id ? item.id : "")));
   if (IS_DEV && filtered.length === 0) {
     console.warn("[dashboard] Dataset vazio para project", resolved);
   }
-  const payload = buildDashboardSummary(filtered, resolved);
+  const deduped = dedupeMaintenanceRecords(filtered, resolved);
+  const templateMap = buildMaintenanceTemplateMap(resolved);
+  const visible = filterDashboardMaintenanceItems(deduped.list, resolved, templateMap);
+  const payload = buildDashboardSummary(visible, resolved);
   DASHBOARD_CACHE.set(resolved, { expiresAt: now + DASHBOARD_CACHE_TTL_MS, payload });
   return payload;
 }
