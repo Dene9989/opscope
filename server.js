@@ -6902,13 +6902,11 @@ async function generateContingencyReportPdf(payload, options = {}) {
   const signatureImageHeight = 42;
   const signatureImagePaddingX = 8;
   const signatureBlockHeight = signatureImageHeight + 24;
-  const signatureTopGap = 8;
-  const signMinY = footerY + 32;
-  let signY = cursorY - signatureBlockHeight - signatureTopGap;
-  if (signY < signMinY) {
+  const signYFixed = footerY + 56;
+  if (cursorY < signYFixed + signatureBlockHeight + 8) {
     addPage();
-    signY = pageSize[1] - headerHeight - signatureBlockHeight - 24;
   }
+  const signY = signYFixed;
   const signSlotOneX = margin;
   const signSlotTwoX = margin + signWidth + signGap;
   const signSlotThreeX = margin + signWidth * 2 + signGap * 2;
