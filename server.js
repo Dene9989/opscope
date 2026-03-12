@@ -6584,132 +6584,188 @@ async function generateContingencyReportPdf(payload, options = {}) {
   });
   drawDivider();
 
-  section("9. Reincidência");
-  if (recurrenceOccurred === "SIM") {
-    writeText("REINCIDÊNCIA OCORRIDA", {
-      bold: true,
-      size: 11.2,
-      leading: 13.2,
-      color: palette.warning,
+  const recurrenceSectionTitle =
+    recurrenceOccurred === "SIM" ? "9. Reincidência Ocorrida" : "9. Reincidência";
+  section(recurrenceSectionTitle);
+  writeText("Resumo da reincidência", { bold: true, size: 10.6, leading: 13, color: palette.primary });
+  cursorY -= 2.8;
+  drawCompactKeyValueTable(
+    [
+      { label: "Houve reincidência", value: formatRecurrenceYesNoLabel(recurrenceOccurred) },
+      { label: "Quantidade de reincidências", value: String(recurrenceCount) },
+      { label: "Primeira reincidência", value: recurrenceFirstLabel },
+      { label: "Última reincidência", value: recurrenceLastLabel },
+      { label: "Intervalo", value: recurrenceIntervalLabel },
+      { label: "Impacto acumulado", value: recurrenceImpactSummary || "-" },
+    ],
+    { labelRatio: 0.46 }
+  );
+
+  if (recurrenceOccurred !== "SIM") {
+    writeText(
+      recurrenceOccurred === "NAO"
+        ? "Não houve reincidência registrada após o evento principal."
+        : "Sem informação de reincidência registrada.",
+      { size: 9.6, leading: 12, color: palette.muted }
+    );
+    cursorY -= 6;
+  } else if (!recurrenceCount) {
+    writeText("Reincidência marcada como sim, porém sem registros detalhados.", {
+      size: 9.6,
+      leading: 12,
+      color: palette.muted,
     });
-    cursorY -= 2;
-  }
-
-  const recurrenceBase = recurrenceEntriesSorted[0] || {};
-  const recurrenceSubstation = recurrenceBase.substation || safePayload.substation || "-";
-  const recurrenceBay = recurrenceBase.bay || safePayload.bay || "";
-  const recurrenceFeeder = recurrenceBase.feeder || safePayload.feeder || "";
-  const recurrenceAsset =
-    recurrenceBase.assetName || safePayload.assetName || safePayload.assetId || "-";
-  const recurrenceLocationParts = [];
-  if (recurrenceSubstation && recurrenceSubstation !== "-") {
-    recurrenceLocationParts.push(`subestação ${recurrenceSubstation}`);
-  }
-  if (recurrenceBay) {
-    recurrenceLocationParts.push(`bay ${recurrenceBay}`);
-  }
-  if (recurrenceFeeder) {
-    recurrenceLocationParts.push(`alimentador ${recurrenceFeeder}`);
-  }
-  if (recurrenceAsset && recurrenceAsset !== "-") {
-    recurrenceLocationParts.push(`equipamento ${recurrenceAsset}`);
-  }
-  const recurrenceLocationLabel = recurrenceLocationParts.length
-    ? recurrenceLocationParts.join(", ")
-    : "local não informado";
-  const recurrenceEventLabel = getContingencyLabel(
-    CONTINGENCY_EVENT_LABELS,
-    safePayload.eventType,
-    "Outro"
-  );
-  const recurrenceIntro =
-    recurrenceOccurred === "SIM"
-      ? `Após o evento principal, houve reincidência registrada em ${recurrenceLocationLabel}.`
-      : recurrenceOccurred === "NAO"
-        ? `Após o evento principal, não houve reincidência registrada em ${recurrenceLocationLabel}.`
-        : `Não há registro formal de reincidência para o evento em ${recurrenceLocationLabel}.`;
-  const recurrenceContext = `Contexto técnico: ${recurrenceEventLabel}.`;
-  writeText(`${recurrenceIntro} ${recurrenceContext}`, {
-    size: 10,
-    leading: 12.4,
-  });
-  cursorY -= 4;
-
-  const recurrenceSummary =
-    recurrenceOccurred === "SIM"
-      ? `Foram registradas ${recurrenceCount} reincidência(s) entre ${recurrenceFirstLabel} e ${recurrenceLastLabel} (intervalo ${recurrenceIntervalLabel}). Impacto acumulado: ${recurrenceImpactSummary || "-"}`
-      : `Quantidade registrada: ${recurrenceCount}. Datas relevantes e impacto acumulado não aplicáveis.`;
-  writeText(`${recurrenceSummary}.`, {
-    size: 10,
-    leading: 12.4,
-  });
-  cursorY -= 6;
-
-  const recurrenceImageCandidates = imageCandidates.filter((attachment) =>
-    isRecurrenceAttachment(attachment)
-  );
-  if (recurrenceImageCandidates.length) {
-    const { failedPhotos: recurrenceFailed } = await renderAttachmentPhotoGrid(
-      recurrenceImageCandidates,
-      {
-        title: "Evidências da reincidência",
-        emptyMessage: "Nenhuma foto de reincidência foi anexada.",
-        labelOffset: baseRendered.length,
-      }
-    );
-    if (recurrenceFailed.length) {
-      writeText(`${recurrenceFailed.length} foto(s) não puderam ser incorporadas nesta versão do PDF.`, {
-        size: 9.2,
-        leading: 11,
-        color: palette.warning,
-      });
-      cursorY -= 4;
-    }
-  } else if (recurrenceOccurred === "SIM") {
-    kv("Fotos de reincidência", "Nenhuma foto de reincidência foi anexada.");
-    cursorY -= 4;
-  }
-
-  const analysisSentences = [];
-  if (recurrenceAnalysis.conclusion) {
-    analysisSentences.push(recurrenceAnalysis.conclusion.trim());
-  } else if (recurrenceOccurred === "SIM") {
-    analysisSentences.push(
-      `A análise indica padrão recorrente: ${formatRecurrenceYesNoLabel(
-        recurrenceAnalysis.patternIdentified,
-        "-"
-      )}.`
-    );
-    analysisSentences.push(
-      `Indicação de falha persistente: ${formatRecurrenceYesNoLabel(
-        recurrenceAnalysis.persistentFailure,
-        "-"
-      )}.`
-    );
-  }
-  if (!analysisSentences.length) {
-    analysisSentences.push("A análise técnica não identificou elementos adicionais relevantes.");
-  }
-  if (recurrenceAnalysis.recommendation) {
-    analysisSentences.push(
-      `Recomendação preventiva/corretiva: ${recurrenceAnalysis.recommendation.trim()}.`
-    );
+    cursorY -= 6;
   } else {
-    const recParts = [];
-    if (formatRecurrenceYesNoLabel(recurrenceAnalysis.warrantyRecommended, "-") === "Sim") {
-      recParts.push("acionamento de garantia");
-    }
-    if (formatRecurrenceYesNoLabel(recurrenceAnalysis.specialistRecommended, "-") === "Sim") {
-      recParts.push("inspeção/fabricante/especialista");
-    }
-    if (recParts.length) {
-      analysisSentences.push(`Recomendação preventiva/corretiva: ${recParts.join(" e ")}.`);
-    }
+    writeText("Detalhamento das reincidências registradas", {
+      bold: true,
+      size: 10.6,
+      leading: 13,
+      color: palette.primary,
+    });
+    cursorY -= 2.8;
+    recurrenceEntriesSorted.forEach((entry, index) => {
+      const entryLabel = `Reincidência ${index + 1}`;
+      const occurredLabel = formatContingencyDateTime(entry.occurredAt);
+      const normalizedLabel = formatContingencyDateTime(entry.normalizedAt);
+      const durationLabel = Number.isFinite(Number(entry.durationMinutes))
+        ? formatDurationMinutes(entry.durationMinutes)
+        : entry.occurredAt && entry.normalizedAt
+          ? formatWindow(parseDateTime(entry.occurredAt), parseDateTime(entry.normalizedAt))
+          : "-";
+      const eventTypeLabel = getContingencyLabel(
+        CONTINGENCY_EVENT_LABELS,
+        entry.eventType,
+        "Outro"
+      );
+      ensureSpace(180);
+      writeText(entryLabel, { bold: true, size: 10.4, leading: 12.6, color: palette.text });
+      cursorY -= 2.6;
+
+      writeText("Identificação da ocorrência", {
+        bold: true,
+        size: 9.6,
+        leading: 11.6,
+        color: palette.primary,
+      });
+      cursorY -= 1.8;
+      drawCompactKeyValueTable(
+        [
+          { label: "Data/hora da reincidência", value: occurredLabel },
+          { label: "Subestação", value: entry.substation || safePayload.substation || "-" },
+          { label: "Bay", value: entry.bay || safePayload.bay || "-" },
+          { label: "Alimentador", value: entry.feeder || safePayload.feeder || "-" },
+          { label: "Equipamento", value: entry.assetName || safePayload.assetName || safePayload.assetId || "-" },
+          { label: "Tipo de evento", value: eventTypeLabel },
+        ],
+        { labelRatio: 0.46 }
+      );
+
+      writeText("Descrição objetiva da reincidência", {
+        bold: true,
+        size: 9.6,
+        leading: 11.6,
+        color: palette.primary,
+      });
+      cursorY -= 1.8;
+      kvParagraph("Descrição", entry.description || "-");
+
+      writeText("Condição da ocorrência", {
+        bold: true,
+        size: 9.6,
+        leading: 11.6,
+        color: palette.primary,
+      });
+      cursorY -= 1.8;
+      drawCompactKeyValueTable(
+        [
+          {
+            label: "Mesma causa provável",
+            value: formatRecurrenceCauseLabel(entry.sameCause),
+          },
+          {
+            label: "Atuação de proteção",
+            value: formatRecurrenceYesNoLabel(entry.protection, "-"),
+          },
+          {
+            label: "Indisponibilidade/interrupção",
+            value: formatRecurrenceYesNoLabel(entry.interruption, "-"),
+          },
+          { label: "Data/hora da normalização", value: normalizedLabel },
+          { label: "Tempo de duração", value: durationLabel },
+          { label: "OS / protocolo / referência", value: entry.protocolRef || "-" },
+        ],
+        { labelRatio: 0.46 }
+      );
+
+      writeText("Anexos relacionados", {
+        bold: true,
+        size: 9.6,
+        leading: 11.6,
+        color: palette.primary,
+      });
+      cursorY -= 1.8;
+      const attachmentLabels = Array.isArray(entry.attachmentIds)
+        ? entry.attachmentIds
+            .map((id) => {
+              const key = String(id || "").trim();
+              return recurrenceAttachmentLabels.get(key) || key;
+            })
+            .filter(Boolean)
+        : [];
+      if (!attachmentLabels.length) {
+        writeText("Sem anexos vinculados.", { size: 9.2, leading: 11.2, color: palette.muted });
+        cursorY -= 4;
+      } else {
+        ensureSpace(attachmentLabels.length * 11.2 + 8);
+        attachmentLabels.forEach((label) => {
+          writeText(`- ${label}`, { size: 9.2, leading: 11.2, color: palette.text });
+        });
+        cursorY -= 4;
+      }
+
+      writeText("Observação técnica", {
+        bold: true,
+        size: 9.6,
+        leading: 11.6,
+        color: palette.primary,
+      });
+      cursorY -= 1.8;
+      kvParagraph("Observação", entry.notes || "-");
+      cursorY -= 4;
+    });
   }
-  writeText(analysisSentences.join(" "), {
-    size: 10,
-    leading: 12.4,
+
+  writeText("Conclusão sobre reincidência", {
+    bold: true,
+    size: 10.6,
+    leading: 13,
+    color: palette.primary,
   });
+  cursorY -= 2.8;
+  drawCompactKeyValueTable(
+    [
+      {
+        label: "Padrão recorrente identificado",
+        value: formatRecurrenceYesNoLabel(recurrenceAnalysis.patternIdentified, "-"),
+      },
+      {
+        label: "Indica falha persistente",
+        value: formatRecurrenceYesNoLabel(recurrenceAnalysis.persistentFailure, "-"),
+      },
+      {
+        label: "Recomenda acionamento de garantia",
+        value: formatRecurrenceYesNoLabel(recurrenceAnalysis.warrantyRecommended, "-"),
+      },
+      {
+        label: "Recomenda inspeção/fabricante/especialista",
+        value: formatRecurrenceYesNoLabel(recurrenceAnalysis.specialistRecommended, "-"),
+      },
+    ],
+    { labelRatio: 0.56 }
+  );
+  kvParagraph("Conclusão técnica sobre reincidência", recurrenceAnalysis.conclusion || "-");
+  kvParagraph("Recomendação preventiva/corretiva", recurrenceAnalysis.recommendation || "-");
   drawDivider();
 
   const signGap = 12;
