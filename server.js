@@ -6592,49 +6592,58 @@ async function generateContingencyReportPdf(payload, options = {}) {
       leading: 13.2,
       color: palette.warning,
     });
+    cursorY -= 2;
   }
-  drawCompactKeyValueTable(
-    [
-      { label: "Houve reincidência", value: formatRecurrenceYesNoLabel(recurrenceOccurred) },
-      { label: "Quantidade de reincidências", value: String(recurrenceCount) },
-      { label: "Primeira reincidência", value: recurrenceFirstLabel },
-      { label: "Última reincidência", value: recurrenceLastLabel },
-      { label: "Intervalo", value: recurrenceIntervalLabel },
-      { label: "Impacto acumulado", value: recurrenceImpactSummary || "-" },
-    ],
-    { labelRatio: 0.46 }
-  );
 
-  if (recurrenceOccurred === "SIM") {
-    if (!recurrenceCount) {
-      kv("Reincidências", "Marcada como Sim, mas nenhuma reincidência foi registrada.");
-    } else {
-      writeText("Reincidências registradas:", {
-        bold: true,
-        size: 10.6,
-        leading: 13,
-        color: palette.primary,
-      });
-      cursorY -= 2.8;
-      recurrenceEntriesSorted.forEach((entry, index) => {
-        renderRecurrenceEntry(entry, index);
-      });
-    }
-  } else if (recurrenceOccurred === "NAO") {
-    writeText("Sem reincidência registrada após o evento principal.", {
-      size: 9.4,
-      leading: 11.4,
-      color: palette.muted,
-    });
-    cursorY -= 8.2;
-  } else {
-    writeText("Sem informação de reincidência registrada.", {
-      size: 9.4,
-      leading: 11.4,
-      color: palette.muted,
-    });
-    cursorY -= 8.2;
+  const recurrenceBase = recurrenceEntriesSorted[0] || {};
+  const recurrenceSubstation = recurrenceBase.substation || safePayload.substation || "-";
+  const recurrenceBay = recurrenceBase.bay || safePayload.bay || "";
+  const recurrenceFeeder = recurrenceBase.feeder || safePayload.feeder || "";
+  const recurrenceAsset =
+    recurrenceBase.assetName || safePayload.assetName || safePayload.assetId || "-";
+  const recurrenceLocationParts = [];
+  if (recurrenceSubstation && recurrenceSubstation !== "-") {
+    recurrenceLocationParts.push(`subestação ${recurrenceSubstation}`);
   }
+  if (recurrenceBay) {
+    recurrenceLocationParts.push(`bay ${recurrenceBay}`);
+  }
+  if (recurrenceFeeder) {
+    recurrenceLocationParts.push(`alimentador ${recurrenceFeeder}`);
+  }
+  if (recurrenceAsset && recurrenceAsset !== "-") {
+    recurrenceLocationParts.push(`equipamento ${recurrenceAsset}`);
+  }
+  const recurrenceLocationLabel = recurrenceLocationParts.length
+    ? recurrenceLocationParts.join(", ")
+    : "local não informado";
+  const recurrenceEventLabel = getContingencyLabel(
+    CONTINGENCY_EVENT_LABELS,
+    safePayload.eventType,
+    "Outro"
+  );
+  const recurrenceIntro =
+    recurrenceOccurred === "SIM"
+      ? `Após o evento principal, houve reincidência registrada em ${recurrenceLocationLabel}.`
+      : recurrenceOccurred === "NAO"
+        ? `Após o evento principal, não houve reincidência registrada em ${recurrenceLocationLabel}.`
+        : `Não há registro formal de reincidência para o evento em ${recurrenceLocationLabel}.`;
+  const recurrenceContext = `Contexto técnico: ${recurrenceEventLabel}.`;
+  writeText(`${recurrenceIntro} ${recurrenceContext}`, {
+    size: 10,
+    leading: 12.4,
+  });
+  cursorY -= 4;
+
+  const recurrenceSummary =
+    recurrenceOccurred === "SIM"
+      ? `Foram registradas ${recurrenceCount} reincidência(s) entre ${recurrenceFirstLabel} e ${recurrenceLastLabel} (intervalo ${recurrenceIntervalLabel}). Impacto acumulado: ${recurrenceImpactSummary || "-"}`
+      : `Quantidade registrada: ${recurrenceCount}. Datas relevantes e impacto acumulado não aplicáveis.`;
+  writeText(`${recurrenceSummary}.`, {
+    size: 10,
+    leading: 12.4,
+  });
+  cursorY -= 6;
 
   const recurrenceImageCandidates = imageCandidates.filter((attachment) =>
     isRecurrenceAttachment(attachment)
@@ -6654,34 +6663,53 @@ async function generateContingencyReportPdf(payload, options = {}) {
         leading: 11,
         color: palette.warning,
       });
+      cursorY -= 4;
     }
   } else if (recurrenceOccurred === "SIM") {
     kv("Fotos de reincidência", "Nenhuma foto de reincidência foi anexada.");
+    cursorY -= 4;
   }
 
-  drawCompactKeyValueTable(
-    [
-      {
-        label: "Padrão recorrente identificado",
-        value: formatRecurrenceYesNoLabel(recurrenceAnalysis.patternIdentified, "-"),
-      },
-      {
-        label: "Indica falha persistente",
-        value: formatRecurrenceYesNoLabel(recurrenceAnalysis.persistentFailure, "-"),
-      },
-      {
-        label: "Recomenda acionamento de garantia",
-        value: formatRecurrenceYesNoLabel(recurrenceAnalysis.warrantyRecommended, "-"),
-      },
-      {
-        label: "Recomenda inspeção/fabricante/especialista",
-        value: formatRecurrenceYesNoLabel(recurrenceAnalysis.specialistRecommended, "-"),
-      },
-    ],
-    { labelRatio: 0.56 }
-  );
-  kvParagraph("Conclusão técnica sobre reincidência", recurrenceAnalysis.conclusion || "-");
-  kvParagraph("Recomendação preventiva/corretiva", recurrenceAnalysis.recommendation || "-");
+  const analysisSentences = [];
+  if (recurrenceAnalysis.conclusion) {
+    analysisSentences.push(recurrenceAnalysis.conclusion.trim());
+  } else if (recurrenceOccurred === "SIM") {
+    analysisSentences.push(
+      `A análise indica padrão recorrente: ${formatRecurrenceYesNoLabel(
+        recurrenceAnalysis.patternIdentified,
+        "-"
+      )}.`
+    );
+    analysisSentences.push(
+      `Indicação de falha persistente: ${formatRecurrenceYesNoLabel(
+        recurrenceAnalysis.persistentFailure,
+        "-"
+      )}.`
+    );
+  }
+  if (!analysisSentences.length) {
+    analysisSentences.push("A análise técnica não identificou elementos adicionais relevantes.");
+  }
+  if (recurrenceAnalysis.recommendation) {
+    analysisSentences.push(
+      `Recomendação preventiva/corretiva: ${recurrenceAnalysis.recommendation.trim()}.`
+    );
+  } else {
+    const recParts = [];
+    if (formatRecurrenceYesNoLabel(recurrenceAnalysis.warrantyRecommended, "-") === "Sim") {
+      recParts.push("acionamento de garantia");
+    }
+    if (formatRecurrenceYesNoLabel(recurrenceAnalysis.specialistRecommended, "-") === "Sim") {
+      recParts.push("inspeção/fabricante/especialista");
+    }
+    if (recParts.length) {
+      analysisSentences.push(`Recomendação preventiva/corretiva: ${recParts.join(" e ")}.`);
+    }
+  }
+  writeText(analysisSentences.join(" "), {
+    size: 10,
+    leading: 12.4,
+  });
   drawDivider();
 
   const signGap = 12;
