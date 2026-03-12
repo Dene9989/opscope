@@ -6899,6 +6899,8 @@ async function generateContingencyReportPdf(payload, options = {}) {
 
   const signGap = 12;
   const signWidth = (contentWidth - signGap * 2) / 3;
+  const signatureImageHeight = 42;
+  const signatureImagePaddingX = 8;
   const signatureBlockHeight = signatureImageHeight + 24;
   const signatureTopGap = 8;
   const signMinY = footerY + 32;
@@ -6910,8 +6912,6 @@ async function generateContingencyReportPdf(payload, options = {}) {
   const signSlotOneX = margin;
   const signSlotTwoX = margin + signWidth + signGap;
   const signSlotThreeX = margin + signWidth * 2 + signGap * 2;
-  const signatureImageHeight = 42;
-  const signatureImagePaddingX = 8;
   const technicalSignatureImage = await embedSignatureImage(safePayload.technicalSignature);
   const engineeringSignatureImage = await embedSignatureImage(safePayload.engineeringSignature);
   const drawSignatureInSlot = (image, slotX) => {
