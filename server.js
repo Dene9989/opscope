@@ -4271,6 +4271,19 @@ function normalizeContingencyAttachment(record) {
     record && (record.sortOrder ?? record.order ?? record.position ?? record.index),
     Number.NaN
   );
+  const recurrenceId = normalizeContingencyText(
+    record && (record.recurrenceId || record.recurrenciaId)
+      ? record.recurrenceId || record.recurrenciaId
+      : ""
+  );
+  const recurrenceIndexRaw = normalizeNumber(
+    record && (record.recurrenceIndex || record.reincidenciaIndex),
+    Number.NaN
+  );
+  const recurrenceIndex =
+    Number.isFinite(recurrenceIndexRaw) && recurrenceIndexRaw > 0
+      ? Math.floor(recurrenceIndexRaw)
+      : null;
   return {
     id: record && record.id ? String(record.id) : crypto.randomUUID(),
     contingencyId: String(
@@ -4299,6 +4312,8 @@ function normalizeContingencyAttachment(record) {
     notes: normalizeContingencyText(
       record && (record.notes || record.observacao) ? record.notes || record.observacao : ""
     ),
+    recurrenceId,
+    recurrenceIndex,
     sortOrder: Number.isFinite(sortOrderRaw) ? Math.max(1, Math.floor(sortOrderRaw)) : null,
   };
 }
@@ -6105,15 +6120,6 @@ async function generateContingencyReportPdf(payload, options = {}) {
     const bDate = parseDateTime(b && b.occurredAt ? b.occurredAt : "");
     return (aDate ? aDate.getTime() : 0) - (bDate ? bDate.getTime() : 0);
   });
-  const recurrenceAttachmentIds = new Set(
-    recurrenceEntriesSorted
-      .flatMap((entry) =>
-        Array.isArray(entry && entry.attachmentIds)
-          ? entry.attachmentIds.map((id) => String(id || "").trim())
-          : []
-      )
-      .filter(Boolean)
-  );
   const recurrenceOccurred = normalizeContingencyRecurrenceYesNo(recurrence.occurred);
   const recurrenceCount = recurrenceEntriesSorted.length;
   const recurrenceFirstAt = recurrenceCount
@@ -6137,27 +6143,124 @@ async function generateContingencyReportPdf(payload, options = {}) {
     ? recurrence.analysis
     : {};
   const recurrenceChecklistOk = recurrenceOccurred === "SIM" ? recurrenceCount > 0 : true;
-  const recurrenceAttachmentLabels = new Map(
-    attachments
-      .map((attachment) => {
-        const key = String(attachment && (attachment.id || attachment.fileId || attachment.fileName) ? attachment.id || attachment.fileId || attachment.fileName : "").trim();
-        if (!key) {
-          return null;
-        }
-        const label = String(attachment.fileName || attachment.fileId || key).trim();
-        return [key, label || key];
-      })
+  const attachmentLookupKeys = (attachment) => {
+    if (!attachment) {
+      return [];
+    }
+    const keys = [
+      attachment.id,
+      attachment.fileId,
+      attachment.fileName,
+    ]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean);
+    return Array.from(new Set(keys));
+  };
+  const attachmentsByKey = new Map();
+  attachments.forEach((attachment) => {
+    attachmentLookupKeys(attachment).forEach((key) => {
+      if (!attachmentsByKey.has(key)) {
+        attachmentsByKey.set(key, attachment);
+      }
+    });
+  });
+  const recurrenceEntryIds = new Set(
+    recurrenceEntriesSorted
+      .map((entry) => String(entry && entry.id ? entry.id : "").trim())
       .filter(Boolean)
   );
-  const recurrenceAttachmentAllowed = new Set(
-    Array.from(recurrenceAttachmentIds).filter((id) => recurrenceAttachmentLabels.has(id))
-  );
+  const recurrenceAttachmentsById = new Map();
+  const recurrenceAttachmentsByIndex = new Map();
+  const addRecurrenceAttachment = (map, key, attachment) => {
+    if (!key || !attachment) {
+      return;
+    }
+    const list = map.get(key) || [];
+    list.push(attachment);
+    map.set(key, list);
+  };
+  const parseRecurrenceIndexFromNotes = (notes) => {
+    const match = String(notes || "").match(/reincid[eê]ncia\s*(\d+)/i);
+    return match ? match[1] : "";
+  };
+  attachments.forEach((attachment) => {
+    const recId = String(attachment && attachment.recurrenceId ? attachment.recurrenceId : "").trim();
+    if (recId && recurrenceEntryIds.has(recId)) {
+      addRecurrenceAttachment(recurrenceAttachmentsById, recId, attachment);
+    }
+    const recIndexRaw =
+      attachment && attachment.recurrenceIndex !== undefined ? attachment.recurrenceIndex : "";
+    const recIndexValue = Number(recIndexRaw);
+    if (Number.isFinite(recIndexValue) && recIndexValue > 0) {
+      addRecurrenceAttachment(
+        recurrenceAttachmentsByIndex,
+        String(Math.floor(recIndexValue)),
+        attachment
+      );
+      return;
+    }
+    const noteIndex = parseRecurrenceIndexFromNotes(attachment && attachment.notes ? attachment.notes : "");
+    if (noteIndex) {
+      addRecurrenceAttachment(recurrenceAttachmentsByIndex, String(noteIndex), attachment);
+    }
+  });
+  const resolveRecurrenceAttachments = (entry, index) => {
+    const collected = [];
+    const seen = new Set();
+    const add = (attachment) => {
+      const key = attachmentKey(attachment);
+      if (!key || seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      collected.push(attachment);
+    };
+    if (entry && Array.isArray(entry.attachmentIds)) {
+      entry.attachmentIds.forEach((id) => {
+        const key = String(id || "").trim();
+        if (!key) {
+          return;
+        }
+        const attachment = attachmentsByKey.get(key);
+        if (attachment) {
+          add(attachment);
+        }
+      });
+    }
+    const entryId = String(entry && entry.id ? entry.id : "").trim();
+    if (entryId && recurrenceAttachmentsById.has(entryId)) {
+      recurrenceAttachmentsById.get(entryId).forEach(add);
+    }
+    const indexKey = String(index + 1);
+    if (recurrenceAttachmentsByIndex.has(indexKey)) {
+      recurrenceAttachmentsByIndex.get(indexKey).forEach(add);
+    }
+    return collected;
+  };
+  const getRecurrenceAttachmentLabel = (attachment) => {
+    if (!attachment) {
+      return "";
+    }
+    return String(
+      attachment.fileName || attachment.fileId || attachment.id || attachmentKey(attachment) || "Anexo"
+    ).trim();
+  };
+  const recurrenceAttachmentKeys = new Set();
+  recurrenceEntriesSorted.forEach((entry, index) => {
+    const related = resolveRecurrenceAttachments(entry, index);
+    related.forEach((attachment) => {
+      const key = attachmentKey(attachment);
+      if (key) {
+        recurrenceAttachmentKeys.add(String(key));
+      }
+    });
+  });
   const isRecurrenceAttachment = (attachment) => {
     const key = attachmentKey(attachment);
     if (!key) {
       return false;
     }
-    return recurrenceAttachmentAllowed.has(String(key));
+    return recurrenceAttachmentKeys.has(String(key));
   };
   const checklist = [
     safePayload.code,
@@ -6261,11 +6364,10 @@ async function generateContingencyReportPdf(payload, options = {}) {
         { size: 9.1, leading: 11.2 }
       );
       writeText(`OS/Protocolo: ${safeEntry.protocolRef || "-"}`, { size: 9.1, leading: 11.2 });
-      if (Array.isArray(safeEntry.attachmentIds) && safeEntry.attachmentIds.length) {
-        const attachmentLabels = safeEntry.attachmentIds
-          .map((id) => String(id || "").trim())
-          .filter((key) => recurrenceAttachmentLabels.has(key))
-          .map((key) => recurrenceAttachmentLabels.get(key))
+      const relatedAttachments = resolveRecurrenceAttachments(safeEntry, index);
+      if (relatedAttachments.length) {
+        const attachmentLabels = relatedAttachments
+          .map((attachment) => getRecurrenceAttachmentLabel(attachment))
           .filter(Boolean)
           .join("; ");
         if (attachmentLabels) {
@@ -6538,8 +6640,11 @@ async function generateContingencyReportPdf(payload, options = {}) {
     const category = String(attachment && attachment.category ? attachment.category : "").toUpperCase();
     return mime.startsWith("image/") || /\.(png|jpe?g)$/i.test(fileName) || category === "PHOTO";
   });
+  const baseImageCandidates = imageCandidates.filter(
+    (attachment) => !isRecurrenceAttachment(attachment)
+  );
   const { renderedPhotos: baseRendered, failedPhotos: baseFailed } =
-    await renderAttachmentPhotoGrid(imageCandidates);
+    await renderAttachmentPhotoGrid(baseImageCandidates);
   if (baseFailed.length) {
     writeText(`${baseFailed.length} foto(s) não puderam ser incorporadas nesta versão do PDF.`, {
       size: 9.2,
@@ -6553,7 +6658,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     if (imageCandidates.some((img) => attachmentKey(img) === attachmentKey(attachment))) {
       return false;
     }
-    return true;
+    return !isRecurrenceAttachment(attachment);
   });
   if (nonImageAttachments.length) {
     writeText("Anexos complementares:", {
@@ -6689,13 +6794,10 @@ async function generateContingencyReportPdf(payload, options = {}) {
       );
       addRecurrenceGap(recurrenceSpacing.afterTable);
 
-      const attachmentLabels = Array.isArray(entry.attachmentIds)
-        ? entry.attachmentIds
-            .map((id) => String(id || "").trim())
-            .filter((key) => recurrenceAttachmentLabels.has(key))
-            .map((key) => recurrenceAttachmentLabels.get(key))
-            .filter(Boolean)
-        : [];
+      const relatedAttachments = resolveRecurrenceAttachments(entry, index);
+      const attachmentLabels = relatedAttachments
+        .map((attachment) => getRecurrenceAttachmentLabel(attachment))
+        .filter(Boolean);
       writeText("Anexos relacionados", {
         bold: true,
         size: 9.6,
@@ -20537,6 +20639,8 @@ app.post(
       category: parsed.fields.category,
       includeInClientReport: parseBooleanLike(parsed.fields.includeInClientReport),
       notes: parsed.fields.notes,
+      recurrenceId: parsed.fields.recurrenceId,
+      recurrenceIndex: parsed.fields.recurrenceIndex,
       uploadedBy: user.id || "",
       uploadedAt: now,
       sortOrder: nextSortOrder,

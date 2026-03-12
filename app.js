@@ -49288,6 +49288,8 @@ async function handleContingencyRecurrenceUpload(entryId, file) {
   formData.append("category", "PHOTO");
   formData.append("notes", `Reincidência ${index + 1}`);
   formData.append("includeInClientReport", "true");
+  formData.append("recurrenceId", String(entryId || ""));
+  formData.append("recurrenceIndex", String(index + 1));
   try {
     const data = await apiContingencyAttachmentUpload(currentId, formData);
     const attachment = data && data.attachment ? data.attachment : null;
