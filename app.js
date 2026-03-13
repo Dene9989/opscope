@@ -28108,6 +28108,20 @@ function formatListLimited(lista, limite = 3) {
   return restante > 0 ? `${exibidos.join(", ")} +${restante}` : exibidos.join(", ");
 }
 
+function formatListFull(lista) {
+  const seen = new Set();
+  const output = [];
+  (lista || []).forEach((item) => {
+    const value = String(item || "").trim();
+    if (!value || seen.has(value)) {
+      return;
+    }
+    seen.add(value);
+    output.push(value);
+  });
+  return output.join(", ");
+}
+
 function parseParticipantesLabel(label) {
   if (!label || label === "-") {
     return [];
@@ -29168,15 +29182,13 @@ function buildRdoHtml(snapshot, options = {}) {
     `
     : "";
 
-  const responsaveisHeader = formatListLimited(
-    (snapshot.itens || []).map((item) => item.responsavel).filter(Boolean),
-    2
+  const responsaveisHeader = formatListFull(
+    (snapshot.itens || []).map((item) => item.responsavel).filter(Boolean)
   ) || "-";
-  const equipeHeader = formatListLimited(
+  const equipeHeader = formatListFull(
     (snapshot.itens || [])
       .flatMap((item) => parseParticipantesLabel(item.participantes))
-      .filter(Boolean),
-    3
+      .filter(Boolean)
   ) || "-";
   const osList = Array.from(
     new Set((snapshot.itens || []).map((item) => item.osReferencia).filter(Boolean))
