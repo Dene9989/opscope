@@ -15600,7 +15600,10 @@ app.post("/api/auth/login", async (req, res) => {
   }
   if (user.active === false || String(user.status || "").toUpperCase() === "INATIVO") {
     appendAudit("login_inactive", user.id, { login }, ip);
-    return res.status(403).json({ message: "Conta inativa." });
+    return res.status(403).json({
+      message:
+        "Sua conta foi inativada por um administrador. Por favor, entre em contato com seu administrador para lhe ajudar.",
+    });
   }
   const ok = await verifyPasswordAgainstHash(senha, user.passwordHash);
   if (!ok) {

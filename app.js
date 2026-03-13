@@ -39578,10 +39578,10 @@ function renderAccessUsers() {
       actions.push(
         `<button class="btn btn--ghost btn--small" type="button" data-action="reset-password" data-user-id="${user.id}">Resetar senha</button>`
       );
+      const statusActionLabel = userStatus === "INATIVO" ? "Ativar" : "Inativar";
+      const statusActionClass = userStatus === "INATIVO" ? "btn--primary" : "btn--ghost";
       actions.push(
-        `<button class="btn btn--ghost btn--small" type="button" data-action="toggle-status" data-user-id="${user.id}">${
-          userStatus === "INATIVO" ? "Ativar" : "Inativar"
-        }</button>`
+        `<button class="btn ${statusActionClass} btn--small" type="button" data-action="toggle-status" data-user-id="${user.id}">${statusActionLabel}</button>`
       );
       if (canDelete) {
         actions.push(
@@ -60948,7 +60948,9 @@ async function authLoginLocal(login, senha) {
     throw new Error("Usuario ou senha invalidos.");
   }
   if (normalizeAccessUserStatus(account.status, account.active) === "INATIVO") {
-    throw new Error("Conta inativa.");
+    throw new Error(
+      "Sua conta foi inativada por um administrador. Por favor, entre em contato com seu administrador para lhe ajudar."
+    );
   }
   const ok = await verifyPasswordHash(password, account.passwordHash);
   if (!ok) {
