@@ -7627,9 +7627,28 @@
           <h4>Cancelar execução</h4>
         </div>
         <div class="form-grid">
-          <div class="field" data-full>
+          <div class="field">
             <label for="cancelarExecucaoMotivo">Motivo do cancelamento</label>
-            <textarea id="cancelarExecucaoMotivo" rows="3"></textarea>
+            <select id="cancelarExecucaoMotivo" required>
+              <option value="">Selecione</option>
+              <option value="Atividade adiada por decisao operacional">Atividade adiada por decisao operacional</option>
+              <option value="Falta de liberacao / documentacao inconsistente">Falta de liberação / documentação inconsistente</option>
+              <option value="Condicao climatica">Condicao climatica</option>
+              <option value="Indisponibilidade de equipe/recurso">Indisponibilidade de equipe/recurso</option>
+              <option value="Impedimento de acesso ao local">Impedimento de acesso ao local</option>
+              <option value="Outros">Outros</option>
+            </select>
+          </div>
+          <div class="field" data-full>
+            <label for="cancelarExecucaoComentario">Comentário do motivo</label>
+            <textarea id="cancelarExecucaoComentario" rows="3" placeholder="Descreva o motivo do cancelamento"></textarea>
+            <p class="hint">Obrigatorio quando o motivo for Outros.</p>
+          </div>
+          <div class="field" data-full>
+            <label for="cancelarExecucaoEvidencia">Foto de evidência (opcional)</label>
+            <input id="cancelarExecucaoEvidencia" type="file" accept="image/*" multiple />
+            <div id="cancelarExecucaoEvidenciasLista" class="file-list"></div>
+            <p class="hint">Opcional. Use quando houver evidência do impedimento.</p>
           </div>
         </div>
         <div class="modal__actions">

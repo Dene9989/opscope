@@ -1218,6 +1218,9 @@ const btnCancelarRegistroExecucao = document.getElementById("btnCancelarRegistro
 const btnCancelarExecucao = document.getElementById("btnCancelarExecucao");
 const formCancelarExecucao = document.getElementById("formCancelarExecucao");
 const cancelarExecucaoMotivo = document.getElementById("cancelarExecucaoMotivo");
+const cancelarExecucaoComentario = document.getElementById("cancelarExecucaoComentario");
+const cancelarExecucaoEvidencia = document.getElementById("cancelarExecucaoEvidencia");
+const cancelarExecucaoEvidenciasLista = document.getElementById("cancelarExecucaoEvidenciasLista");
 const btnVoltarCancelarExecucao = document.getElementById("btnVoltarCancelarExecucao");
 const mensagemCancelarExecucao = document.getElementById("mensagemCancelarExecucao");
 const mensagemRegistroExecucao = document.getElementById("mensagemRegistroExecucao");
@@ -1815,6 +1818,7 @@ const STATUS_LABELS = {
   em_execucao: "Em execução",
   encerramento: "Encerramento",
   concluida: "Concluída",
+  cancelada: "Cancelada",
 };
 
 const INTERCORRENCIA_STATUS_LABELS = {
@@ -4876,6 +4880,7 @@ const ACTION_LABELS = {
   release: "Liberação registrada",
   execute: "Execução iniciada",
   cancel_start: "Início cancelado",
+  cancel_execucao: "Execução cancelada",
   execute_register: "Registro de execução",
   complete: "Concluir",
   issue_register: "Intercorrência registrada",
@@ -4903,6 +4908,7 @@ const PROGRAMACAO_ALLOWED_ACTIONS = [
   "execute",
   "monthly_override",
   "cancel_start",
+  "cancel_execucao",
   "reschedule",
   "register",
   "daily_revalidate",
@@ -5946,6 +5952,27 @@ function compactEvidencias(list) {
           };
           changedItem = true;
         }
+        if (
+          item.registroExecucao &&
+          Array.isArray(item.registroExecucao.evidenciasCancelamento)
+        ) {
+          const baseRegistro =
+            updated.registroExecucao && typeof updated.registroExecucao === "object"
+              ? updated.registroExecucao
+              : item.registroExecucao;
+          updated.registroExecucao = {
+            ...baseRegistro,
+            evidenciasCancelamento: sanitizeList(item.registroExecucao.evidenciasCancelamento),
+          };
+          changedItem = true;
+        }
+        if (item.cancelamentoExecucao && Array.isArray(item.cancelamentoExecucao.evidencias)) {
+          updated.cancelamentoExecucao = {
+            ...item.cancelamentoExecucao,
+            evidencias: sanitizeList(item.cancelamentoExecucao.evidencias),
+          };
+          changedItem = true;
+        }
         if (item.conclusao && Array.isArray(item.conclusao.evidencias)) {
           updated.conclusao = {
             ...item.conclusao,
@@ -6036,7 +6063,17 @@ function stripMaintenanceDataUrls(item) {
     if (Array.isArray(registro.evidencias)) {
       registro.evidencias = stripEvidenceDataUrls(registro.evidencias);
     }
+    if (Array.isArray(registro.evidenciasCancelamento)) {
+      registro.evidenciasCancelamento = stripEvidenceDataUrls(registro.evidenciasCancelamento);
+    }
     updated.registroExecucao = registro;
+  }
+  if (updated.cancelamentoExecucao && typeof updated.cancelamentoExecucao === "object") {
+    const cancelamento = { ...updated.cancelamentoExecucao };
+    if (Array.isArray(cancelamento.evidencias)) {
+      cancelamento.evidencias = stripEvidenceDataUrls(cancelamento.evidencias);
+    }
+    updated.cancelamentoExecucao = cancelamento;
   }
   if (Array.isArray(updated.registrosDiariosExecucao)) {
     updated.registrosDiariosExecucao = updated.registrosDiariosExecucao
@@ -16075,7 +16112,12 @@ function getHistoricoSectionLabel(entry) {
   if (action === "release") {
     return "Liberação";
   }
-  if (action === "execute" || action === "execute_register" || action === "cancel_start") {
+  if (
+    action === "execute" ||
+    action === "execute_register" ||
+    action === "cancel_start" ||
+    action === "cancel_execucao"
+  ) {
     return "Execução";
   }
   if (action === "complete") {
@@ -16357,6 +16399,7 @@ const MAINTENANCE_EXECUTION_RESET_FIELDS = [
   "encerramentoPor",
   "canceladoEm",
   "canceladoPor",
+  "cancelamentoExecucao",
 ];
 
 function isExecutionStatus(status) {
@@ -21415,6 +21458,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
       "monthly_override",
       "finish",
       "cancel_start",
+      "cancel_execucao",
       "revalidate",
     ]);
     if (prazoExpirado && !acoesPermitidasComPrazoExpirado.has(key)) {
@@ -21426,7 +21470,8 @@ function criarCardManutencao(item, permissoes, options = {}) {
       key === "monthly_override" ||
       key === "finish" ||
       key === "release" ||
-      key === "cancel_start"
+      key === "cancel_start" ||
+      key === "cancel_execucao"
         ? permissoes.execute
         : permissoes[key];
     if (key === "finish") {
@@ -21438,7 +21483,8 @@ function criarCardManutencao(item, permissoes, options = {}) {
       key === "daily_revalidate" ||
       key === "monthly_override" ||
       key === "release" ||
-      key === "cancel_start";
+      key === "cancel_start" ||
+      key === "cancel_execucao";
     if (executaAcao && !podeExecutarItem) {
       return false;
     }
@@ -21531,6 +21577,9 @@ function criarCardManutencao(item, permissoes, options = {}) {
           : "Feche o dia anterior para liberar a revalidação.";
       }
       actions.append(botaoRevalidarManutencao);
+    }
+    if (permite("cancel_execucao")) {
+      actions.append(criarBotaoAcao("Cancelar execução", "cancel_execucao", true));
     }
     if (permite("execute") && !execucaoRegistrada) {
       actions.append(criarBotaoAcao("Cancelar início", "cancel_start"));
@@ -22708,6 +22757,7 @@ function renderExecucao() {
     "history",
     "backlog_reason",
     "daily_revalidate",
+    "cancel_execucao",
     "revalidate",
   ]);
   renderListaCustom(vencidasFiltradas, listaExecucaoVencidas, listaExecucaoVencidasVazia, [
@@ -22720,6 +22770,7 @@ function renderExecucao() {
     "history",
     "backlog_reason",
     "daily_revalidate",
+    "cancel_execucao",
     "revalidate",
   ]);
   renderListaCustom(criticasFiltradas, listaExecucaoCriticas, listaExecucaoCriticasVazia, [
@@ -22732,6 +22783,7 @@ function renderExecucao() {
     "history",
     "backlog_reason",
     "daily_revalidate",
+    "cancel_execucao",
     "revalidate",
   ]);
 }
@@ -30265,6 +30317,21 @@ function getItemConclusaoDate(item) {
   return parseAnyDate(direto || conclusao);
 }
 
+function getItemCancelamentoDate(item) {
+  if (!item) {
+    return null;
+  }
+  const direto = pickItemValue(item, ["canceladoEm", "cancelledAt", "canceledAt"]);
+  const registro = item && item.registroExecucao ? item.registroExecucao.canceladoEm : null;
+  const cancelamento =
+    item && item.registroExecucao && item.registroExecucao.cancelamentoExecucao
+      ? item.registroExecucao.cancelamentoExecucao.canceladoEm
+      : null;
+  const cancelamentoRoot =
+    item && item.cancelamentoExecucao ? item.cancelamentoExecucao.canceladoEm : null;
+  return parseAnyDate(direto || registro || cancelamento || cancelamentoRoot);
+}
+
 function getExecutadoPorId(item) {
   const direto = pickItemValue(item, ["executadaPor", "executionStartedBy", "doneBy"]);
   const registro = item && item.registroExecucao ? item.registroExecucao.executadoPor : null;
@@ -30400,6 +30467,7 @@ function getDocCompliance(item, registroDia = null) {
 function getItemReferenciaDate(item) {
   return (
     getItemConclusaoDate(item) ||
+    getItemCancelamentoDate(item) ||
     getItemCriacaoDate(item) ||
     parseAnyDate(item ? item.data : null)
   );
@@ -30605,6 +30673,9 @@ function calcularKpisBase(items, periodoDias) {
   const concluidas = items.filter(
     (item) => normalizeMaintenanceStatus(item && item.status) === "concluida"
   );
+  const canceladas = items.filter(
+    (item) => normalizeMaintenanceStatus(item && item.status) === "cancelada"
+  );
   const abertas = items.filter((item) => isItemAbertoParaKpi(item));
   const backlog = items.filter(
     (item) => normalizeMaintenanceStatus(item && item.status) === "backlog"
@@ -30688,6 +30759,7 @@ function calcularKpisBase(items, periodoDias) {
   return {
     abertasTotal: abertas.length,
     concluidasTotal: concluidas.length,
+    canceladasTotal: canceladas.length,
     backlogTotal: backlog.length,
     overdueTotal: overdue.length,
     slaCompliance,
@@ -30774,6 +30846,7 @@ function getKpiMetricValue(kpis, key) {
     backlog_30plus: kpis.backlog30plus,
     start_adherence: kpis.startAdherence,
     throughput_semanal: kpis.throughputSemanal,
+    canceladas_total: kpis.canceladasTotal,
   };
   return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : null;
 }
@@ -31031,6 +31104,23 @@ function renderKpiCards(itens, itensAnterior, filtros, atualBase, anteriorBase) 
       tooltip: buildKpiTooltip(
         "Backlog total",
         "Manutenções com status backlog.",
+        periodoLabel
+      ),
+    },
+    {
+      key: "canceladas_total",
+      label: "Execuções canceladas",
+      valor: atual.canceladasTotal,
+      delta: formatKpiDelta(
+        atual.canceladasTotal,
+        anterior.canceladasTotal,
+        "count",
+        filtros.periodo
+      ),
+      formato: "count",
+      tooltip: buildKpiTooltip(
+        "Execuções canceladas",
+        "Manutenções com execução cancelada no período.",
         periodoLabel
       ),
     },
@@ -31895,10 +31985,21 @@ function renderKpiGraficos(itens, filtros) {
     }).length;
   });
 
+  const canceladasSeries = buckets.map((bucket) => {
+    return itens.filter((item) => {
+      if (normalizeMaintenanceStatus(item && item.status) !== "cancelada") {
+        return false;
+      }
+      const cancelado = getItemCancelamentoDate(item);
+      return cancelado ? inRange(startOfDay(cancelado), bucket.inicio, bucket.fim) : false;
+    }).length;
+  });
+
   const totalConcluidasSerie = concluidasSeries.reduce((acc, value) => acc + value, 0);
   const totalBacklogSerie = backlogSeries.reduce((acc, value) => acc + value, 0);
+  const totalCanceladasSerie = canceladasSeries.reduce((acc, value) => acc + value, 0);
   if (kpiTrendMeta) {
-    kpiTrendMeta.textContent = `Concluidas ${totalConcluidasSerie} | Backlog ${totalBacklogSerie}`;
+    kpiTrendMeta.textContent = `Concluidas ${totalConcluidasSerie} | Backlog ${totalBacklogSerie} | Canceladas ${totalCanceladasSerie}`;
   }
 
   buildLineChart(
@@ -31926,8 +32027,22 @@ function renderKpiGraficos(itens, filtros) {
         weekKeys: keys,
         tooltip: buildKpiTooltip("Backlog", "Manutencoes em backlog por janela.", periodLabel),
       },
+      {
+        label: "Canceladas",
+        values: canceladasSeries,
+        lineClass: "chart__line--cancelled",
+        dotClass: "chart__dot--cancelled",
+        legendClass: "chart__legend-item--cancelled",
+        drilldown: "trend_canceladas",
+        weekKeys: keys,
+        tooltip: buildKpiTooltip(
+          "Canceladas",
+          "Execucoes canceladas por janela.",
+          periodLabel
+        ),
+      },
     ],
-    Math.max(1, ...concluidasSeries, ...backlogSeries),
+    Math.max(1, ...concluidasSeries, ...backlogSeries, ...canceladasSeries),
     null,
     { yTicks: 4 }
   );
@@ -32422,6 +32537,11 @@ function handleKpiDrilldownClick(event) {
       (item) => normalizeMaintenanceStatus(item && item.status) === "backlog"
     );
     titulo = "Backlog total";
+  } else if (tipo === "canceladas_total") {
+    filtrados = itens.filter(
+      (item) => normalizeMaintenanceStatus(item && item.status) === "cancelada"
+    );
+    titulo = "Execuções canceladas";
   } else if (tipo === "overdue_total") {
     filtrados = itens.filter((item) => isItemOverdue(item, hoje));
     titulo = "Overdue / Vencidas";
@@ -32492,7 +32612,12 @@ function handleKpiDrilldownClick(event) {
       (item) => normalizeMaintenanceStatus(item && item.status) === "concluida"
     );
     titulo = "Concluídas no período";
-  } else if (tipo === "trend_concluidas" || tipo === "trend_backlog" || tipo === "sla_semana") {
+  } else if (
+    tipo === "trend_concluidas" ||
+    tipo === "trend_backlog" ||
+    tipo === "trend_canceladas" ||
+    tipo === "sla_semana"
+  ) {
     const weekStart = parseDate(alvo.dataset.week);
     if (weekStart) {
       const escala = kpiSnapshot && kpiSnapshot.filtros ? kpiSnapshot.filtros.escala : "semanal";
@@ -32516,6 +32641,15 @@ function handleKpiDrilldownClick(event) {
           return data ? inRange(startOfDay(data), weekStart, weekEnd) : false;
         });
         titulo = `Backlog - ${periodoNome} ${formatDate(weekStart)}`;
+      } else if (tipo === "trend_canceladas") {
+        filtrados = itens.filter((item) => {
+          if (normalizeMaintenanceStatus(item && item.status) !== "cancelada") {
+            return false;
+          }
+          const cancelado = getItemCancelamentoDate(item);
+          return cancelado ? inRange(startOfDay(cancelado), weekStart, weekEnd) : false;
+        });
+        titulo = `Canceladas - ${periodoNome} ${formatDate(weekStart)}`;
       } else {
         filtrados = itens.filter((item) => {
           if (normalizeMaintenanceStatus(item && item.status) !== "concluida") {
@@ -32640,13 +32774,26 @@ function renderGrafico() {
       return inRange(data, semana.inicio, semana.fim);
     }).length;
 
-    return { concluidas, backlog, inicio: semana.inicio };
+    const canceladas = manutencoes.filter((item) => {
+      if (normalizeMaintenanceStatus(item && item.status) !== "cancelada") {
+        return false;
+      }
+      const cancelado = getItemCancelamentoDate(item);
+      if (!cancelado) {
+        return false;
+      }
+      const canceladoDia = startOfDay(cancelado);
+      return inRange(canceladoDia, semana.inicio, semana.fim);
+    }).length;
+
+    return { concluidas, backlog, canceladas, inicio: semana.inicio };
   });
 
   const labels = dados.map((item) => weekLabelFormatter.format(item.inicio));
   const concluidasSeries = dados.map((item) => item.concluidas);
   const backlogSeries = dados.map((item) => item.backlog);
-  const maxValor = Math.max(1, ...concluidasSeries, ...backlogSeries);
+  const canceladasSeries = dados.map((item) => item.canceladas);
+  const maxValor = Math.max(1, ...concluidasSeries, ...backlogSeries, ...canceladasSeries);
 
   const width = 600;
   const height = 160;
@@ -32695,6 +32842,11 @@ function renderGrafico() {
   donePath.setAttribute("class", "chart__line chart__line--done");
   svg.append(donePath);
 
+  const cancelledPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  cancelledPath.setAttribute("d", buildPulsePath(canceladasSeries));
+  cancelledPath.setAttribute("class", "chart__line chart__line--cancelled");
+  svg.append(cancelledPath);
+
   const addDots = (values, className) => {
     values.forEach((value, index) => {
       const x = padX + step * index;
@@ -32710,6 +32862,7 @@ function renderGrafico() {
 
   addDots(backlogSeries, "chart__dot chart__dot--backlog");
   addDots(concluidasSeries, "chart__dot chart__dot--done");
+  addDots(canceladasSeries, "chart__dot chart__dot--cancelled");
 
   const legend = document.createElement("div");
   legend.className = "chart__legend";
@@ -32719,7 +32872,10 @@ function renderGrafico() {
   const legendBacklog = document.createElement("span");
   legendBacklog.className = "chart__legend-item chart__legend-item--backlog";
   legendBacklog.textContent = "Backlog";
-  legend.append(legendDone, legendBacklog);
+  const legendCancelled = document.createElement("span");
+  legendCancelled.className = "chart__legend-item chart__legend-item--cancelled";
+  legendCancelled.textContent = "Canceladas";
+  legend.append(legendDone, legendBacklog, legendCancelled);
 
   const labelsRow = document.createElement("div");
   labelsRow.className = "chart__labels";
@@ -35276,6 +35432,12 @@ function getMaintenanceEvidencias(item) {
   }
   if (item.registroExecucao && Array.isArray(item.registroExecucao.evidencias)) {
     evidencias.push(...item.registroExecucao.evidencias);
+  }
+  if (item.registroExecucao && Array.isArray(item.registroExecucao.evidenciasCancelamento)) {
+    evidencias.push(...item.registroExecucao.evidenciasCancelamento);
+  }
+  if (item.cancelamentoExecucao && Array.isArray(item.cancelamentoExecucao.evidencias)) {
+    evidencias.push(...item.cancelamentoExecucao.evidencias);
   }
   if (item.conclusao && Array.isArray(item.conclusao.evidencias)) {
     evidencias.push(...item.conclusao.evidencias);
@@ -53701,15 +53863,28 @@ function gerarRelatorio() {
   ).length;
   const execucoesIniciadas = auditLog.filter((entry) => entry.action === "execute").length;
   const cancelamentosInicio = auditLog.filter((entry) => entry.action === "cancel_start");
-  const execucoesCanceladas = cancelamentosInicio.length;
-  const cancelMotivos = cancelamentosInicio.reduce((acc, entry) => {
+  const cancelamentosExecucao = auditLog.filter((entry) => entry.action === "cancel_execucao");
+  const execucoesCanceladas = cancelamentosExecucao.length;
+  const cancelMotivosInicio = cancelamentosInicio.reduce((acc, entry) => {
     const motivo =
       entry && entry.detalhes && entry.detalhes.motivo ? entry.detalhes.motivo : "N\u00e3o informado";
     acc[motivo] = (acc[motivo] || 0) + 1;
     return acc;
   }, {});
-  const cancelMotivosTexto = Object.keys(cancelMotivos).length
-    ? Object.entries(cancelMotivos)
+  const cancelMotivosInicioTexto = Object.keys(cancelMotivosInicio).length
+    ? Object.entries(cancelMotivosInicio)
+        .sort((a, b) => b[1] - a[1])
+        .map(([motivo, totalMotivo]) => `${motivo}: ${totalMotivo}`)
+        .join(" | ")
+    : "-";
+  const cancelMotivosExecucao = cancelamentosExecucao.reduce((acc, entry) => {
+    const motivo =
+      entry && entry.detalhes && entry.detalhes.motivo ? entry.detalhes.motivo : "N\u00e3o informado";
+    acc[motivo] = (acc[motivo] || 0) + 1;
+    return acc;
+  }, {});
+  const cancelMotivosExecucaoTexto = Object.keys(cancelMotivosExecucao).length
+    ? Object.entries(cancelMotivosExecucao)
         .sort((a, b) => b[1] - a[1])
         .map(([motivo, totalMotivo]) => `${motivo}: ${totalMotivo}`)
         .join(" | ")
@@ -53753,8 +53928,10 @@ function gerarRelatorio() {
         `Execuções com ressalva: ${execComRessalva}\n` +
         `Execuções não executadas: ${execNaoExecutada}\n` +
         `Execuções iniciadas: ${execucoesIniciadas}\n` +
-        `Inícios cancelados: ${execucoesCanceladas}\n` +
-        `Motivos de cancelamento: ${cancelMotivosTexto}\n` +
+        `Inícios cancelados: ${cancelamentosInicio.length}\n` +
+        `Motivos cancelamento início: ${cancelMotivosInicioTexto}\n` +
+        `Execuções canceladas: ${execucoesCanceladas}\n` +
+        `Motivos cancelamento execução: ${cancelMotivosExecucaoTexto}\n` +
         `Compliance documental: ${complianceDocs}/${concluidas.length} (${compliancePercent}%)\n` +
         `Evidências médias por manutenção: ${evidenciasMedia}`;
   }
@@ -56624,6 +56801,16 @@ function abrirRegistroExecucao(item) {
     cancelarExecucaoMotivo.value = "";
     cancelarExecucaoMotivo.required = false;
   }
+  if (cancelarExecucaoComentario) {
+    cancelarExecucaoComentario.value = "";
+    cancelarExecucaoComentario.required = false;
+  }
+  if (cancelarExecucaoEvidencia) {
+    cancelarExecucaoEvidencia.value = "";
+  }
+  if (cancelarExecucaoEvidenciasLista) {
+    cancelarExecucaoEvidenciasLista.innerHTML = "";
+  }
   if (btnCancelarExecucao) {
     btnCancelarExecucao.hidden = itemAtual.status !== "em_execucao";
   }
@@ -56758,6 +56945,16 @@ function fecharRegistroExecucao() {
     cancelarExecucaoMotivo.value = "";
     cancelarExecucaoMotivo.required = false;
   }
+  if (cancelarExecucaoComentario) {
+    cancelarExecucaoComentario.value = "";
+    cancelarExecucaoComentario.required = false;
+  }
+  if (cancelarExecucaoEvidencia) {
+    cancelarExecucaoEvidencia.value = "";
+  }
+  if (cancelarExecucaoEvidenciasLista) {
+    cancelarExecucaoEvidenciasLista.innerHTML = "";
+  }
   if (registroDataExecucao) {
     registroDataExecucao.value = "";
     delete registroDataExecucao.dataset.date;
@@ -56802,6 +56999,16 @@ function abrirCancelarExecucao() {
     cancelarExecucaoMotivo.value = "";
     cancelarExecucaoMotivo.required = true;
   }
+  if (cancelarExecucaoComentario) {
+    cancelarExecucaoComentario.value = "";
+    cancelarExecucaoComentario.required = false;
+  }
+  if (cancelarExecucaoEvidencia) {
+    cancelarExecucaoEvidencia.value = "";
+  }
+  if (cancelarExecucaoEvidenciasLista) {
+    cancelarExecucaoEvidenciasLista.innerHTML = "";
+  }
   mostrarMensagemCancelarExecucao("");
 }
 
@@ -56815,10 +57022,20 @@ function fecharCancelarExecucao() {
     cancelarExecucaoMotivo.value = "";
     cancelarExecucaoMotivo.required = false;
   }
+  if (cancelarExecucaoComentario) {
+    cancelarExecucaoComentario.value = "";
+    cancelarExecucaoComentario.required = false;
+  }
+  if (cancelarExecucaoEvidencia) {
+    cancelarExecucaoEvidencia.value = "";
+  }
+  if (cancelarExecucaoEvidenciasLista) {
+    cancelarExecucaoEvidenciasLista.innerHTML = "";
+  }
   mostrarMensagemCancelarExecucao("");
 }
 
-function salvarCancelamentoExecucao(event) {
+async function salvarCancelamentoExecucao(event) {
   event.preventDefault();
   if (!requirePermission("complete")) {
     return;
@@ -56845,21 +57062,90 @@ function salvarCancelamentoExecucao(event) {
     mostrarMensagemCancelarExecucao("Informe o motivo do cancelamento.", true);
     return;
   }
-  const registroExecucao = {
-    ...(item.registroExecucao || {}),
-    motivoCancelamento: motivo,
+  const comentario = cancelarExecucaoComentario ? cancelarExecucaoComentario.value.trim() : "";
+  if (motivo === "Outros" && !comentario) {
+    mostrarMensagemCancelarExecucao("Informe o comentário para o motivo Outros.", true);
+    return;
+  }
+  const arquivos = getCancelarExecucaoEvidenceFiles();
+  const arquivosValidos = arquivos.filter(Boolean);
+  const arquivosInvalidos = arquivosValidos.filter(
+    (file) => !file.type || !file.type.startsWith("image/")
+  );
+  if (arquivosInvalidos.length) {
+    mostrarMensagemCancelarExecucao("Apenas fotos são permitidas.", true);
+    return;
+  }
+  let evidencias = [];
+  if (arquivosValidos.length) {
+    mostrarCarregando();
+    try {
+      mostrarMensagemCancelarExecucao("Enviando evidências...");
+      evidencias = await lerEvidencias(arquivosValidos);
+    } catch (error) {
+      mostrarMensagemCancelarExecucao(
+        error && error.message ? error.message : "Falha ao enviar evidências.",
+        true
+      );
+      return;
+    } finally {
+      esconderCarregando();
+    }
+  }
+  if (arquivosValidos.length && evidencias.length === 0) {
+    mostrarMensagemCancelarExecucao("Não foi possível ler as evidências.", true);
+    return;
+  }
+  const canceladoEm = Date.now();
+  const cancelamentoExecucao = {
+    motivo,
+    comentario,
+    evidencias,
     canceladoPor: currentUser.id,
-    canceladoEm: Date.now(),
+    canceladoEm,
+  };
+  const registroBase =
+    item.registroExecucao && typeof item.registroExecucao === "object"
+      ? item.registroExecucao
+      : {};
+  const registroExecucao = {
+    ...registroBase,
+    motivoCancelamento: motivo,
+    comentarioCancelamento: comentario,
+    evidenciasCancelamento: evidencias,
+    canceladoPor: currentUser.id,
+    canceladoEm,
+    cancelamentoExecucao,
   };
   const atualizado = {
     ...item,
     registroExecucao,
-    status: "CANCELADA",
+    cancelamentoExecucao,
+    canceladoPor: currentUser.id,
+    canceladoEm,
+    status: "cancelada",
     updatedAt: toIsoUtc(new Date()),
     updatedBy: currentUser.id,
   };
   manutencoes[index] = atualizado;
   salvarManutencoes(manutencoes);
+  scheduleMaintenanceSync(manutencoes, true);
+  const liberacao = getLiberacao(item) || {};
+  const docsExecucao = getMaintenanceDocsMap(item);
+  const documentosLista = DOC_KEYS.filter((key) => docsExecucao[key]).map(
+    (key) => DOC_LABELS[key] || key
+  );
+  logAction("cancel_execucao", atualizado, {
+    motivo,
+    observacao: comentario,
+    evidenciasCount: evidencias.length,
+    inicioExecucao: item.executionStartedAt || "",
+    osNumero: liberacao.osNumero || "",
+    participantes: liberacao.participantes || [],
+    critico: liberacao.critico,
+    documentos: documentosLista,
+    resumo: "Execução cancelada.",
+  });
   renderTudo();
   fecharRegistroExecucao();
   mostrarMensagemManutencao("Execução cancelada.");
@@ -59441,6 +59727,35 @@ function atualizarListaRegistroEvidencias() {
   });
 }
 
+function getCancelarExecucaoEvidenceFiles() {
+  if (!cancelarExecucaoEvidencia) {
+    return [];
+  }
+  return Array.from(cancelarExecucaoEvidencia.files || []).filter(Boolean);
+}
+
+function atualizarListaCancelarExecucaoEvidencias() {
+  if (!cancelarExecucaoEvidenciasLista) {
+    return;
+  }
+  cancelarExecucaoEvidenciasLista.innerHTML = "";
+  const arquivos = getCancelarExecucaoEvidenceFiles();
+  arquivos.forEach((file, index) => {
+    if (!file) {
+      return;
+    }
+    const item = document.createElement("span");
+    item.className = "file-chip";
+    const nome = file.name || `Foto ${index + 1}`;
+    item.textContent = `Foto ${index + 1}: ${nome}`;
+    const mime = file.type || "";
+    if (mime && !mime.startsWith("image/")) {
+      item.classList.add("file-chip--invalid");
+    }
+    cancelarExecucaoEvidenciasLista.append(item);
+  });
+}
+
 function getRevalidarManutencaoCheck(chave) {
   return revalidarManutencaoChecks.find(
     (item) => item && item.dataset.revalidarDocCheck === chave
@@ -60921,6 +61236,7 @@ function agirNaManutencao(event) {
     acao !== "register" &&
     acao !== "daily_revalidate" &&
     acao !== "cancel_start" &&
+    acao !== "cancel_execucao" &&
     acao !== "finish"
   ) {
     mostrarMensagemManutencao(getPrazoExpiradoMensagem(manutencoes[index]), true);
@@ -60959,6 +61275,12 @@ function agirNaManutencao(event) {
   }
   if (acao === "cancel_start") {
     abrirCancelarInicio(manutencoes[index]);
+  }
+  if (acao === "cancel_execucao") {
+    abrirRegistroExecucao(manutencoes[index], { mode: "cancel" });
+    if (manutencaoEmRegistro === manutencoes[index].id) {
+      abrirCancelarExecucao();
+    }
   }
   if (acao === "finish") {
     abrirConclusao(manutencoes[index]);
@@ -66150,6 +66472,23 @@ if (cancelarInicioMotivo) {
   cancelarInicioMotivo.addEventListener("change", () => {
     mostrarMensagemCancelarInicio("");
   });
+}
+if (cancelarExecucaoMotivo) {
+  cancelarExecucaoMotivo.addEventListener("change", () => {
+    mostrarMensagemCancelarExecucao("");
+    if (cancelarExecucaoComentario) {
+      cancelarExecucaoComentario.required = cancelarExecucaoMotivo.value === "Outros";
+    }
+  });
+}
+if (cancelarExecucaoComentario) {
+  cancelarExecucaoComentario.addEventListener("input", () => {
+    mostrarMensagemCancelarExecucao("");
+  });
+}
+if (cancelarExecucaoEvidencia) {
+  cancelarExecucaoEvidencia.addEventListener("change", atualizarListaCancelarExecucaoEvidencias);
+  atualizarListaCancelarExecucaoEvidencias();
 }
 if (liberacaoOs) {
   liberacaoOs.addEventListener("input", atualizarLiberacaoChecklist);

@@ -9157,6 +9157,7 @@ const MAINTENANCE_EXECUTION_RESET_FIELDS = [
   "encerramentoPor",
   "canceladoEm",
   "canceladoPor",
+  "cancelamentoExecucao",
 ];
 
 function isExecutionStatus(status) {
@@ -11309,6 +11310,7 @@ const MAINTENANCE_EXECUTION_FIELDS = [
   "ultimaAcao",
   "canceladoEm",
   "canceladoPor",
+  "cancelamentoExecucao",
 ];
 
 function normalizeMaintenanceResponsaveis(item) {
@@ -13037,6 +13039,10 @@ function countMaintenanceEvidenceEntries(item) {
   total += count(item.arquivos);
   if (item.registroExecucao && typeof item.registroExecucao === "object") {
     total += count(item.registroExecucao.evidencias);
+    total += count(item.registroExecucao.evidenciasCancelamento);
+  }
+  if (item.cancelamentoExecucao && typeof item.cancelamentoExecucao === "object") {
+    total += count(item.cancelamentoExecucao.evidencias);
   }
   const registrosDiarios = getMaintenanceDailyExecutionEntries(item);
   registrosDiarios.forEach((entry) => {
