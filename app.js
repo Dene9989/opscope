@@ -22655,7 +22655,10 @@ function renderExecucao() {
   const suppressionMap = buildInspectionMonthlySuppressionMap(manutencoes);
 
   const agendadasHoje = manutencoes
-    .filter((item) => item.status === "agendada" || item.status === "liberada")
+    .filter((item) => {
+      const status = normalizeMaintenanceStatus(item && item.status);
+      return status !== "concluida" && status !== "cancelada" && status !== "backlog";
+    })
     .map((item) => {
       const info = getDateInfo(item, hoje);
       return info ? { item, ...info } : null;
