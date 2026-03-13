@@ -21349,8 +21349,6 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const pendenciaDiariaExecucao = getRegistroExecucaoPendenteDateKey(item);
   const revalidacaoDiariaPendente = Boolean(pendenciaDiariaExecucao);
   const revalidacaoManutencaoDisponivel = isRegistroExecucaoRevalidacaoDisponivel(item);
-  const hojeKey = formatDateISO(startOfDay(new Date()));
-  const execucaoRegistradaHoje = Boolean(getRegistroDiarioExecucao(item, hojeKey));
   const revalidadaHoje = isManutencaoRevalidadaNoDia(item);
   statusGroup.append(badge);
   if (revalidadaHoje && statusNormalized === "em_execucao") {
@@ -21508,11 +21506,17 @@ function criarCardManutencao(item, permissoes, options = {}) {
       actions.append(criarBotaoAcao("Reagendar", "reschedule"));
     }
   } else if (statusNormalized === "em_execucao") {
-    if (permite("execute") && (revalidacaoDiariaPendente || !execucaoRegistradaHoje)) {
+    if (permite("execute")) {
       const labelRegistro = revalidacaoDiariaPendente
         ? `Fechar dia ${formatRegistroExecucaoDiaLabel(pendenciaDiariaExecucao)}`
         : "Registrar execução";
-      actions.append(criarBotaoAcao(labelRegistro, "register"));
+      const botaoRegistro = criarBotaoAcao(labelRegistro, "register");
+      if (!revalidacaoDiariaPendente && execucaoRegistrada) {
+        botaoRegistro.disabled = true;
+        botaoRegistro.classList.add("is-disabled");
+        botaoRegistro.title = "Execução já registrada.";
+      }
+      actions.append(botaoRegistro);
     }
     if (permite("daily_revalidate") && revalidacaoManutencaoDisponivel) {
       const botaoRevalidarManutencao = criarBotaoAcao(
@@ -21535,11 +21539,17 @@ function criarCardManutencao(item, permissoes, options = {}) {
       actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
     }
   } else if (statusNormalized === "encerramento") {
-    if (permite("execute") && (revalidacaoDiariaPendente || !execucaoRegistradaHoje)) {
+    if (permite("execute")) {
       const labelRegistro = revalidacaoDiariaPendente
         ? `Fechar dia ${formatRegistroExecucaoDiaLabel(pendenciaDiariaExecucao)}`
         : "Registrar execução";
-      actions.append(criarBotaoAcao(labelRegistro, "register"));
+      const botaoRegistro = criarBotaoAcao(labelRegistro, "register");
+      if (!revalidacaoDiariaPendente && execucaoRegistrada) {
+        botaoRegistro.disabled = true;
+        botaoRegistro.classList.add("is-disabled");
+        botaoRegistro.title = "Execução já registrada.";
+      }
+      actions.append(botaoRegistro);
     }
     if (permite("finish") && execucaoRegistrada && !revalidacaoDiariaPendente) {
       actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
