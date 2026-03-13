@@ -27797,11 +27797,17 @@ function mapItemRdo(item, options = {}) {
   const liberacao = getLiberacao(item) || {};
   const equipamento = getMaintenanceEquipamentoLabel(item);
   const osReferencia = getMaintenanceOsReferencia(item);
-  const participantes = Array.isArray(liberacao.participantes)
-    ? liberacao.participantes
-    : Array.isArray(item.participantes)
-      ? item.participantes
-      : [];
+  const participantes = Array.isArray(registroDia && registroDia.participantes)
+    ? registroDia.participantes
+    : Array.isArray(item.conclusao && item.conclusao.participantes)
+      ? item.conclusao.participantes
+      : Array.isArray(item.registroExecucao && item.registroExecucao.participantes)
+        ? item.registroExecucao.participantes
+        : Array.isArray(item.participantes)
+          ? item.participantes
+          : Array.isArray(liberacao.participantes)
+            ? liberacao.participantes
+            : [];
   const docsStatus = getDocsStatusRdo(item, registroDia);
   const duracaoMin = Number.isFinite(item.conclusao && item.conclusao.duracaoMin)
     ? item.conclusao.duracaoMin
