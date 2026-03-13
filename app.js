@@ -26377,6 +26377,7 @@ function montarRdoUI() {
             <small class="hint">Somente leitura.</small>
           </div>
           <div id="rdoPreviewBody"></div>
+          <div id="rdoPreviewDebug" class="rdo-preview__debug" hidden></div>
         </div>
       </form>
     </div>
@@ -26452,6 +26453,7 @@ function montarRdoUI() {
   rdoUI.shiftHint = modal.querySelector("#rdoShiftHint");
   rdoUI.preview = modal.querySelector("#rdoPreview");
   rdoUI.previewBody = modal.querySelector("#rdoPreviewBody");
+  rdoUI.previewDebug = modal.querySelector("#rdoPreviewDebug");
   rdoUI.mensagem = modal.querySelector("#rdoMensagem");
   rdoUI.btnPreview = modal.querySelector("#btnRdoPreview");
   rdoUI.btnExportar = modal.querySelector("#btnRdoExportar");
@@ -28790,6 +28792,47 @@ function renderRdoPreview(snapshot) {
   }
   try {
     rdoUI.previewBody.innerHTML = buildRdoHtml(snapshot);
+    if (rdoUI.previewDebug) {
+      const itens = Array.isArray(snapshot && snapshot.itens) ? snapshot.itens : [];
+      const participantesMap = new Map();
+      itens.forEach((item) => {
+        const titulo = String(item && (item.titulo || item.nome || item.id || "") || "").trim() || "Atividade";
+        const participantes = parseParticipantesLabel(item && item.participantes);
+        if (!participantes.length) {
+          return;
+        }
+        participantes.forEach((nome) => {
+          const chave = String(nome || "").trim();
+          if (!chave) {
+            return;
+          }
+          const lista = participantesMap.get(chave) || [];
+          if (!lista.includes(titulo)) {
+            lista.push(titulo);
+          }
+          participantesMap.set(chave, lista);
+        });
+      });
+      if (!participantesMap.size) {
+        rdoUI.previewDebug.hidden = true;
+        rdoUI.previewDebug.innerHTML = "";
+      } else {
+        const linhas = Array.from(participantesMap.entries())
+          .sort((a, b) => a[0].localeCompare(b[0], "pt-BR"))
+          .map(
+            ([nome, titulos]) =>
+              `<li><strong>${escapeHtml(nome)}</strong>: ${escapeHtml(titulos.join(", "))}</li>`
+          )
+          .join("");
+        rdoUI.previewDebug.innerHTML = `
+          <details class="rdo-preview__origin" open>
+            <summary>Origem da equipe (por manutenção)</summary>
+            <ul>${linhas}</ul>
+          </details>
+        `;
+        rdoUI.previewDebug.hidden = false;
+      }
+    }
     rdoUI.preview.hidden = false;
     rdoUI.preview.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
@@ -28797,6 +28840,10 @@ function renderRdoPreview(snapshot) {
     mostrarMensagemRdo("Não foi possível montar o preview do RDO.", true);
     rdoUI.preview.hidden = false;
     rdoUI.previewBody.innerHTML = `<p class="empty-state">Preview indisponível.</p>`;
+    if (rdoUI.previewDebug) {
+      rdoUI.previewDebug.hidden = true;
+      rdoUI.previewDebug.innerHTML = "";
+    }
   }
 }
 
