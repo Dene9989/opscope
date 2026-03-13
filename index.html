@@ -7622,10 +7622,20 @@
         </div>
         <p id="mensagemRegistroExecucao" class="mensagem" aria-live="polite"></p>
       </form>
-      <form id="formCancelarExecucao" class="modal__form" hidden>
-        <div class="modal__header">
-          <h4>Cancelar execução</h4>
-        </div>
+    </div>
+  </div>
+
+  <div id="modalCancelarExecucao" class="modal" hidden>
+    <div class="modal__content">
+      <div class="modal__header">
+        <h3>Cancelar execução</h3>
+        <button id="btnFecharCancelarExecucao" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
+          <span aria-hidden="true">x</span>
+        </button>
+      </div>
+      <form id="formCancelarExecucao" class="modal__form">
+        <input id="cancelarExecucaoId" type="hidden" />
+        <div id="cancelarExecucaoResumo" class="history-summary modal-summary"></div>
         <div class="form-grid">
           <div class="field">
             <label for="cancelarExecucaoMotivo">Motivo do cancelamento</label>

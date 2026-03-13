@@ -1216,11 +1216,15 @@ const registroEvidenciasLista = document.getElementById("registroEvidenciasLista
 const btnFecharRegistroExecucao = document.getElementById("btnFecharRegistroExecucao");
 const btnCancelarRegistroExecucao = document.getElementById("btnCancelarRegistroExecucao");
 const btnCancelarExecucao = document.getElementById("btnCancelarExecucao");
+const modalCancelarExecucao = document.getElementById("modalCancelarExecucao");
 const formCancelarExecucao = document.getElementById("formCancelarExecucao");
+const cancelarExecucaoId = document.getElementById("cancelarExecucaoId");
+const cancelarExecucaoResumo = document.getElementById("cancelarExecucaoResumo");
 const cancelarExecucaoMotivo = document.getElementById("cancelarExecucaoMotivo");
 const cancelarExecucaoComentario = document.getElementById("cancelarExecucaoComentario");
 const cancelarExecucaoEvidencia = document.getElementById("cancelarExecucaoEvidencia");
 const cancelarExecucaoEvidenciasLista = document.getElementById("cancelarExecucaoEvidenciasLista");
+const btnFecharCancelarExecucao = document.getElementById("btnFecharCancelarExecucao");
 const btnVoltarCancelarExecucao = document.getElementById("btnVoltarCancelarExecucao");
 const mensagemCancelarExecucao = document.getElementById("mensagemCancelarExecucao");
 const mensagemRegistroExecucao = document.getElementById("mensagemRegistroExecucao");
@@ -15418,7 +15422,7 @@ function normalizarManutencoes(lista) {
       mudouCampos = true;
     }
     const statusOriginal = normalizeMaintenanceStatus(item.status);
-    if (statusOriginal === "concluida") {
+    if (statusOriginal === "concluida" || statusOriginal === "cancelada") {
       return {
         ...baseItem,
         status: statusOriginal,
@@ -54294,6 +54298,8 @@ let manutencaoEmConclusao = null;
 let conclusaoItemAtual = null;
 let conclusaoFalhaFotosAtual = [];
 let manutencaoEmRegistro = null;
+let manutencaoEmCancelamentoExecucao = null;
+let cancelarExecucaoReturnToRegistro = false;
 let registroExecucaoFotosAtual = [];
 let registroExecucaoDataRefAtual = "";
 let revalidarManutencaoAtual = null;
@@ -56794,9 +56800,11 @@ function abrirRegistroExecucao(item) {
   if (formRegistroExecucao) {
     formRegistroExecucao.hidden = false;
   }
-  if (formCancelarExecucao) {
-    formCancelarExecucao.hidden = true;
+  if (modalCancelarExecucao) {
+    modalCancelarExecucao.hidden = true;
   }
+  manutencaoEmCancelamentoExecucao = null;
+  cancelarExecucaoReturnToRegistro = false;
   if (cancelarExecucaoMotivo) {
     cancelarExecucaoMotivo.value = "";
     cancelarExecucaoMotivo.required = false;
@@ -56938,23 +56946,6 @@ function fecharRegistroExecucao() {
   if (formRegistroExecucao) {
     formRegistroExecucao.hidden = false;
   }
-  if (formCancelarExecucao) {
-    formCancelarExecucao.hidden = true;
-  }
-  if (cancelarExecucaoMotivo) {
-    cancelarExecucaoMotivo.value = "";
-    cancelarExecucaoMotivo.required = false;
-  }
-  if (cancelarExecucaoComentario) {
-    cancelarExecucaoComentario.value = "";
-    cancelarExecucaoComentario.required = false;
-  }
-  if (cancelarExecucaoEvidencia) {
-    cancelarExecucaoEvidencia.value = "";
-  }
-  if (cancelarExecucaoEvidenciasLista) {
-    cancelarExecucaoEvidenciasLista.innerHTML = "";
-  }
   if (registroDataExecucao) {
     registroDataExecucao.value = "";
     delete registroDataExecucao.dataset.date;
@@ -56972,29 +56963,40 @@ function fecharRegistroExecucao() {
     registroEvidenciasLista.innerHTML = "";
   }
   atualizarRegistroSlotsFoto([]);
-  mostrarMensagemCancelarExecucao("");
 }
 
-function abrirCancelarExecucao() {
-  if (!formRegistroExecucao || !formCancelarExecucao) {
+function abrirCancelarExecucao(item, options = {}) {
+  if (!modalCancelarExecucao || !formCancelarExecucao) {
     return;
   }
-  if (!manutencaoEmRegistro) {
-    mostrarMensagemRegistroExecucao("Selecione uma manutenção.", true);
+  const mostrarErro = typeof options.onError === "function" ? options.onError : mostrarMensagemManutencao;
+  let alvo = item || null;
+  if (!alvo && manutencaoEmRegistro) {
+    const index = manutencoes.findIndex((entry) => entry.id === manutencaoEmRegistro);
+    if (index >= 0) {
+      alvo = manutencoes[index];
+    }
+  }
+  if (!alvo) {
+    mostrarErro("Manutenção não encontrada.", true);
     return;
   }
-  const index = manutencoes.findIndex((item) => item.id === manutencaoEmRegistro);
-  if (index < 0) {
-    mostrarMensagemRegistroExecucao("Manutenção não encontrada.", true);
+  if (!ensureExecucaoPermitida(alvo, mostrarErro)) {
     return;
   }
-  const item = manutencoes[index];
-  if (item.status !== "em_execucao") {
-    mostrarMensagemRegistroExecucao("A manutenção precisa estar em execução.", true);
+  if (alvo.status !== "em_execucao") {
+    mostrarErro("A manutenção precisa estar em execução.", true);
     return;
   }
-  formRegistroExecucao.hidden = true;
-  formCancelarExecucao.hidden = false;
+  manutencaoEmCancelamentoExecucao = alvo.id;
+  cancelarExecucaoReturnToRegistro = Boolean(options.returnToRegistro);
+  mostrarMensagemCancelarExecucao("");
+  if (cancelarExecucaoId) {
+    cancelarExecucaoId.value = alvo.id;
+  }
+  if (cancelarExecucaoResumo) {
+    cancelarExecucaoResumo.textContent = buildManutencaoResumoTexto(alvo);
+  }
   if (cancelarExecucaoMotivo) {
     cancelarExecucaoMotivo.value = "";
     cancelarExecucaoMotivo.required = true;
@@ -57009,15 +57011,30 @@ function abrirCancelarExecucao() {
   if (cancelarExecucaoEvidenciasLista) {
     cancelarExecucaoEvidenciasLista.innerHTML = "";
   }
-  mostrarMensagemCancelarExecucao("");
+  if (cancelarExecucaoReturnToRegistro && modalRegistroExecucao) {
+    modalRegistroExecucao.hidden = true;
+  }
+  modalCancelarExecucao.hidden = false;
 }
 
-function fecharCancelarExecucao() {
-  if (!formRegistroExecucao || !formCancelarExecucao) {
+function fecharCancelarExecucao(options = {}) {
+  if (!modalCancelarExecucao) {
     return;
   }
-  formCancelarExecucao.hidden = true;
-  formRegistroExecucao.hidden = false;
+  modalCancelarExecucao.hidden = true;
+  if (cancelarExecucaoReturnToRegistro && modalRegistroExecucao && manutencaoEmRegistro) {
+    modalRegistroExecucao.hidden = false;
+  }
+  if (options.clearSelection !== false) {
+    manutencaoEmCancelamentoExecucao = null;
+  }
+  cancelarExecucaoReturnToRegistro = false;
+  if (cancelarExecucaoId) {
+    cancelarExecucaoId.value = "";
+  }
+  if (cancelarExecucaoResumo) {
+    cancelarExecucaoResumo.textContent = "";
+  }
   if (cancelarExecucaoMotivo) {
     cancelarExecucaoMotivo.value = "";
     cancelarExecucaoMotivo.required = false;
@@ -57040,11 +57057,13 @@ async function salvarCancelamentoExecucao(event) {
   if (!requirePermission("complete")) {
     return;
   }
-  if (!manutencaoEmRegistro) {
+  const manutencaoId =
+    manutencaoEmCancelamentoExecucao || (cancelarExecucaoId ? cancelarExecucaoId.value : "");
+  if (!manutencaoId) {
     mostrarMensagemCancelarExecucao("Selecione uma manutenção.", true);
     return;
   }
-  const index = manutencoes.findIndex((item) => item.id === manutencaoEmRegistro);
+  const index = manutencoes.findIndex((item) => item.id === manutencaoId);
   if (index < 0) {
     mostrarMensagemCancelarExecucao("Manutenção não encontrada.", true);
     return;
@@ -57147,7 +57166,11 @@ async function salvarCancelamentoExecucao(event) {
     resumo: "Execução cancelada.",
   });
   renderTudo();
-  fecharRegistroExecucao();
+  if (manutencaoEmRegistro === manutencaoId) {
+    fecharRegistroExecucao();
+  }
+  cancelarExecucaoReturnToRegistro = false;
+  fecharCancelarExecucao();
   mostrarMensagemManutencao("Execução cancelada.");
 }
 
@@ -61277,10 +61300,7 @@ function agirNaManutencao(event) {
     abrirCancelarInicio(manutencoes[index]);
   }
   if (acao === "cancel_execucao") {
-    abrirRegistroExecucao(manutencoes[index], { mode: "cancel" });
-    if (manutencaoEmRegistro === manutencoes[index].id) {
-      abrirCancelarExecucao();
-    }
+    abrirCancelarExecucao(manutencoes[index]);
   }
   if (acao === "finish") {
     abrirConclusao(manutencoes[index]);
@@ -66366,7 +66386,15 @@ if (btnCancelarRegistroExecucao) {
   btnCancelarRegistroExecucao.addEventListener("click", fecharRegistroExecucao);
 }
 if (btnCancelarExecucao) {
-  btnCancelarExecucao.addEventListener("click", abrirCancelarExecucao);
+  btnCancelarExecucao.addEventListener("click", () => {
+    abrirCancelarExecucao(null, {
+      returnToRegistro: true,
+      onError: mostrarMensagemRegistroExecucao,
+    });
+  });
+}
+if (btnFecharCancelarExecucao) {
+  btnFecharCancelarExecucao.addEventListener("click", fecharCancelarExecucao);
 }
 if (btnVoltarCancelarExecucao) {
   btnVoltarCancelarExecucao.addEventListener("click", fecharCancelarExecucao);
