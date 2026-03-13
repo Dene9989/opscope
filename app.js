@@ -28116,7 +28116,7 @@ function formatListFull(lista) {
     if (!value) {
       return;
     }
-    const key = normalizeSearchValue(value).replace(/\s+/g, " ").trim();
+    const key = normalizeSearchValue(value).replace(/[^a-z0-9]+/g, "").trim();
     if (!key || seen.has(key)) {
       return;
     }
