@@ -28113,10 +28113,14 @@ function formatListFull(lista) {
   const output = [];
   (lista || []).forEach((item) => {
     const value = String(item || "").trim();
-    if (!value || seen.has(value)) {
+    if (!value) {
       return;
     }
-    seen.add(value);
+    const key = normalizeSearchValue(value).replace(/\s+/g, " ").trim();
+    if (!key || seen.has(key)) {
+      return;
+    }
+    seen.add(key);
     output.push(value);
   });
   return output.join(", ");
