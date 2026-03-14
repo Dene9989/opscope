@@ -22112,7 +22112,8 @@ function renderProgramacao() {
   renderMensalOverrideBanner();
 
   const hoje = startOfDay(new Date());
-  const filtroStatus = filtroProgramacaoStatus ? filtroProgramacaoStatus.value : "";
+  const filtroStatusRaw = filtroProgramacaoStatus ? filtroProgramacaoStatus.value : "";
+  const filtroStatus = filtroStatusRaw === "backlog" ? "" : filtroStatusRaw;
   const incluirConcluidas = filtroStatus === "concluida";
   const existentes = manutencoes.filter(
     (item) =>
@@ -22122,7 +22123,6 @@ function renderProgramacao() {
         return (
           status === "agendada" ||
           status === "liberada" ||
-          status === "backlog" ||
           status === "em_execucao" ||
           status === "encerramento" ||
           (incluirConcluidas && status === "concluida")
@@ -22170,11 +22170,10 @@ function renderProgramacao() {
       : getDateInfo(item, hoje);
     const diff = info ? info.diff : null;
 
-    if (filtroStatus === "backlog") {
-      if (status !== "backlog") {
-        return false;
-      }
-    } else if (filtroStatus === "liberada") {
+    if (status === "backlog") {
+      return false;
+    }
+    if (filtroStatus === "liberada") {
       if (status !== "liberada") {
         return false;
       }
@@ -22392,11 +22391,14 @@ function buildProgramacaoExportList(options = {}) {
       return false;
     }
     const statusKey = normalizeMaintenanceStatus(item.status);
+    if (statusKey === "backlog") {
+      return false;
+    }
     if (statusFilter === "concluidas") {
       return statusKey === "concluida";
     }
     if (statusFilter === "previstas") {
-      return statusKey !== "concluida" && statusKey !== "cancelada";
+      return statusKey !== "concluida" && statusKey !== "cancelada" && statusKey !== "backlog";
     }
     return true;
   });
@@ -22437,7 +22439,7 @@ function buildProgramacaoExportHtml(items, options = {}) {
   ).length;
   const totalPrevistas = items.filter((item) => {
     const statusKey = normalizeMaintenanceStatus(item.status);
-    return statusKey !== "concluida" && statusKey !== "cancelada";
+    return statusKey !== "concluida" && statusKey !== "cancelada" && statusKey !== "backlog";
   }).length;
   const rows = items
     .map((item) => {
@@ -55942,6 +55944,10 @@ function updateBacklogReplanFields() {
   }
   if (backlogReplanData) {
     backlogReplanData.required = hasChoice && isYes;
+    backlogReplanData.disabled = !isYes;
+    if (!isYes) {
+      backlogReplanData.value = "";
+    }
   }
   if (backlogReplanMotivo) {
     backlogReplanMotivo.required = hasChoice && !isYes;
