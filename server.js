@@ -13044,6 +13044,9 @@ function countMaintenanceEvidenceEntries(item) {
   if (item.cancelamentoExecucao && typeof item.cancelamentoExecucao === "object") {
     total += count(item.cancelamentoExecucao.evidencias);
   }
+  if (item.backlogMotivo && typeof item.backlogMotivo === "object") {
+    total += count(item.backlogMotivo.evidencias);
+  }
   const registrosDiarios = getMaintenanceDailyExecutionEntries(item);
   registrosDiarios.forEach((entry) => {
     total += count(entry.evidencias);

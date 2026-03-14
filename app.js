@@ -1269,6 +1269,8 @@ const formBacklogMotivo = document.getElementById("formBacklogMotivo");
 const backlogMotivoId = document.getElementById("backlogMotivoId");
 const backlogMotivoSelect = document.getElementById("backlogMotivoSelect");
 const backlogMotivoObs = document.getElementById("backlogMotivoObs");
+const backlogMotivoEvidencia = document.getElementById("backlogMotivoEvidencia");
+const backlogMotivoEvidenciasLista = document.getElementById("backlogMotivoEvidenciasLista");
 const backlogReplanValid = document.getElementById("backlogReplanValid");
 const backlogReplanDataField = document.getElementById("backlogReplanDataField");
 const backlogReplanData = document.getElementById("backlogReplanData");
@@ -4894,7 +4896,7 @@ const ACTION_LABELS = {
   revalidate: "Revalidar prazo",
   daily_revalidate: "Revalidar manutenção",
   backlog_auto: "Backlog automático",
-  backlog_reason: "Motivo não executada",
+  backlog_reason: "Justificar não execução",
   monthly_override: "Mensal do dia",
   rdo_delete: "RDO excluído",
 };
@@ -5077,6 +5079,7 @@ let historicoIssueId = "";
 let manutencaoEmLiberacao = null;
 let pendingLiberacaoOverride = null;
 let manutencaoEmBacklogMotivo = null;
+let backlogMotivoEvidenciasAtual = [];
 let manutencaoEmCancelamento = null;
 let liberacaoDocsBase = {};
 let liberacaoDocsPreview = {};
@@ -5977,6 +5980,13 @@ function compactEvidencias(list) {
           };
           changedItem = true;
         }
+        if (item.backlogMotivo && Array.isArray(item.backlogMotivo.evidencias)) {
+          updated.backlogMotivo = {
+            ...item.backlogMotivo,
+            evidencias: sanitizeList(item.backlogMotivo.evidencias),
+          };
+          changedItem = true;
+        }
         if (item.conclusao && Array.isArray(item.conclusao.evidencias)) {
           updated.conclusao = {
             ...item.conclusao,
@@ -6079,6 +6089,13 @@ function stripMaintenanceDataUrls(item) {
     }
     updated.cancelamentoExecucao = cancelamento;
   }
+  if (updated.backlogMotivo && typeof updated.backlogMotivo === "object") {
+    const motivo = { ...updated.backlogMotivo };
+    if (Array.isArray(motivo.evidencias)) {
+      motivo.evidencias = stripEvidenceDataUrls(motivo.evidencias);
+    }
+    updated.backlogMotivo = motivo;
+  }
   if (Array.isArray(updated.registrosDiariosExecucao)) {
     updated.registrosDiariosExecucao = updated.registrosDiariosExecucao
       .map((entry) => {
@@ -6171,6 +6188,9 @@ function buildMaintenanceLiteItem(item) {
     lite.backlogMotivo = {
       motivo: item.backlogMotivo.motivo || "",
       observacao: item.backlogMotivo.observacao || "",
+      evidencias: Array.isArray(item.backlogMotivo.evidencias)
+        ? item.backlogMotivo.evidencias
+        : [],
       registradoEm: item.backlogMotivo.registradoEm || "",
       registradoPor: item.backlogMotivo.registradoPor || "",
       replanejamentoValido:
@@ -21284,7 +21304,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
     motivo.className = "submeta";
     const motivoData = parseTimestamp(item.backlogMotivo.registradoEm);
     const dataTexto = motivoData ? ` em ${formatDateTime(motivoData)}` : "";
-    motivo.textContent = `Motivo não executada: ${item.backlogMotivo.motivo}${dataTexto}`;
+    motivo.textContent = `Justificativa não execução: ${item.backlogMotivo.motivo}${dataTexto}`;
     info.append(motivo);
   }
   if (statusNormalized === "backlog" && item.backlogMotivo && item.backlogMotivo.observacao) {
@@ -21550,7 +21570,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
     }
   } else if (statusNormalized === "backlog") {
     if (permite("backlog_reason")) {
-      actions.append(criarBotaoAcao("Motivo não executada", "backlog_reason"));
+      actions.append(criarBotaoAcao("Justificar não execução", "backlog_reason"));
     }
     if (permite("reschedule") && !isDailySubstationInspection(item)) {
       actions.append(criarBotaoAcao("Reagendar", "reschedule"));
@@ -30684,6 +30704,7 @@ function calcularKpisBase(items, periodoDias) {
   const backlog = items.filter(
     (item) => normalizeMaintenanceStatus(item && item.status) === "backlog"
   );
+  const backlogJustificadas = backlog.filter((item) => Boolean(getItemBacklogMotivo(item)));
   const overdue = abertas.filter((item) => isItemOverdue(item, hoje));
   const criticosAbertos = abertas.filter((item) => isItemCritico(item));
 
@@ -30765,6 +30786,7 @@ function calcularKpisBase(items, periodoDias) {
     concluidasTotal: concluidas.length,
     canceladasTotal: canceladas.length,
     backlogTotal: backlog.length,
+    naoExecucaoJustificadaTotal: backlogJustificadas.length,
     overdueTotal: overdue.length,
     slaCompliance,
     docsCompliance,
@@ -30840,6 +30862,7 @@ function getKpiMetricValue(kpis, key) {
   }
   const map = {
     backlog_total: kpis.backlogTotal,
+    nao_execucao_justificada_total: kpis.naoExecucaoJustificadaTotal,
     overdue_total: kpis.overdueTotal,
     sla_compliance: kpis.slaCompliance,
     docs_compliance: kpis.docsCompliance,
@@ -31108,6 +31131,23 @@ function renderKpiCards(itens, itensAnterior, filtros, atualBase, anteriorBase) 
       tooltip: buildKpiTooltip(
         "Backlog total",
         "Manutenções com status backlog.",
+        periodoLabel
+      ),
+    },
+    {
+      key: "nao_execucao_justificada_total",
+      label: "Não execução justificada",
+      valor: atual.naoExecucaoJustificadaTotal,
+      delta: formatKpiDelta(
+        atual.naoExecucaoJustificadaTotal,
+        anterior.naoExecucaoJustificadaTotal,
+        "count",
+        filtros.periodo
+      ),
+      formato: "count",
+      tooltip: buildKpiTooltip(
+        "Não execução justificada",
+        "Manutenções em backlog com justificativa registrada.",
         periodoLabel
       ),
     },
@@ -31596,7 +31636,7 @@ function renderKpiBacklogMotivos(itens) {
   );
   const totalBacklog = backlog.length;
   const agrupado = backlog.reduce((acc, item) => {
-    const motivo = getItemBacklogMotivo(item) || "Sem motivo informado";
+    const motivo = getItemBacklogMotivo(item) || "Sem justificativa informada";
     acc[motivo] = (acc[motivo] || 0) + 1;
     return acc;
   }, {});
@@ -32541,6 +32581,13 @@ function handleKpiDrilldownClick(event) {
       (item) => normalizeMaintenanceStatus(item && item.status) === "backlog"
     );
     titulo = "Backlog total";
+  } else if (tipo === "nao_execucao_justificada_total") {
+    filtrados = itens.filter(
+      (item) =>
+        normalizeMaintenanceStatus(item && item.status) === "backlog" &&
+        Boolean(getItemBacklogMotivo(item))
+    );
+    titulo = "Não execução justificada";
   } else if (tipo === "canceladas_total") {
     filtrados = itens.filter(
       (item) => normalizeMaintenanceStatus(item && item.status) === "cancelada"
@@ -35442,6 +35489,9 @@ function getMaintenanceEvidencias(item) {
   }
   if (item.cancelamentoExecucao && Array.isArray(item.cancelamentoExecucao.evidencias)) {
     evidencias.push(...item.cancelamentoExecucao.evidencias);
+  }
+  if (item.backlogMotivo && Array.isArray(item.backlogMotivo.evidencias)) {
+    evidencias.push(...item.backlogMotivo.evidencias);
   }
   if (item.conclusao && Array.isArray(item.conclusao.evidencias)) {
     evidencias.push(...item.conclusao.evidencias);
@@ -53923,8 +53973,8 @@ function gerarRelatorio() {
       `Backlog (manutenções afetadas): ${backlogUnicos}\n` +
       `Backlog médio (dias): ${backlogMedio}\n` +
       `Top 5 atrasadas:\n${backlogTopTexto}\n` +
-      `Motivos não executada (backlog): ${backlogMotivosTotal}\n` +
-      `Detalhes motivos backlog: ${backlogMotivosResumo}\n` +
+      `Justificativas não execução (backlog): ${backlogMotivosTotal}\n` +
+      `Detalhes justificativas backlog: ${backlogMotivosResumo}\n` +
       `Tempo médio entre programada e execução (dias): ${tempoMedioExecucao}\n` +
       `Tempo médio de execução (HH:MM): ${mediaDuracaoExecucao}\n` +
       `Tempo médio de atraso (dias): ${mediaAtrasoExec}\n` +
@@ -55912,6 +55962,13 @@ function abrirBacklogMotivo(item) {
     backlogMotivoObs.value =
       item.backlogMotivo && item.backlogMotivo.observacao ? item.backlogMotivo.observacao : "";
   }
+  backlogMotivoEvidenciasAtual = Array.isArray(item.backlogMotivo && item.backlogMotivo.evidencias)
+    ? dedupeEvidenceList(item.backlogMotivo.evidencias)
+    : [];
+  if (backlogMotivoEvidencia) {
+    backlogMotivoEvidencia.value = "";
+  }
+  atualizarListaBacklogMotivoEvidencias();
   if (backlogReplanValid) {
     if (item.backlogMotivo && item.backlogMotivo.replanejamentoValido === true) {
       backlogReplanValid.value = "sim";
@@ -55949,10 +56006,17 @@ function fecharBacklogMotivo() {
   }
   modalBacklogMotivo.hidden = true;
   manutencaoEmBacklogMotivo = null;
+  backlogMotivoEvidenciasAtual = [];
+  if (backlogMotivoEvidencia) {
+    backlogMotivoEvidencia.value = "";
+  }
+  if (backlogMotivoEvidenciasLista) {
+    backlogMotivoEvidenciasLista.innerHTML = "";
+  }
   mostrarMensagemBacklogMotivo("");
 }
 
-function salvarBacklogMotivo(event) {
+async function salvarBacklogMotivo(event) {
   event.preventDefault();
   if (!requirePermission("edit")) {
     return;
@@ -55967,7 +56031,7 @@ function salvarBacklogMotivo(event) {
   }
   const item = manutencoes[index];
   if (item.status !== "backlog") {
-    mostrarMensagemBacklogMotivo("Somente itens em backlog aceitam motivo.", true);
+    mostrarMensagemBacklogMotivo("Somente itens em backlog aceitam justificativa.", true);
     return;
   }
   const motivo = backlogMotivoSelect.value.trim();
@@ -56015,9 +56079,44 @@ function salvarBacklogMotivo(event) {
     }
   }
 
+  const arquivos = getBacklogMotivoEvidenceFiles();
+  const arquivosValidos = arquivos.filter(Boolean);
+  const temNovoArquivo = arquivosValidos.length > 0;
+  const arquivosInvalidos = arquivosValidos.filter(
+    (file) => !file.type || !file.type.startsWith("image/")
+  );
+  if (arquivosInvalidos.length) {
+    mostrarMensagemBacklogMotivo("Apenas fotos são permitidas.", true);
+    return;
+  }
+  let evidencias = Array.isArray(backlogMotivoEvidenciasAtual)
+    ? backlogMotivoEvidenciasAtual.slice()
+    : [];
+  if (temNovoArquivo) {
+    mostrarCarregando();
+    try {
+      mostrarMensagemBacklogMotivo("Enviando evidências...");
+      const novas = await lerEvidencias(arquivosValidos);
+      evidencias = dedupeEvidenceList([...evidencias, ...novas]);
+    } catch (error) {
+      mostrarMensagemBacklogMotivo(
+        error && error.message ? error.message : "Falha ao enviar evidências.",
+        true
+      );
+      return;
+    } finally {
+      esconderCarregando();
+    }
+  }
+  if (temNovoArquivo && evidencias.length === 0) {
+    mostrarMensagemBacklogMotivo("Não foi possível ler as evidências.", true);
+    return;
+  }
+
   const registro = {
     motivo,
     observacao,
+    evidencias,
     registradoEm: toIsoUtc(new Date()),
     registradoPor: currentUser ? currentUser.id : SYSTEM_USER_ID,
     replanejamentoValido,
@@ -56061,19 +56160,20 @@ function salvarBacklogMotivo(event) {
   logAction("backlog_reason", atualizado, {
     motivo,
     observacao,
+    evidenciasCount: evidencias.length,
     replanejamentoValido,
     replanejamentoData,
     replanejamentoMotivo,
     replanejamentoObs,
     resumo: replanejamentoValido
-      ? `Motivo registrado e replanejada para ${formatDate(
+      ? `Justificativa registrada e replanejada para ${formatDate(
           parseDate(replanejamentoData)
         )}.`
-      : "Motivo registrado.",
+      : "Justificativa registrada.",
   });
   renderTudo();
   fecharBacklogMotivo();
-  mostrarMensagemManutencao("Motivo registrado.");
+  mostrarMensagemManutencao("Justificativa registrada.");
 }
 
 function abrirRevalidarPrazo(item) {
@@ -59776,6 +59876,37 @@ function atualizarListaCancelarExecucaoEvidencias() {
       item.classList.add("file-chip--invalid");
     }
     cancelarExecucaoEvidenciasLista.append(item);
+  });
+}
+
+function getBacklogMotivoEvidenceFiles() {
+  if (!backlogMotivoEvidencia) {
+    return [];
+  }
+  return Array.from(backlogMotivoEvidencia.files || []).filter(Boolean);
+}
+
+function atualizarListaBacklogMotivoEvidencias() {
+  if (!backlogMotivoEvidenciasLista) {
+    return;
+  }
+  backlogMotivoEvidenciasLista.innerHTML = "";
+  const arquivos = getBacklogMotivoEvidenceFiles();
+  const temNovoArquivo = arquivos.some(Boolean);
+  const baseLista = temNovoArquivo ? arquivos : backlogMotivoEvidenciasAtual;
+  baseLista.forEach((file, index) => {
+    if (!file) {
+      return;
+    }
+    const item = document.createElement("span");
+    item.className = "file-chip";
+    const nome = file.name || file.nome || file.originalName || `Foto ${index + 1}`;
+    item.textContent = `Foto ${index + 1}: ${nome}`;
+    const mime = file.type || file.mime || "";
+    if (mime && !mime.startsWith("image/")) {
+      item.classList.add("file-chip--invalid");
+    }
+    backlogMotivoEvidenciasLista.append(item);
   });
 }
 
@@ -66484,6 +66615,13 @@ if (backlogMotivoSelect) {
   backlogMotivoSelect.addEventListener("change", () => {
     mostrarMensagemBacklogMotivo("");
   });
+}
+if (backlogMotivoEvidencia) {
+  backlogMotivoEvidencia.addEventListener("change", () => {
+    atualizarListaBacklogMotivoEvidencias();
+    mostrarMensagemBacklogMotivo("");
+  });
+  atualizarListaBacklogMotivoEvidencias();
 }
 if (backlogReplanValid) {
   backlogReplanValid.addEventListener("change", () => {

@@ -4199,9 +4199,9 @@
             <p id="kpiGargalosVazio" class="empty-state" hidden>Nenhum risco encontrado.</p>
           </div>
           <div>
-            <h3>Motivos de backlog</h3>
+            <h3>Justificativas de backlog</h3>
             <div id="kpiBacklogMotivos"></div>
-            <p id="kpiBacklogMotivosVazio" class="empty-state" hidden>Nenhum motivo registrado.</p>
+            <p id="kpiBacklogMotivosVazio" class="empty-state" hidden>Nenhuma justificativa registrada.</p>
           </div>
         </div>
       </section>
@@ -6765,7 +6765,7 @@
   <div id="modalBacklogMotivo" class="modal" hidden>
     <div class="modal__content">
       <div class="modal__header">
-        <h3>Motivo da não execução</h3>
+        <h3>Justificar não execução</h3>
         <button id="btnFecharBacklogMotivo" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">
           <span aria-hidden="true">x</span>
         </button>
@@ -6797,6 +6797,12 @@
             <label for="backlogMotivoObs">Observação complementar</label>
             <textarea id="backlogMotivoObs" rows="3" placeholder="Detalhes adicionais"></textarea>
             <p class="hint">Obrigatorio quando o motivo for Outros.</p>
+          </div>
+          <div class="field" data-full>
+            <label for="backlogMotivoEvidencia">Foto de evidência (opcional)</label>
+            <input id="backlogMotivoEvidencia" type="file" accept="image/*" multiple />
+            <div id="backlogMotivoEvidenciasLista" class="file-list"></div>
+            <p class="hint">Opcional. Use quando houver evidência do impedimento.</p>
           </div>
           <div class="field">
             <label for="backlogReplanValid">Replanejamento válido?</label>
@@ -6831,7 +6837,7 @@
           </div>
         </div>
         <div class="modal__actions">
-          <button class="btn btn--primary" type="submit">Salvar motivo</button>
+          <button class="btn btn--primary" type="submit">Salvar justificativa</button>
           <button id="btnCancelarBacklogMotivo" class="btn btn--ghost" type="button">Cancelar</button>
         </div>
         <p id="mensagemBacklogMotivo" class="mensagem" aria-live="polite"></p>
