@@ -21482,6 +21482,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
       "daily_revalidate",
       "monthly_override",
       "finish",
+      "backlog_reason",
       "cancel_start",
       "cancel_execucao",
       "revalidate",
@@ -21569,10 +21570,10 @@ function criarCardManutencao(item, permissoes, options = {}) {
     if (permite("reschedule") && !isDailySubstationInspection(item)) {
       actions.append(criarBotaoAcao("Reagendar", "reschedule"));
     }
-  } else if (
-    statusNormalized === "backlog" ||
-    (itemOverdue && (statusNormalized === "agendada" || statusNormalized === "liberada"))
-  ) {
+    if (itemOverdue && permite("backlog_reason")) {
+      actions.append(criarBotaoAcao("Justificar não execução", "backlog_reason"));
+    }
+  } else if (statusNormalized === "backlog") {
     if (permite("backlog_reason")) {
       actions.append(criarBotaoAcao("Justificar não execução", "backlog_reason"));
     }
