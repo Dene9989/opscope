@@ -55915,8 +55915,10 @@ function registrarMotivoBacklog(index) {
     return;
   }
   const item = manutencoes[index];
-  if (!item || item.status !== "backlog") {
-    mostrarMensagemManutencao("Somente itens em backlog aceitam motivo.", true);
+  const hoje = startOfDay(new Date());
+  const statusNormalized = normalizeMaintenanceStatus(item && item.status);
+  if (!item || (statusNormalized !== "backlog" && !isItemOverdue(item, hoje))) {
+    mostrarMensagemManutencao("Somente itens atrasados aceitam justificativa.", true);
     return;
   }
   abrirBacklogMotivo(item);
