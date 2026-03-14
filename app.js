@@ -21147,6 +21147,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const data = parseDate(item.data);
   const hoje = startOfDay(new Date());
   const statusNormalized = normalizeMaintenanceStatus(item.status);
+  const isBacklog = statusNormalized === "backlog";
   const itemOverdue = isItemOverdue(item, hoje);
   const diff = data ? diffInDays(hoje, data) : null;
   const backlogDias = statusNormalized === "backlog" && diff !== null ? Math.abs(diff) : 0;
@@ -21538,7 +21539,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
     podeEditarExecucao ||
     podeEditarEncerramento ||
     podeEditarConcluida;
-  if (permite("edit") && podeEditar) {
+  if (permite("edit") && podeEditar && !isBacklog) {
     const botaoEditar = criarBotaoAcao("Abrir tela de edição", "edit");
     botaoEditar.addEventListener("click", (event) => {
       event.preventDefault();
@@ -21583,9 +21584,6 @@ function criarCardManutencao(item, permissoes, options = {}) {
   } else if (statusNormalized === "backlog") {
     if (permite("backlog_reason") && !justificativaNaoExecucao) {
       actions.append(criarBotaoAcao("Justificar não execução", "backlog_reason"));
-    }
-    if (permite("reschedule") && !isDailySubstationInspection(item)) {
-      actions.append(criarBotaoAcao("Reagendar", "reschedule"));
     }
   } else if (statusNormalized === "em_execucao") {
     if (permite("execute")) {
@@ -21645,7 +21643,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
     }
   }
 
-  if (permite("monthly_override") && canToggleMonthlyOverride(item)) {
+  if (!isBacklog && permite("monthly_override") && canToggleMonthlyOverride(item)) {
     const dateKey = getInspectionDateKeyFromItem(item);
     const ativo = dateKey ? hasManualMonthlyOverride(item, dateKey) : false;
     const label = ativo ? "Desfazer mensal do dia" : "Mensal do dia";
@@ -21670,7 +21668,8 @@ function criarCardManutencao(item, permissoes, options = {}) {
   if (
     podeExcluir &&
     statusNormalized !== "em_execucao" &&
-    statusNormalized !== "encerramento"
+    statusNormalized !== "encerramento" &&
+    statusNormalized !== "backlog"
   ) {
     actions.append(criarBotaoAcao("Excluir", "remove", true));
   }
