@@ -21147,6 +21147,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const data = parseDate(item.data);
   const hoje = startOfDay(new Date());
   const statusNormalized = normalizeMaintenanceStatus(item.status);
+  const itemOverdue = isItemOverdue(item, hoje);
   const diff = data ? diffInDays(hoje, data) : null;
   const backlogDias = statusNormalized === "backlog" && diff !== null ? Math.abs(diff) : 0;
   const backlogEscalated =
@@ -21568,7 +21569,10 @@ function criarCardManutencao(item, permissoes, options = {}) {
     if (permite("reschedule") && !isDailySubstationInspection(item)) {
       actions.append(criarBotaoAcao("Reagendar", "reschedule"));
     }
-  } else if (statusNormalized === "backlog") {
+  } else if (
+    statusNormalized === "backlog" ||
+    (itemOverdue && (statusNormalized === "agendada" || statusNormalized === "liberada"))
+  ) {
     if (permite("backlog_reason")) {
       actions.append(criarBotaoAcao("Justificar não execução", "backlog_reason"));
     }
@@ -30704,7 +30708,7 @@ function calcularKpisBase(items, periodoDias) {
   const backlog = items.filter(
     (item) => normalizeMaintenanceStatus(item && item.status) === "backlog"
   );
-  const backlogJustificadas = backlog.filter((item) => Boolean(getItemBacklogMotivo(item)));
+  const backlogJustificadas = items.filter((item) => Boolean(getItemBacklogMotivo(item)));
   const overdue = abertas.filter((item) => isItemOverdue(item, hoje));
   const criticosAbertos = abertas.filter((item) => isItemCritico(item));
 
@@ -53832,7 +53836,7 @@ function gerarRelatorio() {
         .join("\n")
     : "-";
   const backlogMotivos = manutencoes
-    .filter((item) => item.status === "backlog" && item.backlogMotivo && item.backlogMotivo.motivo)
+    .filter((item) => item.backlogMotivo && item.backlogMotivo.motivo)
     .map((item) => item.backlogMotivo.motivo.trim())
     .filter(Boolean);
   const backlogMotivosTotal = backlogMotivos.length;
@@ -53973,8 +53977,8 @@ function gerarRelatorio() {
       `Backlog (manutenções afetadas): ${backlogUnicos}\n` +
       `Backlog médio (dias): ${backlogMedio}\n` +
       `Top 5 atrasadas:\n${backlogTopTexto}\n` +
-      `Justificativas não execução (backlog): ${backlogMotivosTotal}\n` +
-      `Detalhes justificativas backlog: ${backlogMotivosResumo}\n` +
+      `Justificativas não execução: ${backlogMotivosTotal}\n` +
+      `Detalhes justificativas: ${backlogMotivosResumo}\n` +
       `Tempo médio entre programada e execução (dias): ${tempoMedioExecucao}\n` +
       `Tempo médio de execução (HH:MM): ${mediaDuracaoExecucao}\n` +
       `Tempo médio de atraso (dias): ${mediaAtrasoExec}\n` +
@@ -55949,6 +55953,12 @@ function abrirBacklogMotivo(item) {
   if (!modalBacklogMotivo || !formBacklogMotivo) {
     return;
   }
+  const hoje = startOfDay(new Date());
+  const statusNormalized = normalizeMaintenanceStatus(item && item.status);
+  if (statusNormalized !== "backlog" && !isItemOverdue(item, hoje)) {
+    mostrarMensagemManutencao("Somente manutenções atrasadas aceitam justificativa.", true);
+    return;
+  }
   manutencaoEmBacklogMotivo = item.id;
   mostrarMensagemBacklogMotivo("");
   if (backlogMotivoId) {
@@ -56030,8 +56040,10 @@ async function salvarBacklogMotivo(event) {
     return;
   }
   const item = manutencoes[index];
-  if (item.status !== "backlog") {
-    mostrarMensagemBacklogMotivo("Somente itens em backlog aceitam justificativa.", true);
+  const hoje = startOfDay(new Date());
+  const statusNormalized = normalizeMaintenanceStatus(item.status);
+  if (statusNormalized !== "backlog" && !isItemOverdue(item, hoje)) {
+    mostrarMensagemBacklogMotivo("Somente itens atrasados aceitam justificativa.", true);
     return;
   }
   const motivo = backlogMotivoSelect.value.trim();
@@ -56133,7 +56145,6 @@ async function salvarBacklogMotivo(event) {
     proximoPrazo = replanejamentoData;
     proximoDue = replanejamentoData;
     const dataNova = parseDate(replanejamentoData);
-    const hoje = startOfDay(new Date());
     if (dataNova && dataNova < hoje) {
       proximoStatus = "backlog";
     } else if (isLiberacaoOk(item)) {
@@ -56141,6 +56152,8 @@ async function salvarBacklogMotivo(event) {
     } else {
       proximoStatus = "agendada";
     }
+  } else if (statusNormalized !== "backlog") {
+    proximoStatus = "backlog";
   }
   const atualizado = {
     ...item,
