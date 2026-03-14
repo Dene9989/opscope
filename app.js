@@ -21414,6 +21414,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const execucaoRegistradaLabel = hasExecucaoRegistradaCompleta(item)
     ? getExecucaoRegistradaLabel(item)
     : "";
+  const justificativaNaoExecucao = Boolean(getItemBacklogMotivo(item));
   const pendenciaDiariaExecucao = getRegistroExecucaoPendenteDateKey(item);
   const revalidacaoDiariaPendente = Boolean(pendenciaDiariaExecucao);
   const revalidacaoManutencaoDisponivel = isRegistroExecucaoRevalidacaoDisponivel(item);
@@ -21452,6 +21453,12 @@ function criarCardManutencao(item, permissoes, options = {}) {
     escaladoBadge.className = "status status--escalado";
     escaladoBadge.textContent = `Escalado ${BACKLOG_ESCALATION_DAYS}d+`;
     statusGroup.append(escaladoBadge);
+  }
+  if (justificativaNaoExecucao) {
+    const justificadaBadge = document.createElement("span");
+    justificadaBadge.className = "status status--justificada";
+    justificadaBadge.textContent = "Não execução justificada";
+    statusGroup.append(justificadaBadge);
   }
   if (
     statusNormalized !== "concluida" &&
@@ -21570,11 +21577,11 @@ function criarCardManutencao(item, permissoes, options = {}) {
     if (permite("reschedule") && !isDailySubstationInspection(item)) {
       actions.append(criarBotaoAcao("Reagendar", "reschedule"));
     }
-    if (itemOverdue && permite("backlog_reason")) {
+    if (itemOverdue && permite("backlog_reason") && !justificativaNaoExecucao) {
       actions.append(criarBotaoAcao("Justificar não execução", "backlog_reason"));
     }
   } else if (statusNormalized === "backlog") {
-    if (permite("backlog_reason")) {
+    if (permite("backlog_reason") && !justificativaNaoExecucao) {
       actions.append(criarBotaoAcao("Justificar não execução", "backlog_reason"));
     }
     if (permite("reschedule") && !isDailySubstationInspection(item)) {
