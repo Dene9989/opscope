@@ -61403,6 +61403,7 @@ function agirNaManutencao(event) {
     acao !== "edit" &&
     acao !== "register" &&
     acao !== "daily_revalidate" &&
+    acao !== "backlog_reason" &&
     acao !== "cancel_start" &&
     acao !== "cancel_execucao" &&
     acao !== "finish"
