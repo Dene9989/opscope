@@ -5227,16 +5227,55 @@
               <option value="REPROVADO">Reprovado</option>
             </select>
           </div>
+          <div class="field">
+            <label for="sstDocFilterMonth">Mês</label>
+            <input id="sstDocFilterMonth" type="month" />
+          </div>
+          <div class="field">
+            <label for="sstDocFilterFrom">De</label>
+            <input id="sstDocFilterFrom" type="date" />
+          </div>
+          <div class="field">
+            <label for="sstDocFilterTo">Até</label>
+            <input id="sstDocFilterTo" type="date" />
+          </div>
           <div class="field" data-full>
             <label for="sstDocSearch">Buscar</label>
             <input id="sstDocSearch" type="text" placeholder="Atividade, responsavel, APR/OS/PTE/PT" />
           </div>
         </div>
         <div id="sstDocStats" class="sst-doc-stats"></div>
+        <div class="sst-doc-toolbar">
+          <div class="sst-doc-marker" id="sstDocFocusBar">
+            <span class="sst-doc-marker__label">Marcador</span>
+            <span id="sstDocFocusLabel">Nenhum item marcado.</span>
+            <button id="sstDocFocusJump" class="btn btn--ghost btn--small" type="button" hidden>
+              Ir para marcador
+            </button>
+            <button id="sstDocFocusClear" class="btn btn--ghost btn--small" type="button" hidden>
+              Limpar
+            </button>
+          </div>
+          <div class="sst-doc-bulk" id="sstDocBulkBar">
+            <span id="sstDocSelectedCount" class="sst-doc-bulk__count">0 selecionados</span>
+            <button id="sstDocSelectFiltered" class="btn btn--ghost btn--small" type="button">
+              Selecionar filtrados
+            </button>
+            <button id="sstDocClearSelection" class="btn btn--ghost btn--small" type="button">
+              Limpar seleção
+            </button>
+            <button id="sstDocDownloadSelected" class="btn btn--primary btn--small" type="button">
+              Baixar selecionados
+            </button>
+          </div>
+        </div>
         <div class="table-wrap">
           <table class="data-table">
             <thead>
               <tr>
+                <th>
+                  <input id="sstDocSelectAll" class="sst-doc-select" type="checkbox" aria-label="Selecionar todos" />
+                </th>
                 <th>Status</th>
                 <th>Atividade</th>
                 <th>Projeto</th>

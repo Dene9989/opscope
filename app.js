@@ -672,8 +672,19 @@ const sstPermitEmpty = document.getElementById("sstPermitEmpty");
 const sstDocNewBtn = document.getElementById("sstDocNewBtn");
 const sstDocProjectFilter = document.getElementById("sstDocProjectFilter");
 const sstDocStatusFilter = document.getElementById("sstDocStatusFilter");
+const sstDocFilterMonth = document.getElementById("sstDocFilterMonth");
+const sstDocFilterFrom = document.getElementById("sstDocFilterFrom");
+const sstDocFilterTo = document.getElementById("sstDocFilterTo");
 const sstDocSearch = document.getElementById("sstDocSearch");
 const sstDocStats = document.getElementById("sstDocStats");
+const sstDocSelectAll = document.getElementById("sstDocSelectAll");
+const sstDocSelectedCount = document.getElementById("sstDocSelectedCount");
+const sstDocSelectFiltered = document.getElementById("sstDocSelectFiltered");
+const sstDocClearSelection = document.getElementById("sstDocClearSelection");
+const sstDocDownloadSelected = document.getElementById("sstDocDownloadSelected");
+const sstDocFocusLabel = document.getElementById("sstDocFocusLabel");
+const sstDocFocusJump = document.getElementById("sstDocFocusJump");
+const sstDocFocusClear = document.getElementById("sstDocFocusClear");
 const sstDocTableBody = document.getElementById("sstDocTableBody");
 const sstDocEmpty = document.getElementById("sstDocEmpty");
 const sstDocQueue = document.getElementById("sstDocQueue");
@@ -5021,6 +5032,10 @@ let vehiclesLoaded = false;
 let sstNonconformities = [];
 let sstIncidents = [];
 let sstDocs = [];
+let sstDocSelectedIds = new Set();
+let sstDocFocusId = "";
+let sstDocBulkDownloading = false;
+let sstDocMonthSync = false;
 let sstLoaded = false;
 let contingencyItems = [];
 let contingenciesLoaded = false;
@@ -47878,6 +47893,93 @@ function getSstDocsScoped() {
   return list;
 }
 
+function parseMonthInputValue(value) {
+  const text = String(value || "").trim();
+  if (!text) {
+    return null;
+  }
+  const parts = text.split("-");
+  if (parts.length !== 2) {
+    return null;
+  }
+  const year = Number(parts[0]);
+  const month = Number(parts[1]);
+  if (!year || !month) {
+    return null;
+  }
+  return { year, month };
+}
+
+function getSstDocMonthRange() {
+  const parsed = parseMonthInputValue(sstDocFilterMonth ? sstDocFilterMonth.value : "");
+  if (!parsed) {
+    return null;
+  }
+  const from = new Date(parsed.year, parsed.month - 1, 1);
+  const to = new Date(parsed.year, parsed.month, 0);
+  return { from, to };
+}
+
+function endOfDayForFilter(date) {
+  const copy = new Date(date);
+  copy.setHours(23, 59, 59, 999);
+  return copy;
+}
+
+function applySstDocMonthFilter() {
+  if (!sstDocFilterMonth) {
+    return;
+  }
+  const range = getSstDocMonthRange();
+  if (!range) {
+    return;
+  }
+  sstDocMonthSync = true;
+  if (sstDocFilterFrom) {
+    sstDocFilterFrom.value = formatDateISO(range.from);
+  }
+  if (sstDocFilterTo) {
+    sstDocFilterTo.value = formatDateISO(range.to);
+  }
+  sstDocMonthSync = false;
+}
+
+function syncSstDocMonthFromRange() {
+  if (sstDocMonthSync || !sstDocFilterMonth) {
+    return;
+  }
+  if (!sstDocFilterFrom || !sstDocFilterTo) {
+    sstDocFilterMonth.value = "";
+    return;
+  }
+  const from = parseDate(sstDocFilterFrom.value);
+  const to = parseDate(sstDocFilterTo.value);
+  if (!from || !to) {
+    sstDocFilterMonth.value = "";
+    return;
+  }
+  const monthKey = formatMonthKey(from);
+  const expectedTo = new Date(from.getFullYear(), from.getMonth() + 1, 0);
+  if (formatMonthKey(to) === monthKey && expectedTo.getDate() === to.getDate()) {
+    sstDocFilterMonth.value = monthKey;
+    return;
+  }
+  sstDocFilterMonth.value = "";
+}
+
+function getSstDocFilterRange() {
+  let fromDate = sstDocFilterFrom ? parseDate(sstDocFilterFrom.value) : null;
+  let toDate = sstDocFilterTo ? parseDate(sstDocFilterTo.value) : null;
+  if (!fromDate && !toDate) {
+    const monthRange = getSstDocMonthRange();
+    if (monthRange) {
+      fromDate = monthRange.from;
+      toDate = monthRange.to;
+    }
+  }
+  return { fromDate, toDate };
+}
+
 function getSstDocsFiltered() {
   let list = getSstDocsScoped();
   const statusFilter = sstDocStatusFilter ? sstDocStatusFilter.value : "";
@@ -47885,6 +47987,24 @@ function getSstDocsFiltered() {
     list = list.filter(
       (doc) => String(doc.status || "").toUpperCase() === String(statusFilter).toUpperCase()
     );
+  }
+  const range = getSstDocFilterRange();
+  if (range.fromDate || range.toDate) {
+    const fromDate = range.fromDate;
+    const toDate = range.toDate ? endOfDayForFilter(range.toDate) : null;
+    list = list.filter((doc) => {
+      const when = parseTimestamp(doc.createdAt);
+      if (!when) {
+        return false;
+      }
+      if (fromDate && when < fromDate) {
+        return false;
+      }
+      if (toDate && when > toDate) {
+        return false;
+      }
+      return true;
+    });
   }
   const termo = sstDocSearch ? normalizeSearchValue(sstDocSearch.value || "") : "";
   if (termo) {
@@ -48023,6 +48143,403 @@ function renderSstDocArchive(scopedDocs) {
   }
 }
 
+function sanitizeSstDownloadName(value) {
+  return String(value || "Documento")
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildSstDocDownloadFileName(doc, entry, fileName) {
+  const activity = sanitizeSstDownloadName(doc && doc.activity ? doc.activity : "Documentacao");
+  const label = sanitizeSstDownloadName(entry && entry.label ? entry.label : getSstDocTypeLabel(entry && entry.type));
+  const base = sanitizeSstDownloadName(fileName || "Documento");
+  const composed = [activity, label, base].filter(Boolean).join(" - ");
+  if (composed.length <= 180) {
+    return composed;
+  }
+  return composed.slice(0, 180).trim();
+}
+
+function getSstDocDownloadKey(file) {
+  if (!file || typeof file !== "object") {
+    return "";
+  }
+  const id = String(file.docId || file.id || file.fileId || "").trim();
+  const url = String(file.url || "").trim();
+  const dataUrl = String(file.dataUrl || "").trim();
+  const name = String(file.name || file.nome || "").trim();
+  return `${id}|${url}|${dataUrl}|${name}`;
+}
+
+function getSstDocDownloadEntries(doc) {
+  const entries = [];
+  const seen = new Set();
+  const docs = getSstDocDocuments(doc);
+  DOC_KEYS.forEach((key) => {
+    const file = docs[key];
+    if (!file) {
+      return;
+    }
+    const entry = {
+      type: key,
+      label: DOC_LABELS[key] || key.toUpperCase(),
+      doc: file,
+    };
+    const keyValue = getSstDocDownloadKey(file);
+    if (keyValue && seen.has(keyValue)) {
+      return;
+    }
+    if (keyValue) {
+      seen.add(keyValue);
+    }
+    entries.push(entry);
+  });
+  const extras = [];
+  if (Array.isArray(doc && doc.attachments)) {
+    extras.push(...doc.attachments);
+  }
+  if (Array.isArray(doc && doc.anexos)) {
+    extras.push(...doc.anexos);
+  }
+  extras.forEach((raw) => {
+    const attachment = normalizeSstDocAttachment(raw);
+    if (!attachment || !attachment.doc) {
+      return;
+    }
+    if (attachment.key && docs[attachment.key]) {
+      return;
+    }
+    const keyValue = getSstDocDownloadKey(attachment.doc);
+    if (keyValue && seen.has(keyValue)) {
+      return;
+    }
+    if (keyValue) {
+      seen.add(keyValue);
+    }
+    entries.push({
+      type: attachment.key || "",
+      label: attachment.label || getSstDocTypeLabel(attachment.key),
+      doc: attachment.doc,
+    });
+  });
+  return entries;
+}
+
+async function downloadSstDocEntry(doc, entry) {
+  const normalized = normalizeSstDocFile(entry && entry.doc ? entry.doc : entry);
+  if (!normalized) {
+    return false;
+  }
+  const rawName = getSstDocFileName(normalized);
+  const fileName = buildSstDocDownloadFileName(doc, entry, rawName);
+  const dataUrl = normalized.dataUrl || "";
+  if (dataUrl && dataUrl.startsWith("data:")) {
+    const blobUrl = dataUrlToBlobUrl(dataUrl);
+    if (!blobUrl) {
+      return false;
+    }
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = fileName;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1500);
+    return true;
+  }
+  const fileId = normalized.docId || normalized.id || normalized.fileId || "";
+  if (fileId) {
+    const registro = await getDocById(fileId);
+    if (registro && registro.blob) {
+      const blobUrl = URL.createObjectURL(registro.blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1500);
+      return true;
+    }
+    const apiUrl = resolvePublicUrl(`/api/files/${encodeURIComponent(fileId)}/content`);
+    if (apiUrl) {
+      const link = document.createElement("a");
+      link.href = apiUrl;
+      link.download = fileName;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      return true;
+    }
+  }
+  const url = resolvePublicUrl(normalized.url || "");
+  if (!url) {
+    return false;
+  }
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  return true;
+}
+
+function pruneSstDocSelection() {
+  if (!sstDocSelectedIds || sstDocSelectedIds.size === 0) {
+    return;
+  }
+  const validIds = new Set(
+    (Array.isArray(sstDocs) ? sstDocs : []).map((doc) => String(doc && doc.id ? doc.id : ""))
+  );
+  Array.from(sstDocSelectedIds).forEach((id) => {
+    if (!validIds.has(String(id))) {
+      sstDocSelectedIds.delete(id);
+    }
+  });
+}
+
+function updateSstDocSelectionUi(list) {
+  if (sstDocSelectedCount) {
+    const totalSelected = sstDocSelectedIds ? sstDocSelectedIds.size : 0;
+    sstDocSelectedCount.textContent =
+      totalSelected > 0 ? `${totalSelected} selecionado(s)` : "0 selecionados";
+  }
+  if (sstDocDownloadSelected) {
+    sstDocDownloadSelected.disabled = !sstDocSelectedIds || sstDocSelectedIds.size === 0 || sstDocBulkDownloading;
+  }
+  if (sstDocClearSelection) {
+    sstDocClearSelection.disabled = !sstDocSelectedIds || sstDocSelectedIds.size === 0;
+  }
+  if (sstDocSelectAll) {
+    const visible = Array.isArray(list) ? list : [];
+    const visibleIds = visible.map((doc) => String(doc && doc.id ? doc.id : ""));
+    const selectedVisible = visibleIds.filter((id) => sstDocSelectedIds.has(id)).length;
+    sstDocSelectAll.disabled = visibleIds.length === 0;
+    sstDocSelectAll.checked = visibleIds.length > 0 && selectedVisible === visibleIds.length;
+    sstDocSelectAll.indeterminate =
+      selectedVisible > 0 && selectedVisible < visibleIds.length;
+  }
+}
+
+function getSstDocFocusLabel(doc) {
+  if (!doc) {
+    return "Nenhum item marcado.";
+  }
+  const project = availableProjects.find((item) => item.id === doc.projectId);
+  const projectLabel = project ? getProjectLabel(project) : doc.projectId || "-";
+  const responsavel = getUserLabel(doc.responsibleId);
+  const enviadoEm = doc.createdAt ? formatDateTime(parseTimestamp(doc.createdAt)) : "-";
+  return `${doc.activity || "Documentação"} · ${projectLabel} · ${responsavel} · ${enviadoEm}`;
+}
+
+function updateSstDocFocusUi() {
+  if (!sstDocFocusLabel) {
+    return;
+  }
+  const doc = sstDocFocusId
+    ? sstDocs.find((item) => String(item.id) === String(sstDocFocusId))
+    : null;
+  const rowVisible =
+    sstDocTableBody && sstDocFocusId
+      ? sstDocTableBody.querySelector(`[data-doc-id="${CSS.escape(String(sstDocFocusId))}"]`)
+      : null;
+  if (!doc) {
+    sstDocFocusId = "";
+    sstDocFocusLabel.textContent = "Nenhum item marcado.";
+    if (sstDocFocusJump) {
+      sstDocFocusJump.hidden = true;
+    }
+    if (sstDocFocusClear) {
+      sstDocFocusClear.hidden = true;
+    }
+    return;
+  }
+  const suffix = rowVisible ? "" : " (oculto pelos filtros)";
+  sstDocFocusLabel.textContent = `${getSstDocFocusLabel(doc)}${suffix}`;
+  if (sstDocFocusJump) {
+    sstDocFocusJump.hidden = false;
+    sstDocFocusJump.disabled = !rowVisible;
+  }
+  if (sstDocFocusClear) {
+    sstDocFocusClear.hidden = false;
+  }
+}
+
+function setSstDocFocus(docId) {
+  sstDocFocusId = docId ? String(docId) : "";
+  renderSstAprPt();
+}
+
+function clearSstDocFocus() {
+  sstDocFocusId = "";
+  renderSstAprPt();
+}
+
+function scrollToSstDocFocus() {
+  if (!sstDocTableBody || !sstDocFocusId) {
+    return;
+  }
+  const row = sstDocTableBody.querySelector(
+    `[data-doc-id="${CSS.escape(String(sstDocFocusId))}"]`
+  );
+  if (!row) {
+    return;
+  }
+  row.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function handleSstDocRowFocus(event) {
+  const target = event.target;
+  if (!target) {
+    return;
+  }
+  if (target.closest("button") || target.closest("input") || target.closest("a")) {
+    return;
+  }
+  const row = target.closest("tr[data-doc-id]");
+  if (!row) {
+    return;
+  }
+  setSstDocFocus(row.dataset.docId || "");
+}
+
+function handleSstDocSelectionChange(event) {
+  const target = event.target;
+  if (!target || !target.classList.contains("sst-doc-select")) {
+    return;
+  }
+  const row = target.closest("tr[data-doc-id]");
+  if (!row) {
+    return;
+  }
+  const docId = row.dataset.docId;
+  if (!docId) {
+    return;
+  }
+  if (target.checked) {
+    sstDocSelectedIds.add(String(docId));
+    row.classList.add("is-selected");
+  } else {
+    sstDocSelectedIds.delete(String(docId));
+    row.classList.remove("is-selected");
+  }
+  updateSstDocSelectionUi(getSstDocsFiltered());
+}
+
+function handleSstDocSelectAllToggle() {
+  const list = getSstDocsFiltered();
+  if (!sstDocSelectAll) {
+    return;
+  }
+  if (sstDocSelectAll.checked) {
+    list.forEach((doc) => {
+      if (doc && doc.id) {
+        sstDocSelectedIds.add(String(doc.id));
+      }
+    });
+  } else {
+    list.forEach((doc) => {
+      if (doc && doc.id) {
+        sstDocSelectedIds.delete(String(doc.id));
+      }
+    });
+  }
+  renderSstAprPt();
+}
+
+function handleSstDocSelectFiltered() {
+  const list = getSstDocsFiltered();
+  list.forEach((doc) => {
+    if (doc && doc.id) {
+      sstDocSelectedIds.add(String(doc.id));
+    }
+  });
+  renderSstAprPt();
+}
+
+function handleSstDocClearSelection() {
+  if (sstDocSelectedIds) {
+    sstDocSelectedIds.clear();
+  }
+  renderSstAprPt();
+}
+
+async function handleSstDocDownloadSelected() {
+  if (sstDocBulkDownloading) {
+    return;
+  }
+  const ids = sstDocSelectedIds ? Array.from(sstDocSelectedIds) : [];
+  if (!ids.length) {
+    showAuthToast("Selecione documentos para baixar.");
+    return;
+  }
+  sstDocBulkDownloading = true;
+  const originalLabel = sstDocDownloadSelected
+    ? sstDocDownloadSelected.dataset.label || sstDocDownloadSelected.textContent
+    : "";
+  if (sstDocDownloadSelected) {
+    sstDocDownloadSelected.dataset.label = originalLabel;
+    sstDocDownloadSelected.textContent = "Baixando...";
+    sstDocDownloadSelected.disabled = true;
+  }
+  let total = 0;
+  let okCount = 0;
+  let failCount = 0;
+  const downloaded = new Set();
+  for (const id of ids) {
+    const doc = sstDocs.find((item) => String(item.id) === String(id));
+    if (!doc) {
+      continue;
+    }
+    const entries = getSstDocDownloadEntries(doc);
+    for (const entry of entries) {
+      const normalized = normalizeSstDocFile(entry.doc);
+      const key = normalized ? getSstDocDownloadKey(normalized) : "";
+      if (key && downloaded.has(key)) {
+        continue;
+      }
+      if (key) {
+        downloaded.add(key);
+      }
+      total += 1;
+      const ok = await downloadSstDocEntry(doc, entry);
+      if (ok) {
+        okCount += 1;
+      } else {
+        failCount += 1;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 160));
+    }
+  }
+  sstDocBulkDownloading = false;
+  if (sstDocDownloadSelected) {
+    sstDocDownloadSelected.textContent =
+      (sstDocDownloadSelected.dataset.label || originalLabel || "Baixar selecionados").trim();
+  }
+  updateSstDocSelectionUi(getSstDocsFiltered());
+  if (total === 0) {
+    showAuthToast("Nenhum documento disponível para download.");
+    return;
+  }
+  if (failCount > 0) {
+    showAuthToast(`Download iniciado. ${failCount} arquivo(s) não puderam ser baixados.`);
+    return;
+  }
+  showAuthToast(`Download iniciado para ${okCount} arquivo(s).`);
+}
+
+function handleSstDocMonthFilterChange() {
+  applySstDocMonthFilter();
+  renderSstAprPt();
+}
+
+function handleSstDocDateFilterChange() {
+  syncSstDocMonthFromRange();
+  renderSstAprPt();
+}
+
 function renderSstAprPt() {
   if (!sstDocTableBody || !sstLoaded) {
     return;
@@ -48038,15 +48555,28 @@ function renderSstAprPt() {
   renderSstDocStats(scoped);
   renderSstDocQueue(scoped);
   renderSstDocArchive(scoped);
+  pruneSstDocSelection();
   const list = getSstDocsFiltered();
   sstDocTableBody.innerHTML = list
     .map((doc) => {
+      const docId = String(doc.id || "");
+      const isSelected = sstDocSelectedIds.has(docId);
+      const isFocus = sstDocFocusId && String(sstDocFocusId) === docId;
+      const rowClass = `${isSelected ? "is-selected" : ""} ${isFocus ? "is-focus" : ""}`.trim();
       const project = availableProjects.find((item) => item.id === doc.projectId);
       const projectLabel = project ? getProjectLabel(project) : doc.projectId || "-";
       const responsavel = getUserLabel(doc.responsibleId);
       const envio = doc.createdAt ? formatDateTime(parseTimestamp(doc.createdAt)) : "-";
       return `
-        <tr data-doc-id="${escapeHtml(String(doc.id))}">
+        <tr data-doc-id="${escapeHtml(docId)}" class="${escapeHtml(rowClass)}">
+          <td>
+            <input
+              class="sst-doc-select"
+              type="checkbox"
+              aria-label="Selecionar documentação"
+              ${isSelected ? "checked" : ""}
+            />
+          </td>
           <td>${getSstDocStatusBadge(doc.status)}</td>
           <td>${escapeHtml(doc.activity || "-")}</td>
           <td>${escapeHtml(projectLabel)}</td>
@@ -48070,6 +48600,8 @@ function renderSstAprPt() {
   if (sstDocEmpty) {
     sstDocEmpty.hidden = list.length > 0;
   }
+  updateSstDocSelectionUi(list);
+  updateSstDocFocusUi();
 }
 
 async function carregarVeiculos(force = false) {
@@ -69226,11 +69758,40 @@ if (sstDocStatusFilter) {
 if (sstDocProjectFilter) {
   sstDocProjectFilter.addEventListener("change", renderSstAprPt);
 }
+if (sstDocFilterMonth) {
+  sstDocFilterMonth.addEventListener("change", handleSstDocMonthFilterChange);
+}
+if (sstDocFilterFrom) {
+  sstDocFilterFrom.addEventListener("change", handleSstDocDateFilterChange);
+}
+if (sstDocFilterTo) {
+  sstDocFilterTo.addEventListener("change", handleSstDocDateFilterChange);
+}
 if (sstDocSearch) {
   sstDocSearch.addEventListener("input", renderSstAprPt);
 }
+if (sstDocSelectAll) {
+  sstDocSelectAll.addEventListener("change", handleSstDocSelectAllToggle);
+}
+if (sstDocSelectFiltered) {
+  sstDocSelectFiltered.addEventListener("click", handleSstDocSelectFiltered);
+}
+if (sstDocClearSelection) {
+  sstDocClearSelection.addEventListener("click", handleSstDocClearSelection);
+}
+if (sstDocDownloadSelected) {
+  sstDocDownloadSelected.addEventListener("click", handleSstDocDownloadSelected);
+}
+if (sstDocFocusJump) {
+  sstDocFocusJump.addEventListener("click", scrollToSstDocFocus);
+}
+if (sstDocFocusClear) {
+  sstDocFocusClear.addEventListener("click", clearSstDocFocus);
+}
 if (sstDocTableBody) {
   sstDocTableBody.addEventListener("click", handleSstDocContainerClick);
+  sstDocTableBody.addEventListener("click", handleSstDocRowFocus);
+  sstDocTableBody.addEventListener("change", handleSstDocSelectionChange);
 }
 if (sstDocQueue) {
   sstDocQueue.addEventListener("click", handleSstDocContainerClick);
