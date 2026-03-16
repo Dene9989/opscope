@@ -27114,12 +27114,18 @@ function updateRdoJustificativas(clearWhenHidden = false) {
   if (rdoUI.acionamentoJustificativaField) {
     rdoUI.acionamentoJustificativaField.hidden = !acionamentoAtivo;
   }
+  if (rdoUI.acionamentoJustificativa) {
+    rdoUI.acionamentoJustificativa.disabled = !acionamentoAtivo;
+  }
   if (!acionamentoAtivo && clearWhenHidden && rdoUI.acionamentoJustificativa) {
     rdoUI.acionamentoJustificativa.value = "";
   }
   const horaExtraAtiva = Boolean(rdoUI.horaExtraToggle && rdoUI.horaExtraToggle.checked);
   if (rdoUI.horaExtraJustificativaField) {
     rdoUI.horaExtraJustificativaField.hidden = !horaExtraAtiva;
+  }
+  if (rdoUI.horaExtraJustificativa) {
+    rdoUI.horaExtraJustificativa.disabled = !horaExtraAtiva;
   }
   if (!horaExtraAtiva && clearWhenHidden && rdoUI.horaExtraJustificativa) {
     rdoUI.horaExtraJustificativa.value = "";
@@ -27675,9 +27681,30 @@ function getMaintenanceRdoPresence(item, dataStr) {
   const range = getRdoDateRange(dataStr);
   const registroDiario = getRegistroDiarioExecucaoParaData(item, dataStr);
   const conclusao = getItemConclusaoDate(item) || getItemFimExecucaoDate(item);
+  const statusKey = normalizeMaintenanceStatus(item && item.status);
   const entrouDiario = Boolean(registroDiario);
   const entrouConclusao = isDateInRange(conclusao, range.inicio, range.fim);
-  const entrou = entrouConclusao || entrouDiario;
+  const dataProgramada = item && item.data ? parseDate(item.data) : null;
+  const entrouProgramada = isDateInRange(dataProgramada, range.inicio, range.fim);
+  const backlogMotivo = item && item.backlogMotivo ? item.backlogMotivo : null;
+  const justificativaData = backlogMotivo
+    ? parseAnyDate(backlogMotivo.registradoEm || backlogMotivo.registrado_em || "")
+    : null;
+  const entrouJustificativa = isDateInRange(justificativaData, range.inicio, range.fim);
+  const backlogAutoData = parseAnyDate(item && item.backlogAutoEm ? item.backlogAutoEm : "");
+  const entrouBacklogAuto = isDateInRange(backlogAutoData, range.inicio, range.fim);
+  const naoExecutadaNoDia =
+    entrouProgramada &&
+    !entrouDiario &&
+    !entrouConclusao &&
+    statusKey !== "concluida" &&
+    statusKey !== "cancelada";
+  const entrou =
+    entrouConclusao ||
+    entrouDiario ||
+    naoExecutadaNoDia ||
+    entrouJustificativa ||
+    entrouBacklogAuto;
   return { entrou, registroDiario };
 }
 
@@ -27735,7 +27762,20 @@ function getItemDescricaoRdo(item, registroDia = null) {
     item && item.conclusao ? item.conclusao.descricaoBreve || "" : "";
   const registro = diario ? diario.comentario || "" : item && item.registroExecucao ? item.registroExecucao.comentario : "";
   const conclusao = item && item.conclusao ? item.conclusao.comentario : "";
-  return registro || conclusaoBreve || conclusao || item.observacao || "";
+  const backlogMotivo = item && item.backlogMotivo ? item.backlogMotivo : null;
+  const backlogMotivoTexto = backlogMotivo && (backlogMotivo.motivo || backlogMotivo.observacao)
+    ? `Justificativa não execução: ${backlogMotivo.motivo || "-"}${backlogMotivo.observacao ? ` | ${backlogMotivo.observacao}` : ""}`
+    : "";
+  const replanTexto =
+    backlogMotivo &&
+    backlogMotivo.replanejamentoValido === false &&
+    backlogMotivo.replanejamentoMotivo
+      ? `Replanejamento não válido: ${backlogMotivo.replanejamentoMotivo}${
+          backlogMotivo.replanejamentoObs ? ` | ${backlogMotivo.replanejamentoObs}` : ""
+        }`
+      : "";
+  const justificativaTexto = [backlogMotivoTexto, replanTexto].filter(Boolean).join(" ");
+  return registro || conclusaoBreve || conclusao || justificativaTexto || item.observacao || "";
 }
 
 function getItemObsExecucaoRdo(item, registroDia = null) {
@@ -28096,12 +28136,17 @@ function gerarTextoItemRdo(item) {
   const variante = Number.parseInt(hashString(chave).slice(0, 2), 16) % 3;
   const titulo = item.titulo || "atividade";
   const subestacao = item.subestacao || "subestação não informada";
+  const statusKey = String(item.statusKey || "").toLowerCase();
+  const isExecutada = ["concluida", "em_execucao", "encerramento"].includes(statusKey);
   let abertura = `Durante o período, foi executada ${tipoLabel} em ${subestacao}.`;
   if (variante === 1) {
     abertura = `No período, a equipe realizou ${tipoLabel} em ${subestacao}, vinculada a ${titulo}.`;
   }
   if (variante === 2) {
     abertura = `Foi registrada ${tipoLabel} em ${subestacao} durante o período, referente a ${titulo}.`;
+  }
+  if (!isExecutada) {
+    abertura = `No período, a ${tipoLabel} em ${subestacao} (${titulo}) não foi executada.`;
   }
   const descricao = item.descricao
     ? `Descrição técnica: ${item.descricao}.`
@@ -28110,8 +28155,10 @@ function gerarTextoItemRdo(item) {
     ? `Diagnóstico: ${item.descricao}.`
     : "Sem registro de diagnóstico no período.";
   const acao = item.observacaoExecucao
-    ? `Ação executada: ${item.observacaoExecucao}.`
-    : "Sem registro de ação detalhada no período.";
+    ? `${isExecutada ? "Ação executada" : "Ação prevista"}: ${item.observacaoExecucao}.`
+    : isExecutada
+      ? "Sem registro de ação detalhada no período."
+      : "Sem registro de ação prevista no período.";
   const janela = formatJanelaExecucaoRdo(item.inicio, item.fim);
   const responsavel = item.responsavel
     ? `Responsável: ${item.responsavel}.`
@@ -28130,7 +28177,7 @@ function gerarTextoItemRdo(item) {
   const status = item.statusLabel ? `Status final: ${item.statusLabel}.` : "Status final: -.";
   const criticidade = item.critico ? "Classificação: crítica." : "";
   const duracao =
-    Number.isFinite(item.duracaoMin) && item.duracaoMin > 0
+    isExecutada && Number.isFinite(item.duracaoMin) && item.duracaoMin > 0
       ? `Tempo total de execução: ${formatDuracaoMin(item.duracaoMin)}.`
       : "";
 
