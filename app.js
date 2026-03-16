@@ -19601,7 +19601,7 @@ function renderDashboardHome() {
 
   const serieEficiencia = Array.isArray(graficoFinal.serie)
     ? graficoFinal.serie
-        .map((value) => Number(value))
+        .map((value) => (value === null || typeof value === "undefined" ? Number.NaN : Number(value)))
         .filter((value) => Number.isFinite(value))
     : [];
   const eficienciaAtual = serieEficiencia.length
