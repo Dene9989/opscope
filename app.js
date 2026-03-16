@@ -26908,13 +26908,36 @@ function getRdoSnapshotMonthKey(snapshot) {
     return "";
   }
   const dateRef = snapshot.rdoDate
-    ? parseDate(snapshot.rdoDate)
+    ? parseAnyDate(snapshot.rdoDate)
     : snapshot.createdAt
-      ? parseTimestamp(snapshot.createdAt)
+      ? parseAnyDate(snapshot.createdAt)
       : null;
   return dateRef ? formatMonthKey(dateRef) : "";
 }
 
+function getRdoSnapshotDate(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") {
+    return null;
+  }
+  return snapshot.rdoDate
+    ? parseAnyDate(snapshot.rdoDate)
+    : snapshot.createdAt
+      ? parseAnyDate(snapshot.createdAt)
+      : null;
+}
+
+function getRdoMonthRange(monthKey) {
+  if (!monthKey) {
+    return null;
+  }
+  const base = parseAnyDate(`${monthKey}-01`);
+  if (!base) {
+    return null;
+  }
+  const inicio = startOfMonth(base);
+  const fim = endOfMonth(base);
+  return { inicio, fim };
+}
 function setRdoMonthFilter(value) {
   rdoMonthFilter = String(value || "").trim();
   if (rdoUI.monthFilterInfo) {
@@ -26933,6 +26956,7 @@ function abrirRdoMonthModal() {
   if (!rdoUI.monthModal || !rdoUI.monthInput) {
     return;
   }
+  void carregarRdoSnapshotsServidor(true);
   if (rdoMonthFilter) {
     rdoUI.monthInput.value = rdoMonthFilter;
   } else {
@@ -26957,8 +26981,15 @@ function renderRdoList() {
   const baseLista = Array.isArray(rdoSnapshots)
     ? rdoSnapshots.filter((item) => showDeleted || !item.deletedAt)
     : [];
-  const lista = rdoMonthFilter
-    ? baseLista.filter((item) => getRdoSnapshotMonthKey(item) === rdoMonthFilter)
+  const monthRange = rdoMonthFilter ? getRdoMonthRange(rdoMonthFilter) : null;
+  const lista = monthRange
+    ? baseLista.filter((item) => {
+        const dateRef = getRdoSnapshotDate(item);
+        if (!dateRef) {
+          return false;
+        }
+        return inRange(dateRef, monthRange.inicio, monthRange.fim);
+      })
     : baseLista;
   lista.sort((a, b) => (getTimeValue(b.createdAt) || 0) - (getTimeValue(a.createdAt) || 0));
   rdoSelection.forEach((id) => {
