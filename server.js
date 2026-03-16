@@ -43,6 +43,12 @@ try {
   StandardFonts = null;
   rgb = null;
 }
+let archiver;
+try {
+  archiver = require("archiver");
+} catch (error) {
+  archiver = null;
+}
 const { createPowerBIRouter } = require("./src/powerbi/routes");
 const { createIntelligenceRouter } = require("./src/intelligence/routes");
 
@@ -10631,6 +10637,214 @@ function normalizeSstDoc(record) {
   };
 }
 
+const SST_DOC_LABELS = {
+  apr: "APR",
+  os: "OS",
+  pte: "PTE",
+  pt: "PT",
+};
+
+function sanitizeZipEntryName(value) {
+  return String(value || "Documento")
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/[\x00-\x1F]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function ensureUniqueZipEntryName(name, usedNames) {
+  const safe = sanitizeZipEntryName(name);
+  if (!safe) {
+    return ensureUniqueZipEntryName("documento", usedNames);
+  }
+  if (!usedNames.has(safe)) {
+    usedNames.add(safe);
+    return safe;
+  }
+  const parsed = path.parse(safe);
+  let counter = 2;
+  let candidate = "";
+  do {
+    candidate = `${parsed.name} (${counter})${parsed.ext || ""}`;
+    counter += 1;
+  } while (usedNames.has(candidate));
+  usedNames.add(candidate);
+  return candidate;
+}
+
+function parseDataUrlToBuffer(dataUrl) {
+  const match = String(dataUrl || "").match(/^data:([^;,]+)?(;base64)?,(.*)$/i);
+  if (!match) {
+    return null;
+  }
+  const mime = match[1] || "application/octet-stream";
+  const isBase64 = Boolean(match[2]);
+  const payload = match[3] || "";
+  try {
+    const buffer = isBase64 ? Buffer.from(payload, "base64") : Buffer.from(decodeURIComponent(payload));
+    return { buffer, mime };
+  } catch (error) {
+    return null;
+  }
+}
+
+function buildSstDocZipEntryName(doc, entry, fileName) {
+  const activity = sanitizeZipEntryName(doc && doc.activity ? doc.activity : "Documentacao");
+  const label = sanitizeZipEntryName(entry && entry.label ? entry.label : SST_DOC_LABELS[entry?.type] || "Anexo");
+  const base = sanitizeZipEntryName(fileName || "Documento");
+  const composed = [activity, label, base].filter(Boolean).join(" - ");
+  return composed || base;
+}
+
+function getSstDocZipEntries(doc) {
+  const extracted = extractSstDocDocuments(doc || {});
+  const entries = [];
+  const seen = new Set();
+  const docs = extracted.docs || {};
+  Object.keys(docs).forEach((key) => {
+    const file = docs[key];
+    if (!file) {
+      return;
+    }
+    const fingerprint = getSstDocFileFingerprint(file);
+    if (fingerprint && seen.has(fingerprint)) {
+      return;
+    }
+    if (fingerprint) {
+      seen.add(fingerprint);
+    }
+    entries.push({
+      type: key,
+      label: SST_DOC_LABELS[key] || key.toUpperCase(),
+      doc: file,
+    });
+  });
+  const extras = Array.isArray(extracted.attachments) ? extracted.attachments : [];
+  extras.forEach((entry) => {
+    if (!entry || !entry.doc) {
+      return;
+    }
+    const fingerprint = getSstDocFileFingerprint(entry.doc);
+    if (fingerprint && seen.has(fingerprint)) {
+      return;
+    }
+    if (fingerprint) {
+      seen.add(fingerprint);
+    }
+    entries.push({
+      type: entry.key || "",
+      label: entry.label || "Anexo",
+      doc: entry.doc,
+    });
+  });
+  return entries;
+}
+
+async function resolveSstDocFileBuffer(file, user, projectId) {
+  const normalized = normalizeSstDocFile(file);
+  if (!normalized) {
+    return null;
+  }
+  if (normalized.dataUrl && String(normalized.dataUrl).startsWith("data:")) {
+    const parsed = parseDataUrlToBuffer(normalized.dataUrl);
+    if (parsed && parsed.buffer && parsed.buffer.length) {
+      return {
+        buffer: parsed.buffer,
+        mime: parsed.mime || normalized.mime || "",
+        fileName: normalized.name || normalized.nome || "documento",
+      };
+    }
+  }
+
+  const fileId = String(normalized.docId || normalized.id || normalized.fileId || "").trim();
+  const fileEntry =
+    fileId && Array.isArray(filesMeta)
+      ? filesMeta.find((entry) => entry && String(entry.id || "") === fileId)
+      : null;
+
+  if (fileEntry && fileEntry.projectId && !userHasProjectAccess(user, fileEntry.projectId)) {
+    return null;
+  }
+  if (projectId && fileEntry && fileEntry.projectId && String(fileEntry.projectId) !== String(projectId)) {
+    return null;
+  }
+
+  if (fileId) {
+    const blob = await fetchUploadBlobById(fileId).catch(() => null);
+    if (blob && blob.buffer && blob.buffer.length) {
+      return {
+        buffer: blob.buffer,
+        mime: blob.mime || fileEntry?.mime || normalized.mime || "",
+        fileName: blob.name || fileEntry?.originalName || fileEntry?.name || normalized.name || "documento",
+      };
+    }
+  }
+
+  const candidates = [];
+  const pushCandidate = (filePath) => {
+    if (filePath && !candidates.includes(filePath)) {
+      candidates.push(filePath);
+    }
+  };
+
+  if (fileEntry && fileEntry.name) {
+    const typeConfig = getFileTypeConfig(fileEntry.type);
+    if (typeConfig) {
+      pushCandidate(path.join(FILES_DIR, typeConfig.dir, fileEntry.name));
+      pushCandidate(path.join(LEGACY_UPLOADS_DIR, "files", typeConfig.dir, fileEntry.name));
+    }
+  }
+
+  const url = String(normalized.url || "").trim();
+  const apiMatch = url.match(/\/api\/files\/([^/]+)\/content/i);
+  if (apiMatch) {
+    const extractedId = decodeURIComponent(apiMatch[1]);
+    if (extractedId && extractedId !== fileId) {
+      const blob = await fetchUploadBlobById(extractedId).catch(() => null);
+      if (blob && blob.buffer && blob.buffer.length) {
+        return {
+          buffer: blob.buffer,
+          mime: blob.mime || normalized.mime || "",
+          fileName: blob.name || normalized.name || "documento",
+        };
+      }
+    }
+  }
+
+  const storageMatch = url.match(/\/uploads\/files\/([^/]+)\/([^/?#]+)/i);
+  if (storageMatch) {
+    const storageDir = storageMatch[1];
+    let storageName = storageMatch[2];
+    try {
+      storageName = decodeURIComponent(storageName);
+    } catch (error) {
+      storageName = storageMatch[2];
+    }
+    pushCandidate(path.join(FILES_DIR, storageDir, storageName));
+    pushCandidate(path.join(LEGACY_UPLOADS_DIR, "files", storageDir, storageName));
+  }
+
+  for (const candidate of candidates) {
+    try {
+      if (!fs.existsSync(candidate) || !fs.statSync(candidate).isFile()) {
+        continue;
+      }
+      const buffer = fs.readFileSync(candidate);
+      if (!buffer.length) {
+        continue;
+      }
+      return {
+        buffer,
+        mime: fileEntry?.mime || normalized.mime || "",
+        fileName: fileEntry?.originalName || fileEntry?.name || path.basename(candidate),
+      };
+    } catch (error) {
+      // continue
+    }
+  }
+  return null;
+}
+
 function extractMaintenanceSstDocumentos(item, liberacao) {
   const output = {};
   const applyDoc = (type, file) => {
@@ -17873,6 +18087,93 @@ app.get("/api/sst/docs", requireAuth, requirePermission("verSST"), (req, res) =>
   }
   list = list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   return res.json({ docs: list });
+});
+
+app.post("/api/sst/docs/download-zip", requireAuth, requirePermission("verSST"), async (req, res) => {
+  if (!archiver) {
+    return res.status(500).json({ message: "Recurso de compactaÃ§Ã£o nÃ£o disponÃ­vel." });
+  }
+  const user = req.currentUser || getSessionUser(req);
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const docIds = Array.isArray(payload.docIds) ? payload.docIds : [];
+  if (!docIds.length) {
+    return res.status(400).json({ message: "Selecione ao menos uma documentaÃ§Ã£o." });
+  }
+  const docIdSet = new Set(docIds.map((id) => String(id)));
+  const allowed = new Set(getUserProjectIds(user));
+  const selected = sstDocs.filter(
+    (doc) =>
+      doc &&
+      doc.id &&
+      docIdSet.has(String(doc.id)) &&
+      (!doc.projectId || allowed.has(doc.projectId))
+  );
+  if (!selected.length) {
+    return res.status(404).json({ message: "DocumentaÃ§Ãµes nÃ£o encontradas." });
+  }
+  const entries = [];
+  const usedNames = new Set();
+  for (const doc of selected) {
+    const docEntries = getSstDocZipEntries(doc);
+    for (const entry of docEntries) {
+      const resolved = await resolveSstDocFileBuffer(entry.doc, user, doc.projectId);
+      if (!resolved || !resolved.buffer || !resolved.buffer.length) {
+        continue;
+      }
+      const name = buildSstDocZipEntryName(doc, entry, resolved.fileName || entry.doc?.name || "");
+      const uniqueName = ensureUniqueZipEntryName(name, usedNames);
+      entries.push({
+        name: uniqueName,
+        buffer: resolved.buffer,
+      });
+    }
+  }
+  if (!entries.length) {
+    return res.status(404).json({ message: "Nenhum arquivo encontrado para download." });
+  }
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  const zipName = `sst-documentacoes-${stamp}.zip`;
+  res.setHeader("Content-Type", "application/zip");
+  res.setHeader("Content-Disposition", `attachment; filename="${zipName}"`);
+  const archive = archiver("zip", { zlib: { level: 9 } });
+  archive.on("warning", (error) => {
+    if (error && error.code === "ENOENT") {
+      return;
+    }
+    try {
+      console.warn("[sst] zip warning:", error.message || error);
+    } catch (_) {}
+  });
+  archive.on("error", (error) => {
+    try {
+      console.error("[sst] zip error:", error.message || error);
+    } catch (_) {}
+    if (!res.headersSent) {
+      res.status(500).json({ message: "Falha ao gerar o arquivo zip." });
+      return;
+    }
+    try {
+      res.end();
+    } catch (_) {}
+  });
+  res.on("close", () => {
+    if (!res.writableEnded) {
+      try {
+        archive.abort();
+      } catch (_) {}
+    }
+  });
+  archive.pipe(res);
+  entries.forEach((entry) => {
+    archive.append(entry.buffer, { name: entry.name });
+  });
+  try {
+    await archive.finalize();
+  } catch (error) {
+    if (!res.headersSent) {
+      return res.status(500).json({ message: "Falha ao finalizar o zip." });
+    }
+  }
 });
 
 app.post(

@@ -48150,6 +48150,68 @@ function sanitizeSstDownloadName(value) {
     .trim();
 }
 
+function extractDownloadFileName(headerValue) {
+  const raw = String(headerValue || "");
+  if (!raw) {
+    return "";
+  }
+  const utfMatch = raw.match(/filename\*=utf-8''([^;]+)/i);
+  if (utfMatch && utfMatch[1]) {
+    try {
+      return decodeURIComponent(utfMatch[1].replace(/(^"|"$)/g, ""));
+    } catch (_) {
+      return utfMatch[1].replace(/(^"|"$)/g, "");
+    }
+  }
+  const match = raw.match(/filename=([^;]+)/i);
+  if (match && match[1]) {
+    return match[1].replace(/(^"|"$)/g, "");
+  }
+  return "";
+}
+
+async function downloadSstDocsZip(docIds) {
+  if (!USE_AUTH_API) {
+    return { ok: false, message: "Zip indisponível no modo local." };
+  }
+  const payload = { docIds: Array.isArray(docIds) ? docIds : [] };
+  if (!payload.docIds.length) {
+    return { ok: false, message: "Selecione ao menos uma documentação." };
+  }
+  try {
+    const response = await fetch(`${API_BASE}/api/sst/docs/download-zip`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      const message = data && data.message ? data.message : "Falha ao gerar o arquivo zip.";
+      return { ok: false, message };
+    }
+    const blob = await response.blob();
+    if (!blob || blob.size === 0) {
+      return { ok: false, message: "Arquivo zip vazio." };
+    }
+    const headerName = extractDownloadFileName(response.headers.get("Content-Disposition"));
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    const fallbackName = `sst-documentacoes-${stamp}.zip`;
+    const fileName = sanitizeSstDownloadName(headerName || fallbackName);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName.endsWith(".zip") ? fileName : `${fileName}.zip`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, message: "Falha ao iniciar o download do zip." };
+  }
+}
+
 function buildSstDocDownloadFileName(doc, entry, fileName) {
   const activity = sanitizeSstDownloadName(doc && doc.activity ? doc.activity : "Documentacao");
   const label = sanitizeSstDownloadName(entry && entry.label ? entry.label : getSstDocTypeLabel(entry && entry.type));
@@ -48341,9 +48403,13 @@ function updateSstDocFocusUi() {
   const doc = sstDocFocusId
     ? sstDocs.find((item) => String(item.id) === String(sstDocFocusId))
     : null;
+  const safeFocusId =
+    sstDocFocusId && window.CSS && CSS.escape
+      ? CSS.escape(String(sstDocFocusId))
+      : String(sstDocFocusId || "").replace(/["\\]/g, "\\$&");
   const rowVisible =
     sstDocTableBody && sstDocFocusId
-      ? sstDocTableBody.querySelector(`[data-doc-id="${CSS.escape(String(sstDocFocusId))}"]`)
+      ? sstDocTableBody.querySelector(`[data-doc-id="${safeFocusId}"]`)
       : null;
   if (!doc) {
     sstDocFocusId = "";
@@ -48381,9 +48447,11 @@ function scrollToSstDocFocus() {
   if (!sstDocTableBody || !sstDocFocusId) {
     return;
   }
-  const row = sstDocTableBody.querySelector(
-    `[data-doc-id="${CSS.escape(String(sstDocFocusId))}"]`
-  );
+  const safeFocusId =
+    window.CSS && CSS.escape
+      ? CSS.escape(String(sstDocFocusId))
+      : String(sstDocFocusId || "").replace(/["\\]/g, "\\$&");
+  const row = sstDocTableBody.querySelector(`[data-doc-id="${safeFocusId}"]`);
   if (!row) {
     return;
   }
@@ -48483,6 +48551,22 @@ async function handleSstDocDownloadSelected() {
     sstDocDownloadSelected.dataset.label = originalLabel;
     sstDocDownloadSelected.textContent = "Baixando...";
     sstDocDownloadSelected.disabled = true;
+  }
+  if (USE_AUTH_API) {
+    const zipResult = await downloadSstDocsZip(ids);
+    if (zipResult && zipResult.ok) {
+      sstDocBulkDownloading = false;
+      if (sstDocDownloadSelected) {
+        sstDocDownloadSelected.textContent =
+          (sstDocDownloadSelected.dataset.label || originalLabel || "Baixar selecionados").trim();
+      }
+      updateSstDocSelectionUi(getSstDocsFiltered());
+      showAuthToast("Download do zip iniciado.");
+      return;
+    }
+    if (zipResult && zipResult.message) {
+      showAuthToast(zipResult.message);
+    }
   }
   let total = 0;
   let okCount = 0;
