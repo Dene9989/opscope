@@ -8530,6 +8530,13 @@ textarea:focus {
   justify-content: space-between;
 }
 
+.rdo-head__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
 .rdo-actions {
   margin-top: 10px;
   display: flex;
@@ -8549,6 +8556,15 @@ textarea:focus {
 
 .rdo-toggle input {
   accent-color: var(--accent);
+}
+
+.rdo-month-filter {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  background: rgba(15, 36, 54, 0.06);
+  border-radius: 10px;
+  padding: 8px 12px;
 }
 
 .rdo-list {

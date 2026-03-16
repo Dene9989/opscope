@@ -5186,6 +5186,12 @@ let rdoUI = {
   empty: null,
   showDeleted: null,
   btnExcluir: null,
+  btnMonthFilter: null,
+  monthFilterInfo: null,
+  monthModal: null,
+  monthInput: null,
+  btnMonthApply: null,
+  btnMonthClear: null,
   modal: null,
   data: null,
   subestacao: null,
@@ -5220,6 +5226,7 @@ let rdoUI = {
   btnDeleteConfirm: null,
   btnDeleteCancel: null,
 };
+let rdoMonthFilter = "";
 let kpiRankingSort = { key: "concluidas", dir: "desc" };
 const KPI_THEME_STORAGE_KEY = "opscope.kpi.theme";
 const KPI_THEME_EXECUTIVO = "executivo";
@@ -12990,12 +12997,59 @@ function salvarTemplates(lista, options = {}) {
   }
 }
 
-function carregarRdoSnapshots() {
-  const data = readJson(getProjectStorageKey(RDO_KEY), []);
-  if (!Array.isArray(data)) {
-    return [];
+function getRdoSnapshotKey(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") {
+    return "";
   }
-  return data.filter((item) => item && typeof item === "object");
+  const id = String(snapshot.id || "").trim();
+  if (id) {
+    return id;
+  }
+  const hash = String(snapshot.hash || "").trim();
+  if (hash) {
+    return `hash:${hash}`;
+  }
+  const fallback = `${snapshot.rdoDate || ""}|${snapshot.createdAt || ""}|${snapshot.createdBy || ""}`;
+  return fallback.trim();
+}
+
+function normalizeRdoSnapshotList(list = []) {
+  return (Array.isArray(list) ? list : []).filter((item) => item && typeof item === "object");
+}
+
+function mergeRdoSnapshotLists(primary = [], secondary = []) {
+  const merged = new Map();
+  normalizeRdoSnapshotList(primary).forEach((item) => {
+    const key = getRdoSnapshotKey(item);
+    if (!key) {
+      return;
+    }
+    merged.set(key, item);
+  });
+  normalizeRdoSnapshotList(secondary).forEach((item) => {
+    const key = getRdoSnapshotKey(item);
+    if (!key || merged.has(key)) {
+      return;
+    }
+    merged.set(key, item);
+  });
+  return Array.from(merged.values());
+}
+
+function carregarRdoSnapshots() {
+  const storageKey = getProjectStorageKey(RDO_KEY);
+  const data = readJson(storageKey, []);
+  const localList = normalizeRdoSnapshotList(data);
+  const legacyList = activeProjectId
+    ? normalizeRdoSnapshotList(readJson(RDO_KEY, [])).filter(
+        (item) => !item.projectId || String(item.projectId) === String(activeProjectId)
+      )
+    : [];
+  const merged = mergeRdoSnapshotLists(localList, legacyList);
+  if (activeProjectId && legacyList.length && merged.length) {
+    writeJson(storageKey, merged);
+  }
+  return merged;
 }
 
 function normalizeRdoSnapshotsForSync(list) {
@@ -13055,12 +13109,14 @@ async function carregarRdoSnapshotsServidor(force = false) {
       : [];
     const data = await apiRdoList(activeProjectId);
     const serverItems = Array.isArray(data && data.items) ? data.items : [];
-    const normalizedServer = serverItems.filter((item) => item && typeof item === "object");
+    const normalizedServer = normalizeRdoSnapshotList(serverItems);
     const shouldBackfillServer = !normalizedServer.length && localItems.length > 0;
-    rdoSnapshots = shouldBackfillServer ? localItems : normalizedServer;
+    rdoSnapshots = shouldBackfillServer
+      ? localItems
+      : mergeRdoSnapshotLists(normalizedServer, localItems);
     salvarRdoSnapshots(rdoSnapshots, { skipSync: true });
     rdoLoadedProjects.add(activeProjectId);
-    if (shouldBackfillServer) {
+    if (shouldBackfillServer || rdoSnapshots.length > normalizedServer.length) {
       syncRdoSnapshotsNow(rdoSnapshots);
     }
     renderRdoList();
@@ -13072,7 +13128,24 @@ async function carregarRdoSnapshotsServidor(force = false) {
 }
 
 function salvarRdoSnapshots(lista, options = {}) {
-  writeJson(getProjectStorageKey(RDO_KEY), lista);
+  const storageKey = getProjectStorageKey(RDO_KEY);
+  let ok = writeJson(storageKey, lista);
+  if (!ok) {
+    const compacted = normalizeRdoSnapshotList(lista).map((snapshot) => {
+      const cleaned = { ...snapshot };
+      if (Array.isArray(cleaned.evidencias)) {
+        cleaned.evidencias = cleaned.evidencias.map((evidencia) => ({
+          ...evidencia,
+          dataUrl: "",
+        }));
+      }
+      if (cleaned.logoDataUrl) {
+        cleaned.logoDataUrl = "";
+      }
+      return cleaned;
+    });
+    ok = writeJson(storageKey, compacted);
+  }
   if (USE_AUTH_API && !options.skipSync) {
     syncRdoSnapshotsNow(lista);
   }
@@ -26281,7 +26354,12 @@ function montarRdoUI() {
         <h2>Relatórios Diários (RDO)</h2>
         <p class="hint">Consolide a operação do dia com texto técnico e evidências.</p>
       </div>
-      <button id="btnGerarRdo" class="btn btn--primary" type="button">Gerar RDO do dia</button>
+      <div class="rdo-head__actions">
+        <button id="btnRdoMonthFilter" class="btn btn--ghost btn--small" type="button">
+          Ver TODOS os RDO do mês
+        </button>
+        <button id="btnGerarRdo" class="btn btn--primary" type="button">Gerar RDO do dia</button>
+      </div>
     </div>
     <div class="rdo-actions">
       <label class="rdo-toggle">
@@ -26292,6 +26370,7 @@ function montarRdoUI() {
         Excluir selecionados
       </button>
     </div>
+    <div id="rdoMonthFilterInfo" class="rdo-month-filter" hidden></div>
     <div id="rdoList" class="rdo-list"></div>
     <p id="rdoEmpty" class="empty-state">Nenhum RDO gerado.</p>
   `;
@@ -26538,12 +26617,45 @@ function montarRdoUI() {
   `;
   document.body.append(modalDelete);
 
+  const modalMonth = document.createElement("div");
+  modalMonth.id = "modalRdoMonth";
+  modalMonth.className = "modal";
+  modalMonth.hidden = true;
+  modalMonth.innerHTML = `
+    <div class="modal__content">
+      <div class="modal__header">
+        <div>
+          <h3>RDOs do mês</h3>
+          <p class="hint">Selecione o mês para ver todos os RDOs gerados.</p>
+        </div>
+        <button class="btn btn--ghost btn--small" type="button" data-rdo-month-close>Fechar</button>
+      </div>
+      <form class="modal__form">
+        <div class="field">
+          <label for="rdoMonthFilter">Mês de referência</label>
+          <input id="rdoMonthFilter" type="month" />
+        </div>
+        <div class="modal__actions">
+          <button id="btnRdoMonthApply" class="btn btn--primary btn--small" type="button">
+            Aplicar filtro
+          </button>
+          <button id="btnRdoMonthClear" class="btn btn--ghost btn--small" type="button">
+            Limpar filtro
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+  document.body.append(modalMonth);
+
   rdoUI.card = card;
   rdoUI.list = card.querySelector("#rdoList");
   rdoUI.empty = card.querySelector("#rdoEmpty");
   rdoUI.showDeleted = card.querySelector("#rdoShowDeleted");
   rdoUI.btnExcluir = card.querySelector("#btnRdoExcluir");
   rdoUI.btnGerar = card.querySelector("#btnGerarRdo");
+  rdoUI.btnMonthFilter = card.querySelector("#btnRdoMonthFilter");
+  rdoUI.monthFilterInfo = card.querySelector("#rdoMonthFilterInfo");
   rdoUI.modal = modal;
   rdoUI.data = modal.querySelector("#rdoData");
   rdoUI.subestacao = modal.querySelector("#rdoSubestacao");
@@ -26593,6 +26705,10 @@ function montarRdoUI() {
   rdoUI.deleteMensagem = modalDelete.querySelector("#rdoDeleteMensagem");
   rdoUI.btnDeleteConfirm = modalDelete.querySelector("#btnRdoDeleteConfirm");
   rdoUI.btnDeleteCancel = modalDelete.querySelector("#btnRdoDeleteCancel");
+  rdoUI.monthModal = modalMonth;
+  rdoUI.monthInput = modalMonth.querySelector("#rdoMonthFilter");
+  rdoUI.btnMonthApply = modalMonth.querySelector("#btnRdoMonthApply");
+  rdoUI.btnMonthClear = modalMonth.querySelector("#btnRdoMonthClear");
 
   renderRdoLocaisOptions();
   updateRdoShiftLabels();
@@ -26638,6 +26754,25 @@ function montarRdoUI() {
   if (rdoUI.btnExcluir) {
     rdoUI.btnExcluir.addEventListener("click", abrirRdoDeleteModal);
   }
+  if (rdoUI.btnMonthFilter) {
+    rdoUI.btnMonthFilter.addEventListener("click", abrirRdoMonthModal);
+  }
+  if (rdoUI.btnMonthApply) {
+    rdoUI.btnMonthApply.addEventListener("click", () => {
+      const value = rdoUI.monthInput ? rdoUI.monthInput.value : "";
+      if (!value) {
+        return;
+      }
+      setRdoMonthFilter(value);
+      fecharRdoMonthModal();
+    });
+  }
+  if (rdoUI.btnMonthClear) {
+    rdoUI.btnMonthClear.addEventListener("click", () => {
+      setRdoMonthFilter("");
+      fecharRdoMonthModal();
+    });
+  }
   if (rdoUI.btnDeleteCancel) {
     rdoUI.btnDeleteCancel.addEventListener("click", fecharRdoDeleteModal);
   }
@@ -26648,6 +26783,12 @@ function montarRdoUI() {
     const btnClose = rdoUI.deleteModal.querySelector("[data-rdo-delete-close]");
     if (btnClose) {
       btnClose.addEventListener("click", fecharRdoDeleteModal);
+    }
+  }
+  if (rdoUI.monthModal) {
+    const btnClose = rdoUI.monthModal.querySelector("[data-rdo-month-close]");
+    if (btnClose) {
+      btnClose.addEventListener("click", fecharRdoMonthModal);
     }
   }
   if (rdoUI.clima) {
@@ -26759,15 +26900,77 @@ function aplicarPermissoesRdo() {
   }
 }
 
+function formatRdoMonthLabel(monthKey) {
+  if (!monthKey) {
+    return "";
+  }
+  const [yearStr, monthStr] = String(monthKey).split("-");
+  const year = Number(yearStr);
+  const monthIndex = Number(monthStr) - 1;
+  if (!Number.isFinite(year) || !Number.isFinite(monthIndex)) {
+    return monthKey;
+  }
+  const monthLabel = PMP_MONTH_LABELS[monthIndex] || String(monthIndex + 1).padStart(2, "0");
+  return `${monthLabel}/${year}`;
+}
+
+function getRdoSnapshotMonthKey(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") {
+    return "";
+  }
+  const dateRef = snapshot.rdoDate
+    ? parseDate(snapshot.rdoDate)
+    : snapshot.createdAt
+      ? parseTimestamp(snapshot.createdAt)
+      : null;
+  return dateRef ? formatMonthKey(dateRef) : "";
+}
+
+function setRdoMonthFilter(value) {
+  rdoMonthFilter = String(value || "").trim();
+  if (rdoUI.monthFilterInfo) {
+    if (rdoMonthFilter) {
+      rdoUI.monthFilterInfo.textContent = `Filtro ativo: ${formatRdoMonthLabel(rdoMonthFilter)}`;
+      rdoUI.monthFilterInfo.hidden = false;
+    } else {
+      rdoUI.monthFilterInfo.textContent = "";
+      rdoUI.monthFilterInfo.hidden = true;
+    }
+  }
+  renderRdoList();
+}
+
+function abrirRdoMonthModal() {
+  if (!rdoUI.monthModal || !rdoUI.monthInput) {
+    return;
+  }
+  if (rdoMonthFilter) {
+    rdoUI.monthInput.value = rdoMonthFilter;
+  } else {
+    rdoUI.monthInput.value = formatMonthKey(new Date());
+  }
+  rdoUI.monthModal.hidden = false;
+}
+
+function fecharRdoMonthModal() {
+  if (!rdoUI.monthModal) {
+    return;
+  }
+  rdoUI.monthModal.hidden = true;
+}
+
 function renderRdoList() {
   if (!rdoUI.list || !rdoUI.empty) {
     return;
   }
   rdoUI.list.innerHTML = "";
   const showDeleted = rdoUI.showDeleted ? rdoUI.showDeleted.checked : false;
-  const lista = Array.isArray(rdoSnapshots)
+  const baseLista = Array.isArray(rdoSnapshots)
     ? rdoSnapshots.filter((item) => showDeleted || !item.deletedAt)
     : [];
+  const lista = rdoMonthFilter
+    ? baseLista.filter((item) => getRdoSnapshotMonthKey(item) === rdoMonthFilter)
+    : baseLista;
   lista.sort((a, b) => (getTimeValue(b.createdAt) || 0) - (getTimeValue(a.createdAt) || 0));
   rdoSelection.forEach((id) => {
     if (!lista.some((item) => item.id === id)) {
@@ -26775,6 +26978,9 @@ function renderRdoList() {
     }
   });
   if (!lista.length) {
+    rdoUI.empty.textContent = rdoMonthFilter
+      ? "Nenhum RDO no mês selecionado."
+      : "Nenhum RDO gerado.";
     rdoUI.empty.hidden = false;
     atualizarRdoExcluirState();
     return;
@@ -29087,7 +29293,7 @@ function normalizeRdoSnapshot(snapshot) {
       : metricasDefault;
   const itens = Array.isArray(snapshot && snapshot.itens) ? snapshot.itens : [];
   const evidencias = Array.isArray(snapshot && snapshot.evidencias)
-    ? snapshot.evidencias
+    ? snapshot.evidencias.filter((item) => item && item.dataUrl)
     : [];
   const evidenciasNaoImagem = Array.isArray(snapshot && snapshot.evidenciasNaoImagem)
     ? snapshot.evidenciasNaoImagem
@@ -29103,6 +29309,39 @@ function normalizeRdoSnapshot(snapshot) {
     evidenciasNaoImagem,
     evidenciasTotal,
   };
+}
+
+async function ensureRdoSnapshotEvidencias(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") {
+    return snapshot;
+  }
+  const evidenciasAtual = Array.isArray(snapshot.evidencias) ? snapshot.evidencias : [];
+  const precisaRecarregar =
+    evidenciasAtual.length === 0 ||
+    evidenciasAtual.some((item) => item && !item.dataUrl) ||
+    (snapshot.evidenciasTotal && snapshot.evidenciasTotal > evidenciasAtual.length);
+  if (!precisaRecarregar) {
+    return snapshot;
+  }
+  const itensIds = new Set(
+    (Array.isArray(snapshot.itens) ? snapshot.itens : [])
+      .map((item) => item && item.id)
+      .filter(Boolean)
+  );
+  if (!itensIds.size) {
+    return snapshot;
+  }
+  const itensBase = manutencoes.filter((item) => itensIds.has(item.id));
+  if (!itensBase.length) {
+    return snapshot;
+  }
+  const limite = Number(snapshot.limiteEvidencias) || 8;
+  const dataKey = snapshot.rdoDate || "";
+  const evidenciasInfo = await montarEvidenciasRdo(itensBase, limite, dataKey);
+  snapshot.evidencias = evidenciasInfo.lista;
+  snapshot.evidenciasTotal = evidenciasInfo.total;
+  snapshot.evidenciasNaoImagem = evidenciasInfo.naoImagem;
+  return snapshot;
 }
 
 function buildRdoHtml(snapshot, options = {}) {
@@ -30213,6 +30452,7 @@ async function exportarRdoPdf(snapshot, options = {}) {
   if (!snapshot) {
     return;
   }
+  await ensureRdoSnapshotEvidencias(snapshot);
   const logoDataUrl = await carregarLogoRdoDataUrl();
   const html = buildRdoPrintHtml(snapshot, logoDataUrl, options);
   const popup = window.open("", "_blank");
