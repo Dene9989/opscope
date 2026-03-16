@@ -21485,9 +21485,8 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const statusGroup = document.createElement("div");
   statusGroup.className = "status-group";
   const execucaoRegistrada = hasExecucaoRegistrada(item);
-  const execucaoRegistradaLabel = hasExecucaoRegistradaCompleta(item)
-    ? getExecucaoRegistradaLabel(item)
-    : "";
+  const execucaoRegistradaCompleta = hasExecucaoRegistradaCompleta(item);
+  const execucaoRegistradaLabel = execucaoRegistradaCompleta ? getExecucaoRegistradaLabel(item) : "";
   const justificativaNaoExecucao = Boolean(getItemBacklogMotivo(item));
   const pendenciaDiariaExecucao = getRegistroExecucaoPendenteDateKey(item);
   const revalidacaoDiariaPendente = Boolean(pendenciaDiariaExecucao);
@@ -21686,7 +21685,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
     if (permite("execute") && !execucaoRegistrada) {
       actions.append(criarBotaoAcao("Cancelar início", "cancel_start"));
     }
-    if (permite("finish") && execucaoRegistrada && !revalidacaoDiariaPendente) {
+    if (permite("finish") && execucaoRegistradaCompleta && !revalidacaoDiariaPendente) {
       actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
     }
   } else if (statusNormalized === "encerramento") {
@@ -21697,7 +21696,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
       const botaoRegistro = criarBotaoAcao(labelRegistro, "register");
       actions.append(botaoRegistro);
     }
-    if (permite("finish") && execucaoRegistrada && !revalidacaoDiariaPendente) {
+    if (permite("finish") && execucaoRegistradaCompleta && !revalidacaoDiariaPendente) {
       actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
     }
   } else if (statusNormalized === "concluida") {
