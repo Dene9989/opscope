@@ -21664,11 +21664,6 @@ function criarCardManutencao(item, permissoes, options = {}) {
         ? `Fechar dia ${formatRegistroExecucaoDiaLabel(pendenciaDiariaExecucao)}`
         : "Registrar execução";
       const botaoRegistro = criarBotaoAcao(labelRegistro, "register");
-      if (!revalidacaoDiariaPendente && execucaoRegistrada) {
-        botaoRegistro.disabled = true;
-        botaoRegistro.classList.add("is-disabled");
-        botaoRegistro.title = "Execução já registrada.";
-      }
       actions.append(botaoRegistro);
     }
     if (permite("daily_revalidate") && revalidacaoManutencaoDisponivel) {
@@ -21700,11 +21695,6 @@ function criarCardManutencao(item, permissoes, options = {}) {
         ? `Fechar dia ${formatRegistroExecucaoDiaLabel(pendenciaDiariaExecucao)}`
         : "Registrar execução";
       const botaoRegistro = criarBotaoAcao(labelRegistro, "register");
-      if (!revalidacaoDiariaPendente && execucaoRegistrada) {
-        botaoRegistro.disabled = true;
-        botaoRegistro.classList.add("is-disabled");
-        botaoRegistro.title = "Execução já registrada.";
-      }
       actions.append(botaoRegistro);
     }
     if (permite("finish") && execucaoRegistrada && !revalidacaoDiariaPendente) {

@@ -11845,18 +11845,18 @@ async function notifyProjectTeamMaintenanceCreated(items, actor, ip, projectId) 
     if (!destinatarios.size) {
       continue;
     }
-    const subject = `OPSCOPE - Nova manutenÃ§Ã£o criada (${projectLabel})`;
-    const text = `Uma nova manutenÃ§Ã£o foi criada no projeto ${projectLabel}.\n\nAtividade: ${title}\nPrazo: ${dueLabel}\nEquipe: ${teamName}\nEquipamento: ${equipamento}\nOS/ReferÃªncia: ${
+    const subject = `OPSCOPE - Nova manutenção criada (${projectLabel})`;
+    const text = `Uma nova manutenção foi criada no projeto ${projectLabel}.\n\nAtividade: ${title}\nPrazo: ${dueLabel}\nEquipe: ${teamName}\nEquipamento: ${equipamento}\nOS/Referência: ${
       osRef || "-"
-    }\nResponsÃ¡veis: ${responsavelTexto || "-"}\nCriada por: ${createdBy}\n\nAcesse o OPSCOPE para detalhes.`;
+    }\nResponsáveis: ${responsavelTexto || "-"}\nCriada por: ${createdBy}\n\nAcesse o OPSCOPE para detalhes.`;
     const html = `
-      <p>Uma nova manutenÃ§Ã£o foi criada no projeto <strong>${escapeHtml(projectLabel)}</strong>.</p>
+      <p>Uma nova manutenção foi criada no projeto <strong>${escapeHtml(projectLabel)}</strong>.</p>
       <p><strong>Atividade:</strong> ${escapeHtml(title)}</p>
       <p><strong>Prazo:</strong> ${escapeHtml(dueLabel)}</p>
       <p><strong>Equipe:</strong> ${escapeHtml(teamName || "-")}</p>
       <p><strong>Equipamento:</strong> ${escapeHtml(equipamento)}</p>
-      <p><strong>OS/ReferÃªncia:</strong> ${escapeHtml(osRef || "-")}</p>
-      <p><strong>ResponsÃ¡veis:</strong> ${escapeHtml(responsavelTexto || "-")}</p>
+      <p><strong>OS/Referência:</strong> ${escapeHtml(osRef || "-")}</p>
+      <p><strong>Responsáveis:</strong> ${escapeHtml(responsavelTexto || "-")}</p>
       <p><strong>Criada por:</strong> ${escapeHtml(createdBy)}</p>
       <p>Acesse o OPSCOPE para detalhes.</p>
     `;
