@@ -26450,6 +26450,24 @@ function montarRdoUI() {
             </div>
           </div>
           <div class="rdo-shift-list" id="rdoJornadaList"></div>
+          <div class="rdo-shift-justifications">
+            <div class="field" id="rdoAcionamentoJustificativaField" hidden>
+              <label for="rdoAcionamentoJustificativa">Justificativa do acionamento</label>
+              <textarea
+                id="rdoAcionamentoJustificativa"
+                rows="2"
+                placeholder="Descreva o motivo do acionamento."
+              ></textarea>
+            </div>
+            <div class="field" id="rdoHoraExtraJustificativaField" hidden>
+              <label for="rdoHoraExtraJustificativa">Justificativa da hora extra</label>
+              <textarea
+                id="rdoHoraExtraJustificativa"
+                rows="2"
+                placeholder="Descreva o motivo da hora extra."
+              ></textarea>
+            </div>
+          </div>
           <small class="hint hint--compact" id="rdoShiftHint">
             Preencha entrada e saída por colaborador. Marque acionamento/hora extra apenas quando
             ocorrer e informe a janela. Expediente: 07:00-17:00 (seg-qui) e 07:00-16:00 (sex).
@@ -26544,6 +26562,12 @@ function montarRdoUI() {
   rdoUI.horaExtraToggle = modal.querySelector("#rdoHoraExtraToggle");
   rdoUI.horaExtraInicio = modal.querySelector("#rdoHoraExtraInicio");
   rdoUI.horaExtraFim = modal.querySelector("#rdoHoraExtraFim");
+  rdoUI.acionamentoJustificativaField = modal.querySelector(
+    "#rdoAcionamentoJustificativaField"
+  );
+  rdoUI.acionamentoJustificativa = modal.querySelector("#rdoAcionamentoJustificativa");
+  rdoUI.horaExtraJustificativaField = modal.querySelector("#rdoHoraExtraJustificativaField");
+  rdoUI.horaExtraJustificativa = modal.querySelector("#rdoHoraExtraJustificativa");
   rdoUI.jornadaList = modal.querySelector("#rdoJornadaList");
   rdoUI.clima = modal.querySelector("#rdoClima");
   rdoUI.climaOutroField = modal.querySelector("#rdoClimaOutroField");
@@ -26636,6 +26660,7 @@ function montarRdoUI() {
         rdoUI.acionamentoInicio,
         rdoUI.acionamentoFim
       );
+      updateRdoJustificativas(true);
     });
   }
   if (rdoUI.horaExtraToggle) {
@@ -26645,6 +26670,7 @@ function montarRdoUI() {
         rdoUI.horaExtraInicio,
         rdoUI.horaExtraFim
       );
+      updateRdoJustificativas(true);
     });
   }
   if (rdoUI.qtPessoas) {
@@ -26971,6 +26997,16 @@ function abrirRdoModal(snapshot) {
     rdoUI.horaExtraFim.value =
       manual.horaExtra && manual.horaExtra.fim ? manual.horaExtra.fim : "";
   }
+  if (rdoUI.acionamentoJustificativa) {
+    rdoUI.acionamentoJustificativa.value =
+      manual.acionamento && manual.acionamento.justificativa
+        ? manual.acionamento.justificativa
+        : "";
+  }
+  if (rdoUI.horaExtraJustificativa) {
+    rdoUI.horaExtraJustificativa.value =
+      manual.horaExtra && manual.horaExtra.justificativa ? manual.horaExtra.justificativa : "";
+  }
   if (rdoUI.clima) {
     rdoUI.clima.value = manual.clima || "SOL";
   }
@@ -26995,6 +27031,7 @@ function abrirRdoModal(snapshot) {
   renderRdoJornadas(manual);
   toggleRdoHorarioFields(rdoUI.acionamentoToggle, rdoUI.acionamentoInicio, rdoUI.acionamentoFim);
   toggleRdoHorarioFields(rdoUI.horaExtraToggle, rdoUI.horaExtraInicio, rdoUI.horaExtraFim);
+  updateRdoJustificativas(false);
   atualizarClimaOutroRdo();
   atualizarSugestaoQtPessoas();
   setRdoReadOnly(isReadOnly);
@@ -27051,6 +27088,8 @@ function setRdoReadOnly(readOnly) {
     rdoUI.horaExtraToggle,
     rdoUI.horaExtraInicio,
     rdoUI.horaExtraFim,
+    rdoUI.acionamentoJustificativa,
+    rdoUI.horaExtraJustificativa,
     rdoUI.clima,
     rdoUI.climaOutro,
     rdoUI.incidente,
@@ -27068,6 +27107,23 @@ function setRdoReadOnly(readOnly) {
     rdoUI.btnPreview.hidden = readOnly;
   }
   setRdoJornadaReadOnly(readOnly);
+}
+
+function updateRdoJustificativas(clearWhenHidden = false) {
+  const acionamentoAtivo = Boolean(rdoUI.acionamentoToggle && rdoUI.acionamentoToggle.checked);
+  if (rdoUI.acionamentoJustificativaField) {
+    rdoUI.acionamentoJustificativaField.hidden = !acionamentoAtivo;
+  }
+  if (!acionamentoAtivo && clearWhenHidden && rdoUI.acionamentoJustificativa) {
+    rdoUI.acionamentoJustificativa.value = "";
+  }
+  const horaExtraAtiva = Boolean(rdoUI.horaExtraToggle && rdoUI.horaExtraToggle.checked);
+  if (rdoUI.horaExtraJustificativaField) {
+    rdoUI.horaExtraJustificativaField.hidden = !horaExtraAtiva;
+  }
+  if (!horaExtraAtiva && clearWhenHidden && rdoUI.horaExtraJustificativa) {
+    rdoUI.horaExtraJustificativa.value = "";
+  }
 }
 
 function atualizarClimaOutroRdo() {
@@ -27184,6 +27240,7 @@ function hasUserProjectInfo(user) {
 
 function collectActiveProjectMembers(jornadas = [], options = {}) {
   const includeAdmins = Boolean(options && options.includeAdmins);
+  const includeInactive = Boolean(options && options.includeInactive);
   const requireProjectInfo = Boolean(options && options.requireProjectInfo);
   const equipeIds = getActiveProjectEquipeIds();
   const members = new Map();
@@ -27195,7 +27252,10 @@ function collectActiveProjectMembers(jornadas = [], options = {}) {
     if (!id || isSystemUserId(id)) {
       return;
     }
-    if (normalizeAccessUserStatus(user.status, user.active) === "INATIVO") {
+    if (
+      normalizeAccessUserStatus(user.status, user.active) === "INATIVO" &&
+      !includeInactive
+    ) {
       return;
     }
     const isAdmin = isAdminUser(user);
@@ -27236,7 +27296,7 @@ function collectActiveProjectMembers(jornadas = [], options = {}) {
     });
   }
 
-  const baseUsers = includeAdmins ? users : getOperationalUsers();
+  const baseUsers = includeAdmins || includeInactive ? users : getOperationalUsers();
   baseUsers.filter(isUserFromActiveProject).forEach((user) => addUser(user));
 
   if (currentUser && isUserFromActiveProject(currentUser)) {
@@ -27357,6 +27417,7 @@ function renderRdoJornadas(manual = {}) {
   );
   const colaboradores = collectActiveProjectMembers(jornadasValidas, {
     includeAdmins: false,
+    includeInactive: true,
     requireProjectInfo: true,
   });
 
@@ -27443,6 +27504,8 @@ function coletarFiltrosRdo() {
 
 function coletarManualRdo() {
   const clima = rdoUI.clima ? rdoUI.clima.value : "";
+  const acionamentoAtivo = Boolean(rdoUI.acionamentoToggle && rdoUI.acionamentoToggle.checked);
+  const horaExtraAtivo = Boolean(rdoUI.horaExtraToggle && rdoUI.horaExtraToggle.checked);
   const jornadas = rdoUI.jornadaList
     ? Array.from(rdoUI.jornadaList.querySelectorAll(".rdo-shift-row"))
         .map((row) => {
@@ -27472,14 +27535,20 @@ function coletarManualRdo() {
     numeroSi: rdoUI.numeroSi ? rdoUI.numeroSi.value.trim() : "",
     numeroSgi: rdoUI.numeroSgi ? rdoUI.numeroSgi.value.trim() : "",
     acionamento: {
-      ativo: rdoUI.acionamentoToggle ? rdoUI.acionamentoToggle.checked : false,
+      ativo: acionamentoAtivo,
       inicio: rdoUI.acionamentoInicio ? rdoUI.acionamentoInicio.value : "",
       fim: rdoUI.acionamentoFim ? rdoUI.acionamentoFim.value : "",
+      justificativa: acionamentoAtivo && rdoUI.acionamentoJustificativa
+        ? rdoUI.acionamentoJustificativa.value.trim()
+        : "",
     },
     horaExtra: {
-      ativo: rdoUI.horaExtraToggle ? rdoUI.horaExtraToggle.checked : false,
+      ativo: horaExtraAtivo,
       inicio: rdoUI.horaExtraInicio ? rdoUI.horaExtraInicio.value : "",
       fim: rdoUI.horaExtraFim ? rdoUI.horaExtraFim.value : "",
+      justificativa: horaExtraAtivo && rdoUI.horaExtraJustificativa
+        ? rdoUI.horaExtraJustificativa.value.trim()
+        : "",
     },
     jornadas,
   };
@@ -29076,6 +29145,14 @@ function buildRdoHtml(snapshot, options = {}) {
   const horaExtraMin = hasHoraExtra
     ? calcDurationMinutes(manual.horaExtra.inicio, manual.horaExtra.fim)
     : 0;
+  const acionamentoJustificativa = String(
+    manual.acionamento && manual.acionamento.justificativa
+      ? manual.acionamento.justificativa
+      : ""
+  ).trim();
+  const horaExtraJustificativa = String(
+    manual.horaExtra && manual.horaExtra.justificativa ? manual.horaExtra.justificativa : ""
+  ).trim();
   const aiText = snapshot.aiText || null;
   const atividadesConsolidado =
     (aiText && aiText.atividades_consolidado) ||
@@ -29264,6 +29341,28 @@ function buildRdoHtml(snapshot, options = {}) {
       ${buildField("Janela acionamento", acionamentoLabel)}
     </div>
   `;
+  const justificativasHtml =
+    !isCliente && (hasAcionamento || hasHoraExtra)
+      ? `
+        <div class="rdo-note">
+          <h4>Justificativas de jornada</h4>
+          ${
+            hasAcionamento
+              ? `<p class="rdo-paragraph"><strong>Acionamento:</strong> ${escapeHtml(
+                  acionamentoJustificativa || "-"
+                )}</p>`
+              : ""
+          }
+          ${
+            hasHoraExtra
+              ? `<p class="rdo-paragraph"><strong>Hora extra:</strong> ${escapeHtml(
+                  horaExtraJustificativa || "-"
+                )}</p>`
+              : ""
+          }
+        </div>
+      `
+      : "";
 
   const rows = snapshot.itens
     .map((item) => {
@@ -29758,6 +29857,7 @@ function buildRdoHtml(snapshot, options = {}) {
         <h3>Controle de jornada</h3>
         ${jornadaCardsHtml}
         ${acionamentoHtml}
+        ${justificativasHtml}
         ${jornadaRowsHtml}
       </section>
 
