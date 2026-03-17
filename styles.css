@@ -5451,6 +5451,8 @@ body.is-visitor .container.auth-only {
 
 .panel-card--alerts {
   align-content: start;
+  padding: 14px;
+  gap: 10px;
 }
 
 .home-shell .panel-card {
