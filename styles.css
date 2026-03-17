@@ -5449,6 +5449,10 @@ body.is-visitor .container.auth-only {
   gap: 12px;
 }
 
+.panel-card--alerts {
+  align-content: start;
+}
+
 .home-shell .panel-card {
   border-radius: 18px;
   border-color: rgba(102, 136, 165, 0.3);
