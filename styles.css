@@ -6528,9 +6528,10 @@ body.is-visitor .container.auth-only {
 .dashboard-home .data-table th:nth-child(2),
 .dashboard-home .data-table td:nth-child(2) {
   width: 20%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
 }
 
 .dashboard-home .data-table th:nth-child(3),
