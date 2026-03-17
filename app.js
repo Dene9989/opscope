@@ -19687,37 +19687,62 @@ function renderDashboardHome() {
         })
     : [];
 
-  const resolveAlertVisual = (tipoRaw) => {
-    const tipo = normalizeSearchValue(tipoRaw || "");
+  const resolveAlertVisual = (alerta = {}) => {
+    const tipo = normalizeSearchValue(alerta && alerta.tipo ? alerta.tipo : "");
+    const status = normalizeMaintenanceStatus(alerta && alerta.status ? alerta.status : "");
+    let chipClass = "alert-chip--info";
+    let chipLabel = "Info";
+    let defaultTab = "programacao";
+    let defaultAction = "Ver detalhe";
+
     if (tipo.includes("crit")) {
-      return {
-        chipClass: "alert-chip--danger",
-        chipLabel: "Crítico",
-        openTab: "execucao",
-        actionLabel: "Abrir execução",
-      };
+      chipClass = "alert-chip--danger";
+      chipLabel = "Crítico";
+      defaultTab = "execucao";
+      defaultAction = "Abrir execução";
+    } else if (tipo.includes("aviso")) {
+      chipClass = "alert-chip--warn";
+      chipLabel = "Atenção";
+      defaultTab = "programacao";
+      defaultAction = "Abrir programação";
     }
-    if (tipo.includes("aviso")) {
-      return {
-        chipClass: "alert-chip--warn",
-        chipLabel: "Atenção",
-        openTab: "programacao",
-        actionLabel: "Abrir programação",
-      };
+
+    let openTab = "";
+    let actionLabel = "";
+
+    if (status === "backlog") {
+      openTab = "backlog";
+      actionLabel = "Abrir backlog";
+    } else if (status === "em_execucao" || status === "encerramento") {
+      openTab = "execucao";
+      actionLabel = "Abrir execução";
+    } else if (status === "liberada" || status === "agendada" || status === "planejada") {
+      openTab = "programacao";
+      actionLabel = "Abrir programação";
     }
-    return {
-      chipClass: "alert-chip--info",
-      chipLabel: "Info",
-      openTab: "programacao",
-      actionLabel: "Ver detalhe",
-    };
+
+    if (!openTab) {
+      openTab = (alerta && (alerta.openTab || alerta.tab)) || defaultTab;
+    }
+    if (!actionLabel) {
+      actionLabel =
+        openTab === "backlog"
+          ? "Abrir backlog"
+          : openTab === "execucao"
+            ? "Abrir execução"
+            : openTab === "programacao"
+              ? "Abrir programação"
+              : defaultAction;
+    }
+
+    return { chipClass, chipLabel, openTab, actionLabel };
   };
 
   const alertRows = Array.isArray(alertasFinal)
     ? alertasFinal
         .slice(0, 5)
         .map((alerta) => {
-          const visual = resolveAlertVisual(alerta && alerta.tipo ? alerta.tipo : "");
+          const visual = resolveAlertVisual(alerta || {});
           const msg =
             (alerta && (alerta.msg || alerta.mensagem || alerta.message || alerta.titulo)) ||
             "Alerta operacional sem detalhe.";
@@ -63560,9 +63585,12 @@ function buildLocalDashboardSummary(items, projectId) {
     .forEach((item) => {
       const due = getMaintenanceDueDate(item);
       const dueLabel = due ? formatDateISO(due) : "--";
+      const status = normalizeMaintenanceStatus(item && item.status);
       alertasOperacionais.push({
         tipo: "critico",
         msg: `${getMaintenanceTitle(item)} - prazo ${dueLabel}`,
+        status,
+        itemId: item && (item.id || item._id || item.uuid || ""),
       });
     });
 
@@ -63579,9 +63607,12 @@ function buildLocalDashboardSummary(items, projectId) {
       .forEach((item) => {
         const due = getMaintenanceDueDate(item);
         const dueLabel = due ? formatDateISO(due) : "--";
+        const status = normalizeMaintenanceStatus(item && item.status);
         alertasOperacionais.push({
           tipo: "aviso",
           msg: `${getMaintenanceTitle(item)} - prazo ${dueLabel}`,
+          status,
+          itemId: item && (item.id || item._id || item.uuid || ""),
         });
       });
   }
