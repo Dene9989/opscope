@@ -8820,6 +8820,15 @@ textarea:focus {
   text-overflow: ellipsis;
 }
 
+.rdo-table--jornada .rdo-table__col-name {
+  width: 24%;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: break-word;
+  vertical-align: top;
+}
+
 .rdo-table--activities {
   table-layout: auto;
 }

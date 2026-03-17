@@ -29659,10 +29659,10 @@ function buildRdoHtml(snapshot, options = {}) {
     `
     : `<p class="empty-state">Sem indicadores relevantes no período.</p>`;
   const jornadaRowsHtml = `
-      <table class="rdo-table rdo-table--compact rdo-table--center">
+      <table class="rdo-table rdo-table--compact rdo-table--center rdo-table--jornada">
         <thead>
           <tr>
-            <th>Colaborador</th>
+            <th class="rdo-table__col-name">Colaborador</th>
             <th>Entrada</th>
             <th>Saída</th>
             <th>Horas líquidas</th>
@@ -29679,7 +29679,7 @@ function buildRdoHtml(snapshot, options = {}) {
                   .map(
                     (row) => `
               <tr>
-                <td>${escapeHtml(row.nome)}</td>
+                <td class="rdo-table__col-name">${escapeHtml(row.nome)}</td>
                 <td>${escapeHtml(row.entrada)}</td>
                 <td>${escapeHtml(row.saida)}</td>
                 <td>${row.duracaoMin ? escapeHtml(formatDuracaoMin(row.duracaoMin)) : "—"}</td>
@@ -30634,7 +30634,9 @@ async function exportarRdoPdf(snapshot, options = {}) {
   if (!snapshot) {
     return;
   }
-  persistRdoSnapshotOnExport(snapshot);
+  if (!options.cliente) {
+    persistRdoSnapshotOnExport(snapshot);
+  }
   await ensureRdoSnapshotEvidencias(snapshot);
   const logoDataUrl = await carregarLogoRdoDataUrl();
   const html = buildRdoPrintHtml(snapshot, logoDataUrl, options);
