@@ -26374,6 +26374,7 @@ function montarRdoUI() {
         Excluir selecionados
       </button>
     </div>
+    <p class="hint rdo-hint">PDF cliente não salva o RDO.</p>
     <div id="rdoMonthFilterInfo" class="rdo-month-filter" hidden></div>
     <div id="rdoList" class="rdo-list"></div>
     <p id="rdoEmpty" class="empty-state">Nenhum RDO gerado.</p>
@@ -26561,6 +26562,7 @@ function montarRdoUI() {
           </button>
           <button id="btnRdoVoltar" class="btn btn--ghost btn--small" type="button">Voltar</button>
         </div>
+        <small class="hint rdo-hint">PDF cliente não salva o RDO.</small>
         <div id="rdoPreview" class="rdo-preview" hidden>
           <div class="rdo-preview__head">
             <strong>Preview do RDO</strong>

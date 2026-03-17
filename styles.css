@@ -8546,6 +8546,10 @@ textarea:focus {
   justify-content: space-between;
 }
 
+.rdo-hint {
+  margin: 6px 0 0;
+}
+
 .rdo-toggle {
   display: inline-flex;
   align-items: center;
