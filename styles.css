@@ -5538,6 +5538,13 @@ body.is-visitor .container.auth-only {
   list-style: none;
 }
 
+.ops-alert-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 2px;
+}
+
 .ops-alert-item {
   display: flex;
   align-items: center;
@@ -5608,6 +5615,12 @@ body.is-visitor .container.auth-only {
   color: #cbe6ff;
   background: rgba(59, 130, 246, 0.2);
   border-color: rgba(59, 130, 246, 0.45);
+}
+
+.alert-chip--neutral {
+  color: #d2dbe6;
+  background: rgba(148, 163, 184, 0.18);
+  border-color: rgba(148, 163, 184, 0.4);
 }
 
 .ops-alert-cta {

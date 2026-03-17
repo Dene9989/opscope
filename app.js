@@ -19740,6 +19740,35 @@ function renderDashboardHome() {
         .join("")
     : "";
 
+  const alertCounts = Array.isArray(alertasFinal)
+    ? alertasFinal.reduce(
+        (acc, alerta) => {
+          acc.total += 1;
+          const tipo = normalizeSearchValue(alerta && alerta.tipo ? alerta.tipo : "");
+          if (tipo.includes("crit")) {
+            acc.crit += 1;
+          } else if (tipo.includes("aviso") || tipo.includes("aten")) {
+            acc.warn += 1;
+          } else {
+            acc.info += 1;
+          }
+          return acc;
+        },
+        { total: 0, crit: 0, warn: 0, info: 0 }
+      )
+    : { total: 0, crit: 0, warn: 0, info: 0 };
+  const alertSummaryMarkup =
+    alertCounts.total > 0
+      ? `
+        <div class="ops-alert-summary">
+          <span class="alert-chip alert-chip--info">Total ${alertCounts.total}</span>
+          ${alertCounts.crit ? `<span class="alert-chip alert-chip--danger">Críticos ${alertCounts.crit}</span>` : ""}
+          ${alertCounts.warn ? `<span class="alert-chip alert-chip--warn">Atenção ${alertCounts.warn}</span>` : ""}
+          ${alertCounts.info ? `<span class="alert-chip alert-chip--neutral">Info ${alertCounts.info}</span>` : ""}
+        </div>
+      `
+      : "";
+
   const rows = sortedAtividades
     .map((item) => {
       const badge = getStatusBadge(item.status);
@@ -19861,6 +19890,7 @@ function renderDashboardHome() {
               <h3>ALERTAS OPERACIONAIS</h3>
             </div>
             <p class="panel-subtitle">Ocorrências que exigem resposta rápida da equipe.</p>
+            ${alertSummaryMarkup}
             ${alertListMarkup}
           </article>
           <article class="card panel-card panel-card--activities">
