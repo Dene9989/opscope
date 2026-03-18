@@ -53,10 +53,21 @@ function resolvePuppeteerExecutablePath() {
   if (explicit) {
     return explicit;
   }
-  const cacheDir =
-    String(process.env.PUPPETEER_CACHE_DIR || process.env.PUPPETEER_DOWNLOAD_PATH || "").trim() ||
-    path.join(os.homedir(), ".cache", "puppeteer");
-  return findChromeExecutableFromCache(cacheDir);
+  const cacheDirs = [
+    String(process.env.PUPPETEER_CACHE_DIR || "").trim(),
+    String(process.env.PUPPETEER_DOWNLOAD_PATH || "").trim(),
+    path.join(process.cwd(), ".cache", "puppeteer"),
+    path.join("/opt/render/project", ".cache", "puppeteer"),
+    path.join("/opt/render", ".cache", "puppeteer"),
+    path.join(os.homedir(), ".cache", "puppeteer"),
+  ].filter(Boolean);
+  for (const dir of cacheDirs) {
+    const found = findChromeExecutableFromCache(dir);
+    if (found) {
+      return found;
+    }
+  }
+  return "";
 }
 
 async function renderWithPuppeteer(html, options = {}) {
@@ -67,7 +78,13 @@ async function renderWithPuppeteer(html, options = {}) {
     throw error;
   }
 
-  const executablePath = resolvePuppeteerExecutablePath();
+  let executablePath = resolvePuppeteerExecutablePath();
+  if (!executablePath && puppeteer && typeof puppeteer.executablePath === "function") {
+    const autoPath = puppeteer.executablePath();
+    if (autoPath && fs.existsSync(autoPath)) {
+      executablePath = autoPath;
+    }
+  }
   const browser = await puppeteer.launch({
     headless: "new",
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
