@@ -22357,13 +22357,29 @@ app.post(
         });
       }
       const pdfStart = Date.now();
-      const buffer = await withTimeout(
+      let buffer = await withTimeout(
         monthlyReport.renderMonthlyReportPdf(result.html, {
           engine: RDO_MENSAL_V2_PDF_ENGINE,
         }),
         RDO_MENSAL_V2_TIMEOUT_MS,
         "pdf_timeout"
       );
+      if (buffer && !Buffer.isBuffer(buffer)) {
+        try {
+          buffer = Buffer.from(buffer);
+        } catch (error) {
+          const err = new Error("PDF gerado invalido.");
+          err.code = "pdf_invalid";
+          throw err;
+        }
+      }
+      const signature = buffer ? buffer.subarray(0, 5).toString("ascii") : "";
+      if (!buffer || signature !== "%PDF-") {
+        const err = new Error("PDF gerado invalido.");
+        err.code = "pdf_invalid";
+        err.details = { signature, bytes: buffer ? buffer.length : 0 };
+        throw err;
+      }
       let pageCount = result.pageCount || 0;
       if (PDFDocument && buffer) {
         try {
@@ -22390,6 +22406,7 @@ app.post(
         ? `${result.input.meta.period.start}-${result.input.meta.period.end}`
         : formatMonthKey(new Date());
       res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Length", String(buffer.length));
       res.setHeader(
         "Content-Disposition",
         `attachment; filename="rdo-mensal-v2-${projectId}-${monthKey}.pdf"`
@@ -22412,6 +22429,12 @@ app.post(
       if (code === "pdf_engine_missing") {
         return res.status(501).json({
           message: "Dependencia de PDF nao instalada.",
+          code,
+        });
+      }
+      if (code === "pdf_invalid") {
+        return res.status(502).json({
+          message: "PDF gerado invalido. Verifique a configuracao do Chrome/Puppeteer.",
           code,
         });
       }

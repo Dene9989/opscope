@@ -63487,6 +63487,7 @@ async function apiRdoMensalV2Pdf(payload) {
     },
     body: JSON.stringify(payload || {}),
   });
+  const contentType = response.headers.get("Content-Type") || "";
   if (!response.ok) {
     let data = null;
     try {
@@ -63498,6 +63499,18 @@ async function apiRdoMensalV2Pdf(payload) {
     const err = new Error(message);
     err.status = response.status;
     err.data = data;
+    throw err;
+  }
+  if (!contentType.toLowerCase().includes("application/pdf")) {
+    let text = "";
+    try {
+      text = await response.text();
+    } catch (error) {
+      text = "";
+    }
+    const err = new Error("Resposta invalida ao gerar PDF (conteudo nao-PDF).");
+    err.status = response.status;
+    err.data = { contentType, text };
     throw err;
   }
   return response.blob();
