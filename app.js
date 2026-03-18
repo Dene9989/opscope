@@ -67821,39 +67821,18 @@ if (relatorioMes) {
   });
 }
 if (btnRelatorioMensalPreview) {
-  btnRelatorioMensalPreview.addEventListener("click", async () => {
-    if (shouldUseRdoMensalV2()) {
-      try {
-        const ok = await abrirRdoMensalPreviewV2();
-        if (ok) {
-          return;
-        }
-      } catch (error) {
-        console.warn("[rdo-mensal-v2] preview falhou, fallback v1", error);
-      }
-    }
-    const ok = abrirRdoMensalPreview();
+  btnRelatorioMensalPreview.addEventListener("click", () => {
+    const ok = previewRelatorioMensal();
     if (!ok) {
-      alert("Não foi possível abrir o preview do RDO mensal.");
+      alert("Popup bloqueado. Permita a abertura para visualizar o relatório mensal.");
     }
   });
 }
 if (btnRelatorioMensalExportar) {
-  btnRelatorioMensalExportar.addEventListener("click", async () => {
-    if (shouldUseRdoMensalV2()) {
-      try {
-        const ok = await exportarRdoMensalV2();
-        if (ok) {
-          return;
-        }
-      } catch (error) {
-        console.warn("[rdo-mensal-v2] export falhou, fallback v1", error);
-        alert(error && error.message ? error.message : "Falha ao gerar o PDF do RDO mensal V2.");
-      }
-    }
-    const ok = gerarRdoMensal(true);
+  btnRelatorioMensalExportar.addEventListener("click", () => {
+    const ok = exportarRelatorioMensal();
     if (!ok) {
-      alert("Popup bloqueado. Permita a abertura para exportar o PDF.");
+      alert("Popup bloqueado. Permita a abertura para exportar o PDF mensal.");
     }
   });
 }
