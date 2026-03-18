@@ -6,6 +6,59 @@
   }
 }
 
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
+
+function findChromeExecutableFromCache(cacheDir) {
+  if (!cacheDir) {
+    return "";
+  }
+  const chromeRoot = path.join(cacheDir, "chrome");
+  if (!fs.existsSync(chromeRoot)) {
+    return "";
+  }
+  let entries = [];
+  try {
+    entries = fs.readdirSync(chromeRoot, { withFileTypes: true });
+  } catch (error) {
+    return "";
+  }
+  const versions = entries
+    .filter((entry) => entry && entry.isDirectory && entry.isDirectory())
+    .map((entry) => entry.name)
+    .filter(Boolean)
+    .sort()
+    .reverse();
+  const candidates = [
+    ["chrome-linux64", "chrome"],
+    ["chrome-linux", "chrome"],
+    ["chrome-win64", "chrome.exe"],
+    ["chrome-win", "chrome.exe"],
+    ["chrome-mac", "Chromium.app/Contents/MacOS/Chromium"],
+  ];
+  for (const version of versions) {
+    for (const [dirName, binName] of candidates) {
+      const fullPath = path.join(chromeRoot, version, dirName, binName);
+      if (fs.existsSync(fullPath)) {
+        return fullPath;
+      }
+    }
+  }
+  return "";
+}
+
+function resolvePuppeteerExecutablePath() {
+  const explicit = String(process.env.PUPPETEER_EXECUTABLE_PATH || "").trim();
+  if (explicit) {
+    return explicit;
+  }
+  const cacheDir =
+    String(process.env.PUPPETEER_CACHE_DIR || process.env.PUPPETEER_DOWNLOAD_PATH || "").trim() ||
+    path.join(os.homedir(), ".cache", "puppeteer");
+  return findChromeExecutableFromCache(cacheDir);
+}
+
 async function renderWithPuppeteer(html, options = {}) {
   const puppeteer = tryRequire("puppeteer");
   if (!puppeteer) {
@@ -14,9 +67,11 @@ async function renderWithPuppeteer(html, options = {}) {
     throw error;
   }
 
+  const executablePath = resolvePuppeteerExecutablePath();
   const browser = await puppeteer.launch({
     headless: "new",
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    ...(executablePath ? { executablePath } : {}),
   });
   try {
     const page = await browser.newPage();
