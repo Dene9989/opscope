@@ -17,11 +17,11 @@ const { Page } = require("../layout/page");
 const { chunkArray } = require("../helpers/chunk");
 const { escapeHtml } = require("../helpers/escape");
 
-function renderKpiGrid(kpis) {
-  if (!kpis || !kpis.cards || !kpis.cards.length) {
+function renderKpiGrid(cards) {
+  if (!cards || !cards.length) {
     return EmptyState("Sem KPIs disponíveis para o período.");
   }
-  return `<div class="kpi-grid">${kpis.cards.map(KpiCard).join("")}</div>`;
+  return `<div class="kpi-grid">${cards.map(KpiCard).join("")}</div>`;
 }
 
 function renderComparison(comparison) {
@@ -126,20 +126,28 @@ function renderMonthlyReportTemplate(viewModel, charts) {
   const consolidatedTables = viewModel.consolidatedTables;
   const appendix = viewModel.appendix;
 
+  const primaryKpis = viewModel.kpis && viewModel.kpis.primaryCards ? viewModel.kpis.primaryCards : (viewModel.kpis ? viewModel.kpis.cards : []);
+  const secondaryKpis = viewModel.kpis && viewModel.kpis.secondaryCards ? viewModel.kpis.secondaryCards : [];
+
   const page1 = Page(`
     ${header}
     ${metadata}
     ${banner}
 
     ${SectionHeader("Visão executiva", "Indicadores chave do período.")}
-    ${renderKpiGrid(viewModel.kpis)}
+    ${renderKpiGrid(primaryKpis)}
+
+    ${SectionHeader("Resumo executivo", "Síntese gerencial do período.")}
+    <div class="executive-summary">
+      <p>${escapeHtml(executiveSummary.text || "")}</p>
+      ${executiveSummary.bullets && executiveSummary.bullets.length ? `<ul>${executiveSummary.bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join("")}</ul>` : ""}
+    </div>
 
     ${SectionHeader("Comparativo com período anterior", "Variações em relação ao mês anterior.")}
     ${renderComparison(viewModel.comparisonWithPreviousPeriod)}
 
-    ${SectionHeader("Resumo executivo", "Síntese gerencial do período.")}
-    <p>${escapeHtml(executiveSummary.text || "")}</p>
-    ${executiveSummary.bullets && executiveSummary.bullets.length ? `<ul>${executiveSummary.bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join("")}</ul>` : ""}
+    ${secondaryKpis.length ? SectionHeader("Indicadores complementares", "Apoio à leitura executiva.") : ""}
+    ${secondaryKpis.length ? renderKpiGrid(secondaryKpis) : ""}
   `);
 
   const page2 = Page(`
@@ -147,11 +155,13 @@ function renderMonthlyReportTemplate(viewModel, charts) {
     <div class="chart-grid">
       ${ChartContainer("Evolução semanal", "Planejadas vs executadas", chartIndex.weekly_planned_executed)}
       ${ChartContainer("Evolução de backlog", "Cumulativo no período", chartIndex.backlog_evolution)}
-      ${ChartContainer("Distribuição por status", "", chartIndex.status_distribution)}
-      ${ChartContainer("SLA no prazo vs fora do prazo", "", chartIndex.sla_on_time)}
+      ${ChartContainer("Distribuição por status", "Planejadas", chartIndex.status_distribution)}
+      ${ChartContainer("SLA no prazo vs fora do prazo", "Percentual", chartIndex.sla_on_time)}
     </div>
     ${renderInsights(trendAnalysis)}
+  `, { className: "page-break" });
 
+  const page3 = Page(`
     ${SectionHeader("Análise operacional", operationalBreakdown.text || "")}
     <div class="chart-grid">
       ${ChartContainer("Distribuição por categoria", "Top categorias", chartIndex.category_distribution)}
@@ -161,7 +171,7 @@ function renderMonthlyReportTemplate(viewModel, charts) {
     ${renderOperationalTables(operationalBreakdown)}
   `, { className: "page-break" });
 
-  const page3 = Page(`
+  const page4 = Page(`
     ${SectionHeader("Segurança, compliance e evidências", safetyCompliance.text || "")}
     ${ComplianceTable(safetyCompliance) || EmptyState("Sem dados de compliance.")}
 
@@ -176,7 +186,7 @@ function renderMonthlyReportTemplate(viewModel, charts) {
     ${ActionTable(actionPlan) || EmptyState(actionPlan.text)}
   `, { className: "page-break" });
 
-  const page4 = Page(`
+  const page5 = Page(`
     ${SectionHeader("Tabelas consolidadas", consolidatedTables.text || "")}
     ${renderConsolidatedTables(consolidatedTables)}
 
@@ -190,6 +200,7 @@ function renderMonthlyReportTemplate(viewModel, charts) {
       ${page2}
       ${page3}
       ${page4}
+      ${page5}
     </article>
   `;
 }

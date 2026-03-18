@@ -179,7 +179,22 @@ function buildKpis({ metrics, comparison }) {
     })
   );
 
-  return { cards };
+  const primaryKeys = new Set([
+    "totalPlannedActivities",
+    "totalExecutedActivities",
+    "executionRatioPct",
+    "backlog",
+    "overdue",
+    "slaOnTimePct",
+  ]);
+  const primaryCards = cards.filter((card) => primaryKeys.has(card.key));
+  const secondaryCards = cards.filter((card) => !primaryKeys.has(card.key));
+
+  return {
+    cards,
+    primaryCards,
+    secondaryCards,
+  };
 }
 
 function buildTrendAnalysis({ breakdowns, insights }) {

@@ -47,6 +47,9 @@ tr {
 .insight-card,
 .risk-card,
 .summary-table,
+.executive-summary,
+.comparison-card,
+.action-table-block,
 .daily-rdo-block {
   break-inside: avoid;
   page-break-inside: avoid;

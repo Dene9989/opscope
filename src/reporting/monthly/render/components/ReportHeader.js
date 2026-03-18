@@ -1,5 +1,4 @@
 ﻿const { escapeHtml } = require("../helpers/escape");
-
 const { getAssetDataUri } = require("../helpers/assets");
 
 function ReportHeader(header, meta) {
@@ -22,11 +21,11 @@ function ReportHeader(header, meta) {
           <h1>${title}</h1>
           ${subtitle ? `<p class="report-subtitle">${subtitle}</p>` : ""}
         </div>
-      </div>
-      <div class="report-meta">
-        ${periodLabel ? `<span><strong>Período:</strong> ${periodLabel}</span>` : ""}
-        ${emittedAtLabel ? `<span><strong>Emissão:</strong> ${emittedAtLabel}</span>` : ""}
-        ${reportVersion ? `<span><strong>Versão:</strong> ${reportVersion}</span>` : ""}
+        <div class="report-meta report-meta--compact">
+          ${periodLabel ? `<span><strong>Período:</strong> ${periodLabel}</span>` : ""}
+          ${emittedAtLabel ? `<span><strong>Emissão:</strong> ${emittedAtLabel}</span>` : ""}
+          ${reportVersion ? `<span><strong>Versão:</strong> ${reportVersion}</span>` : ""}
+        </div>
       </div>
     </header>
   `;

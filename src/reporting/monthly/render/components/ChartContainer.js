@@ -7,7 +7,7 @@ function ChartContainer(title, subtitle = "", chart = {}) {
     <div class="chart-container">
       <div class="chart-header">
         <h4>${escapeHtml(title)}</h4>
-        ${subtitle ? `<span>${escapeHtml(subtitle)}</span>` : ""}
+        ${subtitle ? `<span class="chart-subtitle">${escapeHtml(subtitle)}</span>` : ""}
       </div>
       ${hasSvg ? `<div class="chart-svg">${chart.svg}</div>` : `<div class="chart-placeholder">${escapeHtml(emptyMessage || "Sem dados")}</div>`}
     </div>
