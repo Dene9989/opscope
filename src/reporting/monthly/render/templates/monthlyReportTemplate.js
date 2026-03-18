@@ -32,7 +32,7 @@ function renderComparison(comparison) {
 }
 
 function renderInsights(trendAnalysis) {
-  const insights = trendAnalysis && trendAnalysis.insights ? trendAnalysis.insights : [];
+  const insights = trendAnalysis && trendAnalysis.insights ? trendAnalysis.insights.slice(0, 6) : [];
   if (!insights.length) {
     return EmptyState("Sem insights relevantes para o período.");
   }
@@ -40,11 +40,30 @@ function renderInsights(trendAnalysis) {
 }
 
 function renderRisks(riskAssessment) {
-  const risks = riskAssessment && riskAssessment.risks ? riskAssessment.risks : [];
+  const risks = riskAssessment && riskAssessment.risks ? riskAssessment.risks.slice(0, 4) : [];
   if (!risks.length) {
     return EmptyState("Sem riscos relevantes identificados.");
   }
   return `<div class="risk-grid">${risks.map(RiskCard).join("")}</div>`;
+}
+
+function renderHighlights(executiveSummary) {
+  const highlights = executiveSummary && executiveSummary.highlights ? executiveSummary.highlights : [];
+  if (!highlights.length) {
+    return EmptyState("Sem destaques executivos para o período.");
+  }
+  return `
+    <div class="highlight-grid">
+      ${highlights
+        .map((item) => `
+          <div class="highlight-card${item.tone ? ` tone-${escapeHtml(item.tone)}` : ""}">
+            <div class="highlight-title">${escapeHtml(item.title || "")}</div>
+            <div class="highlight-text">${escapeHtml(item.text || "")}</div>
+          </div>
+        `)
+        .join("")}
+    </div>
+  `;
 }
 
 function renderOperationalTables(operational) {
@@ -142,6 +161,7 @@ function renderMonthlyReportTemplate(viewModel, charts) {
       <p>${escapeHtml(executiveSummary.text || "")}</p>
       ${executiveSummary.bullets && executiveSummary.bullets.length ? `<ul>${executiveSummary.bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join("")}</ul>` : ""}
     </div>
+    ${renderHighlights(executiveSummary)}
 
     ${SectionHeader("Comparativo com período anterior", "Variações em relação ao mês anterior.")}
     ${renderComparison(viewModel.comparisonWithPreviousPeriod)}

@@ -84,10 +84,32 @@ function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial
       ? "Recomenda-se priorizar a recuperação de backlog e vencimentos, além de revisar alocação de equipe para elevar o SLA."
       : "Recomenda-se manter o ritmo operacional e reforçar a disciplina de prazos para sustentar o desempenho.";
 
+  const highlights = [
+    {
+      title: "Desempenho geral",
+      tone: meetsExecution && meetsSla ? "positive" : "warning",
+      text: `Execução em ${formatPercent(ratio)} do planejado e SLA em ${formatPercent(metrics.slaOnTimePct)}.`,
+    },
+    {
+      title: "Foco operacional",
+      tone: metrics.backlog > 0 || metrics.overdue > 0 ? "warning" : "positive",
+      text:
+        metrics.backlog > 0 || metrics.overdue > 0
+          ? `Backlog: ${formatNumber(metrics.backlog)} • Vencidas: ${formatNumber(metrics.overdue)}.`
+          : "Sem backlog ou vencimentos relevantes no período.",
+    },
+    {
+      title: "Direcionamento",
+      tone: "neutral",
+      text: recommendation,
+    },
+  ];
+
   return {
     title: "Resumo executivo",
     text: `${textParts.join(" ")} ${recommendation}`,
     bullets,
+    highlights,
   };
 }
 
