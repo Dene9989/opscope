@@ -67840,11 +67840,7 @@ if (btnRelatorioMensalPreview) {
         return;
       }
     }
-    alert("RDO mensal V2 desativado. Exibindo versão legada.");
-    const ok = previewRelatorioMensal();
-    if (!ok) {
-      alert("Popup bloqueado. Permita a abertura para visualizar o relatório mensal.");
-    }
+    alert("RDO mensal V2 desativado. Ative a flag para visualizar o relatório executivo.");
   });
 }
 if (btnRelatorioMensalExportar) {
@@ -67863,11 +67859,7 @@ if (btnRelatorioMensalExportar) {
         return;
       }
     }
-    alert("RDO mensal V2 desativado. Exportando versão legada.");
-    const ok = exportarRelatorioMensal();
-    if (!ok) {
-      alert("Popup bloqueado. Permita a abertura para exportar o PDF mensal.");
-    }
+    alert("RDO mensal V2 desativado. Ative a flag para exportar o relatório executivo.");
   });
 }
 if (btnRelatorioMensalRdo) {
@@ -67890,11 +67882,7 @@ if (btnRelatorioMensalRdo) {
         return;
       }
     }
-    alert("RDO mensal V2 desativado. Exibindo versão legada.");
-    const ok = abrirRdoMensalPreview();
-    if (!ok) {
-      alert("Não foi possível abrir o preview do RDO mensal.");
-    }
+    alert("RDO mensal V2 desativado. Ative a flag para visualizar o relatório executivo.");
   });
 }
 if (rdoMensalPreviewClose) {
