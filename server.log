@@ -1,0 +1,12 @@
+[process] diagnostic report habilitado. {
+  directory: '/tmp',
+  reportOnFatalError: true,
+  reportOnUncaughtException: true,
+  reportOnSignal: true
+}
+[storage] DATA_DIR= C:\Users\denisson.alves\OneDrive - ENGELMIG ENERGIA LTDA\Área de Trabalho\My Workspace\sismetro\opscope-storage\data
+[storage] STORAGE_DIR= C:\Users\denisson.alves\OneDrive - ENGELMIG ENERGIA LTDA\Área de Trabalho\My Workspace\sismetro\opscope-storage
+[storage] DB_ENABLED= true
+[storage] STORE_UPLOADS= true
+[storage] OPSCOPE_STORAGE_DIR= C:\\Users\\denisson.alves\\OneDrive - ENGELMIG ENERGIA LTDA\\Área de Trabalho\\My Workspace\\sismetro\\opscope-storage
+OPSCOPE auth server rodando em http://0.0.0.0:3000

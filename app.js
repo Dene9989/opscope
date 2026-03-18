@@ -21590,6 +21590,8 @@ function criarCardManutencao(item, permissoes, options = {}) {
   const justificativaNaoExecucao = Boolean(getItemBacklogMotivo(item));
   const pendenciaDiariaExecucao = getRegistroExecucaoPendenteDateKey(item);
   const revalidacaoDiariaPendente = Boolean(pendenciaDiariaExecucao);
+  const hojeKey = formatDateISO(startOfDay(new Date()));
+  const execucaoHojeRegistrada = Boolean(getRegistroDiarioExecucao(item, hojeKey));
   const revalidacaoManutencaoDisponivel = isRegistroExecucaoRevalidacaoDisponivel(item);
   const revalidadaHoje = isManutencaoRevalidadaNoDia(item);
   statusGroup.append(badge);
@@ -21758,7 +21760,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
       actions.append(criarBotaoAcao("Justificar não execução", "backlog_reason"));
     }
   } else if (statusNormalized === "em_execucao") {
-    if (permite("execute") && (!execucaoRegistrada || revalidacaoDiariaPendente)) {
+    if (permite("execute") && (!execucaoHojeRegistrada || revalidacaoDiariaPendente)) {
       const labelRegistro = revalidacaoDiariaPendente
         ? `Fechar dia ${formatRegistroExecucaoDiaLabel(pendenciaDiariaExecucao)}`
         : "Registrar execução";
@@ -21789,7 +21791,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
       actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
     }
   } else if (statusNormalized === "encerramento") {
-    if (permite("execute") && (!execucaoRegistrada || revalidacaoDiariaPendente)) {
+    if (permite("execute") && (!execucaoHojeRegistrada || revalidacaoDiariaPendente)) {
       const labelRegistro = revalidacaoDiariaPendente
         ? `Fechar dia ${formatRegistroExecucaoDiaLabel(pendenciaDiariaExecucao)}`
         : "Registrar execução";

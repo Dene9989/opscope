@@ -1,0 +1,50 @@
+[
+  {
+    "id": "recorrencias",
+    "label": "Geracao de recorrencias",
+    "intervalMinutes": 60,
+    "critical": true,
+    "lastRun": "",
+    "lastStatus": "",
+    "lastError": "",
+    "lastDurationMs": 0,
+    "lastRunBy": "",
+    "lastBackupFile": ""
+  },
+  {
+    "id": "rdo_diario",
+    "label": "RDO diario",
+    "intervalMinutes": 1440,
+    "critical": false,
+    "lastRun": "",
+    "lastStatus": "",
+    "lastError": "",
+    "lastDurationMs": 0,
+    "lastRunBy": "",
+    "lastBackupFile": ""
+  },
+  {
+    "id": "limpeza_programada",
+    "label": "Limpeza programada",
+    "intervalMinutes": 1440,
+    "critical": false,
+    "lastRun": "",
+    "lastStatus": "",
+    "lastError": "",
+    "lastDurationMs": 0,
+    "lastRunBy": "",
+    "lastBackupFile": ""
+  },
+  {
+    "id": "backup",
+    "label": "Backup de dados",
+    "intervalMinutes": 1440,
+    "critical": true,
+    "lastRun": "",
+    "lastStatus": "",
+    "lastError": "",
+    "lastDurationMs": 0,
+    "lastRunBy": "",
+    "lastBackupFile": ""
+  }
+]
