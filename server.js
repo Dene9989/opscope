@@ -4775,6 +4775,10 @@ const CONTINGENCY_REPORT_DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
   month: "2-digit",
   day: "2-digit",
 });
+const MONTH_YEAR_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
+  month: "long",
+  year: "numeric",
+});
 
 function getContingencyLabel(map, key, fallback = "-") {
   const normalized = String(key || "").trim().toUpperCase();
@@ -8802,6 +8806,28 @@ function parseDateOnly(value) {
   }
   const parsed = new Date(text);
   return Number.isNaN(parsed.getTime()) ? null : startOfDay(parsed);
+}
+
+function stripAccents(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function sanitizeFilename(value) {
+  return String(value || "")
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildMonthlyReportFilename(periodStart) {
+  const referenceDate = parseDateOnly(periodStart) || new Date();
+  const label = MONTH_YEAR_FORMATTER.format(referenceDate).toUpperCase();
+  const base = `RELATÓRIO MENSAL - ${label}`;
+  const utfName = `${sanitizeFilename(base)}.pdf`;
+  const asciiName = `${sanitizeFilename(stripAccents(base))}.pdf`;
+  return { asciiName, utfName };
 }
 
 function parseDateTime(value) {
@@ -22402,14 +22428,18 @@ app.post(
         projectId,
         user,
       });
-      const monthKey = result.input && result.input.meta && result.input.meta.period
-        ? `${result.input.meta.period.start}-${result.input.meta.period.end}`
-        : formatMonthKey(new Date());
+      const periodStart =
+        result.input && result.input.meta && result.input.meta.period
+          ? result.input.meta.period.start
+          : "";
+      const { asciiName, utfName } = buildMonthlyReportFilename(periodStart);
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Length", String(buffer.length));
       res.setHeader(
         "Content-Disposition",
-        `attachment; filename="rdo-mensal-v2-${projectId}-${monthKey}.pdf"`
+        `attachment; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(
+          utfName
+        )}`
       );
       return res.send(buffer);
     } catch (error) {

@@ -4952,6 +4952,10 @@ const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
   dateStyle: "short",
   timeStyle: "short",
 });
+const monthYearFormatter = new Intl.DateTimeFormat("pt-BR", {
+  month: "long",
+  year: "numeric",
+});
 const weekLabelFormatter = new Intl.DateTimeFormat("pt-BR", {
   day: "2-digit",
   month: "2-digit",
@@ -12240,6 +12244,17 @@ function formatDate(date) {
 
 function formatDateTime(date) {
   return dateTimeFormatter.format(date);
+}
+
+function formatMonthYear(date) {
+  return monthYearFormatter.format(date);
+}
+
+function sanitizeFilename(value) {
+  return String(value || "")
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function toIsoUtc(value) {
@@ -26439,6 +26454,30 @@ function buildRdoMensalV2Payload(range) {
   };
 }
 
+function getRelatorioMensalReferenciaLabel() {
+  if (relatorioMes && relatorioMes.value) {
+    const parts = String(relatorioMes.value).split("-");
+    if (parts.length >= 2) {
+      const year = Number(parts[0]);
+      const monthIndex = Number(parts[1]) - 1;
+      if (Number.isFinite(year) && Number.isFinite(monthIndex)) {
+        return formatMonthYear(new Date(year, monthIndex, 1));
+      }
+    }
+  }
+  const range = getMonthlyRange();
+  if (range && range.start) {
+    return formatMonthYear(range.start);
+  }
+  return "Período";
+}
+
+function buildRelatorioMensalV2Filename() {
+  const label = getRelatorioMensalReferenciaLabel();
+  const base = `RELATÓRIO MENSAL - ${String(label || "").toUpperCase()}`;
+  return `${sanitizeFilename(base)}.pdf`;
+}
+
 function openPdfBlob(blob, filename = "rdo-mensal-v2.pdf") {
   const url = URL.createObjectURL(blob);
   const win = window.open(url, "_blank");
@@ -26491,7 +26530,7 @@ async function exportarRdoMensalV2() {
   const range = getMonthlyRange();
   const payload = buildRdoMensalV2Payload(range);
   const blob = await apiRdoMensalV2Pdf(payload);
-  const baseName = `rdo-mensal-v2-${payload.start || "periodo"}.pdf`;
+  const baseName = buildRelatorioMensalV2Filename();
   openPdfBlob(blob, baseName);
   return true;
 }
