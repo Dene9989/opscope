@@ -26433,7 +26433,7 @@ function abrirRdoMensalPreview() {
     return false;
   }
   const html = gerarRdoMensal(false, true);
-  rdoMensalPreviewBody.innerHTML = html;
+  renderRdoMensalPreviewHtml(html);
   rdoMensalPreviewModal.hidden = false;
   return true;
 }
@@ -26502,28 +26502,30 @@ async function abrirRdoMensalPreviewV2() {
   if (!data || !data.html) {
     throw new Error("HTML do RDO mensal V2 indisponível.");
   }
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(String(data.html), "text/html");
-  const styles = Array.from(doc.querySelectorAll("style"))
-    .map((style) => style.textContent || "")
-    .join("\n");
-  const bodyHtml = doc.body ? doc.body.innerHTML : data.html;
-  rdoMensalPreviewBody.innerHTML = "";
-  if (styles) {
-    const styleEl = document.createElement("style");
-    styleEl.dataset.rdoMensalV2 = "true";
-    styleEl.textContent = styles;
-    rdoMensalPreviewBody.append(styleEl);
-  }
-  const container = document.createElement("div");
-  container.className = "rdo-mensal-v2-preview";
-  container.innerHTML = bodyHtml;
-  rdoMensalPreviewBody.append(container);
+  renderRdoMensalPreviewHtml(data.html);
   rdoMensalPreviewModal.hidden = false;
   if (data.integrityStatus === "blocked") {
     alert("Integridade bloqueada: revisão necessária antes da emissão oficial.");
   }
   return true;
+}
+
+function renderRdoMensalPreviewHtml(html) {
+  if (!rdoMensalPreviewBody) {
+    return;
+  }
+  rdoMensalPreviewBody.innerHTML = "";
+  const iframe = document.createElement("iframe");
+  iframe.className = "rdo-mensal-preview-frame";
+  iframe.setAttribute("sandbox", "");
+  iframe.setAttribute("loading", "eager");
+  iframe.setAttribute("referrerpolicy", "no-referrer");
+  iframe.style.width = "100%";
+  iframe.style.height = "70vh";
+  iframe.style.border = "0";
+  iframe.style.background = "#fff";
+  iframe.srcdoc = String(html || "");
+  rdoMensalPreviewBody.append(iframe);
 }
 
 async function exportarRdoMensalV2() {
