@@ -8829,6 +8829,18 @@ function startOfDay(date) {
   return copy;
 }
 
+function isValidDate(value) {
+  return value instanceof Date && !Number.isNaN(value.getTime());
+}
+
+function inRange(date, start, end) {
+  if (!isValidDate(date) || !isValidDate(start) || !isValidDate(end)) {
+    return false;
+  }
+  const time = date.getTime();
+  return time >= start.getTime() && time <= end.getTime();
+}
+
 function addHours(date, hours) {
   const copy = new Date(date);
   copy.setHours(copy.getHours() + hours);
