@@ -67821,7 +67821,26 @@ if (relatorioMes) {
   });
 }
 if (btnRelatorioMensalPreview) {
-  btnRelatorioMensalPreview.addEventListener("click", () => {
+  btnRelatorioMensalPreview.addEventListener("click", async () => {
+    if (shouldUseRdoMensalV2()) {
+      try {
+        const ok = await abrirRdoMensalPreviewV2();
+        if (ok) {
+          return;
+        }
+        alert("Preview do RDO mensal V2 indisponível no momento.");
+        return;
+      } catch (error) {
+        console.warn("[rdo-mensal-v2] preview falhou", error);
+        alert(
+          error && error.message
+            ? error.message
+            : "Falha ao abrir o preview do RDO mensal V2. Verifique a flag e os logs."
+        );
+        return;
+      }
+    }
+    alert("RDO mensal V2 desativado. Exibindo versão legada.");
     const ok = previewRelatorioMensal();
     if (!ok) {
       alert("Popup bloqueado. Permita a abertura para visualizar o relatório mensal.");
@@ -67829,7 +67848,22 @@ if (btnRelatorioMensalPreview) {
   });
 }
 if (btnRelatorioMensalExportar) {
-  btnRelatorioMensalExportar.addEventListener("click", () => {
+  btnRelatorioMensalExportar.addEventListener("click", async () => {
+    if (shouldUseRdoMensalV2()) {
+      try {
+        const ok = await exportarRdoMensalV2();
+        if (ok) {
+          return;
+        }
+        alert("PDF do RDO mensal V2 indisponível no momento.");
+        return;
+      } catch (error) {
+        console.warn("[rdo-mensal-v2] export falhou", error);
+        alert(error && error.message ? error.message : "Falha ao gerar o PDF do relatório mensal V2.");
+        return;
+      }
+    }
+    alert("RDO mensal V2 desativado. Exportando versão legada.");
     const ok = exportarRelatorioMensal();
     if (!ok) {
       alert("Popup bloqueado. Permita a abertura para exportar o PDF mensal.");
@@ -67844,10 +67878,19 @@ if (btnRelatorioMensalRdo) {
         if (ok) {
           return;
         }
+        alert("Preview do RDO mensal V2 indisponível no momento.");
+        return;
       } catch (error) {
-        console.warn("[rdo-mensal-v2] preview falhou, fallback v1", error);
+        console.warn("[rdo-mensal-v2] preview falhou", error);
+        alert(
+          error && error.message
+            ? error.message
+            : "Falha ao abrir o preview do RDO mensal V2. Verifique a flag e os logs."
+        );
+        return;
       }
     }
+    alert("RDO mensal V2 desativado. Exibindo versão legada.");
     const ok = abrirRdoMensalPreview();
     if (!ok) {
       alert("Não foi possível abrir o preview do RDO mensal.");
