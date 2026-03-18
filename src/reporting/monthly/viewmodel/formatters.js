@@ -60,6 +60,17 @@ function formatDateTime(iso) {
   return date.toLocaleString(DEFAULT_LOCALE);
 }
 
+function formatDateOnly(value) {
+  if (!value) {
+    return "";
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  return date.toLocaleDateString(DEFAULT_LOCALE);
+}
+
 module.exports = {
   formatNumber,
   formatPercent,
@@ -68,4 +79,5 @@ module.exports = {
   formatDeltaPct,
   formatDateRange,
   formatDateTime,
+  formatDateOnly,
 };

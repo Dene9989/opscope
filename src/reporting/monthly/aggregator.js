@@ -25,6 +25,7 @@ function summarizeSlice(slice, label) {
 
   const plannedSet = buildPlannedSet(activities, period);
   const executedSet = buildExecutedSet(activities, period);
+  const backlogSet = plannedSet.filter((activity) => activity.status === STATUS_NORMALIZED.BACKLOG);
   const statusCounts = countByStatus(plannedSet);
   const totalPlannedActivities = countPlannedActivities(plannedSet);
   const totalExecutedActivities = countExecutedActivities(executedSet);
@@ -48,7 +49,7 @@ function summarizeSlice(slice, label) {
     byLocation: groupByField(plannedSet, "location"),
     byTeam: groupByField(plannedSet, "team"),
     byPriority: groupByField(plannedSet, "priority"),
-    byWeek: buildWeeklyBreakdown(plannedSet, executedSet, period),
+    byWeek: buildWeeklyBreakdown(plannedSet, executedSet, backlogSet, period),
   };
 
   const plannedNonCancelled = plannedSet.filter((activity) => !isCancelada(activity.status)).length;

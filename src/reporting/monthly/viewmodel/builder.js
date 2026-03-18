@@ -4,6 +4,7 @@
   formatHours,
   formatDateRange,
   formatDateTime,
+  formatDateOnly,
 } = require("./formatters");
 const { buildComparison } = require("./comparison");
 const { buildInsights } = require("./insights");
@@ -202,13 +203,14 @@ function buildTrendAnalysis({ breakdowns, insights }) {
     return fallbackTrendAnalysis("Sem dados de tendência semanal.");
   }
   return {
-    text: "Evolução semanal do volume planejado versus executado, destacando oscilações operacionais do período.",
+    text: "Evolução semanal do volume planejado, executado e backlog (status) ao longo do período.",
     weekly: breakdowns.byWeek.map((bucket) => ({
       weekIndex: bucket.weekIndex,
       start: bucket.start,
       end: bucket.end,
       planned: bucket.planned,
       executed: bucket.executed,
+      backlog: bucket.backlog,
     })),
     insights,
   };
@@ -283,6 +285,43 @@ function buildAppendix(normalized) {
   };
 }
 
+function normalizeJustification(reason) {
+  const text = String(reason || "").replace(/\s+/g, " ").trim();
+  if (!text) {
+    return "Sem justificativa registrada.";
+  }
+  const normalized = text[0].toUpperCase() + text.slice(1);
+  return normalized.endsWith(".") ? normalized : `${normalized}.`;
+}
+
+function buildBacklogDetails(normalized) {
+  if (!normalized || !normalized.current || !normalized.current.activities) {
+    return { text: "Sem dados de backlog para o período.", items: [] };
+  }
+  const period = normalized.current.period || {};
+  const start = period.start;
+  const end = period.end;
+  const items = normalized.current.activities
+    .filter((activity) => activity.status === "backlog" && activity.dueDate && start && end && activity.dueDate >= start && activity.dueDate <= end)
+    .sort((a, b) => (a.dueDate && b.dueDate ? a.dueDate - b.dueDate : 0))
+    .map((activity) => ({
+      id: activity.id,
+      title: activity.title,
+      dueDateLabel: formatDateOnly(activity.dueDate),
+      location: activity.location || activity.team || "-",
+      responsible: activity.responsible || "-",
+      reason: normalizeJustification(activity.backlogReason),
+    }));
+
+  if (!items.length) {
+    return { text: "Sem backlog com vencimento no período.", items: [] };
+  }
+  return {
+    text: "Backlog identificado com justificativas consolidadas para acompanhamento gerencial.",
+    items,
+  };
+}
+
 function buildMonthlyReportViewModel({ aggregated, validation, normalized, options = {} } = {}) {
   if (!aggregated || !aggregated.current) {
     return null;
@@ -322,6 +361,7 @@ function buildMonthlyReportViewModel({ aggregated, validation, normalized, optio
   const riskAssessment = buildRiskAssessment({ metrics, integrityStatus });
   const recommendations = buildRecommendations({ metrics });
   const actionPlan = buildActionPlan({ recommendations });
+  const backlogDetails = buildBacklogDetails(normalized);
 
   const kpis = buildKpis({ metrics, comparison });
   const trendAnalysis = buildTrendAnalysis({ breakdowns, insights });
@@ -368,6 +408,7 @@ function buildMonthlyReportViewModel({ aggregated, validation, normalized, optio
     recommendations,
     actionPlan,
     consolidatedTables,
+    backlogDetails,
     appendix,
   };
 }

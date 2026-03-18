@@ -448,6 +448,22 @@ td:nth-child(3) {
   margin-bottom: 10pt;
 }
 
+.backlog-table th,
+.backlog-table td {
+  text-align: left;
+}
+
+.backlog-table th:nth-child(2),
+.backlog-table th:nth-child(3),
+.backlog-table th:nth-child(4),
+.backlog-table th:nth-child(5),
+.backlog-table td:nth-child(2),
+.backlog-table td:nth-child(3),
+.backlog-table td:nth-child(4),
+.backlog-table td:nth-child(5) {
+  text-align: left;
+}
+
 .daily-rdo-block {
   border: 1px solid var(--border);
   border-radius: 6pt;

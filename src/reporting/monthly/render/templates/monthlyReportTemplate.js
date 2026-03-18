@@ -10,6 +10,7 @@ const { RecommendationList } = require("../components/RecommendationList");
 const { ActionTable } = require("../components/ActionTable");
 const { renderSummaryTable } = require("../components/SummaryTable");
 const { ComplianceTable } = require("../components/ComplianceTable");
+const { BacklogTable } = require("../components/BacklogTable");
 const { DailyRdoBlock } = require("../components/DailyRdoBlock");
 const { ChartContainer } = require("../components/ChartContainer");
 const { EmptyState } = require("../components/EmptyState");
@@ -143,6 +144,7 @@ function renderMonthlyReportTemplate(viewModel, charts) {
   const recommendations = viewModel.recommendations;
   const actionPlan = viewModel.actionPlan;
   const consolidatedTables = viewModel.consolidatedTables;
+  const backlogDetails = viewModel.backlogDetails;
   const appendix = viewModel.appendix;
 
   const primaryKpis = viewModel.kpis && viewModel.kpis.primaryCards ? viewModel.kpis.primaryCards : (viewModel.kpis ? viewModel.kpis.cards : []);
@@ -201,6 +203,9 @@ function renderMonthlyReportTemplate(viewModel, charts) {
     ${SectionHeader("Riscos e recomendações", riskAssessment.text || "")}
     ${renderRisks(riskAssessment)}
     ${RecommendationList(recommendations) || EmptyState(recommendations.text)}
+
+    ${SectionHeader("Backlog e justificativas", backlogDetails && backlogDetails.text ? backlogDetails.text : "")}
+    ${BacklogTable(backlogDetails) || EmptyState("Sem backlog com justificativa registrada.")}
 
     ${SectionHeader("Plano de ação", actionPlan.text || "")}
     ${ActionTable(actionPlan) || EmptyState(actionPlan.text)}

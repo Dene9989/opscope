@@ -7,16 +7,6 @@ function buildWeeklyLabels(weekly) {
   return weekly.map((bucket) => `S${bucket.weekIndex}`);
 }
 
-function buildBacklogEvolution(weekly) {
-  let cumulativePlanned = 0;
-  let cumulativeExecuted = 0;
-  return weekly.map((bucket) => {
-    cumulativePlanned += bucket.planned || 0;
-    cumulativeExecuted += bucket.executed || 0;
-    return Math.max(0, cumulativePlanned - cumulativeExecuted);
-  });
-}
-
 function buildChart({ id, title, subtitle, svg, emptyMessage }) {
   if (!svg) {
     return { id, title, subtitle, svg: renderEmptyChart({ message: emptyMessage || "Sem dados" }), empty: true };
@@ -50,15 +40,15 @@ function buildMonthlyReportCharts(viewModel) {
       emptyMessage: "Sem dados de tendência",
     }));
 
-    const backlogEvolution = buildBacklogEvolution(weekly);
+    const backlogSeries = weekly.map((bucket) => bucket.backlog || 0);
     const backlogSvg = renderLineChart({
       labels,
-      series: [{ label: "Backlog", values: backlogEvolution, color: "#b45309" }],
+      series: [{ label: "Backlog (status)", values: backlogSeries, color: "#b45309" }],
     });
     charts.push(buildChart({
       id: "backlog_evolution",
       title: "Evolução de backlog",
-      subtitle: "Cumulativo no período",
+      subtitle: "Backlog acumulado por semana",
       svg: backlogSvg,
       emptyMessage: "Sem dados de backlog",
     }));

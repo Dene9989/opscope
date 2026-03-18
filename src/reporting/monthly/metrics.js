@@ -314,7 +314,7 @@ function groupByField(plannedSet, field) {
   }, {});
 }
 
-function buildWeeklyBreakdown(plannedSet, executedSet, period) {
+function buildWeeklyBreakdown(plannedSet, executedSet, backlogSet, period) {
   if (!period || !period.start || !period.end) {
     return [];
   }
@@ -331,6 +331,7 @@ function buildWeeklyBreakdown(plannedSet, executedSet, period) {
       end: weekEnd,
       planned: 0,
       executed: 0,
+      backlog: 0,
     };
   });
 
@@ -350,6 +351,19 @@ function buildWeeklyBreakdown(plannedSet, executedSet, period) {
     const bucketIndex = Math.min(weeks - 1, Math.max(0, Math.floor(diff / 7)));
     buckets[bucketIndex].executed += 1;
   });
+
+  if (Array.isArray(backlogSet) && backlogSet.length) {
+    backlogSet.forEach((activity) => {
+      if (!activity.dueDate) {
+        return;
+      }
+      buckets.forEach((bucket) => {
+        if (startOfDay(activity.dueDate) <= startOfDay(bucket.end)) {
+          bucket.backlog += 1;
+        }
+      });
+    });
+  }
   return buckets;
 }
 
