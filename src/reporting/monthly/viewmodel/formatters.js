@@ -15,7 +15,8 @@ function formatPercent(value) {
   if (!Number.isFinite(value)) {
     return "0%";
   }
-  return `${percentFormatter.format(value)}%`;
+  const safe = Math.min(100, Math.max(0, value));
+  return `${percentFormatter.format(safe)}%`;
 }
 
 function formatHours(value) {

@@ -58,11 +58,37 @@ p {
   margin-bottom: 12pt;
 }
 
-.report-title {
+.report-header__row {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
+  gap: 12pt;
+}
+
+.report-logos {
+  display: flex;
+  align-items: center;
   gap: 10pt;
+}
+
+.report-logo {
+  display: block;
+  height: 36pt;
+  width: auto;
+}
+
+.report-logo--opscope {
+  height: 34pt;
+}
+
+.report-logo--engelmig {
+  height: 32pt;
+}
+
+.report-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2pt;
 }
 
 .report-subtitle {
@@ -149,12 +175,6 @@ p {
   gap: 6pt;
   font-size: 9.5pt;
   color: var(--ink-500);
-}
-
-.kpi-tooltip,
-.kpi-trace {
-  font-size: 9pt;
-  color: var(--ink-300);
 }
 
 .comparison-grid {

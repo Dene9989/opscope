@@ -9,12 +9,15 @@ function renderStackedBar({
   late = 0,
   colors = { onTime: "#16a34a", late: "#dc2626" },
 } = {}) {
-  const total = onTime + late;
+  const safeOnTime = Number.isFinite(onTime) ? Math.max(0, Math.round(onTime)) : 0;
+  const safeLate = Number.isFinite(late) ? Math.max(0, Math.round(late)) : 0;
+  const total = safeOnTime + safeLate;
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
   const barHeight = chartHeight;
-  const onTimeWidth = total ? (onTime / total) * chartWidth : 0;
-  const lateWidth = total ? (late / total) * chartWidth : 0;
+  const onTimeWidth = total ? (safeOnTime / total) * chartWidth : 0;
+  const lateWidth = total ? (safeLate / total) * chartWidth : 0;
+  const legendY = height - 14;
 
   return `
     <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
@@ -22,8 +25,10 @@ function renderStackedBar({
       <rect x="${padding.left}" y="${padding.top}" width="${onTimeWidth}" height="${barHeight}" fill="${colors.onTime}" />
       <rect x="${padding.left + onTimeWidth}" y="${padding.top}" width="${lateWidth}" height="${barHeight}" fill="${colors.late}" />
       <text x="${padding.left}" y="${height - 10}" font-size="11" fill="#334155">${escapeSvg(label)}</text>
-      <text x="${padding.left + 6}" y="${padding.top + barHeight / 2}" font-size="11" fill="#ffffff">${escapeSvg(`No prazo: ${onTime}`)}</text>
-      <text x="${padding.left + onTimeWidth + 6}" y="${padding.top + barHeight / 2}" font-size="11" fill="#ffffff">${escapeSvg(`Fora do prazo: ${late}`)}</text>
+      <rect x="${padding.left}" y="${legendY - 10}" width="10" height="10" fill="${colors.onTime}" />
+      <text x="${padding.left + 14}" y="${legendY - 1}" font-size="11" fill="#334155">${escapeSvg(`No prazo: ${safeOnTime}%`)}</text>
+      <rect x="${padding.left + 150}" y="${legendY - 10}" width="10" height="10" fill="${colors.late}" />
+      <text x="${padding.left + 164}" y="${legendY - 1}" font-size="11" fill="#334155">${escapeSvg(`Fora do prazo: ${safeLate}%`)}</text>
     </svg>
   `;
 }

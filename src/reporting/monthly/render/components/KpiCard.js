@@ -5,7 +5,6 @@ function KpiCard(card) {
     return "";
   }
   const toneClass = card.tone ? ` tone-${escapeHtml(card.tone)}` : "";
-  const trace = card.traceability && card.traceability.rule ? escapeHtml(card.traceability.rule) : "";
 
   return `
     <div class="kpi-card${toneClass}">
@@ -15,8 +14,6 @@ function KpiCard(card) {
         <span>${escapeHtml(card.delta || "-")}</span>
         <span>${escapeHtml(card.deltaPct || "")}</span>
       </div>
-      ${card.tooltip ? `<div class="kpi-tooltip">${escapeHtml(card.tooltip)}</div>` : ""}
-      ${trace ? `<div class="kpi-trace">${trace}</div>` : ""}
     </div>
   `;
 }

@@ -22,18 +22,27 @@ const {
   fallbackActionPlan,
 } = require("./fallbacks");
 const { KPI_TARGETS, VIEWMODEL_TONE } = require("./contracts");
+const { formatLabel } = require("./labels");
 
-function mapToTable(map, total) {
-  return Object.entries(map || {})
-    .map(([label, count]) => ({
-      label,
-      count,
-      pct: total ? Math.round((count / total) * 100) : 0,
-    }))
+function mapToTable(map, total, options = {}) {
+  const entries = Object.entries(map || {});
+  const sum = entries.reduce((acc, [, count]) => acc + (Number(count) || 0), 0);
+  const base = Math.max(Number(total) || 0, sum || 0);
+  const labelContext = options.labelContext || "";
+  return entries
+    .map(([label, count]) => {
+      const safeCount = Number(count) || 0;
+      const pct = base ? Math.round((safeCount / base) * 100) : 0;
+      return {
+        label: formatLabel(label, labelContext),
+        count: safeCount,
+        pct: Math.min(100, Math.max(0, pct)),
+      };
+    })
     .sort((a, b) => b.count - a.count);
 }
 
-function buildKpiCard({ key, label, value, formatted, delta, deltaPct, tone, tooltip, traceability }) {
+function buildKpiCard({ key, label, value, formatted, delta, deltaPct, tone }) {
   return {
     key,
     label,
@@ -42,8 +51,6 @@ function buildKpiCard({ key, label, value, formatted, delta, deltaPct, tone, too
     delta,
     deltaPct,
     tone,
-    tooltip,
-    traceability,
   };
 }
 
@@ -53,7 +60,7 @@ function computeExecutionRatio(metrics) {
   return planned ? Math.round((executed / planned) * 100) : 0;
 }
 
-function buildKpis({ metrics, comparison, traceability }) {
+function buildKpis({ metrics, comparison }) {
   if (!metrics) {
     return { cards: [] };
   }
@@ -73,8 +80,6 @@ function buildKpis({ metrics, comparison, traceability }) {
       delta: byKey("totalPlannedActivities")?.deltaFormatted,
       deltaPct: byKey("totalPlannedActivities")?.deltaPctFormatted,
       tone: VIEWMODEL_TONE.NEUTRAL,
-      tooltip: "Total de atividades com vencimento dentro do período.",
-      traceability: traceability && traceability.totalPlannedActivities,
     })
   );
 
@@ -87,8 +92,6 @@ function buildKpis({ metrics, comparison, traceability }) {
       delta: byKey("totalExecutedActivities")?.deltaFormatted,
       deltaPct: byKey("totalExecutedActivities")?.deltaPctFormatted,
       tone: executionRatioPct >= KPI_TARGETS.executionRatioPct ? VIEWMODEL_TONE.POSITIVE : VIEWMODEL_TONE.WARNING,
-      tooltip: "Atividades concluídas com doneAt dentro do período.",
-      traceability: traceability && traceability.totalExecutedActivities,
     })
   );
 
@@ -101,8 +104,6 @@ function buildKpis({ metrics, comparison, traceability }) {
       delta: "-",
       deltaPct: "-",
       tone: executionRatioPct >= KPI_TARGETS.executionRatioPct ? VIEWMODEL_TONE.POSITIVE : VIEWMODEL_TONE.WARNING,
-      tooltip: "Percentual executado sobre o planejado.",
-      traceability: { rule: "totalExecutedActivities / totalPlannedActivities" },
     })
   );
 
@@ -115,8 +116,6 @@ function buildKpis({ metrics, comparison, traceability }) {
       delta: byKey("backlog")?.deltaFormatted,
       deltaPct: byKey("backlog")?.deltaPctFormatted,
       tone: metrics.backlog > 0 ? VIEWMODEL_TONE.WARNING : VIEWMODEL_TONE.POSITIVE,
-      tooltip: "Atividades formalizadas em backlog no período.",
-      traceability: traceability && traceability.backlog,
     })
   );
 
@@ -129,8 +128,6 @@ function buildKpis({ metrics, comparison, traceability }) {
       delta: byKey("overdue")?.deltaFormatted,
       deltaPct: byKey("overdue")?.deltaPctFormatted,
       tone: metrics.overdue > 0 ? VIEWMODEL_TONE.WARNING : VIEWMODEL_TONE.POSITIVE,
-      tooltip: "Atividades vencidas até o corte do período.",
-      traceability: traceability && traceability.overdue,
     })
   );
 
@@ -143,8 +140,6 @@ function buildKpis({ metrics, comparison, traceability }) {
       delta: byKey("slaOnTimePct")?.deltaFormatted,
       deltaPct: byKey("slaOnTimePct")?.deltaPctFormatted,
       tone: metrics.slaOnTimePct >= KPI_TARGETS.slaOnTimePct ? VIEWMODEL_TONE.POSITIVE : VIEWMODEL_TONE.WARNING,
-      tooltip: "Percentual de atividades concluídas no prazo.",
-      traceability: traceability && traceability.slaOnTimePct,
     })
   );
 
@@ -157,8 +152,6 @@ function buildKpis({ metrics, comparison, traceability }) {
       delta: byKey("docsCompliancePct")?.deltaFormatted,
       deltaPct: byKey("docsCompliancePct")?.deltaPctFormatted,
       tone: metrics.docsCompliancePct >= KPI_TARGETS.docsCompliancePct ? VIEWMODEL_TONE.POSITIVE : VIEWMODEL_TONE.WARNING,
-      tooltip: "Percentual de compliance documental das atividades executadas.",
-      traceability: traceability && traceability.docsCompliancePct,
     })
   );
 
@@ -171,8 +164,6 @@ function buildKpis({ metrics, comparison, traceability }) {
       delta: byKey("hoursExecuted")?.deltaFormatted,
       deltaPct: byKey("hoursExecuted")?.deltaPctFormatted,
       tone: VIEWMODEL_TONE.NEUTRAL,
-      tooltip: "Horas estimadas ou calculadas de execução no período.",
-      traceability: traceability && traceability.hoursExecuted,
     })
   );
 
@@ -185,8 +176,6 @@ function buildKpis({ metrics, comparison, traceability }) {
       delta: byKey("evidenceCount")?.deltaFormatted,
       deltaPct: byKey("evidenceCount")?.deltaPctFormatted,
       tone: VIEWMODEL_TONE.NEUTRAL,
-      tooltip: "Evidências registradas em atividades e RDOs.",
-      traceability: traceability && traceability.evidenceCount,
     })
   );
 
@@ -198,7 +187,7 @@ function buildTrendAnalysis({ breakdowns, insights }) {
     return fallbackTrendAnalysis("Sem dados de tendência semanal.");
   }
   return {
-    text: "Tendência semanal de atividades planejadas vs executadas.",
+    text: "Evolução semanal do volume planejado versus executado, destacando oscilações operacionais do período.",
     weekly: breakdowns.byWeek.map((bucket) => ({
       weekIndex: bucket.weekIndex,
       start: bucket.start,
@@ -215,12 +204,12 @@ function buildOperationalBreakdown({ breakdowns, totalPlanned }) {
     return fallbackOperationalBreakdown("Sem dados de distribuição operacional.");
   }
   return {
-    text: "Distribuição operacional por status, tipo, local, equipe e prioridade.",
-    byStatus: mapToTable(breakdowns.byStatus, totalPlanned),
-    byType: mapToTable(breakdowns.byType, totalPlanned),
-    byLocation: mapToTable(breakdowns.byLocation, totalPlanned),
-    byTeam: mapToTable(breakdowns.byTeam, totalPlanned),
-    byPriority: mapToTable(breakdowns.byPriority, totalPlanned),
+    text: "Distribuição das atividades planejadas por status, categoria, local, equipe e prioridade, útil para leitura de concentração operacional.",
+    byStatus: mapToTable(breakdowns.byStatus, totalPlanned, { labelContext: "status" }),
+    byType: mapToTable(breakdowns.byType, totalPlanned, { labelContext: "category" }),
+    byLocation: mapToTable(breakdowns.byLocation, totalPlanned, { labelContext: "location" }),
+    byTeam: mapToTable(breakdowns.byTeam, totalPlanned, { labelContext: "team" }),
+    byPriority: mapToTable(breakdowns.byPriority, totalPlanned, { labelContext: "priority" }),
   };
 }
 
@@ -247,12 +236,12 @@ function buildConsolidatedTables({ breakdowns, totalPlanned }) {
     return fallbackConsolidatedTables("Sem dados consolidados.");
   }
   return {
-    text: "Tabelas consolidadas de distribuição e status.",
-    statusTable: mapToTable(breakdowns.byStatus, totalPlanned),
-    categoryTable: mapToTable(breakdowns.byType, totalPlanned),
-    locationTable: mapToTable(breakdowns.byLocation, totalPlanned),
-    teamTable: mapToTable(breakdowns.byTeam, totalPlanned),
-    priorityTable: mapToTable(breakdowns.byPriority, totalPlanned),
+    text: "Tabelas consolidadas com visão completa do período para auditoria e revisão gerencial.",
+    statusTable: mapToTable(breakdowns.byStatus, totalPlanned, { labelContext: "status" }),
+    categoryTable: mapToTable(breakdowns.byType, totalPlanned, { labelContext: "category" }),
+    locationTable: mapToTable(breakdowns.byLocation, totalPlanned, { labelContext: "location" }),
+    teamTable: mapToTable(breakdowns.byTeam, totalPlanned, { labelContext: "team" }),
+    priorityTable: mapToTable(breakdowns.byPriority, totalPlanned, { labelContext: "priority" }),
   };
 }
 
@@ -286,8 +275,6 @@ function buildMonthlyReportViewModel({ aggregated, validation, normalized, optio
   const current = aggregated.current;
   const metrics = current.metrics;
   const breakdowns = current.breakdowns;
-  const traceability = aggregated.traceability || {};
-
   const integrityStatus = validation && validation.integrityStatus ? validation.integrityStatus : "ok";
   const integritySummary = validation && validation.summary ? validation.summary : { blockers: 0, warnings: 0, infos: 0 };
 
@@ -295,7 +282,15 @@ function buildMonthlyReportViewModel({ aggregated, validation, normalized, optio
   const periodStart = current.period && current.period.startIso;
   const periodEnd = current.period && current.period.endIso;
 
-  const isPartial = Boolean(options.isPartial || (validation && validation.issues && validation.issues.some((issue) => issue.code === "business.partial_missing_flag")));
+  const emittedAtDate = emittedAt ? new Date(emittedAt) : null;
+  const periodEndDate = periodEnd ? new Date(`${periodEnd}T23:59:59.999`) : null;
+  const isPartialByDate = emittedAtDate && periodEndDate ? emittedAtDate.getTime() < periodEndDate.getTime() : false;
+
+  const isPartial = Boolean(
+    options.isPartial ||
+    isPartialByDate ||
+    (validation && validation.issues && validation.issues.some((issue) => issue.code === "business.partial_missing_flag"))
+  );
 
   const comparison = buildComparison(aggregated);
   const insights = buildInsights({ aggregated, comparison, integrityStatus });
@@ -313,7 +308,7 @@ function buildMonthlyReportViewModel({ aggregated, validation, normalized, optio
   const recommendations = buildRecommendations({ metrics });
   const actionPlan = buildActionPlan({ recommendations });
 
-  const kpis = buildKpis({ metrics, comparison, traceability });
+  const kpis = buildKpis({ metrics, comparison });
   const trendAnalysis = buildTrendAnalysis({ breakdowns, insights });
   const operationalBreakdown = buildOperationalBreakdown({
     breakdowns,

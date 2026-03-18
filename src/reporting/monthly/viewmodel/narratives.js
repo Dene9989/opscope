@@ -11,6 +11,7 @@ const {
   fallbackSafetyCompliance,
 } = require("./fallbacks");
 const { KPI_TARGETS } = require("./contracts");
+const { formatLabel } = require("./labels");
 
 function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial }) {
   if (!metrics) {
@@ -26,27 +27,44 @@ function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial
   }
 
   const textParts = [];
+  const meetsExecution = ratio >= KPI_TARGETS.executionRatioPct;
+  const meetsSla = metrics.slaEligibleActivities > 0 && metrics.slaOnTimePct >= KPI_TARGETS.slaOnTimePct;
+  const performanceTone = meetsExecution && meetsSla
+    ? "desempenho operacional dentro das metas estabelecidas"
+    : meetsExecution && !meetsSla
+      ? "execução adequada, porém com SLA abaixo do esperado"
+      : "execução abaixo do planejado, exigindo recuperação operacional";
+
   textParts.push(
-    `No período, foram planejadas ${formatNumber(planned)} atividades e executadas ${formatNumber(executed)} (${formatPercent(ratio)}).`
+    `No período, foram planejadas ${formatNumber(planned)} atividades e executadas ${formatNumber(executed)} (${formatPercent(ratio)}), com ${performanceTone}.`
   );
 
-  if (metrics.backlog > 0) {
-    textParts.push(`Backlog em aberto de ${formatNumber(metrics.backlog)} atividades.`);
+  if (metrics.backlog > 0 || metrics.overdue > 0) {
+    const backlogLabel = metrics.backlog > 0 ? `${formatNumber(metrics.backlog)} em backlog` : null;
+    const overdueLabel = metrics.overdue > 0 ? `${formatNumber(metrics.overdue)} vencidas` : null;
+    const items = [backlogLabel, overdueLabel].filter(Boolean).join(" e ");
+    textParts.push(`Principais desvios: ${items}, indicando pressão sobre a capacidade de execução.`);
+  } else {
+    textParts.push("Não houve acúmulo relevante de backlog ou vencimentos no período.");
   }
-  if (metrics.overdue > 0) {
-    textParts.push(`Foram registradas ${formatNumber(metrics.overdue)} atividades vencidas.`);
-  }
+
   if (metrics.slaEligibleActivities > 0) {
-    textParts.push(`SLA no prazo: ${formatPercent(metrics.slaOnTimePct)}.`);
+    textParts.push(`SLA no prazo em ${formatPercent(metrics.slaOnTimePct)} das atividades elegíveis.`);
+  } else {
+    textParts.push("SLA não aplicável por ausência de itens elegíveis.");
   }
+
   if (metrics.docsRequired > 0) {
-    textParts.push(`Compliance documental: ${formatPercent(metrics.docsCompliancePct)}.`);
+    textParts.push(`Compliance documental em ${formatPercent(metrics.docsCompliancePct)}, com ${formatNumber(metrics.docsPartial)} pendências parciais.`);
+  } else {
+    textParts.push("Não houve exigência documental no período.");
   }
+
   if (isPartial) {
-    textParts.push("Relatório parcial: dados consolidados até a data de emissão.");
+    textParts.push("Relatório parcial: consolidação até a data de emissão. As comparações devem ser lidas com cautela.");
   }
   if (integrityStatus && integrityStatus !== "ok") {
-    textParts.push("Há alertas de integridade que podem impactar a leitura dos indicadores.");
+    textParts.push("Há alertas de integridade que podem impactar leituras específicas.");
   }
 
   const bullets = [];
@@ -61,9 +79,14 @@ function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial
     }
   }
 
+  const recommendation =
+    metrics.backlog > 0 || metrics.overdue > 0 || metrics.slaOnTimePct < KPI_TARGETS.slaOnTimePct
+      ? "Recomenda-se priorizar a recuperação de backlog e vencimentos, além de revisar alocação de equipe para elevar o SLA."
+      : "Recomenda-se manter o ritmo operacional e reforçar a disciplina de prazos para sustentar o desempenho.";
+
   return {
     title: "Resumo executivo",
-    text: textParts.join(" "),
+    text: `${textParts.join(" ")} ${recommendation}`,
     bullets,
   };
 }
@@ -80,9 +103,11 @@ function buildTechnicalHighlights({ metrics, breakdowns }) {
 
   const topType = Object.entries(breakdowns.byType || {})
     .sort((a, b) => b[1] - a[1])
-    .find((item) => item[0] !== "nao_informado");
+    .find((item) => !["nao_informado", "desconhecida", "unknown"].includes(item[0]));
   if (topType) {
-    bullets.push(`Categoria dominante: ${topType[0]} (${formatNumber(topType[1])} atividades).`);
+    bullets.push(
+      `Categoria dominante: ${formatLabel(topType[0], "category")} (${formatNumber(topType[1])} atividades).`
+    );
   }
 
   if (!bullets.length) {
@@ -90,7 +115,7 @@ function buildTechnicalHighlights({ metrics, breakdowns }) {
   }
 
   return {
-    text: "Destaques técnicos com base na distribuição das atividades e criticidade.",
+    text: "Destaques técnicos com base na criticidade e distribuição das atividades.",
     bullets,
   };
 }
@@ -101,15 +126,18 @@ function buildSafetyCompliance({ metrics, integrityStatus }) {
   }
   const textParts = [];
   if (metrics.docsRequired > 0) {
-    textParts.push(`Compliance documental de ${formatPercent(metrics.docsCompliancePct)}.`);
+    textParts.push(`Compliance documental de ${formatPercent(metrics.docsCompliancePct)} no período.`);
   } else {
     textParts.push("Não houve atividades com exigência documental no período.");
   }
   if (metrics.docsUnknown > 0) {
-    textParts.push("Existem atividades com exigências documentais indeterminadas.");
+    textParts.push("Há atividades com exigências documentais não classificadas.");
+  }
+  if (metrics.evidenceCount > 0) {
+    textParts.push(`Evidências registradas: ${formatNumber(metrics.evidenceCount)}.`);
   }
   if (integrityStatus && integrityStatus !== "ok") {
-    textParts.push("Há alertas de integridade de dados que podem afetar o compliance.");
+    textParts.push("Há alertas de integridade de dados que podem afetar a leitura do compliance.");
   }
 
   return {
@@ -135,7 +163,6 @@ function buildRiskAssessment({ metrics, integrityStatus }) {
     risks.push({
       id: "risk.backlog",
       tone: "warning",
-      rule: "backlog > 0",
       text: "Backlog em aberto pode impactar a capacidade de resposta operacional.",
       metrics: { backlog: metrics.backlog },
     });
@@ -144,7 +171,6 @@ function buildRiskAssessment({ metrics, integrityStatus }) {
     risks.push({
       id: "risk.overdue",
       tone: "warning",
-      rule: "overdue > 0",
       text: "Atividades vencidas elevam o risco de descumprimento de SLA.",
       metrics: { overdue: metrics.overdue },
     });
@@ -153,7 +179,6 @@ function buildRiskAssessment({ metrics, integrityStatus }) {
     risks.push({
       id: "risk.sla_low",
       tone: "warning",
-      rule: `slaOnTimePct < ${KPI_TARGETS.slaOnTimePct}`,
       text: "SLA abaixo da meta sugere necessidade de replanejamento.",
       metrics: { slaOnTimePct: metrics.slaOnTimePct },
     });
@@ -162,30 +187,26 @@ function buildRiskAssessment({ metrics, integrityStatus }) {
     risks.push({
       id: "risk.docs_low",
       tone: "warning",
-      rule: `docsCompliancePct < ${KPI_TARGETS.docsCompliancePct}`,
       text: "Compliance documental abaixo do esperado pode gerar pendências regulatórias.",
       metrics: { docsCompliancePct: metrics.docsCompliancePct },
     });
   }
 
-  const integrityNotes = [];
   if (integrityStatus && integrityStatus !== "ok") {
-    integrityNotes.push({
+    risks.push({
       id: "risk.integrity",
       tone: "warning",
-      rule: "integrityStatus != ok",
       text: "Existem alertas de integridade que podem distorcer análises específicas.",
     });
   }
 
-  if (!risks.length && !integrityNotes.length) {
+  if (!risks.length) {
     return fallbackRiskAssessment("Nenhum risco operacional relevante identificado no período.");
   }
 
   return {
     text: "Avaliação de riscos baseada em backlog, overdue, SLA e compliance.",
     risks,
-    integrityNotes,
   };
 }
 
@@ -198,28 +219,24 @@ function buildRecommendations({ metrics }) {
   if (metrics.backlog > 0) {
     items.push({
       id: "rec.backlog",
-      rule: "backlog > 0",
       text: "Revisar capacidade de execução e priorizar backlog crítico.",
     });
   }
   if (metrics.overdue > 0) {
     items.push({
       id: "rec.overdue",
-      rule: "overdue > 0",
       text: "Ajustar cronograma e reforçar acompanhamento de vencimentos.",
     });
   }
   if (metrics.slaEligibleActivities > 0 && metrics.slaOnTimePct < KPI_TARGETS.slaOnTimePct) {
     items.push({
       id: "rec.sla",
-      rule: `slaOnTimePct < ${KPI_TARGETS.slaOnTimePct}`,
       text: "Revisar gargalos de execução para recuperar a meta de SLA.",
     });
   }
   if (metrics.docsRequired > 0 && metrics.docsCompliancePct < KPI_TARGETS.docsCompliancePct) {
     items.push({
       id: "rec.docs",
-      rule: `docsCompliancePct < ${KPI_TARGETS.docsCompliancePct}`,
       text: "Atualizar cadastros de documentação e reforçar checklist operacional.",
     });
   }

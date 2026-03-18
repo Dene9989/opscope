@@ -94,10 +94,14 @@ function buildMonthlyReportCharts(viewModel) {
     emptyMessage: "Sem dados por status",
   }));
 
+  const slaPct = viewModel.kpis && viewModel.kpis.cards
+    ? (viewModel.kpis.cards.find((c) => c.key === "slaOnTimePct")?.value || 0)
+    : 0;
+  const normalizedSlaPct = Math.max(0, Math.min(100, Number(slaPct) || 0));
   const slaSvg = renderStackedBar({
     label: "SLA no prazo",
-    onTime: viewModel.kpis && viewModel.kpis.cards ? (viewModel.kpis.cards.find((c) => c.key === "slaOnTimePct")?.value || 0) : 0,
-    late: viewModel.kpis && viewModel.kpis.cards ? (100 - (viewModel.kpis.cards.find((c) => c.key === "slaOnTimePct")?.value || 0)) : 0,
+    onTime: normalizedSlaPct,
+    late: 100 - normalizedSlaPct,
   });
   charts.push(buildChart({
     id: "sla_on_time",

@@ -8,7 +8,6 @@ function InsightCard(insight) {
   return `
     <div class="insight-card${toneClass}">
       <div class="insight-text">${escapeHtml(insight.text || "")}</div>
-      ${insight.rule ? `<div class="insight-rule">${escapeHtml(insight.rule)}</div>` : ""}
     </div>
   `;
 }

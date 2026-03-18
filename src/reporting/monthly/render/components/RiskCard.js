@@ -8,7 +8,6 @@ function RiskCard(risk) {
   return `
     <div class="risk-card${toneClass}">
       <div class="risk-text">${escapeHtml(risk.text || "")}</div>
-      ${risk.rule ? `<div class="risk-rule">${escapeHtml(risk.rule)}</div>` : ""}
     </div>
   `;
 }

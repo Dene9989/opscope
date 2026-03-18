@@ -10,10 +10,10 @@ function ComplianceTable(safetyCompliance) {
     <table class="compliance-table">
       <thead>
         <tr>
-          <th>Docs Required</th>
-          <th>Docs Ok</th>
-          <th>Docs Partial</th>
-          <th>Docs Unknown</th>
+          <th>Documentos exigidos</th>
+          <th>Documentos ok</th>
+          <th>Parciais</th>
+          <th>Não informado</th>
           <th>Compliance</th>
         </tr>
       </thead>

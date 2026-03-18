@@ -101,3 +101,26 @@ test("appendix paginates daily RDO blocks", () => {
   assert.ok(matches.length >= 4);
   assert.ok(html.includes("daily-rdo-page"));
 });
+
+test("report does not expose internal rules or formulas", () => {
+  const viewModel = buildViewModel();
+  const html = renderMonthlyReportHtml(viewModel);
+  assert.ok(!html.includes("totalExecutedActivities"));
+  assert.ok(!html.includes("totalPlannedActivities"));
+  assert.ok(!html.includes("doneAt"));
+  assert.ok(!html.includes("dueDate"));
+  assert.ok(!html.includes("backlog > 0"));
+  assert.ok(!html.includes("slaOnTimePct"));
+  assert.ok(!html.includes("integrityStatus"));
+});
+
+test("labels are client-friendly", () => {
+  const viewModel = buildViewModel();
+  viewModel.consolidatedTables.statusTable = [
+    { label: "em_execucao", count: 2, pct: 100 },
+    { label: "nao_informado", count: 1, pct: 50 },
+  ];
+  const html = renderMonthlyReportHtml(viewModel);
+  assert.ok(html.includes("Em execução"));
+  assert.ok(html.includes("Não informado"));
+});

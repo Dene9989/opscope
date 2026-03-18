@@ -3,11 +3,16 @@
   margin: 12mm 12mm 14mm 12mm;
 }
 
+body {
+  counter-reset: page;
+}
+
 .report-page {
   min-height: 270mm;
   display: flex;
   flex-direction: column;
   gap: 6pt;
+  counter-increment: page;
 }
 
 .page-break {
