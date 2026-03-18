@@ -1,0 +1,23 @@
+{
+  "name": "healthy",
+  "integrityStatus": "ok",
+  "metrics": {
+    "totalPlannedActivities": 5,
+    "totalExecutedActivities": 5,
+    "backlog": 0,
+    "overdue": 0,
+    "slaOnTimePct": 100,
+    "docsCompliancePct": 100,
+    "hoursExecuted": 0,
+    "evidenceCount": 10,
+    "rdoCount": 2
+  },
+  "insights": [
+    "insight.execution_ratio_good",
+    "insight.sla_good",
+    "insight.docs_good"
+  ],
+  "pageCount": 8,
+  "htmlPath": "C:\\Users\\denisson.alves\\OneDrive - ENGELMIG ENERGIA LTDA\\Área de Trabalho\\My Workspace\\sismetro\\src\\reporting\\monthly\\examples\\outputs\\healthy.html",
+  "pdfPath": "C:\\Users\\denisson.alves\\OneDrive - ENGELMIG ENERGIA LTDA\\Área de Trabalho\\My Workspace\\sismetro\\src\\reporting\\monthly\\examples\\outputs\\healthy.pdf"
+}

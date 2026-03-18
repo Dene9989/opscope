@@ -1687,6 +1687,10 @@ const DOC_LABELS = {
 const RDO_CLIENTE = "SOLARIG";
 const RDO_SETOR = "O&M - ENGELMIG";
 const RDO_PROJETO = "834 - PARACATU/SOLARIG (Boa Sorte II)";
+const RDO_MENSAL_V2_OVERRIDE_KEY = "opscope.rdoMensalV2.override";
+const featureFlags = {
+  rdoMensalV2: false,
+};
 const SYSTEM_USER_ID = "system";
 const CUSTOM_TIPO_OPTION = "__custom";
 const DEFAULT_PROJECT_CODE = "834";
@@ -8288,6 +8292,29 @@ function handleAuthSessionExpired(message = "Sessão expirada. Faça login novam
   mostrarAuthPanel("login");
 }
 
+function updateFeatureFlags(payload = {}) {
+  featureFlags.rdoMensalV2 = Boolean(payload && payload.rdoMensalV2Enabled);
+}
+
+function getRdoMensalV2Override() {
+  try {
+    return localStorage.getItem(RDO_MENSAL_V2_OVERRIDE_KEY) || "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function shouldUseRdoMensalV2() {
+  const override = getRdoMensalV2Override();
+  if (override === "v1") {
+    return false;
+  }
+  if (override === "v2") {
+    return true;
+  }
+  return Boolean(featureFlags.rdoMensalV2);
+}
+
 async function apiRequest(path, options = {}) {
   const authPath = isAuthApiPath(path);
   if (authSessionExpired && !authPath) {
@@ -13525,6 +13552,7 @@ async function carregarSessaoServidor() {
         const data = await apiRequest("/api/auth/me");
         currentUser = data.user || null;
         availableProjects = Array.isArray(data.projects) ? data.projects : [];
+        updateFeatureFlags(data && data.features ? data.features : {});
         if (currentUser) {
           ensureMaintenanceCacheOwnership();
         }
@@ -13545,10 +13573,12 @@ async function carregarSessaoServidor() {
         currentUser = null;
         availableProjects = [];
         activeProjectId = "";
+        updateFeatureFlags({});
       }
     } else {
       currentUser = null;
       activeProjectId = "";
+      updateFeatureFlags({});
       await dataProvider.roles.seedDefaultRolesIfEmpty();
       try {
         await ensureBootstrapAccessAccount();
@@ -26396,6 +26426,72 @@ function fecharRdoMensalPreview() {
     return;
   }
   rdoMensalPreviewModal.hidden = true;
+}
+
+function buildRdoMensalV2Payload(range) {
+  return {
+    projectId: activeProjectId || "",
+    start: range && range.start ? formatDateISO(range.start) : "",
+    end: range && range.end ? formatDateISO(range.end) : "",
+    comparisonMode: "recalculated",
+  };
+}
+
+function openPdfBlob(blob, filename = "rdo-mensal-v2.pdf") {
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, "_blank");
+  if (!win) {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+async function abrirRdoMensalPreviewV2() {
+  if (!rdoMensalPreviewModal || !rdoMensalPreviewBody) {
+    return false;
+  }
+  const range = getMonthlyRange();
+  const payload = buildRdoMensalV2Payload(range);
+  const data = await apiRdoMensalV2Html(payload);
+  if (!data || !data.html) {
+    throw new Error("HTML do RDO mensal V2 indisponível.");
+  }
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(String(data.html), "text/html");
+  const styles = Array.from(doc.querySelectorAll("style"))
+    .map((style) => style.textContent || "")
+    .join("\n");
+  const bodyHtml = doc.body ? doc.body.innerHTML : data.html;
+  rdoMensalPreviewBody.innerHTML = "";
+  if (styles) {
+    const styleEl = document.createElement("style");
+    styleEl.dataset.rdoMensalV2 = "true";
+    styleEl.textContent = styles;
+    rdoMensalPreviewBody.append(styleEl);
+  }
+  const container = document.createElement("div");
+  container.className = "rdo-mensal-v2-preview";
+  container.innerHTML = bodyHtml;
+  rdoMensalPreviewBody.append(container);
+  rdoMensalPreviewModal.hidden = false;
+  if (data.integrityStatus === "blocked") {
+    alert("Integridade bloqueada: revisão necessária antes da emissão oficial.");
+  }
+  return true;
+}
+
+async function exportarRdoMensalV2() {
+  const range = getMonthlyRange();
+  const payload = buildRdoMensalV2Payload(range);
+  const blob = await apiRdoMensalV2Pdf(payload);
+  const baseName = `rdo-mensal-v2-${payload.start || "periodo"}.pdf`;
+  openPdfBlob(blob, baseName);
+  return true;
 }
 
 
@@ -63373,6 +63469,38 @@ async function apiRdoSync(items, projectId) {
   });
 }
 
+async function apiRdoMensalV2Html(payload) {
+  return apiRequest("/api/rdo/monthly/v2/html", {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
+async function apiRdoMensalV2Pdf(payload) {
+  const response = await fetch(`${API_BASE}/api/rdo/monthly/v2/pdf`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload || {}),
+  });
+  if (!response.ok) {
+    let data = null;
+    try {
+      data = await response.json();
+    } catch (error) {
+      data = null;
+    }
+    const message = data && data.message ? data.message : "Falha ao gerar o PDF.";
+    const err = new Error(message);
+    err.status = response.status;
+    err.data = data;
+    throw err;
+  }
+  return response.blob();
+}
+
 async function apiMaintenanceReopen(payload) {
   return apiRequest("/api/maintenance/reopen", {
     method: "POST",
@@ -67693,7 +67821,17 @@ if (relatorioMes) {
   });
 }
 if (btnRelatorioMensalPreview) {
-  btnRelatorioMensalPreview.addEventListener("click", () => {
+  btnRelatorioMensalPreview.addEventListener("click", async () => {
+    if (shouldUseRdoMensalV2()) {
+      try {
+        const ok = await abrirRdoMensalPreviewV2();
+        if (ok) {
+          return;
+        }
+      } catch (error) {
+        console.warn("[rdo-mensal-v2] preview falhou, fallback v1", error);
+      }
+    }
     const ok = abrirRdoMensalPreview();
     if (!ok) {
       alert("Não foi possível abrir o preview do RDO mensal.");
@@ -67701,7 +67839,18 @@ if (btnRelatorioMensalPreview) {
   });
 }
 if (btnRelatorioMensalExportar) {
-  btnRelatorioMensalExportar.addEventListener("click", () => {
+  btnRelatorioMensalExportar.addEventListener("click", async () => {
+    if (shouldUseRdoMensalV2()) {
+      try {
+        const ok = await exportarRdoMensalV2();
+        if (ok) {
+          return;
+        }
+      } catch (error) {
+        console.warn("[rdo-mensal-v2] export falhou, fallback v1", error);
+        alert(error && error.message ? error.message : "Falha ao gerar o PDF do RDO mensal V2.");
+      }
+    }
     const ok = gerarRdoMensal(true);
     if (!ok) {
       alert("Popup bloqueado. Permita a abertura para exportar o PDF.");
@@ -67709,7 +67858,17 @@ if (btnRelatorioMensalExportar) {
   });
 }
 if (btnRelatorioMensalRdo) {
-  btnRelatorioMensalRdo.addEventListener("click", () => {
+  btnRelatorioMensalRdo.addEventListener("click", async () => {
+    if (shouldUseRdoMensalV2()) {
+      try {
+        const ok = await abrirRdoMensalPreviewV2();
+        if (ok) {
+          return;
+        }
+      } catch (error) {
+        console.warn("[rdo-mensal-v2] preview falhou, fallback v1", error);
+      }
+    }
     const ok = abrirRdoMensalPreview();
     if (!ok) {
       alert("Não foi possível abrir o preview do RDO mensal.");

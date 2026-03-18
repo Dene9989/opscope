@@ -1,0 +1,185 @@
+{
+  "meta": {
+    "projectId": "P-834",
+    "projectName": "Paracatu/Solarig",
+    "clientName": "Solarig",
+    "plantName": "BSO2",
+    "period": {
+      "start": "2026-03-01",
+      "end": "2026-03-31"
+    },
+    "timezone": "America/Sao_Paulo",
+    "emittedAt": "2026-03-31T13:00:00.000Z",
+    "reportVersion": "v2.0"
+  },
+  "comparisonMode": "recalculated",
+  "currentPeriod": {
+    "period": {
+      "start": "2026-03-01T03:00:00.000Z",
+      "end": "2026-04-01T02:59:59.999Z",
+      "startIso": "2026-03-01",
+      "endIso": "2026-03-31"
+    },
+    "activities": [
+      {
+        "id": "A1",
+        "title": "Atividade 1",
+        "status": "concluida",
+        "dueDate": "2026-03-05T03:00:00.000Z",
+        "dueDateIso": "2026-03-05",
+        "doneAt": "2026-03-07T13:00:00.000Z",
+        "doneAtIso": "2026-03-07T13:00:00.000Z",
+        "executionStartedAt": null,
+        "executionFinishedAt": null,
+        "priority": "critica",
+        "category": "corretiva eletrica",
+        "location": "",
+        "team": "",
+        "responsible": "",
+        "critical": true,
+        "backlogReason": "",
+        "cancelReason": "",
+        "docs": {
+          "requiredDocs": [
+            "apr",
+            "os",
+            "pte",
+            "pt"
+          ],
+          "providedDocs": [
+            "apr",
+            "os",
+            "pte",
+            "pt"
+          ],
+          "missingDocs": [],
+          "unknownDocs": [],
+          "status": "ok"
+        },
+        "evidenceCount": 2,
+        "executionDurationHours": 5,
+        "issues": [],
+        "isValid": true
+      },
+      {
+        "id": "A2",
+        "title": "Atividade 2",
+        "status": "em_execucao",
+        "dueDate": "2026-03-10T03:00:00.000Z",
+        "dueDateIso": "2026-03-10",
+        "doneAt": null,
+        "doneAtIso": "",
+        "executionStartedAt": "2026-03-10T11:00:00.000Z",
+        "executionFinishedAt": null,
+        "priority": "alta",
+        "category": "preventiva simples",
+        "location": "",
+        "team": "",
+        "responsible": "",
+        "critical": false,
+        "backlogReason": "",
+        "cancelReason": "",
+        "docs": {
+          "requiredDocs": [
+            "apr",
+            "os"
+          ],
+          "providedDocs": [
+            "apr",
+            "os"
+          ],
+          "missingDocs": [],
+          "unknownDocs": [],
+          "status": "ok"
+        },
+        "evidenceCount": 0,
+        "executionDurationHours": 0,
+        "issues": [],
+        "isValid": true
+      },
+      {
+        "id": "A3",
+        "title": "Atividade 3",
+        "status": "backlog",
+        "dueDate": "2026-03-08T03:00:00.000Z",
+        "dueDateIso": "2026-03-08",
+        "doneAt": null,
+        "doneAtIso": "",
+        "executionStartedAt": null,
+        "executionFinishedAt": null,
+        "priority": "unknown",
+        "category": "preventiva simples",
+        "location": "",
+        "team": "",
+        "responsible": "",
+        "critical": false,
+        "backlogReason": "Equipe",
+        "cancelReason": "",
+        "docs": {
+          "requiredDocs": [
+            "apr",
+            "os"
+          ],
+          "providedDocs": [],
+          "missingDocs": [],
+          "unknownDocs": [
+            "apr",
+            "os"
+          ],
+          "status": "unknown"
+        },
+        "evidenceCount": 0,
+        "executionDurationHours": 0,
+        "issues": [],
+        "isValid": true
+      }
+    ],
+    "rdos": [
+      {
+        "id": "R1",
+        "rdoDate": "2026-03-05T03:00:00.000Z",
+        "rdoDateIso": "2026-03-05",
+        "createdAt": "2026-03-05T20:00:00.000Z",
+        "createdAtIso": "2026-03-05T20:00:00.000Z",
+        "createdBy": "",
+        "metrics": {
+          "total": 5,
+          "concluidas": 2,
+          "emExecucao": 0,
+          "criticas": 0,
+          "overdue": 0,
+          "docsOk": 0,
+          "docsTotal": 0,
+          "tempoTotalMin": 0
+        },
+        "evidenciasTotal": 3,
+        "evidencias": [],
+        "filtros": {},
+        "manual": {},
+        "isValid": true
+      }
+    ]
+  },
+  "previousPeriod": null,
+  "normalization": {
+    "warnings": [],
+    "counts": {
+      "activitiesTotal": 3,
+      "rdosTotal": 1,
+      "previousActivitiesTotal": 0,
+      "previousRdosTotal": 0,
+      "docsOk": 2,
+      "docsPartial": 0,
+      "docsUnknown": 1,
+      "docsRequired": 2,
+      "docsNotRequired": 0,
+      "invalidActivities": 0,
+      "invalidRdos": 0
+    },
+    "schemaOk": true,
+    "schemaErrors": [],
+    "options": {
+      "timezone": "America/Sao_Paulo"
+    }
+  }
+}

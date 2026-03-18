@@ -1,0 +1,1411 @@
+
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <style>
+          ﻿:root {
+  --ink-900: #0f1b2b;
+  --ink-700: #1f2c3c;
+  --ink-500: #3a4a5b;
+  --ink-300: #8191a1;
+  --paper: #ffffff;
+  --accent: #0d3b66;
+  --accent-soft: #e7f0fb;
+  --warning: #b45309;
+  --warning-bg: #fff7ed;
+  --positive: #166534;
+  --positive-bg: #ecfdf3;
+  --border: #d9e2ec;
+  --muted: #f3f6f9;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--paper);
+  color: var(--ink-900);
+  font-family: "IBM Plex Sans", "Source Sans 3", "Segoe UI", sans-serif;
+  font-size: 11.5pt;
+  line-height: 1.5;
+}
+
+h1, h2, h3, h4 {
+  font-family: "Merriweather", "Iowan Old Style", serif;
+  margin: 0;
+  color: var(--ink-900);
+}
+
+h1 {
+  font-size: 21pt;
+}
+
+h2 {
+  font-size: 16pt;
+  margin-bottom: 6pt;
+}
+
+h3 {
+  font-size: 12.5pt;
+  margin-bottom: 4pt;
+}
+
+p {
+  margin: 0 0 6pt;
+}
+
+.report-header {
+  border-bottom: 2px solid var(--ink-900);
+  padding-bottom: 12pt;
+  margin-bottom: 12pt;
+}
+
+.report-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10pt;
+}
+
+.report-subtitle {
+  color: var(--ink-500);
+}
+
+.report-meta {
+  display: flex;
+  gap: 12pt;
+  flex-wrap: wrap;
+  color: var(--ink-500);
+  font-size: 10pt;
+}
+
+.metadata-bar {
+  display: flex;
+  gap: 12pt;
+  flex-wrap: wrap;
+  padding: 6pt 0 12pt;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12pt;
+  font-size: 10pt;
+}
+
+.warning-banner {
+  background: var(--warning-bg);
+  border: 1px solid #fbbf24;
+  padding: 10pt;
+  border-radius: 6pt;
+  margin: 10pt 0 14pt;
+  color: var(--warning);
+  font-weight: 600;
+}
+
+.section-header {
+  border-left: 4px solid var(--accent);
+  padding-left: 8pt;
+  margin: 18pt 0 12pt;
+}
+
+.section-header p {
+  color: var(--ink-500);
+  font-size: 10.5pt;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170pt, 1fr));
+  gap: 12pt;
+}
+
+.kpi-card {
+  border: 1px solid var(--border);
+  border-radius: 10pt;
+  padding: 12pt;
+  background: var(--paper);
+}
+
+.kpi-card.tone-warning {
+  border-color: #f59e0b;
+  background: var(--warning-bg);
+}
+
+.kpi-card.tone-positive {
+  border-color: #16a34a;
+  background: var(--positive-bg);
+}
+
+.kpi-label {
+  font-size: 9.5pt;
+  color: var(--ink-500);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.kpi-value {
+  font-size: 18pt;
+  font-weight: 700;
+  margin: 4pt 0;
+}
+
+.kpi-delta {
+  display: flex;
+  gap: 6pt;
+  font-size: 9.5pt;
+  color: var(--ink-500);
+}
+
+.kpi-tooltip,
+.kpi-trace {
+  font-size: 9pt;
+  color: var(--ink-300);
+}
+
+.comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170pt, 1fr));
+  gap: 10pt;
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12pt;
+  margin-bottom: 10pt;
+}
+
+.comparison-card {
+  border: 1px solid var(--border);
+  border-radius: 6pt;
+  padding: 10pt;
+  background: var(--muted);
+}
+
+.comparison-values {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+}
+
+.insight-grid,
+.risk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200pt, 1fr));
+  gap: 10pt;
+}
+
+.insight-card,
+.risk-card {
+  border-radius: 6pt;
+  padding: 10pt;
+  border: 1px solid var(--border);
+  background: var(--paper);
+}
+
+.insight-card.tone-warning,
+.risk-card.tone-warning {
+  border-color: #f59e0b;
+  background: var(--warning-bg);
+}
+
+.insight-card.tone-positive {
+  border-color: #16a34a;
+  background: var(--positive-bg);
+}
+
+.chart-container {
+  border: 1px dashed var(--border);
+  padding: 10pt;
+  border-radius: 6pt;
+  background: var(--paper);
+}
+
+.chart-svg {
+  width: 100%;
+}
+
+.chart-svg svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.chart-placeholder {
+  height: 120pt;
+  background: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-300);
+  font-size: 10pt;
+}
+
+.summary-table h3 {
+  margin-top: 10pt;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8pt;
+}
+
+thead {
+  background: var(--muted);
+}
+
+th, td {
+  border: 1px solid var(--border);
+  padding: 7pt 6pt;
+  font-size: 10.5pt;
+  line-height: 1.3;
+  text-align: left;
+  word-break: break-word;
+}
+
+th {
+  padding-top: 8pt;
+  padding-bottom: 8pt;
+}
+
+.recommendation-list {
+  padding-left: 16pt;
+  margin: 8pt 0 0;
+}
+
+.action-table th,
+.action-table td {
+  font-size: 10.5pt;
+  line-height: 1.3;
+}
+
+.daily-rdo-block {
+  border: 1px solid var(--border);
+  border-radius: 6pt;
+  padding: 10pt;
+  margin-bottom: 10pt;
+  background: var(--paper);
+}
+
+.empty-state {
+  padding: 12pt;
+  background: var(--muted);
+  border-radius: 6pt;
+  color: var(--ink-500);
+  font-style: italic;
+}
+
+.report-footer {
+  margin-top: 14pt;
+  padding-top: 8pt;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  font-size: 9pt;
+  color: var(--ink-500);
+}
+
+          ﻿@page {
+  size: A4 portrait;
+  margin: 12mm 12mm 14mm 12mm;
+}
+
+.report-page {
+  min-height: 270mm;
+  display: flex;
+  flex-direction: column;
+  gap: 6pt;
+}
+
+.page-break {
+  page-break-before: always;
+  break-before: page;
+}
+
+.no-break {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+thead {
+  display: table-header-group;
+}
+
+tfoot {
+  display: table-footer-group;
+}
+
+table {
+  page-break-inside: auto;
+}
+
+tr {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.chart-container,
+.kpi-card,
+.insight-card,
+.risk-card,
+.summary-table,
+.daily-rdo-block {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.page-number::before {
+  content: counter(page);
+}
+
+        </style>
+      </head>
+      <body>
+        
+    <article class="rdo-monthly">
+      <section class="report-page">
+    
+    <header class="report-header">
+      <div class="report-title">
+        <h1>Relatório Mensal OPSCOPE</h1>
+        <p class="report-subtitle">Solarig • Paracatu/Solarig</p>
+      </div>
+      <div class="report-meta">
+        <span><strong>Período:</strong> 2026-03-01 a 2026-03-31</span>
+        <span><strong>Emissão:</strong> 02/04/2026, 10:00:00</span>
+        <span><strong>Versão:</strong> v2.0</span>
+      </div>
+    </header>
+  
+    
+    <div class="metadata-bar">
+      <span><strong>Cliente:</strong> Solarig</span>
+      <span><strong>Projeto:</strong> Paracatu/Solarig</span>
+      <span><strong>Planta:</strong> BSO2</span>
+    </div>
+  
+    
+    <div class="warning-banner">
+      <p>Há alertas de integridade que podem impactar a leitura dos indicadores.</p>
+    </div>
+  
+
+    
+    <div class="section-header">
+      <h2>Visão executiva</h2>
+      <p>Indicadores chave do período.</p>
+    </div>
+  
+    <div class="kpi-grid">
+    <div class="kpi-card tone-neutral">
+      <div class="kpi-label">Planejadas</div>
+      <div class="kpi-value">60</div>
+      <div class="kpi-delta">
+        <span>-</span>
+        <span></span>
+      </div>
+      <div class="kpi-tooltip">Total de atividades com vencimento dentro do período.</div>
+      <div class="kpi-trace">dueDate in period and status != cancelada</div>
+    </div>
+  
+    <div class="kpi-card tone-warning">
+      <div class="kpi-label">Executadas</div>
+      <div class="kpi-value">48</div>
+      <div class="kpi-delta">
+        <span>-</span>
+        <span></span>
+      </div>
+      <div class="kpi-tooltip">Atividades concluídas com doneAt dentro do período.</div>
+      <div class="kpi-trace">doneAt in period and status == concluida</div>
+    </div>
+  
+    <div class="kpi-card tone-warning">
+      <div class="kpi-label">Execução vs planejado</div>
+      <div class="kpi-value">80%</div>
+      <div class="kpi-delta">
+        <span>-</span>
+        <span>-</span>
+      </div>
+      <div class="kpi-tooltip">Percentual executado sobre o planejado.</div>
+      <div class="kpi-trace">totalExecutedActivities / totalPlannedActivities</div>
+    </div>
+  
+    <div class="kpi-card tone-warning">
+      <div class="kpi-label">Backlog</div>
+      <div class="kpi-value">12</div>
+      <div class="kpi-delta">
+        <span>-</span>
+        <span></span>
+      </div>
+      <div class="kpi-tooltip">Atividades formalizadas em backlog no período.</div>
+      <div class="kpi-trace">status == backlog and dueDate in period</div>
+    </div>
+  
+    <div class="kpi-card tone-warning">
+      <div class="kpi-label">Overdue</div>
+      <div class="kpi-value">12</div>
+      <div class="kpi-delta">
+        <span>-</span>
+        <span></span>
+      </div>
+      <div class="kpi-tooltip">Atividades vencidas até o corte do período.</div>
+      <div class="kpi-trace">dueDate &lt; cutoff and status not in {concluida, cancelada}</div>
+    </div>
+  
+    <div class="kpi-card tone-warning">
+      <div class="kpi-label">SLA no prazo</div>
+      <div class="kpi-value">0%</div>
+      <div class="kpi-delta">
+        <span>-</span>
+        <span></span>
+      </div>
+      <div class="kpi-tooltip">Percentual de atividades concluídas no prazo.</div>
+      
+    </div>
+  
+    <div class="kpi-card tone-positive">
+      <div class="kpi-label">Compliance documental</div>
+      <div class="kpi-value">100%</div>
+      <div class="kpi-delta">
+        <span>-</span>
+        <span></span>
+      </div>
+      <div class="kpi-tooltip">Percentual de compliance documental das atividades executadas.</div>
+      <div class="kpi-trace">docsOk / docsRequired</div>
+    </div>
+  
+    <div class="kpi-card tone-neutral">
+      <div class="kpi-label">Horas executadas</div>
+      <div class="kpi-value">0h</div>
+      <div class="kpi-delta">
+        <span>-</span>
+        <span></span>
+      </div>
+      <div class="kpi-tooltip">Horas estimadas ou calculadas de execução no período.</div>
+      <div class="kpi-trace">sum of executionDurationHours or computed diff</div>
+    </div>
+  
+    <div class="kpi-card tone-neutral">
+      <div class="kpi-label">Evidências</div>
+      <div class="kpi-value">93</div>
+      <div class="kpi-delta">
+        <span>-</span>
+        <span></span>
+      </div>
+      <div class="kpi-tooltip">Evidências registradas em atividades e RDOs.</div>
+      <div class="kpi-trace">sum of evidence counts</div>
+    </div>
+  </div>
+
+    
+    <div class="section-header">
+      <h2>Comparativo com período anterior</h2>
+      <p>Variações em relação ao mês anterior.</p>
+    </div>
+  
+    
+    <div class="empty-state">
+      Comparação indisponível para o período anterior.
+    </div>
+  
+
+    
+    <div class="section-header">
+      <h2>Resumo executivo</h2>
+      <p>Síntese gerencial do período.</p>
+    </div>
+  
+    <p>No período, foram planejadas 60 atividades e executadas 48 (80%). Backlog em aberto de 12 atividades. Foram registradas 12 atividades vencidas. SLA no prazo: 0%. Compliance documental: 100%. Há alertas de integridade que podem impactar a leitura dos indicadores.</p>
+    
+  
+    <footer class="report-footer">
+      <span class="footer-left">Documento controlado e interno.</span>
+      <span class="footer-right">Página <span class="page-number"></span></span>
+    </footer>
+  </section>
+      <section class="report-page page-break">
+    
+    <div class="section-header">
+      <h2>Tendências e performance</h2>
+      <p>Tendência semanal de atividades planejadas vs executadas.</p>
+    </div>
+  
+    <div class="chart-grid">
+      
+    <div class="chart-container">
+      <div class="chart-header">
+        <h4>Evolução semanal</h4>
+        <span>Planejadas vs executadas</span>
+      </div>
+      <div class="chart-svg">
+    <svg width="520" height="220" viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg">
+      <line x1="40" y1="26" x2="40" y2="182" stroke="#d1d9ee" />
+      <line x1="40" y1="182" x2="504" y2="182" stroke="#d1d9ee" />
+      
+        <polyline fill="none" stroke="#1d4ed8" stroke-width="2" points="40,41.599999999999994 156,72.80000000000001 272,72.80000000000001 388,72.80000000000001 504,182" />
+        <circle cx="40" cy="41.599999999999994" r="3" fill="#1d4ed8" /><circle cx="156" cy="72.80000000000001" r="3" fill="#1d4ed8" /><circle cx="272" cy="72.80000000000001" r="3" fill="#1d4ed8" /><circle cx="388" cy="72.80000000000001" r="3" fill="#1d4ed8" /><circle cx="504" cy="182" r="3" fill="#1d4ed8" />
+      
+        <polyline fill="none" stroke="#16a34a" stroke-width="2" points="40,65 156,96.19999999999999 272,96.19999999999999 388,96.19999999999999 504,182" />
+        <circle cx="40" cy="65" r="3" fill="#16a34a" /><circle cx="156" cy="96.19999999999999" r="3" fill="#16a34a" /><circle cx="272" cy="96.19999999999999" r="3" fill="#16a34a" /><circle cx="388" cy="96.19999999999999" r="3" fill="#16a34a" /><circle cx="504" cy="182" r="3" fill="#16a34a" />
+      
+      <text x="40" y="210" font-size="11" text-anchor="middle" fill="#334155">S1</text><text x="156" y="210" font-size="11" text-anchor="middle" fill="#334155">S2</text><text x="272" y="210" font-size="11" text-anchor="middle" fill="#334155">S3</text><text x="388" y="210" font-size="11" text-anchor="middle" fill="#334155">S4</text><text x="504" y="210" font-size="11" text-anchor="middle" fill="#334155">S5</text>
+    </svg>
+  </div>
+    </div>
+  
+      
+    <div class="chart-container">
+      <div class="chart-header">
+        <h4>Evolução de backlog</h4>
+        <span>Cumulativo no período</span>
+      </div>
+      <div class="chart-svg">
+    <svg width="520" height="220" viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg">
+      <line x1="40" y1="26" x2="40" y2="182" stroke="#d1d9ee" />
+      <line x1="40" y1="182" x2="504" y2="182" stroke="#d1d9ee" />
+      
+        <polyline fill="none" stroke="#b45309" stroke-width="2" points="40,158.6 156,135.2 272,111.8 388,88.4 504,88.4" />
+        <circle cx="40" cy="158.6" r="3" fill="#b45309" /><circle cx="156" cy="135.2" r="3" fill="#b45309" /><circle cx="272" cy="111.8" r="3" fill="#b45309" /><circle cx="388" cy="88.4" r="3" fill="#b45309" /><circle cx="504" cy="88.4" r="3" fill="#b45309" />
+      
+      <text x="40" y="210" font-size="11" text-anchor="middle" fill="#334155">S1</text><text x="156" y="210" font-size="11" text-anchor="middle" fill="#334155">S2</text><text x="272" y="210" font-size="11" text-anchor="middle" fill="#334155">S3</text><text x="388" y="210" font-size="11" text-anchor="middle" fill="#334155">S4</text><text x="504" y="210" font-size="11" text-anchor="middle" fill="#334155">S5</text>
+    </svg>
+  </div>
+    </div>
+  
+      
+    <div class="chart-container">
+      <div class="chart-header">
+        <h4>Distribuição por status</h4>
+        
+      </div>
+      <div class="chart-svg">
+    <svg width="520" height="220" viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg">
+      <line x1="40" y1="22" x2="40" y2="176" stroke="#d1d9ee" />
+      <line x1="40" y1="176" x2="504" y2="176" stroke="#d1d9ee" />
+      <text x="40" y="16" font-size="11" fill="#64748b">Atividades</text>
+      
+        <rect x="48" y="28.159999999999997" width="76.8" height="147.84" fill="#1d4ed8" rx="2" />
+        <text x="86.4" y="208" font-size="11" text-anchor="middle" fill="#334155">concluida</text>
+      
+        <rect x="140.8" y="139.04" width="76.8" height="36.96" fill="#0ea5e9" rx="2" />
+        <text x="179.20000000000002" y="208" font-size="11" text-anchor="middle" fill="#334155">backlog</text>
+      
+        <rect x="233.6" y="176" width="76.8" height="0" fill="#1d4ed8" rx="2" />
+        <text x="272" y="208" font-size="11" text-anchor="middle" fill="#334155">em_execucao</text>
+      
+        <rect x="326.4" y="176" width="76.8" height="0" fill="#0ea5e9" rx="2" />
+        <text x="364.79999999999995" y="208" font-size="11" text-anchor="middle" fill="#334155">agendada</text>
+      
+        <rect x="419.2" y="176" width="76.8" height="0" fill="#1d4ed8" rx="2" />
+        <text x="457.59999999999997" y="208" font-size="11" text-anchor="middle" fill="#334155">cancelada</text>
+      
+    </svg>
+  </div>
+    </div>
+  
+      
+    <div class="chart-container">
+      <div class="chart-header">
+        <h4>SLA no prazo vs fora do prazo</h4>
+        
+      </div>
+      <div class="chart-svg">
+    <svg width="520" height="220" viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg">
+      <rect x="40" y="26" width="464" height="158" fill="#f3f6f9" stroke="#d9e2ec" />
+      <rect x="40" y="26" width="0" height="158" fill="#16a34a" />
+      <rect x="40" y="26" width="464" height="158" fill="#dc2626" />
+      <text x="40" y="210" font-size="11" fill="#334155">SLA no prazo</text>
+      <text x="46" y="105" font-size="11" fill="#ffffff">No prazo: 0</text>
+      <text x="46" y="105" font-size="11" fill="#ffffff">Fora do prazo: 100</text>
+    </svg>
+  </div>
+    </div>
+  
+    </div>
+    <div class="insight-grid">
+    <div class="insight-card tone-warning">
+      <div class="insight-text">A taxa de execução ficou abaixo do planejado para o período.</div>
+      <div class="insight-rule">executed/planned &lt; 90%</div>
+    </div>
+  
+    <div class="insight-card tone-warning">
+      <div class="insight-text">Há backlog em aberto que requer acompanhamento operacional.</div>
+      <div class="insight-rule">backlog &gt; 0</div>
+    </div>
+  
+    <div class="insight-card tone-warning">
+      <div class="insight-text">Foram registradas atividades vencidas no período.</div>
+      <div class="insight-rule">overdue &gt; 0</div>
+    </div>
+  
+    <div class="insight-card tone-warning">
+      <div class="insight-text">O SLA ficou abaixo da meta, indicando necessidade de ajustes operacionais.</div>
+      <div class="insight-rule">slaOnTimePct &lt; 90</div>
+    </div>
+  
+    <div class="insight-card tone-positive">
+      <div class="insight-text">A conformidade documental ficou dentro do padrão esperado.</div>
+      <div class="insight-rule">docsCompliancePct &gt;= 95</div>
+    </div>
+  
+    <div class="insight-card tone-info">
+      <div class="insight-text">Há atividades com exigências documentais indeterminadas, revisite o cadastro de categorias.</div>
+      <div class="insight-rule">docsUnknown &gt; 0</div>
+    </div>
+  
+    <div class="insight-card tone-warning">
+      <div class="insight-text">Foram registradas atividades críticas no período.</div>
+      <div class="insight-rule">critical &gt; 0</div>
+    </div>
+  
+    <div class="insight-card tone-warning">
+      <div class="insight-text">Foram identificadas advertências de integridade de dados neste relatório.</div>
+      <div class="insight-rule">integrityStatus != ok</div>
+    </div>
+  </div>
+
+    
+    <div class="section-header">
+      <h2>Análise operacional</h2>
+      <p>Distribuição operacional por status, tipo, local, equipe e prioridade.</p>
+    </div>
+  
+    <div class="chart-grid">
+      
+    <div class="chart-container">
+      <div class="chart-header">
+        <h4>Distribuição por categoria</h4>
+        <span>Top categorias</span>
+      </div>
+      <div class="chart-svg">
+    <svg width="520" height="220" viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg">
+      <line x1="40" y1="22" x2="40" y2="176" stroke="#d1d9ee" />
+      <line x1="40" y1="176" x2="504" y2="176" stroke="#d1d9ee" />
+      <text x="40" y="16" font-size="11" fill="#64748b">Atividades</text>
+      
+        <rect x="48" y="22" width="138.66666666666666" height="154" fill="#1d4ed8" rx="2" />
+        <text x="117.33333333333333" y="208" font-size="11" text-anchor="middle" fill="#334155">corretiva eletrica</text>
+      
+        <rect x="202.66666666666666" y="22" width="138.66666666666666" height="154" fill="#0ea5e9" rx="2" />
+        <text x="272" y="208" font-size="11" text-anchor="middle" fill="#334155">inspecao</text>
+      
+        <rect x="357.3333333333333" y="22" width="138.66666666666666" height="154" fill="#1d4ed8" rx="2" />
+        <text x="426.66666666666663" y="208" font-size="11" text-anchor="middle" fill="#334155">preventiva simples</text>
+      
+    </svg>
+  </div>
+    </div>
+  
+      
+    <div class="chart-container">
+      <div class="chart-header">
+        <h4>Top locais</h4>
+        <span>Volume por local</span>
+      </div>
+      <div class="chart-svg">
+    <svg width="520" height="220" viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg">
+      <line x1="40" y1="22" x2="40" y2="176" stroke="#d1d9ee" />
+      <line x1="40" y1="176" x2="504" y2="176" stroke="#d1d9ee" />
+      <text x="40" y="16" font-size="11" fill="#64748b">Atividades</text>
+      
+        <rect x="48" y="83.60000000000001" width="448" height="92.39999999999999" fill="#1d4ed8" rx="2" />
+        <text x="272" y="208" font-size="11" text-anchor="middle" fill="#334155">nao_informado</text>
+      
+    </svg>
+  </div>
+    </div>
+  
+      
+    <div class="chart-container">
+      <div class="chart-header">
+        <h4>Criticidade por prioridade</h4>
+        <span>Distribuição</span>
+      </div>
+      <div class="chart-svg">
+    <svg width="520" height="220" viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg">
+      <line x1="40" y1="22" x2="40" y2="176" stroke="#d1d9ee" />
+      <line x1="40" y1="176" x2="504" y2="176" stroke="#d1d9ee" />
+      <text x="40" y="16" font-size="11" fill="#64748b">Atividades</text>
+      
+        <rect x="48" y="37.400000000000006" width="216" height="138.6" fill="#1d4ed8" rx="2" />
+        <text x="156" y="208" font-size="11" text-anchor="middle" fill="#334155">alta</text>
+      
+        <rect x="280" y="129.8" width="216" height="46.199999999999996" fill="#0ea5e9" rx="2" />
+        <text x="388" y="208" font-size="11" text-anchor="middle" fill="#334155">critica</text>
+      
+    </svg>
+  </div>
+    </div>
+  
+    </div>
+    
+        <div class="summary-table" data-chunk-index="1">
+          <h3>Distribuição por status</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Descrição</th>
+                <th>Quantidade</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+                  <tr>
+                    <td>concluida</td>
+                    <td>48</td>
+                    <td>80%</td>
+                  </tr>
+                
+                  <tr>
+                    <td>backlog</td>
+                    <td>12</td>
+                    <td>20%</td>
+                  </tr>
+                
+                  <tr>
+                    <td>em_execucao</td>
+                    <td>0</td>
+                    <td>0%</td>
+                  </tr>
+                
+                  <tr>
+                    <td>agendada</td>
+                    <td>0</td>
+                    <td>0%</td>
+                  </tr>
+                
+                  <tr>
+                    <td>cancelada</td>
+                    <td>0</td>
+                    <td>0%</td>
+                  </tr>
+                
+            </tbody>
+          </table>
+        </div>
+      
+        <div class="summary-table" data-chunk-index="1">
+          <h3>Distribuição por tipo</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Descrição</th>
+                <th>Quantidade</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+                  <tr>
+                    <td>corretiva eletrica</td>
+                    <td>20</td>
+                    <td>33%</td>
+                  </tr>
+                
+                  <tr>
+                    <td>inspecao</td>
+                    <td>20</td>
+                    <td>33%</td>
+                  </tr>
+                
+                  <tr>
+                    <td>preventiva simples</td>
+                    <td>20</td>
+                    <td>33%</td>
+                  </tr>
+                
+            </tbody>
+          </table>
+        </div>
+      
+        <div class="summary-table" data-chunk-index="1">
+          <h3>Distribuição por local</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Descrição</th>
+                <th>Quantidade</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+                  <tr>
+                    <td>nao_informado</td>
+                    <td>60</td>
+                    <td>100%</td>
+                  </tr>
+                
+            </tbody>
+          </table>
+        </div>
+      
+        <div class="summary-table" data-chunk-index="1">
+          <h3>Distribuição por equipe</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Descrição</th>
+                <th>Quantidade</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+                  <tr>
+                    <td>nao_informado</td>
+                    <td>60</td>
+                    <td>100%</td>
+                  </tr>
+                
+            </tbody>
+          </table>
+        </div>
+      
+        <div class="summary-table" data-chunk-index="1">
+          <h3>Distribuição por prioridade</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Descrição</th>
+                <th>Quantidade</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+                  <tr>
+                    <td>alta</td>
+                    <td>45</td>
+                    <td>75%</td>
+                  </tr>
+                
+                  <tr>
+                    <td>critica</td>
+                    <td>15</td>
+                    <td>25%</td>
+                  </tr>
+                
+            </tbody>
+          </table>
+        </div>
+      
+  
+    <footer class="report-footer">
+      <span class="footer-left">Documento controlado e interno.</span>
+      <span class="footer-right">Página <span class="page-number"></span></span>
+    </footer>
+  </section>
+      <section class="report-page page-break">
+    
+    <div class="section-header">
+      <h2>Segurança, compliance e evidências</h2>
+      <p>Compliance documental de 100%. Existem atividades com exigências documentais indeterminadas. Há alertas de integridade de dados que podem afetar o compliance.</p>
+    </div>
+  
+    
+    <table class="compliance-table">
+      <thead>
+        <tr>
+          <th>Docs Required</th>
+          <th>Docs Ok</th>
+          <th>Docs Partial</th>
+          <th>Docs Unknown</th>
+          <th>Compliance</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>32</td>
+          <td>32</td>
+          <td>0</td>
+          <td>16</td>
+          <td>100%</td>
+        </tr>
+      </tbody>
+    </table>
+  
+
+    
+    <div class="section-header">
+      <h2>Análise técnica</h2>
+      <p>Destaques técnicos com base na distribuição das atividades e criticidade.</p>
+    </div>
+  
+    <ul><li>Foram registradas 15 atividades críticas no período.</li><li>Categoria dominante: corretiva eletrica (20 atividades).</li></ul>
+
+    
+    <div class="section-header">
+      <h2>Riscos e recomendações</h2>
+      <p>Avaliação de riscos baseada em backlog, overdue, SLA e compliance.</p>
+    </div>
+  
+    <div class="risk-grid">
+    <div class="risk-card tone-warning">
+      <div class="risk-text">Backlog em aberto pode impactar a capacidade de resposta operacional.</div>
+      <div class="risk-rule">backlog &gt; 0</div>
+    </div>
+  
+    <div class="risk-card tone-warning">
+      <div class="risk-text">Atividades vencidas elevam o risco de descumprimento de SLA.</div>
+      <div class="risk-rule">overdue &gt; 0</div>
+    </div>
+  
+    <div class="risk-card tone-warning">
+      <div class="risk-text">SLA abaixo da meta sugere necessidade de replanejamento.</div>
+      <div class="risk-rule">slaOnTimePct &lt; 90</div>
+    </div>
+  </div>
+    
+    <ul class="recommendation-list">
+      <li>Revisar capacidade de execução e priorizar backlog crítico.</li><li>Ajustar cronograma e reforçar acompanhamento de vencimentos.</li><li>Revisar gargalos de execução para recuperar a meta de SLA.</li>
+    </ul>
+  
+
+    
+    <div class="section-header">
+      <h2>Plano de ação</h2>
+      <p>Plano de ação inicial baseado nos desvios identificados.</p>
+    </div>
+  
+    
+    <table class="action-table">
+      <thead>
+        <tr>
+          <th>Ação</th>
+          <th>Responsável</th>
+          <th>Prazo</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+            <tr>
+              <td>Revisar capacidade de execução e priorizar backlog crítico.</td>
+              <td>Coordenação O&amp;M</td>
+              <td>A definir</td>
+              <td>Planejada</td>
+            </tr>
+          
+            <tr>
+              <td>Ajustar cronograma e reforçar acompanhamento de vencimentos.</td>
+              <td>Coordenação O&amp;M</td>
+              <td>A definir</td>
+              <td>Planejada</td>
+            </tr>
+          
+            <tr>
+              <td>Revisar gargalos de execução para recuperar a meta de SLA.</td>
+              <td>Coordenação O&amp;M</td>
+              <td>A definir</td>
+              <td>Planejada</td>
+            </tr>
+          
+      </tbody>
+    </table>
+  
+  
+    <footer class="report-footer">
+      <span class="footer-left">Documento controlado e interno.</span>
+      <span class="footer-right">Página <span class="page-number"></span></span>
+    </footer>
+  </section>
+      <section class="report-page page-break">
+    
+    <div class="section-header">
+      <h2>Tabelas consolidadas</h2>
+      <p>Tabelas consolidadas de distribuição e status.</p>
+    </div>
+  
+    
+        <div class="summary-table" data-chunk-index="1">
+          <h3>Status consolidados</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Descrição</th>
+                <th>Quantidade</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+                  <tr>
+                    <td>concluida</td>
+                    <td>48</td>
+                    <td>80%</td>
+                  </tr>
+                
+                  <tr>
+                    <td>backlog</td>
+                    <td>12</td>
+                    <td>20%</td>
+                  </tr>
+                
+                  <tr>
+                    <td>em_execucao</td>
+                    <td>0</td>
+                    <td>0%</td>
+                  </tr>
+                
+                  <tr>
+                    <td>agendada</td>
+                    <td>0</td>
+                    <td>0%</td>
+                  </tr>
+                
+                  <tr>
+                    <td>cancelada</td>
+                    <td>0</td>
+                    <td>0%</td>
+                  </tr>
+                
+            </tbody>
+          </table>
+        </div>
+      
+        <div class="summary-table" data-chunk-index="1">
+          <h3>Categorias consolidadas</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Descrição</th>
+                <th>Quantidade</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+                  <tr>
+                    <td>corretiva eletrica</td>
+                    <td>20</td>
+                    <td>33%</td>
+                  </tr>
+                
+                  <tr>
+                    <td>inspecao</td>
+                    <td>20</td>
+                    <td>33%</td>
+                  </tr>
+                
+                  <tr>
+                    <td>preventiva simples</td>
+                    <td>20</td>
+                    <td>33%</td>
+                  </tr>
+                
+            </tbody>
+          </table>
+        </div>
+      
+        <div class="summary-table" data-chunk-index="1">
+          <h3>Locais consolidados</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Descrição</th>
+                <th>Quantidade</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+                  <tr>
+                    <td>nao_informado</td>
+                    <td>60</td>
+                    <td>100%</td>
+                  </tr>
+                
+            </tbody>
+          </table>
+        </div>
+      
+        <div class="summary-table" data-chunk-index="1">
+          <h3>Equipes consolidadas</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Descrição</th>
+                <th>Quantidade</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+                  <tr>
+                    <td>nao_informado</td>
+                    <td>60</td>
+                    <td>100%</td>
+                  </tr>
+                
+            </tbody>
+          </table>
+        </div>
+      
+        <div class="summary-table" data-chunk-index="1">
+          <h3>Prioridades consolidadas</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Descrição</th>
+                <th>Quantidade</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+                  <tr>
+                    <td>alta</td>
+                    <td>45</td>
+                    <td>75%</td>
+                  </tr>
+                
+                  <tr>
+                    <td>critica</td>
+                    <td>15</td>
+                    <td>25%</td>
+                  </tr>
+                
+            </tbody>
+          </table>
+        </div>
+      
+
+    
+    <div class="section-header">
+      <h2>Anexo técnico diário</h2>
+      <p>RDOs diários consolidados.</p>
+    </div>
+  
+    <div class="daily-rdo-page">
+    <div class="daily-rdo-block">
+      <div class="daily-rdo-header">
+        <strong>RDO 2026-03-02</strong>
+        <span>ID: R1</span>
+      </div>
+      <div class="daily-rdo-body">
+        <span><strong>Emitido:</strong> 2026-03-02T20:00:00.000Z</span>
+        <span><strong>Por:</strong> -</span>
+        <span><strong>Evidências:</strong> 2</span>
+      </div>
+    </div>
+  
+    <div class="daily-rdo-block">
+      <div class="daily-rdo-header">
+        <strong>RDO 2026-03-03</strong>
+        <span>ID: R2</span>
+      </div>
+      <div class="daily-rdo-body">
+        <span><strong>Emitido:</strong> 2026-03-03T20:00:00.000Z</span>
+        <span><strong>Por:</strong> -</span>
+        <span><strong>Evidências:</strong> 3</span>
+      </div>
+    </div>
+  
+    <div class="daily-rdo-block">
+      <div class="daily-rdo-header">
+        <strong>RDO 2026-03-04</strong>
+        <span>ID: R3</span>
+      </div>
+      <div class="daily-rdo-body">
+        <span><strong>Emitido:</strong> 2026-03-04T20:00:00.000Z</span>
+        <span><strong>Por:</strong> -</span>
+        <span><strong>Evidências:</strong> 4</span>
+      </div>
+    </div>
+  </div><div class="daily-rdo-page page-break">
+    <div class="daily-rdo-block">
+      <div class="daily-rdo-header">
+        <strong>RDO 2026-03-05</strong>
+        <span>ID: R4</span>
+      </div>
+      <div class="daily-rdo-body">
+        <span><strong>Emitido:</strong> 2026-03-05T20:00:00.000Z</span>
+        <span><strong>Por:</strong> -</span>
+        <span><strong>Evidências:</strong> 1</span>
+      </div>
+    </div>
+  
+    <div class="daily-rdo-block">
+      <div class="daily-rdo-header">
+        <strong>RDO 2026-03-06</strong>
+        <span>ID: R5</span>
+      </div>
+      <div class="daily-rdo-body">
+        <span><strong>Emitido:</strong> 2026-03-06T20:00:00.000Z</span>
+        <span><strong>Por:</strong> -</span>
+        <span><strong>Evidências:</strong> 2</span>
+      </div>
+    </div>
+  
+    <div class="daily-rdo-block">
+      <div class="daily-rdo-header">
+        <strong>RDO 2026-03-07</strong>
+        <span>ID: R6</span>
+      </div>
+      <div class="daily-rdo-body">
+        <span><strong>Emitido:</strong> 2026-03-07T20:00:00.000Z</span>
+        <span><strong>Por:</strong> -</span>
+        <span><strong>Evidências:</strong> 3</span>
+      </div>
+    </div>
+  </div><div class="daily-rdo-page page-break">
+    <div class="daily-rdo-block">
+      <div class="daily-rdo-header">
+        <strong>RDO 2026-03-08</strong>
+        <span>ID: R7</span>
+      </div>
+      <div class="daily-rdo-body">
+        <span><strong>Emitido:</strong> 2026-03-08T20:00:00.000Z</span>
+        <span><strong>Por:</strong> -</span>
+        <span><strong>Evidências:</strong> 4</span>
+      </div>
+    </div>
+  
+    <div class="daily-rdo-block">
+      <div class="daily-rdo-header">
+        <strong>RDO 2026-03-09</strong>
+        <span>ID: R8</span>
+      </div>
+      <div class="daily-rdo-body">
+        <span><strong>Emitido:</strong> 2026-03-09T20:00:00.000Z</span>
+        <span><strong>Por:</strong> -</span>
+        <span><strong>Evidências:</strong> 1</span>
+      </div>
+    </div>
+  
+    <div class="daily-rdo-block">
+      <div class="daily-rdo-header">
+        <strong>RDO 2026-03-10</strong>
+        <span>ID: R9</span>
+      </div>
+      <div class="daily-rdo-body">
+        <span><strong>Emitido:</strong> 2026-03-10T20:00:00.000Z</span>
+        <span><strong>Por:</strong> -</span>
+        <span><strong>Evidências:</strong> 2</span>
+      </div>
+    </div>
+  </div><div class="daily-rdo-page page-break">
+    <div class="daily-rdo-block">
+      <div class="daily-rdo-header">
+        <strong>RDO 2026-03-11</strong>
+        <span>ID: R10</span>
+      </div>
+      <div class="daily-rdo-body">
+        <span><strong>Emitido:</strong> 2026-03-11T20:00:00.000Z</span>
+        <span><strong>Por:</strong> -</span>
+        <span><strong>Evidências:</strong> 3</span>
+      </div>
+    </div>
+  
+    <div class="daily-rdo-block">
+      <div class="daily-rdo-header">
+        <strong>RDO 2026-03-12</strong>
+        <span>ID: R11</span>
+      </div>
+      <div class="daily-rdo-body">
+        <span><strong>Emitido:</strong> 2026-03-12T20:00:00.000Z</span>
+        <span><strong>Por:</strong> -</span>
+        <span><strong>Evidências:</strong> 4</span>
+      </div>
+    </div>
+  
+    <div class="daily-rdo-block">
+      <div class="daily-rdo-header">
+        <strong>RDO 2026-03-13</strong>
+        <span>ID: R12</span>
+      </div>
+      <div class="daily-rdo-body">
+        <span><strong>Emitido:</strong> 2026-03-13T20:00:00.000Z</span>
+        <span><strong>Por:</strong> -</span>
+        <span><strong>Evidências:</strong> 1</span>
+      </div>
+    </div>
+  </div><div class="daily-rdo-page page-break">
+    <div class="daily-rdo-block">
+      <div class="daily-rdo-header">
+        <strong>RDO 2026-03-14</strong>
+        <span>ID: R13</span>
+      </div>
+      <div class="daily-rdo-body">
+        <span><strong>Emitido:</strong> 2026-03-14T20:00:00.000Z</span>
+        <span><strong>Por:</strong> -</span>
+        <span><strong>Evidências:</strong> 2</span>
+      </div>
+    </div>
+  
+    <div class="daily-rdo-block">
+      <div class="daily-rdo-header">
+        <strong>RDO 2026-03-15</strong>
+        <span>ID: R14</span>
+      </div>
+      <div class="daily-rdo-body">
+        <span><strong>Emitido:</strong> 2026-03-15T20:00:00.000Z</span>
+        <span><strong>Por:</strong> -</span>
+        <span><strong>Evidências:</strong> 3</span>
+      </div>
+    </div>
+  
+    <div class="daily-rdo-block">
+      <div class="daily-rdo-header">
+        <strong>RDO 2026-03-16</strong>
+        <span>ID: R15</span>
+      </div>
+      <div class="daily-rdo-body">
+        <span><strong>Emitido:</strong> 2026-03-16T20:00:00.000Z</span>
+        <span><strong>Por:</strong> -</span>
+        <span><strong>Evidências:</strong> 4</span>
+      </div>
+    </div>
+  </div><div class="daily-rdo-page page-break">
+    <div class="daily-rdo-block">
+      <div class="daily-rdo-header">
+        <strong>RDO 2026-03-17</strong>
+        <span>ID: R16</span>
+      </div>
+      <div class="daily-rdo-body">
+        <span><strong>Emitido:</strong> 2026-03-17T20:00:00.000Z</span>
+        <span><strong>Por:</strong> -</span>
+        <span><strong>Evidências:</strong> 1</span>
+      </div>
+    </div>
+  
+    <div class="daily-rdo-block">
+      <div class="daily-rdo-header">
+        <strong>RDO 2026-03-18</strong>
+        <span>ID: R17</span>
+      </div>
+      <div class="daily-rdo-body">
+        <span><strong>Emitido:</strong> 2026-03-18T20:00:00.000Z</span>
+        <span><strong>Por:</strong> -</span>
+        <span><strong>Evidências:</strong> 2</span>
+      </div>
+    </div>
+  
+    <div class="daily-rdo-block">
+      <div class="daily-rdo-header">
+        <strong>RDO 2026-03-19</strong>
+        <span>ID: R18</span>
+      </div>
+      <div class="daily-rdo-body">
+        <span><strong>Emitido:</strong> 2026-03-19T20:00:00.000Z</span>
+        <span><strong>Por:</strong> -</span>
+        <span><strong>Evidências:</strong> 3</span>
+      </div>
+    </div>
+  </div>
+  
+    <footer class="report-footer">
+      <span class="footer-left">Documento controlado e interno.</span>
+      <span class="footer-right">Página <span class="page-number"></span></span>
+    </footer>
+  </section>
+    </article>
+  
+      </body>
+    </html>
+  

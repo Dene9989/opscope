@@ -1,0 +1,8 @@
+cenario,periodo,integrityStatus,kpis_principais,banner,comparacao,tabela_anexo,pdf_gerado,logs_coletados,status_final,observacoes
+mes_saudavel,,,,,,,,,
+mes_parcial,,,,,,,,,
+mes_warning_integridade,,,,,,,,,
+mes_sem_previous_period,,,,,,,,,
+mes_volume_alto,,,,,,,,,
+mes_tabela_longa,,,,,,,,,
+mes_anexo_extenso,,,,,,,,,

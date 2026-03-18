@@ -51,6 +51,10 @@ try {
 }
 const { createPowerBIRouter } = require("./src/powerbi/routes");
 const { createIntelligenceRouter } = require("./src/intelligence/routes");
+const monthlyReport = require("./src/reporting/monthly");
+const MONTHLY_DOC_KEYS = monthlyReport.contracts && Array.isArray(monthlyReport.contracts.DOC_KEYS)
+  ? monthlyReport.contracts.DOC_KEYS
+  : ["apr", "os", "pte", "pt"];
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -196,6 +200,18 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const OPENAI_MODEL = process.env.OPSCOPE_OPENAI_MODEL || "gpt-4o-mini-2024-07-18";
 const OPENAI_TIMEOUT_MS = Number(process.env.OPSCOPE_OPENAI_TIMEOUT_MS) || 12000;
 const RDO_AI_CACHE_TTL_MS = Number(process.env.OPSCOPE_RDO_AI_CACHE_TTL_MS) || 30 * 60 * 1000;
+const RDO_MENSAL_V2_ENABLED =
+  String(process.env.RDO_MENSAL_V2_ENABLED || process.env.OPSCOPE_RDO_MENSAL_V2_ENABLED || "")
+    .trim()
+    .toLowerCase() === "true";
+const RDO_MENSAL_V2_REPORT_VERSION = String(process.env.RDO_MENSAL_V2_REPORT_VERSION || "v2").trim();
+const RDO_MENSAL_V2_PDF_ENGINE = String(process.env.RDO_MENSAL_V2_PDF_ENGINE || "puppeteer")
+  .trim()
+  .toLowerCase();
+const RDO_MENSAL_V2_TIMEOUT_MS = Math.max(
+  10000,
+  Number(process.env.RDO_MENSAL_V2_TIMEOUT_MS) || 60000
+);
 const STORAGE_READONLY_MESSAGE =
   "Armazenamento indisponivel. O sistema esta em modo somente leitura para evitar perda de dados.";
 const DB_STORE_TABLE = "opscope_store";
@@ -8212,6 +8228,46 @@ function appendApiLog(entry) {
   writeJson(API_LOG_FILE, apiLogs);
 }
 
+function logRdoMensalV2Stage({ req, stage, status = 200, startedAt, details, projectId, user }) {
+  const started = Number.isFinite(startedAt) ? startedAt : Date.now();
+  const durationMs = Date.now() - started;
+  const entry = {
+    id: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    method: "RDO_MENSAL_V2",
+    endpoint: `/api/rdo/monthly/v2/${stage}`,
+    status,
+    durationMs,
+    userId: user ? user.id : null,
+    userName: user ? user.name : null,
+    ip: req ? getClientIp(req) : "",
+    params: {},
+    query: {},
+    body: sanitizeLogValue(details || {}),
+    projectId: projectId || "",
+  };
+  appendApiLog(entry);
+  return entry;
+}
+
+function withTimeout(promise, ms, code = "timeout") {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        const error = new Error("Tempo limite excedido.");
+        error.code = code;
+        reject(error);
+      }, ms);
+    }),
+  ]).finally(() => {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  });
+}
+
 function runHealthTask(taskId, user) {
   const index = healthTasks.findIndex((task) => task.id === taskId);
   if (index === -1) {
@@ -13649,6 +13705,275 @@ function buildRdoPayload(dateStr, projectId) {
   };
 }
 
+function resolveMonthlyRange(startRaw, endRaw) {
+  const startParsed = parseDateOnly(startRaw);
+  const endParsed = parseDateOnly(endRaw);
+  const today = startOfDay(new Date());
+  let start = startParsed || endParsed || today;
+  let end = endParsed || new Date(start.getFullYear(), start.getMonth() + 1, 0);
+  if (!startParsed && !endParsed) {
+    start = new Date(today.getFullYear(), today.getMonth(), 1);
+    end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  } else if (!startParsed && endParsed) {
+    start = new Date(end.getFullYear(), end.getMonth(), 1);
+  } else if (startParsed && !endParsed) {
+    end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+  }
+  if (end < start) {
+    const tmp = start;
+    start = end;
+    end = tmp;
+  }
+  return { start: startOfDay(start), end: startOfDay(end) };
+}
+
+function getPreviousMonthlyRange(currentRange) {
+  const prevEnd = new Date(currentRange.start.getFullYear(), currentRange.start.getMonth(), 0);
+  const prevStart = new Date(prevEnd.getFullYear(), prevEnd.getMonth(), 1);
+  return { start: startOfDay(prevStart), end: startOfDay(prevEnd) };
+}
+
+function buildMaintenanceDocsSnapshot(item) {
+  const output = {};
+  const sources = [
+    item.docs,
+    item.documentos,
+    item.documents,
+    item.filesByType,
+    item.liberacao && item.liberacao.docs,
+    item.liberacao && item.liberacao.documentos,
+    item.registroExecucao && item.registroExecucao.docs,
+    item.conclusao && item.conclusao.docs,
+    item.conclusao && item.conclusao.documentos,
+  ];
+  let found = false;
+  sources.forEach((source) => {
+    if (!source || typeof source !== "object" || Array.isArray(source)) {
+      return;
+    }
+    found = true;
+    MONTHLY_DOC_KEYS.forEach((key) => {
+      if (source[key] !== undefined && source[key] !== null) {
+        output[key] = source[key];
+      }
+    });
+  });
+
+  const extracted = extractSstDocDocuments(item);
+  if (extracted && extracted.docs) {
+    MONTHLY_DOC_KEYS.forEach((key) => {
+      if (output[key] === undefined && extracted.docs[key]) {
+        output[key] = true;
+        found = true;
+      }
+    });
+  }
+
+  if (!found) {
+    return {};
+  }
+  const sanitized = {};
+  MONTHLY_DOC_KEYS.forEach((key) => {
+    if (output[key] === undefined) {
+      return;
+    }
+    const value = output[key];
+    if (typeof value === "boolean" || typeof value === "string" || typeof value === "number") {
+      sanitized[key] = value;
+      return;
+    }
+    if (value) {
+      sanitized[key] = true;
+    }
+  });
+  return sanitized;
+}
+
+function computeExecutionDurationHours(item, execution) {
+  if (item && item.conclusao && Number.isFinite(item.conclusao.duracaoMin)) {
+    return Number((item.conclusao.duracaoMin / 60).toFixed(2));
+  }
+  const start = execution && execution.start ? execution.start.getTime() : null;
+  const end = execution && execution.end ? execution.end.getTime() : null;
+  if (start && end && end >= start) {
+    return Number(((end - start) / (1000 * 60 * 60)).toFixed(2));
+  }
+  return 0;
+}
+
+function mapMaintenanceToMonthlyActivity(item) {
+  const due = getDueDate(item);
+  const doneAt = getCompletedAt(item);
+  const executionStart = parseDateTime(
+    item.executionStartedAt ||
+      item.inicioExecucao ||
+      (item.conclusao && item.conclusao.inicio) ||
+      (item.registroExecucao && item.registroExecucao.inicio)
+  );
+  const executionEnd = parseDateTime(
+    item.executionFinishedAt ||
+      item.fimExecucao ||
+      (item.conclusao && item.conclusao.fim) ||
+      item.doneAt ||
+      item.dataConclusao
+  );
+  const executionDurationHours = computeExecutionDurationHours(item, {
+    start: executionStart,
+    end: executionEnd,
+  });
+  const responsaveis = getMaintenanceResponsibleLabels(item);
+  const responsavelTexto = responsaveis.length
+    ? responsaveis.join("; ")
+    : String(item.responsavel || "").trim();
+  const equipe = String(
+    item.equipe || item.time || item.nomeTime || (responsaveis[0] || "")
+  ).trim();
+  const backlogMotivo =
+    item.backlogMotivo && typeof item.backlogMotivo === "object"
+      ? item.backlogMotivo
+      : {};
+  const cancelamento =
+    item.cancelamentoExecucao && typeof item.cancelamentoExecucao === "object"
+      ? item.cancelamentoExecucao
+      : {};
+  const backlogReason = String(backlogMotivo.motivo || backlogMotivo.observacao || "").trim();
+  const cancelReason = String(
+    cancelamento.motivo || cancelamento.observacao || item.cancelamentoMotivo || ""
+  ).trim();
+  return {
+    id: String(item.id || ""),
+    title: String(item.titulo || item.nome || item.atividade || "").trim(),
+    status: item.status || "",
+    dueDate: due ? formatDateISO(due) : "",
+    doneAt: doneAt ? doneAt.toISOString() : "",
+    executionStartedAt: executionStart ? executionStart.toISOString() : "",
+    executionFinishedAt: executionEnd ? executionEnd.toISOString() : "",
+    priority: String(item.prioridade || item.criticidade || item.priority || "").trim(),
+    category: String(
+      item.categoria || item.tipo || item.tipoManutencao || item.tipo_atividade || ""
+    ).trim(),
+    location: String(item.local || item.subestacao || item.localidade || "").trim(),
+    team: equipe,
+    responsible: responsavelTexto,
+    critical: Boolean(isCritical(item)),
+    backlogReason,
+    cancelReason,
+    docs: buildMaintenanceDocsSnapshot(item),
+    evidenceCount: countMaintenanceEvidenceEntries(item),
+    executionDurationHours,
+  };
+}
+
+function isMaintenanceRelevantToPeriod(item, period) {
+  if (!item || !period) {
+    return false;
+  }
+  const due = getDueDate(item);
+  const doneAt = getCompletedAt(item);
+  if (due && inRange(startOfDay(due), period.start, period.end)) {
+    return true;
+  }
+  if (doneAt && inRange(startOfDay(doneAt), period.start, period.end)) {
+    return true;
+  }
+  return false;
+}
+
+function buildMonthlyActivitiesForPeriod(list, period) {
+  return list
+    .filter((item) => isMaintenanceRelevantToPeriod(item, period))
+    .map(mapMaintenanceToMonthlyActivity);
+}
+
+function mapRdoSnapshotToMonthly(entry) {
+  const metrics = entry.metricas || entry.metrics || {};
+  return {
+    id: entry.id || "",
+    rdoDate: entry.rdoDate || entry.date || entry.data || "",
+    createdAt: entry.createdAt || entry.updatedAt || "",
+    createdBy: entry.createdBy || entry.emitidoPor || "",
+    metrics,
+    evidencias: entry.evidencias || [],
+    evidenciasTotal: entry.evidenciasTotal || 0,
+    filtros: entry.filtros || {},
+    manual: entry.manual || {},
+  };
+}
+
+function buildMonthlyRdosForPeriod(list, period) {
+  return list
+    .filter((item) => {
+      const date = parseDateOnly(item.rdoDate || item.date || item.data || "");
+      if (!date) {
+        return false;
+      }
+      return inRange(startOfDay(date), period.start, period.end);
+    })
+    .map(mapRdoSnapshotToMonthly);
+}
+
+function buildMonthlyReportInputFromOpscope(options = {}) {
+  const projectId = String(options.projectId || "").trim();
+  const comparisonModeRaw = String(options.comparisonMode || "").trim().toLowerCase();
+  const comparisonMode =
+    comparisonModeRaw === "provided" || comparisonModeRaw === "recalculated"
+      ? comparisonModeRaw
+      : "";
+  const currentRange = resolveMonthlyRange(options.start, options.end);
+  const project = getProjectById(projectId);
+  const clientName = project && project.cliente ? String(project.cliente).trim() : "";
+  const projectName = project ? getProjectLabel(project) : projectId;
+  const plantName = project ? String(project.nome || project.nomeTime || "").trim() : "";
+
+  const maintenanceList = loadMaintenanceData().filter(
+    (item) => item && item.projectId === projectId
+  );
+  const rdoList = loadRdoSnapshots().filter((item) => item && item.projectId === projectId);
+
+  const currentPeriod = {
+    period: {
+      start: formatDateISO(currentRange.start),
+      end: formatDateISO(currentRange.end),
+    },
+    activities: buildMonthlyActivitiesForPeriod(maintenanceList, currentRange),
+    rdos: buildMonthlyRdosForPeriod(rdoList, currentRange),
+  };
+
+  let previousPeriod = null;
+  if (comparisonMode === "provided" && options.previousPeriod) {
+    previousPeriod = options.previousPeriod;
+  } else {
+    const previousRange = getPreviousMonthlyRange(currentRange);
+    previousPeriod = {
+      period: {
+        start: formatDateISO(previousRange.start),
+        end: formatDateISO(previousRange.end),
+      },
+      activities: buildMonthlyActivitiesForPeriod(maintenanceList, previousRange),
+      rdos: buildMonthlyRdosForPeriod(rdoList, previousRange),
+    };
+  }
+
+  return {
+    meta: {
+      projectId,
+      projectName,
+      clientName: clientName || "Cliente nao informado",
+      plantName: plantName || projectName || "-",
+      period: {
+        start: formatDateISO(currentRange.start),
+        end: formatDateISO(currentRange.end),
+      },
+      timezone: "America/Sao_Paulo",
+      emittedAt: new Date().toISOString(),
+      reportVersion: RDO_MENSAL_V2_REPORT_VERSION,
+    },
+    comparisonMode: comparisonMode || "recalculated",
+    currentPeriod,
+    previousPeriod,
+  };
+}
+
 function generateRdoTextDeterministic(payload) {
   const kpis = payload.kpis || {};
   const registradas = Number.isFinite(kpis.registradas) ? kpis.registradas : "nao informado";
@@ -15890,6 +16215,11 @@ app.get("/api/auth/me", (req, res) => {
     user: sanitizeUser(user, { includeSignature: true }),
     projects: available,
     activeProjectId: activeProjectId || "",
+    features: {
+      rdoMensalV2Enabled: RDO_MENSAL_V2_ENABLED,
+      rdoMensalV2PdfEngine: RDO_MENSAL_V2_PDF_ENGINE,
+      rdoMensalV2ReportVersion: RDO_MENSAL_V2_REPORT_VERSION,
+    },
   });
 });
 
@@ -21789,6 +22119,300 @@ app.post(
           }
         : undefined,
     });
+  }
+);
+
+async function buildMonthlyReportV2Pipeline({ req, user, projectId, payload }) {
+  const startedAt = Date.now();
+  const range = resolveMonthlyRange(payload.start, payload.end);
+  const isPartial = range.end > startOfDay(new Date());
+
+  const inputStart = Date.now();
+  const input = buildMonthlyReportInputFromOpscope({
+    projectId,
+    start: payload.start,
+    end: payload.end,
+    comparisonMode: payload.comparisonMode,
+    previousPeriod: payload.previousPeriod || null,
+  });
+  logRdoMensalV2Stage({
+    req,
+    stage: "input",
+    status: 200,
+    startedAt: inputStart,
+    details: {
+      period: input.meta ? input.meta.period : null,
+      comparisonMode: input.comparisonMode,
+    },
+    projectId,
+    user,
+  });
+
+  const normalizeStart = Date.now();
+  const normalized = monthlyReport.normalizeMonthlyReportInput(input);
+  logRdoMensalV2Stage({
+    req,
+    stage: "normalization",
+    status: 200,
+    startedAt: normalizeStart,
+    details: {
+      warnings: normalized.normalization && normalized.normalization.warnings
+        ? normalized.normalization.warnings.length
+        : 0,
+      counts: normalized.normalization ? normalized.normalization.counts : {},
+    },
+    projectId,
+    user,
+  });
+
+  const aggregateStart = Date.now();
+  const aggregated = monthlyReport.aggregateMonthlyReport(normalized);
+  logRdoMensalV2Stage({
+    req,
+    stage: "aggregation",
+    status: 200,
+    startedAt: aggregateStart,
+    details: {
+      metrics: aggregated && aggregated.current ? aggregated.current.metrics : {},
+    },
+    projectId,
+    user,
+  });
+
+  const validationStart = Date.now();
+  const validation = monthlyReport.validateMonthlyReport({
+    input,
+    normalized,
+    aggregated,
+  });
+  logRdoMensalV2Stage({
+    req,
+    stage: "validation",
+    status: 200,
+    startedAt: validationStart,
+    details: {
+      integrityStatus: validation.integrityStatus,
+      summary: validation.summary,
+      issues: validation.issues ? validation.issues.length : 0,
+    },
+    projectId,
+    user,
+  });
+
+  const viewModelStart = Date.now();
+  const viewModel = monthlyReport.buildMonthlyReportViewModel({
+    aggregated,
+    validation,
+    normalized,
+    options: { isPartial },
+  });
+  logRdoMensalV2Stage({
+    req,
+    stage: "viewmodel",
+    status: 200,
+    startedAt: viewModelStart,
+    details: {
+      integrityStatus: validation.integrityStatus,
+      isPartial,
+      kpis: viewModel && viewModel.kpis ? viewModel.kpis.cards?.length : 0,
+    },
+    projectId,
+    user,
+  });
+
+  const htmlStart = Date.now();
+  const html = monthlyReport.renderMonthlyReportHtml(viewModel);
+  const pageCount = (html.match(/class="report-page/g) || []).length || 1;
+  logRdoMensalV2Stage({
+    req,
+    stage: "html",
+    status: 200,
+    startedAt: htmlStart,
+    details: {
+      bytes: Buffer.byteLength(html || "", "utf8"),
+      pages: pageCount,
+    },
+    projectId,
+    user,
+  });
+
+  logRdoMensalV2Stage({
+    req,
+    stage: "pipeline",
+    status: 200,
+    startedAt,
+    details: {
+      durationMs: Date.now() - startedAt,
+      integrityStatus: validation.integrityStatus,
+      pages: pageCount,
+    },
+    projectId,
+    user,
+  });
+
+  return {
+    input,
+    normalized,
+    aggregated,
+    validation,
+    viewModel,
+    html,
+    isPartial,
+    pageCount,
+  };
+}
+
+app.post(
+  "/api/rdo/monthly/v2/html",
+  requireAuth,
+  requirePermission("verRDOs"),
+  async (req, res) => {
+    if (!RDO_MENSAL_V2_ENABLED) {
+      return res.status(403).json({ message: "RDO mensal V2 desativado." });
+    }
+    const user = req.currentUser || getSessionUser(req);
+    const projectId =
+      String(req.body.projectId || "").trim() || getActiveProjectId(req, user);
+    if (!projectId) {
+      return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+    }
+    if (!userHasProjectAccess(user, projectId)) {
+      return res.status(403).json({ message: "Nao autorizado." });
+    }
+    try {
+      const result = await buildMonthlyReportV2Pipeline({
+        req,
+        user,
+        projectId,
+        payload: req.body || {},
+      });
+      return res.json({
+        html: result.html,
+        integrityStatus: result.validation.integrityStatus,
+        summary: result.validation.summary,
+        issues: result.validation.issues,
+        meta: result.input ? result.input.meta : null,
+      });
+    } catch (error) {
+      logRdoMensalV2Stage({
+        req,
+        stage: "html_error",
+        status: 500,
+        startedAt: Date.now(),
+        details: {
+          message: error && error.message ? error.message : String(error || ""),
+        },
+        projectId,
+        user,
+      });
+      return res.status(500).json({
+        message: error && error.message ? error.message : "Falha ao gerar RDO mensal V2.",
+      });
+    }
+  }
+);
+
+app.post(
+  "/api/rdo/monthly/v2/pdf",
+  requireAuth,
+  requirePermission("gerarRDOs"),
+  async (req, res) => {
+    if (!RDO_MENSAL_V2_ENABLED) {
+      return res.status(403).json({ message: "RDO mensal V2 desativado." });
+    }
+    const user = req.currentUser || getSessionUser(req);
+    const projectId =
+      String(req.body.projectId || "").trim() || getActiveProjectId(req, user);
+    if (!projectId) {
+      return res.status(400).json({ message: "Projeto ativo obrigatorio." });
+    }
+    if (!userHasProjectAccess(user, projectId)) {
+      return res.status(403).json({ message: "Nao autorizado." });
+    }
+    try {
+      const result = await buildMonthlyReportV2Pipeline({
+        req,
+        user,
+        projectId,
+        payload: req.body || {},
+      });
+      if (result.validation.integrityStatus === "blocked") {
+        return res.status(422).json({
+          message: "Integridade bloqueada. Emissao oficial do PDF foi impedida.",
+          integrityStatus: result.validation.integrityStatus,
+          summary: result.validation.summary,
+          issues: result.validation.issues,
+        });
+      }
+      const pdfStart = Date.now();
+      const buffer = await withTimeout(
+        monthlyReport.renderMonthlyReportPdf(result.html, {
+          engine: RDO_MENSAL_V2_PDF_ENGINE,
+        }),
+        RDO_MENSAL_V2_TIMEOUT_MS,
+        "pdf_timeout"
+      );
+      let pageCount = result.pageCount || 0;
+      if (PDFDocument && buffer) {
+        try {
+          const doc = await PDFDocument.load(buffer);
+          pageCount = doc.getPages().length;
+        } catch (error) {
+          // ignore page count error
+        }
+      }
+      logRdoMensalV2Stage({
+        req,
+        stage: "pdf",
+        status: 200,
+        startedAt: pdfStart,
+        details: {
+          bytes: buffer ? buffer.length : 0,
+          pages: pageCount,
+          engine: RDO_MENSAL_V2_PDF_ENGINE,
+        },
+        projectId,
+        user,
+      });
+      const monthKey = result.input && result.input.meta && result.input.meta.period
+        ? `${result.input.meta.period.start}-${result.input.meta.period.end}`
+        : formatMonthKey(new Date());
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="rdo-mensal-v2-${projectId}-${monthKey}.pdf"`
+      );
+      return res.send(buffer);
+    } catch (error) {
+      const code = error && error.code ? error.code : "";
+      logRdoMensalV2Stage({
+        req,
+        stage: "pdf_error",
+        status: 500,
+        startedAt: Date.now(),
+        details: {
+          message: error && error.message ? error.message : String(error || ""),
+          code,
+        },
+        projectId,
+        user,
+      });
+      if (code === "pdf_engine_missing") {
+        return res.status(501).json({
+          message: "Dependencia de PDF nao instalada.",
+          code,
+        });
+      }
+      if (code === "pdf_timeout") {
+        return res.status(504).json({
+          message: "Tempo limite excedido para gerar o PDF.",
+          code,
+        });
+      }
+      return res.status(500).json({
+        message: error && error.message ? error.message : "Falha ao gerar PDF do RDO mensal V2.",
+      });
+    }
   }
 );
 

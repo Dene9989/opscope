@@ -1,0 +1,548 @@
+{
+  "meta": {
+    "projectId": "P-834",
+    "projectName": "Paracatu/Solarig",
+    "clientName": "Solarig",
+    "plantName": "BSO2",
+    "period": {
+      "start": "2026-03-01",
+      "end": "2026-03-31"
+    },
+    "emittedAt": "2026-03-31T13:00:00.000Z",
+    "emittedAtLabel": "31/03/2026, 10:00:00",
+    "reportVersion": "v2.0",
+    "comparisonMode": "recalculated",
+    "integrityStatus": "warning",
+    "integritySummary": {
+      "blockers": 0,
+      "warnings": 1,
+      "infos": 0
+    },
+    "isPartial": true
+  },
+  "header": {
+    "title": "Relatório Mensal OPSCOPE",
+    "subtitle": "Solarig • Paracatu/Solarig",
+    "periodLabel": "2026-03-01 a 2026-03-31",
+    "emittedAtLabel": "31/03/2026, 10:00:00",
+    "integrityStatus": "warning"
+  },
+  "executiveSummary": {
+    "title": "Resumo executivo",
+    "text": "No período, foram planejadas 2 atividades e executadas 1 (50%). Backlog em aberto de 1 atividades. Foram registradas 1 atividades vencidas. SLA no prazo: 0%. Compliance documental: 0%. Relatório parcial: dados consolidados até a data de emissão. Há alertas de integridade que podem impactar a leitura dos indicadores.",
+    "bullets": []
+  },
+  "kpis": {
+    "cards": [
+      {
+        "key": "totalPlannedActivities",
+        "label": "Planejadas",
+        "value": 2,
+        "formatted": "2",
+        "tone": "neutral",
+        "tooltip": "Total de atividades com vencimento dentro do período.",
+        "traceability": {
+          "source": "activities",
+          "rule": "dueDate in period and status != cancelada",
+          "fn": "countPlannedActivities",
+          "sections": [
+            "executiveCover",
+            "comparison",
+            "tables"
+          ]
+        }
+      },
+      {
+        "key": "totalExecutedActivities",
+        "label": "Executadas",
+        "value": 1,
+        "formatted": "1",
+        "tone": "warning",
+        "tooltip": "Atividades concluídas com doneAt dentro do período.",
+        "traceability": {
+          "source": "activities",
+          "rule": "doneAt in period and status == concluida",
+          "fn": "countExecutedActivities",
+          "sections": [
+            "executiveCover",
+            "comparison",
+            "tables"
+          ]
+        }
+      },
+      {
+        "key": "executionRatioPct",
+        "label": "Execução vs planejado",
+        "value": 50,
+        "formatted": "50%",
+        "delta": "-",
+        "deltaPct": "-",
+        "tone": "warning",
+        "tooltip": "Percentual executado sobre o planejado.",
+        "traceability": {
+          "rule": "totalExecutedActivities / totalPlannedActivities"
+        }
+      },
+      {
+        "key": "backlog",
+        "label": "Backlog",
+        "value": 1,
+        "formatted": "1",
+        "tone": "warning",
+        "tooltip": "Atividades formalizadas em backlog no período.",
+        "traceability": {
+          "source": "activities",
+          "rule": "status == backlog and dueDate in period",
+          "fn": "countByStatus",
+          "sections": [
+            "operationalBreakdown"
+          ]
+        }
+      },
+      {
+        "key": "overdue",
+        "label": "Overdue",
+        "value": 1,
+        "formatted": "1",
+        "tone": "warning",
+        "tooltip": "Atividades vencidas até o corte do período.",
+        "traceability": {
+          "source": "activities",
+          "rule": "dueDate < cutoff and status not in {concluida, cancelada}",
+          "fn": "countOverdue",
+          "sections": [
+            "riskSummary",
+            "tables"
+          ]
+        }
+      },
+      {
+        "key": "slaOnTimePct",
+        "label": "SLA no prazo",
+        "value": 0,
+        "formatted": "0%",
+        "tone": "warning",
+        "tooltip": "Percentual de atividades concluídas no prazo."
+      },
+      {
+        "key": "docsCompliancePct",
+        "label": "Compliance documental",
+        "value": 0,
+        "formatted": "0%",
+        "tone": "warning",
+        "tooltip": "Percentual de compliance documental das atividades executadas.",
+        "traceability": {
+          "source": "activities",
+          "rule": "docsOk / docsRequired",
+          "fn": "computeDocsMetrics",
+          "sections": [
+            "compliance"
+          ]
+        }
+      },
+      {
+        "key": "hoursExecuted",
+        "label": "Horas executadas",
+        "value": 0,
+        "formatted": "0h",
+        "tone": "neutral",
+        "tooltip": "Horas estimadas ou calculadas de execução no período.",
+        "traceability": {
+          "source": "activities",
+          "rule": "sum of executionDurationHours or computed diff",
+          "fn": "computeHoursExecuted",
+          "sections": [
+            "kpis"
+          ]
+        }
+      },
+      {
+        "key": "evidenceCount",
+        "label": "Evidências",
+        "value": 0,
+        "formatted": "0",
+        "tone": "neutral",
+        "tooltip": "Evidências registradas em atividades e RDOs.",
+        "traceability": {
+          "source": "activities + rdos",
+          "rule": "sum of evidence counts",
+          "fn": "computeEvidenceCount",
+          "sections": [
+            "compliance"
+          ]
+        }
+      }
+    ]
+  },
+  "comparisonWithPreviousPeriod": {
+    "available": false,
+    "mode": "recalculated",
+    "reason": "previous_period_missing",
+    "items": []
+  },
+  "trendAnalysis": {
+    "text": "Tendência semanal de atividades planejadas vs executadas.",
+    "weekly": [
+      {
+        "weekIndex": 1,
+        "start": "2026-03-01T03:00:00.000Z",
+        "end": "2026-03-07T03:00:00.000Z",
+        "planned": 1,
+        "executed": 1
+      },
+      {
+        "weekIndex": 2,
+        "start": "2026-03-08T03:00:00.000Z",
+        "end": "2026-03-14T03:00:00.000Z",
+        "planned": 1,
+        "executed": 0
+      },
+      {
+        "weekIndex": 3,
+        "start": "2026-03-15T03:00:00.000Z",
+        "end": "2026-03-21T03:00:00.000Z",
+        "planned": 0,
+        "executed": 0
+      },
+      {
+        "weekIndex": 4,
+        "start": "2026-03-22T03:00:00.000Z",
+        "end": "2026-03-28T03:00:00.000Z",
+        "planned": 0,
+        "executed": 0
+      },
+      {
+        "weekIndex": 5,
+        "start": "2026-03-29T03:00:00.000Z",
+        "end": "2026-03-31T03:00:00.000Z",
+        "planned": 0,
+        "executed": 0
+      }
+    ],
+    "insights": [
+      {
+        "id": "insight.execution_ratio_low",
+        "tone": "warning",
+        "rule": "executed/planned < 90%",
+        "text": "A taxa de execução ficou abaixo do planejado para o período.",
+        "metrics": {
+          "planned": 2,
+          "executed": 1,
+          "executionRatioPct": 50
+        }
+      },
+      {
+        "id": "insight.backlog_present",
+        "tone": "warning",
+        "rule": "backlog > 0",
+        "text": "Há backlog em aberto que requer acompanhamento operacional.",
+        "metrics": {
+          "backlog": 1
+        }
+      },
+      {
+        "id": "insight.overdue_present",
+        "tone": "warning",
+        "rule": "overdue > 0",
+        "text": "Foram registradas atividades vencidas no período.",
+        "metrics": {
+          "overdue": 1
+        }
+      },
+      {
+        "id": "insight.sla_below_target",
+        "tone": "warning",
+        "rule": "slaOnTimePct < 90",
+        "text": "O SLA ficou abaixo da meta, indicando necessidade de ajustes operacionais.",
+        "metrics": {
+          "slaOnTimePct": 0
+        }
+      },
+      {
+        "id": "insight.docs_low",
+        "tone": "warning",
+        "rule": "docsCompliancePct < 95",
+        "text": "A conformidade documental ficou abaixo do ideal no período.",
+        "metrics": {
+          "docsCompliancePct": 0
+        }
+      },
+      {
+        "id": "insight.low_volume",
+        "tone": "info",
+        "rule": "planned < 5",
+        "text": "O volume de atividades no período é baixo, o que reduz a robustez estatística das análises.",
+        "metrics": {
+          "planned": 2
+        }
+      },
+      {
+        "id": "insight.integrity_attention",
+        "tone": "warning",
+        "rule": "integrityStatus != ok",
+        "text": "Foram identificadas advertências de integridade de dados neste relatório.",
+        "metrics": {
+          "integrityStatus": "warning"
+        }
+      }
+    ]
+  },
+  "operationalBreakdown": {
+    "text": "Distribuição operacional por status, tipo, local, equipe e prioridade.",
+    "byStatus": [
+      {
+        "label": "concluida",
+        "count": 1,
+        "pct": 50
+      },
+      {
+        "label": "backlog",
+        "count": 1,
+        "pct": 50
+      },
+      {
+        "label": "em_execucao",
+        "count": 0,
+        "pct": 0
+      },
+      {
+        "label": "agendada",
+        "count": 0,
+        "pct": 0
+      },
+      {
+        "label": "cancelada",
+        "count": 0,
+        "pct": 0
+      }
+    ],
+    "byType": [
+      {
+        "label": "inspecao",
+        "count": 1,
+        "pct": 50
+      },
+      {
+        "label": "preventiva simples",
+        "count": 1,
+        "pct": 50
+      }
+    ],
+    "byLocation": [
+      {
+        "label": "nao_informado",
+        "count": 2,
+        "pct": 100
+      }
+    ],
+    "byTeam": [
+      {
+        "label": "nao_informado",
+        "count": 2,
+        "pct": 100
+      }
+    ],
+    "byPriority": [
+      {
+        "label": "unknown",
+        "count": 2,
+        "pct": 100
+      }
+    ]
+  },
+  "safetyCompliance": {
+    "text": "Compliance documental de 0%. Há alertas de integridade de dados que podem afetar o compliance.",
+    "docs": {
+      "required": 1,
+      "ok": 0,
+      "partial": 1,
+      "unknown": 0,
+      "compliancePct": 0
+    },
+    "evidenceCount": 0
+  },
+  "technicalHighlights": {
+    "text": "Destaques técnicos com base na distribuição das atividades e criticidade.",
+    "bullets": [
+      "Categoria dominante: inspecao (1 atividades)."
+    ]
+  },
+  "riskAssessment": {
+    "text": "Avaliação de riscos baseada em backlog, overdue, SLA e compliance.",
+    "risks": [
+      {
+        "id": "risk.backlog",
+        "tone": "warning",
+        "rule": "backlog > 0",
+        "text": "Backlog em aberto pode impactar a capacidade de resposta operacional.",
+        "metrics": {
+          "backlog": 1
+        }
+      },
+      {
+        "id": "risk.overdue",
+        "tone": "warning",
+        "rule": "overdue > 0",
+        "text": "Atividades vencidas elevam o risco de descumprimento de SLA.",
+        "metrics": {
+          "overdue": 1
+        }
+      },
+      {
+        "id": "risk.sla_low",
+        "tone": "warning",
+        "rule": "slaOnTimePct < 90",
+        "text": "SLA abaixo da meta sugere necessidade de replanejamento.",
+        "metrics": {
+          "slaOnTimePct": 0
+        }
+      },
+      {
+        "id": "risk.docs_low",
+        "tone": "warning",
+        "rule": "docsCompliancePct < 95",
+        "text": "Compliance documental abaixo do esperado pode gerar pendências regulatórias.",
+        "metrics": {
+          "docsCompliancePct": 0
+        }
+      }
+    ],
+    "integrityNotes": [
+      {
+        "id": "risk.integrity",
+        "tone": "warning",
+        "rule": "integrityStatus != ok",
+        "text": "Existem alertas de integridade que podem distorcer análises específicas."
+      }
+    ]
+  },
+  "recommendations": {
+    "text": "Recomendações priorizadas com base nos desvios do período.",
+    "items": [
+      {
+        "id": "rec.backlog",
+        "rule": "backlog > 0",
+        "text": "Revisar capacidade de execução e priorizar backlog crítico."
+      },
+      {
+        "id": "rec.overdue",
+        "rule": "overdue > 0",
+        "text": "Ajustar cronograma e reforçar acompanhamento de vencimentos."
+      },
+      {
+        "id": "rec.sla",
+        "rule": "slaOnTimePct < 90",
+        "text": "Revisar gargalos de execução para recuperar a meta de SLA."
+      },
+      {
+        "id": "rec.docs",
+        "rule": "docsCompliancePct < 95",
+        "text": "Atualizar cadastros de documentação e reforçar checklist operacional."
+      }
+    ]
+  },
+  "actionPlan": {
+    "text": "Plano de ação inicial baseado nos desvios identificados.",
+    "items": [
+      {
+        "id": "action.1",
+        "source": "rec.backlog",
+        "text": "Revisar capacidade de execução e priorizar backlog crítico.",
+        "owner": "Coordenação O&M",
+        "due": "A definir",
+        "status": "Planejada"
+      },
+      {
+        "id": "action.2",
+        "source": "rec.overdue",
+        "text": "Ajustar cronograma e reforçar acompanhamento de vencimentos.",
+        "owner": "Coordenação O&M",
+        "due": "A definir",
+        "status": "Planejada"
+      },
+      {
+        "id": "action.3",
+        "source": "rec.sla",
+        "text": "Revisar gargalos de execução para recuperar a meta de SLA.",
+        "owner": "Coordenação O&M",
+        "due": "A definir",
+        "status": "Planejada"
+      },
+      {
+        "id": "action.4",
+        "source": "rec.docs",
+        "text": "Atualizar cadastros de documentação e reforçar checklist operacional.",
+        "owner": "Coordenação O&M",
+        "due": "A definir",
+        "status": "Planejada"
+      }
+    ]
+  },
+  "consolidatedTables": {
+    "text": "Tabelas consolidadas de distribuição e status.",
+    "statusTable": [
+      {
+        "label": "concluida",
+        "count": 1,
+        "pct": 50
+      },
+      {
+        "label": "backlog",
+        "count": 1,
+        "pct": 50
+      },
+      {
+        "label": "em_execucao",
+        "count": 0,
+        "pct": 0
+      },
+      {
+        "label": "agendada",
+        "count": 0,
+        "pct": 0
+      },
+      {
+        "label": "cancelada",
+        "count": 0,
+        "pct": 0
+      }
+    ],
+    "categoryTable": [
+      {
+        "label": "inspecao",
+        "count": 1,
+        "pct": 50
+      },
+      {
+        "label": "preventiva simples",
+        "count": 1,
+        "pct": 50
+      }
+    ],
+    "locationTable": [
+      {
+        "label": "nao_informado",
+        "count": 2,
+        "pct": 100
+      }
+    ],
+    "teamTable": [
+      {
+        "label": "nao_informado",
+        "count": 2,
+        "pct": 100
+      }
+    ],
+    "priorityTable": [
+      {
+        "label": "unknown",
+        "count": 2,
+        "pct": 100
+      }
+    ]
+  },
+  "appendix": {
+    "text": "Sem RDOs disponíveis para o período.",
+    "dailyRdos": []
+  }
+}

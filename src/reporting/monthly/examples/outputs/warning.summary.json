@@ -1,0 +1,26 @@
+{
+  "name": "warning",
+  "integrityStatus": "warning",
+  "metrics": {
+    "totalPlannedActivities": 1,
+    "totalExecutedActivities": 0,
+    "backlog": 1,
+    "overdue": 1,
+    "slaOnTimePct": 0,
+    "docsCompliancePct": 0,
+    "hoursExecuted": 0,
+    "evidenceCount": 0,
+    "rdoCount": 0
+  },
+  "insights": [
+    "insight.execution_ratio_low",
+    "insight.backlog_present",
+    "insight.overdue_present",
+    "insight.sla_not_applicable",
+    "insight.low_volume",
+    "insight.integrity_attention"
+  ],
+  "pageCount": 8,
+  "htmlPath": "C:\\Users\\denisson.alves\\OneDrive - ENGELMIG ENERGIA LTDA\\Área de Trabalho\\My Workspace\\sismetro\\src\\reporting\\monthly\\examples\\outputs\\warning.html",
+  "pdfPath": "C:\\Users\\denisson.alves\\OneDrive - ENGELMIG ENERGIA LTDA\\Área de Trabalho\\My Workspace\\sismetro\\src\\reporting\\monthly\\examples\\outputs\\warning.pdf"
+}

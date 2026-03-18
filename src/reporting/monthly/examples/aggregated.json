@@ -1,0 +1,324 @@
+{
+  "meta": {
+    "projectId": "P-834",
+    "projectName": "Paracatu/Solarig",
+    "clientName": "Solarig",
+    "plantName": "BSO2",
+    "emittedAt": "2026-03-31T13:00:00.000Z",
+    "reportVersion": "v2.0",
+    "comparisonMode": "recalculated"
+  },
+  "current": {
+    "label": "current",
+    "period": {
+      "start": "2026-03-01T03:00:00.000Z",
+      "end": "2026-04-01T02:59:59.999Z",
+      "startIso": "2026-03-01",
+      "endIso": "2026-03-31"
+    },
+    "metrics": {
+      "totalPlannedActivities": 3,
+      "totalExecutedActivities": 1,
+      "completed": 1,
+      "inProgress": 1,
+      "scheduled": 0,
+      "backlog": 1,
+      "overdue": 2,
+      "cancelled": 0,
+      "critical": 1,
+      "slaEligibleActivities": 1,
+      "slaOnTime": 0,
+      "slaLate": 1,
+      "slaNotApplicable": 0,
+      "slaOnTimePct": 0,
+      "docsRequired": 1,
+      "docsOk": 1,
+      "docsPartial": 0,
+      "docsUnknown": 0,
+      "docsCompliancePct": 100,
+      "hoursExecuted": 5,
+      "evidenceCount": 5,
+      "rdoCount": 1,
+      "plannedNonCancelled": 3
+    },
+    "breakdowns": {
+      "byStatus": {
+        "concluida": 1,
+        "em_execucao": 1,
+        "agendada": 0,
+        "backlog": 1,
+        "cancelada": 0
+      },
+      "byType": {
+        "corretiva eletrica": 1,
+        "preventiva simples": 2
+      },
+      "byLocation": {
+        "nao_informado": 3
+      },
+      "byTeam": {
+        "nao_informado": 3
+      },
+      "byPriority": {
+        "critica": 1,
+        "alta": 1,
+        "unknown": 1
+      },
+      "byWeek": [
+        {
+          "weekIndex": 1,
+          "start": "2026-03-01T03:00:00.000Z",
+          "end": "2026-03-07T03:00:00.000Z",
+          "planned": 1,
+          "executed": 1
+        },
+        {
+          "weekIndex": 2,
+          "start": "2026-03-08T03:00:00.000Z",
+          "end": "2026-03-14T03:00:00.000Z",
+          "planned": 2,
+          "executed": 0
+        },
+        {
+          "weekIndex": 3,
+          "start": "2026-03-15T03:00:00.000Z",
+          "end": "2026-03-21T03:00:00.000Z",
+          "planned": 0,
+          "executed": 0
+        },
+        {
+          "weekIndex": 4,
+          "start": "2026-03-22T03:00:00.000Z",
+          "end": "2026-03-28T03:00:00.000Z",
+          "planned": 0,
+          "executed": 0
+        },
+        {
+          "weekIndex": 5,
+          "start": "2026-03-29T03:00:00.000Z",
+          "end": "2026-03-31T03:00:00.000Z",
+          "planned": 0,
+          "executed": 0
+        }
+      ]
+    },
+    "activityCounts": {
+      "totalActivitiesInSlice": 3,
+      "plannedInPeriod": 3,
+      "executedInPeriod": 1
+    }
+  },
+  "previous": null,
+  "comparisonMode": "recalculated",
+  "traceability": {
+    "totalPlannedActivities": {
+      "source": "activities",
+      "rule": "dueDate in period and status != cancelada",
+      "fn": "countPlannedActivities",
+      "sections": [
+        "executiveCover",
+        "comparison",
+        "tables"
+      ]
+    },
+    "totalExecutedActivities": {
+      "source": "activities",
+      "rule": "doneAt in period and status == concluida",
+      "fn": "countExecutedActivities",
+      "sections": [
+        "executiveCover",
+        "comparison",
+        "tables"
+      ]
+    },
+    "completed": {
+      "source": "activities",
+      "rule": "status == concluida and dueDate in period",
+      "fn": "countByStatus",
+      "sections": [
+        "operationalBreakdown",
+        "tables"
+      ]
+    },
+    "inProgress": {
+      "source": "activities",
+      "rule": "status in {em_execucao, encerramento} and dueDate in period",
+      "fn": "countByStatus",
+      "sections": [
+        "operationalBreakdown"
+      ]
+    },
+    "scheduled": {
+      "source": "activities",
+      "rule": "status in {agendada, liberada} and dueDate in period",
+      "fn": "countByStatus",
+      "sections": [
+        "operationalBreakdown"
+      ]
+    },
+    "backlog": {
+      "source": "activities",
+      "rule": "status == backlog and dueDate in period",
+      "fn": "countByStatus",
+      "sections": [
+        "operationalBreakdown"
+      ]
+    },
+    "overdue": {
+      "source": "activities",
+      "rule": "dueDate < cutoff and status not in {concluida, cancelada}",
+      "fn": "countOverdue",
+      "sections": [
+        "riskSummary",
+        "tables"
+      ]
+    },
+    "cancelled": {
+      "source": "activities",
+      "rule": "status == cancelada and dueDate in period",
+      "fn": "countByStatus",
+      "sections": [
+        "operationalBreakdown"
+      ]
+    },
+    "critical": {
+      "source": "activities",
+      "rule": "critical == true or priority == critica",
+      "fn": "countCritical",
+      "sections": [
+        "executiveCover",
+        "riskSummary"
+      ]
+    },
+    "slaEligibleActivities": {
+      "source": "activities",
+      "rule": "status concluida, doneAt in period, dueDate valid",
+      "fn": "computeSlaMetrics",
+      "sections": [
+        "kpis",
+        "charts"
+      ]
+    },
+    "slaOnTime": {
+      "source": "activities",
+      "rule": "doneAt <= dueDate",
+      "fn": "computeSlaMetrics",
+      "sections": [
+        "kpis",
+        "charts"
+      ]
+    },
+    "slaLate": {
+      "source": "activities",
+      "rule": "doneAt > dueDate",
+      "fn": "computeSlaMetrics",
+      "sections": [
+        "kpis",
+        "charts"
+      ]
+    },
+    "slaNotApplicable": {
+      "source": "activities",
+      "rule": "executed but missing dueDate",
+      "fn": "computeSlaMetrics",
+      "sections": [
+        "kpis"
+      ]
+    },
+    "docsRequired": {
+      "source": "activities",
+      "rule": "required docs known and activity executed in period",
+      "fn": "computeDocsMetrics",
+      "sections": [
+        "compliance"
+      ]
+    },
+    "docsOk": {
+      "source": "activities",
+      "rule": "docs status ok and executed in period",
+      "fn": "computeDocsMetrics",
+      "sections": [
+        "compliance"
+      ]
+    },
+    "docsPartial": {
+      "source": "activities",
+      "rule": "docs status partial or missing and executed in period",
+      "fn": "computeDocsMetrics",
+      "sections": [
+        "compliance"
+      ]
+    },
+    "docsUnknown": {
+      "source": "activities",
+      "rule": "docs status unknown and executed in period",
+      "fn": "computeDocsMetrics",
+      "sections": [
+        "compliance"
+      ]
+    },
+    "docsCompliancePct": {
+      "source": "activities",
+      "rule": "docsOk / docsRequired",
+      "fn": "computeDocsMetrics",
+      "sections": [
+        "compliance"
+      ]
+    },
+    "hoursExecuted": {
+      "source": "activities",
+      "rule": "sum of executionDurationHours or computed diff",
+      "fn": "computeHoursExecuted",
+      "sections": [
+        "kpis"
+      ]
+    },
+    "evidenceCount": {
+      "source": "activities + rdos",
+      "rule": "sum of evidence counts",
+      "fn": "computeEvidenceCount",
+      "sections": [
+        "compliance"
+      ]
+    },
+    "rdoCount": {
+      "source": "rdos",
+      "rule": "rdoDate in period",
+      "fn": "countRdos",
+      "sections": [
+        "executiveCover"
+      ]
+    }
+  },
+  "normalization": {
+    "warnings": [],
+    "counts": {
+      "activitiesTotal": 3,
+      "rdosTotal": 1,
+      "previousActivitiesTotal": 0,
+      "previousRdosTotal": 0,
+      "docsOk": 2,
+      "docsPartial": 0,
+      "docsUnknown": 1,
+      "docsRequired": 2,
+      "docsNotRequired": 0,
+      "invalidActivities": 0,
+      "invalidRdos": 0
+    },
+    "schemaOk": true,
+    "schemaErrors": [],
+    "options": {
+      "timezone": "America/Sao_Paulo"
+    }
+  },
+  "statusCatalog": [
+    "agendada",
+    "liberada",
+    "em_execucao",
+    "encerramento",
+    "concluida",
+    "backlog",
+    "cancelada",
+    "unknown"
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "meta": {
+    "projectId": "P-834",
+    "projectName": "Paracatu/Solarig",
+    "clientName": "Solarig",
+    "plantName": "BSO2",
+    "period": {
+      "start": "2026-03-01",
+      "end": "2026-03-31"
+    },
+    "timezone": "America/Sao_Paulo",
+    "emittedAt": "2026-03-31T10:00:00-03:00",
+    "reportVersion": "v2.0"
+  },
+  "comparisonMode": "recalculated",
+  "currentPeriod": {
+    "period": {
+      "start": "2026-03-01",
+      "end": "2026-03-31"
+    },
+    "activities": [
+      {
+        "id": "A1",
+        "title": "Atividade 1",
+        "status": "Concluida",
+        "dueDate": "2026-03-05",
+        "doneAt": "2026-03-07T10:00:00-03:00",
+        "category": "corretiva eletrica",
+        "priority": "critica",
+        "critical": true,
+        "docs": {
+          "apr": true,
+          "os": true,
+          "pte": true,
+          "pt": true
+        },
+        "evidenceCount": 2,
+        "executionDurationHours": 5
+      },
+      {
+        "id": "A2",
+        "title": "Atividade 2",
+        "status": "Em execucao",
+        "dueDate": "2026-03-10",
+        "executionStartedAt": "2026-03-10T08:00:00-03:00",
+        "category": "preventiva simples",
+        "priority": "alta",
+        "docs": {
+          "apr": true,
+          "os": true
+        }
+      },
+      {
+        "id": "A3",
+        "title": "Atividade 3",
+        "status": "Backlog",
+        "dueDate": "2026-03-08",
+        "backlogReason": "Equipe",
+        "category": "preventiva simples"
+      }
+    ],
+    "rdos": [
+      {
+        "id": "R1",
+        "rdoDate": "2026-03-05",
+        "createdAt": "2026-03-05T17:00:00-03:00",
+        "metrics": {
+          "total": 5,
+          "concluidas": 2
+        },
+        "evidenciasTotal": 3
+      }
+    ]
+  }
+}
