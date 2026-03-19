@@ -204,6 +204,26 @@ function buildTechnicalHighlights({ metrics, breakdowns }) {
   const topType = pickTop(breakdowns.byTypeExecuted || breakdowns.byType, "category");
   const topTeam = pickTop(breakdowns.byTeamExecuted || breakdowns.byTeam, "team");
   const topPriority = pickTop(breakdowns.byPriorityExecuted || breakdowns.byPriority, "priority");
+  const typeMap = breakdowns.byTypeExecuted && Object.keys(breakdowns.byTypeExecuted).length
+    ? breakdowns.byTypeExecuted
+    : breakdowns.byType || {};
+  const totalType = Object.values(typeMap).reduce((acc, value) => acc + (Number(value) || 0), 0);
+  const preventiveCount = Object.entries(typeMap).reduce((acc, [key, value]) => {
+    const label = String(key || "").toLowerCase();
+    if (label.includes("preventiva") || label.includes("preditiva")) {
+      return acc + (Number(value) || 0);
+    }
+    return acc;
+  }, 0);
+  const correctiveCount = Object.entries(typeMap).reduce((acc, [key, value]) => {
+    const label = String(key || "").toLowerCase();
+    if (label.includes("corretiva") || label.includes("corretivo") || label.includes("reparo")) {
+      return acc + (Number(value) || 0);
+    }
+    return acc;
+  }, 0);
+  const preventivePct = totalType ? Math.round((preventiveCount / totalType) * 100) : 0;
+  const correctivePct = totalType ? Math.round((correctiveCount / totalType) * 100) : 0;
 
   const blocks = [];
   blocks.push({
@@ -225,21 +245,22 @@ function buildTechnicalHighlights({ metrics, breakdowns }) {
     });
   }
 
-  if (topType) {
-    const typeLabel = String(topType.label || "").toLowerCase();
-    const isPreventive = typeLabel.includes("preventiva") || typeLabel.includes("preditiva");
-    const hasPressure = metrics.backlog > 0 || metrics.overdue > 0;
-    if (isPreventive && !hasPressure) {
-      blocks.push({
-        title: "Estratégia de confiabilidade",
-        text: "Predominância de frentes preventivas/preditivas, coerente com a disciplina de confiabilidade do projeto.",
-      });
-    } else if (isPreventive && hasPressure) {
-      blocks.push({
-        title: "Estratégia de confiabilidade",
-        text: "Predominância de frentes preventivas/preditivas com pressão de pendências; recomenda-se balancear corretivas sem perder a rotina preventiva.",
-      });
+  if (preventiveCount > 0 || correctiveCount > 0) {
+    const parts = [];
+    if (preventiveCount > 0) {
+      parts.push(`Preventivas/preditivas: ${formatPercent(preventivePct)} do esforço executado, reforçando confiabilidade.`);
     }
+    if (correctiveCount > 0) {
+      parts.push(
+        correctivePct >= 30
+          ? `Corretivas em ${formatPercent(correctivePct)} sinalizam falhas e paradas; priorizar redução de recorrência.`
+          : `Corretivas em ${formatPercent(correctivePct)} indicam resposta reativa pontual no período.`
+      );
+    }
+    blocks.push({
+      title: "Leitura preventiva vs corretiva",
+      text: parts.join(" "),
+    });
   }
 
   const pendingParts = [];

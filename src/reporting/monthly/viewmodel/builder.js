@@ -8,6 +8,7 @@
 } = require("./formatters");
 const { buildComparison } = require("./comparison");
 const { buildInsights } = require("./insights");
+const { buildExecutedSet } = require("../metrics");
 const {
   buildExecutiveSummary,
   buildTechnicalHighlights,
@@ -41,6 +42,19 @@ function mapToTable(map, total, options = {}) {
       };
     })
     .sort((a, b) => b.count - a.count);
+}
+
+function sumByKeywords(map, keywords) {
+  if (!map || !keywords || !keywords.length) {
+    return 0;
+  }
+  return Object.entries(map).reduce((acc, [key, value]) => {
+    const label = String(key || "").toLowerCase();
+    if (keywords.some((token) => label.includes(token))) {
+      return acc + (Number(value) || 0);
+    }
+    return acc;
+  }, 0);
 }
 
 function buildKpiCard({ key, label, value, formatted, delta, deltaPct, tone }) {
@@ -245,6 +259,14 @@ function buildOperationalBreakdown({ breakdowns, totalPlanned, totalPeriod, metr
   const topTeam = Object.entries(breakdowns.byTeam || {}).sort((a, b) => b[1] - a[1])[0];
   const topPriority = Object.entries(breakdowns.byPriority || {}).sort((a, b) => b[1] - a[1])[0];
   const locationCount = Object.keys(breakdowns.byLocation || {}).filter((key) => (breakdowns.byLocation[key] || 0) > 0).length;
+  const typeMap = breakdowns.byTypeExecuted && Object.keys(breakdowns.byTypeExecuted).length
+    ? breakdowns.byTypeExecuted
+    : breakdowns.byType || {};
+  const totalTypeCount = Object.values(typeMap).reduce((acc, value) => acc + (Number(value) || 0), 0);
+  const preventiveCount = sumByKeywords(typeMap, ["preventiva", "preditiva"]);
+  const correctiveCount = sumByKeywords(typeMap, ["corretiva", "corretivo", "reparo"]);
+  const preventivePct = totalTypeCount ? Math.round((preventiveCount / totalTypeCount) * 100) : 0;
+  const correctivePct = totalTypeCount ? Math.round((correctiveCount / totalTypeCount) * 100) : 0;
 
   const concentrationParts = [];
   if (topType) {
@@ -273,12 +295,22 @@ function buildOperationalBreakdown({ breakdowns, totalPlanned, totalPeriod, metr
   } else if (topType && topTypePct >= 35) {
     implicationText = `A concentração em ${typeLabel} indica foco operacional do período, sem sinais de desequilíbrio relevante.`;
   }
+  let strategyText = "";
+  if (preventiveCount > 0) {
+    strategyText = `Preventivas/preditivas representam ${formatPercent(preventivePct)} do esforço executado, fortalecendo confiabilidade.`;
+  }
+  if (correctiveCount > 0) {
+    const correctiveText = correctivePct >= 30
+      ? `Corretivas em ${formatPercent(correctivePct)} indicam falhas que exigem parada; priorizar redução de recorrência.`
+      : `Corretivas em ${formatPercent(correctivePct)} seguem como resposta reativa pontual no período.`;
+    strategyText = strategyText ? `${strategyText} ${correctiveText}` : correctiveText;
+  }
   const locationText = locationCount
     ? `Abrangência operacional em ${formatNumber(locationCount)} locais do projeto.`
     : "";
 
   return {
-    text: `Distribuição operacional do período (planejado vs execução). ${concentrationText} ${implicationText} ${priorityText} ${locationText}`.trim(),
+    text: `Distribuição operacional do período (planejado vs execução). ${concentrationText} ${implicationText} ${strategyText} ${priorityText} ${locationText}`.trim(),
     byStatus: mapToTable(breakdowns.byStatus, totalPeriod || totalPlanned, { labelContext: "status" }),
     byType: mapToTable(breakdowns.byType, totalPlanned, { labelContext: "category" }),
     byLocation: mapToTable(breakdowns.byLocation, totalPlanned, { labelContext: "location" }),
@@ -376,9 +408,12 @@ function extractEvidenceSource(entry) {
   if (!entry || typeof entry !== "object") {
     return "";
   }
-  const source = entry.dataUrl || entry.url || entry.src || entry.preview || entry.image || "";
+  let source = entry.dataUrl || entry.url || entry.src || entry.preview || entry.image || entry.storagePath || "";
   if (typeof source !== "string") {
     return "";
+  }
+  if (!source && entry.fileId) {
+    source = `/api/files/${encodeURIComponent(entry.fileId)}/content`;
   }
   return source.trim();
 }
@@ -407,13 +442,6 @@ function extractEvidenceCaption(entry) {
   return String(caption || "").trim();
 }
 
-function normalizeEvidenceText(value) {
-  return String(value || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
 function sanitizeEvidenceCaption(raw, fallbackLabel) {
   const text = String(raw || "")
     .replace(/\.(png|jpe?g|gif|webp)$/i, "")
@@ -426,125 +454,54 @@ function sanitizeEvidenceCaption(raw, fallbackLabel) {
   return text;
 }
 
-function inferEvidenceCategory(entry, captionText) {
-  const base = normalizeEvidenceText(
-    [captionText, entry.tipo, entry.categoria, entry.descricao, entry.titulo, entry.label].join(" ")
-  );
-  const hasGMG = base.includes("gmg") || base.includes("gerador");
-  if (base.includes("inspecao") && base.includes("diar")) {
-    return "inspecao_diaria";
-  }
-  if (hasGMG && base.includes("inspecao") && base.includes("seman")) {
-    return "inspecao_semanal_gmg";
-  }
-  if (hasGMG && base.includes("inspecao") && base.includes("mensal")) {
-    return "inspecao_mensal_gmg";
-  }
-  if (hasGMG && base.includes("seman")) {
-    return "inspecao_semanal_gmg";
-  }
-  if (hasGMG && base.includes("mensal")) {
-    return "inspecao_mensal_gmg";
-  }
-  if (base.includes("corretiv") || base.includes("correc") || base.includes("reparo")) {
-    return "corretiva";
-  }
-  return "outras";
-}
-
-function buildEvidenceGallery(normalized, maxItems = 6) {
-  if (!normalized || !normalized.currentPeriod || !normalized.currentPeriod.rdos) {
+function buildEvidenceGallery(normalized) {
+  if (!normalized || !normalized.currentPeriod || !normalized.currentPeriod.activities) {
     return { text: "Sem evidências visuais no período.", items: [] };
   }
+  const period = normalized.currentPeriod.period || {};
+  const executedSet = buildExecutedSet(normalized.currentPeriod.activities || [], period);
   const items = [];
-  const buckets = {
-    inspecao_diaria: [],
-    inspecao_semanal_gmg: [],
-    inspecao_mensal_gmg: [],
-    corretiva: [],
-    outras: [],
-  };
-  const categoryLabels = {
-    inspecao_diaria: "Inspeção diária",
-    inspecao_semanal_gmg: "Inspeção semanal GMG",
-    inspecao_mensal_gmg: "Inspeção mensal GMG",
-    corretiva: "Atividade corretiva",
-    outras: "Registro operacional",
-  };
-  normalized.currentPeriod.rdos.forEach((rdo) => {
-    const evidencias = Array.isArray(rdo.evidencias) ? rdo.evidencias : [];
-    evidencias.forEach((evidence) => {
-      const src = extractEvidenceSource(evidence);
-      if (!src || !isImageSource(src)) {
-        return;
-      }
-      const rawCaption = extractEvidenceCaption(evidence);
-      const category = inferEvidenceCategory(evidence, rawCaption);
-      const fallbackLabel = categoryLabels[category] || "Registro operacional";
-      const caption = sanitizeEvidenceCaption(rawCaption, fallbackLabel);
-      const context = rdo.rdoDateIso ? formatDateOnly(rdo.rdoDateIso) : "";
-      const item = {
-        src,
-        caption,
-        context,
-        category,
-        dateKey: rdo.rdoDateIso || "",
-      };
-      items.push(item);
-      if (buckets[category]) {
-        buckets[category].push(item);
-      } else {
-        buckets.outras.push(item);
-      }
+  let missingEvidence = 0;
+
+  executedSet.forEach((activity) => {
+    const evidences = Array.isArray(activity.evidences) ? activity.evidences : [];
+    const evidence = evidences.find((entry) => {
+      const src = extractEvidenceSource(entry);
+      return src && isImageSource(src);
+    });
+    if (!evidence) {
+      missingEvidence += 1;
+      return;
+    }
+    const src = extractEvidenceSource(evidence);
+    const rawCaption = extractEvidenceCaption(evidence);
+    const fallbackLabel = activity.title || "Evidência da atividade";
+    const caption = sanitizeEvidenceCaption(rawCaption, fallbackLabel);
+    const context = activity.doneAt ? formatDateOnly(activity.doneAt) : activity.dueDate ? formatDateOnly(activity.dueDate) : "";
+    items.push({
+      src,
+      caption,
+      context,
+      activityId: activity.id,
+      activityTitle: activity.title,
     });
   });
+
   if (!items.length) {
     return {
       text: "Sem evidências visuais incorporadas no período. Evidências registradas permanecem disponíveis no sistema.",
       items: [],
     };
   }
-  const selected = [];
-  const usedDates = new Set();
-  const selectedSet = new Set();
 
-  function pickFrom(category) {
-    const bucket = buckets[category] || [];
-    if (!bucket.length) {
-      return;
-    }
-    const pick = bucket.find((item) => item.dateKey && !usedDates.has(item.dateKey)) || bucket[0];
-    if (!pick || selectedSet.has(pick)) {
-      return;
-    }
-    selected.push(pick);
-    selectedSet.add(pick);
-    if (pick.dateKey) {
-      usedDates.add(pick.dateKey);
-    }
-  }
+  const baseText = `Evidências com pelo menos 1 foto por atividade executada (${formatNumber(items.length)} atividades).`;
+  const text = missingEvidence > 0
+    ? `${baseText} ${formatNumber(missingEvidence)} atividades concluídas sem evidência registrada.`
+    : baseText;
 
-  ["inspecao_diaria", "inspecao_semanal_gmg", "inspecao_mensal_gmg", "corretiva", "outras"].forEach(pickFrom);
-
-  if (selected.length < maxItems) {
-    const remaining = items.filter((item) => !selectedSet.has(item));
-    for (const item of remaining) {
-      if (selected.length >= maxItems) {
-        break;
-      }
-      if (item.dateKey && usedDates.has(item.dateKey) && remaining.length > 1) {
-        continue;
-      }
-      selected.push(item);
-      selectedSet.add(item);
-      if (item.dateKey) {
-        usedDates.add(item.dateKey);
-      }
-    }
-  }
   return {
-    text: "Evidências visuais selecionadas de forma representativa para comprovação executiva e técnica.",
-    items: selected.slice(0, maxItems),
+    text,
+    items,
   };
 }
 

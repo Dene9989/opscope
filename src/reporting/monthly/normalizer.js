@@ -291,6 +291,11 @@ function normalizeActivity(activity, warningStore, idCounts, index) {
   );
 
   const evidenceCount = Number(activity && activity.evidenceCount ? activity.evidenceCount : 0);
+  const evidences = Array.isArray(activity && activity.evidences)
+    ? activity.evidences
+    : Array.isArray(activity && activity.evidencias)
+      ? activity.evidencias
+      : [];
 
   const executionDurationHours = Number(activity && activity.executionDurationHours ? activity.executionDurationHours : 0);
 
@@ -327,6 +332,7 @@ function normalizeActivity(activity, warningStore, idCounts, index) {
     cancelReason: normalizeText(activity && activity.cancelReason),
     docs,
     evidenceCount,
+    evidences,
     executionDurationHours,
     issues,
     isValid,

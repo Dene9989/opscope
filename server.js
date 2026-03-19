@@ -13852,6 +13852,89 @@ function computeExecutionDurationHours(item, execution) {
   return 0;
 }
 
+function normalizeMonthlyEvidenceEntry(entry) {
+  if (!entry) {
+    return null;
+  }
+  if (typeof entry === "string") {
+    const text = entry.trim();
+    if (!text) {
+      return null;
+    }
+    const looksLikeUrl = /^https?:\/\//i.test(text) || text.startsWith("/uploads/") || text.startsWith("data:image/");
+    return {
+      label: text,
+      url: looksLikeUrl ? text : "",
+      category: "evidencia",
+      notes: "",
+    };
+  }
+  if (typeof entry !== "object") {
+    return null;
+  }
+  const fileId = String(entry.fileId || entry.id || "").trim();
+  const storagePath = String(entry.storagePath || entry.path || "").trim();
+  let url = String(entry.url || entry.dataUrl || entry.src || entry.preview || entry.image || "").trim();
+  if (!url && storagePath) {
+    url = storagePath;
+  }
+  if (!url && fileId) {
+    url = `/api/files/${encodeURIComponent(fileId)}/content`;
+  }
+  return {
+    label: String(entry.nome || entry.name || entry.label || entry.titulo || entry.title || "").trim(),
+    url,
+    category: String(entry.categoria || entry.tipo || "evidencia").trim(),
+    notes: String(entry.observacao || entry.obs || entry.notes || "").trim(),
+    fileId,
+  };
+}
+
+function collectMaintenanceEvidenceEntries(item) {
+  if (!item || typeof item !== "object") {
+    return [];
+  }
+  const entries = [];
+  const pushAll = (list) => {
+    if (!Array.isArray(list)) {
+      return;
+    }
+    list.forEach((entry) => {
+      const normalized = normalizeMonthlyEvidenceEntry(entry);
+      if (normalized) {
+        entries.push(normalized);
+      }
+    });
+  };
+  pushAll(item.evidencias);
+  pushAll(item.anexos);
+  pushAll(item.arquivos);
+  if (item.registroExecucao && typeof item.registroExecucao === "object") {
+    pushAll(item.registroExecucao.evidencias);
+    pushAll(item.registroExecucao.evidenciasCancelamento);
+  }
+  if (item.cancelamentoExecucao && typeof item.cancelamentoExecucao === "object") {
+    pushAll(item.cancelamentoExecucao.evidencias);
+  }
+  if (item.backlogMotivo && typeof item.backlogMotivo === "object") {
+    pushAll(item.backlogMotivo.evidencias);
+  }
+  const registrosDiarios = getMaintenanceDailyExecutionEntries(item);
+  registrosDiarios.forEach((entry) => {
+    pushAll(entry.evidencias);
+  });
+  if (item.conclusao && typeof item.conclusao === "object") {
+    pushAll(item.conclusao.evidencias);
+    if (item.conclusao.intercorrencia && typeof item.conclusao.intercorrencia === "object") {
+      pushAll(item.conclusao.intercorrencia.fotos);
+    }
+  }
+  if (item.intercorrencia && typeof item.intercorrencia === "object") {
+    pushAll(item.intercorrencia.fotos);
+  }
+  return entries;
+}
+
 function mapMaintenanceToMonthlyActivity(item) {
   const due = getDueDate(item);
   const doneAt = getCompletedAt(item);
@@ -13911,6 +13994,7 @@ function mapMaintenanceToMonthlyActivity(item) {
     cancelReason,
     docs: buildMaintenanceDocsSnapshot(item),
     evidenceCount: countMaintenanceEvidenceEntries(item),
+    evidences: collectMaintenanceEvidenceEntries(item),
     executionDurationHours,
   };
 }
