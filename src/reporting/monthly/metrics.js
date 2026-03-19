@@ -1,5 +1,5 @@
 const { STATUS_NORMALIZED } = require("./contracts");
-const { inRange, diffInDays, startOfDay } = require("./utils");
+const { inRange, diffInDays, startOfDay, endOfDay } = require("./utils");
 
 const METRIC_TRACEABILITY = {
   totalPlannedActivities: {
@@ -40,7 +40,7 @@ const METRIC_TRACEABILITY = {
   },
   overdue: {
     source: "activities",
-    rule: "dueDate < cutoff and status not in {concluida, cancelada}",
+    rule: "dueDate <= period end and not concluded by cutoff",
     fn: "countOverdue",
     sections: ["riskSummary", "tables"],
   },
@@ -252,7 +252,7 @@ function countOverdue(plannedSet, cutoff) {
   if (!cutoff) {
     return 0;
   }
-  const cutoffDay = startOfDay(cutoff);
+  const cutoffMoment = endOfDay(cutoff instanceof Date ? cutoff : new Date(cutoff));
   return plannedSet.filter((activity) => {
     if (!activity.dueDate) {
       return false;
@@ -261,11 +261,11 @@ function countOverdue(plannedSet, cutoff) {
       return false;
     }
     if (isConcluida(activity.status)) {
-      if (activity.doneAt && startOfDay(activity.doneAt) <= cutoffDay) {
+      if (activity.doneAt && activity.doneAt <= cutoffMoment) {
         return false;
       }
     }
-    return startOfDay(activity.dueDate) < cutoffDay;
+    return activity.dueDate <= cutoffMoment;
   }).length;
 }
 

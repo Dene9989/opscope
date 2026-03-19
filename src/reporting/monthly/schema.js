@@ -70,6 +70,9 @@ function validateMonthlyReportInput(input) {
     if (!Array.isArray(currentPeriod.rdos)) {
       errors.push({ path: "currentPeriod.rdos", message: "rdos must be an array." });
     }
+    if (currentPeriod.contingencies && !Array.isArray(currentPeriod.contingencies)) {
+      errors.push({ path: "currentPeriod.contingencies", message: "contingencies must be an array." });
+    }
   }
 
   if (comparisonMode) {
@@ -118,6 +121,12 @@ function validateMonthlyReportInput(input) {
       errors.push({
         path: "previousPeriod.rdos",
         message: "previousPeriod.rdos must be an array.",
+      });
+    }
+    if (previousPeriod.contingencies && !Array.isArray(previousPeriod.contingencies)) {
+      errors.push({
+        path: "previousPeriod.contingencies",
+        message: "previousPeriod.contingencies must be an array.",
       });
     }
   }

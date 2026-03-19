@@ -13936,6 +13936,42 @@ function buildMonthlyActivitiesForPeriod(list, period) {
     .map(mapMaintenanceToMonthlyActivity);
 }
 
+function isContingencyRelevantToPeriod(item, period) {
+  if (!item || !period) {
+    return false;
+  }
+  const startAt = parseDateTime(item.startAt || item.startDate || item.inicio);
+  if (!startAt) {
+    return false;
+  }
+  return inRange(startOfDay(startAt), period.start, period.end);
+}
+
+function mapContingencyToMonthly(item) {
+  return {
+    id: String(item.id || ""),
+    code: String(item.code || ""),
+    eventType: String(item.eventType || ""),
+    severity: String(item.severity || ""),
+    status: String(item.status || ""),
+    systemCondition: String(item.systemCondition || ""),
+    startAt: item.startAt || "",
+    normalizedAt: item.normalizedAt || "",
+    impactDescription: String(item.impactDescription || ""),
+    containmentActions: String(item.containmentActions || ""),
+    diagnosis: String(item.diagnosis || ""),
+    engineeringConclusion: String(item.engineeringConclusion || ""),
+    assetName: String(item.assetName || ""),
+    substation: String(item.substation || ""),
+  };
+}
+
+function buildMonthlyContingenciesForPeriod(list, period) {
+  return list
+    .filter((item) => isContingencyRelevantToPeriod(item, period))
+    .map(mapContingencyToMonthly);
+}
+
 function mapRdoSnapshotToMonthly(entry) {
   const metrics = entry.metricas || entry.metrics || {};
   return {
@@ -13980,6 +14016,9 @@ function buildMonthlyReportInputFromOpscope(options = {}) {
     (item) => item && item.projectId === projectId
   );
   const rdoList = loadRdoSnapshots().filter((item) => item && item.projectId === projectId);
+  const contingencyList = loadContingencies().filter(
+    (item) => item && item.projectId === projectId
+  );
 
   const currentPeriod = {
     period: {
@@ -13988,6 +14027,7 @@ function buildMonthlyReportInputFromOpscope(options = {}) {
     },
     activities: buildMonthlyActivitiesForPeriod(maintenanceList, currentRange),
     rdos: buildMonthlyRdosForPeriod(rdoList, currentRange),
+    contingencies: buildMonthlyContingenciesForPeriod(contingencyList, currentRange),
   };
 
   let previousPeriod = null;
@@ -14002,6 +14042,7 @@ function buildMonthlyReportInputFromOpscope(options = {}) {
       },
       activities: buildMonthlyActivitiesForPeriod(maintenanceList, previousRange),
       rdos: buildMonthlyRdosForPeriod(rdoList, previousRange),
+      contingencies: buildMonthlyContingenciesForPeriod(contingencyList, previousRange),
     };
   }
 

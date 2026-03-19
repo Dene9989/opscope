@@ -2,7 +2,7 @@
 const { getAssetDataUri } = require("../helpers/assets");
 
 function ReportHeader(header, meta) {
-  const title = header && header.title ? escapeHtml(header.title) : "Relatório Mensal";
+  const title = header && header.title ? escapeHtml(header.title) : "RELATÓRIO DE DESEMPENHO MENSAL - HV";
   const periodLabel = header && header.periodLabel ? escapeHtml(header.periodLabel) : "";
   const emittedAtLabel = header && header.emittedAtLabel ? escapeHtml(header.emittedAtLabel) : "";
   const clientName = meta && meta.clientName ? escapeHtml(meta.clientName) : "-";

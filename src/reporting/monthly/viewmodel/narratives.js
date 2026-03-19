@@ -48,15 +48,15 @@ function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial
   const meetsDocs = docsApplies ? metrics.docsCompliancePct >= KPI_TARGETS.docsCompliancePct : true;
 
   const performanceTone = meetsExecution && meetsSla
-    ? "desempenho operacional dentro das metas"
+    ? "desempenho dentro das metas, com estabilidade operacional"
     : meetsExecution && !meetsSla
-      ? "execução consistente com pressão de SLA"
-      : "execução abaixo do planejado, exigindo recomposição";
+      ? "execução consistente, porém com pressão de SLA"
+      : "execução abaixo do planejado, exigindo recomposição seletiva";
 
   const headline = "Desempenho operacional do mês";
   const lead = meetsExecution
-    ? "Entrega estável, com monitoramento de riscos e SLA."
-    : "Entrega abaixo do planejado, com necessidade de recomposição de capacidade.";
+    ? "Entrega alinhada ao planejamento, com foco em confiabilidade e disciplina operacional."
+    : "Entrega abaixo do planejado, com necessidade de recomposição e priorização no próximo ciclo.";
 
   const blocks = [];
   const comparisonParts = [];
@@ -74,7 +74,7 @@ function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial
 
   blocks.push({
     title: "Leitura do mês",
-    text: `Foram concluídas ${formatNumber(executed)} atividades no mês, sobre ${formatNumber(planned)} planejadas (${formatPercent(ratio)}), com ${performanceTone}. A execução considera conclusões registradas no mês, independentemente da programação. ${comparisonText}`.trim(),
+    text: `Foram concluídas ${formatNumber(executed)} atividades no mês, sobre ${formatNumber(planned)} planejadas (${formatPercent(ratio)}), com ${performanceTone}. Executadas = conclusões registradas no mês (doneAt), independentemente da programação original. ${comparisonText}`.trim(),
   });
 
   const positivePoints = [];
@@ -91,7 +91,7 @@ function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial
     positivePoints.push(`Compliance documental em ${formatPercent(metrics.docsCompliancePct)}.`);
   }
   if (!positivePoints.length) {
-    positivePoints.push("Não houve superação relevante das metas no período.");
+    positivePoints.push("Metas mantidas sob monitoramento, sem destaques positivos relevantes.");
   }
   blocks.push({
     title: "O que performou bem",
@@ -100,7 +100,7 @@ function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial
 
   const attentionPoints = [];
   if (!meetsExecution) {
-    attentionPoints.push("Execução abaixo do planejado, indicando restrição de capacidade ou reprogramações operacionais.");
+    attentionPoints.push("Execução abaixo do planejado, indicando necessidade de recomposição e ajustes de programação.");
   }
   if (metrics.backlog > 0) {
     attentionPoints.push(`Backlog de ${formatNumber(metrics.backlog)} atividades.`);
@@ -133,7 +133,7 @@ function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial
   });
 
   const impactText = metrics.backlog > 0 || metrics.overdue > 0
-    ? "Backlog e vencimentos pressionam a capacidade e elevam risco de desvio de SLA."
+    ? "Backlog e vencimentos pressionam a capacidade e elevam o risco de desvio de SLA."
     : "Impacto operacional controlado, com previsibilidade de entrega mantida.";
   const slaText = slaApplies
     ? `SLA em ${formatPercent(metrics.slaOnTimePct)} das atividades elegíveis.`
@@ -150,8 +150,8 @@ function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial
 
   const recommendation =
     metrics.backlog > 0 || metrics.overdue > 0 || !meetsSla
-      ? "Priorizar recuperação de backlog e vencimentos, com reprogramação de frentes e reforço de capacidade no próximo ciclo."
-      : "Manter o ritmo operacional e reforçar governança de prazos para sustentar o desempenho.";
+      ? "Priorizar recuperação de backlog e vencimentos, reprogramando frentes críticas e reforçando capacidade no próximo ciclo."
+      : "Manter o ritmo operacional, preservando a rotina preventiva e a governança de prazos.";
 
   let conclusion = `Conclusão gerencial: ${recommendation}`;
   if (isPartial) {
@@ -202,7 +202,6 @@ function buildTechnicalHighlights({ metrics, breakdowns }) {
   }
 
   const topType = pickTop(breakdowns.byTypeExecuted || breakdowns.byType, "category");
-  const topLocation = pickTop(breakdowns.byLocationExecuted || breakdowns.byLocation, "location");
   const topTeam = pickTop(breakdowns.byTeamExecuted || breakdowns.byTeam, "team");
   const topPriority = pickTop(breakdowns.byPriorityExecuted || breakdowns.byPriority, "priority");
 
@@ -216,9 +215,6 @@ function buildTechnicalHighlights({ metrics, breakdowns }) {
   if (topType) {
     concentrationParts.push(`${topType.label} (${formatNumber(topType.value)} atividades)`);
   }
-  if (topLocation) {
-    concentrationParts.push(`local ${topLocation.label}`);
-  }
   if (topTeam) {
     concentrationParts.push(`equipe ${topTeam.label}`);
   }
@@ -227,6 +223,23 @@ function buildTechnicalHighlights({ metrics, breakdowns }) {
       title: "Concentração de esforço executado",
       text: `Maior concentração nas frentes ${concentrationParts.join("; ")}.`,
     });
+  }
+
+  if (topType) {
+    const typeLabel = String(topType.label || "").toLowerCase();
+    const isPreventive = typeLabel.includes("preventiva") || typeLabel.includes("preditiva");
+    const hasPressure = metrics.backlog > 0 || metrics.overdue > 0;
+    if (isPreventive && !hasPressure) {
+      blocks.push({
+        title: "Estratégia de confiabilidade",
+        text: "Predominância de frentes preventivas/preditivas, coerente com a disciplina de confiabilidade do projeto.",
+      });
+    } else if (isPreventive && hasPressure) {
+      blocks.push({
+        title: "Estratégia de confiabilidade",
+        text: "Predominância de frentes preventivas/preditivas com pressão de pendências; recomenda-se balancear corretivas sem perder a rotina preventiva.",
+      });
+    }
   }
 
   const pendingParts = [];
@@ -266,7 +279,7 @@ function buildTechnicalHighlights({ metrics, breakdowns }) {
     bullets.push(`Foram registradas ${formatNumber(metrics.critical)} atividades críticas no período.`);
   }
   if (topPriority) {
-    bullets.push(`Prioridade dominante: ${topPriority.label} (${formatNumber(topPriority.value)} atividades).`);
+    bullets.push(`Prioridade mais frequente: ${topPriority.label} (${formatNumber(topPriority.value)} atividades).`);
   }
 
   return {
@@ -327,7 +340,7 @@ function buildRiskAssessment({ metrics, integrityStatus }) {
     risks.push({
       id: "risk.backlog",
       tone: "warning",
-      text: "Backlog em aberto pressiona capacidade e eleva risco de descumprimento do cronograma.",
+      text: "Backlog em aberto pressiona capacidade e requer priorização para manter o cronograma.",
       metrics: { backlog: metrics.backlog },
     });
     drivers.push("backlog em aberto");
@@ -336,7 +349,7 @@ function buildRiskAssessment({ metrics, integrityStatus }) {
     risks.push({
       id: "risk.overdue",
       tone: "warning",
-      text: "Atividades vencidas indicam atraso materializado e risco contratual.",
+      text: "Atividades vencidas indicam atraso materializado e exigem recomposição de prazos.",
       metrics: { overdue: metrics.overdue },
     });
     drivers.push("vencimentos acima do planejado");
@@ -345,7 +358,7 @@ function buildRiskAssessment({ metrics, integrityStatus }) {
     risks.push({
       id: "risk.sla_low",
       tone: "warning",
-      text: "SLA abaixo da meta sinaliza gargalo de execução e priorização.",
+      text: "SLA abaixo da meta sinaliza pressão de execução e priorização.",
       metrics: { slaOnTimePct: metrics.slaOnTimePct },
     });
     drivers.push("SLA abaixo da meta");
@@ -377,7 +390,7 @@ function buildRiskAssessment({ metrics, integrityStatus }) {
   const summary = `Exposição ${exposure}. Principais vetores: ${drivers.join(", ")}.`;
 
   return {
-    text: "Avaliação de riscos baseada em backlog, overdue, SLA e compliance.",
+    text: "Avaliação de riscos baseada em backlog, vencimentos, SLA e compliance.",
     summary,
     risks,
   };
@@ -392,19 +405,19 @@ function buildRecommendations({ metrics }) {
   if (metrics.backlog > 0) {
     items.push({
       id: "rec.backlog",
-      text: "Reprogramar backlog por criticidade e vencimento, definindo janela de recuperação no próximo ciclo.",
+      text: "Reprogramar backlog por criticidade e vencimento, definindo janela de recuperação e recursos dedicados.",
     });
   }
   if (metrics.overdue > 0) {
     items.push({
       id: "rec.overdue",
-      text: "Instituir rotina semanal de revisão de vencimentos e renegociação de prazos críticos.",
+      text: "Instituir rotina semanal de revisão de vencimentos e renegociação de prazos críticos com o cliente.",
     });
   }
   if (metrics.slaEligibleActivities > 0 && metrics.slaOnTimePct < KPI_TARGETS.slaOnTimePct) {
     items.push({
       id: "rec.sla",
-      text: "Revisar gargalos de execução e tempos de atendimento para recuperar a meta de SLA.",
+      text: "Revisar pontos de pressão na execução e tempos de atendimento para recuperar a meta de SLA.",
     });
   }
   if (metrics.docsRequired > 0 && metrics.docsCompliancePct < KPI_TARGETS.docsCompliancePct) {
@@ -415,7 +428,15 @@ function buildRecommendations({ metrics }) {
   }
 
   if (!items.length) {
-    return fallbackRecommendations("Não foram identificadas recomendações adicionais no período.");
+    return {
+      text: "Sem desvios críticos no período; recomendações voltadas à manutenção do desempenho.",
+      items: [
+        {
+          id: "rec.maintain",
+          text: "Manter a rotina preventiva/preditiva e a governança de prazos para sustentar a confiabilidade.",
+        },
+      ],
+    };
   }
 
   return {

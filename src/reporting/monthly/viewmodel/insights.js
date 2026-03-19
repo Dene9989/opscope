@@ -35,7 +35,7 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
     pushInsight(insights, {
       id: "insight.execution_ratio_low",
       tone: INSIGHT_TONE.WARNING,
-      text: "Execução abaixo do planejado, sugerindo necessidade de recomposição operacional.",
+      text: "Execução abaixo do planejado, sugerindo recomposição e ajustes de programação.",
       metrics: { planned, executed, executionRatioPct },
     });
   }
@@ -47,6 +47,13 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
       text: "Backlog em aberto requer priorização no próximo ciclo.",
       metrics: { backlog: metrics.backlog },
     });
+  } else {
+    pushInsight(insights, {
+      id: "insight.backlog_controlled",
+      tone: INSIGHT_TONE.POSITIVE,
+      text: "Backlog controlado no fechamento do período.",
+      metrics: { backlog: metrics.backlog },
+    });
   }
 
   if (metrics.overdue > 0) {
@@ -54,6 +61,13 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
       id: "insight.overdue_present",
       tone: INSIGHT_TONE.WARNING,
       text: "Atividades vencidas aumentam pressão sobre prazos e SLA.",
+      metrics: { overdue: metrics.overdue },
+    });
+  } else {
+    pushInsight(insights, {
+      id: "insight.overdue_absent",
+      tone: INSIGHT_TONE.POSITIVE,
+      text: "Sem vencimentos relevantes no período.",
       metrics: { overdue: metrics.overdue },
     });
   }
@@ -114,7 +128,7 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
     pushInsight(insights, {
       id: "insight.critical_present",
       tone: INSIGHT_TONE.WARNING,
-      text: "Atividades críticas registradas com impacto potencial na operação.",
+      text: "Atividades críticas registradas, com atenção de gestão para mitigação de risco.",
       metrics: { critical: metrics.critical },
     });
   }

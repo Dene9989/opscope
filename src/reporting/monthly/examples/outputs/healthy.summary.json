@@ -14,6 +14,8 @@
   },
   "insights": [
     "insight.execution_ratio_good",
+    "insight.backlog_controlled",
+    "insight.overdue_absent",
     "insight.sla_good",
     "insight.docs_good"
   ],

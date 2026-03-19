@@ -6,7 +6,7 @@
   concluida: "Concluída",
   backlog: "Backlog",
   cancelada: "Cancelada",
-  unknown: "Não classificado",
+  unknown: "Status pendente de atualização",
 };
 
 const PRIORITY_LABELS = {
@@ -51,7 +51,7 @@ function titleCase(text) {
 
 function formatUnknownLabel(context) {
   if (context === "category") {
-    return "Classificação pendente de definição operacional";
+    return "Classificação pendente de execução";
   }
   if (context === "priority") {
     return "Prioridade pendente de definição operacional";

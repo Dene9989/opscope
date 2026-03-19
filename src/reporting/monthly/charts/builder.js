@@ -56,15 +56,15 @@ function buildMonthlyReportCharts(viewModel) {
     charts.push(buildChart({
       id: "weekly_planned_executed",
       title: "Ritmo semanal de execução",
-      subtitle: "Volume planejado vs executado por semana",
+      subtitle: "Planejado (dueDate) vs executado (doneAt) por semana",
       svg: weeklySvg,
       emptyMessage: "Sem dados de tendência",
-      note: "Leitura: compare a curva de execução com o planejado para identificar semanas de desvio e ajuste de capacidade.",
+      note: "Leitura: compare o planejado com as conclusões do mês para identificar semanas com ajuste de capacidade.",
       summary: [
         { label: "Planejadas (total)", value: formatNumber(totalPlanned) },
         { label: "Executadas (total)", value: formatNumber(totalExecuted) },
         { label: "Execução do plano", value: formatPercent(executionPct) },
-        { label: "Semana pico de planejamento", value: peakPlanned ? `S${peakPlanned.weekIndex}` : "-" },
+        { label: "Pico de planejamento", value: peakPlanned ? `S${peakPlanned.weekIndex}` : "-" },
       ],
     }));
 
@@ -118,12 +118,12 @@ function buildMonthlyReportCharts(viewModel) {
   charts.push(buildChart({
     id: "status_distribution",
     title: "Status no período",
-    subtitle: "Base: planejadas no mês + concluídas no mês",
+    subtitle: "Base: planejadas no mês + concluídas no mês (doneAt)",
     svg: statusSvg,
     emptyMessage: "Sem dados por status",
-    note: "Leitura: concluídas são contabilizadas pelo doneAt dentro do mês, independentemente do mês planejado.",
+    note: "Leitura: executadas são as atividades concluídas no mês, mesmo se planejadas em outro período.",
     summary: [
-      { label: "Status dominante", value: topStatus ? topStatus.label : "-" },
+      { label: "Status com maior volume", value: topStatus ? topStatus.label : "-" },
       { label: "Total no período", value: formatNumber(totalStatus) },
     ],
   }));
@@ -165,32 +165,33 @@ function buildMonthlyReportCharts(viewModel) {
     subtitle: "Atividades concluídas no mês",
     svg: categorySvg,
     emptyMessage: "Sem dados por categoria",
-    note: "Leitura: mostra onde o esforço executado se concentrou no período.",
+    note: "Leitura: mostra as frentes de maior esforço executado, sem julgamento operacional automático.",
     summary: [
-      { label: "Categoria dominante", value: topCategory ? topCategory.label : "-" },
+      { label: "Categoria com maior volume", value: topCategory ? topCategory.label : "-" },
       { label: "Participação", value: topCategory ? formatPercent(topCategory.pct) : "-" },
     ],
   }));
 
-  const locationTable = executedTables.locationTable ? executedTables.locationTable.slice(0, 6) : [];
-  const locationSvg = locationTable.length
+  const locationTable = executedTables.locationTable ? executedTables.locationTable : [];
+  const locationDisplay = locationTable.slice(0, 6);
+  const locationTotal = locationTable.reduce((acc, row) => acc + (row.count || 0), 0);
+  const locationSvg = locationDisplay.length
     ? renderBarChart({
-        data: locationTable.map((row) => ({ label: row.label, value: row.count })),
+        data: locationDisplay.map((row) => ({ label: row.label, value: row.count })),
         colors: CHART_COLORS.barPalette,
         yLabel: "Atividades",
       })
     : null;
-  const topLocation = locationTable[0];
   charts.push(buildChart({
     id: "top_locations",
     title: "Execução por local",
     subtitle: "Atividades concluídas no mês",
     svg: locationSvg,
     emptyMessage: "Sem dados por local",
-    note: "Leitura: evidencia concentração geográfica das entregas concluídas.",
+    note: "Leitura: distribuição por locais dentro do projeto, usada apenas como contexto operacional.",
     summary: [
-      { label: "Local dominante", value: topLocation ? topLocation.label : "-" },
-      { label: "Participação", value: topLocation ? formatPercent(topLocation.pct) : "-" },
+      { label: "Locais com execução", value: formatNumber(locationTable.length) },
+      { label: "Total executado", value: formatNumber(locationTotal) },
     ],
   }));
 
@@ -211,7 +212,7 @@ function buildMonthlyReportCharts(viewModel) {
     emptyMessage: "Sem dados de prioridade",
     note: "Leitura: identifica a pressão operacional por criticidade no período.",
     summary: [
-      { label: "Prioridade dominante", value: topPriority ? topPriority.label : "-" },
+      { label: "Prioridade com maior volume", value: topPriority ? topPriority.label : "-" },
       { label: "Participação", value: topPriority ? formatPercent(topPriority.pct) : "-" },
     ],
   }));

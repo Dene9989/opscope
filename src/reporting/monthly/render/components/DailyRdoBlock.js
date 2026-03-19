@@ -14,6 +14,7 @@ function DailyRdoBlock(rdo) {
         <span><strong>Emitido:</strong> ${escapeHtml(rdo.createdAt || "-")}</span>
         <span><strong>Equipe:</strong> ${escapeHtml(rdo.createdBy || "-")}</span>
         <span><strong>Evidências:</strong> ${escapeHtml(String(rdo.evidenceCount || 0))}</span>
+        ${rdo.metricsSummary ? `<span><strong>Resumo:</strong> ${escapeHtml(rdo.metricsSummary)}</span>` : ""}
       </div>
     </div>
   `;

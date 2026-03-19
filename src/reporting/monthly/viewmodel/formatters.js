@@ -1,8 +1,22 @@
-﻿const DEFAULT_LOCALE = "pt-BR";
+const { parseDateOnly } = require("../utils");
+
+const DEFAULT_LOCALE = "pt-BR";
 
 const numberFormatter = new Intl.NumberFormat(DEFAULT_LOCALE);
 const percentFormatter = new Intl.NumberFormat(DEFAULT_LOCALE, { maximumFractionDigits: 1 });
 const hoursFormatter = new Intl.NumberFormat(DEFAULT_LOCALE, { maximumFractionDigits: 2 });
+const dateFormatter = new Intl.DateTimeFormat(DEFAULT_LOCALE, {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+const dateTimeFormatter = new Intl.DateTimeFormat(DEFAULT_LOCALE, {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
 
 function formatNumber(value) {
   if (!Number.isFinite(value)) {
@@ -46,7 +60,12 @@ function formatDateRange(startIso, endIso) {
   if (!startIso || !endIso) {
     return "Período indisponível";
   }
-  return `${startIso} a ${endIso}`;
+  const start = formatDateOnly(startIso);
+  const end = formatDateOnly(endIso);
+  if (!start || !end) {
+    return "Período indisponível";
+  }
+  return `${start} a ${end}`;
 }
 
 function formatDateTime(iso) {
@@ -57,18 +76,18 @@ function formatDateTime(iso) {
   if (Number.isNaN(date.getTime())) {
     return "";
   }
-  return date.toLocaleString(DEFAULT_LOCALE);
+  return dateTimeFormatter.format(date);
 }
 
 function formatDateOnly(value) {
   if (!value) {
     return "";
   }
-  const date = value instanceof Date ? value : new Date(value);
+  const date = value instanceof Date ? value : (parseDateOnly(value) || new Date(value));
   if (Number.isNaN(date.getTime())) {
     return "";
   }
-  return date.toLocaleDateString(DEFAULT_LOCALE);
+  return dateFormatter.format(date);
 }
 
 module.exports = {

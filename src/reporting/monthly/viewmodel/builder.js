@@ -212,7 +212,7 @@ function buildTrendAnalysis({ breakdowns, insights }) {
 
   const textParts = [];
   textParts.push(
-    `A série semanal evidencia ${ratio >= KPI_TARGETS.executionRatioPct ? "aderência" : "desvio"} entre planejamento e execução, com ${formatPercent(ratio)} de entrega no acumulado.`
+    `A série semanal mostra ${ratio >= KPI_TARGETS.executionRatioPct ? "aderência" : "desvio"} entre planejamento e execução, com ${formatPercent(ratio)} do plano entregue no mês.`
   );
   if (peakPlanned && peakPlanned.planned) {
     textParts.push(`Pico de programação em S${peakPlanned.weekIndex} (${formatNumber(peakPlanned.planned)} atividades).`);
@@ -221,7 +221,7 @@ function buildTrendAnalysis({ breakdowns, insights }) {
     textParts.push(`Backlog máximo em S${peakBacklog.weekIndex} (${formatNumber(peakBacklog.backlog)}).`);
   }
   if (insights && insights.length) {
-    textParts.push("Os insights abaixo destacam os pontos de atenção e estabilidade do período.");
+    textParts.push("Os insights abaixo destacam pontos de atenção e estabilidade do período.");
   }
   return {
     text: textParts.join(" "),
@@ -237,37 +237,48 @@ function buildTrendAnalysis({ breakdowns, insights }) {
   };
 }
 
-function buildOperationalBreakdown({ breakdowns, totalPlanned, totalPeriod }) {
+function buildOperationalBreakdown({ breakdowns, totalPlanned, totalPeriod, metrics }) {
   if (!breakdowns) {
     return fallbackOperationalBreakdown("Sem dados de distribuição operacional.");
   }
   const topType = Object.entries(breakdowns.byType || {}).sort((a, b) => b[1] - a[1])[0];
-  const topLocation = Object.entries(breakdowns.byLocation || {}).sort((a, b) => b[1] - a[1])[0];
   const topTeam = Object.entries(breakdowns.byTeam || {}).sort((a, b) => b[1] - a[1])[0];
   const topPriority = Object.entries(breakdowns.byPriority || {}).sort((a, b) => b[1] - a[1])[0];
+  const locationCount = Object.keys(breakdowns.byLocation || {}).filter((key) => (breakdowns.byLocation[key] || 0) > 0).length;
 
   const concentrationParts = [];
   if (topType) {
     concentrationParts.push(`categoria ${formatLabel(topType[0], "category")}`);
   }
-  if (topLocation) {
-    concentrationParts.push(`local ${formatLabel(topLocation[0], "location")}`);
-  }
   if (topTeam) {
     concentrationParts.push(`equipe ${formatLabel(topTeam[0], "team")}`);
   }
 
-  const priorityText = topPriority ? `Prioridade dominante: ${formatLabel(topPriority[0], "priority")}.` : "";
+  const priorityText = topPriority ? `Prioridade mais frequente: ${formatLabel(topPriority[0], "priority")}.` : "";
   const concentrationText = concentrationParts.length
     ? `A operação concentrou-se em ${concentrationParts.join(", ")}.`
     : "A distribuição operacional foi homogênea no período.";
   const topTypePct = topType && totalPlanned ? Math.round((topType[1] / totalPlanned) * 100) : 0;
-  const implicationText = topType && topTypePct >= 35
-    ? `A concentração em ${formatLabel(topType[0], "category")} indica possível gargalo operacional e exige atenção de capacidade.`
-    : "A distribuição por categoria não indica gargalos relevantes.";
+  const hasPressure = metrics ? metrics.backlog > 0 || metrics.overdue > 0 : false;
+  const typeLabel = topType ? formatLabel(topType[0], "category") : "";
+  const typeKey = typeLabel.toLowerCase();
+  const isPreventiveFocus = typeKey.includes("preventiva") || typeKey.includes("preditiva");
+  let implicationText = "A distribuição por categoria está coerente com o perfil do período.";
+  if (topType && isPreventiveFocus && !hasPressure) {
+    implicationText = `A predominância de ${typeLabel} reforça a estratégia de confiabilidade e disciplina operacional.`;
+  } else if (topType && isPreventiveFocus && hasPressure) {
+    implicationText = `A predominância de ${typeLabel} ocorreu com pressão de pendências; recomenda-se balancear corretivas sem perder a rotina preventiva.`;
+  } else if (topType && topTypePct >= 35 && hasPressure) {
+    implicationText = `A maior concentração em ${typeLabel} sinaliza foco operacional do período; acompanhar impacto em prazos e backlog.`;
+  } else if (topType && topTypePct >= 35) {
+    implicationText = `A concentração em ${typeLabel} indica foco operacional do período, sem sinais de desequilíbrio relevante.`;
+  }
+  const locationText = locationCount
+    ? `Abrangência operacional em ${formatNumber(locationCount)} locais do projeto.`
+    : "";
 
   return {
-    text: `Distribuição operacional do período (planejado vs execução). ${concentrationText} ${implicationText} ${priorityText}`.trim(),
+    text: `Distribuição operacional do período (planejado vs execução). ${concentrationText} ${implicationText} ${priorityText} ${locationText}`.trim(),
     byStatus: mapToTable(breakdowns.byStatus, totalPeriod || totalPlanned, { labelContext: "status" }),
     byType: mapToTable(breakdowns.byType, totalPlanned, { labelContext: "category" }),
     byLocation: mapToTable(breakdowns.byLocation, totalPlanned, { labelContext: "location" }),
@@ -305,7 +316,7 @@ function buildConsolidatedTables({ breakdowns, totalPlanned, totalExecuted, tota
     return fallbackConsolidatedTables("Sem dados consolidados.");
   }
   return {
-    text: "Tabelas consolidadas com separação entre planejado e executado no mês.",
+    text: "Tabelas consolidadas com separação entre planejado (dueDate) e executado (doneAt) no mês.",
     statusTable: mapToTable(breakdowns.byStatus, totalPeriod || totalPlanned, { labelContext: "status" }),
     plannedTables: {
       categoryTable: mapToTable(breakdowns.byType, totalPlanned, { labelContext: "category" }),
@@ -328,11 +339,27 @@ function buildAppendix(normalized) {
   }
   const dailyRdos = normalized.currentPeriod.rdos.map((rdo) => ({
     id: rdo.id,
-    rdoDate: rdo.rdoDateIso,
-    createdAt: rdo.createdAtIso,
+    rdoDate: rdo.rdoDateIso ? formatDateOnly(rdo.rdoDateIso) : "",
+    createdAt: rdo.createdAtIso ? formatDateTime(rdo.createdAtIso) : "",
     createdBy: rdo.createdBy,
     metrics: rdo.metrics,
     evidenceCount: rdo.evidenciasTotal || (Array.isArray(rdo.evidencias) ? rdo.evidencias.length : 0),
+    metricsSummary: (() => {
+      const parts = [];
+      if (rdo.metrics && Number(rdo.metrics.total)) {
+        parts.push(`Total ${formatNumber(rdo.metrics.total)}`);
+      }
+      if (rdo.metrics && Number(rdo.metrics.concluidas)) {
+        parts.push(`Concluídas ${formatNumber(rdo.metrics.concluidas)}`);
+      }
+      if (rdo.metrics && Number(rdo.metrics.emExecucao)) {
+        parts.push(`Em execução ${formatNumber(rdo.metrics.emExecucao)}`);
+      }
+      if (rdo.metrics && Number(rdo.metrics.criticas)) {
+        parts.push(`Críticas ${formatNumber(rdo.metrics.criticas)}`);
+      }
+      return parts.join(" • ");
+    })(),
   }));
 
   if (!dailyRdos.length) {
@@ -340,7 +367,7 @@ function buildAppendix(normalized) {
   }
 
   return {
-    text: "RDOs diários consolidados.",
+    text: "Consolidação diária dos RDOs emitidos no período, com evidências e resumo técnico.",
     dailyRdos,
   };
 }
@@ -380,11 +407,70 @@ function extractEvidenceCaption(entry) {
   return String(caption || "").trim();
 }
 
+function normalizeEvidenceText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function sanitizeEvidenceCaption(raw, fallbackLabel) {
+  const text = String(raw || "")
+    .replace(/\.(png|jpe?g|gif|webp)$/i, "")
+    .replace(/whatsapp image.*$/i, "")
+    .replace(/imagem do whatsapp.*$/i, "")
+    .trim();
+  if (!text || text.length < 4 || /^img[_-]?\d+/i.test(text)) {
+    return fallbackLabel || "";
+  }
+  return text;
+}
+
+function inferEvidenceCategory(entry, captionText) {
+  const base = normalizeEvidenceText(
+    [captionText, entry.tipo, entry.categoria, entry.descricao, entry.titulo, entry.label].join(" ")
+  );
+  const hasGMG = base.includes("gmg") || base.includes("gerador");
+  if (base.includes("inspecao") && base.includes("diar")) {
+    return "inspecao_diaria";
+  }
+  if (hasGMG && base.includes("inspecao") && base.includes("seman")) {
+    return "inspecao_semanal_gmg";
+  }
+  if (hasGMG && base.includes("inspecao") && base.includes("mensal")) {
+    return "inspecao_mensal_gmg";
+  }
+  if (hasGMG && base.includes("seman")) {
+    return "inspecao_semanal_gmg";
+  }
+  if (hasGMG && base.includes("mensal")) {
+    return "inspecao_mensal_gmg";
+  }
+  if (base.includes("corretiv") || base.includes("correc") || base.includes("reparo")) {
+    return "corretiva";
+  }
+  return "outras";
+}
+
 function buildEvidenceGallery(normalized, maxItems = 6) {
   if (!normalized || !normalized.currentPeriod || !normalized.currentPeriod.rdos) {
     return { text: "Sem evidências visuais no período.", items: [] };
   }
   const items = [];
+  const buckets = {
+    inspecao_diaria: [],
+    inspecao_semanal_gmg: [],
+    inspecao_mensal_gmg: [],
+    corretiva: [],
+    outras: [],
+  };
+  const categoryLabels = {
+    inspecao_diaria: "Inspeção diária",
+    inspecao_semanal_gmg: "Inspeção semanal GMG",
+    inspecao_mensal_gmg: "Inspeção mensal GMG",
+    corretiva: "Atividade corretiva",
+    outras: "Registro operacional",
+  };
   normalized.currentPeriod.rdos.forEach((rdo) => {
     const evidencias = Array.isArray(rdo.evidencias) ? rdo.evidencias : [];
     evidencias.forEach((evidence) => {
@@ -392,12 +478,24 @@ function buildEvidenceGallery(normalized, maxItems = 6) {
       if (!src || !isImageSource(src)) {
         return;
       }
-      const caption = extractEvidenceCaption(evidence);
-      items.push({
+      const rawCaption = extractEvidenceCaption(evidence);
+      const category = inferEvidenceCategory(evidence, rawCaption);
+      const fallbackLabel = categoryLabels[category] || "Registro operacional";
+      const caption = sanitizeEvidenceCaption(rawCaption, fallbackLabel);
+      const context = rdo.rdoDateIso ? formatDateOnly(rdo.rdoDateIso) : "";
+      const item = {
         src,
         caption,
-        context: rdo.rdoDateIso ? formatDateOnly(rdo.rdoDateIso) : "",
-      });
+        context,
+        category,
+        dateKey: rdo.rdoDateIso || "",
+      };
+      items.push(item);
+      if (buckets[category]) {
+        buckets[category].push(item);
+      } else {
+        buckets.outras.push(item);
+      }
     });
   });
   if (!items.length) {
@@ -406,16 +504,54 @@ function buildEvidenceGallery(normalized, maxItems = 6) {
       items: [],
     };
   }
+  const selected = [];
+  const usedDates = new Set();
+  const selectedSet = new Set();
+
+  function pickFrom(category) {
+    const bucket = buckets[category] || [];
+    if (!bucket.length) {
+      return;
+    }
+    const pick = bucket.find((item) => item.dateKey && !usedDates.has(item.dateKey)) || bucket[0];
+    if (!pick || selectedSet.has(pick)) {
+      return;
+    }
+    selected.push(pick);
+    selectedSet.add(pick);
+    if (pick.dateKey) {
+      usedDates.add(pick.dateKey);
+    }
+  }
+
+  ["inspecao_diaria", "inspecao_semanal_gmg", "inspecao_mensal_gmg", "corretiva", "outras"].forEach(pickFrom);
+
+  if (selected.length < maxItems) {
+    const remaining = items.filter((item) => !selectedSet.has(item));
+    for (const item of remaining) {
+      if (selected.length >= maxItems) {
+        break;
+      }
+      if (item.dateKey && usedDates.has(item.dateKey) && remaining.length > 1) {
+        continue;
+      }
+      selected.push(item);
+      selectedSet.add(item);
+      if (item.dateKey) {
+        usedDates.add(item.dateKey);
+      }
+    }
+  }
   return {
-    text: "Evidências visuais selecionadas para comprovação executiva e técnica.",
-    items: items.slice(0, maxItems),
+    text: "Evidências visuais selecionadas de forma representativa para comprovação executiva e técnica.",
+    items: selected.slice(0, maxItems),
   };
 }
 
 function normalizeJustification(reason) {
   const text = String(reason || "").replace(/\s+/g, " ").trim();
   if (!text) {
-    return "Sem justificativa registrada.";
+    return "Ausência de justificativa registrada.";
   }
   const normalized = text[0].toUpperCase() + text.slice(1);
   return normalized.endsWith(".") ? normalized : `${normalized}.`;
@@ -424,15 +560,15 @@ function normalizeJustification(reason) {
 function classifyBacklogReason(text) {
   const normalized = String(text || "").toLowerCase();
   if (!normalized) {
-    return "Sem justificativa registrada";
+    return "Ausência de justificativa registrada";
   }
   const rules = [
-    { label: "Indisponibilidade operacional", keys: ["indispon", "equipe", "recurso", "falha", "pane", "clima", "logistica"] },
-    { label: "Reprogramação de janela", keys: ["reprogram", "janela", "agenda", "calendario", "remarc"] },
+    { label: "Reprogramação operacional", keys: ["reprogram", "janela", "agenda", "calendario", "remarc"] },
+    { label: "Indisponibilidade de janela", keys: ["indispon", "janela", "restricao", "clima"] },
     { label: "Dependência externa", keys: ["depend", "terceir", "cliente", "fornecedor", "extern"] },
     { label: "Restrição de acesso/liberação", keys: ["acesso", "liber", "bloque", "permissa", "seguranca"] },
     { label: "Pendência documental", keys: ["document", "os", "apr", "pte", "pt", "laudo"] },
-    { label: "Prioridade emergencial", keys: ["prior", "emerg", "crit"] },
+    { label: "Contingência prioritária", keys: ["prior", "emerg", "crit", "conting"] },
   ];
   const match = rules.find((rule) => rule.keys.some((key) => normalized.includes(key)));
   return match ? match.label : "Outros fatores operacionais";
@@ -450,13 +586,14 @@ function buildBacklogReasonSummary(items) {
 }
 
 function buildBacklogDetails(normalized) {
-  if (!normalized || !normalized.current || !normalized.current.activities) {
+  if (!normalized || !normalized.currentPeriod || !normalized.currentPeriod.activities) {
     return { text: "Sem dados de backlog para o período.", items: [] };
   }
-  const period = normalized.current.period || {};
+  const period = normalized.currentPeriod.period || {};
   const start = period.start;
   const end = period.end;
-  const items = normalized.current.activities
+  const activities = normalized.currentPeriod.activities || [];
+  const items = activities
     .filter((activity) => activity.status === "backlog" && activity.dueDate && start && end && activity.dueDate >= start && activity.dueDate <= end)
     .sort((a, b) => (a.dueDate && b.dueDate ? a.dueDate - b.dueDate : 0))
     .map((activity) => ({
@@ -469,17 +606,102 @@ function buildBacklogDetails(normalized) {
       reason: normalizeJustification(activity.backlogReason),
     }));
 
-  if (!items.length) {
-    return { text: "Sem backlog com vencimento no período.", items: [], reasons: [] };
-  }
-  const reasons = buildBacklogReasonSummary(items);
+  const pendingForReasons = activities
+    .filter((activity) => activity.dueDate && start && end && activity.dueDate >= start && activity.dueDate <= end)
+    .filter((activity) => activity.status !== "concluida" && activity.status !== "cancelada")
+    .map((activity) => ({
+      reasonRaw: activity.backlogReason || activity.cancelReason || "",
+    }));
+
+  const reasons = buildBacklogReasonSummary(pendingForReasons);
   const reasonText = reasons.length
-    ? "Motivos consolidados de não execução para priorização gerencial."
-    : "Não há justificativas registradas para o backlog.";
+    ? "Motivos consolidados de não execução e backlog, agrupados por tema operacional."
+    : "Não há justificativas registradas para não execução no período.";
+
+  if (!items.length) {
+    return { text: "Sem backlog com vencimento no período.", items: [], reasons };
+  }
   return {
     text: reasonText,
     items,
     reasons,
+  };
+}
+
+const CONTINGENCY_EVENT_LABELS = {
+  DESARME: "Desarme",
+  TRIP: "Trip",
+  FALHA_FECHAMENTO: "Falha de fechamento",
+  FALHA_COMANDO: "Falha de comando",
+  PERDA_REDUNDANCIA: "Perda de redundância",
+  FALHA_COMUNICACAO: "Falha de comunicação",
+  OUTRO: "Outro",
+};
+
+const CONTINGENCY_STATUS_LABELS = {
+  DRAFT: "Rascunho",
+  IN_ANALYSIS: "Em análise",
+  NORMALIZED: "Normalizada",
+  CLOSED: "Encerrada",
+  REOPENED: "Reaberta",
+};
+
+const CONTINGENCY_SYSTEM_CONDITION_LABELS = {
+  NORMAL: "Normal",
+  DEGRADED: "Degradada",
+  RESTRICTED: "Restrita",
+  UNAVAILABLE: "Indisponível",
+};
+
+function formatContingencyLabel(map, value, fallback) {
+  const key = String(value || "").trim().toUpperCase();
+  return map[key] || fallback || key || "-";
+}
+
+function buildContingencySummary(normalized) {
+  if (!normalized || !normalized.currentPeriod || !Array.isArray(normalized.currentPeriod.contingencies)) {
+    return { text: "Sem dados de contingências no período.", items: [], count: 0 };
+  }
+  const list = normalized.currentPeriod.contingencies;
+  if (!list.length) {
+    return { text: "Sem contingências registradas no período.", items: [], count: 0 };
+  }
+  const items = list
+    .map((item) => {
+      const eventLabel = formatContingencyLabel(CONTINGENCY_EVENT_LABELS, item.eventType, "Outro");
+      const statusLabel = formatContingencyLabel(CONTINGENCY_STATUS_LABELS, item.status, "Rascunho");
+      const systemLabel = formatContingencyLabel(
+        CONTINGENCY_SYSTEM_CONDITION_LABELS,
+        item.systemCondition,
+        ""
+      );
+      const asset = item.assetName ? item.assetName : item.substation ? item.substation : "";
+      const titleParts = [eventLabel, asset].filter(Boolean);
+      const title = titleParts.join(" • ");
+      const impact = item.impactDescription || systemLabel || "Sem impacto registrado";
+      const response = item.containmentActions || item.engineeringConclusion || "Resposta operacional não informada";
+      return {
+        id: item.id,
+        code: item.code || item.id,
+        title,
+        startAtLabel: item.startAt ? formatDateTime(item.startAt) : "-",
+        severityLabel: item.severity || "-",
+        statusLabel,
+        impact,
+        response,
+      };
+    })
+    .slice(0, 8);
+
+  const text =
+    list.length === 1
+      ? "1 contingência registrada no período, com síntese técnica e impacto operacional abaixo."
+      : `${formatNumber(list.length)} contingências registradas no período, consolidadas com síntese técnica e impacto operacional.`;
+
+  return {
+    text,
+    items,
+    count: list.length,
   };
 }
 
@@ -523,6 +745,7 @@ function buildMonthlyReportViewModel({ aggregated, validation, normalized, optio
   const recommendations = buildRecommendations({ metrics });
   const actionPlan = buildActionPlan({ recommendations });
   const backlogDetails = buildBacklogDetails(normalized);
+  const contingencySummary = buildContingencySummary(normalized);
 
   const kpis = buildKpis({ metrics, comparison });
   const trendAnalysis = buildTrendAnalysis({ breakdowns, insights });
@@ -531,6 +754,7 @@ function buildMonthlyReportViewModel({ aggregated, validation, normalized, optio
     breakdowns,
     totalPlanned: metrics.totalPlannedActivities,
     totalPeriod,
+    metrics,
   });
   const consolidatedTables = buildConsolidatedTables({
     breakdowns,
@@ -557,7 +781,7 @@ function buildMonthlyReportViewModel({ aggregated, validation, normalized, optio
       isPartial,
     },
     header: {
-      title: "Relatório Mensal",
+      title: "RELATÓRIO DE DESEMPENHO MENSAL - HV",
       subtitle: "",
       periodLabel: formatDateRange(periodStart, periodEnd),
       emittedAtLabel: formatDateTime(emittedAt),
@@ -575,6 +799,7 @@ function buildMonthlyReportViewModel({ aggregated, validation, normalized, optio
     actionPlan,
     consolidatedTables,
     backlogDetails,
+    contingencySummary,
     appendix,
     evidenceGallery,
   };

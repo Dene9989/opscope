@@ -198,6 +198,47 @@ function normalizeRdo(rdo, warningStore, idCounts, index) {
   };
 }
 
+function normalizeContingency(contingency, warningStore, idCounts, index) {
+  const context = { record: "contingency", index };
+  const id = disambiguateId(
+    normalizeId(
+      contingency && contingency.id,
+      `contingency:${index}:${contingency && contingency.code}`,
+      warningStore,
+      context
+    ),
+    idCounts,
+    warningStore,
+    context
+  );
+  const startAt = parseDateTime(contingency && (contingency.startAt || contingency.startDate || contingency.inicio));
+  if (!startAt) {
+    warningStore.add("invalid_contingency_start", "Invalid contingency startAt.", { ...context, id });
+  }
+  const normalizedAt = parseDateTime(
+    contingency && (contingency.normalizedAt || contingency.normalized_at || contingency.dataNormalizacao)
+  );
+  return {
+    id,
+    code: normalizeText(contingency && contingency.code),
+    eventType: normalizeText(contingency && (contingency.eventType || contingency.tipoEvento)),
+    severity: normalizeText(contingency && contingency.severity),
+    status: normalizeText(contingency && contingency.status),
+    systemCondition: normalizeText(contingency && contingency.systemCondition),
+    startAt,
+    startAtIso: toIsoDateTime(startAt),
+    normalizedAt,
+    normalizedAtIso: toIsoDateTime(normalizedAt),
+    impactDescription: normalizeText(contingency && contingency.impactDescription),
+    containmentActions: normalizeText(contingency && contingency.containmentActions),
+    diagnosis: normalizeText(contingency && contingency.diagnosis),
+    engineeringConclusion: normalizeText(contingency && contingency.engineeringConclusion),
+    assetName: normalizeText(contingency && contingency.assetName),
+    substation: normalizeText(contingency && contingency.substation),
+    isValid: Boolean(startAt),
+  };
+}
+
 function normalizeActivity(activity, warningStore, idCounts, index) {
   const context = { record: "activity", index };
   const id = disambiguateId(
@@ -302,6 +343,7 @@ function normalizeSlice(slice, warningStore, label) {
   }
   const activityIdCounts = new Map();
   const rdoIdCounts = new Map();
+  const contingencyIdCounts = new Map();
 
   const activities = Array.isArray(slice && slice.activities)
     ? slice.activities.map((activity, index) =>
@@ -310,6 +352,11 @@ function normalizeSlice(slice, warningStore, label) {
     : [];
   const rdos = Array.isArray(slice && slice.rdos)
     ? slice.rdos.map((rdo, index) => normalizeRdo(rdo, warningStore, rdoIdCounts, index))
+    : [];
+  const contingencies = Array.isArray(slice && slice.contingencies)
+    ? slice.contingencies.map((contingency, index) =>
+        normalizeContingency(contingency, warningStore, contingencyIdCounts, index)
+      )
     : [];
 
   return {
@@ -321,6 +368,7 @@ function normalizeSlice(slice, warningStore, label) {
     },
     activities,
     rdos,
+    contingencies,
   };
 }
 
@@ -367,8 +415,10 @@ function normalizeMonthlyReportInput(input = {}, options = {}) {
   const counts = {
     activitiesTotal: normalized.currentPeriod.activities.length,
     rdosTotal: normalized.currentPeriod.rdos.length,
+    contingenciesTotal: normalized.currentPeriod.contingencies ? normalized.currentPeriod.contingencies.length : 0,
     previousActivitiesTotal: normalized.previousPeriod ? normalized.previousPeriod.activities.length : 0,
     previousRdosTotal: normalized.previousPeriod ? normalized.previousPeriod.rdos.length : 0,
+    previousContingenciesTotal: normalized.previousPeriod && normalized.previousPeriod.contingencies ? normalized.previousPeriod.contingencies.length : 0,
     docsOk: 0,
     docsPartial: 0,
     docsUnknown: 0,
@@ -376,6 +426,7 @@ function normalizeMonthlyReportInput(input = {}, options = {}) {
     docsNotRequired: 0,
     invalidActivities: 0,
     invalidRdos: 0,
+    invalidContingencies: 0,
   };
 
   normalized.currentPeriod.activities.forEach((activity) => {
@@ -401,6 +452,13 @@ function normalizeMonthlyReportInput(input = {}, options = {}) {
       counts.invalidRdos += 1;
     }
   });
+  if (Array.isArray(normalized.currentPeriod.contingencies)) {
+    normalized.currentPeriod.contingencies.forEach((contingency) => {
+      if (!contingency.isValid) {
+        counts.invalidContingencies += 1;
+      }
+    });
+  }
 
   normalized.normalization.counts = counts;
   normalized.normalization.schemaOk = schemaResult.ok;
