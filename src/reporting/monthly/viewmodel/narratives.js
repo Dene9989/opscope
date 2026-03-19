@@ -1,6 +1,7 @@
 ﻿const {
   formatNumber,
   formatPercent,
+  formatHours,
 } = require("./formatters");
 const {
   fallbackExecutiveSummary,
@@ -430,3 +431,5 @@ module.exports = {
   buildRecommendations,
   buildSafetyCompliance,
 };
+
+
