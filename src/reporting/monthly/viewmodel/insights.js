@@ -19,7 +19,7 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
     pushInsight(insights, {
       id: "insight.no_planned",
       tone: INSIGHT_TONE.INFO,
-      text: "Não houve atividades planejadas no período.",
+      text: "Período sem atividades planejadas; análise de performance não aplicável.",
       metrics: { planned },
     });
   }
@@ -28,14 +28,14 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
     pushInsight(insights, {
       id: "insight.execution_ratio_good",
       tone: INSIGHT_TONE.POSITIVE,
-      text: "A execução do período manteve ritmo consistente em relação ao planejado.",
+      text: "Execução alinhada ao planejado, indicando estabilidade de capacidade.",
       metrics: { planned, executed, executionRatioPct },
     });
   } else if (planned > 0) {
     pushInsight(insights, {
       id: "insight.execution_ratio_low",
       tone: INSIGHT_TONE.WARNING,
-      text: "A taxa de execução ficou abaixo do planejado para o período.",
+      text: "Execução abaixo do planejado, sugerindo necessidade de recomposição operacional.",
       metrics: { planned, executed, executionRatioPct },
     });
   }
@@ -44,7 +44,7 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
     pushInsight(insights, {
       id: "insight.backlog_present",
       tone: INSIGHT_TONE.WARNING,
-      text: "Há backlog em aberto que requer acompanhamento operacional.",
+      text: "Backlog em aberto requer priorização no próximo ciclo.",
       metrics: { backlog: metrics.backlog },
     });
   }
@@ -53,7 +53,7 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
     pushInsight(insights, {
       id: "insight.overdue_present",
       tone: INSIGHT_TONE.WARNING,
-      text: "Foram registradas atividades vencidas no período.",
+      text: "Atividades vencidas aumentam pressão sobre prazos e SLA.",
       metrics: { overdue: metrics.overdue },
     });
   }
@@ -63,14 +63,14 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
       pushInsight(insights, {
         id: "insight.sla_good",
         tone: INSIGHT_TONE.POSITIVE,
-        text: "O SLA ficou dentro da meta estabelecida.",
+        text: "SLA dentro da meta contratual.",
         metrics: { slaOnTimePct: metrics.slaOnTimePct },
       });
     } else {
       pushInsight(insights, {
         id: "insight.sla_below_target",
         tone: INSIGHT_TONE.WARNING,
-        text: "O SLA ficou abaixo da meta, indicando necessidade de ajustes operacionais.",
+        text: "SLA abaixo da meta, demandando ajustes de capacidade e priorização.",
         metrics: { slaOnTimePct: metrics.slaOnTimePct },
       });
     }
@@ -78,7 +78,7 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
     pushInsight(insights, {
       id: "insight.sla_not_applicable",
       tone: INSIGHT_TONE.INFO,
-      text: "Não houve atividades elegíveis para cálculo de SLA no período.",
+      text: "Sem atividades elegíveis para cálculo de SLA no período.",
       metrics: { slaEligibleActivities: metrics.slaEligibleActivities },
     });
   }
@@ -88,14 +88,14 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
       pushInsight(insights, {
         id: "insight.docs_good",
         tone: INSIGHT_TONE.POSITIVE,
-        text: "A conformidade documental ficou dentro do padrão esperado.",
+        text: "Conformidade documental dentro do padrão esperado.",
         metrics: { docsCompliancePct: metrics.docsCompliancePct },
       });
     } else {
       pushInsight(insights, {
         id: "insight.docs_low",
         tone: INSIGHT_TONE.WARNING,
-        text: "A conformidade documental ficou abaixo do ideal no período.",
+        text: "Conformidade documental abaixo do ideal; revisar checklist e evidências.",
         metrics: { docsCompliancePct: metrics.docsCompliancePct },
       });
     }
@@ -105,7 +105,7 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
     pushInsight(insights, {
       id: "insight.docs_unknown",
       tone: INSIGHT_TONE.INFO,
-      text: "Há atividades com exigências documentais indeterminadas, revisite o cadastro de categorias.",
+      text: "Há exigências documentais indeterminadas; revisar cadastro de categorias.",
       metrics: { docsUnknown: metrics.docsUnknown },
     });
   }
@@ -114,7 +114,7 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
     pushInsight(insights, {
       id: "insight.critical_present",
       tone: INSIGHT_TONE.WARNING,
-      text: "Foram registradas atividades críticas no período.",
+      text: "Atividades críticas registradas com impacto potencial na operação.",
       metrics: { critical: metrics.critical },
     });
   }
@@ -123,7 +123,7 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
     pushInsight(insights, {
       id: "insight.low_volume",
       tone: INSIGHT_TONE.INFO,
-      text: "O volume de atividades no período é baixo, o que reduz a robustez estatística das análises.",
+      text: "Volume baixo reduz a robustez estatística das análises.",
       metrics: { planned },
     });
   }
@@ -135,14 +135,14 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
         pushInsight(insights, {
           id: "insight.backlog_growth",
           tone: INSIGHT_TONE.WARNING,
-          text: "O backlog apresentou crescimento relevante em relação ao período anterior.",
+          text: "Backlog cresceu de forma relevante vs período anterior.",
           metrics: { current: backlogItem.current, previous: backlogItem.previous, deltaPct: backlogItem.deltaPct },
         });
       } else if (backlogItem.deltaPct < -20) {
         pushInsight(insights, {
           id: "insight.backlog_reduction",
           tone: INSIGHT_TONE.POSITIVE,
-          text: "Houve redução expressiva do backlog em relação ao período anterior.",
+          text: "Backlog reduziu de forma expressiva vs período anterior.",
           metrics: { current: backlogItem.current, previous: backlogItem.previous, deltaPct: backlogItem.deltaPct },
         });
       }
@@ -154,14 +154,14 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
         pushInsight(insights, {
           id: "insight.sla_improved",
           tone: INSIGHT_TONE.POSITIVE,
-          text: "O SLA apresentou melhora significativa em relação ao período anterior.",
+          text: "SLA apresentou melhora significativa vs período anterior.",
           metrics: { current: slaItem.current, previous: slaItem.previous, delta: slaItem.delta },
         });
       } else if (slaItem.delta <= -10) {
         pushInsight(insights, {
           id: "insight.sla_worsened",
           tone: INSIGHT_TONE.WARNING,
-          text: "O SLA piorou de forma relevante em relação ao período anterior.",
+          text: "SLA deteriorou de forma relevante vs período anterior.",
           metrics: { current: slaItem.current, previous: slaItem.previous, delta: slaItem.delta },
         });
       }
@@ -172,7 +172,7 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
     pushInsight(insights, {
       id: "insight.integrity_attention",
       tone: INSIGHT_TONE.WARNING,
-      text: "Foram identificadas advertências de integridade de dados neste relatório.",
+      text: "Advertências de integridade de dados; revisar base antes de decisões críticas.",
       metrics: { integrityStatus },
     });
   }

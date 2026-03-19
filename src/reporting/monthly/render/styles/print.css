@@ -47,9 +47,16 @@ tr {
 .insight-card,
 .risk-card,
 .summary-table,
+.hero,
+.metadata-bar,
 .executive-summary,
+.executive-grid,
+.highlight-card,
+.narrative-block,
 .comparison-card,
+.compliance-table,
 .action-table-block,
+.backlog-table,
 .daily-rdo-block {
   break-inside: avoid;
   page-break-inside: avoid;

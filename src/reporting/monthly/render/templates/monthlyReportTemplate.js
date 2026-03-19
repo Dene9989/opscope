@@ -51,7 +51,7 @@ function renderRisks(riskAssessment) {
 function renderHighlights(executiveSummary) {
   const highlights = executiveSummary && executiveSummary.highlights ? executiveSummary.highlights : [];
   if (!highlights.length) {
-    return EmptyState("Sem destaques executivos para o período.");
+    return EmptyState("Sem alertas críticos no período.");
   }
   return `
     <div class="highlight-grid">
@@ -65,6 +65,51 @@ function renderHighlights(executiveSummary) {
         .join("")}
     </div>
   `;
+}
+
+function renderNarrativeBlocks(blocks, className = "") {
+  if (!blocks || !blocks.length) {
+    return "";
+  }
+  const safeClass = className ? ` ${escapeHtml(className)}` : "";
+  return `
+    <div class="narrative-blocks${safeClass}">
+      ${blocks
+        .map((block) => `
+          <div class="narrative-block">
+            ${block.title ? `<div class="narrative-title">${escapeHtml(block.title)}</div>` : ""}
+            ${block.text ? `<div class="narrative-text">${escapeHtml(block.text)}</div>` : ""}
+          </div>
+        `)
+        .join("")}
+    </div>
+  `;
+}
+
+function renderExecutiveSummary(executiveSummary) {
+  if (!executiveSummary) {
+    return EmptyState("Sem resumo executivo para o período.");
+  }
+  const bullets = executiveSummary.bullets && executiveSummary.bullets.length
+    ? `<ul>${executiveSummary.bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join("")}</ul>`
+    : "";
+  return `
+    <div class="executive-summary">
+      ${executiveSummary.title ? `<div class="executive-summary__title">${escapeHtml(executiveSummary.title)}</div>` : ""}
+      ${executiveSummary.headline ? `<div class="executive-summary__headline">${escapeHtml(executiveSummary.headline)}</div>` : ""}
+      ${executiveSummary.lead ? `<p class="executive-summary__lead">${escapeHtml(executiveSummary.lead)}</p>` : ""}
+      ${renderNarrativeBlocks(executiveSummary.blocks)}
+      ${bullets}
+      ${executiveSummary.conclusion ? `<p class="executive-summary__conclusion">${escapeHtml(executiveSummary.conclusion)}</p>` : ""}
+    </div>
+  `;
+}
+
+function renderSectionNote(text) {
+  if (!text) {
+    return "";
+  }
+  return `<p class="section-note">${escapeHtml(text)}</p>`;
 }
 
 function renderOperationalTables(operational) {
@@ -146,24 +191,40 @@ function renderMonthlyReportTemplate(viewModel, charts) {
   const consolidatedTables = viewModel.consolidatedTables;
   const backlogDetails = viewModel.backlogDetails;
   const appendix = viewModel.appendix;
+  const hasTechnicalContent = technicalHighlights && (
+    (technicalHighlights.blocks && technicalHighlights.blocks.length) ||
+    (technicalHighlights.bullets && technicalHighlights.bullets.length)
+  );
 
   const primaryKpis = viewModel.kpis && viewModel.kpis.primaryCards ? viewModel.kpis.primaryCards : (viewModel.kpis ? viewModel.kpis.cards : []);
   const secondaryKpis = viewModel.kpis && viewModel.kpis.secondaryCards ? viewModel.kpis.secondaryCards : [];
+  const executiveHeadline = executiveSummary && executiveSummary.headline ? executiveSummary.headline : "";
+  const executiveLead = executiveSummary && executiveSummary.lead ? executiveSummary.lead : "";
 
   const page1 = Page(`
     ${header}
     ${metadata}
     ${banner}
 
-    ${SectionHeader("Visão executiva", "Indicadores chave do período.")}
+    ${executiveHeadline || executiveLead ? `
+      <div class="hero">
+        ${executiveHeadline ? `<div class="hero-headline">${escapeHtml(executiveHeadline)}</div>` : ""}
+        ${executiveLead ? `<div class="hero-lead">${escapeHtml(executiveLead)}</div>` : ""}
+      </div>
+    ` : ""}
+
+    ${SectionHeader("Visão executiva", "Síntese gerencial e indicadores críticos do período.")}
     ${renderKpiGrid(primaryKpis)}
 
-    ${SectionHeader("Resumo executivo", "Síntese gerencial do período.")}
-    <div class="executive-summary">
-      <p>${escapeHtml(executiveSummary.text || "")}</p>
-      ${executiveSummary.bullets && executiveSummary.bullets.length ? `<ul>${executiveSummary.bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join("")}</ul>` : ""}
+    <div class="executive-grid">
+      <div class="executive-main">
+        ${renderExecutiveSummary(executiveSummary)}
+      </div>
+      <div class="executive-side">
+        <div class="executive-side__title">Desvios e alertas</div>
+        ${renderHighlights(executiveSummary)}
+      </div>
     </div>
-    ${renderHighlights(executiveSummary)}
 
     ${SectionHeader("Comparativo com período anterior", "Variações em relação ao mês anterior.")}
     ${renderComparison(viewModel.comparisonWithPreviousPeriod)}
@@ -195,13 +256,22 @@ function renderMonthlyReportTemplate(viewModel, charts) {
 
   const page4 = Page(`
     ${SectionHeader("Segurança, compliance e evidências", safetyCompliance.text || "")}
+    ${renderSectionNote(safetyCompliance.summary || "")}
     ${ComplianceTable(safetyCompliance) || EmptyState("Sem dados de compliance.")}
 
     ${SectionHeader("Análise técnica", technicalHighlights.text || "")}
-    ${technicalHighlights.bullets && technicalHighlights.bullets.length ? `<ul>${technicalHighlights.bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join("")}</ul>` : EmptyState(technicalHighlights.text)}
+    ${hasTechnicalContent
+      ? `
+        ${renderSectionNote(technicalHighlights.summary || "")}
+        ${renderNarrativeBlocks(technicalHighlights.blocks)}
+        ${technicalHighlights.bullets && technicalHighlights.bullets.length ? `<ul>${technicalHighlights.bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join("")}</ul>` : ""}
+      `
+      : EmptyState(technicalHighlights.text)}
 
     ${SectionHeader("Riscos e recomendações", riskAssessment.text || "")}
+    ${renderSectionNote(riskAssessment.summary || "")}
     ${renderRisks(riskAssessment)}
+    ${renderSectionNote(recommendations.text || "")}
     ${RecommendationList(recommendations) || EmptyState(recommendations.text)}
 
     ${SectionHeader("Backlog e justificativas", backlogDetails && backlogDetails.text ? backlogDetails.text : "")}

@@ -5,20 +5,28 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <style>
-          ﻿:root {
+          :root {
+  --ink-950: #0b1624;
   --ink-900: #0f1b2b;
-  --ink-700: #1f2c3c;
-  --ink-500: #3a4a5b;
-  --ink-300: #8191a1;
+  --ink-800: #1a2a3c;
+  --ink-700: #25364a;
+  --ink-600: #38495c;
+  --ink-500: #526273;
+  --ink-300: #8d9aaa;
   --paper: #ffffff;
-  --accent: #0d3b66;
-  --accent-soft: #e7f0fb;
+  --surface: #f6f8fb;
+  --surface-strong: #eef3f8;
+  --accent: #0b2f4f;
+  --accent-strong: #0a3d62;
+  --accent-soft: #e7f0f8;
+  --gold: #c2a15c;
   --warning: #b45309;
-  --warning-bg: #fff7ed;
+  --warning-bg: #fff4e5;
   --positive: #166534;
   --positive-bg: #ecfdf3;
-  --border: #d9e2ec;
-  --muted: #f3f6f9;
+  --border: #d7e0ea;
+  --muted: #f2f4f7;
+  --shadow-soft: 0 6pt 18pt rgba(15, 27, 43, 0.08);
 }
 
 * {
@@ -32,7 +40,7 @@ html, body {
   color: var(--ink-900);
   font-family: "IBM Plex Sans", "Source Sans 3", "Segoe UI", sans-serif;
   font-size: 11.5pt;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 h1, h2, h3, h4 {
@@ -42,16 +50,17 @@ h1, h2, h3, h4 {
 }
 
 h1 {
-  font-size: 21pt;
+  font-size: 20.5pt;
+  letter-spacing: 0.02em;
 }
 
 h2 {
-  font-size: 16pt;
-  margin-bottom: 6pt;
+  font-size: 15pt;
+  margin-bottom: 4pt;
 }
 
 h3 {
-  font-size: 12.5pt;
+  font-size: 12.2pt;
   margin-bottom: 4pt;
 }
 
@@ -59,109 +68,368 @@ p {
   margin: 0 0 6pt;
 }
 
+ul {
+  margin: 6pt 0 0 16pt;
+  padding: 0;
+}
+
+li {
+  margin-bottom: 4pt;
+}
+
 .report-header {
-  border-bottom: 2px solid var(--ink-900);
-  padding-bottom: 12pt;
-  margin-bottom: 12pt;
+  background: var(--surface);
+  border-radius: 12pt;
+  padding: 12pt 14pt;
+  margin-bottom: 8pt;
+  border: 1px solid var(--border);
 }
 
-.report-title {
+.report-header__grid {
+  display: grid;
+  grid-template-columns: 1fr 2.6fr 1fr;
+  align-items: center;
+  gap: 8pt;
+}
+
+.report-header__logo {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 10pt;
+  align-items: center;
 }
 
-.report-subtitle {
-  color: var(--ink-500);
+.report-header__logo--left {
+  justify-content: flex-start;
 }
 
-.report-meta {
+.report-header__logo--right {
+  justify-content: flex-end;
+}
+
+.report-logo {
+  display: block;
+  height: 34pt;
+  width: auto;
+}
+
+.report-logo--opscope {
+  height: 32pt;
+}
+
+.report-logo--engelmig {
+  height: 34pt;
+}
+
+.report-header__center {
+  text-align: center;
+}
+
+.report-header__title {
+  font-size: 18pt;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.report-header__meta {
+  margin-top: 6pt;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6pt 12pt;
+}
+
+.report-header__meta-item {
   display: flex;
-  gap: 12pt;
-  flex-wrap: wrap;
-  color: var(--ink-500);
+  flex-direction: column;
+  gap: 2pt;
+}
+
+.report-header__meta-label {
+  font-size: 8pt;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-300);
+}
+
+.report-header__meta-value {
   font-size: 10pt;
+  font-weight: 600;
+  color: var(--ink-900);
 }
 
 .metadata-bar {
-  display: flex;
-  gap: 12pt;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110pt, 1fr));
+  gap: 8pt;
   padding: 6pt 0 12pt;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 12pt;
-  font-size: 10pt;
+  margin-bottom: 10pt;
+}
+
+.metadata-item {
+  background: var(--surface);
+  padding: 6pt 8pt;
+  border-radius: 8pt;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 2pt;
+}
+
+.metadata-item.tone-warning {
+  border-color: #f59e0b;
+  background: var(--warning-bg);
+}
+
+.metadata-item.tone-positive {
+  border-color: #16a34a;
+  background: var(--positive-bg);
+}
+
+.metadata-label {
+  font-size: 7.8pt;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-500);
+}
+
+.metadata-value {
+  font-size: 9.8pt;
+  font-weight: 600;
+  color: var(--ink-900);
 }
 
 .warning-banner {
   background: var(--warning-bg);
-  border: 1px solid #fbbf24;
-  padding: 10pt;
-  border-radius: 6pt;
+  border: 1px solid #f59e0b;
+  padding: 8pt 10pt;
+  border-radius: 8pt;
   margin: 10pt 0 14pt;
   color: var(--warning);
   font-weight: 600;
 }
 
+.warning-banner p {
+  margin: 0;
+}
+
 .section-header {
   border-left: 4px solid var(--accent);
   padding-left: 8pt;
-  margin: 18pt 0 12pt;
+  margin: 16pt 0 10pt;
 }
 
 .section-header p {
   color: var(--ink-500);
+  font-size: 10.2pt;
+}
+
+.section-note {
+  color: var(--ink-600);
+  font-size: 10.2pt;
+  margin: 0 0 6pt;
+}
+
+.hero {
+  background: linear-gradient(90deg, #eef3f8 0%, #ffffff 65%);
+  border: 1px solid var(--border);
+  border-radius: 10pt;
+  padding: 10pt 12pt;
+  margin-bottom: 8pt;
+}
+
+.hero-headline {
+  font-size: 13.5pt;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.hero-lead {
+  margin-top: 4pt;
   font-size: 10.5pt;
+  color: var(--ink-600);
+}
+
+.executive-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 12pt;
+  margin-top: 8pt;
+}
+
+.executive-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6pt;
+}
+
+.executive-summary {
+  border: 1px solid var(--border);
+  border-radius: 10pt;
+  padding: 12pt 14pt;
+  background: var(--surface);
+  border-left: 4pt solid var(--accent);
+}
+
+.executive-summary__title {
+  font-size: 8.5pt;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-500);
+}
+
+.executive-summary__headline {
+  font-size: 12.5pt;
+  font-weight: 700;
+  margin-top: 4pt;
+}
+
+.executive-summary__lead {
+  margin-top: 4pt;
+  color: var(--ink-600);
+  font-size: 10.5pt;
+}
+
+.narrative-blocks {
+  margin-top: 8pt;
+  display: grid;
+  gap: 6pt;
+}
+
+.narrative-block {
+  border: 1px solid var(--border);
+  border-radius: 8pt;
+  padding: 8pt 10pt;
+  background: var(--paper);
+}
+
+.narrative-title {
+  font-size: 8pt;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-500);
+}
+
+.narrative-text {
+  margin-top: 3pt;
+  font-size: 10.2pt;
+  color: var(--ink-700);
+}
+
+.executive-summary__conclusion {
+  margin-top: 8pt;
+  font-weight: 600;
+  color: var(--ink-900);
+}
+
+.executive-side {
+  display: flex;
+  flex-direction: column;
+  gap: 8pt;
+}
+
+.executive-side__title {
+  font-size: 8.5pt;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-500);
+}
+
+.highlight-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150pt, 1fr));
+  gap: 8pt;
+}
+
+.highlight-card {
+  border: 1px solid var(--border);
+  border-radius: 8pt;
+  padding: 8pt 10pt;
+  background: var(--paper);
+  box-shadow: var(--shadow-soft);
+}
+
+.highlight-card.tone-warning {
+  border-color: #f59e0b;
+  background: var(--warning-bg);
+}
+
+.highlight-card.tone-positive {
+  border-color: #16a34a;
+  background: var(--positive-bg);
+}
+
+.highlight-title {
+  font-size: 8.5pt;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-500);
+}
+
+.highlight-text {
+  margin-top: 4pt;
+  font-weight: 600;
+  color: var(--ink-900);
 }
 
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170pt, 1fr));
-  gap: 12pt;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10pt;
 }
 
 .kpi-card {
   border: 1px solid var(--border);
   border-radius: 10pt;
-  padding: 12pt;
+  padding: 12pt 12pt 10pt;
   background: var(--paper);
+  border-top: 4px solid var(--accent);
+  box-shadow: var(--shadow-soft);
 }
 
 .kpi-card.tone-warning {
   border-color: #f59e0b;
+  border-top-color: #f59e0b;
   background: var(--warning-bg);
 }
 
 .kpi-card.tone-positive {
   border-color: #16a34a;
+  border-top-color: #16a34a;
   background: var(--positive-bg);
 }
 
 .kpi-label {
-  font-size: 9.5pt;
+  font-size: 8.8pt;
   color: var(--ink-500);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
 }
 
 .kpi-value {
-  font-size: 18pt;
+  font-size: 18.5pt;
   font-weight: 700;
   margin: 4pt 0;
 }
 
 .kpi-delta {
-  display: flex;
+  display: inline-flex;
+  align-items: center;
   gap: 6pt;
-  font-size: 9.5pt;
-  color: var(--ink-500);
+  padding: 2pt 6pt;
+  border-radius: 999px;
+  font-size: 9pt;
+  color: var(--ink-700);
+  background: var(--muted);
+  width: fit-content;
 }
 
-.kpi-tooltip,
-.kpi-trace {
-  font-size: 9pt;
-  color: var(--ink-300);
+.kpi-delta--positive {
+  background: var(--positive-bg);
+  color: var(--positive);
+}
+
+.kpi-delta--negative {
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 .comparison-grid {
@@ -170,24 +438,69 @@ p {
   gap: 10pt;
 }
 
+.comparison-card {
+  border: 1px solid var(--border);
+  border-radius: 10pt;
+  padding: 10pt;
+  background: var(--paper);
+  border-top: 3px solid var(--accent);
+}
+
+.comparison-label {
+  font-size: 9pt;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-500);
+}
+
+.comparison-values {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10pt;
+  margin: 6pt 0;
+}
+
+.comparison-value {
+  background: var(--surface-strong);
+  border-radius: 6pt;
+  padding: 6pt 8pt;
+  display: flex;
+  flex-direction: column;
+  gap: 2pt;
+}
+
+.comparison-caption {
+  font-size: 7.8pt;
+  color: var(--ink-500);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.comparison-number {
+  font-size: 13.8pt;
+  font-weight: 700;
+}
+
+.comparison-delta {
+  font-size: 9.5pt;
+  color: var(--ink-500);
+}
+
+.comparison-delta.comparison-delta--positive {
+  color: var(--positive);
+  font-weight: 600;
+}
+
+.comparison-delta.comparison-delta--negative {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
 .chart-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12pt;
   margin-bottom: 10pt;
-}
-
-.comparison-card {
-  border: 1px solid var(--border);
-  border-radius: 6pt;
-  padding: 10pt;
-  background: var(--muted);
-}
-
-.comparison-values {
-  display: flex;
-  justify-content: space-between;
-  font-weight: 600;
 }
 
 .insight-grid,
@@ -199,10 +512,18 @@ p {
 
 .insight-card,
 .risk-card {
-  border-radius: 6pt;
-  padding: 10pt;
+  border-radius: 8pt;
+  padding: 8pt 10pt;
   border: 1px solid var(--border);
   background: var(--paper);
+}
+
+.insight-card {
+  border-left: 3pt solid var(--accent);
+}
+
+.risk-card {
+  border-left: 3pt solid #b45309;
 }
 
 .insight-card.tone-warning,
@@ -217,10 +538,30 @@ p {
 }
 
 .chart-container {
-  border: 1px dashed var(--border);
+  border: 1px solid var(--border);
   padding: 10pt;
-  border-radius: 6pt;
+  border-radius: 10pt;
   background: var(--paper);
+  box-shadow: var(--shadow-soft);
+}
+
+.chart-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2pt;
+  margin-bottom: 6pt;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6pt;
+}
+
+.chart-header h4 {
+  margin: 0;
+  font-size: 11.3pt;
+}
+
+.chart-subtitle {
+  color: var(--ink-500);
+  font-size: 9.2pt;
 }
 
 .chart-svg {
@@ -254,14 +595,14 @@ table {
 }
 
 thead {
-  background: var(--muted);
+  background: var(--surface-strong);
 }
 
 th, td {
   border: 1px solid var(--border);
   padding: 7pt 6pt;
-  font-size: 10.5pt;
-  line-height: 1.3;
+  font-size: 10.2pt;
+  line-height: 1.35;
   text-align: left;
   word-break: break-word;
 }
@@ -269,6 +610,21 @@ th, td {
 th {
   padding-top: 8pt;
   padding-bottom: 8pt;
+  text-transform: uppercase;
+  font-size: 8.2pt;
+  letter-spacing: 0.08em;
+  color: var(--ink-500);
+}
+
+tbody tr:nth-child(even) {
+  background: #f9fafb;
+}
+
+th:nth-child(2),
+th:nth-child(3),
+td:nth-child(2),
+td:nth-child(3) {
+  text-align: right;
 }
 
 .recommendation-list {
@@ -278,13 +634,43 @@ th {
 
 .action-table th,
 .action-table td {
-  font-size: 10.5pt;
-  line-height: 1.3;
+  font-size: 10.2pt;
+  line-height: 1.35;
+  text-align: left;
+}
+
+.action-table th:nth-child(2),
+.action-table th:nth-child(3),
+.action-table th:nth-child(4),
+.action-table td:nth-child(2),
+.action-table td:nth-child(3),
+.action-table td:nth-child(4) {
+  text-align: left;
+}
+
+.action-table-block {
+  margin-bottom: 10pt;
+}
+
+.backlog-table th,
+.backlog-table td {
+  text-align: left;
+}
+
+.backlog-table th:nth-child(2),
+.backlog-table th:nth-child(3),
+.backlog-table th:nth-child(4),
+.backlog-table th:nth-child(5),
+.backlog-table td:nth-child(2),
+.backlog-table td:nth-child(3),
+.backlog-table td:nth-child(4),
+.backlog-table td:nth-child(5) {
+  text-align: left;
 }
 
 .daily-rdo-block {
   border: 1px solid var(--border);
-  border-radius: 6pt;
+  border-radius: 8pt;
   padding: 10pt;
   margin-bottom: 10pt;
   background: var(--paper);
@@ -293,13 +679,13 @@ th {
 .empty-state {
   padding: 12pt;
   background: var(--muted);
-  border-radius: 6pt;
+  border-radius: 8pt;
   color: var(--ink-500);
   font-style: italic;
 }
 
 .report-footer {
-  margin-top: 14pt;
+  margin-top: auto;
   padding-top: 8pt;
   border-top: 1px solid var(--border);
   display: flex;
@@ -313,11 +699,16 @@ th {
   margin: 12mm 12mm 14mm 12mm;
 }
 
+body {
+  counter-reset: page;
+}
+
 .report-page {
   min-height: 270mm;
   display: flex;
   flex-direction: column;
-  gap: 6pt;
+  gap: 4pt;
+  counter-increment: page;
 }
 
 .page-break {
@@ -352,6 +743,16 @@ tr {
 .insight-card,
 .risk-card,
 .summary-table,
+.hero,
+.metadata-bar,
+.executive-summary,
+.executive-grid,
+.highlight-card,
+.narrative-block,
+.comparison-card,
+.compliance-table,
+.action-table-block,
+.backlog-table,
 .daily-rdo-block {
   break-inside: avoid;
   page-break-inside: avoid;
@@ -369,132 +770,180 @@ tr {
       <section class="report-page">
     
     <header class="report-header">
-      <div class="report-title">
-        <h1>Relatório Mensal OPSCOPE</h1>
-        <p class="report-subtitle">Solarig • Paracatu/Solarig</p>
-      </div>
-      <div class="report-meta">
-        <span><strong>Período:</strong> 2026-03-01 a 2026-03-31</span>
-        <span><strong>Emissão:</strong> 02/04/2026, 10:00:00</span>
-        <span><strong>Versão:</strong> v2.0</span>
+      <div class="report-header__grid">
+        <div class="report-header__logo report-header__logo--left">
+          
+        </div>
+        <div class="report-header__center">
+          <div class="report-header__title">Relatório Mensal</div>
+          <div class="report-header__meta">
+            <div class="report-header__meta-item">
+              <span class="report-header__meta-label">Cliente</span>
+              <span class="report-header__meta-value">Solarig</span>
+            </div>
+            <div class="report-header__meta-item">
+              <span class="report-header__meta-label">Projeto</span>
+              <span class="report-header__meta-value">Paracatu/Solarig</span>
+            </div>
+            <div class="report-header__meta-item">
+              <span class="report-header__meta-label">Período</span>
+              <span class="report-header__meta-value">2026-03-01 a 2026-03-31</span>
+            </div>
+            <div class="report-header__meta-item">
+              <span class="report-header__meta-label">Emissão</span>
+              <span class="report-header__meta-value">02/04/2026, 10:00:00</span>
+            </div>
+          </div>
+        </div>
+        <div class="report-header__logo report-header__logo--right">
+          
+        </div>
       </div>
     </header>
   
     
     <div class="metadata-bar">
-      <span><strong>Cliente:</strong> Solarig</span>
-      <span><strong>Projeto:</strong> Paracatu/Solarig</span>
-      <span><strong>Planta:</strong> BSO2</span>
+      <div class="metadata-item">
+        <span class="metadata-label">Unidade</span>
+        <span class="metadata-value">BSO2</span>
+      </div>
+      <div class="metadata-item">
+        <span class="metadata-label">Versão</span>
+        <span class="metadata-value">v2.0</span>
+      </div>
+      <div class="metadata-item tone-positive">
+        <span class="metadata-label">Consolidação</span>
+        <span class="metadata-value">Fechado</span>
+      </div>
+      <div class="metadata-item tone-positive">
+        <span class="metadata-label">Integridade</span>
+        <span class="metadata-value">OK</span>
+      </div>
+      <div class="metadata-item">
+        <span class="metadata-label">Comparativo</span>
+        <span class="metadata-value">Período anterior (informado)</span>
+      </div>
     </div>
   
     
 
     
+      <div class="hero">
+        <div class="hero-headline">Execução 100% do planejado • SLA 100%</div>
+        <div class="hero-lead">Planejadas 5 atividades e executadas 5, indicando desempenho operacional dentro das metas estabelecidas.</div>
+      </div>
+    
+
+    
     <div class="section-header">
       <h2>Visão executiva</h2>
-      <p>Indicadores chave do período.</p>
+      <p>Síntese gerencial e indicadores críticos do período.</p>
     </div>
   
     <div class="kpi-grid">
     <div class="kpi-card tone-neutral">
-      <div class="kpi-label">Planejadas</div>
+      <div class="kpi-label">Atividades planejadas</div>
       <div class="kpi-value">5</div>
-      <div class="kpi-delta">
-        <span>+3</span>
-        <span>+150%</span>
-      </div>
-      <div class="kpi-tooltip">Total de atividades com vencimento dentro do período.</div>
-      <div class="kpi-trace">dueDate in period and status != cancelada</div>
+      <div class="kpi-delta kpi-delta--positive">+3 +150%</div>
     </div>
   
     <div class="kpi-card tone-positive">
-      <div class="kpi-label">Executadas</div>
+      <div class="kpi-label">Atividades executadas</div>
       <div class="kpi-value">5</div>
-      <div class="kpi-delta">
-        <span>+3</span>
-        <span>+150%</span>
-      </div>
-      <div class="kpi-tooltip">Atividades concluídas com doneAt dentro do período.</div>
-      <div class="kpi-trace">doneAt in period and status == concluida</div>
+      <div class="kpi-delta kpi-delta--positive">+3 +150%</div>
     </div>
   
     <div class="kpi-card tone-positive">
-      <div class="kpi-label">Execução vs planejado</div>
+      <div class="kpi-label">Execução do plano</div>
       <div class="kpi-value">100%</div>
-      <div class="kpi-delta">
-        <span>-</span>
-        <span>-</span>
-      </div>
-      <div class="kpi-tooltip">Percentual executado sobre o planejado.</div>
-      <div class="kpi-trace">totalExecutedActivities / totalPlannedActivities</div>
+      
     </div>
   
     <div class="kpi-card tone-positive">
       <div class="kpi-label">Backlog</div>
       <div class="kpi-value">0</div>
-      <div class="kpi-delta">
-        <span>0</span>
-        <span>-</span>
-      </div>
-      <div class="kpi-tooltip">Atividades formalizadas em backlog no período.</div>
-      <div class="kpi-trace">status == backlog and dueDate in period</div>
+      <div class="kpi-delta">0</div>
     </div>
   
     <div class="kpi-card tone-positive">
-      <div class="kpi-label">Overdue</div>
+      <div class="kpi-label">Vencidas</div>
       <div class="kpi-value">0</div>
-      <div class="kpi-delta">
-        <span>0</span>
-        <span>-</span>
-      </div>
-      <div class="kpi-tooltip">Atividades vencidas até o corte do período.</div>
-      <div class="kpi-trace">dueDate &lt; cutoff and status not in {concluida, cancelada}</div>
+      <div class="kpi-delta">0</div>
     </div>
   
     <div class="kpi-card tone-positive">
       <div class="kpi-label">SLA no prazo</div>
       <div class="kpi-value">100%</div>
-      <div class="kpi-delta">
-        <span>0</span>
-        <span>0%</span>
-      </div>
-      <div class="kpi-tooltip">Percentual de atividades concluídas no prazo.</div>
-      
-    </div>
-  
-    <div class="kpi-card tone-positive">
-      <div class="kpi-label">Compliance documental</div>
-      <div class="kpi-value">100%</div>
-      <div class="kpi-delta">
-        <span>0</span>
-        <span>0%</span>
-      </div>
-      <div class="kpi-tooltip">Percentual de compliance documental das atividades executadas.</div>
-      <div class="kpi-trace">docsOk / docsRequired</div>
-    </div>
-  
-    <div class="kpi-card tone-neutral">
-      <div class="kpi-label">Horas executadas</div>
-      <div class="kpi-value">0h</div>
-      <div class="kpi-delta">
-        <span>0</span>
-        <span>-</span>
-      </div>
-      <div class="kpi-tooltip">Horas estimadas ou calculadas de execução no período.</div>
-      <div class="kpi-trace">sum of executionDurationHours or computed diff</div>
-    </div>
-  
-    <div class="kpi-card tone-neutral">
-      <div class="kpi-label">Evidências</div>
-      <div class="kpi-value">10</div>
-      <div class="kpi-delta">
-        <span>+7</span>
-        <span>+233,3%</span>
-      </div>
-      <div class="kpi-tooltip">Evidências registradas em atividades e RDOs.</div>
-      <div class="kpi-trace">sum of evidence counts</div>
+      <div class="kpi-delta">0 0%</div>
     </div>
   </div>
+
+    <div class="executive-grid">
+      <div class="executive-main">
+        
+    <div class="executive-summary">
+      <div class="executive-summary__title">Resumo executivo</div>
+      <div class="executive-summary__headline">Execução 100% do planejado • SLA 100%</div>
+      <p class="executive-summary__lead">Planejadas 5 atividades e executadas 5, indicando desempenho operacional dentro das metas estabelecidas.</p>
+      
+    <div class="narrative-blocks">
+      
+          <div class="narrative-block">
+            <div class="narrative-title">Leitura do mês</div>
+            <div class="narrative-text">O período encerrou com 5 entregas sobre 5 planejadas (100%), com desempenho operacional dentro das metas estabelecidas.</div>
+          </div>
+        
+          <div class="narrative-block">
+            <div class="narrative-title">O que performou bem</div>
+            <div class="narrative-text">Execução dentro da meta (100%). SLA sustentado em 100%. Backlog e vencimentos sob controle. Compliance documental em 100%.</div>
+          </div>
+        
+          <div class="narrative-block">
+            <div class="narrative-title">O que exigiu atenção</div>
+            <div class="narrative-text">Não foram observados desvios relevantes no período.</div>
+          </div>
+        
+          <div class="narrative-block">
+            <div class="narrative-title">Impacto operacional</div>
+            <div class="narrative-text">A operação manteve previsibilidade de entrega, com impacto operacional controlado.</div>
+          </div>
+        
+          <div class="narrative-block">
+            <div class="narrative-title">SLA e compliance</div>
+            <div class="narrative-text">SLA em 100% das atividades elegíveis. Compliance documental em 100%, com 0 pendências parciais.</div>
+          </div>
+        
+    </div>
+  
+      <ul><li>Planejadas: variação de +3 (+150%).</li><li>Executadas: variação de +3 (+150%).</li></ul>
+      <p class="executive-summary__conclusion">Conclusão gerencial: Manter o ritmo operacional e reforçar governança de prazos para sustentar o desempenho.</p>
+    </div>
+  
+      </div>
+      <div class="executive-side">
+        <div class="executive-side__title">Desvios e alertas</div>
+        
+    <div class="highlight-grid">
+      
+          <div class="highlight-card tone-positive">
+            <div class="highlight-title">Entrega e ritmo</div>
+            <div class="highlight-text">Execução 100% do planejado (5 de 5).</div>
+          </div>
+        
+          <div class="highlight-card tone-positive">
+            <div class="highlight-title">Desvios críticos</div>
+            <div class="highlight-text">Sem desvios críticos no período.</div>
+          </div>
+        
+          <div class="highlight-card tone-neutral">
+            <div class="highlight-title">Direcionamento</div>
+            <div class="highlight-text">Manter o ritmo operacional e reforçar governança de prazos para sustentar o desempenho.</div>
+          </div>
+        
+    </div>
+  
+      </div>
+    </div>
 
     
     <div class="section-header">
@@ -506,111 +955,152 @@ tr {
     <div class="comparison-card">
       <div class="comparison-label">Planejadas</div>
       <div class="comparison-values">
-        <span class="current">5</span>
-        <span class="previous">2</span>
+        <div class="comparison-value">
+          <span class="comparison-caption">Atual</span>
+          <span class="comparison-number">5</span>
+        </div>
+        <div class="comparison-value">
+          <span class="comparison-caption">Anterior</span>
+          <span class="comparison-number">2</span>
+        </div>
       </div>
-      <div class="comparison-delta">
-        <span>+3</span>
-        <span>+150%</span>
-      </div>
+      <div class="comparison-delta comparison-delta--positive">+3 +150%</div>
     </div>
   
     <div class="comparison-card">
       <div class="comparison-label">Executadas</div>
       <div class="comparison-values">
-        <span class="current">5</span>
-        <span class="previous">2</span>
+        <div class="comparison-value">
+          <span class="comparison-caption">Atual</span>
+          <span class="comparison-number">5</span>
+        </div>
+        <div class="comparison-value">
+          <span class="comparison-caption">Anterior</span>
+          <span class="comparison-number">2</span>
+        </div>
       </div>
-      <div class="comparison-delta">
-        <span>+3</span>
-        <span>+150%</span>
-      </div>
+      <div class="comparison-delta comparison-delta--positive">+3 +150%</div>
     </div>
   
     <div class="comparison-card">
       <div class="comparison-label">Backlog</div>
       <div class="comparison-values">
-        <span class="current">0</span>
-        <span class="previous">0</span>
+        <div class="comparison-value">
+          <span class="comparison-caption">Atual</span>
+          <span class="comparison-number">0</span>
+        </div>
+        <div class="comparison-value">
+          <span class="comparison-caption">Anterior</span>
+          <span class="comparison-number">0</span>
+        </div>
       </div>
-      <div class="comparison-delta">
-        <span>0</span>
-        <span>-</span>
-      </div>
+      <div class="comparison-delta">0 -</div>
     </div>
   
     <div class="comparison-card">
       <div class="comparison-label">Overdue</div>
       <div class="comparison-values">
-        <span class="current">0</span>
-        <span class="previous">0</span>
+        <div class="comparison-value">
+          <span class="comparison-caption">Atual</span>
+          <span class="comparison-number">0</span>
+        </div>
+        <div class="comparison-value">
+          <span class="comparison-caption">Anterior</span>
+          <span class="comparison-number">0</span>
+        </div>
       </div>
-      <div class="comparison-delta">
-        <span>0</span>
-        <span>-</span>
-      </div>
+      <div class="comparison-delta">0 -</div>
     </div>
   
     <div class="comparison-card">
       <div class="comparison-label">SLA no prazo</div>
       <div class="comparison-values">
-        <span class="current">100</span>
-        <span class="previous">100</span>
+        <div class="comparison-value">
+          <span class="comparison-caption">Atual</span>
+          <span class="comparison-number">100</span>
+        </div>
+        <div class="comparison-value">
+          <span class="comparison-caption">Anterior</span>
+          <span class="comparison-number">100</span>
+        </div>
       </div>
-      <div class="comparison-delta">
-        <span>0</span>
-        <span>0%</span>
-      </div>
+      <div class="comparison-delta">0 0%</div>
     </div>
   
     <div class="comparison-card">
       <div class="comparison-label">Compliance documental</div>
       <div class="comparison-values">
-        <span class="current">100</span>
-        <span class="previous">100</span>
+        <div class="comparison-value">
+          <span class="comparison-caption">Atual</span>
+          <span class="comparison-number">100</span>
+        </div>
+        <div class="comparison-value">
+          <span class="comparison-caption">Anterior</span>
+          <span class="comparison-number">100</span>
+        </div>
       </div>
-      <div class="comparison-delta">
-        <span>0</span>
-        <span>0%</span>
-      </div>
+      <div class="comparison-delta">0 0%</div>
     </div>
   
     <div class="comparison-card">
       <div class="comparison-label">Horas executadas</div>
       <div class="comparison-values">
-        <span class="current">0</span>
-        <span class="previous">0</span>
+        <div class="comparison-value">
+          <span class="comparison-caption">Atual</span>
+          <span class="comparison-number">0</span>
+        </div>
+        <div class="comparison-value">
+          <span class="comparison-caption">Anterior</span>
+          <span class="comparison-number">0</span>
+        </div>
       </div>
-      <div class="comparison-delta">
-        <span>0</span>
-        <span>-</span>
-      </div>
+      <div class="comparison-delta">0 -</div>
     </div>
   
     <div class="comparison-card">
       <div class="comparison-label">Evidências</div>
       <div class="comparison-values">
-        <span class="current">10</span>
-        <span class="previous">3</span>
+        <div class="comparison-value">
+          <span class="comparison-caption">Atual</span>
+          <span class="comparison-number">10</span>
+        </div>
+        <div class="comparison-value">
+          <span class="comparison-caption">Anterior</span>
+          <span class="comparison-number">3</span>
+        </div>
       </div>
-      <div class="comparison-delta">
-        <span>+7</span>
-        <span>+233,3%</span>
-      </div>
+      <div class="comparison-delta comparison-delta--positive">+7 +233,3%</div>
     </div>
   </div>
 
     
     <div class="section-header">
-      <h2>Resumo executivo</h2>
-      <p>Síntese gerencial do período.</p>
+      <h2>Indicadores complementares</h2>
+      <p>Apoio à leitura executiva.</p>
     </div>
   
-    <p>No período, foram planejadas 5 atividades e executadas 5 (100%). SLA no prazo: 100%. Compliance documental: 100%.</p>
-    <ul><li>Planejadas: variação de +3 vs período anterior.</li><li>Executadas: variação de +3 vs período anterior.</li></ul>
+    <div class="kpi-grid">
+    <div class="kpi-card tone-positive">
+      <div class="kpi-label">Compliance documental</div>
+      <div class="kpi-value">100%</div>
+      <div class="kpi-delta">0 0%</div>
+    </div>
+  
+    <div class="kpi-card tone-neutral">
+      <div class="kpi-label">Horas executadas</div>
+      <div class="kpi-value">0h</div>
+      <div class="kpi-delta">0</div>
+    </div>
+  
+    <div class="kpi-card tone-neutral">
+      <div class="kpi-label">Evidências</div>
+      <div class="kpi-value">10</div>
+      <div class="kpi-delta kpi-delta--positive">+7 +233,3%</div>
+    </div>
+  </div>
   
     <footer class="report-footer">
-      <span class="footer-left">Documento controlado e interno.</span>
+      <span class="footer-left">Relatório Mensal Executivo • Engelmig | Opscope</span>
       <span class="footer-right">Página <span class="page-number"></span></span>
     </footer>
   </section>
@@ -618,7 +1108,7 @@ tr {
     
     <div class="section-header">
       <h2>Tendências e performance</h2>
-      <p>Tendência semanal de atividades planejadas vs executadas.</p>
+      <p>A série semanal evidencia aderência entre planejamento e execução, com 100% de entrega no acumulado. Pico de programação em S1 (3 atividades). Os insights abaixo destacam os pontos de atenção e estabilidade do período.</p>
     </div>
   
     <div class="chart-grid">
@@ -626,20 +1116,37 @@ tr {
     <div class="chart-container">
       <div class="chart-header">
         <h4>Evolução semanal</h4>
-        <span>Planejadas vs executadas</span>
+        <span class="chart-subtitle">Planejadas vs executadas</span>
       </div>
       <div class="chart-svg">
-    <svg width="520" height="220" viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg">
-      <line x1="40" y1="26" x2="40" y2="182" stroke="#d1d9ee" />
-      <line x1="40" y1="182" x2="504" y2="182" stroke="#d1d9ee" />
+    <svg width="520" height="240" viewBox="0 0 520 240" xmlns="http://www.w3.org/2000/svg">
       
-        <polyline fill="none" stroke="#1d4ed8" stroke-width="2" points="40,88.4 156,119.6 272,182 388,182 504,182" />
-        <circle cx="40" cy="88.4" r="3" fill="#1d4ed8" /><circle cx="156" cy="119.6" r="3" fill="#1d4ed8" /><circle cx="272" cy="182" r="3" fill="#1d4ed8" /><circle cx="388" cy="182" r="3" fill="#1d4ed8" /><circle cx="504" cy="182" r="3" fill="#1d4ed8" />
+        <line x1="46" y1="198" x2="504" y2="198" stroke="#e3e8f1" />
+        <text x="40" y="202" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
       
-        <polyline fill="none" stroke="#16a34a" stroke-width="2" points="40,57.19999999999999 156,150.8 272,182 388,182 504,182" />
-        <circle cx="40" cy="57.19999999999999" r="3" fill="#16a34a" /><circle cx="156" cy="150.8" r="3" fill="#16a34a" /><circle cx="272" cy="182" r="3" fill="#16a34a" /><circle cx="388" cy="182" r="3" fill="#16a34a" /><circle cx="504" cy="182" r="3" fill="#16a34a" />
+        <line x1="46" y1="100.8" x2="504" y2="100.8" stroke="#e3e8f1" />
+        <text x="40" y="104.8" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">3</text>
       
-      <text x="40" y="210" font-size="11" text-anchor="middle" fill="#334155">S1</text><text x="156" y="210" font-size="11" text-anchor="middle" fill="#334155">S2</text><text x="272" y="210" font-size="11" text-anchor="middle" fill="#334155">S3</text><text x="388" y="210" font-size="11" text-anchor="middle" fill="#334155">S4</text><text x="504" y="210" font-size="11" text-anchor="middle" fill="#334155">S5</text>
+        <line x1="46" y1="36" x2="504" y2="36" stroke="#e3e8f1" />
+        <text x="40" y="40" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">5</text>
+      
+      <line x1="46" y1="36" x2="46" y2="198" stroke="#c7d2e0" />
+      <line x1="46" y1="198" x2="504" y2="198" stroke="#c7d2e0" />
+      
+        <polyline fill="none" stroke="#0b2f4f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" points="46,100.8 160.5,133.2 275,198 389.5,198 504,198" />
+        <circle cx="46" cy="100.8" r="3.2" fill="#0b2f4f" stroke="#ffffff" stroke-width="1" /><circle cx="160.5" cy="133.2" r="3.2" fill="#0b2f4f" stroke="#ffffff" stroke-width="1" /><circle cx="275" cy="198" r="3.2" fill="#0b2f4f" stroke="#ffffff" stroke-width="1" /><circle cx="389.5" cy="198" r="3.2" fill="#0b2f4f" stroke="#ffffff" stroke-width="1" /><circle cx="504" cy="198" r="3.2" fill="#0b2f4f" stroke="#ffffff" stroke-width="1" />
+      
+        <polyline fill="none" stroke="#0f766e" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" points="46,68.4 160.5,165.6 275,198 389.5,198 504,198" />
+        <circle cx="46" cy="68.4" r="3.2" fill="#0f766e" stroke="#ffffff" stroke-width="1" /><circle cx="160.5" cy="165.6" r="3.2" fill="#0f766e" stroke="#ffffff" stroke-width="1" /><circle cx="275" cy="198" r="3.2" fill="#0f766e" stroke="#ffffff" stroke-width="1" /><circle cx="389.5" cy="198" r="3.2" fill="#0f766e" stroke="#ffffff" stroke-width="1" /><circle cx="504" cy="198" r="3.2" fill="#0f766e" stroke="#ffffff" stroke-width="1" />
+      
+      <text x="46" y="228" font-size="10.5" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">S1</text><text x="160.5" y="228" font-size="10.5" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">S2</text><text x="275" y="228" font-size="10.5" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">S3</text><text x="389.5" y="228" font-size="10.5" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">S4</text><text x="504" y="228" font-size="10.5" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">S5</text>
+      
+        <rect x="364" y="8" width="10" height="10" fill="#0b2f4f" />
+        <text x="378" y="16" font-size="10" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Planejadas: 0</text>
+      
+        <rect x="364" y="22" width="10" height="10" fill="#0f766e" />
+        <text x="378" y="30" font-size="10" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Executadas: 0</text>
+      
     </svg>
   </div>
     </div>
@@ -648,17 +1155,31 @@ tr {
     <div class="chart-container">
       <div class="chart-header">
         <h4>Evolução de backlog</h4>
-        <span>Cumulativo no período</span>
+        <span class="chart-subtitle">Cumulativo no período</span>
       </div>
       <div class="chart-svg">
-    <svg width="520" height="220" viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg">
-      <line x1="40" y1="26" x2="40" y2="182" stroke="#d1d9ee" />
-      <line x1="40" y1="182" x2="504" y2="182" stroke="#d1d9ee" />
+    <svg width="520" height="240" viewBox="0 0 520 240" xmlns="http://www.w3.org/2000/svg">
       
-        <polyline fill="none" stroke="#b45309" stroke-width="2" points="40,182 156,182 272,182 388,182 504,182" />
-        <circle cx="40" cy="182" r="3" fill="#b45309" /><circle cx="156" cy="182" r="3" fill="#b45309" /><circle cx="272" cy="182" r="3" fill="#b45309" /><circle cx="388" cy="182" r="3" fill="#b45309" /><circle cx="504" cy="182" r="3" fill="#b45309" />
+        <line x1="46" y1="198" x2="504" y2="198" stroke="#e3e8f1" />
+        <text x="40" y="202" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
       
-      <text x="40" y="210" font-size="11" text-anchor="middle" fill="#334155">S1</text><text x="156" y="210" font-size="11" text-anchor="middle" fill="#334155">S2</text><text x="272" y="210" font-size="11" text-anchor="middle" fill="#334155">S3</text><text x="388" y="210" font-size="11" text-anchor="middle" fill="#334155">S4</text><text x="504" y="210" font-size="11" text-anchor="middle" fill="#334155">S5</text>
+        <line x1="46" y1="36" x2="504" y2="36" stroke="#e3e8f1" />
+        <text x="40" y="40" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">1</text>
+      
+        <line x1="46" y1="36" x2="504" y2="36" stroke="#e3e8f1" />
+        <text x="40" y="40" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">1</text>
+      
+      <line x1="46" y1="36" x2="46" y2="198" stroke="#c7d2e0" />
+      <line x1="46" y1="198" x2="504" y2="198" stroke="#c7d2e0" />
+      
+        <polyline fill="none" stroke="#b45309" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" points="46,198 160.5,198 275,198 389.5,198 504,198" />
+        <circle cx="46" cy="198" r="3.2" fill="#b45309" stroke="#ffffff" stroke-width="1" /><circle cx="160.5" cy="198" r="3.2" fill="#b45309" stroke="#ffffff" stroke-width="1" /><circle cx="275" cy="198" r="3.2" fill="#b45309" stroke="#ffffff" stroke-width="1" /><circle cx="389.5" cy="198" r="3.2" fill="#b45309" stroke="#ffffff" stroke-width="1" /><circle cx="504" cy="198" r="3.2" fill="#b45309" stroke="#ffffff" stroke-width="1" />
+      
+      <text x="46" y="228" font-size="10.5" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">S1</text><text x="160.5" y="228" font-size="10.5" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">S2</text><text x="275" y="228" font-size="10.5" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">S3</text><text x="389.5" y="228" font-size="10.5" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">S4</text><text x="504" y="228" font-size="10.5" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">S5</text>
+      
+        <rect x="364" y="8" width="10" height="10" fill="#b45309" />
+        <text x="378" y="16" font-size="10" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Backlog (status): 0</text>
+      
     </svg>
   </div>
     </div>
@@ -667,28 +1188,43 @@ tr {
     <div class="chart-container">
       <div class="chart-header">
         <h4>Distribuição por status</h4>
-        
+        <span class="chart-subtitle">Planejadas</span>
       </div>
       <div class="chart-svg">
-    <svg width="520" height="220" viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg">
-      <line x1="40" y1="22" x2="40" y2="176" stroke="#d1d9ee" />
-      <line x1="40" y1="176" x2="504" y2="176" stroke="#d1d9ee" />
-      <text x="40" y="16" font-size="11" fill="#64748b">Atividades</text>
+    <svg width="520" height="240" viewBox="0 0 520 240" xmlns="http://www.w3.org/2000/svg">
       
-        <rect x="48" y="22" width="76.8" height="154" fill="#1d4ed8" rx="2" />
-        <text x="86.4" y="208" font-size="11" text-anchor="middle" fill="#334155">concluida</text>
+        <line x1="46" y1="186" x2="504" y2="186" stroke="#e3e8f1" />
+        <text x="40" y="190" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
       
-        <rect x="140.8" y="176" width="76.8" height="0" fill="#0ea5e9" rx="2" />
-        <text x="179.20000000000002" y="208" font-size="11" text-anchor="middle" fill="#334155">em_execucao</text>
+        <line x1="46" y1="91.2" x2="504" y2="91.2" stroke="#e3e8f1" />
+        <text x="40" y="95.2" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">3</text>
       
-        <rect x="233.6" y="176" width="76.8" height="0" fill="#1d4ed8" rx="2" />
-        <text x="272" y="208" font-size="11" text-anchor="middle" fill="#334155">agendada</text>
+        <line x1="46" y1="28" x2="504" y2="28" stroke="#e3e8f1" />
+        <text x="40" y="32" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">5</text>
       
-        <rect x="326.4" y="176" width="76.8" height="0" fill="#0ea5e9" rx="2" />
-        <text x="364.79999999999995" y="208" font-size="11" text-anchor="middle" fill="#334155">backlog</text>
+      <line x1="46" y1="28" x2="46" y2="186" stroke="#c7d2e0" />
+      <line x1="46" y1="186" x2="504" y2="186" stroke="#c7d2e0" />
+      <text x="46" y="20" font-size="10.5" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Atividades</text>
       
-        <rect x="419.2" y="176" width="76.8" height="0" fill="#1d4ed8" rx="2" />
-        <text x="457.59999999999997" y="208" font-size="11" text-anchor="middle" fill="#334155">cancelada</text>
+        <rect x="54" y="28" width="75.6" height="158" fill="#0b2f4f" rx="3" />
+        <text x="91.8" y="24" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">5</text>
+        <text x="91.8" y="228" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Concluída</text>
+      
+        <rect x="145.6" y="186" width="75.6" height="0" fill="#0f766e" rx="3" />
+        <text x="183.39999999999998" y="182" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
+        <text x="183.39999999999998" y="228" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Em execução</text>
+      
+        <rect x="237.2" y="186" width="75.6" height="0" fill="#c2a15c" rx="3" />
+        <text x="275" y="182" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
+        <text x="275" y="228" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Agendada</text>
+      
+        <rect x="328.79999999999995" y="186" width="75.6" height="0" fill="#64748b" rx="3" />
+        <text x="366.59999999999997" y="182" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
+        <text x="366.59999999999997" y="228" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Backlog</text>
+      
+        <rect x="420.4" y="186" width="75.6" height="0" fill="#0b2f4f" rx="3" />
+        <text x="458.2" y="182" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
+        <text x="458.2" y="228" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Cancelada</text>
       
     </svg>
   </div>
@@ -698,16 +1234,19 @@ tr {
     <div class="chart-container">
       <div class="chart-header">
         <h4>SLA no prazo vs fora do prazo</h4>
-        
+        <span class="chart-subtitle">Percentual</span>
       </div>
       <div class="chart-svg">
-    <svg width="520" height="220" viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg">
-      <rect x="40" y="26" width="464" height="158" fill="#f3f6f9" stroke="#d9e2ec" />
-      <rect x="40" y="26" width="464" height="158" fill="#16a34a" />
-      <rect x="504" y="26" width="0" height="158" fill="#dc2626" />
-      <text x="40" y="210" font-size="11" fill="#334155">SLA no prazo</text>
-      <text x="46" y="105" font-size="11" fill="#ffffff">No prazo: 100</text>
-      <text x="510" y="105" font-size="11" fill="#ffffff">Fora do prazo: 0</text>
+    <svg width="520" height="240" viewBox="0 0 520 240" xmlns="http://www.w3.org/2000/svg">
+      <text x="46" y="18" font-size="11" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">SLA no prazo</text>
+      <rect x="46" y="24" width="10" height="10" fill="#0f766e" />
+      <text x="60" y="33" font-size="11" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">No prazo: 100%</text>
+      <rect x="206" y="24" width="10" height="10" fill="#b45309" />
+      <text x="220" y="33" font-size="11" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Fora do prazo: 0%</text>
+
+      <rect x="46" y="44" width="458" height="162" fill="#f2f4f7" stroke="#d7e0ea" />
+      <rect x="46" y="44" width="458" height="162" fill="#0f766e" />
+      <rect x="504" y="44" width="0" height="162" fill="#b45309" />
     </svg>
   </div>
     </div>
@@ -715,25 +1254,28 @@ tr {
     </div>
     <div class="insight-grid">
     <div class="insight-card tone-positive">
-      <div class="insight-text">A execução do período manteve ritmo consistente em relação ao planejado.</div>
-      <div class="insight-rule">executed/planned &gt;= 90%</div>
+      <div class="insight-text">Execução alinhada ao planejado, indicando estabilidade de capacidade.</div>
     </div>
   
     <div class="insight-card tone-positive">
-      <div class="insight-text">O SLA ficou dentro da meta estabelecida.</div>
-      <div class="insight-rule">slaOnTimePct &gt;= 90</div>
+      <div class="insight-text">SLA dentro da meta contratual.</div>
     </div>
   
     <div class="insight-card tone-positive">
-      <div class="insight-text">A conformidade documental ficou dentro do padrão esperado.</div>
-      <div class="insight-rule">docsCompliancePct &gt;= 95</div>
+      <div class="insight-text">Conformidade documental dentro do padrão esperado.</div>
     </div>
   </div>
-
+  
+    <footer class="report-footer">
+      <span class="footer-left">Relatório Mensal Executivo • Engelmig | Opscope</span>
+      <span class="footer-right">Página <span class="page-number"></span></span>
+    </footer>
+  </section>
+      <section class="report-page page-break">
     
     <div class="section-header">
       <h2>Análise operacional</h2>
-      <p>Distribuição operacional por status, tipo, local, equipe e prioridade.</p>
+      <p>Distribuição das atividades planejadas por status, categoria, local, equipe e prioridade. A operação concentrou-se em categoria Inspecao, local Não informado, equipe Não informado. Prioridade dominante: Normal.</p>
     </div>
   
     <div class="chart-grid">
@@ -741,16 +1283,27 @@ tr {
     <div class="chart-container">
       <div class="chart-header">
         <h4>Distribuição por categoria</h4>
-        <span>Top categorias</span>
+        <span class="chart-subtitle">Top categorias</span>
       </div>
       <div class="chart-svg">
-    <svg width="520" height="220" viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg">
-      <line x1="40" y1="22" x2="40" y2="176" stroke="#d1d9ee" />
-      <line x1="40" y1="176" x2="504" y2="176" stroke="#d1d9ee" />
-      <text x="40" y="16" font-size="11" fill="#64748b">Atividades</text>
+    <svg width="520" height="240" viewBox="0 0 520 240" xmlns="http://www.w3.org/2000/svg">
       
-        <rect x="48" y="22" width="448" height="154" fill="#1d4ed8" rx="2" />
-        <text x="272" y="208" font-size="11" text-anchor="middle" fill="#334155">inspecao</text>
+        <line x1="46" y1="186" x2="504" y2="186" stroke="#e3e8f1" />
+        <text x="40" y="190" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
+      
+        <line x1="46" y1="91.2" x2="504" y2="91.2" stroke="#e3e8f1" />
+        <text x="40" y="95.2" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">3</text>
+      
+        <line x1="46" y1="28" x2="504" y2="28" stroke="#e3e8f1" />
+        <text x="40" y="32" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">5</text>
+      
+      <line x1="46" y1="28" x2="46" y2="186" stroke="#c7d2e0" />
+      <line x1="46" y1="186" x2="504" y2="186" stroke="#c7d2e0" />
+      <text x="46" y="20" font-size="10.5" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Atividades</text>
+      
+        <rect x="54" y="28" width="442" height="158" fill="#0b2f4f" rx="3" />
+        <text x="275" y="24" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">5</text>
+        <text x="275" y="228" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Inspecao</text>
       
     </svg>
   </div>
@@ -760,16 +1313,27 @@ tr {
     <div class="chart-container">
       <div class="chart-header">
         <h4>Top locais</h4>
-        <span>Volume por local</span>
+        <span class="chart-subtitle">Volume por local</span>
       </div>
       <div class="chart-svg">
-    <svg width="520" height="220" viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg">
-      <line x1="40" y1="22" x2="40" y2="176" stroke="#d1d9ee" />
-      <line x1="40" y1="176" x2="504" y2="176" stroke="#d1d9ee" />
-      <text x="40" y="16" font-size="11" fill="#64748b">Atividades</text>
+    <svg width="520" height="240" viewBox="0 0 520 240" xmlns="http://www.w3.org/2000/svg">
       
-        <rect x="48" y="22" width="448" height="154" fill="#1d4ed8" rx="2" />
-        <text x="272" y="208" font-size="11" text-anchor="middle" fill="#334155">nao_informado</text>
+        <line x1="46" y1="186" x2="504" y2="186" stroke="#e3e8f1" />
+        <text x="40" y="190" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
+      
+        <line x1="46" y1="91.2" x2="504" y2="91.2" stroke="#e3e8f1" />
+        <text x="40" y="95.2" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">3</text>
+      
+        <line x1="46" y1="28" x2="504" y2="28" stroke="#e3e8f1" />
+        <text x="40" y="32" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">5</text>
+      
+      <line x1="46" y1="28" x2="46" y2="186" stroke="#c7d2e0" />
+      <line x1="46" y1="186" x2="504" y2="186" stroke="#c7d2e0" />
+      <text x="46" y="20" font-size="10.5" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Atividades</text>
+      
+        <rect x="54" y="28" width="442" height="158" fill="#0b2f4f" rx="3" />
+        <text x="275" y="24" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">5</text>
+        <text x="275" y="228" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Não informa…</text>
       
     </svg>
   </div>
@@ -779,16 +1343,27 @@ tr {
     <div class="chart-container">
       <div class="chart-header">
         <h4>Criticidade por prioridade</h4>
-        <span>Distribuição</span>
+        <span class="chart-subtitle">Distribuição</span>
       </div>
       <div class="chart-svg">
-    <svg width="520" height="220" viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg">
-      <line x1="40" y1="22" x2="40" y2="176" stroke="#d1d9ee" />
-      <line x1="40" y1="176" x2="504" y2="176" stroke="#d1d9ee" />
-      <text x="40" y="16" font-size="11" fill="#64748b">Atividades</text>
+    <svg width="520" height="240" viewBox="0 0 520 240" xmlns="http://www.w3.org/2000/svg">
       
-        <rect x="48" y="22" width="448" height="154" fill="#1d4ed8" rx="2" />
-        <text x="272" y="208" font-size="11" text-anchor="middle" fill="#334155">normal</text>
+        <line x1="46" y1="186" x2="504" y2="186" stroke="#e3e8f1" />
+        <text x="40" y="190" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
+      
+        <line x1="46" y1="91.2" x2="504" y2="91.2" stroke="#e3e8f1" />
+        <text x="40" y="95.2" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">3</text>
+      
+        <line x1="46" y1="28" x2="504" y2="28" stroke="#e3e8f1" />
+        <text x="40" y="32" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">5</text>
+      
+      <line x1="46" y1="28" x2="46" y2="186" stroke="#c7d2e0" />
+      <line x1="46" y1="186" x2="504" y2="186" stroke="#c7d2e0" />
+      <text x="46" y="20" font-size="10.5" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Atividades</text>
+      
+        <rect x="54" y="28" width="442" height="158" fill="#0b2f4f" rx="3" />
+        <text x="275" y="24" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">5</text>
+        <text x="275" y="228" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Normal</text>
       
     </svg>
   </div>
@@ -809,31 +1384,31 @@ tr {
             <tbody>
               
                   <tr>
-                    <td>concluida</td>
+                    <td>Concluída</td>
                     <td>5</td>
                     <td>100%</td>
                   </tr>
                 
                   <tr>
-                    <td>em_execucao</td>
+                    <td>Em execução</td>
                     <td>0</td>
                     <td>0%</td>
                   </tr>
                 
                   <tr>
-                    <td>agendada</td>
+                    <td>Agendada</td>
                     <td>0</td>
                     <td>0%</td>
                   </tr>
                 
                   <tr>
-                    <td>backlog</td>
+                    <td>Backlog</td>
                     <td>0</td>
                     <td>0%</td>
                   </tr>
                 
                   <tr>
-                    <td>cancelada</td>
+                    <td>Cancelada</td>
                     <td>0</td>
                     <td>0%</td>
                   </tr>
@@ -855,7 +1430,7 @@ tr {
             <tbody>
               
                   <tr>
-                    <td>inspecao</td>
+                    <td>Inspecao</td>
                     <td>5</td>
                     <td>100%</td>
                   </tr>
@@ -877,7 +1452,7 @@ tr {
             <tbody>
               
                   <tr>
-                    <td>nao_informado</td>
+                    <td>Não informado</td>
                     <td>5</td>
                     <td>100%</td>
                   </tr>
@@ -899,7 +1474,7 @@ tr {
             <tbody>
               
                   <tr>
-                    <td>nao_informado</td>
+                    <td>Não informado</td>
                     <td>5</td>
                     <td>100%</td>
                   </tr>
@@ -921,7 +1496,7 @@ tr {
             <tbody>
               
                   <tr>
-                    <td>normal</td>
+                    <td>Normal</td>
                     <td>5</td>
                     <td>100%</td>
                   </tr>
@@ -932,7 +1507,7 @@ tr {
       
   
     <footer class="report-footer">
-      <span class="footer-left">Documento controlado e interno.</span>
+      <span class="footer-left">Relatório Mensal Executivo • Engelmig | Opscope</span>
       <span class="footer-right">Página <span class="page-number"></span></span>
     </footer>
   </section>
@@ -940,17 +1515,18 @@ tr {
     
     <div class="section-header">
       <h2>Segurança, compliance e evidências</h2>
-      <p>Compliance documental de 100%.</p>
+      <p>Compliance documental de 100% no período. Evidências registradas: 10.</p>
     </div>
   
+    <p class="section-note">Compliance acompanhado com base nas exigências documentais e evidências reportadas.</p>
     
     <table class="compliance-table">
       <thead>
         <tr>
-          <th>Docs Required</th>
-          <th>Docs Ok</th>
-          <th>Docs Partial</th>
-          <th>Docs Unknown</th>
+          <th>Documentos exigidos</th>
+          <th>Documentos ok</th>
+          <th>Parciais</th>
+          <th>Não informado</th>
           <th>Compliance</th>
         </tr>
       </thead>
@@ -969,10 +1545,38 @@ tr {
     
     <div class="section-header">
       <h2>Análise técnica</h2>
-      <p>Destaques técnicos com base na distribuição das atividades e criticidade.</p>
+      <p>Leitura técnica da distribuição das atividades, criticidade e concentração operacional.</p>
     </div>
   
-    <ul><li>Categoria dominante: inspecao (5 atividades).</li></ul>
+    
+        <p class="section-note">A análise técnica evidencia onde o esforço se concentrou e quais frentes exigem atenção de engenharia.</p>
+        
+    <div class="narrative-blocks">
+      
+          <div class="narrative-block">
+            <div class="narrative-title">Contexto do período</div>
+            <div class="narrative-text">Volume total de 5 atividades, com 5 executadas.</div>
+          </div>
+        
+          <div class="narrative-block">
+            <div class="narrative-title">Concentração de esforço</div>
+            <div class="narrative-text">Maior concentração em Inspecao (5 atividades).</div>
+          </div>
+        
+          <div class="narrative-block">
+            <div class="narrative-title">Pendências relevantes</div>
+            <div class="narrative-text">Sem pendências críticas no período.</div>
+          </div>
+        
+          <div class="narrative-block">
+            <div class="narrative-title">Ação recomendada</div>
+            <div class="narrative-text">Manter disciplina de programação e monitorar criticidade para sustentar estabilidade.</div>
+          </div>
+        
+    </div>
+  
+        <ul><li>Prioridade dominante: Normal (5 atividades).</li></ul>
+      
 
     
     <div class="section-header">
@@ -981,13 +1585,27 @@ tr {
     </div>
   
     
+    
     <div class="empty-state">
       Sem riscos relevantes identificados.
     </div>
   
+    <p class="section-note">Não foram identificadas recomendações adicionais no período.</p>
     
     <div class="empty-state">
       Não foram identificadas recomendações adicionais no período.
+    </div>
+  
+
+    
+    <div class="section-header">
+      <h2>Backlog e justificativas</h2>
+      <p>Sem dados de backlog para o período.</p>
+    </div>
+  
+    
+    <div class="empty-state">
+      Sem backlog com justificativa registrada.
     </div>
   
 
@@ -1004,7 +1622,7 @@ tr {
   
   
     <footer class="report-footer">
-      <span class="footer-left">Documento controlado e interno.</span>
+      <span class="footer-left">Relatório Mensal Executivo • Engelmig | Opscope</span>
       <span class="footer-right">Página <span class="page-number"></span></span>
     </footer>
   </section>
@@ -1012,7 +1630,7 @@ tr {
     
     <div class="section-header">
       <h2>Tabelas consolidadas</h2>
-      <p>Tabelas consolidadas de distribuição e status.</p>
+      <p>Tabelas consolidadas com visão completa do período para auditoria e revisão gerencial.</p>
     </div>
   
     
@@ -1029,31 +1647,31 @@ tr {
             <tbody>
               
                   <tr>
-                    <td>concluida</td>
+                    <td>Concluída</td>
                     <td>5</td>
                     <td>100%</td>
                   </tr>
                 
                   <tr>
-                    <td>em_execucao</td>
+                    <td>Em execução</td>
                     <td>0</td>
                     <td>0%</td>
                   </tr>
                 
                   <tr>
-                    <td>agendada</td>
+                    <td>Agendada</td>
                     <td>0</td>
                     <td>0%</td>
                   </tr>
                 
                   <tr>
-                    <td>backlog</td>
+                    <td>Backlog</td>
                     <td>0</td>
                     <td>0%</td>
                   </tr>
                 
                   <tr>
-                    <td>cancelada</td>
+                    <td>Cancelada</td>
                     <td>0</td>
                     <td>0%</td>
                   </tr>
@@ -1075,7 +1693,7 @@ tr {
             <tbody>
               
                   <tr>
-                    <td>inspecao</td>
+                    <td>Inspecao</td>
                     <td>5</td>
                     <td>100%</td>
                   </tr>
@@ -1097,7 +1715,7 @@ tr {
             <tbody>
               
                   <tr>
-                    <td>nao_informado</td>
+                    <td>Não informado</td>
                     <td>5</td>
                     <td>100%</td>
                   </tr>
@@ -1119,7 +1737,7 @@ tr {
             <tbody>
               
                   <tr>
-                    <td>nao_informado</td>
+                    <td>Não informado</td>
                     <td>5</td>
                     <td>100%</td>
                   </tr>
@@ -1141,7 +1759,7 @@ tr {
             <tbody>
               
                   <tr>
-                    <td>normal</td>
+                    <td>Normal</td>
                     <td>5</td>
                     <td>100%</td>
                   </tr>
@@ -1184,7 +1802,7 @@ tr {
   </div>
   
     <footer class="report-footer">
-      <span class="footer-left">Documento controlado e interno.</span>
+      <span class="footer-left">Relatório Mensal Executivo • Engelmig | Opscope</span>
       <span class="footer-right">Página <span class="page-number"></span></span>
     </footer>
   </section>

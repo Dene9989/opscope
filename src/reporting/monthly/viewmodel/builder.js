@@ -75,7 +75,7 @@ function buildKpis({ metrics, comparison }) {
   cards.push(
     buildKpiCard({
       key: "totalPlannedActivities",
-      label: "Planejadas",
+      label: "Atividades planejadas",
       value: metrics.totalPlannedActivities,
       formatted: formatNumber(metrics.totalPlannedActivities),
       delta: byKey("totalPlannedActivities")?.deltaFormatted,
@@ -87,7 +87,7 @@ function buildKpis({ metrics, comparison }) {
   cards.push(
     buildKpiCard({
       key: "totalExecutedActivities",
-      label: "Executadas",
+      label: "Atividades executadas",
       value: metrics.totalExecutedActivities,
       formatted: formatNumber(metrics.totalExecutedActivities),
       delta: byKey("totalExecutedActivities")?.deltaFormatted,
@@ -99,7 +99,7 @@ function buildKpis({ metrics, comparison }) {
   cards.push(
     buildKpiCard({
       key: "executionRatioPct",
-      label: "Execução vs planejado",
+      label: "Execução do plano",
       value: executionRatioPct,
       formatted: formatPercent(executionRatioPct),
       delta: "-",
@@ -123,7 +123,7 @@ function buildKpis({ metrics, comparison }) {
   cards.push(
     buildKpiCard({
       key: "overdue",
-      label: "Overdue",
+      label: "Vencidas",
       value: metrics.overdue,
       formatted: formatNumber(metrics.overdue),
       delta: byKey("overdue")?.deltaFormatted,
@@ -202,9 +202,30 @@ function buildTrendAnalysis({ breakdowns, insights }) {
   if (!breakdowns || !breakdowns.byWeek || !breakdowns.byWeek.length) {
     return fallbackTrendAnalysis("Sem dados de tendência semanal.");
   }
+  const weekly = breakdowns.byWeek;
+  const plannedTotal = weekly.reduce((acc, bucket) => acc + (bucket.planned || 0), 0);
+  const executedTotal = weekly.reduce((acc, bucket) => acc + (bucket.executed || 0), 0);
+  const ratio = plannedTotal ? Math.round((executedTotal / plannedTotal) * 100) : 0;
+
+  const peakPlanned = weekly.reduce((acc, bucket) => (bucket.planned || 0) > (acc.planned || 0) ? bucket : acc, weekly[0]);
+  const peakBacklog = weekly.reduce((acc, bucket) => (bucket.backlog || 0) > (acc.backlog || 0) ? bucket : acc, weekly[0]);
+
+  const textParts = [];
+  textParts.push(
+    `A série semanal evidencia ${ratio >= KPI_TARGETS.executionRatioPct ? "aderência" : "desvio"} entre planejamento e execução, com ${formatPercent(ratio)} de entrega no acumulado.`
+  );
+  if (peakPlanned && peakPlanned.planned) {
+    textParts.push(`Pico de programação em S${peakPlanned.weekIndex} (${formatNumber(peakPlanned.planned)} atividades).`);
+  }
+  if (peakBacklog && peakBacklog.backlog) {
+    textParts.push(`Backlog máximo em S${peakBacklog.weekIndex} (${formatNumber(peakBacklog.backlog)}).`);
+  }
+  if (insights && insights.length) {
+    textParts.push("Os insights abaixo destacam os pontos de atenção e estabilidade do período.");
+  }
   return {
-    text: "Evolução semanal do volume planejado, executado e backlog (status) ao longo do período.",
-    weekly: breakdowns.byWeek.map((bucket) => ({
+    text: textParts.join(" "),
+    weekly: weekly.map((bucket) => ({
       weekIndex: bucket.weekIndex,
       start: bucket.start,
       end: bucket.end,
@@ -220,8 +241,29 @@ function buildOperationalBreakdown({ breakdowns, totalPlanned }) {
   if (!breakdowns) {
     return fallbackOperationalBreakdown("Sem dados de distribuição operacional.");
   }
+  const topType = Object.entries(breakdowns.byType || {}).sort((a, b) => b[1] - a[1])[0];
+  const topLocation = Object.entries(breakdowns.byLocation || {}).sort((a, b) => b[1] - a[1])[0];
+  const topTeam = Object.entries(breakdowns.byTeam || {}).sort((a, b) => b[1] - a[1])[0];
+  const topPriority = Object.entries(breakdowns.byPriority || {}).sort((a, b) => b[1] - a[1])[0];
+
+  const concentrationParts = [];
+  if (topType) {
+    concentrationParts.push(`categoria ${formatLabel(topType[0], "category")}`);
+  }
+  if (topLocation) {
+    concentrationParts.push(`local ${formatLabel(topLocation[0], "location")}`);
+  }
+  if (topTeam) {
+    concentrationParts.push(`equipe ${formatLabel(topTeam[0], "team")}`);
+  }
+
+  const priorityText = topPriority ? `Prioridade dominante: ${formatLabel(topPriority[0], "priority")}.` : "";
+  const concentrationText = concentrationParts.length
+    ? `A operação concentrou-se em ${concentrationParts.join(", ")}.`
+    : "A distribuição operacional foi homogênea no período.";
+
   return {
-    text: "Distribuição das atividades planejadas por status, categoria, local, equipe e prioridade, útil para leitura de concentração operacional.",
+    text: `Distribuição das atividades planejadas por status, categoria, local, equipe e prioridade. ${concentrationText} ${priorityText}`.trim(),
     byStatus: mapToTable(breakdowns.byStatus, totalPlanned, { labelContext: "status" }),
     byType: mapToTable(breakdowns.byType, totalPlanned, { labelContext: "category" }),
     byLocation: mapToTable(breakdowns.byLocation, totalPlanned, { labelContext: "location" }),
@@ -234,16 +276,22 @@ function buildActionPlan({ recommendations }) {
   if (!recommendations || !recommendations.items || !recommendations.items.length) {
     return fallbackActionPlan("Sem ações recomendadas para o período.");
   }
+  const ownerByRec = {
+    "rec.backlog": "Coordenação O&M",
+    "rec.overdue": "Planejamento Operacional",
+    "rec.sla": "Gestão de Contrato",
+    "rec.docs": "Qualidade/Compliance",
+  };
   const items = recommendations.items.map((rec, index) => ({
     id: `action.${index + 1}`,
     source: rec.id,
     text: rec.text,
-    owner: "Coordenação O&M",
-    due: "A definir",
-    status: "Planejada",
+    owner: ownerByRec[rec.id] || "Coordenação O&M",
+    due: "Próximo ciclo",
+    status: "Prioritária",
   }));
   return {
-    text: "Plano de ação inicial baseado nos desvios identificados.",
+    text: "Plano de ação priorizado para endereçar os principais desvios do período.",
     items,
   };
 }
@@ -391,8 +439,8 @@ function buildMonthlyReportViewModel({ aggregated, validation, normalized, optio
       isPartial,
     },
     header: {
-      title: "Relatório Mensal OPSCOPE",
-      subtitle: `${aggregated.meta && aggregated.meta.clientName} • ${aggregated.meta && aggregated.meta.projectName}`,
+      title: "Relatório Mensal",
+      subtitle: "",
       periodLabel: formatDateRange(periodStart, periodEnd),
       emittedAtLabel: formatDateTime(emittedAt),
       integrityStatus,

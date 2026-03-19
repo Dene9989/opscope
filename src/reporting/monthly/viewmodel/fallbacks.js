@@ -2,7 +2,12 @@
   return {
     title: "Resumo executivo",
     text: reason || "Não há dados suficientes para produzir o resumo executivo deste período.",
+    headline: "",
+    lead: reason || "",
+    blocks: [],
+    conclusion: "",
     bullets: [],
+    highlights: [],
   };
 }
 
@@ -36,6 +41,7 @@ function fallbackOperationalBreakdown(reason) {
 function fallbackSafetyCompliance(reason) {
   return {
     text: reason || "Dados de compliance não disponíveis para o período.",
+    summary: "",
     docs: null,
     evidenceCount: 0,
   };
@@ -44,6 +50,8 @@ function fallbackSafetyCompliance(reason) {
 function fallbackTechnicalHighlights(reason) {
   return {
     text: reason || "Sem destaques técnicos relevantes no período.",
+    summary: "",
+    blocks: [],
     bullets: [],
   };
 }
@@ -51,6 +59,7 @@ function fallbackTechnicalHighlights(reason) {
 function fallbackRiskAssessment(reason) {
   return {
     text: reason || "Não foram identificados riscos operacionais relevantes.",
+    summary: "",
     risks: [],
     integrityNotes: [],
   };

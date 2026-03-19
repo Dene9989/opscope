@@ -4,6 +4,17 @@ function ComparisonCard(item) {
   if (!item) {
     return "";
   }
+  const deltaValue = item.deltaFormatted ? String(item.deltaFormatted) : "-";
+  const deltaPctValue = item.deltaPctFormatted ? String(item.deltaPctFormatted) : "";
+  const deltaNumeric = Number.isFinite(item.delta) ? item.delta : null;
+  const deltaClass =
+    deltaNumeric !== null
+      ? deltaNumeric > 0
+        ? " comparison-delta--positive"
+        : deltaNumeric < 0
+          ? " comparison-delta--negative"
+          : ""
+      : "";
   return `
     <div class="comparison-card">
       <div class="comparison-label">${escapeHtml(item.label || "")}</div>
@@ -17,7 +28,7 @@ function ComparisonCard(item) {
           <span class="comparison-number">${escapeHtml(String(item.previous ?? "-"))}</span>
         </div>
       </div>
-      <div class="comparison-delta">${escapeHtml(item.deltaFormatted || "-")} ${escapeHtml(item.deltaPctFormatted || "")}</div>
+      <div class="comparison-delta${deltaClass}">${escapeHtml(deltaValue)} ${escapeHtml(deltaPctValue)}</div>
     </div>
   `;
 }

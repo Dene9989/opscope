@@ -3,6 +3,13 @@ const { renderBarChart } = require("./svg/barChart");
 const { renderStackedBar } = require("./svg/stackedBar");
 const { renderEmptyChart } = require("./svg/emptyChart");
 
+const CHART_COLORS = {
+  planned: "#0b2f4f",
+  executed: "#0f766e",
+  backlog: "#b45309",
+  barPalette: ["#0b2f4f", "#0f766e", "#c2a15c", "#64748b"],
+};
+
 function buildWeeklyLabels(weekly) {
   return weekly.map((bucket) => `S${bucket.weekIndex}`);
 }
@@ -28,8 +35,8 @@ function buildMonthlyReportCharts(viewModel) {
     const weeklySvg = renderLineChart({
       labels,
       series: [
-        { label: "Planejadas", values: planned, color: "#1d4ed8" },
-        { label: "Executadas", values: executed, color: "#16a34a" },
+        { label: "Planejadas", values: planned, color: CHART_COLORS.planned },
+        { label: "Executadas", values: executed, color: CHART_COLORS.executed },
       ],
     });
     charts.push(buildChart({
@@ -43,7 +50,7 @@ function buildMonthlyReportCharts(viewModel) {
     const backlogSeries = weekly.map((bucket) => bucket.backlog || 0);
     const backlogSvg = renderLineChart({
       labels,
-      series: [{ label: "Backlog (status)", values: backlogSeries, color: "#b45309" }],
+      series: [{ label: "Backlog (status)", values: backlogSeries, color: CHART_COLORS.backlog }],
     });
     charts.push(buildChart({
       id: "backlog_evolution",
@@ -73,6 +80,7 @@ function buildMonthlyReportCharts(viewModel) {
   const statusSvg = statusTable.length
     ? renderBarChart({
         data: statusTable.map((row) => ({ label: row.label, value: row.count })),
+        colors: CHART_COLORS.barPalette,
         yLabel: "Atividades",
       })
     : null;
@@ -104,6 +112,7 @@ function buildMonthlyReportCharts(viewModel) {
   const categorySvg = categoryTable.length
     ? renderBarChart({
         data: categoryTable.map((row) => ({ label: row.label, value: row.count })),
+        colors: CHART_COLORS.barPalette,
         yLabel: "Atividades",
       })
     : null;
@@ -119,6 +128,7 @@ function buildMonthlyReportCharts(viewModel) {
   const locationSvg = locationTable.length
     ? renderBarChart({
         data: locationTable.map((row) => ({ label: row.label, value: row.count })),
+        colors: CHART_COLORS.barPalette,
         yLabel: "Atividades",
       })
     : null;
@@ -134,6 +144,7 @@ function buildMonthlyReportCharts(viewModel) {
   const prioritySvg = priorityTable.length
     ? renderBarChart({
         data: priorityTable.map((row) => ({ label: row.label, value: row.count })),
+        colors: CHART_COLORS.barPalette,
         yLabel: "Atividades",
       })
     : null;

@@ -13,13 +13,14 @@ function renderBarChart({
   height = 240,
   padding = { top: 28, right: 16, bottom: 54, left: 46 },
   data = [],
-  colors = ["#1d4ed8", "#0ea5e9"],
+  colors = ["#0b2f4f", "#0f766e", "#c2a15c", "#64748b"],
   yLabel = "",
 } = {}) {
   if (!data.length) {
     return null;
   }
   const maxValue = niceMax(Math.max(...data.map((d) => d.value || 0)));
+  const fontFamily = "IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif";
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
   const barWidth = chartWidth / data.length;
@@ -29,8 +30,8 @@ function renderBarChart({
     .map((value) => {
       const y = padding.top + chartHeight - (maxValue ? (value / maxValue) * chartHeight : 0);
       return `
-        <line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="#e2e8f0" />
-        <text x="${padding.left - 6}" y="${y + 4}" font-size="10" text-anchor="end" fill="#64748b">${escapeSvg(String(value))}</text>
+        <line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="#e3e8f1" />
+        <text x="${padding.left - 6}" y="${y + 4}" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="${fontFamily}">${escapeSvg(String(value))}</text>
       `;
     })
     .join("");
@@ -45,9 +46,9 @@ function renderBarChart({
       const color = d.color || colors[idx % colors.length];
       const label = truncateLabel(d.label || "");
       return `
-        <rect x="${x}" y="${y}" width="${Math.max(10, barWidth - 16)}" height="${barHeight}" fill="${color}" rx="2" />
-        <text x="${labelX}" y="${y - 4}" font-size="10" text-anchor="middle" fill="#334155">${escapeSvg(String(value))}</text>
-        <text x="${labelX}" y="${height - 12}" font-size="10" text-anchor="middle" fill="#334155">${escapeSvg(label)}</text>
+        <rect x="${x}" y="${y}" width="${Math.max(10, barWidth - 16)}" height="${barHeight}" fill="${color}" rx="3" />
+        <text x="${labelX}" y="${y - 4}" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="${fontFamily}">${escapeSvg(String(value))}</text>
+        <text x="${labelX}" y="${height - 12}" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="${fontFamily}">${escapeSvg(label)}</text>
       `;
     })
     .join("");
@@ -55,9 +56,9 @@ function renderBarChart({
   return `
     <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
       ${grid}
-      <line x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${height - padding.bottom}" stroke="#cbd5f5" />
-      <line x1="${padding.left}" y1="${height - padding.bottom}" x2="${width - padding.right}" y2="${height - padding.bottom}" stroke="#cbd5f5" />
-      ${yLabel ? `<text x="${padding.left}" y="${padding.top - 8}" font-size="11" fill="#64748b">${escapeSvg(yLabel)}</text>` : ""}
+      <line x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${height - padding.bottom}" stroke="#c7d2e0" />
+      <line x1="${padding.left}" y1="${height - padding.bottom}" x2="${width - padding.right}" y2="${height - padding.bottom}" stroke="#c7d2e0" />
+      ${yLabel ? `<text x="${padding.left}" y="${padding.top - 8}" font-size="10.5" fill="#5b6b7c" font-family="${fontFamily}">${escapeSvg(yLabel)}</text>` : ""}
       ${bars}
     </svg>
   `;
