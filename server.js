@@ -13853,6 +13853,28 @@ function computeExecutionDurationHours(item, execution) {
 }
 
 function normalizeMonthlyEvidenceEntry(entry) {
+  const normalizeEvidenceUrl = (value) => {
+    const text = String(value || "").trim();
+    if (!text) {
+      return "";
+    }
+    if (/^https?:\/\//i.test(text) || text.startsWith("data:image/")) {
+      return text;
+    }
+    const normalized = text.replace(/\\/g, "/");
+    if (normalized.startsWith("/")) {
+      return normalized;
+    }
+    const lower = normalized.toLowerCase();
+    const uploadsIndex = lower.indexOf("/uploads/");
+    if (uploadsIndex >= 0) {
+      return normalized.slice(uploadsIndex);
+    }
+    if (lower.startsWith("uploads/") || lower.startsWith("api/")) {
+      return `/${normalized}`;
+    }
+    return "";
+  };
   if (!entry) {
     return null;
   }
@@ -13861,10 +13883,10 @@ function normalizeMonthlyEvidenceEntry(entry) {
     if (!text) {
       return null;
     }
-    const looksLikeUrl = /^https?:\/\//i.test(text) || text.startsWith("/uploads/") || text.startsWith("data:image/");
+    const looksLikeUrl = Boolean(normalizeEvidenceUrl(text));
     return {
       label: text,
-      url: looksLikeUrl ? text : "",
+      url: looksLikeUrl ? normalizeEvidenceUrl(text) : "",
       category: "evidencia",
       notes: "",
     };
@@ -13874,9 +13896,9 @@ function normalizeMonthlyEvidenceEntry(entry) {
   }
   const fileId = String(entry.fileId || entry.id || "").trim();
   const storagePath = String(entry.storagePath || entry.path || "").trim();
-  let url = String(entry.url || entry.dataUrl || entry.src || entry.preview || entry.image || "").trim();
+  let url = normalizeEvidenceUrl(entry.url || entry.dataUrl || entry.src || entry.preview || entry.image || "");
   if (!url && storagePath) {
-    url = storagePath;
+    url = normalizeEvidenceUrl(storagePath);
   }
   if (!url && fileId) {
     url = `/api/files/${encodeURIComponent(fileId)}/content`;
@@ -13887,6 +13909,7 @@ function normalizeMonthlyEvidenceEntry(entry) {
     category: String(entry.categoria || entry.tipo || "evidencia").trim(),
     notes: String(entry.observacao || entry.obs || entry.notes || "").trim(),
     fileId,
+    mimeType: String(entry.mimeType || entry.mime || entry.contentType || "").trim(),
   };
 }
 
@@ -22397,7 +22420,11 @@ async function buildMonthlyReportV2Pipeline({ req, user, projectId, payload }) {
   });
 
   const htmlStart = Date.now();
-  const html = monthlyReport.renderMonthlyReportHtml(viewModel);
+  const baseUrl = req ? `${req.protocol}://${req.get("host")}/` : "";
+  const html = monthlyReport.renderMonthlyReportHtml(
+    viewModel,
+    baseUrl ? { baseUrl } : {}
+  );
   const pageCount = (html.match(/class="report-page/g) || []).length || 1;
   logRdoMensalV2Stage({
     req,
@@ -22524,6 +22551,9 @@ app.post(
       let buffer = await withTimeout(
         monthlyReport.renderMonthlyReportPdf(result.html, {
           engine: RDO_MENSAL_V2_PDF_ENGINE,
+          requestHeaders: {
+            cookie: req.headers && req.headers.cookie ? req.headers.cookie : "",
+          },
         }),
         RDO_MENSAL_V2_TIMEOUT_MS,
         "pdf_timeout"

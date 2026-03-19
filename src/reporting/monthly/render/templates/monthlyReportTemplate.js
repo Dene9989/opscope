@@ -281,17 +281,10 @@ function renderMonthlyReportTemplate(viewModel, charts) {
     ${renderOperationalTables(operationalBreakdown)}
   `, { className: "page-break" });
 
-  const evidenceSection = `
-    ${SectionHeader("Evidências selecionadas", "Registro visual representativo das atividades executadas.")}
-    ${renderSectionNote(evidenceGallery && evidenceGallery.text ? evidenceGallery.text : "")}
-    ${EvidenceGallery(evidenceGallery) || EmptyState("Sem evidências visuais disponíveis para o período.")}
-  `;
-
   const page4 = Page(`
     ${SectionHeader("Segurança, compliance e evidências", safetyCompliance.text || "")}
     ${renderSectionNote(safetyCompliance.summary || "")}
     ${ComplianceTable(safetyCompliance) || EmptyState("Sem dados de compliance.")}
-    ${hasEvidence ? evidenceSection : ""}
 
     ${SectionHeader("Análise técnica", technicalHighlights.text || "")}
     ${hasTechnicalContent
@@ -321,9 +314,16 @@ function renderMonthlyReportTemplate(viewModel, charts) {
     ${ActionTable(actionPlan) || EmptyState(actionPlan.text)}
   `, { className: "page-break" });
 
+  const evidenceSection = `
+    ${SectionHeader("Evidências selecionadas", "Registro visual representativo das atividades executadas.")}
+    ${renderSectionNote(evidenceGallery && evidenceGallery.text ? evidenceGallery.text : "")}
+    ${EvidenceGallery(evidenceGallery) || EmptyState("Sem evidências visuais disponíveis para o período.")}
+  `;
+
   const page5 = Page(`
     ${SectionHeader("Tabelas consolidadas", consolidatedTables.text || "")}
     ${renderConsolidatedTables(consolidatedTables)}
+    ${hasEvidence ? evidenceSection : ""}
   `, { className: "page-break" });
 
   return `

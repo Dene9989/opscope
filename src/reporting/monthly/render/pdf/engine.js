@@ -92,6 +92,9 @@ async function renderWithPuppeteer(html, options = {}) {
   });
   try {
     const page = await browser.newPage();
+    if (options.requestHeaders) {
+      await page.setExtraHTTPHeaders(options.requestHeaders);
+    }
     await page.setContent(html, { waitUntil: "networkidle0" });
     const buffer = await page.pdf({
       format: "A4",
@@ -115,6 +118,9 @@ async function renderWithPlaywright(html, options = {}) {
 
   const browser = await playwright.chromium.launch();
   const page = await browser.newPage();
+  if (options.requestHeaders) {
+    await page.setExtraHTTPHeaders(options.requestHeaders);
+  }
   await page.setContent(html, { waitUntil: "networkidle" });
   const buffer = await page.pdf({
     format: "A4",
