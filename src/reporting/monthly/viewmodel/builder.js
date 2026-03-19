@@ -83,7 +83,7 @@ function computeTypeRatios(breakdowns) {
   };
 }
 
-function buildKpiCard({ key, label, value, formatted, delta, deltaPct, tone }) {
+function buildKpiCard({ key, label, value, formatted, delta, deltaPct, tone, detail, status }) {
   return {
     key,
     label,
@@ -92,6 +92,8 @@ function buildKpiCard({ key, label, value, formatted, delta, deltaPct, tone }) {
     delta,
     deltaPct,
     tone,
+    detail,
+    status,
   };
 }
 
@@ -108,6 +110,16 @@ function buildKpis({ metrics, comparison, breakdowns }) {
   const executionRatioPct = computeExecutionRatio(metrics);
   const typeRatios = computeTypeRatios(breakdowns);
   const cards = [];
+  const makeStatus = (ok, okLabel, badLabel, neutralLabel = "Informativo") => {
+    if (ok === null || ok === undefined) {
+      return { symbol: "🟡", label: neutralLabel, tone: VIEWMODEL_TONE.NEUTRAL };
+    }
+    return ok
+      ? { symbol: "🟢", label: okLabel, tone: VIEWMODEL_TONE.POSITIVE }
+      : { symbol: "🔴", label: badLabel, tone: VIEWMODEL_TONE.WARNING };
+  };
+  const hasPlanned = metrics.totalPlannedActivities > 0;
+  const hasExecuted = metrics.totalExecutedActivities > 0;
 
   const byKey = (key) => comparison && comparison.available
     ? comparison.items.find((item) => item.key === key)
@@ -122,6 +134,8 @@ function buildKpis({ metrics, comparison, breakdowns }) {
       delta: byKey("totalPlannedActivities")?.deltaFormatted,
       deltaPct: byKey("totalPlannedActivities")?.deltaPctFormatted,
       tone: VIEWMODEL_TONE.NEUTRAL,
+      detail: "Busca: volume planejado do mês. Soma: atividades com dueDate no período e status não cancelado. Base: programação mensal.",
+      status: makeStatus(hasPlanned, "Programação ativa", "Sem programação"),
     })
   );
 
@@ -134,6 +148,8 @@ function buildKpis({ metrics, comparison, breakdowns }) {
       delta: byKey("totalExecutedActivities")?.deltaFormatted,
       deltaPct: byKey("totalExecutedActivities")?.deltaPctFormatted,
       tone: executionRatioPct >= KPI_TARGETS.executionRatioPct ? VIEWMODEL_TONE.POSITIVE : VIEWMODEL_TONE.WARNING,
+      detail: "Busca: entregas concluídas no mês. Soma: atividades com doneAt no período e status concluída. Base: execução real.",
+      status: makeStatus(hasExecuted, "Execução registrada", "Sem execução"),
     })
   );
 
@@ -146,6 +162,12 @@ function buildKpis({ metrics, comparison, breakdowns }) {
       delta: "-",
       deltaPct: "-",
       tone: executionRatioPct >= KPI_TARGETS.executionRatioPct ? VIEWMODEL_TONE.POSITIVE : VIEWMODEL_TONE.WARNING,
+      detail: `Busca: aderência ao plano. Cálculo: executadas ÷ planejadas. Meta ≥ ${formatPercent(KPI_TARGETS.executionRatioPct)}.`,
+      status: makeStatus(
+        executionRatioPct >= KPI_TARGETS.executionRatioPct,
+        "Dentro da meta",
+        "Fora da meta"
+      ),
     })
   );
 
@@ -158,6 +180,8 @@ function buildKpis({ metrics, comparison, breakdowns }) {
       delta: byKey("backlog")?.deltaFormatted,
       deltaPct: byKey("backlog")?.deltaPctFormatted,
       tone: metrics.backlog > 0 ? VIEWMODEL_TONE.WARNING : VIEWMODEL_TONE.POSITIVE,
+      detail: "Busca: pendências do mês. Soma: atividades planejadas no período com status backlog. Meta = 0.",
+      status: makeStatus(metrics.backlog === 0, "Controlado", "Acima do ideal"),
     })
   );
 
@@ -170,6 +194,8 @@ function buildKpis({ metrics, comparison, breakdowns }) {
       delta: byKey("overdue")?.deltaFormatted,
       deltaPct: byKey("overdue")?.deltaPctFormatted,
       tone: metrics.overdue > 0 ? VIEWMODEL_TONE.WARNING : VIEWMODEL_TONE.POSITIVE,
+      detail: "Busca: atraso vencido. Soma: dueDate até fim do mês sem conclusão até a data de corte. Meta = 0.",
+      status: makeStatus(metrics.overdue === 0, "Sem vencimentos", "Com vencimentos"),
     })
   );
 
@@ -182,6 +208,13 @@ function buildKpis({ metrics, comparison, breakdowns }) {
       delta: byKey("slaOnTimePct")?.deltaFormatted,
       deltaPct: byKey("slaOnTimePct")?.deltaPctFormatted,
       tone: metrics.slaOnTimePct >= KPI_TARGETS.slaOnTimePct ? VIEWMODEL_TONE.POSITIVE : VIEWMODEL_TONE.WARNING,
+      detail: `Busca: cumprimento de prazo. Base: concluídas no mês com dueDate. No prazo = doneAt ≤ dueDate; fora do prazo = 100% - no prazo. Meta ≥ ${formatPercent(KPI_TARGETS.slaOnTimePct)}.`,
+      status: makeStatus(
+        metrics.slaEligibleActivities > 0 ? metrics.slaOnTimePct >= KPI_TARGETS.slaOnTimePct : null,
+        "Dentro da meta",
+        "Fora da meta",
+        "Sem base elegível"
+      ),
     })
   );
 
@@ -194,6 +227,13 @@ function buildKpis({ metrics, comparison, breakdowns }) {
       delta: byKey("docsCompliancePct")?.deltaFormatted,
       deltaPct: byKey("docsCompliancePct")?.deltaPctFormatted,
       tone: metrics.docsCompliancePct >= KPI_TARGETS.docsCompliancePct ? VIEWMODEL_TONE.POSITIVE : VIEWMODEL_TONE.WARNING,
+      detail: `Busca: documentação correta. Cálculo: docs OK ÷ docs exigidos em atividades concluídas. Meta ≥ ${formatPercent(KPI_TARGETS.docsCompliancePct)}.`,
+      status: makeStatus(
+        metrics.docsRequired > 0 ? metrics.docsCompliancePct >= KPI_TARGETS.docsCompliancePct : null,
+        "Dentro da meta",
+        "Fora da meta",
+        "Sem exigência"
+      ),
     })
   );
 
@@ -210,6 +250,13 @@ function buildKpis({ metrics, comparison, breakdowns }) {
           ? VIEWMODEL_TONE.POSITIVE
           : VIEWMODEL_TONE.WARNING
         : VIEWMODEL_TONE.NEUTRAL,
+      detail: `Busca: confiabilidade preventiva. Cálculo: preventivas/preditivas ÷ total executado no mês. Meta ≥ ${formatPercent(KPI_TARGETS.preventivePct)}.`,
+      status: makeStatus(
+        typeRatios.total ? typeRatios.preventivePct >= KPI_TARGETS.preventivePct : null,
+        "Dentro da meta",
+        "Abaixo da meta",
+        "Sem base"
+      ),
     })
   );
 
@@ -226,6 +273,13 @@ function buildKpis({ metrics, comparison, breakdowns }) {
           ? VIEWMODEL_TONE.POSITIVE
           : VIEWMODEL_TONE.WARNING
         : VIEWMODEL_TONE.NEUTRAL,
+      detail: `Busca: exposição a corretivas. Cálculo: corretivas ÷ total executado no mês. Meta ≤ ${formatPercent(KPI_TARGETS.correctivePctMax)}.`,
+      status: makeStatus(
+        typeRatios.total ? typeRatios.correctivePct <= KPI_TARGETS.correctivePctMax : null,
+        "Dentro da meta",
+        "Acima da meta",
+        "Sem base"
+      ),
     })
   );
 
@@ -238,6 +292,12 @@ function buildKpis({ metrics, comparison, breakdowns }) {
       delta: byKey("hoursExecuted")?.deltaFormatted,
       deltaPct: byKey("hoursExecuted")?.deltaPctFormatted,
       tone: VIEWMODEL_TONE.NEUTRAL,
+      detail: "Busca: esforço aplicado. Soma: duração registrada ou diferença entre início e fim das execuções no mês.",
+      status: makeStatus(
+        metrics.hoursExecuted > 0,
+        "Registro presente",
+        "Sem registro"
+      ),
     })
   );
 
@@ -250,6 +310,12 @@ function buildKpis({ metrics, comparison, breakdowns }) {
       delta: byKey("evidenceCount")?.deltaFormatted,
       deltaPct: byKey("evidenceCount")?.deltaPctFormatted,
       tone: VIEWMODEL_TONE.NEUTRAL,
+      detail: "Busca: rastreabilidade visual. Soma: evidências anexadas nas atividades concluídas e RDOs do mês.",
+      status: makeStatus(
+        metrics.evidenceCount > 0,
+        "Com evidências",
+        "Sem evidências"
+      ),
     })
   );
 
@@ -348,9 +414,9 @@ function buildOperationalBreakdown({ breakdowns, totalPlanned, totalPeriod, metr
   if (topType && isPreventiveFocus && !hasPressure) {
     implicationText = `A predominância de ${typeLabel} reforça a estratégia de confiabilidade e disciplina operacional.`;
   } else if (topType && isPreventiveFocus && hasPressure) {
-    implicationText = `A predominância de ${typeLabel} ocorreu com pressão de pendências; recomenda-se balancear corretivas sem perder a rotina preventiva.`;
+    implicationText = `A predominância de ${typeLabel} reforça a disciplina preventiva; com pendências no período, manter equilíbrio entre frentes para preservar prazos.`;
   } else if (topType && topTypePct >= 35 && hasPressure) {
-    implicationText = `A maior concentração em ${typeLabel} sinaliza foco operacional do período; acompanhar impacto em prazos e backlog.`;
+    implicationText = `A maior concentração em ${typeLabel} sinaliza foco operacional do período; acompanhar prazos e backlog de forma preventiva.`;
   } else if (topType && topTypePct >= 35) {
     implicationText = `A concentração em ${typeLabel} indica foco operacional do período, sem sinais de desequilíbrio relevante.`;
   }
@@ -360,8 +426,8 @@ function buildOperationalBreakdown({ breakdowns, totalPlanned, totalPeriod, metr
   }
   if (correctiveCount > 0) {
     const correctiveText = correctivePct >= 30
-      ? `Corretivas em ${formatPercent(correctivePct)} indicam falhas que exigem parada; priorizar redução de recorrência.`
-      : `Corretivas em ${formatPercent(correctivePct)} seguem como resposta reativa pontual no período.`;
+      ? `Corretivas em ${formatPercent(correctivePct)} refletem demandas reativas; manter análise de causa raiz para reduzir recorrências.`
+      : `Corretivas em ${formatPercent(correctivePct)} permaneceram em patamar controlado no período.`;
     strategyText = strategyText ? `${strategyText} ${correctiveText}` : correctiveText;
   }
   const locationText = locationCount
@@ -705,6 +771,9 @@ function buildMonthlyReportViewModel({ aggregated, validation, normalized, optio
   const emittedAt = aggregated.meta && aggregated.meta.emittedAt;
   const periodStart = current.period && current.period.startIso;
   const periodEnd = current.period && current.period.endIso;
+  const timeZone = (normalized && normalized.meta && normalized.meta.timezone) ||
+    (aggregated.meta && aggregated.meta.timezone) ||
+    "America/Sao_Paulo";
 
   const emittedAtDate = emittedAt ? new Date(emittedAt) : null;
   const periodEndDate = periodEnd ? new Date(`${periodEnd}T23:59:59.999`) : null;
@@ -760,7 +829,7 @@ function buildMonthlyReportViewModel({ aggregated, validation, normalized, optio
       plantName: aggregated.meta && aggregated.meta.plantName,
       period: { start: periodStart, end: periodEnd },
       emittedAt,
-      emittedAtLabel: formatDateTime(emittedAt),
+      emittedAtLabel: formatDateTime(emittedAt, timeZone),
       reportVersion: aggregated.meta && aggregated.meta.reportVersion,
       comparisonMode: aggregated.comparisonMode,
       integrityStatus,
@@ -770,8 +839,8 @@ function buildMonthlyReportViewModel({ aggregated, validation, normalized, optio
     header: {
       title: "RELATÓRIO DE DESEMPENHO MENSAL - HV",
       subtitle: "",
-      periodLabel: formatDateRange(periodStart, periodEnd),
-      emittedAtLabel: formatDateTime(emittedAt),
+      periodLabel: formatDateRange(periodStart, periodEnd, timeZone),
+      emittedAtLabel: formatDateTime(emittedAt, timeZone),
       integrityStatus,
     },
     executiveSummary,

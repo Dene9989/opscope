@@ -222,6 +222,44 @@ function renderMonthlyReportTemplate(viewModel, charts) {
     (technicalHighlights.blocks && technicalHighlights.blocks.length) ||
     (technicalHighlights.bullets && technicalHighlights.bullets.length)
   );
+  const trendChartsCount = [
+    chartIndex.weekly_planned_executed,
+    chartIndex.backlog_evolution,
+    chartIndex.status_distribution,
+    chartIndex.sla_on_time,
+  ].filter((chart) => chart && !chart.empty).length;
+  const operationalChartsCount = [
+    chartIndex.category_distribution,
+    chartIndex.top_locations,
+    chartIndex.criticality_priority,
+  ].filter((chart) => chart && !chart.empty).length;
+  const operationalTableCount = operationalBreakdown
+    ? [
+        operationalBreakdown.byStatus,
+        operationalBreakdown.byType,
+        operationalBreakdown.byLocation,
+        operationalBreakdown.byTeam,
+        operationalBreakdown.byPriority,
+      ].filter((table) => Array.isArray(table) && table.length).length
+    : 0;
+  const insightsCount = trendAnalysis && trendAnalysis.insights ? trendAnalysis.insights.length : 0;
+  const mergeOperationalIntoTrend = operationalChartsCount === 0 && operationalTableCount <= 1 && trendChartsCount <= 2 && insightsCount <= 4;
+
+  const consolidatedTablesCount = consolidatedTables
+    ? [
+        consolidatedTables.statusTable,
+        consolidatedTables.plannedTables && consolidatedTables.plannedTables.categoryTable,
+        consolidatedTables.plannedTables && consolidatedTables.plannedTables.locationTable,
+        consolidatedTables.plannedTables && consolidatedTables.plannedTables.teamTable,
+        consolidatedTables.plannedTables && consolidatedTables.plannedTables.priorityTable,
+        consolidatedTables.executedTables && consolidatedTables.executedTables.categoryTable,
+        consolidatedTables.executedTables && consolidatedTables.executedTables.locationTable,
+        consolidatedTables.executedTables && consolidatedTables.executedTables.teamTable,
+        consolidatedTables.executedTables && consolidatedTables.executedTables.priorityTable,
+      ].filter((table) => Array.isArray(table) && table.length).length
+    : 0;
+  const inlineConsolidatedTables = !mergeOperationalIntoTrend && operationalChartsCount === 0 && operationalTableCount <= 1 && consolidatedTablesCount > 0 && consolidatedTablesCount <= 3;
+  const hasConsolidatedTables = consolidatedTablesCount > 0;
 
   const primaryKpis = viewModel.kpis && viewModel.kpis.primaryCards ? viewModel.kpis.primaryCards : (viewModel.kpis ? viewModel.kpis.cards : []);
   const secondaryKpis = viewModel.kpis && viewModel.kpis.secondaryCards ? viewModel.kpis.secondaryCards : [];
@@ -260,6 +298,23 @@ function renderMonthlyReportTemplate(viewModel, charts) {
     ${secondaryKpis.length ? renderKpiGrid(secondaryKpis) : ""}
   `);
 
+  const operationalSection = `
+    ${SectionHeader("Análise operacional", operationalBreakdown.text || "")}
+    <div class="chart-grid">
+      ${ChartContainer((chartIndex.category_distribution && chartIndex.category_distribution.title) || "Categorias", (chartIndex.category_distribution && chartIndex.category_distribution.subtitle) || "", chartIndex.category_distribution)}
+      ${ChartContainer((chartIndex.top_locations && chartIndex.top_locations.title) || "Locais", (chartIndex.top_locations && chartIndex.top_locations.subtitle) || "", chartIndex.top_locations)}
+      ${ChartContainer((chartIndex.criticality_priority && chartIndex.criticality_priority.title) || "Prioridades", (chartIndex.criticality_priority && chartIndex.criticality_priority.subtitle) || "", chartIndex.criticality_priority)}
+    </div>
+    ${renderOperationalTables(operationalBreakdown)}
+  `;
+
+  const consolidatedSection = hasConsolidatedTables
+    ? `
+      ${SectionHeader("Tabelas consolidadas", consolidatedTables.text || "")}
+      ${renderConsolidatedTables(consolidatedTables)}
+    `
+    : "";
+
   const page2 = Page(`
     ${SectionHeader("Tendências e performance", trendAnalysis.text || "")}
     <div class="chart-grid">
@@ -269,17 +324,15 @@ function renderMonthlyReportTemplate(viewModel, charts) {
       ${ChartContainer((chartIndex.sla_on_time && chartIndex.sla_on_time.title) || "SLA", (chartIndex.sla_on_time && chartIndex.sla_on_time.subtitle) || "", chartIndex.sla_on_time)}
     </div>
     ${renderInsights(trendAnalysis)}
+    ${mergeOperationalIntoTrend ? operationalSection : ""}
   `, { className: "page-break" });
 
-  const page3 = Page(`
-    ${SectionHeader("Análise operacional", operationalBreakdown.text || "")}
-    <div class="chart-grid">
-      ${ChartContainer((chartIndex.category_distribution && chartIndex.category_distribution.title) || "Categorias", (chartIndex.category_distribution && chartIndex.category_distribution.subtitle) || "", chartIndex.category_distribution)}
-      ${ChartContainer((chartIndex.top_locations && chartIndex.top_locations.title) || "Locais", (chartIndex.top_locations && chartIndex.top_locations.subtitle) || "", chartIndex.top_locations)}
-      ${ChartContainer((chartIndex.criticality_priority && chartIndex.criticality_priority.title) || "Prioridades", (chartIndex.criticality_priority && chartIndex.criticality_priority.subtitle) || "", chartIndex.criticality_priority)}
-    </div>
-    ${renderOperationalTables(operationalBreakdown)}
-  `, { className: "page-break" });
+  const page3 = mergeOperationalIntoTrend
+    ? ""
+    : Page(`
+      ${operationalSection}
+      ${inlineConsolidatedTables ? consolidatedSection : ""}
+    `, { className: "page-break" });
 
   const page4 = Page(`
     ${SectionHeader("Segurança, compliance e evidências", safetyCompliance.text || "")}
@@ -320,11 +373,13 @@ function renderMonthlyReportTemplate(viewModel, charts) {
     ${EvidenceGallery(evidenceGallery) || EmptyState("Sem evidências visuais disponíveis para o período.")}
   `;
 
-  const page5 = Page(`
-    ${SectionHeader("Tabelas consolidadas", consolidatedTables.text || "")}
-    ${renderConsolidatedTables(consolidatedTables)}
+  const page5Content = `
+    ${!inlineConsolidatedTables ? consolidatedSection : ""}
     ${hasEvidence ? evidenceSection : ""}
-  `, { className: "page-break" });
+  `;
+  const page5 = page5Content.trim()
+    ? Page(page5Content, { className: "page-break" })
+    : "";
 
   return `
     <article class="rdo-monthly">

@@ -153,9 +153,9 @@ function buildMonthlyReportCharts(viewModel) {
   charts.push(buildChart({
     id: "sla_on_time",
     title: "Cumprimento de SLA",
-    subtitle: "Percentual de atividades elegíveis",
+    subtitle: "Percentual de atividades elegíveis (concluídas no mês com dueDate)",
     svg: slaSvg,
-    note: "Leitura: percentual de atividades elegíveis entregues dentro do prazo.",
+    note: "Leitura: no prazo = doneAt <= dueDate. Fora do prazo = 100% - no prazo.",
     summary: [
       { label: "No prazo", value: formatPercent(normalizedSlaPct) },
       { label: "Fora do prazo", value: formatPercent(100 - normalizedSlaPct) },

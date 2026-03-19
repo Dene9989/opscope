@@ -427,6 +427,50 @@ li {
   color: #b91c1c;
 }
 
+.kpi-status {
+  margin-top: 6pt;
+  display: inline-flex;
+  align-items: center;
+  gap: 6pt;
+  padding: 3pt 8pt;
+  border-radius: 999px;
+  font-size: 9pt;
+  font-weight: 600;
+  background: var(--surface-strong);
+  color: var(--ink-700);
+  width: fit-content;
+}
+
+.kpi-status__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10pt;
+  line-height: 1;
+}
+
+.kpi-status--positive {
+  background: var(--positive-bg);
+  color: var(--positive);
+}
+
+.kpi-status--warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.kpi-status--neutral {
+  background: var(--muted);
+  color: var(--ink-600);
+}
+
+.kpi-detail {
+  margin-top: 6pt;
+  font-size: 9.2pt;
+  color: var(--ink-600);
+  line-height: 1.35;
+}
+
 .comparison-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170pt, 1fr));

@@ -1,22 +1,48 @@
 const { parseDateOnly } = require("../utils");
 
 const DEFAULT_LOCALE = "pt-BR";
+const DEFAULT_TIMEZONE = "America/Sao_Paulo";
 
 const numberFormatter = new Intl.NumberFormat(DEFAULT_LOCALE);
 const percentFormatter = new Intl.NumberFormat(DEFAULT_LOCALE, { maximumFractionDigits: 1 });
 const hoursFormatter = new Intl.NumberFormat(DEFAULT_LOCALE, { maximumFractionDigits: 2 });
-const dateFormatter = new Intl.DateTimeFormat(DEFAULT_LOCALE, {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-});
-const dateTimeFormatter = new Intl.DateTimeFormat(DEFAULT_LOCALE, {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+
+const dateFormatters = new Map();
+const dateTimeFormatters = new Map();
+
+function getDateFormatter(timeZone) {
+  const tz = timeZone || DEFAULT_TIMEZONE;
+  if (!dateFormatters.has(tz)) {
+    dateFormatters.set(
+      tz,
+      new Intl.DateTimeFormat(DEFAULT_LOCALE, {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        timeZone: tz,
+      })
+    );
+  }
+  return dateFormatters.get(tz);
+}
+
+function getDateTimeFormatter(timeZone) {
+  const tz = timeZone || DEFAULT_TIMEZONE;
+  if (!dateTimeFormatters.has(tz)) {
+    dateTimeFormatters.set(
+      tz,
+      new Intl.DateTimeFormat(DEFAULT_LOCALE, {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: tz,
+      })
+    );
+  }
+  return dateTimeFormatters.get(tz);
+}
 
 function formatNumber(value) {
   if (!Number.isFinite(value)) {
@@ -56,19 +82,19 @@ function formatDeltaPct(value) {
   return `${sign}${percentFormatter.format(value)}%`;
 }
 
-function formatDateRange(startIso, endIso) {
+function formatDateRange(startIso, endIso, timeZone) {
   if (!startIso || !endIso) {
-    return "Período indisponível";
+    return "Periodo indisponivel";
   }
-  const start = formatDateOnly(startIso);
-  const end = formatDateOnly(endIso);
+  const start = formatDateOnly(startIso, timeZone);
+  const end = formatDateOnly(endIso, timeZone);
   if (!start || !end) {
-    return "Período indisponível";
+    return "Periodo indisponivel";
   }
   return `${start} a ${end}`;
 }
 
-function formatDateTime(iso) {
+function formatDateTime(iso, timeZone) {
   if (!iso) {
     return "";
   }
@@ -76,10 +102,10 @@ function formatDateTime(iso) {
   if (Number.isNaN(date.getTime())) {
     return "";
   }
-  return dateTimeFormatter.format(date);
+  return getDateTimeFormatter(timeZone).format(date);
 }
 
-function formatDateOnly(value) {
+function formatDateOnly(value, timeZone) {
   if (!value) {
     return "";
   }
@@ -87,7 +113,7 @@ function formatDateOnly(value) {
   if (Number.isNaN(date.getTime())) {
     return "";
   }
-  return dateFormatter.format(date);
+  return getDateFormatter(timeZone).format(date);
 }
 
 module.exports = {

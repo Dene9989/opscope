@@ -435,6 +435,50 @@ li {
   color: #b91c1c;
 }
 
+.kpi-status {
+  margin-top: 6pt;
+  display: inline-flex;
+  align-items: center;
+  gap: 6pt;
+  padding: 3pt 8pt;
+  border-radius: 999px;
+  font-size: 9pt;
+  font-weight: 600;
+  background: var(--surface-strong);
+  color: var(--ink-700);
+  width: fit-content;
+}
+
+.kpi-status__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10pt;
+  line-height: 1;
+}
+
+.kpi-status--positive {
+  background: var(--positive-bg);
+  color: var(--positive);
+}
+
+.kpi-status--warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.kpi-status--neutral {
+  background: var(--muted);
+  color: var(--ink-600);
+}
+
+.kpi-detail {
+  margin-top: 6pt;
+  font-size: 9.2pt;
+  color: var(--ink-600);
+  line-height: 1.35;
+}
+
 .comparison-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170pt, 1fr));
@@ -974,36 +1018,78 @@ tr {
       <div class="kpi-label">Atividades planejadas no mês</div>
       <div class="kpi-value">60</div>
       
+      
+        <div class="kpi-status kpi-status--positive">
+          <span class="kpi-status__icon">🟢</span>
+          <span class="kpi-status__label">Programação ativa</span>
+        </div>
+      
+      <div class="kpi-detail">Busca: volume planejado do mês. Soma: atividades com dueDate no período e status não cancelado. Base: programação mensal.</div>
     </div>
   
     <div class="kpi-card tone-warning">
       <div class="kpi-label">Atividades executadas no mês</div>
       <div class="kpi-value">48</div>
       
+      
+        <div class="kpi-status kpi-status--positive">
+          <span class="kpi-status__icon">🟢</span>
+          <span class="kpi-status__label">Execução registrada</span>
+        </div>
+      
+      <div class="kpi-detail">Busca: entregas concluídas no mês. Soma: atividades com doneAt no período e status concluída. Base: execução real.</div>
     </div>
   
     <div class="kpi-card tone-warning">
       <div class="kpi-label">Execução do plano</div>
       <div class="kpi-value">80%</div>
       
+      
+        <div class="kpi-status kpi-status--warning">
+          <span class="kpi-status__icon">🔴</span>
+          <span class="kpi-status__label">Fora da meta</span>
+        </div>
+      
+      <div class="kpi-detail">Busca: aderência ao plano. Cálculo: executadas ÷ planejadas. Meta ≥ 90%.</div>
     </div>
   
     <div class="kpi-card tone-warning">
       <div class="kpi-label">Backlog</div>
       <div class="kpi-value">12</div>
       
+      
+        <div class="kpi-status kpi-status--warning">
+          <span class="kpi-status__icon">🔴</span>
+          <span class="kpi-status__label">Acima do ideal</span>
+        </div>
+      
+      <div class="kpi-detail">Busca: pendências do mês. Soma: atividades planejadas no período com status backlog. Meta = 0.</div>
     </div>
   
     <div class="kpi-card tone-warning">
       <div class="kpi-label">Vencidas</div>
       <div class="kpi-value">12</div>
       
+      
+        <div class="kpi-status kpi-status--warning">
+          <span class="kpi-status__icon">🔴</span>
+          <span class="kpi-status__label">Com vencimentos</span>
+        </div>
+      
+      <div class="kpi-detail">Busca: atraso vencido. Soma: dueDate até fim do mês sem conclusão até a data de corte. Meta = 0.</div>
     </div>
   
     <div class="kpi-card tone-warning">
       <div class="kpi-label">SLA no prazo</div>
       <div class="kpi-value">0%</div>
       
+      
+        <div class="kpi-status kpi-status--warning">
+          <span class="kpi-status__icon">🔴</span>
+          <span class="kpi-status__label">Fora da meta</span>
+        </div>
+      
+      <div class="kpi-detail">Busca: cumprimento de prazo. Base: concluídas no mês com dueDate. No prazo = doneAt ≤ dueDate; fora do prazo = 100% - no prazo. Meta ≥ 90%.</div>
     </div>
   </div>
 
@@ -1095,30 +1181,65 @@ tr {
       <div class="kpi-label">Compliance documental</div>
       <div class="kpi-value">100%</div>
       
+      
+        <div class="kpi-status kpi-status--positive">
+          <span class="kpi-status__icon">🟢</span>
+          <span class="kpi-status__label">Dentro da meta</span>
+        </div>
+      
+      <div class="kpi-detail">Busca: documentação correta. Cálculo: docs OK ÷ docs exigidos em atividades concluídas. Meta ≥ 95%.</div>
     </div>
   
     <div class="kpi-card tone-warning">
       <div class="kpi-label">Taxa preventiva/preditiva</div>
       <div class="kpi-value">33%</div>
       
+      
+        <div class="kpi-status kpi-status--warning">
+          <span class="kpi-status__icon">🔴</span>
+          <span class="kpi-status__label">Abaixo da meta</span>
+        </div>
+      
+      <div class="kpi-detail">Busca: confiabilidade preventiva. Cálculo: preventivas/preditivas ÷ total executado no mês. Meta ≥ 70%.</div>
     </div>
   
     <div class="kpi-card tone-warning">
       <div class="kpi-label">Taxa corretiva (paradas)</div>
       <div class="kpi-value">33%</div>
       
+      
+        <div class="kpi-status kpi-status--warning">
+          <span class="kpi-status__icon">🔴</span>
+          <span class="kpi-status__label">Acima da meta</span>
+        </div>
+      
+      <div class="kpi-detail">Busca: exposição a corretivas. Cálculo: corretivas ÷ total executado no mês. Meta ≤ 25%.</div>
     </div>
   
     <div class="kpi-card tone-neutral">
       <div class="kpi-label">Horas executadas</div>
       <div class="kpi-value">0h</div>
       
+      
+        <div class="kpi-status kpi-status--warning">
+          <span class="kpi-status__icon">🔴</span>
+          <span class="kpi-status__label">Sem registro</span>
+        </div>
+      
+      <div class="kpi-detail">Busca: esforço aplicado. Soma: duração registrada ou diferença entre início e fim das execuções no mês.</div>
     </div>
   
     <div class="kpi-card tone-neutral">
       <div class="kpi-label">Evidências</div>
       <div class="kpi-value">93</div>
       
+      
+        <div class="kpi-status kpi-status--positive">
+          <span class="kpi-status__icon">🟢</span>
+          <span class="kpi-status__label">Com evidências</span>
+        </div>
+      
+      <div class="kpi-detail">Busca: rastreabilidade visual. Soma: evidências anexadas nas atividades concluídas e RDOs do mês.</div>
     </div>
   </div>
   
@@ -1336,7 +1457,7 @@ tr {
     <div class="chart-container">
       <div class="chart-header">
         <h4>Cumprimento de SLA</h4>
-        <span class="chart-subtitle">Percentual de atividades elegíveis</span>
+        <span class="chart-subtitle">Percentual de atividades elegíveis (concluídas no mês com dueDate)</span>
       </div>
       <div class="chart-svg">
     <svg width="520" height="240" viewBox="0 0 520 240" xmlns="http://www.w3.org/2000/svg">
@@ -1351,7 +1472,7 @@ tr {
       <rect x="46" y="44" width="458" height="162" fill="#b45309" />
     </svg>
   </div>
-      <div class="chart-note">Leitura: percentual de atividades elegíveis entregues dentro do prazo.</div>
+      <div class="chart-note">Leitura: no prazo = doneAt &lt;= dueDate. Fora do prazo = 100% - no prazo.</div>
       
     <table class="chart-summary">
       <tbody>
@@ -1397,6 +1518,7 @@ tr {
       <div class="insight-text">Conformidade documental dentro do padrão esperado.</div>
     </div>
   </div>
+    
   
     <footer class="report-footer">
       <span class="footer-left">RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig</span>
@@ -1404,10 +1526,11 @@ tr {
     </footer>
   </section>
       <section class="report-page page-break">
+      
     
     <div class="section-header">
       <h2>Análise operacional</h2>
-      <p>Distribuição operacional do período (planejado vs execução). A operação concentrou-se em categoria Corretiva Eletrica, equipe O&amp;M Boa Sorte II. A distribuição por categoria está coerente com o perfil do período. Preventivas/preditivas representam 33% do esforço executado, fortalecendo confiabilidade. Corretivas em 33% indicam falhas que exigem parada; priorizar redução de recorrência. Prioridade mais frequente: Alta. Abrangência operacional em 1 locais do projeto.</p>
+      <p>Distribuição operacional do período (planejado vs execução). A operação concentrou-se em categoria Corretiva Eletrica, equipe O&amp;M Boa Sorte II. A distribuição por categoria está coerente com o perfil do período. Preventivas/preditivas representam 33% do esforço executado, fortalecendo confiabilidade. Corretivas em 33% refletem demandas reativas; manter análise de causa raiz para reduzir recorrências. Prioridade mais frequente: Alta. Abrangência operacional em 1 locais do projeto.</p>
     </div>
   
     <div class="chart-grid">
@@ -1744,6 +1867,8 @@ tr {
         </div>
       
   
+      
+    
     <footer class="report-footer">
       <span class="footer-left">RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig</span>
       <span class="footer-right">Página <span class="page-number"></span></span>
@@ -1779,7 +1904,6 @@ tr {
       </tbody>
     </table>
   
-    
 
     
     <div class="section-header">
@@ -2069,12 +2193,13 @@ tr {
   </section>
       <section class="report-page page-break">
     
+      
     <div class="section-header">
       <h2>Tabelas consolidadas</h2>
       <p>Tabelas consolidadas com separação entre planejado (dueDate) e executado (doneAt) no mês.</p>
     </div>
   
-    
+      
         <div class="summary-table" data-chunk-index="1">
           <h3>Status no período (planejado + executado)</h3>
           <table>
@@ -2333,6 +2458,8 @@ tr {
           </table>
         </div>
       
+    
+    
   
     <footer class="report-footer">
       <span class="footer-left">RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig</span>
