@@ -197,7 +197,7 @@ function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial
 
   const recommendation =
     metrics.backlog > 0 || metrics.overdue > 0 || !meetsSla
-      ? "Priorizar recuperação de backlog e vencimentos, reprogramando frentes críticas e reforçando capacidade no próximo ciclo."
+      ? "Priorizar tratativa de backlog e vencimentos, com plano de saneamento acordado com o cliente e reforço de capacidade no próximo ciclo."
       : "Manter o ritmo operacional, preservando a rotina preventiva e a governança de prazos.";
 
   let conclusion = `Conclusão gerencial: ${recommendation}`;
@@ -226,7 +226,7 @@ function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial
       title: "Direcionamento",
       tone: "neutral",
       text: metrics.backlog > 0 || metrics.overdue > 0 || !meetsSla
-        ? "Foco no próximo ciclo: recuperar backlog e estabilizar SLA."
+        ? "Foco no próximo ciclo: tratar backlog e estabilizar SLA, com plano de saneamento alinhado ao cliente."
         : "Foco no próximo ciclo: manter estabilidade e disciplina de prazos.",
     },
   ];
@@ -334,7 +334,7 @@ function buildTechnicalHighlights({ metrics, breakdowns }) {
   });
 
   const actionText = metrics.backlog > 0 || metrics.overdue > 0
-    ? "Revisar criticidade, reprogramar frentes de maior impacto e reforçar recursos de execução para recuperar o SLA."
+    ? "Revisar criticidade, consolidar plano de tratativa do backlog com o cliente e reforçar recursos para recuperar o SLA."
     : "Manter disciplina de programação e monitorar criticidade para sustentar estabilidade operacional.";
 
   blocks.push({
@@ -484,7 +484,7 @@ function buildRecommendations({ metrics, breakdowns }) {
   if (metrics.backlog > 0) {
     items.push({
       id: "rec.backlog",
-      text: "Reprogramar backlog por criticidade e vencimento, definindo janela de recuperação e recursos dedicados.",
+      text: "Tratar backlog por criticidade com plano de saneamento e decisão com o cliente, evitando novas entradas semelhantes.",
     });
   }
   if (metrics.overdue > 0) {

@@ -75,7 +75,7 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
     pushInsight(insights, {
       id: "insight.backlog_present",
       tone: INSIGHT_TONE.WARNING,
-      text: "Backlog em aberto requer priorização no próximo ciclo.",
+      text: "Backlog em aberto requer tratativa e saneamento acordados com o cliente.",
       metrics: { backlog: metrics.backlog },
     });
   } else {
