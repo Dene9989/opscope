@@ -449,6 +449,14 @@ li {
   line-height: 1;
 }
 
+.kpi-status__dot {
+  width: 7pt;
+  height: 7pt;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+}
+
 .kpi-status--positive {
   background: var(--positive-bg);
   color: var(--positive);

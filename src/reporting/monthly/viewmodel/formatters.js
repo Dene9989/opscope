@@ -84,12 +84,12 @@ function formatDeltaPct(value) {
 
 function formatDateRange(startIso, endIso, timeZone) {
   if (!startIso || !endIso) {
-    return "Periodo indisponivel";
+    return "Período indisponível";
   }
   const start = formatDateOnly(startIso, timeZone);
   const end = formatDateOnly(endIso, timeZone);
   if (!start || !end) {
-    return "Periodo indisponivel";
+    return "Período indisponível";
   }
   return `${start} a ${end}`;
 }

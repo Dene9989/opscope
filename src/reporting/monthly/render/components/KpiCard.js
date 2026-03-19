@@ -24,6 +24,7 @@ function KpiCard(card) {
       ${hasDelta ? `<div class="kpi-delta${deltaClass}">${escapeHtml(deltaValue)}</div>` : ""}
       ${statusSymbol || statusLabel ? `
         <div class="kpi-status${statusTone}">
+          <span class="kpi-status__dot" aria-hidden="true"></span>
           ${statusSymbol ? `<span class="kpi-status__icon">${escapeHtml(statusSymbol)}</span>` : ""}
           ${statusLabel ? `<span class="kpi-status__label">${escapeHtml(statusLabel)}</span>` : ""}
         </div>

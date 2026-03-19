@@ -112,11 +112,11 @@ function buildKpis({ metrics, comparison, breakdowns }) {
   const cards = [];
   const makeStatus = (ok, okLabel, badLabel, neutralLabel = "Informativo") => {
     if (ok === null || ok === undefined) {
-      return { symbol: "🟡", label: neutralLabel, tone: VIEWMODEL_TONE.NEUTRAL };
+      return { symbol: "", label: neutralLabel, tone: VIEWMODEL_TONE.NEUTRAL };
     }
     return ok
-      ? { symbol: "🟢", label: okLabel, tone: VIEWMODEL_TONE.POSITIVE }
-      : { symbol: "🔴", label: badLabel, tone: VIEWMODEL_TONE.WARNING };
+      ? { symbol: "", label: okLabel, tone: VIEWMODEL_TONE.POSITIVE }
+      : { symbol: "", label: badLabel, tone: VIEWMODEL_TONE.WARNING };
   };
   const hasPlanned = metrics.totalPlannedActivities > 0;
   const hasExecuted = metrics.totalExecutedActivities > 0;

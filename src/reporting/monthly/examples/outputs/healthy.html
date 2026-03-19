@@ -457,6 +457,14 @@ li {
   line-height: 1;
 }
 
+.kpi-status__dot {
+  width: 7pt;
+  height: 7pt;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+}
+
 .kpi-status--positive {
   background: var(--positive-bg);
   color: var(--positive);
@@ -911,7 +919,6 @@ tr {
 .kpi-card,
 .insight-card,
 .risk-card,
-.summary-table,
 .hero,
 .metadata-bar,
 .executive-summary,
@@ -920,10 +927,6 @@ tr {
 .narrative-block,
 .comparison-card,
 .chart-summary,
-.compliance-table,
-.action-table-block,
-.backlog-table,
-.contingency-table,
 .daily-rdo-block,
 .backlog-reason,
 .evidence-card {
@@ -1016,7 +1019,8 @@ tr {
       <div class="kpi-delta kpi-delta--positive">+3 +150%</div>
       
         <div class="kpi-status kpi-status--positive">
-          <span class="kpi-status__icon">🟢</span>
+          <span class="kpi-status__dot" aria-hidden="true"></span>
+          
           <span class="kpi-status__label">Programação ativa</span>
         </div>
       
@@ -1029,7 +1033,8 @@ tr {
       <div class="kpi-delta kpi-delta--positive">+3 +150%</div>
       
         <div class="kpi-status kpi-status--positive">
-          <span class="kpi-status__icon">🟢</span>
+          <span class="kpi-status__dot" aria-hidden="true"></span>
+          
           <span class="kpi-status__label">Execução registrada</span>
         </div>
       
@@ -1042,7 +1047,8 @@ tr {
       
       
         <div class="kpi-status kpi-status--positive">
-          <span class="kpi-status__icon">🟢</span>
+          <span class="kpi-status__dot" aria-hidden="true"></span>
+          
           <span class="kpi-status__label">Dentro da meta</span>
         </div>
       
@@ -1055,7 +1061,8 @@ tr {
       <div class="kpi-delta">0</div>
       
         <div class="kpi-status kpi-status--positive">
-          <span class="kpi-status__icon">🟢</span>
+          <span class="kpi-status__dot" aria-hidden="true"></span>
+          
           <span class="kpi-status__label">Controlado</span>
         </div>
       
@@ -1068,7 +1075,8 @@ tr {
       <div class="kpi-delta">0</div>
       
         <div class="kpi-status kpi-status--positive">
-          <span class="kpi-status__icon">🟢</span>
+          <span class="kpi-status__dot" aria-hidden="true"></span>
+          
           <span class="kpi-status__label">Sem vencimentos</span>
         </div>
       
@@ -1081,7 +1089,8 @@ tr {
       <div class="kpi-delta">0 0%</div>
       
         <div class="kpi-status kpi-status--positive">
-          <span class="kpi-status__icon">🟢</span>
+          <span class="kpi-status__dot" aria-hidden="true"></span>
+          
           <span class="kpi-status__label">Dentro da meta</span>
         </div>
       
@@ -1295,7 +1304,8 @@ tr {
       <div class="kpi-delta">0 0%</div>
       
         <div class="kpi-status kpi-status--positive">
-          <span class="kpi-status__icon">🟢</span>
+          <span class="kpi-status__dot" aria-hidden="true"></span>
+          
           <span class="kpi-status__label">Dentro da meta</span>
         </div>
       
@@ -1308,7 +1318,8 @@ tr {
       
       
         <div class="kpi-status kpi-status--warning">
-          <span class="kpi-status__icon">🔴</span>
+          <span class="kpi-status__dot" aria-hidden="true"></span>
+          
           <span class="kpi-status__label">Abaixo da meta</span>
         </div>
       
@@ -1321,7 +1332,8 @@ tr {
       
       
         <div class="kpi-status kpi-status--positive">
-          <span class="kpi-status__icon">🟢</span>
+          <span class="kpi-status__dot" aria-hidden="true"></span>
+          
           <span class="kpi-status__label">Dentro da meta</span>
         </div>
       
@@ -1334,7 +1346,8 @@ tr {
       <div class="kpi-delta">0</div>
       
         <div class="kpi-status kpi-status--warning">
-          <span class="kpi-status__icon">🔴</span>
+          <span class="kpi-status__dot" aria-hidden="true"></span>
+          
           <span class="kpi-status__label">Sem registro</span>
         </div>
       
@@ -1347,7 +1360,8 @@ tr {
       <div class="kpi-delta kpi-delta--positive">+7 +233,3%</div>
       
         <div class="kpi-status kpi-status--positive">
-          <span class="kpi-status__icon">🟢</span>
+          <span class="kpi-status__dot" aria-hidden="true"></span>
+          
           <span class="kpi-status__label">Com evidências</span>
         </div>
       

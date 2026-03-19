@@ -91,7 +91,7 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
     pushInsight(insights, {
       id: "insight.overdue_present",
       tone: INSIGHT_TONE.WARNING,
-      text: "Atividades vencidas reforcam a necessidade de priorizacao de prazos.",
+      text: "Atividades vencidas reforçam a necessidade de priorização de prazos.",
       metrics: { overdue: metrics.overdue },
     });
   } else {
@@ -134,7 +134,7 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
       pushInsight(insights, {
         id: "insight.preventive_ratio_good",
         tone: INSIGHT_TONE.POSITIVE,
-        text: "Predominancia preventiva/preditiva reforca a confiabilidade operacional.",
+        text: "Predominância preventiva/preditiva reforça a confiabilidade operacional.",
         metrics: { preventivePct: typeRatios.preventivePct },
       });
     }
@@ -142,7 +142,7 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
       pushInsight(insights, {
         id: "insight.corrective_ratio_high",
         tone: INSIGHT_TONE.WARNING,
-        text: "Taxa de corretivas acima da meta indica paradas e pede reducao de recorrencias.",
+        text: "Taxa de corretivas acima da meta indica paradas e pede redução de recorrências.",
         metrics: { correctivePct: typeRatios.correctivePct },
       });
     }
