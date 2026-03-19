@@ -1,4 +1,33 @@
-﻿const { KPI_TARGETS, INSIGHT_TONE } = require("./contracts");
+const { KPI_TARGETS, INSIGHT_TONE } = require("./contracts");
+
+function computeTypeRatios(breakdowns) {
+  if (!breakdowns) {
+    return { total: 0, preventivePct: 0, correctivePct: 0 };
+  }
+  const typeMap = breakdowns.byTypeExecuted && Object.keys(breakdowns.byTypeExecuted).length
+    ? breakdowns.byTypeExecuted
+    : breakdowns.byType || {};
+  const total = Object.values(typeMap).reduce((acc, value) => acc + (Number(value) || 0), 0);
+  const preventiveCount = Object.entries(typeMap).reduce((acc, [key, value]) => {
+    const label = String(key || '').toLowerCase();
+    if (label.includes('preventiva') || label.includes('preditiva')) {
+      return acc + (Number(value) || 0);
+    }
+    return acc;
+  }, 0);
+  const correctiveCount = Object.entries(typeMap).reduce((acc, [key, value]) => {
+    const label = String(key || '').toLowerCase();
+    if (label.includes('corretiva') || label.includes('corretivo') || label.includes('reparo')) {
+      return acc + (Number(value) || 0);
+    }
+    return acc;
+  }, 0);
+  return {
+    total,
+    preventivePct: total ? Math.round((preventiveCount / total) * 100) : 0,
+    correctivePct: total ? Math.round((correctiveCount / total) * 100) : 0,
+  };
+}
 
 function pushInsight(list, insight) {
   list.push(insight);
@@ -11,9 +40,11 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
   }
 
   const metrics = aggregated.current.metrics;
+  const breakdowns = aggregated.current.breakdowns || {};
   const planned = metrics.totalPlannedActivities || 0;
   const executed = metrics.totalExecutedActivities || 0;
   const executionRatioPct = planned ? Math.round((executed / planned) * 100) : 0;
+  const typeRatios = computeTypeRatios(breakdowns);
 
   if (planned === 0) {
     pushInsight(insights, {
@@ -60,7 +91,7 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
     pushInsight(insights, {
       id: "insight.overdue_present",
       tone: INSIGHT_TONE.WARNING,
-      text: "Atividades vencidas aumentam pressão sobre prazos e SLA.",
+      text: "Atividades vencidas reforcam a necessidade de priorizacao de prazos.",
       metrics: { overdue: metrics.overdue },
     });
   } else {
@@ -95,6 +126,26 @@ function buildInsights({ aggregated, comparison, integrityStatus }) {
       text: "Sem atividades elegíveis para cálculo de SLA no período.",
       metrics: { slaEligibleActivities: metrics.slaEligibleActivities },
     });
+  }
+
+
+  if (typeRatios.total) {
+    if (typeRatios.preventivePct >= KPI_TARGETS.preventivePct) {
+      pushInsight(insights, {
+        id: "insight.preventive_ratio_good",
+        tone: INSIGHT_TONE.POSITIVE,
+        text: "Predominancia preventiva/preditiva reforca a confiabilidade operacional.",
+        metrics: { preventivePct: typeRatios.preventivePct },
+      });
+    }
+    if (typeRatios.correctivePct > KPI_TARGETS.correctivePctMax) {
+      pushInsight(insights, {
+        id: "insight.corrective_ratio_high",
+        tone: INSIGHT_TONE.WARNING,
+        text: "Taxa de corretivas acima da meta indica paradas e pede reducao de recorrencias.",
+        metrics: { correctivePct: typeRatios.correctivePct },
+      });
+    }
   }
 
   if (metrics.docsRequired > 0) {

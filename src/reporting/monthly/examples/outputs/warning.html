@@ -81,7 +81,7 @@ li {
   background: var(--surface);
   border-radius: 12pt;
   padding: 12pt 14pt;
-  margin-bottom: 8pt;
+  margin-bottom: 6pt;
   border: 1px solid var(--border);
 }
 
@@ -161,7 +161,7 @@ li {
   gap: 8pt;
   padding: 6pt 0 12pt;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 10pt;
+  margin-bottom: 8pt;
 }
 
 .metadata-item {
@@ -214,7 +214,7 @@ li {
 .section-header {
   border-left: 4px solid var(--accent);
   padding-left: 8pt;
-  margin: 10pt 0 6pt;
+  margin: 8pt 0 4pt;
 }
 
 .section-header p {
@@ -252,7 +252,7 @@ li {
   display: grid;
   grid-template-columns: 1.6fr 1fr;
   gap: 12pt;
-  margin-top: 8pt;
+  margin-top: 6pt;
 }
 
 .executive-main {
@@ -375,7 +375,7 @@ li {
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10pt;
+  gap: 8pt;
 }
 
 .kpi-card {
@@ -503,7 +503,7 @@ li {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10pt;
-  margin-bottom: 10pt;
+  margin-bottom: 8pt;
 }
 
 .insight-grid,
@@ -626,7 +626,7 @@ li {
 }
 
 .table-group-title {
-  margin-top: 12pt;
+  margin-top: 10pt;
   font-size: 9.2pt;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -775,7 +775,7 @@ td:nth-child(3) {
 
 .evidence-image {
   width: 100%;
-  height: 120pt;
+  height: 110pt;
   object-fit: cover;
   display: block;
   background: var(--surface-strong);
@@ -831,7 +831,7 @@ body {
   min-height: 270mm;
   display: flex;
   flex-direction: column;
-  gap: 4pt;
+  gap: 3pt;
   counter-increment: page;
 }
 
@@ -1021,7 +1021,7 @@ tr {
         
           <div class="narrative-block">
             <div class="narrative-title">O que performou bem</div>
-            <div class="narrative-text">Metas mantidas sob monitoramento, sem destaques positivos relevantes.</div>
+            <div class="narrative-text">Predominância preventiva/preditiva (100%), reforçando confiabilidade.</div>
           </div>
         
           <div class="narrative-block">
@@ -1031,12 +1031,12 @@ tr {
         
           <div class="narrative-block">
             <div class="narrative-title">Atuação do time</div>
-            <div class="narrative-text">Atuação concentrada na equipe O&amp;M Boa Sorte II com foco em continuidade operacional.</div>
+            <div class="narrative-text">Atuação com foco preventivo/preditivo consistente. Atuação concentrada na equipe O&amp;M Boa Sorte II com foco em continuidade operacional.</div>
           </div>
         
           <div class="narrative-block">
             <div class="narrative-title">Impacto e controle</div>
-            <div class="narrative-text">Backlog e vencimentos pressionam a capacidade e elevam o risco de desvio de SLA. SLA não aplicável por ausência de itens elegíveis. Sem exigência documental no período.</div>
+            <div class="narrative-text">Backlog e vencimentos demandam priorização para manter previsibilidade de entrega. SLA não aplicável por ausência de itens elegíveis. Sem exigência documental no período.</div>
           </div>
         
     </div>
@@ -1092,6 +1092,18 @@ tr {
     <div class="kpi-grid">
     <div class="kpi-card tone-warning">
       <div class="kpi-label">Compliance documental</div>
+      <div class="kpi-value">0%</div>
+      
+    </div>
+  
+    <div class="kpi-card tone-positive">
+      <div class="kpi-label">Taxa preventiva/preditiva</div>
+      <div class="kpi-value">100%</div>
+      
+    </div>
+  
+    <div class="kpi-card tone-positive">
+      <div class="kpi-label">Taxa corretiva (paradas)</div>
       <div class="kpi-value">0%</div>
       
     </div>
@@ -1369,19 +1381,19 @@ tr {
     </div>
   
     <div class="insight-card tone-warning">
-      <div class="insight-text">Atividades vencidas aumentam pressão sobre prazos e SLA.</div>
+      <div class="insight-text">Atividades vencidas reforcam a necessidade de priorizacao de prazos.</div>
     </div>
   
     <div class="insight-card tone-info">
       <div class="insight-text">Sem atividades elegíveis para cálculo de SLA no período.</div>
     </div>
   
-    <div class="insight-card tone-info">
-      <div class="insight-text">Volume baixo reduz a robustez estatística das análises.</div>
+    <div class="insight-card tone-positive">
+      <div class="insight-text">Predominancia preventiva/preditiva reforca a confiabilidade operacional.</div>
     </div>
   
-    <div class="insight-card tone-warning">
-      <div class="insight-text">Advertências de integridade de dados; revisar base antes de decisões críticas.</div>
+    <div class="insight-card tone-info">
+      <div class="insight-text">Volume baixo reduz a robustez estatística das análises.</div>
     </div>
   </div>
   
@@ -1618,6 +1630,7 @@ tr {
       </tbody>
     </table>
   
+    
 
     
     <div class="section-header">
@@ -1637,7 +1650,7 @@ tr {
         
           <div class="narrative-block">
             <div class="narrative-title">Leitura preventiva vs corretiva</div>
-            <div class="narrative-text">Preventivas/preditivas: 100% do esforço executado, reforçando confiabilidade.</div>
+            <div class="narrative-text">Preventivas/preditivas: 100% do esforço executado, reforçando confiabilidade e disciplina operacional.</div>
           </div>
         
           <div class="narrative-block">
@@ -1679,14 +1692,14 @@ tr {
       <p>Avaliação de riscos baseada em backlog, vencimentos, SLA e compliance.</p>
     </div>
   
-    <p class="section-note">Exposição elevada. Principais vetores: backlog em aberto, vencimentos acima do planejado, alertas de integridade.</p>
+    <p class="section-note">Nível de atenção elevada. Principais vetores: backlog em aberto, vencimentos acima do planejado, alertas de integridade.</p>
     <div class="risk-grid">
     <div class="risk-card tone-warning">
-      <div class="risk-text">Backlog em aberto pressiona capacidade e requer priorização para manter o cronograma.</div>
+      <div class="risk-text">Backlog em aberto pede priorização para manter previsibilidade de prazos.</div>
     </div>
   
     <div class="risk-card tone-warning">
-      <div class="risk-text">Atividades vencidas indicam atraso materializado e exigem recomposição de prazos.</div>
+      <div class="risk-text">Atividades vencidas indicam necessidade de recomposição seletiva de prazos.</div>
     </div>
   
     <div class="risk-card tone-warning">
@@ -1929,39 +1942,12 @@ tr {
           </table>
         </div>
       
-
-    
-    <div class="section-header">
-      <h2>Anexo técnico diário</h2>
-      <p>Sem RDOs disponíveis para o período.</p>
-    </div>
-  
-    
-    <div class="empty-state">
-      Sem RDOs disponíveis para o período.
-    </div>
-  
-    
-    
-    <div class="section-header">
-      <h2>Evidências selecionadas</h2>
-      
-    </div>
-  
-    <p class="section-note">Sem evidências visuais incorporadas no período. Evidências registradas permanecem disponíveis no sistema.</p>
-    
-    <div class="empty-state">
-      Sem evidências visuais disponíveis para o período.
-    </div>
-  
-  
   
     <footer class="report-footer">
       <span class="footer-left">RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig</span>
       <span class="footer-right">Página <span class="page-number"></span></span>
     </footer>
   </section>
-      
     </article>
   
       </body>

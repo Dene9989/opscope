@@ -81,7 +81,7 @@ li {
   background: var(--surface);
   border-radius: 12pt;
   padding: 12pt 14pt;
-  margin-bottom: 8pt;
+  margin-bottom: 6pt;
   border: 1px solid var(--border);
 }
 
@@ -161,7 +161,7 @@ li {
   gap: 8pt;
   padding: 6pt 0 12pt;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 10pt;
+  margin-bottom: 8pt;
 }
 
 .metadata-item {
@@ -214,7 +214,7 @@ li {
 .section-header {
   border-left: 4px solid var(--accent);
   padding-left: 8pt;
-  margin: 10pt 0 6pt;
+  margin: 8pt 0 4pt;
 }
 
 .section-header p {
@@ -252,7 +252,7 @@ li {
   display: grid;
   grid-template-columns: 1.6fr 1fr;
   gap: 12pt;
-  margin-top: 8pt;
+  margin-top: 6pt;
 }
 
 .executive-main {
@@ -375,7 +375,7 @@ li {
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10pt;
+  gap: 8pt;
 }
 
 .kpi-card {
@@ -503,7 +503,7 @@ li {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10pt;
-  margin-bottom: 10pt;
+  margin-bottom: 8pt;
 }
 
 .insight-grid,
@@ -626,7 +626,7 @@ li {
 }
 
 .table-group-title {
-  margin-top: 12pt;
+  margin-top: 10pt;
   font-size: 9.2pt;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -775,7 +775,7 @@ td:nth-child(3) {
 
 .evidence-image {
   width: 100%;
-  height: 120pt;
+  height: 110pt;
   object-fit: cover;
   display: block;
   background: var(--surface-strong);
@@ -831,7 +831,7 @@ body {
   min-height: 270mm;
   display: flex;
   flex-direction: column;
-  gap: 4pt;
+  gap: 3pt;
   counter-increment: page;
 }
 
@@ -1208,6 +1208,18 @@ tr {
       <div class="kpi-delta">0 0%</div>
     </div>
   
+    <div class="kpi-card tone-warning">
+      <div class="kpi-label">Taxa preventiva/preditiva</div>
+      <div class="kpi-value">0%</div>
+      
+    </div>
+  
+    <div class="kpi-card tone-positive">
+      <div class="kpi-label">Taxa corretiva (paradas)</div>
+      <div class="kpi-value">0%</div>
+      
+    </div>
+  
     <div class="kpi-card tone-neutral">
       <div class="kpi-label">Horas executadas</div>
       <div class="kpi-value">0h</div>
@@ -1536,7 +1548,7 @@ tr {
       
     </svg>
   </div>
-      <div class="chart-note">Leitura: mostra as frentes de maior esforço executado, sem julgamento operacional automático.</div>
+      <div class="chart-note">Leitura: destaca frentes preventivas/preditivas vs corretivas, sem perder contexto do esforço executado.</div>
       
     <table class="chart-summary">
       <tbody>
@@ -1549,6 +1561,16 @@ tr {
             <tr>
               <td>Participação</td>
               <td>100%</td>
+            </tr>
+          
+            <tr>
+              <td>Preventivas/preditivas</td>
+              <td>0 (0%)</td>
+            </tr>
+          
+            <tr>
+              <td>Corretivas</td>
+              <td>0 (0%)</td>
             </tr>
           
       </tbody>
@@ -1828,6 +1850,7 @@ tr {
       </tbody>
     </table>
   
+    
 
     
     <div class="section-header">
@@ -1895,10 +1918,10 @@ tr {
       Sem riscos relevantes identificados.
     </div>
   
-    <p class="section-note">Sem desvios críticos no período; recomendações voltadas à manutenção do desempenho.</p>
+    <p class="section-note">Recomendações priorizadas para o próximo ciclo, com foco em capacidade, prazos e governança documental.</p>
     
     <ul class="recommendation-list">
-      <li>Manter a rotina preventiva/preditiva e a governança de prazos para sustentar a confiabilidade.</li>
+      <li>Elevar participação preventiva/preditiva para meta de confiabilidade, protegendo disponibilidade dos ativos.</li>
     </ul>
   
 
@@ -1940,7 +1963,7 @@ tr {
           <tbody>
             
                 <tr>
-                  <td>Manter a rotina preventiva/preditiva e a governança de prazos para sustentar a confiabilidade.</td>
+                  <td>Elevar participação preventiva/preditiva para meta de confiabilidade, protegendo disponibilidade dos ativos.</td>
                   <td>Coordenação O&amp;M</td>
                   <td>Próximo ciclo</td>
                   <td>Prioritária</td>
@@ -2186,61 +2209,12 @@ tr {
           </table>
         </div>
       
-
-    
-    <div class="section-header">
-      <h2>Anexo técnico diário</h2>
-      <p>Consolidação diária dos RDOs emitidos no período, com evidências e resumo técnico.</p>
-    </div>
-  
-    <div class="daily-rdo-page">
-    <div class="daily-rdo-block">
-      <div class="daily-rdo-header">
-        <strong>RDO 05/03/2026</strong>
-        <span>ID: R1</span>
-      </div>
-      <div class="daily-rdo-body">
-        <span><strong>Emitido:</strong> 05/03/2026, 17:00</span>
-        <span><strong>Equipe:</strong> O&amp;M Boa Sorte II</span>
-        <span><strong>Evidências:</strong> 3</span>
-        
-      </div>
-    </div>
-  
-    <div class="daily-rdo-block">
-      <div class="daily-rdo-header">
-        <strong>RDO 10/03/2026</strong>
-        <span>ID: R2</span>
-      </div>
-      <div class="daily-rdo-body">
-        <span><strong>Emitido:</strong> 10/03/2026, 17:00</span>
-        <span><strong>Equipe:</strong> O&amp;M Boa Sorte II</span>
-        <span><strong>Evidências:</strong> 2</span>
-        
-      </div>
-    </div>
-  </div>
-    
-    
-    <div class="section-header">
-      <h2>Evidências selecionadas</h2>
-      
-    </div>
-  
-    <p class="section-note">Sem evidências visuais incorporadas no período. Evidências registradas permanecem disponíveis no sistema.</p>
-    
-    <div class="empty-state">
-      Sem evidências visuais disponíveis para o período.
-    </div>
-  
-  
   
     <footer class="report-footer">
       <span class="footer-left">RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig</span>
       <span class="footer-right">Página <span class="page-number"></span></span>
     </footer>
   </section>
-      
     </article>
   
       </body>

@@ -15,6 +15,19 @@ function buildWeeklyLabels(weekly) {
   return weekly.map((bucket) => `S${bucket.weekIndex}`);
 }
 
+function sumByKeywordsFromTable(table, keywords) {
+  if (!table || !keywords || !keywords.length) {
+    return 0;
+  }
+  return table.reduce((acc, row) => {
+    const label = String(row.label || "").toLowerCase();
+    if (keywords.some((token) => label.includes(token))) {
+      return acc + (Number(row.count) || 0);
+    }
+    return acc;
+  }, 0);
+}
+
 function buildChart({ id, title, subtitle, svg, emptyMessage, note, summary }) {
   if (!svg) {
     return {
@@ -159,16 +172,23 @@ function buildMonthlyReportCharts(viewModel) {
       })
     : null;
   const topCategory = categoryTable[0];
+  const totalCategory = categoryTable.reduce((acc, row) => acc + (row.count || 0), 0);
+  const preventiveCount = sumByKeywordsFromTable(categoryTable, ["preventiva", "preditiva"]);
+  const correctiveCount = sumByKeywordsFromTable(categoryTable, ["corretiva", "corretivo", "reparo"]);
+  const preventivePct = totalCategory ? Math.round((preventiveCount / totalCategory) * 100) : 0;
+  const correctivePct = totalCategory ? Math.round((correctiveCount / totalCategory) * 100) : 0;
   charts.push(buildChart({
     id: "category_distribution",
     title: "Execução por categoria",
     subtitle: "Atividades concluídas no mês",
     svg: categorySvg,
     emptyMessage: "Sem dados por categoria",
-    note: "Leitura: mostra as frentes de maior esforço executado, sem julgamento operacional automático.",
+    note: "Leitura: destaca frentes preventivas/preditivas vs corretivas, sem perder contexto do esforço executado.",
     summary: [
       { label: "Categoria com maior volume", value: topCategory ? topCategory.label : "-" },
       { label: "Participação", value: topCategory ? formatPercent(topCategory.pct) : "-" },
+      { label: "Preventivas/preditivas", value: totalCategory ? `${formatNumber(preventiveCount)} (${formatPercent(preventivePct)})` : "-" },
+      { label: "Corretivas", value: totalCategory ? `${formatNumber(correctiveCount)} (${formatPercent(correctivePct)})` : "-" },
     ],
   }));
 

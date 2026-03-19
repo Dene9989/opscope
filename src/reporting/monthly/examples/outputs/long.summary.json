@@ -17,12 +17,13 @@
     "insight.backlog_present",
     "insight.overdue_present",
     "insight.sla_below_target",
+    "insight.corrective_ratio_high",
     "insight.docs_good",
     "insight.docs_unknown",
     "insight.critical_present",
     "insight.integrity_attention"
   ],
-  "pageCount": 18,
+  "pageCount": 12,
   "htmlPath": "C:\\Users\\denisson.alves\\OneDrive - ENGELMIG ENERGIA LTDA\\Área de Trabalho\\My Workspace\\sismetro\\src\\reporting\\monthly\\examples\\outputs\\long.html",
   "pdfPath": "C:\\Users\\denisson.alves\\OneDrive - ENGELMIG ENERGIA LTDA\\Área de Trabalho\\My Workspace\\sismetro\\src\\reporting\\monthly\\examples\\outputs\\long.pdf"
 }

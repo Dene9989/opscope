@@ -28,7 +28,40 @@ function pickTop(map, labelContext) {
   };
 }
 
-function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial }) {
+function computeTypeRatios(breakdowns) {
+  if (!breakdowns) {
+    return {
+      total: 0,
+      preventivePct: 0,
+      correctivePct: 0,
+    };
+  }
+  const typeMap = breakdowns.byTypeExecuted && Object.keys(breakdowns.byTypeExecuted).length
+    ? breakdowns.byTypeExecuted
+    : breakdowns.byType || {};
+  const total = Object.values(typeMap).reduce((acc, value) => acc + (Number(value) || 0), 0);
+  const preventiveCount = Object.entries(typeMap).reduce((acc, [key, value]) => {
+    const label = String(key || "").toLowerCase();
+    if (label.includes("preventiva") || label.includes("preditiva")) {
+      return acc + (Number(value) || 0);
+    }
+    return acc;
+  }, 0);
+  const correctiveCount = Object.entries(typeMap).reduce((acc, [key, value]) => {
+    const label = String(key || "").toLowerCase();
+    if (label.includes("corretiva") || label.includes("corretivo") || label.includes("reparo")) {
+      return acc + (Number(value) || 0);
+    }
+    return acc;
+  }, 0);
+  return {
+    total,
+    preventivePct: total ? Math.round((preventiveCount / total) * 100) : 0,
+    correctivePct: total ? Math.round((correctiveCount / total) * 100) : 0,
+  };
+}
+
+function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial, breakdowns }) {
   if (!metrics) {
     return fallbackExecutiveSummary("Não foi possível calcular métricas para o período.");
   }
@@ -46,6 +79,9 @@ function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial
   const meetsExecution = ratio >= KPI_TARGETS.executionRatioPct;
   const meetsSla = slaApplies ? metrics.slaOnTimePct >= KPI_TARGETS.slaOnTimePct : true;
   const meetsDocs = docsApplies ? metrics.docsCompliancePct >= KPI_TARGETS.docsCompliancePct : true;
+  const typeRatios = computeTypeRatios(breakdowns);
+  const meetsPreventive = typeRatios.total ? typeRatios.preventivePct >= KPI_TARGETS.preventivePct : false;
+  const correctiveHigh = typeRatios.total ? typeRatios.correctivePct > KPI_TARGETS.correctivePctMax : false;
 
   const performanceTone = meetsExecution && meetsSla
     ? "desempenho dentro das metas, com estabilidade operacional"
@@ -90,6 +126,9 @@ function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial
   if (docsApplies && meetsDocs) {
     positivePoints.push(`Compliance documental em ${formatPercent(metrics.docsCompliancePct)}.`);
   }
+  if (typeRatios.total && meetsPreventive) {
+    positivePoints.push(`Predominância preventiva/preditiva (${formatPercent(typeRatios.preventivePct)}), reforçando confiabilidade.`);
+  }
   if (!positivePoints.length) {
     positivePoints.push("Metas mantidas sob monitoramento, sem destaques positivos relevantes.");
   }
@@ -114,6 +153,11 @@ function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial
   if (docsApplies && !meetsDocs) {
     attentionPoints.push(`Compliance documental em ${formatPercent(metrics.docsCompliancePct)} abaixo do esperado.`);
   }
+  if (typeRatios.total && correctiveHigh) {
+    attentionPoints.push(
+      `Taxa de corretivas em ${formatPercent(typeRatios.correctivePct)} indica paradas e falhas; oportunidade de reduzir recorrência.`
+    );
+  }
   blocks.push({
     title: "O que exigiu atenção",
     text: attentionPoints.length ? attentionPoints.join(" ") : "Não foram observados desvios relevantes no período.",
@@ -126,6 +170,9 @@ function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial
   if (metrics.evidenceCount > 0) {
     teamParts.push(`Evidências registradas: ${formatNumber(metrics.evidenceCount)}.`);
   }
+  if (typeRatios.total && meetsPreventive) {
+    teamParts.push("Atuação com foco preventivo/preditivo consistente.");
+  }
   teamParts.push(`Atuação concentrada na equipe O&M Boa Sorte II com foco em continuidade operacional.`);
   blocks.push({
     title: "Atuação do time",
@@ -133,7 +180,7 @@ function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial
   });
 
   const impactText = metrics.backlog > 0 || metrics.overdue > 0
-    ? "Backlog e vencimentos pressionam a capacidade e elevam o risco de desvio de SLA."
+    ? "Backlog e vencimentos demandam priorização para manter previsibilidade de entrega."
     : "Impacto operacional controlado, com previsibilidade de entrega mantida.";
   const slaText = slaApplies
     ? `SLA em ${formatPercent(metrics.slaOnTimePct)} das atividades elegíveis.`
@@ -248,13 +295,13 @@ function buildTechnicalHighlights({ metrics, breakdowns }) {
   if (preventiveCount > 0 || correctiveCount > 0) {
     const parts = [];
     if (preventiveCount > 0) {
-      parts.push(`Preventivas/preditivas: ${formatPercent(preventivePct)} do esforço executado, reforçando confiabilidade.`);
+      parts.push(`Preventivas/preditivas: ${formatPercent(preventivePct)} do esforço executado, reforçando confiabilidade e disciplina operacional.`);
     }
     if (correctiveCount > 0) {
       parts.push(
         correctivePct >= 30
-          ? `Corretivas em ${formatPercent(correctivePct)} sinalizam falhas e paradas; priorizar redução de recorrência.`
-          : `Corretivas em ${formatPercent(correctivePct)} indicam resposta reativa pontual no período.`
+          ? `Corretivas em ${formatPercent(correctivePct)} sinalizam falhas e paradas; priorizar análise de causa raiz e redução de recorrência.`
+          : `Corretivas em ${formatPercent(correctivePct)} mantidas sob controle no período.`
       );
     }
     blocks.push({
@@ -349,19 +396,20 @@ function buildSafetyCompliance({ metrics, integrityStatus }) {
   };
 }
 
-function buildRiskAssessment({ metrics, integrityStatus }) {
+function buildRiskAssessment({ metrics, integrityStatus, breakdowns }) {
   if (!metrics) {
     return fallbackRiskAssessment("Sem métricas para avaliação de risco.");
   }
 
   const risks = [];
   const drivers = [];
+  const typeRatios = computeTypeRatios(breakdowns);
 
   if (metrics.backlog > 0) {
     risks.push({
       id: "risk.backlog",
       tone: "warning",
-      text: "Backlog em aberto pressiona capacidade e requer priorização para manter o cronograma.",
+      text: "Backlog em aberto pede priorização para manter previsibilidade de prazos.",
       metrics: { backlog: metrics.backlog },
     });
     drivers.push("backlog em aberto");
@@ -370,7 +418,7 @@ function buildRiskAssessment({ metrics, integrityStatus }) {
     risks.push({
       id: "risk.overdue",
       tone: "warning",
-      text: "Atividades vencidas indicam atraso materializado e exigem recomposição de prazos.",
+      text: "Atividades vencidas indicam necessidade de recomposição seletiva de prazos.",
       metrics: { overdue: metrics.overdue },
     });
     drivers.push("vencimentos acima do planejado");
@@ -379,7 +427,7 @@ function buildRiskAssessment({ metrics, integrityStatus }) {
     risks.push({
       id: "risk.sla_low",
       tone: "warning",
-      text: "SLA abaixo da meta sinaliza pressão de execução e priorização.",
+      text: "SLA abaixo da meta pede reequilíbrio de capacidade e priorização.",
       metrics: { slaOnTimePct: metrics.slaOnTimePct },
     });
     drivers.push("SLA abaixo da meta");
@@ -388,10 +436,19 @@ function buildRiskAssessment({ metrics, integrityStatus }) {
     risks.push({
       id: "risk.docs_low",
       tone: "warning",
-      text: "Compliance documental abaixo do esperado reduz rastreabilidade e eleva risco regulatório.",
+      text: "Compliance documental abaixo do esperado reduz rastreabilidade; reforçar evidências.",
       metrics: { docsCompliancePct: metrics.docsCompliancePct },
     });
     drivers.push("compliance documental abaixo do ideal");
+  }
+  if (typeRatios.total && typeRatios.correctivePct > KPI_TARGETS.correctivePctMax) {
+    risks.push({
+      id: "risk.corrective_ratio",
+      tone: "warning",
+      text: `Taxa de corretivas em ${formatPercent(typeRatios.correctivePct)} indica paradas; priorizar análise de causa raiz e redução de recorrência.`,
+      metrics: { correctivePct: typeRatios.correctivePct },
+    });
+    drivers.push("taxa de corretivas acima da meta");
   }
 
   if (integrityStatus && integrityStatus !== "ok") {
@@ -408,7 +465,7 @@ function buildRiskAssessment({ metrics, integrityStatus }) {
   }
 
   const exposure = drivers.length >= 3 ? "elevada" : drivers.length === 2 ? "moderada" : "controlada";
-  const summary = `Exposição ${exposure}. Principais vetores: ${drivers.join(", ")}.`;
+  const summary = `Nível de atenção ${exposure}. Principais vetores: ${drivers.join(", ")}.`;
 
   return {
     text: "Avaliação de riscos baseada em backlog, vencimentos, SLA e compliance.",
@@ -417,12 +474,13 @@ function buildRiskAssessment({ metrics, integrityStatus }) {
   };
 }
 
-function buildRecommendations({ metrics }) {
+function buildRecommendations({ metrics, breakdowns }) {
   if (!metrics) {
     return fallbackRecommendations("Sem métricas para recomendações.");
   }
 
   const items = [];
+  const typeRatios = computeTypeRatios(breakdowns);
   if (metrics.backlog > 0) {
     items.push({
       id: "rec.backlog",
@@ -445,6 +503,18 @@ function buildRecommendations({ metrics }) {
     items.push({
       id: "rec.docs",
       text: "Regularizar documentação pendente e padronizar checklist de evidências por atividade.",
+    });
+  }
+  if (typeRatios.total && typeRatios.correctivePct > KPI_TARGETS.correctivePctMax) {
+    items.push({
+      id: "rec.corrective",
+      text: "Implantar plano de redução de falhas: análise de causa raiz, eliminação de recorrências e reforço preventivo.",
+    });
+  }
+  if (typeRatios.total && typeRatios.preventivePct < KPI_TARGETS.preventivePct) {
+    items.push({
+      id: "rec.preventive",
+      text: "Elevar participação preventiva/preditiva para meta de confiabilidade, protegendo disponibilidade dos ativos.",
     });
   }
 

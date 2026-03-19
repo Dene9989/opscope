@@ -12,12 +12,10 @@ const { renderSummaryTable } = require("../components/SummaryTable");
 const { ComplianceTable } = require("../components/ComplianceTable");
 const { BacklogTable } = require("../components/BacklogTable");
 const { ContingencyTable } = require("../components/ContingencyTable");
-const { DailyRdoBlock } = require("../components/DailyRdoBlock");
 const { EvidenceGallery } = require("../components/EvidenceGallery");
 const { ChartContainer } = require("../components/ChartContainer");
 const { EmptyState } = require("../components/EmptyState");
 const { Page } = require("../layout/page");
-const { chunkArray } = require("../helpers/chunk");
 const { escapeHtml } = require("../helpers/escape");
 
 function renderKpiGrid(cards) {
@@ -189,19 +187,6 @@ function renderConsolidatedTables(consolidated) {
   return content;
 }
 
-function renderDailyAppendix(appendix) {
-  if (!appendix || !appendix.dailyRdos || !appendix.dailyRdos.length) {
-    return EmptyState(appendix && appendix.text ? appendix.text : "Sem RDOs disponíveis.");
-  }
-  const chunks = chunkArray(appendix.dailyRdos, 3);
-  return chunks
-    .map((chunk, idx) => {
-      const content = chunk.map(DailyRdoBlock).join("");
-      return `<div class="daily-rdo-page${idx > 0 ? " page-break" : ""}">${content}</div>`;
-    })
-    .join("");
-}
-
 function buildChartIndex(charts) {
   return (charts || []).reduce((acc, chart) => {
     acc[chart.id] = chart;
@@ -231,8 +216,8 @@ function renderMonthlyReportTemplate(viewModel, charts) {
   const consolidatedTables = viewModel.consolidatedTables;
   const backlogDetails = viewModel.backlogDetails;
   const contingencySummary = viewModel.contingencySummary;
-  const appendix = viewModel.appendix;
   const evidenceGallery = viewModel.evidenceGallery;
+  const hasEvidence = evidenceGallery && evidenceGallery.items && evidenceGallery.items.length;
   const hasTechnicalContent = technicalHighlights && (
     (technicalHighlights.blocks && technicalHighlights.blocks.length) ||
     (technicalHighlights.bullets && technicalHighlights.bullets.length)
@@ -296,10 +281,17 @@ function renderMonthlyReportTemplate(viewModel, charts) {
     ${renderOperationalTables(operationalBreakdown)}
   `, { className: "page-break" });
 
+  const evidenceSection = `
+    ${SectionHeader("Evidências selecionadas", "Registro visual representativo das atividades executadas.")}
+    ${renderSectionNote(evidenceGallery && evidenceGallery.text ? evidenceGallery.text : "")}
+    ${EvidenceGallery(evidenceGallery) || EmptyState("Sem evidências visuais disponíveis para o período.")}
+  `;
+
   const page4 = Page(`
     ${SectionHeader("Segurança, compliance e evidências", safetyCompliance.text || "")}
     ${renderSectionNote(safetyCompliance.summary || "")}
     ${ComplianceTable(safetyCompliance) || EmptyState("Sem dados de compliance.")}
+    ${hasEvidence ? evidenceSection : ""}
 
     ${SectionHeader("Análise técnica", technicalHighlights.text || "")}
     ${hasTechnicalContent
@@ -329,25 +321,10 @@ function renderMonthlyReportTemplate(viewModel, charts) {
     ${ActionTable(actionPlan) || EmptyState(actionPlan.text)}
   `, { className: "page-break" });
 
-  const evidenceSection = `
-    ${SectionHeader("Evidências selecionadas", "")}
-    ${renderSectionNote(evidenceGallery && evidenceGallery.text ? evidenceGallery.text : "")}
-    ${EvidenceGallery(evidenceGallery) || EmptyState("Sem evidências visuais disponíveis para o período.")}
-  `;
-  const hasEvidence = evidenceGallery && evidenceGallery.items && evidenceGallery.items.length;
-
   const page5 = Page(`
     ${SectionHeader("Tabelas consolidadas", consolidatedTables.text || "")}
     ${renderConsolidatedTables(consolidatedTables)}
-
-    ${SectionHeader("Anexo técnico diário", appendix.text || "")}
-    ${renderDailyAppendix(appendix)}
-    ${!hasEvidence ? evidenceSection : ""}
   `, { className: "page-break" });
-
-  const page6 = hasEvidence
-    ? Page(evidenceSection, { className: "page-break" })
-    : "";
 
   return `
     <article class="rdo-monthly">
@@ -356,7 +333,6 @@ function renderMonthlyReportTemplate(viewModel, charts) {
       ${page3}
       ${page4}
       ${page5}
-      ${page6}
     </article>
   `;
 }

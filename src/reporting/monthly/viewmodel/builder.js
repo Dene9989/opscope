@@ -20,7 +20,6 @@ const {
   fallbackTrendAnalysis,
   fallbackOperationalBreakdown,
   fallbackConsolidatedTables,
-  fallbackAppendix,
   fallbackActionPlan,
 } = require("./fallbacks");
 const { KPI_TARGETS, VIEWMODEL_TONE } = require("./contracts");
@@ -57,6 +56,33 @@ function sumByKeywords(map, keywords) {
   }, 0);
 }
 
+function computeTypeRatios(breakdowns) {
+  if (!breakdowns) {
+    return {
+      total: 0,
+      preventiveCount: 0,
+      correctiveCount: 0,
+      preventivePct: 0,
+      correctivePct: 0,
+    };
+  }
+  const typeMap = breakdowns.byTypeExecuted && Object.keys(breakdowns.byTypeExecuted).length
+    ? breakdowns.byTypeExecuted
+    : breakdowns.byType || {};
+  const total = Object.values(typeMap).reduce((acc, value) => acc + (Number(value) || 0), 0);
+  const preventiveCount = sumByKeywords(typeMap, ["preventiva", "preditiva"]);
+  const correctiveCount = sumByKeywords(typeMap, ["corretiva", "corretivo", "reparo"]);
+  const preventivePct = total ? Math.round((preventiveCount / total) * 100) : 0;
+  const correctivePct = total ? Math.round((correctiveCount / total) * 100) : 0;
+  return {
+    total,
+    preventiveCount,
+    correctiveCount,
+    preventivePct,
+    correctivePct,
+  };
+}
+
 function buildKpiCard({ key, label, value, formatted, delta, deltaPct, tone }) {
   return {
     key,
@@ -75,11 +101,12 @@ function computeExecutionRatio(metrics) {
   return planned ? Math.round((executed / planned) * 100) : 0;
 }
 
-function buildKpis({ metrics, comparison }) {
+function buildKpis({ metrics, comparison, breakdowns }) {
   if (!metrics) {
     return { cards: [] };
   }
   const executionRatioPct = computeExecutionRatio(metrics);
+  const typeRatios = computeTypeRatios(breakdowns);
   const cards = [];
 
   const byKey = (key) => comparison && comparison.available
@@ -167,6 +194,38 @@ function buildKpis({ metrics, comparison }) {
       delta: byKey("docsCompliancePct")?.deltaFormatted,
       deltaPct: byKey("docsCompliancePct")?.deltaPctFormatted,
       tone: metrics.docsCompliancePct >= KPI_TARGETS.docsCompliancePct ? VIEWMODEL_TONE.POSITIVE : VIEWMODEL_TONE.WARNING,
+    })
+  );
+
+  cards.push(
+    buildKpiCard({
+      key: "preventivePct",
+      label: "Taxa preventiva/preditiva",
+      value: typeRatios.preventivePct,
+      formatted: typeRatios.total ? formatPercent(typeRatios.preventivePct) : "N/A",
+      delta: "-",
+      deltaPct: "-",
+      tone: typeRatios.total
+        ? typeRatios.preventivePct >= KPI_TARGETS.preventivePct
+          ? VIEWMODEL_TONE.POSITIVE
+          : VIEWMODEL_TONE.WARNING
+        : VIEWMODEL_TONE.NEUTRAL,
+    })
+  );
+
+  cards.push(
+    buildKpiCard({
+      key: "correctivePct",
+      label: "Taxa corretiva (paradas)",
+      value: typeRatios.correctivePct,
+      formatted: typeRatios.total ? formatPercent(typeRatios.correctivePct) : "N/A",
+      delta: "-",
+      deltaPct: "-",
+      tone: typeRatios.total
+        ? typeRatios.correctivePct <= KPI_TARGETS.correctivePctMax
+          ? VIEWMODEL_TONE.POSITIVE
+          : VIEWMODEL_TONE.WARNING
+        : VIEWMODEL_TONE.NEUTRAL,
     })
   );
 
@@ -328,6 +387,8 @@ function buildActionPlan({ recommendations }) {
     "rec.overdue": "Planejamento Operacional",
     "rec.sla": "Gestão de Contrato",
     "rec.docs": "Qualidade/Compliance",
+    "rec.corrective": "Engenharia de Confiabilidade",
+    "rec.preventive": "Coordenação O&M",
   };
   const items = recommendations.items.map((rec, index) => ({
     id: `action.${index + 1}`,
@@ -365,44 +426,6 @@ function buildConsolidatedTables({ breakdowns, totalPlanned, totalExecuted, tota
   };
 }
 
-function buildAppendix(normalized) {
-  if (!normalized || !normalized.currentPeriod || !normalized.currentPeriod.rdos) {
-    return fallbackAppendix("Sem RDOs normalizados para o período.");
-  }
-  const dailyRdos = normalized.currentPeriod.rdos.map((rdo) => ({
-    id: rdo.id,
-    rdoDate: rdo.rdoDateIso ? formatDateOnly(rdo.rdoDateIso) : "",
-    createdAt: rdo.createdAtIso ? formatDateTime(rdo.createdAtIso) : "",
-    createdBy: rdo.createdBy,
-    metrics: rdo.metrics,
-    evidenceCount: rdo.evidenciasTotal || (Array.isArray(rdo.evidencias) ? rdo.evidencias.length : 0),
-    metricsSummary: (() => {
-      const parts = [];
-      if (rdo.metrics && Number(rdo.metrics.total)) {
-        parts.push(`Total ${formatNumber(rdo.metrics.total)}`);
-      }
-      if (rdo.metrics && Number(rdo.metrics.concluidas)) {
-        parts.push(`Concluídas ${formatNumber(rdo.metrics.concluidas)}`);
-      }
-      if (rdo.metrics && Number(rdo.metrics.emExecucao)) {
-        parts.push(`Em execução ${formatNumber(rdo.metrics.emExecucao)}`);
-      }
-      if (rdo.metrics && Number(rdo.metrics.criticas)) {
-        parts.push(`Críticas ${formatNumber(rdo.metrics.criticas)}`);
-      }
-      return parts.join(" • ");
-    })(),
-  }));
-
-  if (!dailyRdos.length) {
-    return fallbackAppendix("Sem RDOs disponíveis para o período.");
-  }
-
-  return {
-    text: "Consolidação diária dos RDOs emitidos no período, com evidências e resumo técnico.",
-    dailyRdos,
-  };
-}
 
 function extractEvidenceSource(entry) {
   if (!entry || typeof entry !== "object") {
@@ -418,11 +441,18 @@ function extractEvidenceSource(entry) {
   return source.trim();
 }
 
-function isImageSource(source) {
+function isImageSource(source, entry) {
   if (!source) {
     return false;
   }
   if (source.startsWith("data:image/")) {
+    return true;
+  }
+  const mime = entry && (entry.mimeType || entry.mimetype || entry.contentType);
+  if (mime && String(mime).toLowerCase().startsWith("image/")) {
+    return true;
+  }
+  if (/\/api\/files\//i.test(source)) {
     return true;
   }
   return /\.(png|jpe?g|gif|webp)$/i.test(source);
@@ -467,7 +497,7 @@ function buildEvidenceGallery(normalized) {
     const evidences = Array.isArray(activity.evidences) ? activity.evidences : [];
     const evidence = evidences.find((entry) => {
       const src = extractEvidenceSource(entry);
-      return src && isImageSource(src);
+      return src && isImageSource(src, entry);
     });
     if (!evidence) {
       missingEvidence += 1;
@@ -694,17 +724,18 @@ function buildMonthlyReportViewModel({ aggregated, validation, normalized, optio
     comparison,
     integrityStatus,
     isPartial,
+    breakdowns,
   });
 
   const technicalHighlights = buildTechnicalHighlights({ metrics, breakdowns });
   const safetyCompliance = buildSafetyCompliance({ metrics, integrityStatus });
-  const riskAssessment = buildRiskAssessment({ metrics, integrityStatus });
-  const recommendations = buildRecommendations({ metrics });
+  const riskAssessment = buildRiskAssessment({ metrics, integrityStatus, breakdowns });
+  const recommendations = buildRecommendations({ metrics, breakdowns });
   const actionPlan = buildActionPlan({ recommendations });
   const backlogDetails = buildBacklogDetails(normalized);
   const contingencySummary = buildContingencySummary(normalized);
 
-  const kpis = buildKpis({ metrics, comparison });
+  const kpis = buildKpis({ metrics, comparison, breakdowns });
   const trendAnalysis = buildTrendAnalysis({ breakdowns, insights });
   const totalPeriod = current && current.activityCounts ? current.activityCounts.totalActivitiesInSlice : metrics.totalPlannedActivities;
   const operationalBreakdown = buildOperationalBreakdown({
@@ -719,7 +750,6 @@ function buildMonthlyReportViewModel({ aggregated, validation, normalized, optio
     totalExecuted: metrics.totalExecutedActivities,
     totalPeriod,
   });
-  const appendix = buildAppendix(normalized);
   const evidenceGallery = buildEvidenceGallery(normalized);
 
   return {
@@ -757,7 +787,6 @@ function buildMonthlyReportViewModel({ aggregated, validation, normalized, optio
     consolidatedTables,
     backlogDetails,
     contingencySummary,
-    appendix,
     evidenceGallery,
   };
 }

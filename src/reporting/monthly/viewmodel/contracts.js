@@ -9,6 +9,8 @@ const KPI_TARGETS = {
   slaOnTimePct: 90,
   docsCompliancePct: 95,
   executionRatioPct: 90,
+  preventivePct: 70,
+  correctivePctMax: 25,
 };
 
 const INSIGHT_TONE = {

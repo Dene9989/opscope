@@ -81,7 +81,7 @@ li {
   background: var(--surface);
   border-radius: 12pt;
   padding: 12pt 14pt;
-  margin-bottom: 8pt;
+  margin-bottom: 6pt;
   border: 1px solid var(--border);
 }
 
@@ -161,7 +161,7 @@ li {
   gap: 8pt;
   padding: 6pt 0 12pt;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 10pt;
+  margin-bottom: 8pt;
 }
 
 .metadata-item {
@@ -214,7 +214,7 @@ li {
 .section-header {
   border-left: 4px solid var(--accent);
   padding-left: 8pt;
-  margin: 10pt 0 6pt;
+  margin: 8pt 0 4pt;
 }
 
 .section-header p {
@@ -252,7 +252,7 @@ li {
   display: grid;
   grid-template-columns: 1.6fr 1fr;
   gap: 12pt;
-  margin-top: 8pt;
+  margin-top: 6pt;
 }
 
 .executive-main {
@@ -375,7 +375,7 @@ li {
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10pt;
+  gap: 8pt;
 }
 
 .kpi-card {
@@ -503,7 +503,7 @@ li {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10pt;
-  margin-bottom: 10pt;
+  margin-bottom: 8pt;
 }
 
 .insight-grid,
@@ -626,7 +626,7 @@ li {
 }
 
 .table-group-title {
-  margin-top: 12pt;
+  margin-top: 10pt;
   font-size: 9.2pt;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -775,7 +775,7 @@ td:nth-child(3) {
 
 .evidence-image {
   width: 100%;
-  height: 120pt;
+  height: 110pt;
   object-fit: cover;
   display: block;
   background: var(--surface-strong);
@@ -831,7 +831,7 @@ body {
   min-height: 270mm;
   display: flex;
   flex-direction: column;
-  gap: 4pt;
+  gap: 3pt;
   counter-increment: page;
 }
 
@@ -1026,7 +1026,7 @@ tr {
         
           <div class="narrative-block">
             <div class="narrative-title">O que exigiu atenção</div>
-            <div class="narrative-text">Execução abaixo do planejado, indicando necessidade de recomposição e ajustes de programação. Backlog de 12 atividades. 12 atividades vencidas. SLA em 0% abaixo da meta.</div>
+            <div class="narrative-text">Execução abaixo do planejado, indicando necessidade de recomposição e ajustes de programação. Backlog de 12 atividades. 12 atividades vencidas. SLA em 0% abaixo da meta. Taxa de corretivas em 33% indica paradas e falhas; oportunidade de reduzir recorrência.</div>
           </div>
         
           <div class="narrative-block">
@@ -1036,7 +1036,7 @@ tr {
         
           <div class="narrative-block">
             <div class="narrative-title">Impacto e controle</div>
-            <div class="narrative-text">Backlog e vencimentos pressionam a capacidade e elevam o risco de desvio de SLA. SLA em 0% das atividades elegíveis. Compliance documental em 100%.</div>
+            <div class="narrative-text">Backlog e vencimentos demandam priorização para manter previsibilidade de entrega. SLA em 0% das atividades elegíveis. Compliance documental em 100%.</div>
           </div>
         
     </div>
@@ -1093,6 +1093,18 @@ tr {
     <div class="kpi-card tone-positive">
       <div class="kpi-label">Compliance documental</div>
       <div class="kpi-value">100%</div>
+      
+    </div>
+  
+    <div class="kpi-card tone-warning">
+      <div class="kpi-label">Taxa preventiva/preditiva</div>
+      <div class="kpi-value">33%</div>
+      
+    </div>
+  
+    <div class="kpi-card tone-warning">
+      <div class="kpi-label">Taxa corretiva (paradas)</div>
+      <div class="kpi-value">33%</div>
       
     </div>
   
@@ -1369,19 +1381,19 @@ tr {
     </div>
   
     <div class="insight-card tone-warning">
-      <div class="insight-text">Atividades vencidas aumentam pressão sobre prazos e SLA.</div>
+      <div class="insight-text">Atividades vencidas reforcam a necessidade de priorizacao de prazos.</div>
     </div>
   
     <div class="insight-card tone-warning">
       <div class="insight-text">SLA abaixo da meta, demandando ajustes de capacidade e priorização.</div>
     </div>
   
-    <div class="insight-card tone-positive">
-      <div class="insight-text">Conformidade documental dentro do padrão esperado.</div>
+    <div class="insight-card tone-warning">
+      <div class="insight-text">Taxa de corretivas acima da meta indica paradas e pede reducao de recorrencias.</div>
     </div>
   
-    <div class="insight-card tone-info">
-      <div class="insight-text">Há exigências documentais indeterminadas; revisar cadastro de categorias.</div>
+    <div class="insight-card tone-positive">
+      <div class="insight-text">Conformidade documental dentro do padrão esperado.</div>
     </div>
   </div>
   
@@ -1440,7 +1452,7 @@ tr {
       
     </svg>
   </div>
-      <div class="chart-note">Leitura: mostra as frentes de maior esforço executado, sem julgamento operacional automático.</div>
+      <div class="chart-note">Leitura: destaca frentes preventivas/preditivas vs corretivas, sem perder contexto do esforço executado.</div>
       
     <table class="chart-summary">
       <tbody>
@@ -1453,6 +1465,16 @@ tr {
             <tr>
               <td>Participação</td>
               <td>33%</td>
+            </tr>
+          
+            <tr>
+              <td>Preventivas/preditivas</td>
+              <td>16 (33%)</td>
+            </tr>
+          
+            <tr>
+              <td>Corretivas</td>
+              <td>16 (33%)</td>
             </tr>
           
       </tbody>
@@ -1756,6 +1778,7 @@ tr {
       </tbody>
     </table>
   
+    
 
     
     <div class="section-header">
@@ -1780,7 +1803,7 @@ tr {
         
           <div class="narrative-block">
             <div class="narrative-title">Leitura preventiva vs corretiva</div>
-            <div class="narrative-text">Preventivas/preditivas: 33% do esforço executado, reforçando confiabilidade. Corretivas em 33% sinalizam falhas e paradas; priorizar redução de recorrência.</div>
+            <div class="narrative-text">Preventivas/preditivas: 33% do esforço executado, reforçando confiabilidade e disciplina operacional. Corretivas em 33% sinalizam falhas e paradas; priorizar análise de causa raiz e redução de recorrência.</div>
           </div>
         
           <div class="narrative-block">
@@ -1822,28 +1845,28 @@ tr {
       <p>Avaliação de riscos baseada em backlog, vencimentos, SLA e compliance.</p>
     </div>
   
-    <p class="section-note">Exposição elevada. Principais vetores: backlog em aberto, vencimentos acima do planejado, SLA abaixo da meta, alertas de integridade.</p>
+    <p class="section-note">Nível de atenção elevada. Principais vetores: backlog em aberto, vencimentos acima do planejado, SLA abaixo da meta, taxa de corretivas acima da meta, alertas de integridade.</p>
     <div class="risk-grid">
     <div class="risk-card tone-warning">
-      <div class="risk-text">Backlog em aberto pressiona capacidade e requer priorização para manter o cronograma.</div>
+      <div class="risk-text">Backlog em aberto pede priorização para manter previsibilidade de prazos.</div>
     </div>
   
     <div class="risk-card tone-warning">
-      <div class="risk-text">Atividades vencidas indicam atraso materializado e exigem recomposição de prazos.</div>
+      <div class="risk-text">Atividades vencidas indicam necessidade de recomposição seletiva de prazos.</div>
     </div>
   
     <div class="risk-card tone-warning">
-      <div class="risk-text">SLA abaixo da meta sinaliza pressão de execução e priorização.</div>
+      <div class="risk-text">SLA abaixo da meta pede reequilíbrio de capacidade e priorização.</div>
     </div>
   
     <div class="risk-card tone-warning">
-      <div class="risk-text">Alertas de integridade indicam necessidade de revisão de base de dados.</div>
+      <div class="risk-text">Taxa de corretivas em 33% indica paradas; priorizar análise de causa raiz e redução de recorrência.</div>
     </div>
   </div>
     <p class="section-note">Recomendações priorizadas para o próximo ciclo, com foco em capacidade, prazos e governança documental.</p>
     
     <ul class="recommendation-list">
-      <li>Reprogramar backlog por criticidade e vencimento, definindo janela de recuperação e recursos dedicados.</li><li>Instituir rotina semanal de revisão de vencimentos e renegociação de prazos críticos com o cliente.</li><li>Revisar pontos de pressão na execução e tempos de atendimento para recuperar a meta de SLA.</li>
+      <li>Reprogramar backlog por criticidade e vencimento, definindo janela de recuperação e recursos dedicados.</li><li>Instituir rotina semanal de revisão de vencimentos e renegociação de prazos críticos com o cliente.</li><li>Revisar pontos de pressão na execução e tempos de atendimento para recuperar a meta de SLA.</li><li>Implantar plano de redução de falhas: análise de causa raiz, eliminação de recorrências e reforço preventivo.</li><li>Elevar participação preventiva/preditiva para meta de confiabilidade, protegendo disponibilidade dos ativos.</li>
     </ul>
   
 
@@ -2015,6 +2038,20 @@ tr {
                 <tr>
                   <td>Revisar pontos de pressão na execução e tempos de atendimento para recuperar a meta de SLA.</td>
                   <td>Gestão de Contrato</td>
+                  <td>Próximo ciclo</td>
+                  <td>Prioritária</td>
+                </tr>
+              
+                <tr>
+                  <td>Implantar plano de redução de falhas: análise de causa raiz, eliminação de recorrências e reforço preventivo.</td>
+                  <td>Engenharia de Confiabilidade</td>
+                  <td>Próximo ciclo</td>
+                  <td>Prioritária</td>
+                </tr>
+              
+                <tr>
+                  <td>Elevar participação preventiva/preditiva para meta de confiabilidade, protegendo disponibilidade dos ativos.</td>
+                  <td>Coordenação O&amp;M</td>
                   <td>Próximo ciclo</td>
                   <td>Prioritária</td>
                 </tr>
@@ -2295,269 +2332,12 @@ tr {
           </table>
         </div>
       
-
-    
-    <div class="section-header">
-      <h2>Anexo técnico diário</h2>
-      <p>Consolidação diária dos RDOs emitidos no período, com evidências e resumo técnico.</p>
-    </div>
-  
-    <div class="daily-rdo-page">
-    <div class="daily-rdo-block">
-      <div class="daily-rdo-header">
-        <strong>RDO 02/03/2026</strong>
-        <span>ID: R1</span>
-      </div>
-      <div class="daily-rdo-body">
-        <span><strong>Emitido:</strong> 02/03/2026, 17:00</span>
-        <span><strong>Equipe:</strong> O&amp;M Boa Sorte II</span>
-        <span><strong>Evidências:</strong> 2</span>
-        
-      </div>
-    </div>
-  
-    <div class="daily-rdo-block">
-      <div class="daily-rdo-header">
-        <strong>RDO 03/03/2026</strong>
-        <span>ID: R2</span>
-      </div>
-      <div class="daily-rdo-body">
-        <span><strong>Emitido:</strong> 03/03/2026, 17:00</span>
-        <span><strong>Equipe:</strong> O&amp;M Boa Sorte II</span>
-        <span><strong>Evidências:</strong> 3</span>
-        
-      </div>
-    </div>
-  
-    <div class="daily-rdo-block">
-      <div class="daily-rdo-header">
-        <strong>RDO 04/03/2026</strong>
-        <span>ID: R3</span>
-      </div>
-      <div class="daily-rdo-body">
-        <span><strong>Emitido:</strong> 04/03/2026, 17:00</span>
-        <span><strong>Equipe:</strong> O&amp;M Boa Sorte II</span>
-        <span><strong>Evidências:</strong> 4</span>
-        
-      </div>
-    </div>
-  </div><div class="daily-rdo-page page-break">
-    <div class="daily-rdo-block">
-      <div class="daily-rdo-header">
-        <strong>RDO 05/03/2026</strong>
-        <span>ID: R4</span>
-      </div>
-      <div class="daily-rdo-body">
-        <span><strong>Emitido:</strong> 05/03/2026, 17:00</span>
-        <span><strong>Equipe:</strong> O&amp;M Boa Sorte II</span>
-        <span><strong>Evidências:</strong> 1</span>
-        
-      </div>
-    </div>
-  
-    <div class="daily-rdo-block">
-      <div class="daily-rdo-header">
-        <strong>RDO 06/03/2026</strong>
-        <span>ID: R5</span>
-      </div>
-      <div class="daily-rdo-body">
-        <span><strong>Emitido:</strong> 06/03/2026, 17:00</span>
-        <span><strong>Equipe:</strong> O&amp;M Boa Sorte II</span>
-        <span><strong>Evidências:</strong> 2</span>
-        
-      </div>
-    </div>
-  
-    <div class="daily-rdo-block">
-      <div class="daily-rdo-header">
-        <strong>RDO 07/03/2026</strong>
-        <span>ID: R6</span>
-      </div>
-      <div class="daily-rdo-body">
-        <span><strong>Emitido:</strong> 07/03/2026, 17:00</span>
-        <span><strong>Equipe:</strong> O&amp;M Boa Sorte II</span>
-        <span><strong>Evidências:</strong> 3</span>
-        
-      </div>
-    </div>
-  </div><div class="daily-rdo-page page-break">
-    <div class="daily-rdo-block">
-      <div class="daily-rdo-header">
-        <strong>RDO 08/03/2026</strong>
-        <span>ID: R7</span>
-      </div>
-      <div class="daily-rdo-body">
-        <span><strong>Emitido:</strong> 08/03/2026, 17:00</span>
-        <span><strong>Equipe:</strong> O&amp;M Boa Sorte II</span>
-        <span><strong>Evidências:</strong> 4</span>
-        
-      </div>
-    </div>
-  
-    <div class="daily-rdo-block">
-      <div class="daily-rdo-header">
-        <strong>RDO 09/03/2026</strong>
-        <span>ID: R8</span>
-      </div>
-      <div class="daily-rdo-body">
-        <span><strong>Emitido:</strong> 09/03/2026, 17:00</span>
-        <span><strong>Equipe:</strong> O&amp;M Boa Sorte II</span>
-        <span><strong>Evidências:</strong> 1</span>
-        
-      </div>
-    </div>
-  
-    <div class="daily-rdo-block">
-      <div class="daily-rdo-header">
-        <strong>RDO 10/03/2026</strong>
-        <span>ID: R9</span>
-      </div>
-      <div class="daily-rdo-body">
-        <span><strong>Emitido:</strong> 10/03/2026, 17:00</span>
-        <span><strong>Equipe:</strong> O&amp;M Boa Sorte II</span>
-        <span><strong>Evidências:</strong> 2</span>
-        
-      </div>
-    </div>
-  </div><div class="daily-rdo-page page-break">
-    <div class="daily-rdo-block">
-      <div class="daily-rdo-header">
-        <strong>RDO 11/03/2026</strong>
-        <span>ID: R10</span>
-      </div>
-      <div class="daily-rdo-body">
-        <span><strong>Emitido:</strong> 11/03/2026, 17:00</span>
-        <span><strong>Equipe:</strong> O&amp;M Boa Sorte II</span>
-        <span><strong>Evidências:</strong> 3</span>
-        
-      </div>
-    </div>
-  
-    <div class="daily-rdo-block">
-      <div class="daily-rdo-header">
-        <strong>RDO 12/03/2026</strong>
-        <span>ID: R11</span>
-      </div>
-      <div class="daily-rdo-body">
-        <span><strong>Emitido:</strong> 12/03/2026, 17:00</span>
-        <span><strong>Equipe:</strong> O&amp;M Boa Sorte II</span>
-        <span><strong>Evidências:</strong> 4</span>
-        
-      </div>
-    </div>
-  
-    <div class="daily-rdo-block">
-      <div class="daily-rdo-header">
-        <strong>RDO 13/03/2026</strong>
-        <span>ID: R12</span>
-      </div>
-      <div class="daily-rdo-body">
-        <span><strong>Emitido:</strong> 13/03/2026, 17:00</span>
-        <span><strong>Equipe:</strong> O&amp;M Boa Sorte II</span>
-        <span><strong>Evidências:</strong> 1</span>
-        
-      </div>
-    </div>
-  </div><div class="daily-rdo-page page-break">
-    <div class="daily-rdo-block">
-      <div class="daily-rdo-header">
-        <strong>RDO 14/03/2026</strong>
-        <span>ID: R13</span>
-      </div>
-      <div class="daily-rdo-body">
-        <span><strong>Emitido:</strong> 14/03/2026, 17:00</span>
-        <span><strong>Equipe:</strong> O&amp;M Boa Sorte II</span>
-        <span><strong>Evidências:</strong> 2</span>
-        
-      </div>
-    </div>
-  
-    <div class="daily-rdo-block">
-      <div class="daily-rdo-header">
-        <strong>RDO 15/03/2026</strong>
-        <span>ID: R14</span>
-      </div>
-      <div class="daily-rdo-body">
-        <span><strong>Emitido:</strong> 15/03/2026, 17:00</span>
-        <span><strong>Equipe:</strong> O&amp;M Boa Sorte II</span>
-        <span><strong>Evidências:</strong> 3</span>
-        
-      </div>
-    </div>
-  
-    <div class="daily-rdo-block">
-      <div class="daily-rdo-header">
-        <strong>RDO 16/03/2026</strong>
-        <span>ID: R15</span>
-      </div>
-      <div class="daily-rdo-body">
-        <span><strong>Emitido:</strong> 16/03/2026, 17:00</span>
-        <span><strong>Equipe:</strong> O&amp;M Boa Sorte II</span>
-        <span><strong>Evidências:</strong> 4</span>
-        
-      </div>
-    </div>
-  </div><div class="daily-rdo-page page-break">
-    <div class="daily-rdo-block">
-      <div class="daily-rdo-header">
-        <strong>RDO 17/03/2026</strong>
-        <span>ID: R16</span>
-      </div>
-      <div class="daily-rdo-body">
-        <span><strong>Emitido:</strong> 17/03/2026, 17:00</span>
-        <span><strong>Equipe:</strong> O&amp;M Boa Sorte II</span>
-        <span><strong>Evidências:</strong> 1</span>
-        
-      </div>
-    </div>
-  
-    <div class="daily-rdo-block">
-      <div class="daily-rdo-header">
-        <strong>RDO 18/03/2026</strong>
-        <span>ID: R17</span>
-      </div>
-      <div class="daily-rdo-body">
-        <span><strong>Emitido:</strong> 18/03/2026, 17:00</span>
-        <span><strong>Equipe:</strong> O&amp;M Boa Sorte II</span>
-        <span><strong>Evidências:</strong> 2</span>
-        
-      </div>
-    </div>
-  
-    <div class="daily-rdo-block">
-      <div class="daily-rdo-header">
-        <strong>RDO 19/03/2026</strong>
-        <span>ID: R18</span>
-      </div>
-      <div class="daily-rdo-body">
-        <span><strong>Emitido:</strong> 19/03/2026, 17:00</span>
-        <span><strong>Equipe:</strong> O&amp;M Boa Sorte II</span>
-        <span><strong>Evidências:</strong> 3</span>
-        
-      </div>
-    </div>
-  </div>
-    
-    
-    <div class="section-header">
-      <h2>Evidências selecionadas</h2>
-      
-    </div>
-  
-    <p class="section-note">Sem evidências visuais incorporadas no período. Evidências registradas permanecem disponíveis no sistema.</p>
-    
-    <div class="empty-state">
-      Sem evidências visuais disponíveis para o período.
-    </div>
-  
-  
   
     <footer class="report-footer">
       <span class="footer-left">RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig</span>
       <span class="footer-right">Página <span class="page-number"></span></span>
     </footer>
   </section>
-      
     </article>
   
       </body>
