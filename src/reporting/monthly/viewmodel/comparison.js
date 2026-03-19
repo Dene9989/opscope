@@ -44,14 +44,14 @@ function buildComparison(aggregated) {
   const items = [
     buildComparisonItem({
       key: "totalPlannedActivities",
-      label: "Planejadas",
+      label: "Planejadas no mês",
       current: current.totalPlannedActivities,
       previous: previous.totalPlannedActivities,
       format: "number",
     }),
     buildComparisonItem({
       key: "totalExecutedActivities",
-      label: "Executadas",
+      label: "Executadas no mês",
       current: current.totalExecutedActivities,
       previous: previous.totalExecutedActivities,
       format: "number",
@@ -65,7 +65,7 @@ function buildComparison(aggregated) {
     }),
     buildComparisonItem({
       key: "overdue",
-      label: "Overdue",
+      label: "Vencidas",
       current: current.overdue,
       previous: previous.overdue,
       format: "number",

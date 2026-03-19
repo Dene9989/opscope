@@ -1,6 +1,6 @@
 {
   "name": "warning",
-  "integrityStatus": "warning",
+  "integrityStatus": "blocked",
   "metrics": {
     "totalPlannedActivities": 1,
     "totalExecutedActivities": 0,

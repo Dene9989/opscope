@@ -60,7 +60,9 @@ tr {
 .compliance-table,
 .action-table-block,
 .backlog-table,
-.daily-rdo-block {
+.daily-rdo-block,
+.backlog-reason,
+.evidence-card {
   break-inside: avoid;
   page-break-inside: avoid;
 }

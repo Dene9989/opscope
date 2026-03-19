@@ -16,26 +16,26 @@ const METRIC_TRACEABILITY = {
   },
   completed: {
     source: "activities",
-    rule: "status == concluida and dueDate in period",
-    fn: "countByStatus",
+    rule: "status == concluida and doneAt in period",
+    fn: "countByStatusInPeriod",
     sections: ["operationalBreakdown", "tables"],
   },
   inProgress: {
     source: "activities",
-    rule: "status in {em_execucao, encerramento} and dueDate in period",
-    fn: "countByStatus",
+    rule: "status in {em_execucao, encerramento} in period view",
+    fn: "countByStatusInPeriod",
     sections: ["operationalBreakdown"],
   },
   scheduled: {
     source: "activities",
-    rule: "status in {agendada, liberada} and dueDate in period",
-    fn: "countByStatus",
+    rule: "status in {agendada, liberada} in period view",
+    fn: "countByStatusInPeriod",
     sections: ["operationalBreakdown"],
   },
   backlog: {
     source: "activities",
-    rule: "status == backlog and dueDate in period",
-    fn: "countByStatus",
+    rule: "status == backlog in period view",
+    fn: "countByStatusInPeriod",
     sections: ["operationalBreakdown"],
   },
   overdue: {
@@ -46,8 +46,8 @@ const METRIC_TRACEABILITY = {
   },
   cancelled: {
     source: "activities",
-    rule: "status == cancelada and dueDate in period",
-    fn: "countByStatus",
+    rule: "status == cancelada in period view",
+    fn: "countByStatusInPeriod",
     sections: ["operationalBreakdown"],
   },
   critical: {
@@ -196,6 +196,54 @@ function countByStatus(plannedSet) {
   return counts;
 }
 
+function countByStatusInPeriod(activities, period) {
+  const counts = {
+    concluida: 0,
+    em_execucao: 0,
+    agendada: 0,
+    backlog: 0,
+    cancelada: 0,
+  };
+  if (!Array.isArray(activities) || !period || !period.start || !period.end) {
+    return counts;
+  }
+  const periodEnd = startOfDay(period.end);
+  activities.forEach((activity) => {
+    if (!activity || !activity.isValid) {
+      return;
+    }
+    const status = activity.status;
+    if (isCancelada(status)) {
+      counts.cancelada += 1;
+      return;
+    }
+    if (isConcluida(status)) {
+      if (activity.doneAt && inRange(activity.doneAt, period.start, period.end)) {
+        counts.concluida += 1;
+        return;
+      }
+      if (activity.dueDate && startOfDay(activity.dueDate) < periodEnd) {
+        counts.backlog += 1;
+        return;
+      }
+      counts.agendada += 1;
+      return;
+    }
+    if (isEmExecucao(status)) {
+      counts.em_execucao += 1;
+      return;
+    }
+    if (status === STATUS_NORMALIZED.BACKLOG) {
+      counts.backlog += 1;
+      return;
+    }
+    if (isAgendada(status)) {
+      counts.agendada += 1;
+    }
+  });
+  return counts;
+}
+
 function countCritical(activities) {
   return activities.filter((activity) => activity.isValid && (activity.critical || activity.priority === "critica")).length;
 }
@@ -209,8 +257,13 @@ function countOverdue(plannedSet, cutoff) {
     if (!activity.dueDate) {
       return false;
     }
-    if (isConcluida(activity.status) || isCancelada(activity.status)) {
+    if (isCancelada(activity.status)) {
       return false;
+    }
+    if (isConcluida(activity.status)) {
+      if (activity.doneAt && startOfDay(activity.doneAt) <= cutoffDay) {
+        return false;
+      }
     }
     return startOfDay(activity.dueDate) < cutoffDay;
   }).length;
@@ -374,6 +427,7 @@ module.exports = {
   countPlannedActivities,
   countExecutedActivities,
   countByStatus,
+  countByStatusInPeriod,
   countCritical,
   countOverdue,
   computeSlaMetrics,

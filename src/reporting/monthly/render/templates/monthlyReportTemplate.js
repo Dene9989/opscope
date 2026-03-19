@@ -12,6 +12,7 @@ const { renderSummaryTable } = require("../components/SummaryTable");
 const { ComplianceTable } = require("../components/ComplianceTable");
 const { BacklogTable } = require("../components/BacklogTable");
 const { DailyRdoBlock } = require("../components/DailyRdoBlock");
+const { EvidenceGallery } = require("../components/EvidenceGallery");
 const { ChartContainer } = require("../components/ChartContainer");
 const { EmptyState } = require("../components/EmptyState");
 const { Page } = require("../layout/page");
@@ -110,17 +111,36 @@ function renderSectionNote(text) {
   return `<p class="section-note">${escapeHtml(text)}</p>`;
 }
 
+function renderBacklogReasons(backlogDetails) {
+  const reasons = backlogDetails && backlogDetails.reasons ? backlogDetails.reasons : [];
+  if (!reasons.length) {
+    return EmptyState("Sem justificativas registradas para o backlog.");
+  }
+  return `
+    <div class="backlog-reasons">
+      ${reasons
+        .map((reason) => `
+          <div class="backlog-reason">
+            <span class="backlog-reason__label">${escapeHtml(reason.label || "")}</span>
+            <span class="backlog-reason__value">${escapeHtml(String(reason.count || 0))}</span>
+          </div>
+        `)
+        .join("")}
+    </div>
+  `;
+}
+
 function renderOperationalTables(operational) {
   if (!operational) {
     return EmptyState("Sem dados operacionais.");
   }
 
   const tables = [
-    renderSummaryTable("Distribuição por status", operational.byStatus, { maxRows: 10 }),
-    renderSummaryTable("Distribuição por tipo", operational.byType, { maxRows: 12 }),
-    renderSummaryTable("Distribuição por local", operational.byLocation, { maxRows: 12 }),
-    renderSummaryTable("Distribuição por equipe", operational.byTeam, { maxRows: 12 }),
-    renderSummaryTable("Distribuição por prioridade", operational.byPriority, { maxRows: 10 }),
+    renderSummaryTable("Status no período (planejado + executado)", operational.byStatus, { maxRows: 10 }),
+    renderSummaryTable("Planejado no mês por tipo", operational.byType, { maxRows: 12 }),
+    renderSummaryTable("Planejado no mês por local", operational.byLocation, { maxRows: 12 }),
+    renderSummaryTable("Planejado no mês por equipe", operational.byTeam, { maxRows: 12 }),
+    renderSummaryTable("Planejado no mês por prioridade", operational.byPriority, { maxRows: 10 }),
   ].filter(Boolean);
 
   if (!tables.length) {
@@ -133,18 +153,39 @@ function renderConsolidatedTables(consolidated) {
   if (!consolidated) {
     return EmptyState("Sem dados consolidados.");
   }
-  const tables = [
-    renderSummaryTable("Status consolidados", consolidated.statusTable, { maxRows: 10 }),
-    renderSummaryTable("Categorias consolidadas", consolidated.categoryTable, { maxRows: 12 }),
-    renderSummaryTable("Locais consolidados", consolidated.locationTable, { maxRows: 12 }),
-    renderSummaryTable("Equipes consolidadas", consolidated.teamTable, { maxRows: 12 }),
-    renderSummaryTable("Prioridades consolidadas", consolidated.priorityTable, { maxRows: 10 }),
-  ].filter(Boolean);
+  const planned = consolidated.plannedTables || {};
+  const executed = consolidated.executedTables || {};
+  const blocks = [];
 
-  if (!tables.length) {
+  blocks.push(renderSummaryTable("Status no período (planejado + executado)", consolidated.statusTable, { maxRows: 10 }));
+
+  const plannedTables = [
+    renderSummaryTable("Planejado no mês • Categorias", planned.categoryTable, { maxRows: 12 }),
+    renderSummaryTable("Planejado no mês • Locais", planned.locationTable, { maxRows: 12 }),
+    renderSummaryTable("Planejado no mês • Equipes", planned.teamTable, { maxRows: 12 }),
+    renderSummaryTable("Planejado no mês • Prioridades", planned.priorityTable, { maxRows: 10 }),
+  ].filter(Boolean);
+  if (plannedTables.length) {
+    blocks.push(`<div class="table-group-title">Planejamento do período</div>`);
+    blocks.push(plannedTables.join(""));
+  }
+
+  const executedTables = [
+    renderSummaryTable("Executado no mês • Categorias", executed.categoryTable, { maxRows: 12 }),
+    renderSummaryTable("Executado no mês • Locais", executed.locationTable, { maxRows: 12 }),
+    renderSummaryTable("Executado no mês • Equipes", executed.teamTable, { maxRows: 12 }),
+    renderSummaryTable("Executado no mês • Prioridades", executed.priorityTable, { maxRows: 10 }),
+  ].filter(Boolean);
+  if (executedTables.length) {
+    blocks.push(`<div class="table-group-title">Execução do período</div>`);
+    blocks.push(executedTables.join(""));
+  }
+
+  const content = blocks.filter(Boolean).join("");
+  if (!content) {
     return EmptyState("Sem tabelas consolidadas para o período.");
   }
-  return tables.join("");
+  return content;
 }
 
 function renderDailyAppendix(appendix) {
@@ -189,6 +230,7 @@ function renderMonthlyReportTemplate(viewModel, charts) {
   const consolidatedTables = viewModel.consolidatedTables;
   const backlogDetails = viewModel.backlogDetails;
   const appendix = viewModel.appendix;
+  const evidenceGallery = viewModel.evidenceGallery;
   const hasTechnicalContent = technicalHighlights && (
     (technicalHighlights.blocks && technicalHighlights.blocks.length) ||
     (technicalHighlights.bullets && technicalHighlights.bullets.length)
@@ -234,10 +276,10 @@ function renderMonthlyReportTemplate(viewModel, charts) {
   const page2 = Page(`
     ${SectionHeader("Tendências e performance", trendAnalysis.text || "")}
     <div class="chart-grid">
-      ${ChartContainer("Evolução semanal", "Planejadas vs executadas", chartIndex.weekly_planned_executed)}
-      ${ChartContainer("Evolução de backlog", "Cumulativo no período", chartIndex.backlog_evolution)}
-      ${ChartContainer("Distribuição por status", "Planejadas", chartIndex.status_distribution)}
-      ${ChartContainer("SLA no prazo vs fora do prazo", "Percentual", chartIndex.sla_on_time)}
+      ${ChartContainer((chartIndex.weekly_planned_executed && chartIndex.weekly_planned_executed.title) || "Ritmo semanal", (chartIndex.weekly_planned_executed && chartIndex.weekly_planned_executed.subtitle) || "", chartIndex.weekly_planned_executed)}
+      ${ChartContainer((chartIndex.backlog_evolution && chartIndex.backlog_evolution.title) || "Backlog", (chartIndex.backlog_evolution && chartIndex.backlog_evolution.subtitle) || "", chartIndex.backlog_evolution)}
+      ${ChartContainer((chartIndex.status_distribution && chartIndex.status_distribution.title) || "Status no período", (chartIndex.status_distribution && chartIndex.status_distribution.subtitle) || "", chartIndex.status_distribution)}
+      ${ChartContainer((chartIndex.sla_on_time && chartIndex.sla_on_time.title) || "SLA", (chartIndex.sla_on_time && chartIndex.sla_on_time.subtitle) || "", chartIndex.sla_on_time)}
     </div>
     ${renderInsights(trendAnalysis)}
   `, { className: "page-break" });
@@ -245,9 +287,9 @@ function renderMonthlyReportTemplate(viewModel, charts) {
   const page3 = Page(`
     ${SectionHeader("Análise operacional", operationalBreakdown.text || "")}
     <div class="chart-grid">
-      ${ChartContainer("Distribuição por categoria", "Top categorias", chartIndex.category_distribution)}
-      ${ChartContainer("Top locais", "Volume por local", chartIndex.top_locations)}
-      ${ChartContainer("Criticidade por prioridade", "Distribuição", chartIndex.criticality_priority)}
+      ${ChartContainer((chartIndex.category_distribution && chartIndex.category_distribution.title) || "Categorias", (chartIndex.category_distribution && chartIndex.category_distribution.subtitle) || "", chartIndex.category_distribution)}
+      ${ChartContainer((chartIndex.top_locations && chartIndex.top_locations.title) || "Locais", (chartIndex.top_locations && chartIndex.top_locations.subtitle) || "", chartIndex.top_locations)}
+      ${ChartContainer((chartIndex.criticality_priority && chartIndex.criticality_priority.title) || "Prioridades", (chartIndex.criticality_priority && chartIndex.criticality_priority.subtitle) || "", chartIndex.criticality_priority)}
     </div>
     ${renderOperationalTables(operationalBreakdown)}
   `, { className: "page-break" });
@@ -272,12 +314,21 @@ function renderMonthlyReportTemplate(viewModel, charts) {
     ${renderSectionNote(recommendations.text || "")}
     ${RecommendationList(recommendations) || EmptyState(recommendations.text)}
 
-    ${SectionHeader("Backlog e justificativas", backlogDetails && backlogDetails.text ? backlogDetails.text : "")}
+    ${SectionHeader("Backlog e justificativas", "")}
+    ${renderSectionNote(backlogDetails && backlogDetails.text ? backlogDetails.text : "")}
+    ${renderBacklogReasons(backlogDetails)}
     ${BacklogTable(backlogDetails) || EmptyState("Sem backlog com justificativa registrada.")}
 
     ${SectionHeader("Plano de ação", actionPlan.text || "")}
     ${ActionTable(actionPlan) || EmptyState(actionPlan.text)}
   `, { className: "page-break" });
+
+  const evidenceSection = `
+    ${SectionHeader("Evidências selecionadas", "")}
+    ${renderSectionNote(evidenceGallery && evidenceGallery.text ? evidenceGallery.text : "")}
+    ${EvidenceGallery(evidenceGallery) || EmptyState("Sem evidências visuais disponíveis para o período.")}
+  `;
+  const hasEvidence = evidenceGallery && evidenceGallery.items && evidenceGallery.items.length;
 
   const page5 = Page(`
     ${SectionHeader("Tabelas consolidadas", consolidatedTables.text || "")}
@@ -285,7 +336,12 @@ function renderMonthlyReportTemplate(viewModel, charts) {
 
     ${SectionHeader("Anexo técnico diário", appendix.text || "")}
     ${renderDailyAppendix(appendix)}
+    ${!hasEvidence ? evidenceSection : ""}
   `, { className: "page-break" });
+
+  const page6 = hasEvidence
+    ? Page(evidenceSection, { className: "page-break" })
+    : "";
 
   return `
     <article class="rdo-monthly">
@@ -294,6 +350,7 @@ function renderMonthlyReportTemplate(viewModel, charts) {
       ${page3}
       ${page4}
       ${page5}
+      ${page6}
     </article>
   `;
 }

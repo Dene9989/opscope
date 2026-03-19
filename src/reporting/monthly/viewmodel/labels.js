@@ -15,7 +15,8 @@ const PRIORITY_LABELS = {
   media: "Média",
   baixa: "Baixa",
   normal: "Normal",
-  unknown: "Não classificado",
+  prioridade_pendente: "Prioridade pendente de definição operacional",
+  unknown: "Prioridade pendente de definição operacional",
 };
 
 const CATEGORY_LABELS = {
@@ -50,15 +51,22 @@ function titleCase(text) {
 
 function formatUnknownLabel(context) {
   if (context === "category") {
-    return "Categoria não definida";
+    return "Classificação pendente de definição operacional";
   }
   if (context === "priority") {
-    return "Prioridade não definida";
+    return "Prioridade pendente de definição operacional";
   }
-  return "Não informado";
+  if (context === "location") {
+    return "Local não informado";
+  }
+  if (context === "team") {
+    return "Equipe não informada";
+  }
+  return "Informação pendente";
 }
 
 function formatLabel(raw, context = "") {
+  const rawText = String(raw || "").trim();
   const key = normalizeKey(raw);
   if (!key || key === "nao_informado" || key === "desconhecida") {
     return formatUnknownLabel(context);
@@ -76,7 +84,13 @@ function formatLabel(raw, context = "") {
     return TEAM_LABELS[key];
   }
   if (key === "unknown") {
-    return "Não classificado";
+    return formatUnknownLabel(context);
+  }
+  if (context === "location" && rawText) {
+    return rawText;
+  }
+  if (context === "category" && rawText && /[A-Z0-9/()-]/.test(rawText)) {
+    return rawText;
   }
   return titleCase(key.replace(/_/g, " "));
 }

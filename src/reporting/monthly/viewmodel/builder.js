@@ -75,7 +75,7 @@ function buildKpis({ metrics, comparison }) {
   cards.push(
     buildKpiCard({
       key: "totalPlannedActivities",
-      label: "Atividades planejadas",
+      label: "Atividades planejadas no mês",
       value: metrics.totalPlannedActivities,
       formatted: formatNumber(metrics.totalPlannedActivities),
       delta: byKey("totalPlannedActivities")?.deltaFormatted,
@@ -87,7 +87,7 @@ function buildKpis({ metrics, comparison }) {
   cards.push(
     buildKpiCard({
       key: "totalExecutedActivities",
-      label: "Atividades executadas",
+      label: "Atividades executadas no mês",
       value: metrics.totalExecutedActivities,
       formatted: formatNumber(metrics.totalExecutedActivities),
       delta: byKey("totalExecutedActivities")?.deltaFormatted,
@@ -237,7 +237,7 @@ function buildTrendAnalysis({ breakdowns, insights }) {
   };
 }
 
-function buildOperationalBreakdown({ breakdowns, totalPlanned }) {
+function buildOperationalBreakdown({ breakdowns, totalPlanned, totalPeriod }) {
   if (!breakdowns) {
     return fallbackOperationalBreakdown("Sem dados de distribuição operacional.");
   }
@@ -267,8 +267,8 @@ function buildOperationalBreakdown({ breakdowns, totalPlanned }) {
     : "A distribuição por categoria não indica gargalos relevantes.";
 
   return {
-    text: `Distribuição das atividades planejadas por status, categoria, local, equipe e prioridade. ${concentrationText} ${implicationText} ${priorityText}`.trim(),
-    byStatus: mapToTable(breakdowns.byStatus, totalPlanned, { labelContext: "status" }),
+    text: `Distribuição operacional do período (planejado vs execução). ${concentrationText} ${implicationText} ${priorityText}`.trim(),
+    byStatus: mapToTable(breakdowns.byStatus, totalPeriod || totalPlanned, { labelContext: "status" }),
     byType: mapToTable(breakdowns.byType, totalPlanned, { labelContext: "category" }),
     byLocation: mapToTable(breakdowns.byLocation, totalPlanned, { labelContext: "location" }),
     byTeam: mapToTable(breakdowns.byTeam, totalPlanned, { labelContext: "team" }),
@@ -300,17 +300,25 @@ function buildActionPlan({ recommendations }) {
   };
 }
 
-function buildConsolidatedTables({ breakdowns, totalPlanned }) {
+function buildConsolidatedTables({ breakdowns, totalPlanned, totalExecuted, totalPeriod }) {
   if (!breakdowns) {
     return fallbackConsolidatedTables("Sem dados consolidados.");
   }
   return {
-    text: "Tabelas consolidadas com visão completa do período para auditoria e revisão gerencial.",
-    statusTable: mapToTable(breakdowns.byStatus, totalPlanned, { labelContext: "status" }),
-    categoryTable: mapToTable(breakdowns.byType, totalPlanned, { labelContext: "category" }),
-    locationTable: mapToTable(breakdowns.byLocation, totalPlanned, { labelContext: "location" }),
-    teamTable: mapToTable(breakdowns.byTeam, totalPlanned, { labelContext: "team" }),
-    priorityTable: mapToTable(breakdowns.byPriority, totalPlanned, { labelContext: "priority" }),
+    text: "Tabelas consolidadas com separação entre planejado e executado no mês.",
+    statusTable: mapToTable(breakdowns.byStatus, totalPeriod || totalPlanned, { labelContext: "status" }),
+    plannedTables: {
+      categoryTable: mapToTable(breakdowns.byType, totalPlanned, { labelContext: "category" }),
+      locationTable: mapToTable(breakdowns.byLocation, totalPlanned, { labelContext: "location" }),
+      teamTable: mapToTable(breakdowns.byTeam, totalPlanned, { labelContext: "team" }),
+      priorityTable: mapToTable(breakdowns.byPriority, totalPlanned, { labelContext: "priority" }),
+    },
+    executedTables: {
+      categoryTable: mapToTable(breakdowns.byTypeExecuted, totalExecuted, { labelContext: "category" }),
+      locationTable: mapToTable(breakdowns.byLocationExecuted, totalExecuted, { labelContext: "location" }),
+      teamTable: mapToTable(breakdowns.byTeamExecuted, totalExecuted, { labelContext: "team" }),
+      priorityTable: mapToTable(breakdowns.byPriorityExecuted, totalExecuted, { labelContext: "priority" }),
+    },
   };
 }
 
@@ -337,6 +345,73 @@ function buildAppendix(normalized) {
   };
 }
 
+function extractEvidenceSource(entry) {
+  if (!entry || typeof entry !== "object") {
+    return "";
+  }
+  const source = entry.dataUrl || entry.url || entry.src || entry.preview || entry.image || "";
+  if (typeof source !== "string") {
+    return "";
+  }
+  return source.trim();
+}
+
+function isImageSource(source) {
+  if (!source) {
+    return false;
+  }
+  if (source.startsWith("data:image/")) {
+    return true;
+  }
+  return /\.(png|jpe?g|gif|webp)$/i.test(source);
+}
+
+function extractEvidenceCaption(entry) {
+  if (!entry || typeof entry !== "object") {
+    return "";
+  }
+  const caption =
+    entry.descricao ||
+    entry.titulo ||
+    entry.nome ||
+    entry.label ||
+    entry.tipo ||
+    "";
+  return String(caption || "").trim();
+}
+
+function buildEvidenceGallery(normalized, maxItems = 6) {
+  if (!normalized || !normalized.currentPeriod || !normalized.currentPeriod.rdos) {
+    return { text: "Sem evidências visuais no período.", items: [] };
+  }
+  const items = [];
+  normalized.currentPeriod.rdos.forEach((rdo) => {
+    const evidencias = Array.isArray(rdo.evidencias) ? rdo.evidencias : [];
+    evidencias.forEach((evidence) => {
+      const src = extractEvidenceSource(evidence);
+      if (!src || !isImageSource(src)) {
+        return;
+      }
+      const caption = extractEvidenceCaption(evidence);
+      items.push({
+        src,
+        caption,
+        context: rdo.rdoDateIso ? formatDateOnly(rdo.rdoDateIso) : "",
+      });
+    });
+  });
+  if (!items.length) {
+    return {
+      text: "Sem evidências visuais incorporadas no período. Evidências registradas permanecem disponíveis no sistema.",
+      items: [],
+    };
+  }
+  return {
+    text: "Evidências visuais selecionadas para comprovação executiva e técnica.",
+    items: items.slice(0, maxItems),
+  };
+}
+
 function normalizeJustification(reason) {
   const text = String(reason || "").replace(/\s+/g, " ").trim();
   if (!text) {
@@ -344,6 +419,34 @@ function normalizeJustification(reason) {
   }
   const normalized = text[0].toUpperCase() + text.slice(1);
   return normalized.endsWith(".") ? normalized : `${normalized}.`;
+}
+
+function classifyBacklogReason(text) {
+  const normalized = String(text || "").toLowerCase();
+  if (!normalized) {
+    return "Sem justificativa registrada";
+  }
+  const rules = [
+    { label: "Indisponibilidade operacional", keys: ["indispon", "equipe", "recurso", "falha", "pane", "clima", "logistica"] },
+    { label: "Reprogramação de janela", keys: ["reprogram", "janela", "agenda", "calendario", "remarc"] },
+    { label: "Dependência externa", keys: ["depend", "terceir", "cliente", "fornecedor", "extern"] },
+    { label: "Restrição de acesso/liberação", keys: ["acesso", "liber", "bloque", "permissa", "seguranca"] },
+    { label: "Pendência documental", keys: ["document", "os", "apr", "pte", "pt", "laudo"] },
+    { label: "Prioridade emergencial", keys: ["prior", "emerg", "crit"] },
+  ];
+  const match = rules.find((rule) => rule.keys.some((key) => normalized.includes(key)));
+  return match ? match.label : "Outros fatores operacionais";
+}
+
+function buildBacklogReasonSummary(items) {
+  const counts = new Map();
+  items.forEach((item) => {
+    const label = classifyBacklogReason(item.reasonRaw);
+    counts.set(label, (counts.get(label) || 0) + 1);
+  });
+  return Array.from(counts.entries())
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count);
 }
 
 function buildBacklogDetails(normalized) {
@@ -362,15 +465,21 @@ function buildBacklogDetails(normalized) {
       dueDateLabel: formatDateOnly(activity.dueDate),
       location: activity.location || "-",
       responsible: activity.responsible || "-",
+      reasonRaw: activity.backlogReason || "",
       reason: normalizeJustification(activity.backlogReason),
     }));
 
   if (!items.length) {
-    return { text: "Sem backlog com vencimento no período.", items: [] };
+    return { text: "Sem backlog com vencimento no período.", items: [], reasons: [] };
   }
+  const reasons = buildBacklogReasonSummary(items);
+  const reasonText = reasons.length
+    ? "Motivos consolidados de não execução para priorização gerencial."
+    : "Não há justificativas registradas para o backlog.";
   return {
-    text: "Backlog identificado com justificativas consolidadas para acompanhamento gerencial.",
+    text: reasonText,
     items,
+    reasons,
   };
 }
 
@@ -417,15 +526,20 @@ function buildMonthlyReportViewModel({ aggregated, validation, normalized, optio
 
   const kpis = buildKpis({ metrics, comparison });
   const trendAnalysis = buildTrendAnalysis({ breakdowns, insights });
+  const totalPeriod = current && current.activityCounts ? current.activityCounts.totalActivitiesInSlice : metrics.totalPlannedActivities;
   const operationalBreakdown = buildOperationalBreakdown({
     breakdowns,
     totalPlanned: metrics.totalPlannedActivities,
+    totalPeriod,
   });
   const consolidatedTables = buildConsolidatedTables({
     breakdowns,
     totalPlanned: metrics.totalPlannedActivities,
+    totalExecuted: metrics.totalExecutedActivities,
+    totalPeriod,
   });
   const appendix = buildAppendix(normalized);
+  const evidenceGallery = buildEvidenceGallery(normalized);
 
   return {
     meta: {
@@ -462,6 +576,7 @@ function buildMonthlyReportViewModel({ aggregated, validation, normalized, optio
     consolidatedTables,
     backlogDetails,
     appendix,
+    evidenceGallery,
   };
 }
 

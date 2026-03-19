@@ -1,17 +1,43 @@
 ﻿const { escapeSvg, niceMax } = require("./utils");
 
-function truncateLabel(label, max = 12) {
-  const safe = String(label || "");
-  if (safe.length <= max) {
-    return safe;
+function wrapLabel(label, maxChars = 16, maxLines = 3) {
+  const safe = String(label || "").replace(/\s+/g, " ").trim();
+  if (!safe) {
+    return [""];
   }
-  return `${safe.slice(0, max - 1)}…`;
+  const words = safe.split(" ");
+  const lines = [];
+  let current = "";
+  words.forEach((word) => {
+    if (!current) {
+      current = word;
+      return;
+    }
+    if ((current + " " + word).length <= maxChars) {
+      current = `${current} ${word}`;
+      return;
+    }
+    lines.push(current);
+    current = word;
+  });
+  if (current) {
+    lines.push(current);
+  }
+  if (lines.length > maxLines) {
+    const trimmed = lines.slice(0, maxLines);
+    const rest = lines.slice(maxLines).join(" ");
+    if (rest) {
+      trimmed[maxLines - 1] = `${trimmed[maxLines - 1]} ${rest}`;
+    }
+    return trimmed;
+  }
+  return lines;
 }
 
 function renderBarChart({
   width = 520,
   height = 240,
-  padding = { top: 28, right: 16, bottom: 54, left: 46 },
+  padding = { top: 28, right: 16, bottom: 64, left: 46 },
   data = [],
   colors = ["#0b2f4f", "#0f766e", "#c2a15c", "#64748b"],
   yLabel = "",
@@ -44,11 +70,15 @@ function renderBarChart({
       const y = padding.top + (chartHeight - barHeight);
       const labelX = padding.left + idx * barWidth + barWidth / 2;
       const color = d.color || colors[idx % colors.length];
-      const label = truncateLabel(d.label || "");
+      const labelLines = wrapLabel(d.label || "");
+      const lineHeight = 12;
+      const labelStart = height - 12 - (labelLines.length - 1) * lineHeight;
       return `
         <rect x="${x}" y="${y}" width="${Math.max(10, barWidth - 16)}" height="${barHeight}" fill="${color}" rx="3" />
         <text x="${labelX}" y="${y - 4}" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="${fontFamily}">${escapeSvg(String(value))}</text>
-        <text x="${labelX}" y="${height - 12}" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="${fontFamily}">${escapeSvg(label)}</text>
+        <text x="${labelX}" y="${labelStart}" font-size="9.6" text-anchor="middle" fill="#2f3b4a" font-family="${fontFamily}">
+          ${labelLines.map((line, lineIndex) => `<tspan x="${labelX}" dy="${lineIndex === 0 ? 0 : lineHeight}">${escapeSvg(line)}</tspan>`).join("")}
+        </text>
       `;
     })
     .join("");

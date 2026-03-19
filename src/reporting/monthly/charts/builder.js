@@ -117,14 +117,14 @@ function buildMonthlyReportCharts(viewModel) {
   const topStatus = statusTable[0];
   charts.push(buildChart({
     id: "status_distribution",
-    title: "Status das atividades planejadas",
-    subtitle: "Distribuição de volume no período",
+    title: "Status no período",
+    subtitle: "Base: planejadas no mês + concluídas no mês",
     svg: statusSvg,
     emptyMessage: "Sem dados por status",
-    note: "Leitura: indica a composição do plano por status no período.",
+    note: "Leitura: concluídas são contabilizadas pelo doneAt dentro do mês, independentemente do mês planejado.",
     summary: [
       { label: "Status dominante", value: topStatus ? topStatus.label : "-" },
-      { label: "Total planejadas", value: formatNumber(totalStatus) },
+      { label: "Total no período", value: formatNumber(totalStatus) },
     ],
   }));
 
@@ -149,7 +149,8 @@ function buildMonthlyReportCharts(viewModel) {
     ],
   }));
 
-  const categoryTable = viewModel.consolidatedTables && viewModel.consolidatedTables.categoryTable ? viewModel.consolidatedTables.categoryTable.slice(0, 8) : [];
+  const executedTables = viewModel.consolidatedTables && viewModel.consolidatedTables.executedTables ? viewModel.consolidatedTables.executedTables : {};
+  const categoryTable = executedTables.categoryTable ? executedTables.categoryTable.slice(0, 8) : [];
   const categorySvg = categoryTable.length
     ? renderBarChart({
         data: categoryTable.map((row) => ({ label: row.label, value: row.count })),
@@ -160,18 +161,18 @@ function buildMonthlyReportCharts(viewModel) {
   const topCategory = categoryTable[0];
   charts.push(buildChart({
     id: "category_distribution",
-    title: "Categorias com maior volume",
-    subtitle: "Top categorias do período",
+    title: "Execução por categoria",
+    subtitle: "Atividades concluídas no mês",
     svg: categorySvg,
     emptyMessage: "Sem dados por categoria",
-    note: "Leitura: indica concentração do esforço por tipo de atividade.",
+    note: "Leitura: mostra onde o esforço executado se concentrou no período.",
     summary: [
       { label: "Categoria dominante", value: topCategory ? topCategory.label : "-" },
       { label: "Participação", value: topCategory ? formatPercent(topCategory.pct) : "-" },
     ],
   }));
 
-  const locationTable = viewModel.consolidatedTables && viewModel.consolidatedTables.locationTable ? viewModel.consolidatedTables.locationTable.slice(0, 6) : [];
+  const locationTable = executedTables.locationTable ? executedTables.locationTable.slice(0, 6) : [];
   const locationSvg = locationTable.length
     ? renderBarChart({
         data: locationTable.map((row) => ({ label: row.label, value: row.count })),
@@ -182,18 +183,18 @@ function buildMonthlyReportCharts(viewModel) {
   const topLocation = locationTable[0];
   charts.push(buildChart({
     id: "top_locations",
-    title: "Locais com maior carga",
-    subtitle: "Top locais do período",
+    title: "Execução por local",
+    subtitle: "Atividades concluídas no mês",
     svg: locationSvg,
     emptyMessage: "Sem dados por local",
-    note: "Leitura: evidencia concentração geográfica do volume planejado.",
+    note: "Leitura: evidencia concentração geográfica das entregas concluídas.",
     summary: [
       { label: "Local dominante", value: topLocation ? topLocation.label : "-" },
       { label: "Participação", value: topLocation ? formatPercent(topLocation.pct) : "-" },
     ],
   }));
 
-  const priorityTable = viewModel.consolidatedTables && viewModel.consolidatedTables.priorityTable ? viewModel.consolidatedTables.priorityTable : [];
+  const priorityTable = executedTables.priorityTable ? executedTables.priorityTable : [];
   const prioritySvg = priorityTable.length
     ? renderBarChart({
         data: priorityTable.map((row) => ({ label: row.label, value: row.count })),
@@ -204,11 +205,11 @@ function buildMonthlyReportCharts(viewModel) {
   const topPriority = priorityTable[0];
   charts.push(buildChart({
     id: "criticality_priority",
-    title: "Perfil de prioridade",
-    subtitle: "Distribuição por criticidade",
+    title: "Execução por prioridade",
+    subtitle: "Criticidade das atividades concluídas",
     svg: prioritySvg,
     emptyMessage: "Sem dados de prioridade",
-    note: "Leitura: identifica o peso de criticidade no volume planejado.",
+    note: "Leitura: identifica a pressão operacional por criticidade no período.",
     summary: [
       { label: "Prioridade dominante", value: topPriority ? topPriority.label : "-" },
       { label: "Participação", value: topPriority ? formatPercent(topPriority.pct) : "-" },

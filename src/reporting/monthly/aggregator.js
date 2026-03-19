@@ -4,6 +4,7 @@ const {
   countPlannedActivities,
   countExecutedActivities,
   countByStatus,
+  countByStatusInPeriod,
   countCritical,
   countOverdue,
   computeSlaMetrics,
@@ -26,7 +27,8 @@ function summarizeSlice(slice, label) {
   const plannedSet = buildPlannedSet(activities, period);
   const executedSet = buildExecutedSet(activities, period);
   const backlogSet = plannedSet.filter((activity) => activity.status === STATUS_NORMALIZED.BACKLOG);
-  const statusCounts = countByStatus(plannedSet);
+  const periodSet = activities.filter((activity) => activity && activity.isValid);
+  const statusCounts = countByStatusInPeriod(periodSet, period);
   const totalPlannedActivities = countPlannedActivities(plannedSet);
   const totalExecutedActivities = countExecutedActivities(executedSet);
   const overdue = countOverdue(plannedSet, period.end);
@@ -46,9 +48,13 @@ function summarizeSlice(slice, label) {
   const breakdowns = {
     byStatus: statusCounts,
     byType: groupByField(plannedSet, "category"),
+    byTypeExecuted: groupByField(executedSet, "category"),
     byLocation: groupByField(plannedSet, "location"),
+    byLocationExecuted: groupByField(executedSet, "location"),
     byTeam: groupByField(plannedSet, "team"),
+    byTeamExecuted: groupByField(executedSet, "team"),
     byPriority: groupByField(plannedSet, "priority"),
+    byPriorityExecuted: groupByField(executedSet, "priority"),
     byWeek: buildWeeklyBreakdown(plannedSet, executedSet, backlogSet, period),
   };
 

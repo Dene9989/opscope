@@ -260,7 +260,7 @@ li {
   padding: 12pt 14pt;
   background: var(--surface);
   border-left: 4pt solid var(--accent);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .executive-summary__title {
@@ -512,7 +512,7 @@ li {
   padding: 8pt 10pt;
   border: 1px solid var(--border);
   background: var(--paper);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .insight-card {
@@ -539,7 +539,7 @@ li {
   padding: 10pt;
   border-radius: 10pt;
   background: var(--paper);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .chart-header {
@@ -616,6 +616,14 @@ li {
 
 .summary-table h3 {
   margin-top: 10pt;
+}
+
+.table-group-title {
+  margin-top: 12pt;
+  font-size: 9.2pt;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-500);
 }
 
 table {
@@ -704,6 +712,73 @@ td:nth-child(3) {
   padding: 10pt;
   margin-bottom: 10pt;
   background: var(--paper);
+}
+
+.backlog-reasons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140pt, 1fr));
+  gap: 6pt;
+  margin-bottom: 8pt;
+}
+
+.backlog-reason {
+  border: 1px solid var(--border);
+  border-radius: 6pt;
+  padding: 6pt 8pt;
+  background: var(--paper);
+  display: flex;
+  justify-content: space-between;
+  gap: 6pt;
+  font-size: 9.6pt;
+}
+
+.backlog-reason__label {
+  color: var(--ink-700);
+}
+
+.backlog-reason__value {
+  font-weight: 600;
+  color: var(--ink-900);
+}
+
+.evidence-gallery {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8pt;
+}
+
+.evidence-card {
+  border: 1px solid var(--border);
+  border-radius: 8pt;
+  overflow: hidden;
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+}
+
+.evidence-image {
+  width: 100%;
+  height: 120pt;
+  object-fit: cover;
+  display: block;
+  background: var(--surface-strong);
+}
+
+.evidence-caption {
+  padding: 6pt 8pt;
+  border-top: 1px solid var(--border);
+}
+
+.evidence-caption__title {
+  font-size: 9.4pt;
+  font-weight: 600;
+  color: var(--ink-900);
+}
+
+.evidence-caption__context {
+  font-size: 8.6pt;
+  color: var(--ink-500);
+  margin-top: 2pt;
 }
 
 .empty-state {

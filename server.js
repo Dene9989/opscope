@@ -9634,9 +9634,22 @@ function getMaintenanceMonthKey(item) {
 }
 
 function getCompletedAt(item) {
-  return parseDateTime(
-    item.dataConclusao || item.doneAt || item.concluidaEm || item.concluidoEm || item.completedAt
-  );
+  if (!item) {
+    return null;
+  }
+  const conclusao =
+    item.dataConclusao ||
+    item.doneAt ||
+    item.concluidaEm ||
+    item.concluidoEm ||
+    item.completedAt ||
+    item.executionFinishedAt ||
+    item.fimExecucao ||
+    item.fim ||
+    (item.conclusao && item.conclusao.fim) ||
+    (item.registroExecucao &&
+      (item.registroExecucao.executedAt || item.registroExecucao.executadoEm));
+  return parseDateTime(conclusao);
 }
 
 function isCritical(item) {

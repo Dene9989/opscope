@@ -219,7 +219,10 @@ function normalizeActivity(activity, warningStore, idCounts, index) {
   if (!dueDate) {
     warningStore.add("missing_due_date", "Missing or invalid dueDate.", { ...context, id });
   }
-  const doneAt = parseDateTime(activity && activity.doneAt);
+  let doneAt = parseDateTime(activity && activity.doneAt);
+  if (!doneAt) {
+    doneAt = parseDateTime(activity && activity.executionFinishedAt);
+  }
   if (activity && activity.doneAt && !doneAt) {
     warningStore.add("invalid_done_at", "Invalid doneAt.", { ...context, id });
   }
@@ -227,10 +230,13 @@ function normalizeActivity(activity, warningStore, idCounts, index) {
   const executionFinishedAt = parseDateTime(activity && activity.executionFinishedAt);
 
   let category = normalizeCategory(activity && activity.category);
-  const priority = normalizePriority(activity && activity.priority);
+  let priority = normalizePriority(activity && activity.priority);
   const isFutureStatus = status === STATUS_NORMALIZED.AGENDADA || status === STATUS_NORMALIZED.LIBERADA;
   if (isFutureStatus && (!category || category === "desconhecida")) {
     category = "programacao_futura";
+  }
+  if (isFutureStatus && (!priority || priority === "unknown")) {
+    priority = "prioridade_pendente";
   }
 
   const docs = normalizeDocs(

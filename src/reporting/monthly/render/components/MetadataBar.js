@@ -5,7 +5,6 @@ function MetadataBar(meta) {
     return "";
   }
   const plant = meta.plantName ? escapeHtml(meta.plantName) : "-";
-  const version = meta.reportVersion ? escapeHtml(meta.reportVersion) : "-";
   const comparisonMode = meta.comparisonMode === "provided"
     ? "Período anterior (informado)"
     : meta.comparisonMode === "recalculated"
@@ -21,10 +20,6 @@ function MetadataBar(meta) {
       <div class="metadata-item">
         <span class="metadata-label">Unidade</span>
         <span class="metadata-value">${plant}</span>
-      </div>
-      <div class="metadata-item">
-        <span class="metadata-label">Versão</span>
-        <span class="metadata-value">${version}</span>
       </div>
       <div class="metadata-item${consolidationClass}">
         <span class="metadata-label">Consolidação</span>

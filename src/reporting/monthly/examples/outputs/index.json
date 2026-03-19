@@ -24,7 +24,7 @@
   },
   {
     "name": "warning",
-    "integrityStatus": "warning",
+    "integrityStatus": "blocked",
     "metrics": {
       "totalPlannedActivities": 1,
       "totalExecutedActivities": 0,
@@ -98,7 +98,7 @@
       "insight.critical_present",
       "insight.integrity_attention"
     ],
-    "pageCount": 16,
+    "pageCount": 17,
     "htmlPath": "C:\\Users\\denisson.alves\\OneDrive - ENGELMIG ENERGIA LTDA\\Área de Trabalho\\My Workspace\\sismetro\\src\\reporting\\monthly\\examples\\outputs\\long.html",
     "pdfPath": "C:\\Users\\denisson.alves\\OneDrive - ENGELMIG ENERGIA LTDA\\Área de Trabalho\\My Workspace\\sismetro\\src\\reporting\\monthly\\examples\\outputs\\long.pdf"
   }

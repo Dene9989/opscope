@@ -267,7 +267,7 @@ li {
   padding: 12pt 14pt;
   background: var(--surface);
   border-left: 4pt solid var(--accent);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .executive-summary__title {
@@ -519,7 +519,7 @@ li {
   padding: 8pt 10pt;
   border: 1px solid var(--border);
   background: var(--paper);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .insight-card {
@@ -546,7 +546,7 @@ li {
   padding: 10pt;
   border-radius: 10pt;
   background: var(--paper);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .chart-header {
@@ -623,6 +623,14 @@ li {
 
 .summary-table h3 {
   margin-top: 10pt;
+}
+
+.table-group-title {
+  margin-top: 12pt;
+  font-size: 9.2pt;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-500);
 }
 
 table {
@@ -713,6 +721,73 @@ td:nth-child(3) {
   background: var(--paper);
 }
 
+.backlog-reasons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140pt, 1fr));
+  gap: 6pt;
+  margin-bottom: 8pt;
+}
+
+.backlog-reason {
+  border: 1px solid var(--border);
+  border-radius: 6pt;
+  padding: 6pt 8pt;
+  background: var(--paper);
+  display: flex;
+  justify-content: space-between;
+  gap: 6pt;
+  font-size: 9.6pt;
+}
+
+.backlog-reason__label {
+  color: var(--ink-700);
+}
+
+.backlog-reason__value {
+  font-weight: 600;
+  color: var(--ink-900);
+}
+
+.evidence-gallery {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8pt;
+}
+
+.evidence-card {
+  border: 1px solid var(--border);
+  border-radius: 8pt;
+  overflow: hidden;
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+}
+
+.evidence-image {
+  width: 100%;
+  height: 120pt;
+  object-fit: cover;
+  display: block;
+  background: var(--surface-strong);
+}
+
+.evidence-caption {
+  padding: 6pt 8pt;
+  border-top: 1px solid var(--border);
+}
+
+.evidence-caption__title {
+  font-size: 9.4pt;
+  font-weight: 600;
+  color: var(--ink-900);
+}
+
+.evidence-caption__context {
+  font-size: 8.6pt;
+  color: var(--ink-500);
+  margin-top: 2pt;
+}
+
 .empty-state {
   padding: 12pt;
   background: var(--muted);
@@ -793,7 +868,9 @@ tr {
 .compliance-table,
 .action-table-block,
 .backlog-table,
-.daily-rdo-block {
+.daily-rdo-block,
+.backlog-reason,
+.evidence-card {
   break-inside: avoid;
   page-break-inside: avoid;
 }
@@ -847,10 +924,6 @@ tr {
         <span class="metadata-label">Unidade</span>
         <span class="metadata-value">BSO2</span>
       </div>
-      <div class="metadata-item">
-        <span class="metadata-label">Versão</span>
-        <span class="metadata-value">v2.0</span>
-      </div>
       <div class="metadata-item tone-positive">
         <span class="metadata-label">Consolidação</span>
         <span class="metadata-value">Fechado</span>
@@ -869,8 +942,8 @@ tr {
 
     
       <div class="hero">
-        <div class="hero-headline">Execução 50% do planejado • SLA 0%</div>
-        <div class="hero-lead">Execução abaixo do plano, com necessidade de recomposição operacional.</div>
+        <div class="hero-headline">Desempenho operacional do mês</div>
+        <div class="hero-lead">Entrega abaixo do planejado, com necessidade de recomposição de capacidade.</div>
       </div>
     
 
@@ -882,13 +955,13 @@ tr {
   
     <div class="kpi-grid">
     <div class="kpi-card tone-neutral">
-      <div class="kpi-label">Atividades planejadas</div>
+      <div class="kpi-label">Atividades planejadas no mês</div>
       <div class="kpi-value">2</div>
       
     </div>
   
     <div class="kpi-card tone-warning">
-      <div class="kpi-label">Atividades executadas</div>
+      <div class="kpi-label">Atividades executadas no mês</div>
       <div class="kpi-value">1</div>
       
     </div>
@@ -928,7 +1001,7 @@ tr {
       
           <div class="narrative-block">
             <div class="narrative-title">Leitura do mês</div>
-            <div class="narrative-text">O período encerrou com 1 entregas sobre 2 planejadas (50%), com execução abaixo do planejado, com necessidade de recomposição.</div>
+            <div class="narrative-text">Foram concluídas 1 atividades no mês, sobre 2 planejadas (50%), com execução abaixo do planejado, exigindo recomposição. A execução considera conclusões registradas no mês, independentemente da programação.</div>
           </div>
         
           <div class="narrative-block">
@@ -938,23 +1011,23 @@ tr {
         
           <div class="narrative-block">
             <div class="narrative-title">O que exigiu atenção</div>
-            <div class="narrative-text">Execução abaixo do planejado, indicando restrição de capacidade ou interferências operacionais. Backlog de 1 atividades. 1 atividades vencidas. SLA em 0% abaixo da meta.</div>
+            <div class="narrative-text">Execução abaixo do planejado, indicando restrição de capacidade ou reprogramações operacionais. Backlog de 1 atividades. 1 atividades vencidas. SLA em 0% abaixo da meta.</div>
           </div>
         
           <div class="narrative-block">
-            <div class="narrative-title">Impacto operacional</div>
-            <div class="narrative-text">O backlog e os vencimentos pressionam a capacidade do time O&amp;M Boa Sorte II e exigem priorização imediata no próximo ciclo.</div>
+            <div class="narrative-title">Atuação do time</div>
+            <div class="narrative-text">Evidências registradas: 1. Atuação concentrada na equipe O&amp;M Boa Sorte II com foco em continuidade operacional.</div>
           </div>
         
           <div class="narrative-block">
-            <div class="narrative-title">SLA e compliance</div>
-            <div class="narrative-text">SLA em 0% das atividades elegíveis. Compliance documental em 100%, com 0 pendências parciais.</div>
+            <div class="narrative-title">Impacto e controle</div>
+            <div class="narrative-text">Backlog e vencimentos pressionam a capacidade e elevam risco de desvio de SLA. SLA em 0% das atividades elegíveis. Compliance documental em 100%.</div>
           </div>
         
     </div>
   
       
-      <p class="executive-summary__conclusion">Conclusão gerencial: Priorizar recuperação de backlog e vencimentos, com reorganização das frentes do time O&amp;M Boa Sorte II e ajustes no sequenciamento de atividades.</p>
+      <p class="executive-summary__conclusion">Conclusão gerencial: Priorizar recuperação de backlog e vencimentos, com reprogramação de frentes e reforço de capacidade no próximo ciclo.</p>
     </div>
   
       </div>
@@ -964,18 +1037,18 @@ tr {
     <div class="highlight-grid">
       
           <div class="highlight-card tone-warning">
-            <div class="highlight-title">Entrega e ritmo</div>
-            <div class="highlight-text">Execução 50% do planejado (1 de 2).</div>
+            <div class="highlight-title">Entrega do mês</div>
+            <div class="highlight-text">Executadas 1 de 2 planejadas (50%).</div>
           </div>
         
           <div class="highlight-card tone-warning">
-            <div class="highlight-title">Desvios críticos</div>
+            <div class="highlight-title">Riscos do período</div>
             <div class="highlight-text">Backlog 1 • Vencidas 1 • SLA 0%.</div>
           </div>
         
           <div class="highlight-card tone-neutral">
             <div class="highlight-title">Direcionamento</div>
-            <div class="highlight-text">Foco no próximo ciclo: recuperar backlog e SLA.</div>
+            <div class="highlight-text">Foco no próximo ciclo: recuperar backlog e estabilizar SLA.</div>
           </div>
         
     </div>
@@ -1022,7 +1095,7 @@ tr {
   </div>
   
     <footer class="report-footer">
-      <span class="footer-left">Relatório Mensal Executivo • Engelmig | Opscope</span>
+      <span class="footer-left">Relatório Mensal Executivo • Engelmig</span>
       <span class="footer-right">Página <span class="page-number"></span></span>
     </footer>
   </section>
@@ -1037,8 +1110,8 @@ tr {
       
     <div class="chart-container">
       <div class="chart-header">
-        <h4>Evolução semanal</h4>
-        <span class="chart-subtitle">Planejadas vs executadas</span>
+        <h4>Ritmo semanal de execução</h4>
+        <span class="chart-subtitle">Volume planejado vs executado por semana</span>
       </div>
       <div class="chart-svg">
     <svg width="520" height="240" viewBox="0 0 520 240" xmlns="http://www.w3.org/2000/svg">
@@ -1104,8 +1177,8 @@ tr {
       
     <div class="chart-container">
       <div class="chart-header">
-        <h4>Evolução de backlog</h4>
-        <span class="chart-subtitle">Cumulativo no período</span>
+        <h4>Backlog real por semana</h4>
+        <span class="chart-subtitle">Cumulativo baseado em status</span>
       </div>
       <div class="chart-svg">
     <svg width="520" height="240" viewBox="0 0 520 240" xmlns="http://www.w3.org/2000/svg">
@@ -1160,14 +1233,14 @@ tr {
       
     <div class="chart-container">
       <div class="chart-header">
-        <h4>Distribuição por status</h4>
-        <span class="chart-subtitle">Planejadas</span>
+        <h4>Status no período</h4>
+        <span class="chart-subtitle">Base: planejadas no mês + concluídas no mês</span>
       </div>
       <div class="chart-svg">
     <svg width="520" height="240" viewBox="0 0 520 240" xmlns="http://www.w3.org/2000/svg">
       
-        <line x1="46" y1="186" x2="504" y2="186" stroke="#e3e8f1" />
-        <text x="40" y="190" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
+        <line x1="46" y1="176" x2="504" y2="176" stroke="#e3e8f1" />
+        <text x="40" y="180" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
       
         <line x1="46" y1="28" x2="504" y2="28" stroke="#e3e8f1" />
         <text x="40" y="32" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">1</text>
@@ -1175,33 +1248,43 @@ tr {
         <line x1="46" y1="28" x2="504" y2="28" stroke="#e3e8f1" />
         <text x="40" y="32" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">1</text>
       
-      <line x1="46" y1="28" x2="46" y2="186" stroke="#c7d2e0" />
-      <line x1="46" y1="186" x2="504" y2="186" stroke="#c7d2e0" />
+      <line x1="46" y1="28" x2="46" y2="176" stroke="#c7d2e0" />
+      <line x1="46" y1="176" x2="504" y2="176" stroke="#c7d2e0" />
       <text x="46" y="20" font-size="10.5" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Atividades</text>
       
-        <rect x="54" y="28" width="75.6" height="158" fill="#0b2f4f" rx="3" />
+        <rect x="54" y="28" width="75.6" height="148" fill="#0b2f4f" rx="3" />
         <text x="91.8" y="24" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">1</text>
-        <text x="91.8" y="228" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Concluída</text>
+        <text x="91.8" y="228" font-size="9.6" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">
+          <tspan x="91.8" dy="0">Concluída</tspan>
+        </text>
       
-        <rect x="145.6" y="28" width="75.6" height="158" fill="#0f766e" rx="3" />
+        <rect x="145.6" y="28" width="75.6" height="148" fill="#0f766e" rx="3" />
         <text x="183.39999999999998" y="24" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">1</text>
-        <text x="183.39999999999998" y="228" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Backlog</text>
+        <text x="183.39999999999998" y="228" font-size="9.6" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">
+          <tspan x="183.39999999999998" dy="0">Backlog</tspan>
+        </text>
       
-        <rect x="237.2" y="186" width="75.6" height="0" fill="#c2a15c" rx="3" />
-        <text x="275" y="182" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
-        <text x="275" y="228" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Em execução</text>
+        <rect x="237.2" y="176" width="75.6" height="0" fill="#c2a15c" rx="3" />
+        <text x="275" y="172" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
+        <text x="275" y="228" font-size="9.6" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">
+          <tspan x="275" dy="0">Em execução</tspan>
+        </text>
       
-        <rect x="328.79999999999995" y="186" width="75.6" height="0" fill="#64748b" rx="3" />
-        <text x="366.59999999999997" y="182" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
-        <text x="366.59999999999997" y="228" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Agendada</text>
+        <rect x="328.79999999999995" y="176" width="75.6" height="0" fill="#64748b" rx="3" />
+        <text x="366.59999999999997" y="172" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
+        <text x="366.59999999999997" y="228" font-size="9.6" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">
+          <tspan x="366.59999999999997" dy="0">Agendada</tspan>
+        </text>
       
-        <rect x="420.4" y="186" width="75.6" height="0" fill="#0b2f4f" rx="3" />
-        <text x="458.2" y="182" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
-        <text x="458.2" y="228" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Cancelada</text>
+        <rect x="420.4" y="176" width="75.6" height="0" fill="#0b2f4f" rx="3" />
+        <text x="458.2" y="172" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
+        <text x="458.2" y="228" font-size="9.6" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">
+          <tspan x="458.2" dy="0">Cancelada</tspan>
+        </text>
       
     </svg>
   </div>
-      <div class="chart-note">Leitura: indica a composição do plano por status no período.</div>
+      <div class="chart-note">Leitura: concluídas são contabilizadas pelo doneAt dentro do mês, independentemente do mês planejado.</div>
       
     <table class="chart-summary">
       <tbody>
@@ -1212,7 +1295,7 @@ tr {
             </tr>
           
             <tr>
-              <td>Total planejadas</td>
+              <td>Total no período</td>
               <td>2</td>
             </tr>
           
@@ -1224,8 +1307,8 @@ tr {
       
     <div class="chart-container">
       <div class="chart-header">
-        <h4>SLA no prazo vs fora do prazo</h4>
-        <span class="chart-subtitle">Percentual</span>
+        <h4>Cumprimento de SLA</h4>
+        <span class="chart-subtitle">Percentual de atividades elegíveis</span>
       </div>
       <div class="chart-svg">
     <svg width="520" height="240" viewBox="0 0 520 240" xmlns="http://www.w3.org/2000/svg">
@@ -1288,7 +1371,7 @@ tr {
   </div>
   
     <footer class="report-footer">
-      <span class="footer-left">Relatório Mensal Executivo • Engelmig | Opscope</span>
+      <span class="footer-left">Relatório Mensal Executivo • Engelmig</span>
       <span class="footer-right">Página <span class="page-number"></span></span>
     </footer>
   </section>
@@ -1296,21 +1379,21 @@ tr {
     
     <div class="section-header">
       <h2>Análise operacional</h2>
-      <p>Distribuição das atividades planejadas por status, categoria, local, equipe e prioridade. A operação concentrou-se em categoria Inspecao, local Não informado, equipe O&amp;M Boa Sorte II. A concentração em Inspecao indica possível gargalo operacional e exige atenção de capacidade. Prioridade dominante: Normal.</p>
+      <p>Distribuição operacional do período (planejado vs execução). A operação concentrou-se em categoria Inspecao, local Local não informado, equipe O&amp;M Boa Sorte II. A concentração em Inspecao indica possível gargalo operacional e exige atenção de capacidade. Prioridade dominante: Normal.</p>
     </div>
   
     <div class="chart-grid">
       
     <div class="chart-container">
       <div class="chart-header">
-        <h4>Distribuição por categoria</h4>
-        <span class="chart-subtitle">Top categorias</span>
+        <h4>Execução por categoria</h4>
+        <span class="chart-subtitle">Atividades concluídas no mês</span>
       </div>
       <div class="chart-svg">
     <svg width="520" height="240" viewBox="0 0 520 240" xmlns="http://www.w3.org/2000/svg">
       
-        <line x1="46" y1="186" x2="504" y2="186" stroke="#e3e8f1" />
-        <text x="40" y="190" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
+        <line x1="46" y1="176" x2="504" y2="176" stroke="#e3e8f1" />
+        <text x="40" y="180" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
       
         <line x1="46" y1="28" x2="504" y2="28" stroke="#e3e8f1" />
         <text x="40" y="32" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">1</text>
@@ -1318,21 +1401,19 @@ tr {
         <line x1="46" y1="28" x2="504" y2="28" stroke="#e3e8f1" />
         <text x="40" y="32" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">1</text>
       
-      <line x1="46" y1="28" x2="46" y2="186" stroke="#c7d2e0" />
-      <line x1="46" y1="186" x2="504" y2="186" stroke="#c7d2e0" />
+      <line x1="46" y1="28" x2="46" y2="176" stroke="#c7d2e0" />
+      <line x1="46" y1="176" x2="504" y2="176" stroke="#c7d2e0" />
       <text x="46" y="20" font-size="10.5" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Atividades</text>
       
-        <rect x="54" y="28" width="213" height="158" fill="#0b2f4f" rx="3" />
-        <text x="160.5" y="24" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">1</text>
-        <text x="160.5" y="228" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Inspecao</text>
-      
-        <rect x="283" y="28" width="213" height="158" fill="#0f766e" rx="3" />
-        <text x="389.5" y="24" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">1</text>
-        <text x="389.5" y="228" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Preventiva …</text>
+        <rect x="54" y="28" width="442" height="148" fill="#0b2f4f" rx="3" />
+        <text x="275" y="24" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">1</text>
+        <text x="275" y="228" font-size="9.6" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">
+          <tspan x="275" dy="0">Inspecao</tspan>
+        </text>
       
     </svg>
   </div>
-      <div class="chart-note">Leitura: indica concentração do esforço por tipo de atividade.</div>
+      <div class="chart-note">Leitura: mostra onde o esforço executado se concentrou no período.</div>
       
     <table class="chart-summary">
       <tbody>
@@ -1340,54 +1421,6 @@ tr {
             <tr>
               <td>Categoria dominante</td>
               <td>Inspecao</td>
-            </tr>
-          
-            <tr>
-              <td>Participação</td>
-              <td>50%</td>
-            </tr>
-          
-      </tbody>
-    </table>
-  
-    </div>
-  
-      
-    <div class="chart-container">
-      <div class="chart-header">
-        <h4>Top locais</h4>
-        <span class="chart-subtitle">Volume por local</span>
-      </div>
-      <div class="chart-svg">
-    <svg width="520" height="240" viewBox="0 0 520 240" xmlns="http://www.w3.org/2000/svg">
-      
-        <line x1="46" y1="186" x2="504" y2="186" stroke="#e3e8f1" />
-        <text x="40" y="190" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
-      
-        <line x1="46" y1="107" x2="504" y2="107" stroke="#e3e8f1" />
-        <text x="40" y="111" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">1</text>
-      
-        <line x1="46" y1="28" x2="504" y2="28" stroke="#e3e8f1" />
-        <text x="40" y="32" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">2</text>
-      
-      <line x1="46" y1="28" x2="46" y2="186" stroke="#c7d2e0" />
-      <line x1="46" y1="186" x2="504" y2="186" stroke="#c7d2e0" />
-      <text x="46" y="20" font-size="10.5" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Atividades</text>
-      
-        <rect x="54" y="28" width="442" height="158" fill="#0b2f4f" rx="3" />
-        <text x="275" y="24" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">2</text>
-        <text x="275" y="228" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Não informa…</text>
-      
-    </svg>
-  </div>
-      <div class="chart-note">Leitura: evidencia concentração geográfica do volume planejado.</div>
-      
-    <table class="chart-summary">
-      <tbody>
-        
-            <tr>
-              <td>Local dominante</td>
-              <td>Não informado</td>
             </tr>
           
             <tr>
@@ -1403,32 +1436,84 @@ tr {
       
     <div class="chart-container">
       <div class="chart-header">
-        <h4>Criticidade por prioridade</h4>
-        <span class="chart-subtitle">Distribuição</span>
+        <h4>Execução por local</h4>
+        <span class="chart-subtitle">Atividades concluídas no mês</span>
       </div>
       <div class="chart-svg">
     <svg width="520" height="240" viewBox="0 0 520 240" xmlns="http://www.w3.org/2000/svg">
       
-        <line x1="46" y1="186" x2="504" y2="186" stroke="#e3e8f1" />
-        <text x="40" y="190" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
-      
-        <line x1="46" y1="107" x2="504" y2="107" stroke="#e3e8f1" />
-        <text x="40" y="111" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">1</text>
+        <line x1="46" y1="176" x2="504" y2="176" stroke="#e3e8f1" />
+        <text x="40" y="180" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
       
         <line x1="46" y1="28" x2="504" y2="28" stroke="#e3e8f1" />
-        <text x="40" y="32" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">2</text>
+        <text x="40" y="32" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">1</text>
       
-      <line x1="46" y1="28" x2="46" y2="186" stroke="#c7d2e0" />
-      <line x1="46" y1="186" x2="504" y2="186" stroke="#c7d2e0" />
+        <line x1="46" y1="28" x2="504" y2="28" stroke="#e3e8f1" />
+        <text x="40" y="32" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">1</text>
+      
+      <line x1="46" y1="28" x2="46" y2="176" stroke="#c7d2e0" />
+      <line x1="46" y1="176" x2="504" y2="176" stroke="#c7d2e0" />
       <text x="46" y="20" font-size="10.5" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Atividades</text>
       
-        <rect x="54" y="28" width="442" height="158" fill="#0b2f4f" rx="3" />
-        <text x="275" y="24" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">2</text>
-        <text x="275" y="228" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Normal</text>
+        <rect x="54" y="28" width="442" height="148" fill="#0b2f4f" rx="3" />
+        <text x="275" y="24" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">1</text>
+        <text x="275" y="216" font-size="9.6" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">
+          <tspan x="275" dy="0">Local não</tspan><tspan x="275" dy="12">informado</tspan>
+        </text>
       
     </svg>
   </div>
-      <div class="chart-note">Leitura: identifica o peso de criticidade no volume planejado.</div>
+      <div class="chart-note">Leitura: evidencia concentração geográfica das entregas concluídas.</div>
+      
+    <table class="chart-summary">
+      <tbody>
+        
+            <tr>
+              <td>Local dominante</td>
+              <td>Local não informado</td>
+            </tr>
+          
+            <tr>
+              <td>Participação</td>
+              <td>100%</td>
+            </tr>
+          
+      </tbody>
+    </table>
+  
+    </div>
+  
+      
+    <div class="chart-container">
+      <div class="chart-header">
+        <h4>Execução por prioridade</h4>
+        <span class="chart-subtitle">Criticidade das atividades concluídas</span>
+      </div>
+      <div class="chart-svg">
+    <svg width="520" height="240" viewBox="0 0 520 240" xmlns="http://www.w3.org/2000/svg">
+      
+        <line x1="46" y1="176" x2="504" y2="176" stroke="#e3e8f1" />
+        <text x="40" y="180" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">0</text>
+      
+        <line x1="46" y1="28" x2="504" y2="28" stroke="#e3e8f1" />
+        <text x="40" y="32" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">1</text>
+      
+        <line x1="46" y1="28" x2="504" y2="28" stroke="#e3e8f1" />
+        <text x="40" y="32" font-size="10" text-anchor="end" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">1</text>
+      
+      <line x1="46" y1="28" x2="46" y2="176" stroke="#c7d2e0" />
+      <line x1="46" y1="176" x2="504" y2="176" stroke="#c7d2e0" />
+      <text x="46" y="20" font-size="10.5" fill="#5b6b7c" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">Atividades</text>
+      
+        <rect x="54" y="28" width="442" height="148" fill="#0b2f4f" rx="3" />
+        <text x="275" y="24" font-size="10" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">1</text>
+        <text x="275" y="228" font-size="9.6" text-anchor="middle" fill="#2f3b4a" font-family="IBM Plex Sans, 'Source Sans 3', 'Segoe UI', sans-serif">
+          <tspan x="275" dy="0">Normal</tspan>
+        </text>
+      
+    </svg>
+  </div>
+      <div class="chart-note">Leitura: identifica a pressão operacional por criticidade no período.</div>
       
     <table class="chart-summary">
       <tbody>
@@ -1451,7 +1536,7 @@ tr {
     </div>
     
         <div class="summary-table" data-chunk-index="1">
-          <h3>Distribuição por status</h3>
+          <h3>Status no período (planejado + executado)</h3>
           <table>
             <thead>
               <tr>
@@ -1497,7 +1582,7 @@ tr {
         </div>
       
         <div class="summary-table" data-chunk-index="1">
-          <h3>Distribuição por tipo</h3>
+          <h3>Planejado no mês por tipo</h3>
           <table>
             <thead>
               <tr>
@@ -1525,7 +1610,7 @@ tr {
         </div>
       
         <div class="summary-table" data-chunk-index="1">
-          <h3>Distribuição por local</h3>
+          <h3>Planejado no mês por local</h3>
           <table>
             <thead>
               <tr>
@@ -1537,7 +1622,7 @@ tr {
             <tbody>
               
                   <tr>
-                    <td>Não informado</td>
+                    <td>Local não informado</td>
                     <td>2</td>
                     <td>100%</td>
                   </tr>
@@ -1547,7 +1632,7 @@ tr {
         </div>
       
         <div class="summary-table" data-chunk-index="1">
-          <h3>Distribuição por equipe</h3>
+          <h3>Planejado no mês por equipe</h3>
           <table>
             <thead>
               <tr>
@@ -1569,7 +1654,7 @@ tr {
         </div>
       
         <div class="summary-table" data-chunk-index="1">
-          <h3>Distribuição por prioridade</h3>
+          <h3>Planejado no mês por prioridade</h3>
           <table>
             <thead>
               <tr>
@@ -1592,7 +1677,7 @@ tr {
       
   
     <footer class="report-footer">
-      <span class="footer-left">Relatório Mensal Executivo • Engelmig | Opscope</span>
+      <span class="footer-left">Relatório Mensal Executivo • Engelmig</span>
       <span class="footer-right">Página <span class="page-number"></span></span>
     </footer>
   </section>
@@ -1640,12 +1725,12 @@ tr {
       
           <div class="narrative-block">
             <div class="narrative-title">Contexto do período</div>
-            <div class="narrative-text">Volume total de 2 atividades, com 1 executadas.</div>
+            <div class="narrative-text">Planejamento de 2 atividades e execução de 1 no mês, com atuação concentrada do time O&amp;M Boa Sorte II.</div>
           </div>
         
           <div class="narrative-block">
-            <div class="narrative-title">Concentração de esforço</div>
-            <div class="narrative-text">Maior concentração em Inspecao (1 atividades); equipe O&amp;M Boa Sorte II.</div>
+            <div class="narrative-title">Concentração de esforço executado</div>
+            <div class="narrative-text">Maior concentração nas frentes Inspecao (1 atividades); equipe O&amp;M Boa Sorte II.</div>
           </div>
         
           <div class="narrative-block">
@@ -1654,13 +1739,18 @@ tr {
           </div>
         
           <div class="narrative-block">
+            <div class="narrative-title">Riscos residuais</div>
+            <div class="narrative-text">Risco residual concentrado em backlog e vencimentos, com potencial impacto em SLA.</div>
+          </div>
+        
+          <div class="narrative-block">
             <div class="narrative-title">Ação recomendada</div>
-            <div class="narrative-text">Revisar criticidade e reprogramar frentes com maior impacto no SLA.</div>
+            <div class="narrative-text">Revisar criticidade, reprogramar frentes de maior impacto e reforçar recursos de execução para recuperar o SLA.</div>
           </div>
         
     </div>
   
-        <ul><li>Prioridade dominante: Normal (2 atividades).</li></ul>
+        <ul><li>Prioridade dominante: Normal (1 atividades).</li></ul>
       
 
     
@@ -1672,28 +1762,34 @@ tr {
     <p class="section-note">Exposição elevada. Principais vetores: backlog em aberto, vencimentos acima do planejado, SLA abaixo da meta.</p>
     <div class="risk-grid">
     <div class="risk-card tone-warning">
-      <div class="risk-text">Backlog em aberto pressiona capacidade e pode aumentar prazos médios de entrega.</div>
+      <div class="risk-text">Backlog em aberto pressiona capacidade e eleva risco de descumprimento do cronograma.</div>
     </div>
   
     <div class="risk-card tone-warning">
-      <div class="risk-text">Atividades vencidas elevam risco de descumprimento contratual e SLA.</div>
+      <div class="risk-text">Atividades vencidas indicam atraso materializado e risco contratual.</div>
     </div>
   
     <div class="risk-card tone-warning">
-      <div class="risk-text">SLA abaixo da meta sugere necessidade de replanejamento e ajuste de capacidade.</div>
+      <div class="risk-text">SLA abaixo da meta sinaliza gargalo de execução e priorização.</div>
     </div>
   </div>
     <p class="section-note">Recomendações priorizadas para o próximo ciclo, com foco em capacidade, prazos e governança documental.</p>
     
     <ul class="recommendation-list">
-      <li>Reprogramar backlog com base em criticidade e vencimento, definindo janela de recuperação no próximo ciclo.</li><li>Instituir rotina semanal de revisão de vencimentos e renegociação de prazos críticos.</li><li>Revisar gargalos de execução e tempos de atendimento para recuperar a meta de SLA.</li>
+      <li>Reprogramar backlog por criticidade e vencimento, definindo janela de recuperação no próximo ciclo.</li><li>Instituir rotina semanal de revisão de vencimentos e renegociação de prazos críticos.</li><li>Revisar gargalos de execução e tempos de atendimento para recuperar a meta de SLA.</li>
     </ul>
   
 
     
     <div class="section-header">
       <h2>Backlog e justificativas</h2>
-      <p>Sem dados de backlog para o período.</p>
+      
+    </div>
+  
+    <p class="section-note">Sem dados de backlog para o período.</p>
+    
+    <div class="empty-state">
+      Sem justificativas registradas para o backlog.
     </div>
   
     
@@ -1722,7 +1818,7 @@ tr {
           <tbody>
             
                 <tr>
-                  <td>Reprogramar backlog com base em criticidade e vencimento, definindo janela de recuperação no próximo ciclo.</td>
+                  <td>Reprogramar backlog por criticidade e vencimento, definindo janela de recuperação no próximo ciclo.</td>
                   <td>Coordenação O&amp;M</td>
                   <td>Próximo ciclo</td>
                   <td>Prioritária</td>
@@ -1748,7 +1844,7 @@ tr {
     
   
     <footer class="report-footer">
-      <span class="footer-left">Relatório Mensal Executivo • Engelmig | Opscope</span>
+      <span class="footer-left">Relatório Mensal Executivo • Engelmig</span>
       <span class="footer-right">Página <span class="page-number"></span></span>
     </footer>
   </section>
@@ -1756,12 +1852,12 @@ tr {
     
     <div class="section-header">
       <h2>Tabelas consolidadas</h2>
-      <p>Tabelas consolidadas com visão completa do período para auditoria e revisão gerencial.</p>
+      <p>Tabelas consolidadas com separação entre planejado e executado no mês.</p>
     </div>
   
     
         <div class="summary-table" data-chunk-index="1">
-          <h3>Status consolidados</h3>
+          <h3>Status no período (planejado + executado)</h3>
           <table>
             <thead>
               <tr>
@@ -1805,9 +1901,9 @@ tr {
             </tbody>
           </table>
         </div>
-      
+      <div class="table-group-title">Planejamento do período</div>
         <div class="summary-table" data-chunk-index="1">
-          <h3>Categorias consolidadas</h3>
+          <h3>Planejado no mês • Categorias</h3>
           <table>
             <thead>
               <tr>
@@ -1835,7 +1931,7 @@ tr {
         </div>
       
         <div class="summary-table" data-chunk-index="1">
-          <h3>Locais consolidados</h3>
+          <h3>Planejado no mês • Locais</h3>
           <table>
             <thead>
               <tr>
@@ -1847,7 +1943,7 @@ tr {
             <tbody>
               
                   <tr>
-                    <td>Não informado</td>
+                    <td>Local não informado</td>
                     <td>2</td>
                     <td>100%</td>
                   </tr>
@@ -1857,7 +1953,7 @@ tr {
         </div>
       
         <div class="summary-table" data-chunk-index="1">
-          <h3>Equipes consolidadas</h3>
+          <h3>Planejado no mês • Equipes</h3>
           <table>
             <thead>
               <tr>
@@ -1879,7 +1975,7 @@ tr {
         </div>
       
         <div class="summary-table" data-chunk-index="1">
-          <h3>Prioridades consolidadas</h3>
+          <h3>Planejado no mês • Prioridades</h3>
           <table>
             <thead>
               <tr>
@@ -1899,6 +1995,94 @@ tr {
             </tbody>
           </table>
         </div>
+      <div class="table-group-title">Execução do período</div>
+        <div class="summary-table" data-chunk-index="1">
+          <h3>Executado no mês • Categorias</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Descrição</th>
+                <th>Quantidade</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+                  <tr>
+                    <td>Inspecao</td>
+                    <td>1</td>
+                    <td>100%</td>
+                  </tr>
+                
+            </tbody>
+          </table>
+        </div>
+      
+        <div class="summary-table" data-chunk-index="1">
+          <h3>Executado no mês • Locais</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Descrição</th>
+                <th>Quantidade</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+                  <tr>
+                    <td>Local não informado</td>
+                    <td>1</td>
+                    <td>100%</td>
+                  </tr>
+                
+            </tbody>
+          </table>
+        </div>
+      
+        <div class="summary-table" data-chunk-index="1">
+          <h3>Executado no mês • Equipes</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Descrição</th>
+                <th>Quantidade</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+                  <tr>
+                    <td>O&amp;M Boa Sorte II</td>
+                    <td>1</td>
+                    <td>100%</td>
+                  </tr>
+                
+            </tbody>
+          </table>
+        </div>
+      
+        <div class="summary-table" data-chunk-index="1">
+          <h3>Executado no mês • Prioridades</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Descrição</th>
+                <th>Quantidade</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+                  <tr>
+                    <td>Normal</td>
+                    <td>1</td>
+                    <td>100%</td>
+                  </tr>
+                
+            </tbody>
+          </table>
+        </div>
       
 
     
@@ -1912,12 +2096,27 @@ tr {
       Sem RDOs disponíveis para o período.
     </div>
   
+    
+    
+    <div class="section-header">
+      <h2>Evidências selecionadas</h2>
+      
+    </div>
+  
+    <p class="section-note">Sem evidências visuais incorporadas no período. Evidências registradas permanecem disponíveis no sistema.</p>
+    
+    <div class="empty-state">
+      Sem evidências visuais disponíveis para o período.
+    </div>
+  
+  
   
     <footer class="report-footer">
-      <span class="footer-left">Relatório Mensal Executivo • Engelmig | Opscope</span>
+      <span class="footer-left">Relatório Mensal Executivo • Engelmig</span>
       <span class="footer-right">Página <span class="page-number"></span></span>
     </footer>
   </section>
+      
     </article>
   
       </body>

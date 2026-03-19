@@ -81,13 +81,13 @@ function validateConsistency(normalized, aggregated) {
     actualCurrent.metrics.backlog +
     actualCurrent.metrics.cancelled;
 
-  if (statusSum !== actualCurrent.activityCounts.plannedInPeriod) {
+  if (statusSum !== actualCurrent.activityCounts.totalActivitiesInSlice) {
     issues.push(
       createIssue(
         VALIDATION_SEVERITY.BLOCKER,
         "consistency.status_sum",
-        "Soma de status não bate com atividades planejadas no período.",
-        { statusSum, plannedInPeriod: actualCurrent.activityCounts.plannedInPeriod },
+        "Soma de status não bate com atividades relevantes do período.",
+        { statusSum, totalInSlice: actualCurrent.activityCounts.totalActivitiesInSlice },
         "consistency",
         "consistency.status.sum"
       )
@@ -246,3 +246,4 @@ function validateConsistency(normalized, aggregated) {
 }
 
 module.exports = { validateConsistency };
+
