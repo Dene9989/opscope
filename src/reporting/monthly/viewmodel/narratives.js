@@ -53,7 +53,11 @@ function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial
       : "execução abaixo do planejado, com necessidade de recomposição";
 
   const headline = `Execução ${formatPercent(ratio)} do planejado • SLA ${slaApplies ? formatPercent(metrics.slaOnTimePct) : "N/A"}`;
-  const lead = `Planejadas ${formatNumber(planned)} atividades e executadas ${formatNumber(executed)}, indicando ${performanceTone}.`;
+  const lead = meetsExecution && meetsSla
+    ? "Mês com desempenho dentro das metas e estabilidade operacional."
+    : meetsExecution && !meetsSla
+      ? "Execução consistente, porém com pressão no cumprimento de SLA."
+      : "Execução abaixo do plano, com necessidade de recomposição operacional.";
 
   const blocks = [];
   blocks.push({
@@ -84,7 +88,7 @@ function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial
 
   const attentionPoints = [];
   if (!meetsExecution) {
-    attentionPoints.push("Execução abaixo do planejado.");
+    attentionPoints.push("Execução abaixo do planejado, indicando restrição de capacidade ou interferências operacionais.");
   }
   if (metrics.backlog > 0) {
     attentionPoints.push(`Backlog de ${formatNumber(metrics.backlog)} atividades.`);
@@ -105,9 +109,9 @@ function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial
 
   let impactText = "A operação manteve previsibilidade de entrega, com impacto operacional controlado.";
   if (metrics.backlog > 0 || metrics.overdue > 0) {
-    impactText = "O backlog e os vencimentos pressionam a capacidade instalada e exigem priorização imediata no próximo ciclo.";
+    impactText = "O backlog e os vencimentos pressionam a capacidade do time O&M Boa Sorte II e exigem priorização imediata no próximo ciclo.";
   } else if (!meetsExecution) {
-    impactText = "A diferença entre planejado e executado indica necessidade de ajuste de capacidade e reprogramação de frentes.";
+    impactText = "A diferença entre planejado e executado indica necessidade de ajuste de capacidade e reprogramação de frentes do time O&M Boa Sorte II.";
   }
   blocks.push({
     title: "Impacto operacional",
@@ -139,7 +143,7 @@ function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial
 
   const recommendation =
     metrics.backlog > 0 || metrics.overdue > 0 || !meetsSla
-      ? "Priorizar recuperação de backlog e vencimentos, com redistribuição de equipes e ajustes no sequenciamento de atividades."
+      ? "Priorizar recuperação de backlog e vencimentos, com reorganização das frentes do time O&M Boa Sorte II e ajustes no sequenciamento de atividades."
       : "Manter o ritmo operacional e reforçar governança de prazos para sustentar o desempenho.";
 
   let conclusion = `Conclusão gerencial: ${recommendation}`;
@@ -167,7 +171,9 @@ function buildExecutiveSummary({ metrics, comparison, integrityStatus, isPartial
     {
       title: "Direcionamento",
       tone: "neutral",
-      text: recommendation,
+      text: metrics.backlog > 0 || metrics.overdue > 0 || !meetsSla
+        ? "Foco no próximo ciclo: recuperar backlog e SLA."
+        : "Foco no próximo ciclo: manter estabilidade e disciplina de prazos.",
     },
   ];
 

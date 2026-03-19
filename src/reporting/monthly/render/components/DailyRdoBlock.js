@@ -12,7 +12,7 @@ function DailyRdoBlock(rdo) {
       </div>
       <div class="daily-rdo-body">
         <span><strong>Emitido:</strong> ${escapeHtml(rdo.createdAt || "-")}</span>
-        <span><strong>Por:</strong> ${escapeHtml(rdo.createdBy || "-")}</span>
+        <span><strong>Equipe:</strong> ${escapeHtml(rdo.createdBy || "-")}</span>
         <span><strong>Evidências:</strong> ${escapeHtml(String(rdo.evidenceCount || 0))}</span>
       </div>
     </div>

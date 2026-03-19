@@ -18,6 +18,15 @@ const PRIORITY_LABELS = {
   unknown: "Não classificado",
 };
 
+const CATEGORY_LABELS = {
+  programacao_futura: "Programação futura",
+};
+
+const TEAM_LABELS = {
+  om_boa_sorte_ii: "O&M Boa Sorte II",
+  "o&m_boa_sorte_ii": "O&M Boa Sorte II",
+};
+
 function normalizeKey(value) {
   return String(value || "")
     .trim()
@@ -59,6 +68,12 @@ function formatLabel(raw, context = "") {
   }
   if (context === "priority" && PRIORITY_LABELS[key]) {
     return PRIORITY_LABELS[key];
+  }
+  if (context === "category" && CATEGORY_LABELS[key]) {
+    return CATEGORY_LABELS[key];
+  }
+  if (context === "team" && TEAM_LABELS[key]) {
+    return TEAM_LABELS[key];
   }
   if (key === "unknown") {
     return "Não classificado";

@@ -261,9 +261,13 @@ function buildOperationalBreakdown({ breakdowns, totalPlanned }) {
   const concentrationText = concentrationParts.length
     ? `A operação concentrou-se em ${concentrationParts.join(", ")}.`
     : "A distribuição operacional foi homogênea no período.";
+  const topTypePct = topType && totalPlanned ? Math.round((topType[1] / totalPlanned) * 100) : 0;
+  const implicationText = topType && topTypePct >= 35
+    ? `A concentração em ${formatLabel(topType[0], "category")} indica possível gargalo operacional e exige atenção de capacidade.`
+    : "A distribuição por categoria não indica gargalos relevantes.";
 
   return {
-    text: `Distribuição das atividades planejadas por status, categoria, local, equipe e prioridade. ${concentrationText} ${priorityText}`.trim(),
+    text: `Distribuição das atividades planejadas por status, categoria, local, equipe e prioridade. ${concentrationText} ${implicationText} ${priorityText}`.trim(),
     byStatus: mapToTable(breakdowns.byStatus, totalPlanned, { labelContext: "status" }),
     byType: mapToTable(breakdowns.byType, totalPlanned, { labelContext: "category" }),
     byLocation: mapToTable(breakdowns.byLocation, totalPlanned, { labelContext: "location" }),
@@ -356,7 +360,7 @@ function buildBacklogDetails(normalized) {
       id: activity.id,
       title: activity.title,
       dueDateLabel: formatDateOnly(activity.dueDate),
-      location: activity.location || activity.team || "-",
+      location: activity.location || "-",
       responsible: activity.responsible || "-",
       reason: normalizeJustification(activity.backlogReason),
     }));

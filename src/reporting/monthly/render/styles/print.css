@@ -5,6 +5,8 @@
 
 body {
   counter-reset: page;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
 .report-page {
@@ -54,6 +56,7 @@ tr {
 .highlight-card,
 .narrative-block,
 .comparison-card,
+.chart-summary,
 .compliance-table,
 .action-table-block,
 .backlog-table,

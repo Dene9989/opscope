@@ -96,8 +96,6 @@ function renderExecutiveSummary(executiveSummary) {
   return `
     <div class="executive-summary">
       ${executiveSummary.title ? `<div class="executive-summary__title">${escapeHtml(executiveSummary.title)}</div>` : ""}
-      ${executiveSummary.headline ? `<div class="executive-summary__headline">${escapeHtml(executiveSummary.headline)}</div>` : ""}
-      ${executiveSummary.lead ? `<p class="executive-summary__lead">${escapeHtml(executiveSummary.lead)}</p>` : ""}
       ${renderNarrativeBlocks(executiveSummary.blocks)}
       ${bullets}
       ${executiveSummary.conclusion ? `<p class="executive-summary__conclusion">${escapeHtml(executiveSummary.conclusion)}</p>` : ""}

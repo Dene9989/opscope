@@ -21,6 +21,8 @@ const {
 } = require("./utils");
 
 const MAX_WARNINGS = 200;
+const UNIFIED_TEAM_KEY = "om_boa_sorte_ii";
+const UNIFIED_TEAM_LABEL = "O&M Boa Sorte II";
 
 function createWarningStore() {
   const warnings = [];
@@ -177,7 +179,7 @@ function normalizeRdo(rdo, warningStore, idCounts, index) {
     rdoDateIso: toIsoDate(rdoDate),
     createdAt,
     createdAtIso: toIsoDateTime(createdAt),
-    createdBy: normalizeText(rdo && rdo.createdBy),
+    createdBy: UNIFIED_TEAM_LABEL,
     metrics: {
       total: Number(metrics.total || 0),
       concluidas: Number(metrics.concluidas || 0),
@@ -224,8 +226,12 @@ function normalizeActivity(activity, warningStore, idCounts, index) {
   const executionStartedAt = parseDateTime(activity && activity.executionStartedAt);
   const executionFinishedAt = parseDateTime(activity && activity.executionFinishedAt);
 
-  const category = normalizeCategory(activity && activity.category);
+  let category = normalizeCategory(activity && activity.category);
   const priority = normalizePriority(activity && activity.priority);
+  const isFutureStatus = status === STATUS_NORMALIZED.AGENDADA || status === STATUS_NORMALIZED.LIBERADA;
+  if (isFutureStatus && (!category || category === "desconhecida")) {
+    category = "programacao_futura";
+  }
 
   const docs = normalizeDocs(
     {
@@ -267,8 +273,8 @@ function normalizeActivity(activity, warningStore, idCounts, index) {
     priority,
     category,
     location: normalizeText(activity && activity.location),
-    team: normalizeText(activity && activity.team),
-    responsible: normalizeText(activity && activity.responsible),
+    team: UNIFIED_TEAM_KEY,
+    responsible: UNIFIED_TEAM_LABEL,
     critical: Boolean(activity && activity.critical),
     backlogReason: normalizeText(activity && activity.backlogReason),
     cancelReason: normalizeText(activity && activity.cancelReason),

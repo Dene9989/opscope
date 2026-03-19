@@ -13,7 +13,7 @@ function BacklogTable(backlog) {
             <th>Atividade</th>
             <th>Vencimento</th>
             <th>Local</th>
-            <th>Responsável</th>
+            <th>Equipe</th>
             <th>Justificativa</th>
           </tr>
         </thead>

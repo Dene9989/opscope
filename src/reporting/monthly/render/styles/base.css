@@ -207,7 +207,7 @@ li {
 .section-header {
   border-left: 4px solid var(--accent);
   padding-left: 8pt;
-  margin: 16pt 0 10pt;
+  margin: 12pt 0 8pt;
 }
 
 .section-header p {
@@ -260,6 +260,7 @@ li {
   padding: 12pt 14pt;
   background: var(--surface);
   border-left: 4pt solid var(--accent);
+  overflow: hidden;
 }
 
 .executive-summary__title {
@@ -284,7 +285,8 @@ li {
 .narrative-blocks {
   margin-top: 8pt;
   display: grid;
-  gap: 6pt;
+  grid-template-columns: repeat(auto-fit, minmax(150pt, 1fr));
+  gap: 6pt 8pt;
 }
 
 .narrative-block {
@@ -337,7 +339,7 @@ li {
   border-radius: 8pt;
   padding: 8pt 10pt;
   background: var(--paper);
-  box-shadow: var(--shadow-soft);
+  overflow: hidden;
 }
 
 .highlight-card.tone-warning {
@@ -375,7 +377,7 @@ li {
   padding: 12pt 12pt 10pt;
   background: var(--paper);
   border-top: 4px solid var(--accent);
-  box-shadow: var(--shadow-soft);
+  overflow: hidden;
 }
 
 .kpi-card.tone-warning {
@@ -437,6 +439,7 @@ li {
   padding: 10pt;
   background: var(--paper);
   border-top: 3px solid var(--accent);
+  overflow: hidden;
 }
 
 .comparison-label {
@@ -492,7 +495,7 @@ li {
 .chart-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12pt;
+  gap: 10pt;
   margin-bottom: 10pt;
 }
 
@@ -509,6 +512,7 @@ li {
   padding: 8pt 10pt;
   border: 1px solid var(--border);
   background: var(--paper);
+  overflow: hidden;
 }
 
 .insight-card {
@@ -535,7 +539,7 @@ li {
   padding: 10pt;
   border-radius: 10pt;
   background: var(--paper);
-  box-shadow: var(--shadow-soft);
+  overflow: hidden;
 }
 
 .chart-header {
@@ -565,6 +569,39 @@ li {
   width: 100%;
   height: auto;
   display: block;
+}
+
+.chart-note {
+  margin-top: 6pt;
+  font-size: 9.5pt;
+  color: var(--ink-600);
+}
+
+.chart-summary {
+  margin-top: 6pt;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 6pt;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  font-size: 9.5pt;
+}
+
+.chart-summary td {
+  border-bottom: 1px solid var(--border);
+  padding: 4pt 6pt;
+  font-size: 9.3pt;
+}
+
+.chart-summary tr:last-child td {
+  border-bottom: none;
+}
+
+.chart-summary td:last-child {
+  text-align: right;
+  font-weight: 600;
+  color: var(--ink-900);
 }
 
 .chart-placeholder {

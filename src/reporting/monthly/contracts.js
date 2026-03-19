@@ -137,6 +137,9 @@ function getRequiredDocsForActivity(activity = {}) {
     return { requiredDocs: ["apr", "os", "pte", "pt"], isUnknown: false, reason: "critical" };
   }
   const categoryKey = normalizeCategory(activity.category || activity.categoria);
+  if (categoryKey === "programacao_futura") {
+    return { requiredDocs: [], isUnknown: false, reason: "future_programming" };
+  }
   if (!categoryKey || categoryKey === "desconhecida") {
     return { requiredDocs: null, isUnknown: true, reason: "unknown_category" };
   }
