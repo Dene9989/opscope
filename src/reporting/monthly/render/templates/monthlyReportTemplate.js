@@ -14,6 +14,7 @@ const { BacklogTable } = require("../components/BacklogTable");
 const { ContingencyTable } = require("../components/ContingencyTable");
 const { IntercorrenciaGallery } = require("../components/IntercorrenciaGallery");
 const { EvidenceGallery } = require("../components/EvidenceGallery");
+const { Footer } = require("../components/Footer");
 const { ChartContainer } = require("../components/ChartContainer");
 const { EmptyState } = require("../components/EmptyState");
 const { Page } = require("../layout/page");
@@ -298,7 +299,7 @@ function renderMonthlyReportTemplate(viewModel, charts) {
 
     ${secondaryKpis.length ? SectionHeader("Indicadores complementares", "Apoio à leitura executiva.") : ""}
     ${secondaryKpis.length ? renderKpiGrid(secondaryKpis) : ""}
-  `);
+  `, { withFooter: false });
 
   const operationalSection = `
     ${SectionHeader("Análise operacional", operationalBreakdown.text || "")}
@@ -327,14 +328,14 @@ function renderMonthlyReportTemplate(viewModel, charts) {
     </div>
     ${renderInsights(trendAnalysis)}
     ${mergeOperationalIntoTrend ? operationalSection : ""}
-  `, { className: "page-break" });
+  `, { withFooter: false });
 
   const page3 = mergeOperationalIntoTrend
     ? ""
     : Page(`
       ${operationalSection}
       ${inlineConsolidatedTables ? consolidatedSection : ""}
-    `, { className: "page-break" });
+    `, { withFooter: false });
 
   const page4 = Page(`
     ${SectionHeader("Segurança, compliance e evidências", safetyCompliance.text || "")}
@@ -371,7 +372,7 @@ function renderMonthlyReportTemplate(viewModel, charts) {
 
     ${SectionHeader("Plano de ação", actionPlan.text || "")}
     ${ActionTable(actionPlan) || EmptyState(actionPlan.text)}
-  `, { className: "page-break" });
+  `, { withFooter: false });
 
   const evidenceSection = `
     ${SectionHeader("Evidências selecionadas", "Registro visual representativo das atividades executadas.")}
@@ -384,7 +385,7 @@ function renderMonthlyReportTemplate(viewModel, charts) {
     ${hasEvidence ? evidenceSection : ""}
   `;
   const page5 = page5Content.trim()
-    ? Page(page5Content, { className: "page-break" })
+    ? Page(page5Content, { withFooter: false })
     : "";
 
   return `
@@ -394,6 +395,7 @@ function renderMonthlyReportTemplate(viewModel, charts) {
       ${page3}
       ${page4}
       ${page5}
+      ${Footer()}
     </article>
   `;
 }

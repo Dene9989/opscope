@@ -9,7 +9,9 @@ function renderIssuePhotos(item) {
       ${item.photos
         .map((photo) => `
           <figure class="issue-photo">
-            <img class="issue-photo__img" src="${escapeHtml(photo.src || "")}" alt="Evidência da anomalia" />
+            <a class="issue-photo__link" href="${escapeHtml(photo.src || "")}" target="_blank" rel="noopener">
+              <img class="issue-photo__img" src="${escapeHtml(photo.src || "")}" alt="Evidência da anomalia" />
+            </a>
             ${photo.caption ? `<figcaption class="issue-photo__caption">${escapeHtml(photo.caption)}</figcaption>` : ""}
           </figure>
         `)

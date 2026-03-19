@@ -2,7 +2,9 @@
 const { Footer } = require("../components/Footer");
 
 function Page(content, options = {}) {
-  return ReportPage(`${content || ""}${Footer()}`, options);
+  const withFooter = options.withFooter !== false;
+  const footer = withFooter ? Footer() : "";
+  return ReportPage(`${content || ""}${footer}`, options);
 }
 
 module.exports = { Page };

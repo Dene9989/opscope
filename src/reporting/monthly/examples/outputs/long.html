@@ -948,6 +948,16 @@ td:nth-child(3) {
   flex-direction: column;
 }
 
+.issue-photo__link {
+  display: block;
+  text-decoration: none;
+}
+
+.issue-photo__link:focus-visible {
+  outline: 2pt solid var(--accent);
+  outline-offset: 2pt;
+}
+
 .issue-photo__img {
   width: 100%;
   height: 110pt;
@@ -995,6 +1005,16 @@ td:nth-child(3) {
   background: var(--surface-strong);
 }
 
+.evidence-link {
+  display: block;
+  text-decoration: none;
+}
+
+.evidence-link:focus-visible {
+  outline: 2pt solid var(--accent);
+  outline-offset: 2pt;
+}
+
 .evidence-caption {
   padding: 6pt 8pt;
   border-top: 1px solid var(--border);
@@ -1032,26 +1052,19 @@ td:nth-child(3) {
 
           ﻿@page {
   size: A4 portrait;
-  margin: 12mm 12mm 14mm 12mm;
+  margin: 12mm 12mm 18mm 12mm;
 }
 
 body {
   counter-reset: page;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
+  padding-bottom: 14mm;
 }
 
 .report-page {
-  min-height: 270mm;
-  display: flex;
-  flex-direction: column;
-  gap: 3pt;
-  counter-increment: page;
-}
-
-.page-break {
-  page-break-before: always;
-  break-before: page;
+  display: block;
+  padding-bottom: 6pt;
 }
 
 .no-break {
@@ -1099,6 +1112,17 @@ tr {
 
 .page-number::before {
   content: counter(page);
+}
+
+.report-footer {
+  position: fixed;
+  bottom: 8mm;
+  left: 12mm;
+  right: 12mm;
+  margin-top: 0;
+  padding-top: 6pt;
+  background: var(--paper);
+  z-index: 10;
 }
 
         </style>
@@ -1433,13 +1457,8 @@ tr {
       <div class="kpi-detail">Busca: rastreabilidade visual. Soma: evidências anexadas nas atividades concluídas e RDOs do mês.</div>
     </div>
   </div>
-  
-    <footer class="report-footer">
-      <span class="footer-left">RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig</span>
-      <span class="footer-right">Página <span class="page-number"></span></span>
-    </footer>
   </section>
-      <section class="report-page page-break">
+      <section class="report-page">
     
     <div class="section-header">
       <h2>Tendências e performance</h2>
@@ -1710,13 +1729,8 @@ tr {
     </div>
   </div>
     
-  
-    <footer class="report-footer">
-      <span class="footer-left">RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig</span>
-      <span class="footer-right">Página <span class="page-number"></span></span>
-    </footer>
   </section>
-      <section class="report-page page-break">
+      <section class="report-page">
       
     
     <div class="section-header">
@@ -2059,13 +2073,8 @@ tr {
       
   
       
-    
-    <footer class="report-footer">
-      <span class="footer-left">RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig</span>
-      <span class="footer-right">Página <span class="page-number"></span></span>
-    </footer>
-  </section>
-      <section class="report-page page-break">
+    </section>
+      <section class="report-page">
     
     <div class="section-header">
       <h2>Segurança, compliance e evidências</h2>
@@ -2389,13 +2398,8 @@ tr {
         </table>
       </div>
     
-  
-    <footer class="report-footer">
-      <span class="footer-left">RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig</span>
-      <span class="footer-right">Página <span class="page-number"></span></span>
-    </footer>
   </section>
-      <section class="report-page page-break">
+      <section class="report-page">
     
       
     <div class="section-header">
@@ -2664,12 +2668,13 @@ tr {
       
     
     
-  
+  </section>
+      
     <footer class="report-footer">
       <span class="footer-left">RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig</span>
       <span class="footer-right">Página <span class="page-number"></span></span>
     </footer>
-  </section>
+  
     </article>
   
       </body>
