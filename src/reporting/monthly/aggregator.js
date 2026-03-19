@@ -11,6 +11,7 @@ const {
   computeDocsMetrics,
   computeHoursExecuted,
   computeEvidenceCount,
+  countOpenIssues,
   countRdos,
   groupByField,
   buildWeeklyBreakdown,
@@ -37,6 +38,7 @@ function summarizeSlice(slice, label) {
   const docs = computeDocsMetrics(executedSet);
   const hoursExecuted = computeHoursExecuted(executedSet);
   const evidenceCount = computeEvidenceCount(executedSet, rdos, period);
+  const openIssues = countOpenIssues(periodSet);
   const rdoCount = countRdos(rdos, period);
 
   const completed = statusCounts.concluida || 0;
@@ -86,6 +88,7 @@ function summarizeSlice(slice, label) {
       docsCompliancePct: docs.docsCompliancePct,
       hoursExecuted,
       evidenceCount,
+      openIssues,
       rdoCount,
       plannedNonCancelled: totalPlannedCheck,
     },

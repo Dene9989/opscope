@@ -155,6 +155,86 @@ function normalizeDocs(activity, warningStore, context) {
   };
 }
 
+function normalizeIntercorrenciaStatus(value) {
+  const normalized = normalizeText(value, { lower: true }).replace(/\s+/g, "_");
+  if (!normalized) {
+    return "ABERTA";
+  }
+  if (["aberta", "aberto", "open", "nova", "pendente"].includes(normalized)) {
+    return "ABERTA";
+  }
+  if (["em_tratativa", "tratativa", "analise", "em_analise", "investigacao"].includes(normalized)) {
+    return "EM_TRATATIVA";
+  }
+  if (["corrigida", "corrigido", "resolvida", "resolvido", "closed", "finalizada"].includes(normalized)) {
+    return "CORRIGIDA";
+  }
+  return "ABERTA";
+}
+
+function normalizeIntercorrenciaCriticidade(value) {
+  const normalized = normalizeText(value, { lower: true }).replace(/\s+/g, "_");
+  if (!normalized) {
+    return "MEDIA";
+  }
+  if (["baixa", "baixo", "low"].includes(normalized)) {
+    return "BAIXA";
+  }
+  if (["media", "medio", "med", "normal", "moderada"].includes(normalized)) {
+    return "MEDIA";
+  }
+  if (["alta", "alto", "high"].includes(normalized)) {
+    return "ALTA";
+  }
+  if (["critica", "critico", "critical", "grave"].includes(normalized)) {
+    return "CRITICA";
+  }
+  return "MEDIA";
+}
+
+function normalizeIntercorrencia(issue, warningStore, context) {
+  if (!issue || typeof issue !== "object") {
+    return null;
+  }
+  const fotos = Array.isArray(issue.fotos)
+    ? issue.fotos
+    : Array.isArray(issue.evidencias)
+      ? issue.evidencias
+      : [];
+  const descricao = normalizeText(issue.descricao || issue.detalhes || issue.descricaoFalha);
+  const acaoImediata = normalizeText(issue.acaoImediata || issue.acao || issue.acaoAdotada || issue.mitigacao);
+  if (!descricao && !acaoImediata && !fotos.length) {
+    return null;
+  }
+  const issueId = disambiguateId(
+    normalizeId(issue.id, `issue:${context.id}:${descricao}`, warningStore, context),
+    context.issueIdCounts || new Map(),
+    warningStore,
+    context
+  );
+  const createdAt = parseDateTime(issue.criadaEm || issue.createdAt || issue.registradaEm || issue.registeredAt);
+  const updatedAt = parseDateTime(
+    issue.atualizadaEm || issue.updatedAt || issue.statusAtualizadoEm || issue.lastStatusAt
+  );
+  const correctedAt = parseDateTime(issue.corrigidaEm || issue.resolvidaEm);
+  return {
+    id: issueId,
+    status: normalizeIntercorrenciaStatus(issue.status || issue.estado),
+    criticidade: normalizeIntercorrenciaCriticidade(issue.criticidade || issue.severidade),
+    descricao,
+    acaoImediata,
+    fotos,
+    createdAt,
+    createdAtIso: toIsoDateTime(createdAt),
+    updatedAt,
+    updatedAtIso: toIsoDateTime(updatedAt),
+    correctedAt,
+    correctedAtIso: toIsoDateTime(correctedAt),
+    createdBy: normalizeText(issue.criadaPor || issue.createdBy || issue.registradaPor || issue.registeredBy),
+    updatedBy: normalizeText(issue.atualizadaPor || issue.updatedBy || issue.statusAtualizadoPor),
+  };
+}
+
 function normalizeRdo(rdo, warningStore, idCounts, index) {
   const context = { record: "rdo", index };
   const id = disambiguateId(
@@ -298,6 +378,8 @@ function normalizeActivity(activity, warningStore, idCounts, index) {
       : [];
 
   const executionDurationHours = Number(activity && activity.executionDurationHours ? activity.executionDurationHours : 0);
+  const issueContext = { ...context, id, issueIdCounts: new Map() };
+  const issue = normalizeIntercorrencia(activity && (activity.issue || activity.intercorrencia), warningStore, issueContext);
 
   const issues = [];
   if (status === STATUS_NORMALIZED.UNKNOWN) {
@@ -334,6 +416,7 @@ function normalizeActivity(activity, warningStore, idCounts, index) {
     evidenceCount,
     evidences,
     executionDurationHours,
+    issue,
     issues,
     isValid,
   };

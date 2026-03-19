@@ -13958,6 +13958,41 @@ function collectMaintenanceEvidenceEntries(item) {
   return entries;
 }
 
+function normalizeMonthlyIntercorrencia(value, item) {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const fotosRaw = Array.isArray(value.fotos)
+    ? value.fotos
+    : Array.isArray(value.evidencias)
+      ? value.evidencias
+      : [];
+  const fotos = fotosRaw
+    .map((entry) => normalizeMonthlyEvidenceEntry(entry))
+    .filter(Boolean);
+  const descricao = String(value.descricao || value.detalhes || value.descricaoFalha || "").trim();
+  const acaoImediata = String(
+    value.acaoImediata || value.acao || value.acaoAdotada || value.mitigacao || ""
+  ).trim();
+  if (!descricao && !acaoImediata && !fotos.length) {
+    return null;
+  }
+  return {
+    id: String(value.id || (item && item.id) || "").trim(),
+    status: String(value.status || value.estado || "").trim(),
+    criticidade: String(value.criticidade || value.severidade || "").trim(),
+    descricao,
+    acaoImediata,
+    fotos,
+    criadaEm: value.criadaEm || value.createdAt || value.registradaEm || value.registeredAt || "",
+    criadaPor: value.criadaPor || value.createdBy || value.registradaPor || value.registeredBy || "",
+    atualizadaEm: value.atualizadaEm || value.updatedAt || value.statusAtualizadoEm || value.lastStatusAt || "",
+    atualizadaPor: value.atualizadaPor || value.updatedBy || value.statusAtualizadoPor || "",
+    corrigidaEm: value.corrigidaEm || value.resolvidaEm || "",
+    corrigidaPor: value.corrigidaPor || value.resolvidaPor || "",
+  };
+}
+
 function mapMaintenanceToMonthlyActivity(item) {
   const due = getDueDate(item);
   const doneAt = getCompletedAt(item);
@@ -13997,6 +14032,11 @@ function mapMaintenanceToMonthlyActivity(item) {
   const cancelReason = String(
     cancelamento.motivo || cancelamento.observacao || item.cancelamentoMotivo || ""
   ).trim();
+  const intercorrenciaSource =
+    item.intercorrencia ||
+    (item.conclusao && item.conclusao.intercorrencia) ||
+    null;
+  const issue = normalizeMonthlyIntercorrencia(intercorrenciaSource, item);
   return {
     id: String(item.id || ""),
     title: String(item.titulo || item.nome || item.atividade || "").trim(),
@@ -14019,6 +14059,7 @@ function mapMaintenanceToMonthlyActivity(item) {
     evidenceCount: countMaintenanceEvidenceEntries(item),
     evidences: collectMaintenanceEvidenceEntries(item),
     executionDurationHours,
+    issue,
   };
 }
 

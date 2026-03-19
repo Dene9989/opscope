@@ -201,6 +201,20 @@ function buildKpis({ metrics, comparison, breakdowns }) {
 
   cards.push(
     buildKpiCard({
+      key: "openIssues",
+      label: "Intercorrências abertas",
+      value: metrics.openIssues || 0,
+      formatted: formatNumber(metrics.openIssues || 0),
+      delta: byKey("openIssues")?.deltaFormatted,
+      deltaPct: byKey("openIssues")?.deltaPctFormatted,
+      tone: (metrics.openIssues || 0) > 0 ? VIEWMODEL_TONE.WARNING : VIEWMODEL_TONE.POSITIVE,
+      detail: "Busca: intercorrências/falhas abertas (status aberta ou em tratativa). Soma: registros de anomalias não corrigidas no período. Meta = 0.",
+      status: makeStatus((metrics.openIssues || 0) === 0, "Sem intercorrências", "Com intercorrências"),
+    })
+  );
+
+  cards.push(
+    buildKpiCard({
       key: "slaOnTimePct",
       label: "SLA no prazo",
       value: metrics.slaOnTimePct,
@@ -706,6 +720,32 @@ const CONTINGENCY_SYSTEM_CONDITION_LABELS = {
   UNAVAILABLE: "Indisponível",
 };
 
+const INTERCORRENCIA_STATUS_LABELS = {
+  ABERTA: "Aberta",
+  EM_TRATATIVA: "Em tratativa",
+  CORRIGIDA: "Corrigida",
+};
+
+const INTERCORRENCIA_CRITICIDADE_LABELS = {
+  BAIXA: "Baixa",
+  MEDIA: "Média",
+  ALTA: "Alta",
+  CRITICA: "Crítica",
+};
+
+const INTERCORRENCIA_STATUS_ORDER = {
+  ABERTA: 1,
+  EM_TRATATIVA: 2,
+  CORRIGIDA: 3,
+};
+
+const INTERCORRENCIA_CRITICIDADE_ORDER = {
+  CRITICA: 1,
+  ALTA: 2,
+  MEDIA: 3,
+  BAIXA: 4,
+};
+
 function formatContingencyLabel(map, value, fallback) {
   const key = String(value || "").trim().toUpperCase();
   return map[key] || fallback || key || "-";
@@ -758,6 +798,109 @@ function buildContingencySummary(normalized) {
   };
 }
 
+function isIssueOpen(issue) {
+  if (!issue || typeof issue !== "object") {
+    return false;
+  }
+  if (issue.status === "CORRIGIDA") {
+    return false;
+  }
+  if (issue.correctedAt) {
+    return false;
+  }
+  return true;
+}
+
+function buildIntercorrenciaSummary(normalized, timeZone) {
+  if (!normalized || !normalized.currentPeriod || !Array.isArray(normalized.currentPeriod.activities)) {
+    return { text: "Sem dados de intercorrências no período.", items: [], count: 0 };
+  }
+  const activities = normalized.currentPeriod.activities || [];
+  const items = [];
+
+  activities.forEach((activity) => {
+    const issue = activity.issue;
+    if (!issue || !isIssueOpen(issue)) {
+      return;
+    }
+    const fotos = Array.isArray(issue.fotos) ? issue.fotos : [];
+    const photos = fotos
+      .map((entry) => {
+        const src = extractEvidenceSource(entry);
+        if (!src || !isImageSource(src, entry)) {
+          return null;
+        }
+        const rawCaption = extractEvidenceCaption(entry);
+        const caption = sanitizeEvidenceCaption(rawCaption, "Foto da anomalia");
+        return { src, caption };
+      })
+      .filter(Boolean)
+      .slice(0, 4);
+
+    const statusKey = String(issue.status || "").toUpperCase() || "ABERTA";
+    const criticidadeKey = String(issue.criticidade || "").toUpperCase() || "MEDIA";
+    const registeredAt = issue.createdAt || issue.updatedAt || null;
+    const registeredAtLabel = registeredAt ? formatDateTime(registeredAt, timeZone) : "-";
+
+    const contextParts = [
+      activity.location ? formatLabel(activity.location, "location") : "",
+      activity.category ? formatLabel(activity.category, "category") : "",
+      activity.priority ? formatLabel(activity.priority, "priority") : "",
+    ].filter(Boolean);
+
+    items.push({
+      id: issue.id || activity.id,
+      title: activity.title || "Intercorrência registrada",
+      description: issue.descricao || "Descrição não informada.",
+      action: issue.acaoImediata || "Ação imediata não registrada.",
+      statusKey,
+      statusLabel: INTERCORRENCIA_STATUS_LABELS[statusKey] || "Aberta",
+      statusClass: statusKey.toLowerCase(),
+      criticidadeKey,
+      criticidadeLabel: INTERCORRENCIA_CRITICIDADE_LABELS[criticidadeKey] || "Média",
+      criticidadeClass: criticidadeKey.toLowerCase(),
+      registeredAtLabel,
+      registeredAtValue: registeredAt ? registeredAt.getTime() : 0,
+      context: contextParts.join(" • "),
+      photos,
+      forwardedNote: "Anomalia repassada ao cliente para decisão de intervenção.",
+    });
+  });
+
+  if (!items.length) {
+    return {
+      text: "Sem intercorrências abertas no período. Ocorrências já corrigidas não foram incluídas.",
+      items: [],
+      count: 0,
+    };
+  }
+
+  items.sort((a, b) => {
+    const critA = INTERCORRENCIA_CRITICIDADE_ORDER[a.criticidadeKey] || 9;
+    const critB = INTERCORRENCIA_CRITICIDADE_ORDER[b.criticidadeKey] || 9;
+    if (critA !== critB) {
+      return critA - critB;
+    }
+    const statusA = INTERCORRENCIA_STATUS_ORDER[a.statusKey] || 9;
+    const statusB = INTERCORRENCIA_STATUS_ORDER[b.statusKey] || 9;
+    if (statusA !== statusB) {
+      return statusA - statusB;
+    }
+    return b.registeredAtValue - a.registeredAtValue;
+  });
+
+  const text =
+    items.length === 1
+      ? "1 intercorrência aberta registrada no período, com ação imediata e encaminhamento ao cliente."
+      : `${formatNumber(items.length)} intercorrências abertas registradas no período, com ação imediata e encaminhamento ao cliente.`;
+
+  return {
+    text,
+    items,
+    count: items.length,
+  };
+}
+
 function buildMonthlyReportViewModel({ aggregated, validation, normalized, options = {} } = {}) {
   if (!aggregated || !aggregated.current) {
     return null;
@@ -803,6 +946,7 @@ function buildMonthlyReportViewModel({ aggregated, validation, normalized, optio
   const actionPlan = buildActionPlan({ recommendations });
   const backlogDetails = buildBacklogDetails(normalized);
   const contingencySummary = buildContingencySummary(normalized);
+  const issueSummary = buildIntercorrenciaSummary(normalized, timeZone);
 
   const kpis = buildKpis({ metrics, comparison, breakdowns });
   const trendAnalysis = buildTrendAnalysis({ breakdowns, insights });
@@ -856,6 +1000,7 @@ function buildMonthlyReportViewModel({ aggregated, validation, normalized, optio
     consolidatedTables,
     backlogDetails,
     contingencySummary,
+    issueSummary,
     evidenceGallery,
   };
 }

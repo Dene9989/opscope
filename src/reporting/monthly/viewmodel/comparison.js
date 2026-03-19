@@ -71,6 +71,13 @@ function buildComparison(aggregated) {
       format: "number",
     }),
     buildComparisonItem({
+      key: "openIssues",
+      label: "Intercorrências abertas",
+      current: current.openIssues,
+      previous: previous.openIssues,
+      format: "number",
+    }),
+    buildComparisonItem({
       key: "slaOnTimePct",
       label: "SLA no prazo",
       current: current.slaOnTimePct,

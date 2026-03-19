@@ -122,6 +122,12 @@ const METRIC_TRACEABILITY = {
     fn: "computeEvidenceCount",
     sections: ["compliance"],
   },
+  openIssues: {
+    source: "activities",
+    rule: "intercorrencia status aberta/em tratativa",
+    fn: "countOpenIssues",
+    sections: ["kpis", "riskSummary"],
+  },
   rdoCount: {
     source: "rdos",
     rule: "rdoDate in period",
@@ -355,6 +361,43 @@ function computeEvidenceCount(executedSet, rdos, period) {
   return activityEvidence + rdoEvidence;
 }
 
+function isIssueOpen(issue) {
+  if (!issue || typeof issue !== "object") {
+    return false;
+  }
+  if (issue.status === "CORRIGIDA") {
+    return false;
+  }
+  if (issue.correctedAt) {
+    return false;
+  }
+  return true;
+}
+
+function countOpenIssues(activities) {
+  if (!Array.isArray(activities)) {
+    return 0;
+  }
+  const seen = new Set();
+  let total = 0;
+  activities.forEach((activity) => {
+    if (!activity || !activity.issue) {
+      return;
+    }
+    const issue = activity.issue;
+    if (!isIssueOpen(issue)) {
+      return;
+    }
+    const issueId = issue.id || activity.id;
+    if (seen.has(issueId)) {
+      return;
+    }
+    seen.add(issueId);
+    total += 1;
+  });
+  return total;
+}
+
 function countRdos(rdos, period) {
   return rdos.filter((rdo) => rdo.rdoDate && inRange(rdo.rdoDate, period.start, period.end)).length;
 }
@@ -434,6 +477,7 @@ module.exports = {
   computeDocsMetrics,
   computeHoursExecuted,
   computeEvidenceCount,
+  countOpenIssues,
   countRdos,
   groupByField,
   buildWeeklyBreakdown,

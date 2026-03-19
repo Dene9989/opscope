@@ -12,6 +12,7 @@ const { renderSummaryTable } = require("../components/SummaryTable");
 const { ComplianceTable } = require("../components/ComplianceTable");
 const { BacklogTable } = require("../components/BacklogTable");
 const { ContingencyTable } = require("../components/ContingencyTable");
+const { IntercorrenciaGallery } = require("../components/IntercorrenciaGallery");
 const { EvidenceGallery } = require("../components/EvidenceGallery");
 const { ChartContainer } = require("../components/ChartContainer");
 const { EmptyState } = require("../components/EmptyState");
@@ -216,6 +217,7 @@ function renderMonthlyReportTemplate(viewModel, charts) {
   const consolidatedTables = viewModel.consolidatedTables;
   const backlogDetails = viewModel.backlogDetails;
   const contingencySummary = viewModel.contingencySummary;
+  const issueSummary = viewModel.issueSummary;
   const evidenceGallery = viewModel.evidenceGallery;
   const hasEvidence = evidenceGallery && evidenceGallery.items && evidenceGallery.items.length;
   const hasTechnicalContent = technicalHighlights && (
@@ -351,6 +353,10 @@ function renderMonthlyReportTemplate(viewModel, charts) {
     ${SectionHeader("Contingências do período", "Resumo técnico-operacional das ocorrências do mês.")}
     ${renderSectionNote(contingencySummary && contingencySummary.text ? contingencySummary.text : "")}
     ${ContingencyTable(contingencySummary) || EmptyState("Sem contingências registradas no período.")}
+
+    ${SectionHeader("Intercorrências e falhas registradas", "Ocorrências abertas com encaminhamento ao cliente.")}
+    ${renderSectionNote(issueSummary && issueSummary.text ? issueSummary.text : "")}
+    ${IntercorrenciaGallery(issueSummary) || EmptyState("Sem intercorrências abertas no período.")}
 
     ${SectionHeader("Riscos e recomendações", riskAssessment.text || "")}
     ${renderSectionNote(riskAssessment.summary || "")}

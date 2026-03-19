@@ -811,6 +811,167 @@ td:nth-child(3) {
   color: var(--ink-900);
 }
 
+.issue-list {
+  display: grid;
+  gap: 10pt;
+}
+
+.issue-card {
+  border: 1px solid var(--border);
+  border-radius: 10pt;
+  padding: 10pt;
+  background: var(--paper);
+  display: grid;
+  gap: 6pt;
+}
+
+.issue-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 6pt;
+  flex-wrap: wrap;
+}
+
+.issue-title {
+  font-size: 11pt;
+  font-weight: 700;
+  color: var(--ink-900);
+}
+
+.issue-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4pt;
+  font-size: 8.4pt;
+}
+
+.issue-tag {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2pt 6pt;
+  background: var(--surface);
+  color: var(--ink-700);
+  white-space: nowrap;
+}
+
+.issue-tag--date {
+  background: var(--surface-strong);
+  color: var(--ink-600);
+}
+
+.issue-tag--status.status-aberta {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border-color: #f1d6b8;
+}
+
+.issue-tag--status.status-em_tratativa {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  border-color: #cfe0f0;
+}
+
+.issue-tag--status.status-corrigida {
+  background: var(--positive-bg);
+  color: var(--positive);
+  border-color: #bfe4c8;
+}
+
+.issue-tag--criticality.criticality-critica {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.issue-tag--criticality.criticality-alta {
+  background: #fff4e5;
+  color: var(--warning);
+  border-color: #f1d6b8;
+}
+
+.issue-tag--criticality.criticality-media {
+  background: var(--surface);
+  color: var(--ink-700);
+}
+
+.issue-tag--criticality.criticality-baixa {
+  background: var(--positive-bg);
+  color: var(--positive);
+  border-color: #bfe4c8;
+}
+
+.issue-context {
+  font-size: 9pt;
+  color: var(--ink-600);
+}
+
+.issue-body {
+  display: grid;
+  gap: 4pt;
+}
+
+.issue-field__label {
+  font-size: 8.4pt;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-500);
+}
+
+.issue-field__value {
+  font-size: 9.6pt;
+  color: var(--ink-800);
+}
+
+.issue-forward {
+  margin-top: 4pt;
+  padding: 6pt 8pt;
+  border-radius: 6pt;
+  border: 1px solid #cfe0f0;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 9pt;
+}
+
+.issue-photos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6pt;
+}
+
+.issue-photo {
+  border: 1px solid var(--border);
+  border-radius: 6pt;
+  overflow: hidden;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+}
+
+.issue-photo__img {
+  width: 100%;
+  height: 110pt;
+  object-fit: contain;
+  display: block;
+  background: var(--surface-strong);
+}
+
+.issue-photo__caption {
+  padding: 4pt 6pt;
+  font-size: 8.2pt;
+  color: var(--ink-600);
+  border-top: 1px solid var(--border);
+}
+
+.issue-empty {
+  padding: 6pt 8pt;
+  border-radius: 6pt;
+  border: 1px dashed var(--border);
+  background: var(--surface);
+  color: var(--ink-500);
+  font-size: 9pt;
+}
+
 .evidence-gallery {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -929,7 +1090,9 @@ tr {
 .chart-summary,
 .daily-rdo-block,
 .backlog-reason,
-.evidence-card {
+.evidence-card,
+.issue-card,
+.issue-photo {
   break-inside: avoid;
   page-break-inside: avoid;
 }
@@ -1182,6 +1345,20 @@ tr {
     </div>
   
     <div class="kpi-grid">
+    <div class="kpi-card tone-positive">
+      <div class="kpi-label">Intercorrências abertas</div>
+      <div class="kpi-value">0</div>
+      
+      
+        <div class="kpi-status kpi-status--positive">
+          <span class="kpi-status__dot" aria-hidden="true"></span>
+          
+          <span class="kpi-status__label">Sem intercorrências</span>
+        </div>
+      
+      <div class="kpi-detail">Busca: intercorrências/falhas abertas (status aberta ou em tratativa). Soma: registros de anomalias não corrigidas no período. Meta = 0.</div>
+    </div>
+  
     <div class="kpi-card tone-positive">
       <div class="kpi-label">Compliance documental</div>
       <div class="kpi-value">100%</div>
@@ -1936,6 +2113,19 @@ tr {
     
     <div class="empty-state">
       Sem contingências registradas no período.
+    </div>
+  
+
+    
+    <div class="section-header">
+      <h2>Intercorrências e falhas registradas</h2>
+      <p>Ocorrências abertas com encaminhamento ao cliente.</p>
+    </div>
+  
+    <p class="section-note">Sem intercorrências abertas no período. Ocorrências já corrigidas não foram incluídas.</p>
+    
+    <div class="empty-state">
+      Sem intercorrências abertas no período.
     </div>
   
 

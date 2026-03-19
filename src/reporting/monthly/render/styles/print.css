@@ -58,7 +58,9 @@ tr {
 .chart-summary,
 .daily-rdo-block,
 .backlog-reason,
-.evidence-card {
+.evidence-card,
+.issue-card,
+.issue-photo {
   break-inside: avoid;
   page-break-inside: avoid;
 }
