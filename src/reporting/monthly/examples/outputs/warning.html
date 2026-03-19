@@ -147,7 +147,8 @@ li {
   font-size: 8pt;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: var(--ink-300);
+  color: var(--ink-700);
+  font-weight: 600;
 }
 
 .report-header__meta-value {
@@ -189,7 +190,8 @@ li {
   font-size: 7.8pt;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--ink-500);
+  color: var(--ink-700);
+  font-weight: 600;
 }
 
 .metadata-value {
@@ -219,7 +221,7 @@ li {
 }
 
 .section-header p {
-  color: var(--ink-500);
+  color: var(--ink-700);
   font-size: 10.2pt;
 }
 
@@ -364,7 +366,8 @@ li {
   font-size: 8.5pt;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--ink-500);
+  color: var(--ink-700);
+  font-weight: 600;
 }
 
 .highlight-text {
@@ -402,9 +405,10 @@ li {
 
 .kpi-label {
   font-size: 8.8pt;
-  color: var(--ink-500);
+  color: var(--ink-700);
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  font-weight: 600;
 }
 
 .kpi-value {
@@ -483,7 +487,7 @@ li {
 .kpi-detail {
   margin-top: 6pt;
   font-size: 9.2pt;
-  color: var(--ink-600);
+  color: var(--ink-700);
   line-height: 1.35;
 }
 
@@ -506,7 +510,8 @@ li {
   font-size: 9pt;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--ink-500);
+  color: var(--ink-700);
+  font-weight: 600;
 }
 
 .comparison-values {
@@ -527,7 +532,7 @@ li {
 
 .comparison-caption {
   font-size: 7.8pt;
-  color: var(--ink-500);
+  color: var(--ink-700);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -539,7 +544,7 @@ li {
 
 .comparison-delta {
   font-size: 9.5pt;
-  color: var(--ink-500);
+  color: var(--ink-700);
 }
 
 .comparison-delta.comparison-delta--positive {
@@ -617,7 +622,7 @@ li {
 }
 
 .chart-subtitle {
-  color: var(--ink-500);
+  color: var(--ink-700);
   font-size: 9.2pt;
 }
 
@@ -634,7 +639,7 @@ li {
 .chart-note {
   margin-top: 6pt;
   font-size: 9.5pt;
-  color: var(--ink-600);
+  color: var(--ink-700);
 }
 
 .chart-summary {
@@ -670,7 +675,7 @@ li {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--ink-300);
+  color: var(--ink-600);
   font-size: 10pt;
 }
 
@@ -683,7 +688,8 @@ li {
   font-size: 9.2pt;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: var(--ink-500);
+  color: var(--ink-700);
+  font-weight: 600;
 }
 
 table {
@@ -803,7 +809,7 @@ td:nth-child(3) {
 }
 
 .backlog-reason__label {
-  color: var(--ink-700);
+  color: var(--ink-800);
 }
 
 .backlog-reason__value {
@@ -903,7 +909,7 @@ td:nth-child(3) {
 
 .issue-context {
   font-size: 9pt;
-  color: var(--ink-600);
+  color: var(--ink-700);
 }
 
 .issue-body {
@@ -915,7 +921,8 @@ td:nth-child(3) {
   font-size: 8.4pt;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--ink-500);
+  color: var(--ink-700);
+  font-weight: 600;
 }
 
 .issue-field__value {
@@ -1028,7 +1035,7 @@ td:nth-child(3) {
 
 .evidence-caption__context {
   font-size: 8.6pt;
-  color: var(--ink-500);
+  color: var(--ink-700);
   margin-top: 2pt;
 }
 
@@ -1036,7 +1043,7 @@ td:nth-child(3) {
   padding: 12pt;
   background: var(--muted);
   border-radius: 8pt;
-  color: var(--ink-500);
+  color: var(--ink-700);
   font-style: italic;
 }
 
@@ -1059,7 +1066,6 @@ body {
   counter-reset: page;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
-  padding-bottom: 14mm;
 }
 
 .report-page {
@@ -1095,8 +1101,6 @@ tr {
 .risk-card,
 .hero,
 .metadata-bar,
-.executive-summary,
-.executive-grid,
 .highlight-card,
 .narrative-block,
 .comparison-card,
@@ -1110,19 +1114,8 @@ tr {
   page-break-inside: avoid;
 }
 
-.page-number::before {
-  content: counter(page);
-}
-
 .report-footer {
-  position: fixed;
-  bottom: 8mm;
-  left: 12mm;
-  right: 12mm;
-  margin-top: 0;
-  padding-top: 6pt;
-  background: var(--paper);
-  z-index: 10;
+  display: none;
 }
 
         </style>

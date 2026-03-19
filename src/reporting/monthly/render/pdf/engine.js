@@ -78,6 +78,14 @@ async function renderWithPuppeteer(html, options = {}) {
     throw error;
   }
 
+  const footerTemplate = `
+    <div style="width:100%; font-size:8px; color:#6b7280; padding:0 12mm; box-sizing:border-box; display:flex; justify-content:space-between; align-items:center; font-family:'IBM Plex Sans','Segoe UI',sans-serif;">
+      <span>RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig</span>
+      <span>Página <span class="pageNumber"></span> de <span class="totalPages"></span></span>
+    </div>
+  `;
+  const headerTemplate = `<div></div>`;
+
   let executablePath = resolvePuppeteerExecutablePath();
   if (!executablePath && puppeteer && typeof puppeteer.executablePath === "function") {
     const autoPath = puppeteer.executablePath();
@@ -99,7 +107,10 @@ async function renderWithPuppeteer(html, options = {}) {
     const buffer = await page.pdf({
       format: "A4",
       printBackground: true,
-      margin: { top: "12mm", right: "12mm", bottom: "14mm", left: "12mm" },
+      displayHeaderFooter: true,
+      headerTemplate,
+      footerTemplate,
+      margin: { top: "12mm", right: "12mm", bottom: "18mm", left: "12mm" },
       ...options.pdfOptions,
     });
     return buffer;
@@ -116,6 +127,14 @@ async function renderWithPlaywright(html, options = {}) {
     throw error;
   }
 
+  const footerTemplate = `
+    <div style="width:100%; font-size:8px; color:#6b7280; padding:0 12mm; box-sizing:border-box; display:flex; justify-content:space-between; align-items:center; font-family:'IBM Plex Sans','Segoe UI',sans-serif;">
+      <span>RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig</span>
+      <span>Página <span class="pageNumber"></span> de <span class="totalPages"></span></span>
+    </div>
+  `;
+  const headerTemplate = `<div></div>`;
+
   const browser = await playwright.chromium.launch();
   const page = await browser.newPage();
   if (options.requestHeaders) {
@@ -125,7 +144,10 @@ async function renderWithPlaywright(html, options = {}) {
   const buffer = await page.pdf({
     format: "A4",
     printBackground: true,
-    margin: { top: "12mm", right: "12mm", bottom: "14mm", left: "12mm" },
+    displayHeaderFooter: true,
+    headerTemplate,
+    footerTemplate,
+    margin: { top: "12mm", right: "12mm", bottom: "18mm", left: "12mm" },
     ...options.pdfOptions,
   });
   await browser.close();

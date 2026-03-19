@@ -7,7 +7,6 @@ body {
   counter-reset: page;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
-  padding-bottom: 14mm;
 }
 
 .report-page {
@@ -43,8 +42,6 @@ tr {
 .risk-card,
 .hero,
 .metadata-bar,
-.executive-summary,
-.executive-grid,
 .highlight-card,
 .narrative-block,
 .comparison-card,
@@ -58,17 +55,6 @@ tr {
   page-break-inside: avoid;
 }
 
-.page-number::before {
-  content: counter(page);
-}
-
 .report-footer {
-  position: fixed;
-  bottom: 8mm;
-  left: 12mm;
-  right: 12mm;
-  margin-top: 0;
-  padding-top: 6pt;
-  background: var(--paper);
-  z-index: 10;
+  display: none;
 }
