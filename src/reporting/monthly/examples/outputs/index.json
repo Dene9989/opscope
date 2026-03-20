@@ -20,7 +20,7 @@
       "insight.sla_good",
       "insight.docs_good"
     ],
-    "pageCount": 10,
+    "pageCount": 14,
     "htmlPath": "C:\\Users\\denisson.alves\\OneDrive - ENGELMIG ENERGIA LTDA\\Área de Trabalho\\My Workspace\\sismetro\\src\\reporting\\monthly\\examples\\outputs\\healthy.html",
     "pdfPath": "C:\\Users\\denisson.alves\\OneDrive - ENGELMIG ENERGIA LTDA\\Área de Trabalho\\My Workspace\\sismetro\\src\\reporting\\monthly\\examples\\outputs\\healthy.pdf"
   },
@@ -47,7 +47,7 @@
       "insight.low_volume",
       "insight.integrity_attention"
     ],
-    "pageCount": 9,
+    "pageCount": 13,
     "htmlPath": "C:\\Users\\denisson.alves\\OneDrive - ENGELMIG ENERGIA LTDA\\Área de Trabalho\\My Workspace\\sismetro\\src\\reporting\\monthly\\examples\\outputs\\warning.html",
     "pdfPath": "C:\\Users\\denisson.alves\\OneDrive - ENGELMIG ENERGIA LTDA\\Área de Trabalho\\My Workspace\\sismetro\\src\\reporting\\monthly\\examples\\outputs\\warning.pdf"
   },
@@ -73,7 +73,7 @@
       "insight.docs_good",
       "insight.low_volume"
     ],
-    "pageCount": 10,
+    "pageCount": 15,
     "htmlPath": "C:\\Users\\denisson.alves\\OneDrive - ENGELMIG ENERGIA LTDA\\Área de Trabalho\\My Workspace\\sismetro\\src\\reporting\\monthly\\examples\\outputs\\no-previous.html",
     "pdfPath": "C:\\Users\\denisson.alves\\OneDrive - ENGELMIG ENERGIA LTDA\\Área de Trabalho\\My Workspace\\sismetro\\src\\reporting\\monthly\\examples\\outputs\\no-previous.pdf"
   },
@@ -102,7 +102,7 @@
       "insight.critical_present",
       "insight.integrity_attention"
     ],
-    "pageCount": 11,
+    "pageCount": 16,
     "htmlPath": "C:\\Users\\denisson.alves\\OneDrive - ENGELMIG ENERGIA LTDA\\Área de Trabalho\\My Workspace\\sismetro\\src\\reporting\\monthly\\examples\\outputs\\long.html",
     "pdfPath": "C:\\Users\\denisson.alves\\OneDrive - ENGELMIG ENERGIA LTDA\\Área de Trabalho\\My Workspace\\sismetro\\src\\reporting\\monthly\\examples\\outputs\\long.pdf"
   }
