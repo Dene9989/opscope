@@ -5323,7 +5323,8 @@ let homeTipIndex = 0;
 const SYNC_POLL_MS = 5 * 60 * 1000;
 const SYNC_UI_THROTTLE_MS = 60 * 1000;
 const MAINTENANCE_EVENT_DEBOUNCE_MS = 2000;
-const SYNC_EVENTS_ENABLED = false;
+const SYNC_EVENTS_ENABLED = true;
+const SYNC_RENDER_THROTTLE_MS = 2000;
 const SYNC_DEBUG_KEY = "opscope.debugSync";
 const COMPAT_SCHEMA_VERSION = 1;
 const COMPAT_STATE_KEY = "opscope.compat.state";
@@ -5345,6 +5346,8 @@ let syncLastEventAt = 0;
 let syncSiteRunning = false;
 let syncUiLastUpdateAt = 0;
 let maintenanceEventRefreshTimer = null;
+let syncRenderTimer = null;
+let syncRenderLastAt = 0;
 let announcements = [];
 let announcementsLastFetch = 0;
 let announcementsUnreadCount = 0;
@@ -6643,13 +6646,31 @@ function stopSyncEvents() {
   }
 }
 
+function scheduleSyncRender() {
+  const now = Date.now();
+  const elapsed = now - syncRenderLastAt;
+  const wait = elapsed >= SYNC_RENDER_THROTTLE_MS ? 0 : SYNC_RENDER_THROTTLE_MS - elapsed;
+  if (syncRenderTimer) {
+    return;
+  }
+  syncRenderTimer = setTimeout(() => {
+    syncRenderTimer = null;
+    syncRenderLastAt = Date.now();
+    if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+      window.requestAnimationFrame(() => renderTudo());
+      return;
+    }
+    renderTudo();
+  }, wait);
+}
+
 function scheduleMaintenanceEventRefresh() {
   if (maintenanceEventRefreshTimer) {
     return;
   }
   maintenanceEventRefreshTimer = setTimeout(() => {
     maintenanceEventRefreshTimer = null;
-    carregarManutencoesServidor(true);
+    carregarManutencoesServidor(true, { renderMode: "sync" });
     loadDashboardSummary(true, { skipSync: true });
   }, MAINTENANCE_EVENT_DEBOUNCE_MS);
 }
@@ -6755,6 +6776,7 @@ function startSyncEvents() {
     stopSyncEvents();
     return;
   }
+  stopSyncPolling();
   const projectId = activeProjectId || "";
   if (syncEventSource && syncEventProject === projectId) {
     return;
@@ -15167,6 +15189,31 @@ function isRegistroExecucaoDoCicloAtual(item, registro, dateKey) {
 function getRegistroDiarioExecucaoMaisRecente(item) {
   const registros = getRegistrosDiariosExecucao(item);
   return registros.length ? registros[registros.length - 1] : null;
+}
+
+function getRegistroExecucaoPreferencial(item, dateKey) {
+  if (!item) {
+    return null;
+  }
+  const registroBase =
+    item.registroExecucao && typeof item.registroExecucao === "object"
+      ? item.registroExecucao
+      : null;
+  if (registroBase && !isRegistroSemAtividade(registroBase)) {
+    return registroBase;
+  }
+  const registros = getRegistrosDiariosExecucao(item);
+  for (let i = registros.length - 1; i >= 0; i -= 1) {
+    const registro = registros[i];
+    if (registro && !isRegistroSemAtividade(registro)) {
+      return registro;
+    }
+  }
+  const registroAtual = getRegistroExecucaoAtual(item, dateKey);
+  if (registroAtual && !isRegistroSemAtividade(registroAtual)) {
+    return registroAtual;
+  }
+  return registroBase || registroAtual || null;
 }
 
 function upsertRegistrosDiariosExecucao(list, entry) {
@@ -54017,7 +54064,7 @@ async function carregarTemplatesServidor(force = false) {
   }
 }
 
-async function carregarManutencoesServidor(force = false) {
+async function carregarManutencoesServidor(force = false, options = {}) {
   if (!currentUser || !activeProjectId) {
     return;
   }
@@ -54131,7 +54178,12 @@ async function carregarManutencoesServidor(force = false) {
       const changed = nextHash && nextHash !== prevHash;
       maintenanceRenderHashes.set(activeProjectId, nextHash);
       if (changed) {
-        renderTudo();
+        const renderMode = options.renderMode || "full";
+        if (renderMode === "sync") {
+          scheduleSyncRender();
+        } else {
+          renderTudo();
+        }
         showTeamMaintenanceNotifications();
       }
       triggerExecucaoRegistradaAlertIfDue();
@@ -62179,15 +62231,7 @@ function abrirConclusao(item) {
     return;
   }
   const dataRefAtual = getRegistroExecucaoDataRef(item);
-  const registroSalvo =
-    item.registroExecucao && typeof item.registroExecucao === "object"
-      ? item.registroExecucao
-      : null;
-  const registro =
-    getRegistroExecucaoAtual(item, dataRefAtual) ||
-    (isRegistroExecucaoDoCicloAtual(item, registroSalvo, dataRefAtual)
-      ? registroSalvo
-      : {});
+  const registro = getRegistroExecucaoPreferencial(item, dataRefAtual) || {};
   const executadoPor =
     registro.executadoPor ||
     registro.executedBy ||
