@@ -16908,8 +16908,15 @@ function mergeLocalExecucaoRegistro(remote, local) {
   const remoteConcluida = remoteStatus === "concluida";
   const localConcluida = localStatus === "concluida";
   const localReopened = Boolean(local.reopenedAt || local.reopenedBy);
+  const localHasExec =
+    hasExecucaoRegistrada(local) || getRegistrosDiariosExecucao(local).length > 0;
+  const remoteHasExec =
+    hasExecucaoRegistrada(remote) || getRegistrosDiariosExecucao(remote).length > 0;
   if (shouldKeepLocalExecutionReset(local, remote)) {
     return applyLocalExecutionReset(mergePreferWithMonthlyOverride(local, remote), local);
+  }
+  if (localHasExec && !remoteHasExec && !remoteConcluida) {
+    return mergePreferWithMonthlyOverride(local, remote);
   }
   if (remoteConcluida && !localConcluida) {
     if (!localReopened) {
