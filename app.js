@@ -5323,6 +5323,7 @@ let homeTipIndex = 0;
 const SYNC_POLL_MS = 5 * 60 * 1000;
 const SYNC_UI_THROTTLE_MS = 60 * 1000;
 const MAINTENANCE_EVENT_DEBOUNCE_MS = 2000;
+const SYNC_EVENTS_ENABLED = false;
 const SYNC_DEBUG_KEY = "opscope.debugSync";
 const COMPAT_SCHEMA_VERSION = 1;
 const COMPAT_STATE_KEY = "opscope.compat.state";
@@ -6750,6 +6751,10 @@ function startSyncEvents() {
   if (!USE_AUTH_API || !currentUser) {
     return;
   }
+  if (!SYNC_EVENTS_ENABLED) {
+    stopSyncEvents();
+    return;
+  }
   const projectId = activeProjectId || "";
   if (syncEventSource && syncEventProject === projectId) {
     return;
@@ -6812,6 +6817,10 @@ function startSyncEvents() {
 }
 
 function restartSyncEvents() {
+  if (!SYNC_EVENTS_ENABLED) {
+    stopSyncEvents();
+    return;
+  }
   stopSyncEvents();
   startSyncEvents();
 }
