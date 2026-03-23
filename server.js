@@ -5173,6 +5173,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
   const generatedBy = String(options.generatedBy || "").trim() || "-";
   const generatedAt = options.generatedAt ? String(options.generatedAt) : new Date().toISOString();
   const reportTypeLabel = reportType === "client" ? "Versão Cliente" : "Versão Interna";
+  const baseUrl = String(options.baseUrl || "").trim().replace(/\/$/, "");
   const footerGeneratedBy = "O&M HV BSO2";
   const pdfDoc = await PDFDocument.create();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -5180,9 +5181,9 @@ async function generateContingencyReportPdf(payload, options = {}) {
   const pageSize = [595, 842];
   const margin = 34;
   const contentWidth = pageSize[0] - margin * 2;
-  const lineHeight = 13;
-  const sectionGap = 8;
-  const headerHeight = 72;
+  const lineHeight = 12.4;
+  const sectionGap = 4;
+  const headerHeight = 86;
   const footerY = 20;
   const palette = {
     header: rgb(1, 1, 1),
@@ -5339,9 +5340,14 @@ async function generateContingencyReportPdf(payload, options = {}) {
 
   const drawHeader = () => {
     const pageHeight = pageSize[1];
+    const headerBottom = pageHeight - headerHeight;
+    const headerTop = pageHeight - 8;
+    const logoWidth = 110;
+    const logoHeight = 30;
+    const logoPad = 10;
     page.drawRectangle({
       x: margin,
-      y: pageHeight - headerHeight,
+      y: headerBottom,
       width: contentWidth,
       height: headerHeight - 8,
       borderColor: palette.border,
@@ -5355,17 +5361,30 @@ async function generateContingencyReportPdf(payload, options = {}) {
       height: 2,
       color: palette.accent,
     });
-    drawImageContain(engelmigLogo, margin + 8, pageHeight - headerHeight + 12, 110, 32);
+    const logoY = headerTop - logoHeight - 6;
+    drawImageContain(engelmigLogo, margin + 8, logoY, logoWidth, logoHeight);
     if (solarigLogo) {
-      drawImageContain(solarigLogo, pageSize[0] - margin - 118, pageHeight - headerHeight + 12, 110, 32);
+      drawImageContain(
+        solarigLogo,
+        pageSize[0] - margin - logoWidth - 8,
+        logoY,
+        logoWidth,
+        logoHeight
+      );
     } else {
-      drawSolarigFallback(pageSize[0] - margin - 118, pageHeight - headerHeight + 12, 110, 32);
+      drawSolarigFallback(
+        pageSize[0] - margin - logoWidth - 8,
+        logoY,
+        logoWidth,
+        logoHeight
+      );
     }
-    const headerCenterY = pageHeight - 44;
+    const headerCenterY = headerBottom + 20;
+    const titleMaxWidth = Math.max(180, contentWidth - (logoWidth + logoPad) * 2);
     drawCenteredMultilineText(
       reportTitle,
       headerCenterY,
-      contentWidth - 24,
+      titleMaxWidth,
       12.2,
       true,
       palette.primary,
@@ -5720,8 +5739,8 @@ async function generateContingencyReportPdf(payload, options = {}) {
     const maxWidth = Number(config.maxWidth || contentWidth);
     const x = Number(config.x || margin);
     const lines = wrapPdfText(toText(text), maxWidth, size, bold ? fontBold : font);
-    ensureSpace(lines.length * leading + 2);
     lines.forEach((line) => {
+      ensureSpace(leading + 2);
       page.drawText(line || " ", {
         x,
         y: cursorY,
@@ -5735,7 +5754,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
   };
 
   const section = (title) => {
-    ensureSpace(34);
+    ensureSpace(28);
     const sectionKey = String(title || "").trim();
     if (sectionKey && !tocEntries.some((entry) => entry.key === sectionKey)) {
       tocEntries.push({
@@ -5811,22 +5830,25 @@ async function generateContingencyReportPdf(payload, options = {}) {
     const wrappedParagraphs = (paragraphs.length ? paragraphs : ["-"]).map((part) =>
       wrapPdfText(part, valueWidth, size, font)
     );
-    const totalValueLines = wrappedParagraphs.reduce(
-      (acc, lines) => acc + Math.max(1, lines.length),
-      0
-    );
-    const blankLineCount = Math.max(0, wrappedParagraphs.length - 1);
-    ensureSpace((1 + totalValueLines + blankLineCount) * leading + 4);
-    page.drawText(labelText, {
-      x,
-      y: cursorY,
-      size,
-      font: fontBold,
-      color: palette.text,
-    });
-    cursorY -= leading;
+    const continuationLabel = `${labelText.replace(/:$/, "")} (continuação):`;
+    const drawLabel = (textLabel) => {
+      ensureSpace(leading + 4);
+      page.drawText(textLabel, {
+        x,
+        y: cursorY,
+        size,
+        font: fontBold,
+        color: palette.text,
+      });
+      cursorY -= leading;
+    };
+    drawLabel(labelText);
     wrappedParagraphs.forEach((lines, paragraphIndex) => {
       lines.forEach((line) => {
+        if (cursorY - leading <= footerY + 24) {
+          addPage();
+          drawLabel(continuationLabel);
+        }
         page.drawText(line || "-", {
           x: x + valueIndent,
           y: cursorY,
@@ -5837,10 +5859,14 @@ async function generateContingencyReportPdf(payload, options = {}) {
         cursorY -= leading;
       });
       if (paragraphIndex < wrappedParagraphs.length - 1) {
+        if (cursorY - leading <= footerY + 24) {
+          addPage();
+          drawLabel(continuationLabel);
+        }
         cursorY -= leading;
       }
     });
-    cursorY -= Number(options.after ?? 9.6);
+    cursorY -= Number(options.after ?? 7.4);
   };
 
   const kv = (label, value, options = {}) => {
@@ -5869,44 +5895,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     const lineGap = Number(options.lineGap || 1.8);
     const rowPaddingY = Number(options.paddingY || 4.6);
     const rowPaddingX = Number(options.paddingX || 5.4);
-    const rowHeights = normalizedRows.map((row) => {
-      const labelLines = wrapPdfText(
-        `${String(row.label || "").replace(/:$/, "")}:`,
-        Math.max(40, labelColWidth - rowPaddingX * 2),
-        labelSize,
-        fontBold
-      );
-      const valueLines = wrapPdfText(
-        row.value || "-",
-        Math.max(40, valueColWidth - rowPaddingX * 2),
-        valueSize,
-        font
-      );
-      const labelHeight = labelLines.length * (labelSize + lineGap);
-      const valueHeight = valueLines.length * (valueSize + lineGap);
-      return Math.max(labelHeight, valueHeight) + rowPaddingY * 2;
-    });
-    const tableHeight = rowHeights.reduce((acc, height) => acc + height, 0);
-    ensureSpace(tableHeight + 4);
-    const tableTopY = cursorY;
-    page.drawRectangle({
-      x: tableX,
-      y: tableTopY - tableHeight,
-      width: tableWidth,
-      height: tableHeight,
-      borderColor: palette.border,
-      borderWidth: 0.7,
-      color: rgb(1, 1, 1),
-    });
-    page.drawLine({
-      start: { x: tableX + labelColWidth, y: tableTopY },
-      end: { x: tableX + labelColWidth, y: tableTopY - tableHeight },
-      thickness: 0.55,
-      color: palette.line,
-    });
-    let currentY = tableTopY;
-    normalizedRows.forEach((row, index) => {
-      const rowHeight = rowHeights[index];
+    const rowsWithLayout = normalizedRows.map((row) => {
       const labelText = `${String(row.label || "").replace(/:$/, "")}:`;
       const valueText = row.value || "-";
       const labelLines = wrapPdfText(
@@ -5921,36 +5910,88 @@ async function generateContingencyReportPdf(payload, options = {}) {
         valueSize,
         font
       );
-      const baseLineY = currentY - rowPaddingY - labelSize;
-      labelLines.forEach((line, lineIndex) => {
-        page.drawText(line || " ", {
-          x: tableX + rowPaddingX,
-          y: baseLineY - lineIndex * (labelSize + lineGap),
-          size: labelSize,
-          font: fontBold,
-          color: palette.text,
-        });
+      const labelHeight = labelLines.length * (labelSize + lineGap);
+      const valueHeight = valueLines.length * (valueSize + lineGap);
+      const height = Math.max(labelHeight, valueHeight) + rowPaddingY * 2;
+      return { labelText, valueText, labelLines, valueLines, height };
+    });
+    const afterSpacing = Number(options.after || 9.4);
+    const minBottom = margin + 16;
+    const drawChunk = (chunkRows, isLast) => {
+      if (!chunkRows.length) {
+        return;
+      }
+      const tableHeight = chunkRows.reduce((acc, row) => acc + row.height, 0);
+      const tableTopY = cursorY;
+      page.drawRectangle({
+        x: tableX,
+        y: tableTopY - tableHeight,
+        width: tableWidth,
+        height: tableHeight,
+        borderColor: palette.border,
+        borderWidth: 0.7,
+        color: rgb(1, 1, 1),
       });
-      valueLines.forEach((line, lineIndex) => {
-        page.drawText(line || " ", {
-          x: tableX + labelColWidth + rowPaddingX,
-          y: baseLineY - lineIndex * (valueSize + lineGap),
-          size: valueSize,
-          font,
-          color: palette.text,
-        });
+      page.drawLine({
+        start: { x: tableX + labelColWidth, y: tableTopY },
+        end: { x: tableX + labelColWidth, y: tableTopY - tableHeight },
+        thickness: 0.55,
+        color: palette.line,
       });
-      currentY -= rowHeight;
-      if (index < normalizedRows.length - 1) {
-        page.drawLine({
-          start: { x: tableX, y: currentY },
-          end: { x: tableX + tableWidth, y: currentY },
-          thickness: 0.5,
-          color: palette.line,
+      let currentY = tableTopY;
+      chunkRows.forEach((row, rowIndex) => {
+        const baseLineY = currentY - rowPaddingY - labelSize;
+        row.labelLines.forEach((line, lineIndex) => {
+          page.drawText(line || " ", {
+            x: tableX + rowPaddingX,
+            y: baseLineY - lineIndex * (labelSize + lineGap),
+            size: labelSize,
+            font: fontBold,
+            color: palette.text,
+          });
         });
+        row.valueLines.forEach((line, lineIndex) => {
+          page.drawText(line || " ", {
+            x: tableX + labelColWidth + rowPaddingX,
+            y: baseLineY - lineIndex * (valueSize + lineGap),
+            size: valueSize,
+            font,
+            color: palette.text,
+          });
+        });
+        currentY -= row.height;
+        if (rowIndex < chunkRows.length - 1) {
+          page.drawLine({
+            start: { x: tableX, y: currentY },
+            end: { x: tableX + tableWidth, y: currentY },
+            thickness: 0.5,
+            color: palette.line,
+          });
+        }
+      });
+      cursorY = tableTopY - tableHeight - (isLast ? afterSpacing : 4);
+    };
+
+    let chunk = [];
+    let chunkHeight = 0;
+    rowsWithLayout.forEach((row, index) => {
+      const available = cursorY - minBottom;
+      const needsNewChunk = chunk.length && chunkHeight + row.height + 4 > available;
+      if (needsNewChunk) {
+        drawChunk(chunk, false);
+        addPage();
+        chunk = [];
+        chunkHeight = 0;
+      }
+      if (!chunk.length && row.height + 4 > cursorY - minBottom) {
+        addPage();
+      }
+      chunk.push(row);
+      chunkHeight += row.height;
+      if (index === rowsWithLayout.length - 1) {
+        drawChunk(chunk, true);
       }
     });
-    cursorY = tableTopY - tableHeight - Number(options.after || 9.4);
   };
 
   const formatSymptomsForPdf = (value) => {
@@ -5979,6 +6020,54 @@ async function generateContingencyReportPdf(payload, options = {}) {
     String(
       (attachment && (attachment.id || attachment.fileId || attachment.fileName || attachment.storagePath)) || ""
     ).trim();
+
+  const resolveAttachmentUrl = (attachment) => {
+    if (!attachment) {
+      return "";
+    }
+    const raw = String(
+      attachment.storagePath || attachment.url || attachment.path || attachment.storage || ""
+    ).trim();
+    const fileId = String(attachment.fileId || "").trim();
+    const fileEntry = fileId && Array.isArray(filesMeta)
+      ? filesMeta.find((entry) => entry && String(entry.id || "") === fileId)
+      : null;
+    const withBaseUrl = (value) => {
+      if (!value) {
+        return "";
+      }
+      if (/^https?:\/\//i.test(value)) {
+        return value;
+      }
+      if (!baseUrl) {
+        return value.startsWith("/") ? value : `/${value}`;
+      }
+      return value.startsWith("/") ? `${baseUrl}${value}` : `${baseUrl}/${value}`;
+    };
+
+    if (raw) {
+      const uploadMatch = raw.match(/\/uploads\/files\/[^/]+\/[^?#]+/i);
+      if (uploadMatch) {
+        return withBaseUrl(uploadMatch[0]);
+      }
+      if (/^https?:\/\//i.test(raw)) {
+        return raw;
+      }
+    }
+
+    if (fileEntry && fileEntry.name) {
+      const typeConfig = getFileTypeConfig(fileEntry.type || "contingency");
+      if (typeConfig && typeConfig.dir) {
+        const encodedName = encodeURIComponent(fileEntry.name);
+        return withBaseUrl(`/uploads/files/${typeConfig.dir}/${encodedName}`);
+      }
+    }
+
+    if (raw) {
+      return withBaseUrl(raw);
+    }
+    return "";
+  };
 
   const resolveAttachmentBlob = async (attachment) => {
     if (!attachment) {
@@ -6401,6 +6490,21 @@ async function generateContingencyReportPdf(payload, options = {}) {
       cursorY -= 8.8;
       return;
     }
+    const drawLine = (line, config) => {
+      const size = Number(config.size || 10);
+      const leading = Number(config.leading || 12);
+      const color = config.color || palette.text;
+      const fontFace = config.bold ? fontBold : font;
+      ensureSpace(leading + 2);
+      page.drawText(line || " ", {
+        x: margin,
+        y: cursorY,
+        size,
+        font: fontFace,
+        color,
+      });
+      cursorY -= leading;
+    };
     actions.forEach((action, index) => {
       const dueDate = parseDateOnly(action && action.dueDate ? action.dueDate : "");
       const statusRaw = String(action && action.status ? action.status : "").trim().toUpperCase();
@@ -6418,27 +6522,11 @@ async function generateContingencyReportPdf(payload, options = {}) {
       ].join(" | ");
       const summaryLines = wrapPdfText(summary, contentWidth, 10, fontBold);
       const detailsLines = wrapPdfText(details, contentWidth, 9.2, font);
-      const blockHeight = summaryLines.length * 12 + detailsLines.length * 11.2 + 12;
-      ensureSpace(blockHeight);
       summaryLines.forEach((line) => {
-        page.drawText(line || " ", {
-          x: margin,
-          y: cursorY,
-          size: 10,
-          font: fontBold,
-          color: palette.text,
-        });
-        cursorY -= 12;
+        drawLine(line, { size: 10, leading: 12, bold: true, color: palette.text });
       });
       detailsLines.forEach((line) => {
-        page.drawText(line || " ", {
-          x: margin,
-          y: cursorY,
-          size: 9.2,
-          font,
-          color: statusColor,
-        });
-        cursorY -= 11.2;
+        drawLine(line, { size: 9.2, leading: 11.2, color: statusColor });
       });
       cursorY -= 8.8;
     });
@@ -6517,6 +6605,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
     for (const attachment of photos) {
       const embedded = await embedAttachmentImage(attachment);
       if (embedded) {
+        embedded.linkUrl = resolveAttachmentUrl(attachment);
         renderedPhotos.push(embedded);
         continue;
       }
@@ -6532,30 +6621,68 @@ async function generateContingencyReportPdf(payload, options = {}) {
     }
     const cols = 2;
     const gap = 10;
+    const cardPaddingX = 8;
+    const cardPaddingY = 8;
+    const minCardHeight = 200;
+    const minImageHeight = 108;
+    const titleSize = 8.4;
+    const titleLeading = 10.2;
+    const descSize = 7.3;
+    const descLeading = 8.6;
+    const refSize = 8;
+    const refLeading = 9.4;
+    const linkSize = 7.6;
+    const linkLeading = 9.0;
+    const textTopPad = 6;
+    const textBottomPad = 6;
+    const textGap = 1.2;
+    const maxRowHeight = pageSize[1] - headerHeight - margin - 32;
     const cardWidth = (contentWidth - gap) / cols;
-    const cardHeight = 220;
-    const textAreaHeight = 72;
-    let col = 0;
-    renderedPhotos.forEach((photo, index) => {
-      if (col === 0) {
-        ensureSpace(cardHeight + 10);
-      }
-      const x = margin + col * (cardWidth + gap);
-      const topY = cursorY;
-      const cardBottom = topY - cardHeight;
+
+    const buildLayout = (photo, index, width) => {
+      const innerWidth = Math.max(80, width - 14);
+      const representation = getAttachmentRepresentation(photo.attachment || null, index + labelOffset);
+      const titleRaw = String(photo.title || "").trim() || representation;
+      const titleLabel = `${index + 1 + labelOffset}. ${titleRaw}`;
+      const titleLines = wrapPdfText(titleLabel, innerWidth, titleSize, fontBold);
+      const descriptionRaw = String(photo.description || photo.notes || "").trim();
+      const descLabel = descriptionRaw ? `Descrição: ${descriptionRaw}` : "";
+      const descLines = descriptionRaw ? wrapPdfText(descLabel, innerWidth, descSize, font) : [];
+      const titleBlockHeight = titleLines.length * titleLeading;
+      const descBlockHeight = descLines.length ? descLines.length * descLeading + textGap : 0;
+      const linkBlockHeight = photo.linkUrl ? linkLeading : 0;
+      const textAreaHeight =
+        textTopPad +
+        titleBlockHeight +
+        descBlockHeight +
+        linkBlockHeight +
+        refLeading +
+        textBottomPad;
+      const requiredHeight = Math.max(minCardHeight, textAreaHeight + minImageHeight + cardPaddingY * 2);
+      return {
+        titleLines,
+        descLines,
+        textAreaHeight,
+        requiredHeight,
+      };
+    };
+
+    const drawPhotoCard = (photo, layout, index, x, width, height) => {
+      const cardHeight = height;
+      const cardBottom = cursorY - cardHeight;
       page.drawRectangle({
         x,
         y: cardBottom,
-        width: cardWidth,
+        width,
         height: cardHeight,
         color: rgb(0.99, 0.995, 1),
         borderColor: palette.border,
         borderWidth: 0.7,
       });
-      const frameX = x + 8;
-      const frameW = cardWidth - 16;
-      const frameY = cardBottom + textAreaHeight + 8;
-      const frameH = cardHeight - textAreaHeight - 16;
+      const frameX = x + cardPaddingX;
+      const frameW = width - cardPaddingX * 2;
+      const frameY = cardBottom + layout.textAreaHeight + cardPaddingY;
+      const frameH = cardHeight - layout.textAreaHeight - cardPaddingY * 2;
       page.drawRectangle({
         x: frameX,
         y: frameY,
@@ -6572,54 +6699,89 @@ async function generateContingencyReportPdf(payload, options = {}) {
         width: drawW,
         height: drawH,
       });
-      const representation = getAttachmentRepresentation(photo.attachment || null, index + labelOffset);
-      const titleRaw = String(photo.title || "").trim() || representation;
-      const titleLabel = `${index + 1 + labelOffset}. ${titleRaw}`;
-      let textY = cardBottom + textAreaHeight - 12;
-      const titleLines = wrapPdfTextLimited(titleLabel, cardWidth - 14, 8.4, fontBold, 2);
-      titleLines.forEach((line) => {
+      let textY = cardBottom + layout.textAreaHeight - textTopPad - titleSize;
+      layout.titleLines.forEach((line) => {
         page.drawText(line, {
           x: x + 7,
           y: textY,
-          size: 8.4,
+          size: titleSize,
           font: fontBold,
           color: palette.text,
+          link: photo.linkUrl || undefined,
         });
-        textY -= 10.2;
+        textY -= titleLeading;
       });
-      const descriptionRaw = String(photo.description || photo.notes || "").trim();
-      if (descriptionRaw) {
-        textY -= 1.2;
-        const descLabel = `Descrição: ${descriptionRaw}`;
-        const descLines = wrapPdfTextLimited(descLabel, cardWidth - 14, 7.3, font, 3);
-        descLines.forEach((line) => {
+      if (layout.descLines.length) {
+        textY -= textGap;
+        layout.descLines.forEach((line) => {
           page.drawText(line, {
             x: x + 7,
             y: textY,
-            size: 7.3,
+            size: descSize,
             font,
             color: palette.muted,
           });
-          textY -= 8.6;
+          textY -= descLeading;
         });
       }
-      const refLabel = `Registro fotográfico ${index + 1 + labelOffset}`;
-      const refY = Math.max(cardBottom + 6, textY - 1);
-      page.drawText(refLabel, {
+      const refY = cardBottom + textBottomPad;
+      page.drawText(`Registro fotográfico ${index + 1 + labelOffset}`, {
         x: x + 7,
         y: refY,
-        size: 8,
+        size: refSize,
         font,
         color: palette.muted,
       });
-      col += 1;
-      if (col >= cols) {
-        col = 0;
-        cursorY -= cardHeight + 10;
+      if (photo.linkUrl) {
+        page.drawText("Abrir imagem", {
+          x: x + 7,
+          y: refY + refLeading,
+          size: linkSize,
+          font,
+          color: palette.primary,
+          link: photo.linkUrl,
+        });
       }
-    });
-    if (col !== 0) {
-      cursorY -= cardHeight + 10;
+    };
+
+    let index = 0;
+    while (index < renderedPhotos.length) {
+      const remaining = renderedPhotos.length - index;
+      if (remaining === 1) {
+        const photo = renderedPhotos[index];
+        const layout = buildLayout(photo, index, contentWidth);
+        const rowHeight = Math.max(layout.requiredHeight, minCardHeight);
+        ensureSpace(rowHeight + 10);
+        drawPhotoCard(photo, layout, index, margin, contentWidth, rowHeight);
+        cursorY -= rowHeight + 10;
+        index += 1;
+        continue;
+      }
+
+      const left = renderedPhotos[index];
+      const right = renderedPhotos[index + 1];
+      const leftLayout = buildLayout(left, index, cardWidth);
+      const rightLayout = buildLayout(right, index + 1, cardWidth);
+
+      const needsFullWidth =
+        leftLayout.requiredHeight > maxRowHeight || rightLayout.requiredHeight > maxRowHeight;
+
+      if (needsFullWidth) {
+        const layout = buildLayout(left, index, contentWidth);
+        const rowHeight = Math.max(layout.requiredHeight, minCardHeight);
+        ensureSpace(rowHeight + 10);
+        drawPhotoCard(left, layout, index, margin, contentWidth, rowHeight);
+        cursorY -= rowHeight + 10;
+        index += 1;
+        continue;
+      }
+
+      const rowHeight = Math.max(leftLayout.requiredHeight, rightLayout.requiredHeight);
+      ensureSpace(rowHeight + 10);
+      drawPhotoCard(left, leftLayout, index, margin, cardWidth, rowHeight);
+      drawPhotoCard(right, rightLayout, index + 1, margin + cardWidth + gap, cardWidth, rowHeight);
+      cursorY -= rowHeight + 10;
+      index += 2;
     }
     return { renderedPhotos, failedPhotos };
   };
@@ -6838,204 +7000,207 @@ async function generateContingencyReportPdf(payload, options = {}) {
   });
   drawDivider();
 
-  const recurrenceSectionTitle =
-    recurrenceOccurred === "SIM" ? "9. Reincidência Ocorrida" : "9. Reincidência";
-  section(recurrenceSectionTitle);
-  const recurrenceSpacing = {
-    afterSection: 4,
-    afterEntryTitle: 4,
-    afterSubtitle: 3,
-    afterTable: 4,
-    afterParagraph: 6,
-    afterEntry: 8,
-  };
-  const addRecurrenceGap = (value) => {
-    cursorY -= Number(value || 0);
-  };
-  addRecurrenceGap(recurrenceSpacing.afterSection);
+  if (recurrenceOccurred !== "NAO") {
+    const recurrenceSectionTitle =
+      recurrenceOccurred === "SIM" ? "9. Reincidência Ocorrida" : "9. Reincidência";
+    section(recurrenceSectionTitle);
+    const recurrenceSpacing = {
+      afterSection: 4,
+      afterEntryTitle: 4,
+      afterSubtitle: 3,
+      afterTable: 4,
+      afterParagraph: 6,
+      afterEntry: 8,
+    };
+    const addRecurrenceGap = (value) => {
+      cursorY -= Number(value || 0);
+    };
+    addRecurrenceGap(recurrenceSpacing.afterSection);
 
-  if (recurrenceOccurred !== "SIM" || !recurrenceCount) {
-    writeText(
-      recurrenceOccurred === "NAO"
-        ? "Não houve reincidência registrada após o evento principal."
-        : recurrenceOccurred === "SIM"
+    if (recurrenceOccurred !== "SIM" || !recurrenceCount) {
+      writeText(
+        recurrenceOccurred === "SIM"
           ? "Não há reincidências registradas para detalhamento."
           : "Sem informação de reincidência registrada.",
-      { size: 9.6, leading: 12, color: palette.muted }
-    );
-    addRecurrenceGap(recurrenceSpacing.afterEntry);
-  } else {
-    for (let index = 0; index < recurrenceEntriesSorted.length; index += 1) {
-      const entry = recurrenceEntriesSorted[index];
-      const entryLabel = `Reincidência ${index + 1}`;
-      const occurredLabel = formatContingencyDateTime(entry.occurredAt);
-      const normalizedLabel = formatContingencyDateTime(entry.normalizedAt);
-      const durationLabel = Number.isFinite(Number(entry.durationMinutes))
-        ? formatDurationMinutes(entry.durationMinutes)
-        : entry.occurredAt && entry.normalizedAt
-          ? formatWindow(parseDateTime(entry.occurredAt), parseDateTime(entry.normalizedAt))
-          : "-";
-      const eventTypeLabel = getContingencyLabel(
-        CONTINGENCY_EVENT_LABELS,
-        entry.eventType,
-        "Outro"
+        { size: 9.6, leading: 12, color: palette.muted }
       );
-      ensureSpace(160);
-      writeText(entryLabel, { bold: true, size: 10.4, leading: 12.6, color: palette.text });
-      addRecurrenceGap(recurrenceSpacing.afterEntryTitle);
+      addRecurrenceGap(recurrenceSpacing.afterEntry);
+    } else {
+      for (let index = 0; index < recurrenceEntriesSorted.length; index += 1) {
+        const entry = recurrenceEntriesSorted[index];
+        const entryLabel = `Reincidência ${index + 1}`;
+        const occurredLabel = formatContingencyDateTime(entry.occurredAt);
+        const normalizedLabel = formatContingencyDateTime(entry.normalizedAt);
+        const durationLabel = Number.isFinite(Number(entry.durationMinutes))
+          ? formatDurationMinutes(entry.durationMinutes)
+          : entry.occurredAt && entry.normalizedAt
+            ? formatWindow(parseDateTime(entry.occurredAt), parseDateTime(entry.normalizedAt))
+            : "-";
+        const eventTypeLabel = getContingencyLabel(
+          CONTINGENCY_EVENT_LABELS,
+          entry.eventType,
+          "Outro"
+        );
+        ensureSpace(160);
+        writeText(entryLabel, { bold: true, size: 10.4, leading: 12.6, color: palette.text });
+        addRecurrenceGap(recurrenceSpacing.afterEntryTitle);
 
-      writeText("Identificação da ocorrência", {
-        bold: true,
-        size: 9.6,
-        leading: 11.6,
-        color: palette.primary,
-      });
-      addRecurrenceGap(recurrenceSpacing.afterSubtitle);
-      drawCompactKeyValueTable(
-        [
-          { label: "Data/hora da reincidência", value: occurredLabel },
-          { label: "Subestação", value: entry.substation || safePayload.substation || "-" },
-          { label: "Bay", value: entry.bay || safePayload.bay || "-" },
-          { label: "Alimentador", value: entry.feeder || safePayload.feeder || "-" },
-          { label: "Equipamento", value: entry.assetName || safePayload.assetName || safePayload.assetId || "-" },
-          { label: "Tipo de evento", value: eventTypeLabel },
-        ],
-        { labelRatio: 0.46 }
-      );
-      addRecurrenceGap(recurrenceSpacing.afterTable);
+        writeText("Identificação da ocorrência", {
+          bold: true,
+          size: 9.6,
+          leading: 11.6,
+          color: palette.primary,
+        });
+        addRecurrenceGap(recurrenceSpacing.afterSubtitle);
+        drawCompactKeyValueTable(
+          [
+            { label: "Data/hora da reincidência", value: occurredLabel },
+            { label: "Subestação", value: entry.substation || safePayload.substation || "-" },
+            { label: "Bay", value: entry.bay || safePayload.bay || "-" },
+            { label: "Alimentador", value: entry.feeder || safePayload.feeder || "-" },
+            {
+              label: "Equipamento",
+              value: entry.assetName || safePayload.assetName || safePayload.assetId || "-",
+            },
+            { label: "Tipo de evento", value: eventTypeLabel },
+          ],
+          { labelRatio: 0.46 }
+        );
+        addRecurrenceGap(recurrenceSpacing.afterTable);
 
-      writeText("Descrição objetiva da reincidência", {
-        bold: true,
-        size: 9.6,
-        leading: 11.6,
-        color: palette.primary,
-      });
-      addRecurrenceGap(recurrenceSpacing.afterSubtitle);
-      kvParagraph("Descrição", entry.description || "-", { after: recurrenceSpacing.afterParagraph });
+        writeText("Descrição objetiva da reincidência", {
+          bold: true,
+          size: 9.6,
+          leading: 11.6,
+          color: palette.primary,
+        });
+        addRecurrenceGap(recurrenceSpacing.afterSubtitle);
+        kvParagraph("Descrição", entry.description || "-", { after: recurrenceSpacing.afterParagraph });
 
-      writeText("Condição da ocorrência", {
-        bold: true,
-        size: 9.6,
-        leading: 11.6,
-        color: palette.primary,
-      });
-      addRecurrenceGap(recurrenceSpacing.afterSubtitle);
-      drawCompactKeyValueTable(
-        [
-          {
-            label: "Mesma causa provável",
-            value: formatRecurrenceCauseLabel(entry.sameCause),
-          },
-          {
-            label: "Atuação de proteção",
-            value: formatRecurrenceYesNoLabel(entry.protection, "-"),
-          },
-          {
-            label: "Indisponibilidade/interrupção",
-            value: formatRecurrenceYesNoLabel(entry.interruption, "-"),
-          },
-          { label: "Data/hora da normalização", value: normalizedLabel },
-          { label: "Tempo de duração", value: durationLabel },
-          { label: "OS / protocolo / referência", value: entry.protocolRef || "-" },
-        ],
-        { labelRatio: 0.46 }
-      );
-      addRecurrenceGap(recurrenceSpacing.afterTable);
+        writeText("Condição da ocorrência", {
+          bold: true,
+          size: 9.6,
+          leading: 11.6,
+          color: palette.primary,
+        });
+        addRecurrenceGap(recurrenceSpacing.afterSubtitle);
+        drawCompactKeyValueTable(
+          [
+            {
+              label: "Mesma causa provável",
+              value: formatRecurrenceCauseLabel(entry.sameCause),
+            },
+            {
+              label: "Atuação de proteção",
+              value: formatRecurrenceYesNoLabel(entry.protection, "-"),
+            },
+            {
+              label: "Indisponibilidade/interrupção",
+              value: formatRecurrenceYesNoLabel(entry.interruption, "-"),
+            },
+            { label: "Data/hora da normalização", value: normalizedLabel },
+            { label: "Tempo de duração", value: durationLabel },
+            { label: "OS / protocolo / referência", value: entry.protocolRef || "-" },
+          ],
+          { labelRatio: 0.46 }
+        );
+        addRecurrenceGap(recurrenceSpacing.afterTable);
 
-      const relatedAttachments = resolveRecurrenceAttachments(entry, index);
-      writeText("Anexos relacionados", {
-        bold: true,
-        size: 9.6,
-        leading: 11.6,
-        color: palette.primary,
-      });
-      addRecurrenceGap(recurrenceSpacing.afterSubtitle);
-      if (relatedAttachments.length) {
-        const relatedImages = relatedAttachments.filter((attachment) => isImageAttachment(attachment));
-        const relatedNonImages = relatedAttachments.filter((attachment) => !isImageAttachment(attachment));
-        if (relatedImages.length) {
-          const { failedPhotos } = await renderAttachmentPhotoGrid(relatedImages, {
-            emptyAsKv: false,
-            emptyMessage: "Nenhuma foto válida foi incorporada ao PDF.",
-          });
-          if (failedPhotos.length) {
-            writeText(
-              `${failedPhotos.length} foto(s) não puderam ser incorporadas nesta versão do PDF.`,
-              { size: 9.1, leading: 11, color: palette.warning }
-            );
-          }
-        }
-        if (relatedNonImages.length) {
+        const relatedAttachments = resolveRecurrenceAttachments(entry, index);
+        writeText("Anexos relacionados", {
+          bold: true,
+          size: 9.6,
+          leading: 11.6,
+          color: palette.primary,
+        });
+        addRecurrenceGap(recurrenceSpacing.afterSubtitle);
+        if (relatedAttachments.length) {
+          const relatedImages = relatedAttachments.filter((attachment) => isImageAttachment(attachment));
+          const relatedNonImages = relatedAttachments.filter((attachment) => !isImageAttachment(attachment));
           if (relatedImages.length) {
-            cursorY -= 4;
+            const { failedPhotos } = await renderAttachmentPhotoGrid(relatedImages, {
+              emptyAsKv: false,
+              emptyMessage: "Nenhuma foto válida foi incorporada ao PDF.",
+            });
+            if (failedPhotos.length) {
+              writeText(
+                `${failedPhotos.length} foto(s) não puderam ser incorporadas nesta versão do PDF.`,
+                { size: 9.1, leading: 11, color: palette.warning }
+              );
+            }
           }
-          writeText("Outros anexos:", {
-            size: 9.2,
-            leading: 11.2,
-            color: palette.muted,
-          });
-          ensureSpace(relatedNonImages.length * 11.2 + 6);
-          relatedNonImages.forEach((attachment) => {
-            writeText(`- ${getRecurrenceAttachmentLabel(attachment)}`, {
+          if (relatedNonImages.length) {
+            if (relatedImages.length) {
+              cursorY -= 4;
+            }
+            writeText("Outros anexos:", {
               size: 9.2,
               leading: 11.2,
-              color: palette.text,
+              color: palette.muted,
             });
-          });
+            ensureSpace(relatedNonImages.length * 11.2 + 6);
+            relatedNonImages.forEach((attachment) => {
+              writeText(`- ${getRecurrenceAttachmentLabel(attachment)}`, {
+                size: 9.2,
+                leading: 11.2,
+                color: palette.text,
+              });
+            });
+          }
+        } else {
+          writeText("Sem anexos vinculados.", { size: 9.2, leading: 11.2, color: palette.muted });
         }
-      } else {
-        writeText("Sem anexos vinculados.", { size: 9.2, leading: 11.2, color: palette.muted });
+        addRecurrenceGap(recurrenceSpacing.afterTable);
+
+        writeText("Observação técnica", {
+          bold: true,
+          size: 9.6,
+          leading: 11.6,
+          color: palette.primary,
+        });
+        addRecurrenceGap(recurrenceSpacing.afterSubtitle);
+        kvParagraph("Observação", entry.notes || "-", { after: recurrenceSpacing.afterParagraph });
+        addRecurrenceGap(recurrenceSpacing.afterEntry);
       }
-      addRecurrenceGap(recurrenceSpacing.afterTable);
-
-      writeText("Observação técnica", {
-        bold: true,
-        size: 9.6,
-        leading: 11.6,
-        color: palette.primary,
-      });
-      addRecurrenceGap(recurrenceSpacing.afterSubtitle);
-      kvParagraph("Observação", entry.notes || "-", { after: recurrenceSpacing.afterParagraph });
-      addRecurrenceGap(recurrenceSpacing.afterEntry);
     }
-  }
 
-  writeText("Conclusão sobre reincidência", {
-    bold: true,
-    size: 10.6,
-    leading: 13,
-    color: palette.primary,
-  });
-  addRecurrenceGap(recurrenceSpacing.afterSubtitle);
-  drawCompactKeyValueTable(
-    [
-      {
-        label: "Padrão recorrente identificado",
-        value: formatRecurrenceYesNoLabel(recurrenceAnalysis.patternIdentified, "-"),
-      },
-      {
-        label: "Indica falha persistente",
-        value: formatRecurrenceYesNoLabel(recurrenceAnalysis.persistentFailure, "-"),
-      },
-      {
-        label: "Recomenda acionamento de garantia",
-        value: formatRecurrenceYesNoLabel(recurrenceAnalysis.warrantyRecommended, "-"),
-      },
-      {
-        label: "Recomenda inspeção/fabricante/especialista",
-        value: formatRecurrenceYesNoLabel(recurrenceAnalysis.specialistRecommended, "-"),
-      },
-    ],
-    { labelRatio: 0.56 }
-  );
-  addRecurrenceGap(recurrenceSpacing.afterTable);
-  kvParagraph("Conclusão técnica sobre reincidência", recurrenceAnalysis.conclusion || "-", {
-    after: recurrenceSpacing.afterParagraph,
-  });
-  kvParagraph("Recomendação preventiva/corretiva", recurrenceAnalysis.recommendation || "-", {
-    after: recurrenceSpacing.afterParagraph,
-  });
-  drawDivider();
+    writeText("Conclusão sobre reincidência", {
+      bold: true,
+      size: 10.6,
+      leading: 13,
+      color: palette.primary,
+    });
+    addRecurrenceGap(recurrenceSpacing.afterSubtitle);
+    drawCompactKeyValueTable(
+      [
+        {
+          label: "Padrão recorrente identificado",
+          value: formatRecurrenceYesNoLabel(recurrenceAnalysis.patternIdentified, "-"),
+        },
+        {
+          label: "Indica falha persistente",
+          value: formatRecurrenceYesNoLabel(recurrenceAnalysis.persistentFailure, "-"),
+        },
+        {
+          label: "Recomenda acionamento de garantia",
+          value: formatRecurrenceYesNoLabel(recurrenceAnalysis.warrantyRecommended, "-"),
+        },
+        {
+          label: "Recomenda inspeção/fabricante/especialista",
+          value: formatRecurrenceYesNoLabel(recurrenceAnalysis.specialistRecommended, "-"),
+        },
+      ],
+      { labelRatio: 0.56 }
+    );
+    addRecurrenceGap(recurrenceSpacing.afterTable);
+    kvParagraph("Conclusão técnica sobre reincidência", recurrenceAnalysis.conclusion || "-", {
+      after: recurrenceSpacing.afterParagraph,
+    });
+    kvParagraph("Recomendação preventiva/corretiva", recurrenceAnalysis.recommendation || "-", {
+      after: recurrenceSpacing.afterParagraph,
+    });
+    drawDivider();
+  }
 
   const signGap = 12;
   const signWidth = (contentWidth - signGap * 2) / 3;
@@ -22131,10 +22296,12 @@ app.get("/api/contingencies/:id/report", requireAuth, async (req, res) => {
   let bytes;
   try {
     const payload = buildContingencyPayload(found.item, { reportType });
+    const baseUrl = req ? `${req.protocol}://${req.get("host")}` : "";
     bytes = await generateContingencyReportPdf(payload, {
       reportType,
       generatedBy: getUserLabel(user.id || ""),
       generatedAt: new Date().toISOString(),
+      baseUrl,
     });
   } catch (error) {
     return respondContingencyError(
