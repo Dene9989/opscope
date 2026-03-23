@@ -7639,6 +7639,7 @@
               <option value="">Selecione</option>
               <option value="concluida">Concluída</option>
               <option value="ressalva">Concluída com ressalva</option>
+              <option value="sem_atividade">Sem atividade no dia</option>
               <option value="nao_executada">Não executada</option>
             </select>
           </div>
@@ -7649,10 +7650,21 @@
           <div class="field" data-full>
             <p id="registroDataExecucaoHint" class="hint">O fechamento diário é usado para compor o RDO por dia.</p>
           </div>
+          <div class="field field--checkbox" data-full>
+            <label class="checkbox-field" for="registroSemAtividade">
+              <input id="registroSemAtividade" type="checkbox" />
+              <span>Fechamento sem atividade no dia</span>
+            </label>
+            <p id="registroSemAtividadeHint" class="hint">
+              Use quando não houve execução no dia. Não conta como execução e libera o fechamento.
+            </p>
+          </div>
           <div class="field" data-full>
-            <label for="registroComentario">Descrição técnica da execução</label>
+            <label id="registroComentarioLabel" for="registroComentario">Descrição técnica da execução</label>
             <textarea id="registroComentario" rows="3" required minlength="12"></textarea>
-            <small class="hint">Obrigatorio: minimo 12 caracteres. Este resumo e usado no RDO.</small>
+            <small id="registroComentarioHint" class="hint">
+              Obrigatório: mínimo 12 caracteres. Este resumo é usado no RDO.
+            </small>
           </div>
           <div class="field" data-full>
             <label for="registroObsExecucao">Observação de execução (opcional)</label>

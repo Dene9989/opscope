@@ -1221,7 +1221,11 @@ const registroDocs = document.getElementById("registroDocs");
 const registroResultado = document.getElementById("registroResultado");
 const registroDataExecucao = document.getElementById("registroDataExecucao");
 const registroDataExecucaoHint = document.getElementById("registroDataExecucaoHint");
+const registroSemAtividade = document.getElementById("registroSemAtividade");
+const registroSemAtividadeHint = document.getElementById("registroSemAtividadeHint");
+const registroComentarioLabel = document.getElementById("registroComentarioLabel");
 const registroComentario = document.getElementById("registroComentario");
+const registroComentarioHint = document.getElementById("registroComentarioHint");
 const registroObsExecucao = document.getElementById("registroObsExecucao");
 const registroEvidenciasLista = document.getElementById("registroEvidenciasLista");
 const btnFecharRegistroExecucao = document.getElementById("btnFecharRegistroExecucao");
@@ -4944,6 +4948,7 @@ const PROGRAMACAO_ALLOWED_ACTIONS = [
 const RESULTADO_LABELS = {
   concluida: "Concluída",
   ressalva: "Concluída com ressalva",
+  sem_atividade: "Sem atividade no dia",
   nao_executada: "Não executada",
 };
 
@@ -5315,11 +5320,11 @@ let kpiThemeMode = KPI_THEME_EXECUTIVO;
 let perfThemeMode = PERF_THEME_EXECUTIVO;
 let homeTipsTimer = null;
 let homeTipIndex = 0;
-const SYNC_POLL_MS = 45 * 1000;
+const SYNC_POLL_MS = 5 * 60 * 1000;
 const SYNC_DEBUG_KEY = "opscope.debugSync";
 const COMPAT_SCHEMA_VERSION = 1;
 const COMPAT_STATE_KEY = "opscope.compat.state";
-const COMPAT_CHECK_TTL_MS = 15000;
+const COMPAT_CHECK_TTL_MS = 5 * 60 * 1000;
 const COMPAT_DATASETS = [
   "maintenance",
   "templates",
@@ -6482,7 +6487,6 @@ async function checkCompatState(force = false) {
     (key) => Number(normalized.datasets[key] || 0) !== Number(local.datasets[key] || 0)
   );
   if (changed.length) {
-    setCompatStatus("warn", "Compatibilidade: sincronizando...");
     const tasks = [];
     if (changed.includes("maintenance") && activeProjectId) {
       tasks.push(carregarManutencoesServidor(true));
@@ -6685,7 +6689,7 @@ function handleSyncEvent(eventName, payload = {}) {
     return;
   }
   if (eventName === "compat.updated") {
-    checkCompatState(true);
+    checkCompatState();
     return;
   }
   if (eventName === "sst.docs.updated") {
@@ -14799,6 +14803,13 @@ function statusValido(status) {
   return Boolean(STATUS_LABELS[status]);
 }
 
+function isRegistroSemAtividade(registro) {
+  if (!registro || typeof registro !== "object") {
+    return false;
+  }
+  return Boolean(registro.semAtividade || registro.resultado === "sem_atividade");
+}
+
 function hasExecucaoRegistrada(item) {
   if (!item) {
     return false;
@@ -14807,6 +14818,9 @@ function hasExecucaoRegistrada(item) {
     (item.registroExecucao && typeof item.registroExecucao === "object"
       ? item.registroExecucao
       : getRegistroDiarioExecucaoMaisRecente(item)) || {};
+  if (isRegistroSemAtividade(registro)) {
+    return false;
+  }
   const registradoEm =
     registro.registradoEm ||
     registro.registrado_em ||
@@ -14839,6 +14853,9 @@ function hasExecucaoRegistradaCompleta(item) {
     (item.registroExecucao && typeof item.registroExecucao === "object"
       ? item.registroExecucao
       : getRegistroDiarioExecucaoMaisRecente(item)) || {};
+  if (isRegistroSemAtividade(registro)) {
+    return false;
+  }
   const executadoPor =
     registro.executadoPor ||
     registro.executedBy ||
@@ -14957,6 +14974,7 @@ function normalizeRegistroExecucaoDiariaEntry(entry) {
     entry.comentario || entry.descricao || entry.resumo || ""
   );
   const observacaoExecucao = String(entry.observacaoExecucao || entry.observacao || "").trim();
+  const semAtividade = Boolean(entry.semAtividade || entry.resultado === "sem_atividade");
   const registradoEm = normalizeIso(
     entry.registradoEm ||
       entry.registrado_em ||
@@ -14979,6 +14997,7 @@ function normalizeRegistroExecucaoDiariaEntry(entry) {
   const normalized = {
     ...entry,
     dataRef,
+    semAtividade,
     executadoPor: String(entry.executadoPor || entry.executedBy || "").trim(),
     resultado: String(entry.resultado || entry.status || "").trim(),
     comentario,
@@ -15414,6 +15433,9 @@ function hasRegistroExecucaoBloqueante(item) {
     return false;
   }
   const registro = item.registroExecucao || {};
+  if (isRegistroSemAtividade(registro)) {
+    return false;
+  }
   const registradoEm =
     registro.registradoEm ||
     registro.registrado_em ||
@@ -55736,6 +55758,7 @@ let manutencaoEmRegistro = null;
 let manutencaoEmCancelamentoExecucao = null;
 let cancelarExecucaoReturnToRegistro = false;
 let registroExecucaoFotosAtual = [];
+let registroResultadoAnterior = "";
 let registroExecucaoDataRefAtual = "";
 let revalidarManutencaoAtual = null;
 let revalidarManutencaoDocsAtual = {};
@@ -58235,6 +58258,57 @@ async function confirmarInicioExecucao() {
   mostrarMensagemManutencao("Execução iniciada.");
 }
 
+function aplicarRegistroSemAtividadeState(checked, options = {}) {
+  if (!registroSemAtividade) {
+    return;
+  }
+  const baseResultado = options.baseResultado || "";
+  const statusAtual = options.status || "";
+  registroSemAtividade.checked = Boolean(checked);
+  const resultadoField = registroResultado ? registroResultado.closest(".field") : null;
+  if (registroResultado) {
+    if (checked) {
+      registroResultado.value = "sem_atividade";
+      registroResultado.disabled = true;
+      registroResultado.required = false;
+      if (resultadoField) {
+        resultadoField.hidden = false;
+      }
+    } else {
+      registroResultado.disabled = false;
+      if (registroResultado.value === "sem_atividade") {
+        registroResultado.value = baseResultado || registroResultadoAnterior || "";
+      }
+      if (resultadoField) {
+        const mostrarResultado = statusAtual !== "em_execucao" || Boolean(baseResultado);
+        resultadoField.hidden = !mostrarResultado;
+        registroResultado.required = mostrarResultado;
+      }
+    }
+  }
+  if (registroComentarioLabel) {
+    registroComentarioLabel.textContent = checked
+      ? "Justificativa do fechamento sem atividade"
+      : "Descrição técnica da execução";
+  }
+  if (registroComentarioHint) {
+    registroComentarioHint.textContent = checked
+      ? "Obrigatório: registre o motivo da ausência de atividade para fins de auditoria."
+      : "Obrigatório: mínimo 12 caracteres. Este resumo é usado no RDO.";
+  }
+  if (registroComentario && checked) {
+    const current = registroComentario.value.trim();
+    if (!current) {
+      registroComentario.value = "Sem atividade operacional registrada no dia.";
+    }
+  }
+  if (registroSemAtividadeHint) {
+    registroSemAtividadeHint.textContent = checked
+      ? "Fechamento sem atividade não conta como execução e libera o próximo passo."
+      : "Use quando não houve execução no dia. Não conta como execução e libera o fechamento.";
+  }
+}
+
 function abrirRegistroExecucao(item) {
   if (!requirePermission("complete")) {
     return;
@@ -58373,10 +58447,10 @@ function abrirRegistroExecucao(item) {
     if (pendenteDataRef) {
       registroDataExecucaoHint.textContent = `Feche o dia ${formatRegistroExecucaoDiaLabel(
         pendenteDataRef
-      )} para liberar a revalidação diária.`;
+      )} para liberar a revalidação diária. Use "Fechamento sem atividade" quando não houver execução.`;
     } else {
       registroDataExecucaoHint.textContent =
-        "O fechamento diário é usado para compor o RDO por dia.";
+        "O fechamento diário é usado para compor o RDO por dia. Use \"Fechamento sem atividade\" quando não houver execução.";
     }
   }
   if (registroExecutadaPor) {
@@ -58417,12 +58491,23 @@ function abrirRegistroExecucao(item) {
     registroResultado.required = mostrarResultado;
     registroResultado.value = registroBase.resultado || "";
   }
+  registroResultadoAnterior =
+    registroBase.resultado && registroBase.resultado !== "sem_atividade"
+      ? registroBase.resultado
+      : "";
   if (registroComentario) {
     registroComentario.value = registroBase.comentario || "";
   }
   if (registroObsExecucao) {
     registroObsExecucao.value = registroBase.observacaoExecucao || "";
   }
+  const semAtividadeBase = Boolean(
+    registroBase.semAtividade || registroBase.resultado === "sem_atividade"
+  );
+  aplicarRegistroSemAtividadeState(semAtividadeBase, {
+    status: itemAtual.status,
+    baseResultado: registroBase.resultado || "",
+  });
   registroExecucaoFotosAtual = Array.isArray(registroBase.evidencias)
     ? dedupeEvidenceList(registroBase.evidencias)
     : [];
@@ -58452,8 +58537,10 @@ function fecharRegistroExecucao() {
   }
   if (registroDataExecucaoHint) {
     registroDataExecucaoHint.textContent =
-      "O fechamento diário é usado para compor o RDO por dia.";
+      "O fechamento diário é usado para compor o RDO por dia. Use \"Fechamento sem atividade\" quando não houver execução.";
   }
+  aplicarRegistroSemAtividadeState(false, { status: "", baseResultado: "" });
+  registroResultadoAnterior = "";
   registroEvidenciaInputs.forEach((input) => {
     if (input) {
       input.value = "";
@@ -58709,6 +58796,10 @@ async function salvarRegistroExecucao(event) {
     mostrarMensagemRegistroExecucao("Selecione quem executou.", true);
     return;
   }
+  const semAtividade = Boolean(
+    (registroSemAtividade && registroSemAtividade.checked) ||
+      (registroResultado && registroResultado.value === "sem_atividade")
+  );
   const pendenteDataRef = getRegistroExecucaoPendenteDateKey(item);
   const dataRefInformada =
     (registroDataExecucao && registroDataExecucao.dataset && registroDataExecucao.dataset.date) ||
@@ -58719,13 +58810,18 @@ async function salvarRegistroExecucao(event) {
   const resultadoField = registroResultado ? registroResultado.closest(".field") : null;
   const resultadoVisivel = !resultadoField || !resultadoField.hidden;
   const resultadoInformado = registroResultado ? registroResultado.value : "";
-  if (resultadoVisivel && !resultadoInformado) {
+  if (!semAtividade && resultadoVisivel && !resultadoInformado) {
     mostrarMensagemRegistroExecucao("Informe o resultado da execução.", true);
     return;
   }
-  const resultadoFinal = resultadoInformado || registroDiaAtual.resultado || "";
+  const resultadoFinal = semAtividade
+    ? "sem_atividade"
+    : resultadoInformado || registroDiaAtual.resultado || "";
   const comentarioRaw = registroComentario ? registroComentario.value : "";
-  const comentario = normalizeResumoRdoTexto(comentarioRaw);
+  let comentario = normalizeResumoRdoTexto(comentarioRaw);
+  if (semAtividade && !comentario) {
+    comentario = "Sem atividade operacional registrada no dia.";
+  }
   const comentarioMsg = getMensagemResumoRdo(comentario);
   if (comentarioMsg) {
     mostrarMensagemRegistroExecucao(comentarioMsg, true);
@@ -58744,23 +58840,30 @@ async function salvarRegistroExecucao(event) {
     registradoEm,
     dataRef,
     evidencias,
+    semAtividade,
   };
   const registrosDiariosExecucao = upsertRegistrosDiariosExecucao(
     getRegistrosDiariosExecucao(item),
     registroExecucao
   );
-  const novoStatus = resultadoFinal ? "encerramento" : "em_execucao";
+  const novoStatus = semAtividade
+    ? item.status
+    : resultadoFinal
+      ? "encerramento"
+      : "em_execucao";
   const atualizado = {
     ...item,
-    registroExecucao,
     registrosDiariosExecucao,
-    execucaoRegistradaEm: registradoEm,
-    executionRegisteredAt: registradoEm,
-    execucaoRegistradaAt: registradoEm,
     status: novoStatus,
     updatedAt: registradoEm,
     updatedBy: currentUser.id,
   };
+  if (!semAtividade) {
+    atualizado.registroExecucao = registroExecucao;
+    atualizado.execucaoRegistradaEm = registradoEm;
+    atualizado.executionRegisteredAt = registradoEm;
+    atualizado.execucaoRegistradaAt = registradoEm;
+  }
   manutencoes[index] = atualizado;
   salvarManutencoes(manutencoes);
   const liberacao = getLiberacao(item) || {};
@@ -58779,7 +58882,9 @@ async function salvarRegistroExecucao(event) {
     participantes: liberacao.participantes || [],
     critico: liberacao.critico,
     documentos: documentosLista,
-    resumo: "Registro de execução salvo.",
+    resumo: semAtividade
+      ? "Fechamento diário sem atividade registrado."
+      : "Registro de execução salvo.",
   });
   renderTudo();
   fecharRegistroExecucao();
@@ -67975,6 +68080,22 @@ if (conclusaoAssinaturaConfirm) {
 }
 if (formRegistroExecucao) {
   formRegistroExecucao.addEventListener("submit", salvarRegistroExecucao);
+}
+if (registroSemAtividade) {
+  registroSemAtividade.addEventListener("change", () => {
+    if (registroSemAtividade.checked && registroResultado && registroResultado.value) {
+      if (registroResultado.value !== "sem_atividade") {
+        registroResultadoAnterior = registroResultado.value;
+      }
+    }
+    const item =
+      manutencaoEmRegistro &&
+      manutencoes.find((entry) => entry && entry.id === manutencaoEmRegistro);
+    aplicarRegistroSemAtividadeState(registroSemAtividade.checked, {
+      status: item ? item.status : "",
+      baseResultado: registroResultadoAnterior || "",
+    });
+  });
 }
 if (formCancelarExecucao) {
   formCancelarExecucao.addEventListener("submit", salvarCancelamentoExecucao);
