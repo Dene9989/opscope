@@ -5383,8 +5383,8 @@ async function generateContingencyReportPdf(payload, options = {}) {
         logoHeight
       );
     }
-    const titleAreaTop = logoY - 6;
-    const titleAreaBottom = headerBottom + 8;
+    const titleAreaTop = logoY - 2;
+    const titleAreaBottom = headerBottom + 18;
     const titleAreaHeight = Math.max(24, titleAreaTop - titleAreaBottom);
     const titleMaxWidth = Math.max(220, contentWidth - (logoWidth + logoPad) * 2);
     let titleSize = 12.2;
