@@ -15689,8 +15689,11 @@ function normalizarManutencoes(lista) {
       };
     }
     if (hasExecucaoRegistrada(item)) {
-      const registro = item.registroExecucao || {};
-      const statusEsperado = registro.resultado ? "encerramento" : "em_execucao";
+      const registroPreferencial =
+        getRegistroExecucaoPreferencial(item, getRegistroExecucaoDataRef(item)) ||
+        item.registroExecucao ||
+        {};
+      const statusEsperado = registroPreferencial.resultado ? "encerramento" : "em_execucao";
       if (statusEsperado !== statusOriginal) {
         changes.push({ id: item.id, from: statusOriginal, to: statusEsperado });
       }

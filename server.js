@@ -12014,7 +12014,9 @@ function sanitizeMaintenanceIncoming(item, current, user) {
     }
   }
   const checkItem = mergePreferMeaningful(next, current || {});
-  if (isPrazoMaximoExpirado(checkItem)) {
+  const execRegistrada =
+    hasExecucaoRegistrada(next) || (current && hasExecucaoRegistrada(current));
+  if (isPrazoMaximoExpirado(checkItem) && !execRegistrada) {
     next = stripMaintenanceExecutionFields(next);
     if (!current) {
       next.status = "agendada";
