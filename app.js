@@ -1543,6 +1543,7 @@ const contingencyRecurrenceConclusionInput = document.getElementById("contingenc
 const contingencyRecurrenceRecommendationInput = document.getElementById("contingencyRecurrenceRecommendation");
 const contingencyAttachmentFileInput = document.getElementById("contingencyAttachmentFile");
 const contingencyAttachmentCategoryInput = document.getElementById("contingencyAttachmentCategory");
+const contingencyAttachmentTitleInput = document.getElementById("contingencyAttachmentTitle");
 const contingencyAttachmentNotesInput = document.getElementById("contingencyAttachmentNotes");
 const contingencyAttachmentIncludeClientInput = document.getElementById("contingencyAttachmentIncludeClient");
 const contingencyAttachmentUploadBtn = document.getElementById("contingencyAttachmentUploadBtn");
@@ -49886,12 +49887,15 @@ function renderContingencyAttachmentsDraft() {
     .map((entry, index) => {
       const categoryLabel = categoryMap.get(entry.category) || entry.category || "-";
       const uploadedAt = formatContingencyDateTimeLabel(entry.uploadedAt);
+      const titleLabel = entry.title || entry.titulo || "-";
+      const descriptionLabel = entry.description || entry.notes || "-";
       const disableMoveUp = contingencyAttachmentReorderBusy || index <= 0;
       const disableMoveDown = contingencyAttachmentReorderBusy || index >= rows.length - 1;
       return `
         <tr data-contingency-attachment-id="${escapeHtml(String(entry.id || ""))}">
           <td>${escapeHtml(entry.fileName || "-")}</td>
           <td>${escapeHtml(categoryLabel)}</td>
+          <td>${escapeHtml(titleLabel)}</td>
           <td>
             <label>
               <input type="checkbox" data-action="contingency-attachment-include" ${
@@ -49901,7 +49905,7 @@ function renderContingencyAttachmentsDraft() {
             </label>
           </td>
           <td>${escapeHtml(uploadedAt)}</td>
-          <td>${escapeHtml(entry.notes || "-")}</td>
+          <td>${escapeHtml(descriptionLabel)}</td>
           <td>
             <div class="table-actions">
               <button class="btn btn--ghost btn--small" type="button" data-action="contingency-attachment-up" ${
@@ -49942,6 +49946,13 @@ function getContingencyRecurrenceAttachmentOptions() {
   const attachments = Array.isArray(contingencyAttachmentsDraft) ? contingencyAttachmentsDraft : [];
   return attachments.map((entry) => {
     const labelParts = [];
+    const title = entry.title || entry.titulo || "";
+    const description = entry.description || entry.notes || "";
+    if (title) {
+      labelParts.push(title);
+    } else if (description) {
+      labelParts.push(description);
+    }
     if (entry.fileName) {
       labelParts.push(entry.fileName);
     }
@@ -51312,9 +51323,17 @@ async function handleContingencyAttachmentUpload() {
     "category",
     contingencyAttachmentCategoryInput ? contingencyAttachmentCategoryInput.value : "OTHER"
   );
+  const attachmentTitle = contingencyAttachmentTitleInput
+    ? contingencyAttachmentTitleInput.value.trim()
+    : "";
+  const attachmentDescription = contingencyAttachmentNotesInput
+    ? contingencyAttachmentNotesInput.value.trim()
+    : "";
+  formData.append("title", attachmentTitle);
+  formData.append("description", attachmentDescription);
   formData.append(
     "notes",
-    contingencyAttachmentNotesInput ? contingencyAttachmentNotesInput.value.trim() : ""
+    attachmentDescription
   );
   formData.append(
     "includeInClientReport",
@@ -51326,6 +51345,9 @@ async function handleContingencyAttachmentUpload() {
     const data = await apiContingencyAttachmentUpload(currentId, formData);
     if (contingencyAttachmentFileInput) {
       contingencyAttachmentFileInput.value = "";
+    }
+    if (contingencyAttachmentTitleInput) {
+      contingencyAttachmentTitleInput.value = "";
     }
     if (contingencyAttachmentNotesInput) {
       contingencyAttachmentNotesInput.value = "";

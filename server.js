@@ -4306,6 +4306,17 @@ function normalizeContingencyAttachment(record) {
     Number.isFinite(recurrenceIndexRaw) && recurrenceIndexRaw > 0
       ? Math.floor(recurrenceIndexRaw)
       : null;
+  const title = normalizeContingencyText(
+    record && (record.title || record.titulo) ? record.title || record.titulo : ""
+  );
+  const notes = normalizeContingencyText(
+    record && (record.notes || record.observacao) ? record.notes || record.observacao : ""
+  );
+  const description = normalizeContingencyText(
+    record && (record.description || record.descricao)
+      ? record.description || record.descricao
+      : notes
+  );
   return {
     id: record && record.id ? String(record.id) : crypto.randomUUID(),
     contingencyId: String(
@@ -4331,9 +4342,9 @@ function normalizeContingencyAttachment(record) {
       record && (record.uploadedBy || record.createdBy) ? record.uploadedBy || record.createdBy : ""
     ),
     uploadedAt: String(record && (record.uploadedAt || record.createdAt) ? record.uploadedAt || record.createdAt : now).trim(),
-    notes: normalizeContingencyText(
-      record && (record.notes || record.observacao) ? record.notes || record.observacao : ""
-    ),
+    title,
+    description,
+    notes: notes || description,
     recurrenceId,
     recurrenceIndex,
     sortOrder: Number.isFinite(sortOrderRaw) ? Math.max(1, Math.floor(sortOrderRaw)) : null,
@@ -6008,7 +6019,9 @@ async function generateContingencyReportPdf(payload, options = {}) {
       key: attachmentKey(attachment),
       image,
       fileName: blob.fileName || attachment.fileName || attachment.fileId || "-",
-      notes: attachment.notes || "",
+      title: attachment.title || "",
+      description: attachment.description || attachment.notes || "",
+      notes: attachment.notes || attachment.description || "",
       attachment,
     };
   };
@@ -6049,7 +6062,18 @@ async function generateContingencyReportPdf(payload, options = {}) {
   };
 
   const getAttachmentRepresentation = (attachment, index = 0) => {
-    const raw = toText(attachment && attachment.notes ? attachment.notes : "", "").replace(/\s+/g, " ").trim();
+    const titleRaw = toText(attachment && attachment.title ? attachment.title : "", "").replace(/\s+/g, " ").trim();
+    if (titleRaw.length >= 3) {
+      return titleRaw;
+    }
+    const raw = toText(
+      attachment && (attachment.description || attachment.notes)
+        ? attachment.description || attachment.notes
+        : "",
+      ""
+    )
+      .replace(/\s+/g, " ")
+      .trim();
     const note = raw.replace(/^obs[:\-\s]*/i, "").trim();
     const categoryLabel = getContingencyLabel(
       CONTINGENCY_ATTACHMENT_CATEGORY_LABELS,
@@ -6268,6 +6292,14 @@ async function generateContingencyReportPdf(payload, options = {}) {
     if (!attachment) {
       return "";
     }
+    const title = String(attachment.title || "").trim();
+    if (title) {
+      return title;
+    }
+    const description = String(attachment.description || attachment.notes || "").trim();
+    if (description) {
+      return description;
+    }
     return String(
       attachment.fileName || attachment.fileId || attachment.id || attachmentKey(attachment) || "Anexo"
     ).trim();
@@ -6480,36 +6512,46 @@ async function generateContingencyReportPdf(payload, options = {}) {
         height: drawH,
       });
       const representation = getAttachmentRepresentation(photo.attachment || null, index + labelOffset);
-      const repLabel = `${index + 1 + labelOffset}. ${representation}`;
-      const repLines = wrapPdfText(repLabel, cardWidth - 14, 8.2, fontBold);
-      page.drawText(repLines[0] || repLabel, {
+      const titleRaw = String(photo.title || "").trim() || representation;
+      const titleLabel = `${index + 1 + labelOffset}. ${titleRaw}`;
+      const titleLines = wrapPdfText(titleLabel, cardWidth - 14, 8.2, fontBold);
+      page.drawText(titleLines[0] || titleLabel, {
         x: x + 7,
         y: topY - cardHeight + 30,
         size: 8.2,
         font: fontBold,
         color: palette.text,
       });
+      let infoY = topY - cardHeight + 20;
+      const descriptionRaw = String(photo.description || photo.notes || "").trim();
+      if (descriptionRaw) {
+        const descLabel = `Descrição: ${descriptionRaw}`;
+        const descLines = wrapPdfText(descLabel, cardWidth - 14, 7.4, font);
+        const maxLines = Math.min(descLines.length, 2);
+        for (let i = 0; i < maxLines; i += 1) {
+          const line = descLines[i];
+          if (!line) {
+            continue;
+          }
+          page.drawText(line, {
+            x: x + 7,
+            y: infoY - i * 8.2,
+            size: 7.4,
+            font,
+            color: palette.muted,
+          });
+        }
+        infoY -= 8.2 * maxLines + 1;
+      }
       const refLabel = `Registro fotográfico ${index + 1 + labelOffset}`;
       const refLines = wrapPdfText(refLabel, cardWidth - 14, 8, font);
       page.drawText(refLines[0] || refLabel, {
         x: x + 7,
-        y: topY - cardHeight + 20,
+        y: infoY,
         size: 8,
         font,
         color: palette.muted,
       });
-      const noteRaw = String(photo.notes || "").trim();
-      if (noteRaw) {
-        const noteLabel = `Descrição: ${noteRaw}`;
-        const noteLines = wrapPdfText(noteLabel, cardWidth - 14, 7.4, font);
-        page.drawText(noteLines[0] || noteLabel, {
-          x: x + 7,
-          y: topY - cardHeight + 10,
-          size: 7.4,
-          font,
-          color: palette.muted,
-        });
-      }
       col += 1;
       if (col >= cols) {
         col = 0;
@@ -21564,7 +21606,9 @@ app.post(
       storagePath: `/api/files/${encodeURIComponent(fileEntry.id)}/content`,
       category: parsed.fields.category,
       includeInClientReport: parseBooleanLike(parsed.fields.includeInClientReport),
-      notes: parsed.fields.notes,
+      title: parsed.fields.title,
+      description: parsed.fields.description,
+      notes: parsed.fields.description || parsed.fields.notes,
       recurrenceId: parsed.fields.recurrenceId,
       recurrenceIndex: parsed.fields.recurrenceIndex,
       uploadedBy: user.id || "",
@@ -21821,10 +21865,20 @@ app.put(
         Object.prototype.hasOwnProperty.call(payload, "includeInClientReport")
           ? parseBooleanLike(payload.includeInClientReport)
           : contingencyAttachments[index].includeInClientReport,
+      title:
+        Object.prototype.hasOwnProperty.call(payload, "title")
+          ? payload.title
+          : contingencyAttachments[index].title,
+      description:
+        Object.prototype.hasOwnProperty.call(payload, "description")
+          ? payload.description
+          : contingencyAttachments[index].description,
       notes:
-        Object.prototype.hasOwnProperty.call(payload, "notes")
-          ? payload.notes
-          : contingencyAttachments[index].notes,
+        Object.prototype.hasOwnProperty.call(payload, "description")
+          ? payload.description
+          : Object.prototype.hasOwnProperty.call(payload, "notes")
+            ? payload.notes
+            : contingencyAttachments[index].notes,
       sortOrder:
         Object.prototype.hasOwnProperty.call(payload, "sortOrder")
           ? payload.sortOrder
