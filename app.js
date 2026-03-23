@@ -21775,7 +21775,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
       actions.append(criarBotaoAcao("Justificar não execução", "backlog_reason"));
     }
   } else if (statusNormalized === "em_execucao") {
-    if (permite("execute") && (!execucaoHojeRegistrada || revalidacaoDiariaPendente)) {
+    if (permite("register") && (!execucaoHojeRegistrada || revalidacaoDiariaPendente)) {
       const labelRegistro = revalidacaoDiariaPendente
         ? `Fechar dia ${formatRegistroExecucaoDiaLabel(pendenciaDiariaExecucao)}`
         : "Registrar execução";
@@ -21806,7 +21806,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
       actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
     }
   } else if (statusNormalized === "encerramento") {
-    if (permite("execute") && (!execucaoHojeRegistrada || revalidacaoDiariaPendente)) {
+    if (permite("register") && (!execucaoHojeRegistrada || revalidacaoDiariaPendente)) {
       const labelRegistro = revalidacaoDiariaPendente
         ? `Fechar dia ${formatRegistroExecucaoDiaLabel(pendenciaDiariaExecucao)}`
         : "Registrar execução";
@@ -22968,6 +22968,7 @@ function renderExecucao() {
     "note",
     "release",
     "execute",
+    "register",
     "monthly_override",
     "reschedule",
     "history",
@@ -22981,6 +22982,7 @@ function renderExecucao() {
     "note",
     "release",
     "execute",
+    "register",
     "monthly_override",
     "reschedule",
     "history",
@@ -22994,6 +22996,7 @@ function renderExecucao() {
     "note",
     "release",
     "execute",
+    "register",
     "monthly_override",
     "reschedule",
     "history",
