@@ -6498,6 +6498,18 @@ async function generateContingencyReportPdf(payload, options = {}) {
         font,
         color: palette.muted,
       });
+      const noteRaw = String(photo.notes || "").trim();
+      if (noteRaw) {
+        const noteLabel = `Descrição: ${noteRaw}`;
+        const noteLines = wrapPdfText(noteLabel, cardWidth - 14, 7.4, font);
+        page.drawText(noteLines[0] || noteLabel, {
+          x: x + 7,
+          y: topY - cardHeight + 10,
+          size: 7.4,
+          font,
+          color: palette.muted,
+        });
+      }
       col += 1;
       if (col >= cols) {
         col = 0;
