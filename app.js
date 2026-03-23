@@ -16861,6 +16861,10 @@ function pickMaintenanceMerge(remote, local) {
   const localTime = getMaintenanceUpdatedAtValue(local);
   const remoteConcluida = isMaintenanceConcluded(remote);
   const localConcluida = isMaintenanceConcluded(local);
+  const localHasExec =
+    hasExecucaoRegistrada(local) || getRegistrosDiariosExecucao(local).length > 0;
+  const remoteHasExec =
+    hasExecucaoRegistrada(remote) || getRegistrosDiariosExecucao(remote).length > 0;
   if (shouldKeepLocalExecutionReset(local, remote)) {
     return {
       item: applySourceOverride(
@@ -16875,6 +16879,15 @@ function pickMaintenanceMerge(remote, local) {
     return { item: applySourceOverride(mergePreferLocal(local, remote), "local"), source: "local" };
   }
   if (remoteConcluida && !localConcluida && (!localTime || remoteTime >= localTime)) {
+    return {
+      item: applySourceOverride(mergePreferLocal(remote, local), "remote"),
+      source: "remote",
+    };
+  }
+  if (localHasExec && !remoteHasExec) {
+    return { item: applySourceOverride(mergePreferLocal(local, remote), "local"), source: "local" };
+  }
+  if (remoteHasExec && !localHasExec) {
     return {
       item: applySourceOverride(mergePreferLocal(remote, local), "remote"),
       source: "remote",
@@ -21835,7 +21848,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
       actions.append(criarBotaoAcao("Justificar não execução", "backlog_reason"));
     }
   } else if (statusNormalized === "em_execucao") {
-    if (permite("register") && (!execucaoHojeRegistrada || revalidacaoDiariaPendente)) {
+    if (permite("register") && (!execucaoRegistradaCompleta || revalidacaoDiariaPendente)) {
       const labelRegistro = revalidacaoDiariaPendente
         ? `Fechar dia ${formatRegistroExecucaoDiaLabel(pendenciaDiariaExecucao)}`
         : "Registrar execução";
@@ -21866,7 +21879,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
       actions.append(criarBotaoAcao("Concluir manutenção", "finish"));
     }
   } else if (statusNormalized === "encerramento") {
-    if (permite("register") && (!execucaoHojeRegistrada || revalidacaoDiariaPendente)) {
+    if (permite("register") && (!execucaoRegistradaCompleta || revalidacaoDiariaPendente)) {
       const labelRegistro = revalidacaoDiariaPendente
         ? `Fechar dia ${formatRegistroExecucaoDiaLabel(pendenciaDiariaExecucao)}`
         : "Registrar execução";

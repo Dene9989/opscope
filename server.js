@@ -9392,6 +9392,10 @@ function pickMaintenanceMerge(existing, incoming) {
   const incomingStatus = normalizeStatus(incoming.status);
   const existingTime = getMaintenanceUpdatedAtValue(existing);
   const incomingTime = getMaintenanceUpdatedAtValue(incoming);
+  const existingHasExec =
+    hasExecucaoRegistrada(existing) || getMaintenanceDailyExecutionEntries(existing).length > 0;
+  const incomingHasExec =
+    hasExecucaoRegistrada(incoming) || getMaintenanceDailyExecutionEntries(incoming).length > 0;
   const mergedIncoming = mergePreferMeaningful(incoming, existing);
   const mergedExisting = mergePreferMeaningful(existing, incoming);
   const forceIncomingExecutionReset = shouldPreserveIncomingExecutionReset(incoming, existing);
@@ -9432,6 +9436,12 @@ function pickMaintenanceMerge(existing, incoming) {
       result = mergedIncoming;
       usedIncoming = true;
     }
+  } else if (incomingHasExec && !existingHasExec) {
+    result = mergedIncoming;
+    usedIncoming = true;
+  } else if (existingHasExec && !incomingHasExec) {
+    result = mergedExisting;
+    usedIncoming = false;
   } else if (incomingTime && (!existingTime || incomingTime > existingTime)) {
     result = mergedIncoming;
     usedIncoming = true;
