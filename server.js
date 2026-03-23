@@ -36,12 +36,16 @@ try {
 let PDFDocument;
 let StandardFonts;
 let rgb;
+let PDFName;
+let PDFString;
 try {
-  ({ PDFDocument, StandardFonts, rgb } = require("pdf-lib"));
+  ({ PDFDocument, StandardFonts, rgb, PDFName, PDFString } = require("pdf-lib"));
 } catch (error) {
   PDFDocument = null;
   StandardFonts = null;
   rgb = null;
+  PDFName = null;
+  PDFString = null;
 }
 let archiver;
 try {
@@ -6038,6 +6042,28 @@ async function generateContingencyReportPdf(payload, options = {}) {
       (attachment && (attachment.id || attachment.fileId || attachment.fileName || attachment.storagePath)) || ""
     ).trim();
 
+  const addLinkAnnotation = (x, y, width, height, url) => {
+    if (!url || !pdfDoc || !page || !PDFName || !PDFString) {
+      return;
+    }
+    const rect = pdfDoc.context.obj([x, y, x + width, y + height]);
+    const border = pdfDoc.context.obj([0, 0, 0]);
+    const action = pdfDoc.context.obj({
+      Type: PDFName.of("Action"),
+      S: PDFName.of("URI"),
+      URI: PDFString.of(url),
+    });
+    const annotation = pdfDoc.context.obj({
+      Type: PDFName.of("Annot"),
+      Subtype: PDFName.of("Link"),
+      Rect: rect,
+      Border: border,
+      A: action,
+    });
+    const annotRef = pdfDoc.context.register(annotation);
+    page.node.addAnnot(annotRef);
+  };
+
   const resolveAttachmentUrl = (attachment) => {
     if (!attachment) {
       return "";
@@ -6646,10 +6672,6 @@ async function generateContingencyReportPdf(payload, options = {}) {
     const titleLeading = 10.2;
     const descSize = 7.3;
     const descLeading = 8.6;
-    const refSize = 8;
-    const refLeading = 9.4;
-    const linkSize = 7.6;
-    const linkLeading = 9.0;
     const textTopPad = 6;
     const textBottomPad = 6;
     const textGap = 1.2;
@@ -6667,13 +6689,10 @@ async function generateContingencyReportPdf(payload, options = {}) {
       const descLines = descriptionRaw ? wrapPdfText(descLabel, innerWidth, descSize, font) : [];
       const titleBlockHeight = titleLines.length * titleLeading;
       const descBlockHeight = descLines.length ? descLines.length * descLeading + textGap : 0;
-      const linkBlockHeight = photo.linkUrl ? linkLeading : 0;
       const textAreaHeight =
         textTopPad +
         titleBlockHeight +
         descBlockHeight +
-        linkBlockHeight +
-        refLeading +
         textBottomPad;
       const requiredHeight = Math.max(minCardHeight, textAreaHeight + minImageHeight + cardPaddingY * 2);
       return {
@@ -6687,6 +6706,8 @@ async function generateContingencyReportPdf(payload, options = {}) {
     const drawPhotoCard = (photo, layout, index, x, width, height) => {
       const cardHeight = height;
       const cardBottom = cursorY - cardHeight;
+      const maxTextAreaHeight = Math.max(40, cardHeight - cardPaddingY * 2 - minImageHeight);
+      const textAreaHeight = Math.min(layout.textAreaHeight, maxTextAreaHeight);
       page.drawRectangle({
         x,
         y: cardBottom,
@@ -6698,8 +6719,8 @@ async function generateContingencyReportPdf(payload, options = {}) {
       });
       const frameX = x + cardPaddingX;
       const frameW = width - cardPaddingX * 2;
-      const frameY = cardBottom + layout.textAreaHeight + cardPaddingY;
-      const frameH = cardHeight - layout.textAreaHeight - cardPaddingY * 2;
+      const frameY = cardBottom + textAreaHeight + cardPaddingY;
+      const frameH = cardHeight - textAreaHeight - cardPaddingY * 2;
       page.drawRectangle({
         x: frameX,
         y: frameY,
@@ -6707,6 +6728,9 @@ async function generateContingencyReportPdf(payload, options = {}) {
         height: frameH,
         color: rgb(0.95, 0.97, 1),
       });
+      if (photo.linkUrl) {
+        addLinkAnnotation(frameX, frameY, frameW, frameH, photo.linkUrl);
+      }
       const scale = Math.min(frameW / photo.image.width, frameH / photo.image.height, 1);
       const drawW = photo.image.width * scale;
       const drawH = photo.image.height * scale;
@@ -6716,7 +6740,15 @@ async function generateContingencyReportPdf(payload, options = {}) {
         width: drawW,
         height: drawH,
       });
-      let textY = cardBottom + layout.textAreaHeight - textTopPad - titleSize;
+      const availableTextHeight = Math.max(24, textAreaHeight);
+      const titleHeight = layout.titleLines.length * titleLeading;
+      const descAvailable =
+        availableTextHeight - textTopPad - textBottomPad - titleHeight - (layout.descLines.length ? textGap : 0);
+      const maxDescLines =
+        descAvailable > 0 ? Math.floor(descAvailable / descLeading) : 0;
+      const visibleDescLines = layout.descLines.slice(0, Math.max(0, maxDescLines));
+      const overflowDescLines = layout.descLines.slice(Math.max(0, maxDescLines));
+      let textY = cardBottom + availableTextHeight - textTopPad - titleSize;
       layout.titleLines.forEach((line) => {
         page.drawText(line, {
           x: x + 7,
@@ -6728,9 +6760,9 @@ async function generateContingencyReportPdf(payload, options = {}) {
         });
         textY -= titleLeading;
       });
-      if (layout.descLines.length) {
+      if (visibleDescLines.length) {
         textY -= textGap;
-        layout.descLines.forEach((line) => {
+        visibleDescLines.forEach((line) => {
           page.drawText(line, {
             x: x + 7,
             y: textY,
@@ -6741,24 +6773,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
           textY -= descLeading;
         });
       }
-      const refY = cardBottom + textBottomPad;
-      page.drawText(`Registro fotográfico ${index + 1 + labelOffset}`, {
-        x: x + 7,
-        y: refY,
-        size: refSize,
-        font,
-        color: palette.muted,
-      });
-      if (photo.linkUrl) {
-        page.drawText("Abrir imagem", {
-          x: x + 7,
-          y: refY + refLeading,
-          size: linkSize,
-          font,
-          color: palette.primary,
-          link: photo.linkUrl,
-        });
-      }
+      return overflowDescLines;
     };
 
     let index = 0;
@@ -6767,10 +6782,26 @@ async function generateContingencyReportPdf(payload, options = {}) {
       if (remaining === 1) {
         const photo = renderedPhotos[index];
         const layout = buildLayout(photo, index, contentWidth);
-        const rowHeight = Math.max(layout.requiredHeight, minCardHeight);
+        const rowHeight = Math.min(
+          Math.max(layout.requiredHeight, minCardHeight),
+          maxRowHeight
+        );
         ensureSpace(rowHeight + 10);
-        drawPhotoCard(photo, layout, index, margin, contentWidth, rowHeight);
+        const overflow = drawPhotoCard(photo, layout, index, margin, contentWidth, rowHeight);
         cursorY -= rowHeight + 10;
+        if (overflow.length) {
+          writeText(`Continuação da descrição da Figura ${index + 1 + labelOffset}:`, {
+            size: 9.1,
+            leading: 11,
+            color: palette.muted,
+          });
+          writeText(overflow.join(" "), {
+            size: descSize,
+            leading: descLeading,
+            color: palette.text,
+          });
+          cursorY -= 4;
+        }
         index += 1;
         continue;
       }
@@ -6785,19 +6816,71 @@ async function generateContingencyReportPdf(payload, options = {}) {
 
       if (needsFullWidth) {
         const layout = buildLayout(left, index, contentWidth);
-        const rowHeight = Math.max(layout.requiredHeight, minCardHeight);
+        const rowHeight = Math.min(
+          Math.max(layout.requiredHeight, minCardHeight),
+          maxRowHeight
+        );
         ensureSpace(rowHeight + 10);
-        drawPhotoCard(left, layout, index, margin, contentWidth, rowHeight);
+        const overflow = drawPhotoCard(left, layout, index, margin, contentWidth, rowHeight);
         cursorY -= rowHeight + 10;
+        if (overflow.length) {
+          writeText(`Continuação da descrição da Figura ${index + 1 + labelOffset}:`, {
+            size: 9.1,
+            leading: 11,
+            color: palette.muted,
+          });
+          writeText(overflow.join(" "), {
+            size: descSize,
+            leading: descLeading,
+            color: palette.text,
+          });
+          cursorY -= 4;
+        }
         index += 1;
         continue;
       }
 
-      const rowHeight = Math.max(leftLayout.requiredHeight, rightLayout.requiredHeight);
+      const rowHeight = Math.min(
+        Math.max(leftLayout.requiredHeight, rightLayout.requiredHeight),
+        maxRowHeight
+      );
       ensureSpace(rowHeight + 10);
-      drawPhotoCard(left, leftLayout, index, margin, cardWidth, rowHeight);
-      drawPhotoCard(right, rightLayout, index + 1, margin + cardWidth + gap, cardWidth, rowHeight);
+      const leftOverflow = drawPhotoCard(left, leftLayout, index, margin, cardWidth, rowHeight);
+      const rightOverflow = drawPhotoCard(
+        right,
+        rightLayout,
+        index + 1,
+        margin + cardWidth + gap,
+        cardWidth,
+        rowHeight
+      );
       cursorY -= rowHeight + 10;
+      if (leftOverflow.length) {
+        writeText(`Continuação da descrição da Figura ${index + 1 + labelOffset}:`, {
+          size: 9.1,
+          leading: 11,
+          color: palette.muted,
+        });
+        writeText(leftOverflow.join(" "), {
+          size: descSize,
+          leading: descLeading,
+          color: palette.text,
+        });
+        cursorY -= 4;
+      }
+      if (rightOverflow.length) {
+        writeText(`Continuação da descrição da Figura ${index + 2 + labelOffset}:`, {
+          size: 9.1,
+          leading: 11,
+          color: palette.muted,
+        });
+        writeText(rightOverflow.join(" "), {
+          size: descSize,
+          leading: descLeading,
+          color: palette.text,
+        });
+        cursorY -= 4;
+      }
       index += 2;
     }
     return { renderedPhotos, failedPhotos };
