@@ -5187,7 +5187,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
   const contentWidth = pageSize[0] - margin * 2;
   const lineHeight = 12.4;
   const sectionGap = 4;
-  const headerHeight = 110;
+  const headerHeight = 96;
   const footerY = 20;
   const palette = {
     header: rgb(1, 1, 1),
@@ -5346,8 +5346,8 @@ async function generateContingencyReportPdf(payload, options = {}) {
     const pageHeight = pageSize[1];
     const headerBottom = pageHeight - headerHeight;
     const headerTop = pageHeight - 8;
-    const logoWidth = 104;
-    const logoHeight = 26;
+    const logoWidth = 110;
+    const logoHeight = 30;
     const logoPad = 10;
     page.drawRectangle({
       x: margin,
@@ -5365,7 +5365,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
       height: 2,
       color: palette.accent,
     });
-    const logoY = headerTop - logoHeight - 6;
+    const logoY = headerTop - logoHeight - 10;
     drawImageContain(engelmigLogo, margin + 8, logoY, logoWidth, logoHeight);
     if (solarigLogo) {
       drawImageContain(
@@ -5383,8 +5383,8 @@ async function generateContingencyReportPdf(payload, options = {}) {
         logoHeight
       );
     }
-    const titleAreaTop = logoY - 2;
-    const titleAreaBottom = headerBottom + 18;
+    const titleAreaTop = headerTop - 8;
+    const titleAreaBottom = headerBottom + 10;
     const titleAreaHeight = Math.max(24, titleAreaTop - titleAreaBottom);
     const titleMaxWidth = Math.max(220, contentWidth - (logoWidth + logoPad) * 2);
     let titleSize = 12.2;
