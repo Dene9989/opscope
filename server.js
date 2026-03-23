@@ -5122,6 +5122,17 @@ function wrapPdfText(text, maxWidth, size, font) {
   return lines.length ? lines : [input];
 }
 
+function wrapPdfTextLimited(text, maxWidth, size, font, maxLines = 2) {
+  const lines = wrapPdfText(text, maxWidth, size, font);
+  if (!maxLines || lines.length <= maxLines) {
+    return lines;
+  }
+  const head = lines.slice(0, Math.max(0, maxLines - 1));
+  const tailText = lines.slice(maxLines - 1).join(" ");
+  const tail = truncatePdfText(tailText, maxWidth, size, font);
+  return head.concat(tail || "");
+}
+
 function truncatePdfText(text, maxWidth, size, font) {
   const input = sanitizePdfText(text, font).replace(/\s+/g, " ").trim();
   if (!input) {
@@ -5350,15 +5361,16 @@ async function generateContingencyReportPdf(payload, options = {}) {
     } else {
       drawSolarigFallback(pageSize[0] - margin - 118, pageHeight - headerHeight + 12, 110, 32);
     }
-    const headerTitle = truncatePdfText(reportTitle, contentWidth, 12.6, fontBold) || reportTitle;
-    const titleWidth = fontBold.widthOfTextAtSize(headerTitle, 12.6);
-    page.drawText(headerTitle, {
-      x: margin + (contentWidth - titleWidth) / 2,
-      y: pageHeight - 36,
-      size: 12.6,
-      font: fontBold,
-      color: palette.primary,
-    });
+    const headerCenterY = pageHeight - 44;
+    drawCenteredMultilineText(
+      reportTitle,
+      headerCenterY,
+      contentWidth - 24,
+      12.2,
+      true,
+      palette.primary,
+      2
+    );
   };
 
   const addPage = () => {
@@ -5383,6 +5395,36 @@ async function generateContingencyReportPdf(payload, options = {}) {
       size,
       font: selectedFont,
       color,
+    });
+  };
+  const drawCenteredMultilineText = (
+    text,
+    centerY,
+    maxWidth,
+    size = 11,
+    bold = false,
+    color = palette.text,
+    maxLines = 2
+  ) => {
+    const selectedFont = bold ? fontBold : font;
+    const lines = wrapPdfTextLimited(text, maxWidth, size, selectedFont, maxLines)
+      .map((line) => String(line || "").trim())
+      .filter(Boolean);
+    if (!lines.length) {
+      return;
+    }
+    const lineHeight = size + 2.4;
+    const totalHeight = lineHeight * (lines.length - 1);
+    lines.forEach((line, index) => {
+      const width = selectedFont.widthOfTextAtSize(line, size);
+      const y = centerY + totalHeight / 2 - index * lineHeight;
+      page.drawText(line, {
+        x: margin + (contentWidth - width) / 2,
+        y,
+        size,
+        font: selectedFont,
+        color,
+      });
     });
   };
 
@@ -5622,7 +5664,24 @@ async function generateContingencyReportPdf(payload, options = {}) {
       color: palette.line,
     });
     drawCenteredText(toText(safePayload.substation || projectLabel || "SUBESTACAO"), titleBlockTop - 31, 14.2, true);
-    drawCenteredText(reportTitle, rowA - 44, 16, true, palette.primary);
+    const titleCenterY = (rowA + rowB) / 2;
+    let titleSize = 15.2;
+    const titleMaxWidth = contentWidth - 24;
+    let titleLines = wrapPdfText(reportTitle, titleMaxWidth, titleSize, fontBold);
+    let titleMaxLines = 2;
+    if (titleLines.length > 2) {
+      titleSize = 13.4;
+      titleMaxLines = 3;
+    }
+    drawCenteredMultilineText(
+      reportTitle,
+      titleCenterY,
+      titleMaxWidth,
+      titleSize,
+      true,
+      palette.primary,
+      titleMaxLines
+    );
     drawCenteredText(
       `${getContingencyLabel(CONTINGENCY_EVENT_LABELS, safePayload.eventType, "Outro")} | ${
         toText(safePayload.assetName || safePayload.assetId)
