@@ -6533,7 +6533,8 @@ async function generateContingencyReportPdf(payload, options = {}) {
     const cols = 2;
     const gap = 10;
     const cardWidth = (contentWidth - gap) / cols;
-    const cardHeight = 184;
+    const cardHeight = 220;
+    const textAreaHeight = 72;
     let col = 0;
     renderedPhotos.forEach((photo, index) => {
       if (col === 0) {
@@ -6541,9 +6542,10 @@ async function generateContingencyReportPdf(payload, options = {}) {
       }
       const x = margin + col * (cardWidth + gap);
       const topY = cursorY;
+      const cardBottom = topY - cardHeight;
       page.drawRectangle({
         x,
-        y: topY - cardHeight,
+        y: cardBottom,
         width: cardWidth,
         height: cardHeight,
         color: rgb(0.99, 0.995, 1),
@@ -6551,9 +6553,9 @@ async function generateContingencyReportPdf(payload, options = {}) {
         borderWidth: 0.7,
       });
       const frameX = x + 8;
-      const frameY = topY - cardHeight + 42;
       const frameW = cardWidth - 16;
-      const frameH = cardHeight - 52;
+      const frameY = cardBottom + textAreaHeight + 8;
+      const frameH = cardHeight - textAreaHeight - 16;
       page.drawRectangle({
         x: frameX,
         y: frameY,
@@ -6573,40 +6575,39 @@ async function generateContingencyReportPdf(payload, options = {}) {
       const representation = getAttachmentRepresentation(photo.attachment || null, index + labelOffset);
       const titleRaw = String(photo.title || "").trim() || representation;
       const titleLabel = `${index + 1 + labelOffset}. ${titleRaw}`;
-      const titleLines = wrapPdfText(titleLabel, cardWidth - 14, 8.2, fontBold);
-      page.drawText(titleLines[0] || titleLabel, {
-        x: x + 7,
-        y: topY - cardHeight + 30,
-        size: 8.2,
-        font: fontBold,
-        color: palette.text,
+      let textY = cardBottom + textAreaHeight - 12;
+      const titleLines = wrapPdfTextLimited(titleLabel, cardWidth - 14, 8.4, fontBold, 2);
+      titleLines.forEach((line) => {
+        page.drawText(line, {
+          x: x + 7,
+          y: textY,
+          size: 8.4,
+          font: fontBold,
+          color: palette.text,
+        });
+        textY -= 10.2;
       });
-      let infoY = topY - cardHeight + 20;
       const descriptionRaw = String(photo.description || photo.notes || "").trim();
       if (descriptionRaw) {
+        textY -= 1.2;
         const descLabel = `Descrição: ${descriptionRaw}`;
-        const descLines = wrapPdfText(descLabel, cardWidth - 14, 7.4, font);
-        const maxLines = Math.min(descLines.length, 2);
-        for (let i = 0; i < maxLines; i += 1) {
-          const line = descLines[i];
-          if (!line) {
-            continue;
-          }
+        const descLines = wrapPdfTextLimited(descLabel, cardWidth - 14, 7.3, font, 3);
+        descLines.forEach((line) => {
           page.drawText(line, {
             x: x + 7,
-            y: infoY - i * 8.2,
-            size: 7.4,
+            y: textY,
+            size: 7.3,
             font,
             color: palette.muted,
           });
-        }
-        infoY -= 8.2 * maxLines + 1;
+          textY -= 8.6;
+        });
       }
       const refLabel = `Registro fotográfico ${index + 1 + labelOffset}`;
-      const refLines = wrapPdfText(refLabel, cardWidth - 14, 8, font);
-      page.drawText(refLines[0] || refLabel, {
+      const refY = Math.max(cardBottom + 6, textY - 1);
+      page.drawText(refLabel, {
         x: x + 7,
-        y: infoY,
+        y: refY,
         size: 8,
         font,
         color: palette.muted,
