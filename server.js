@@ -5183,7 +5183,7 @@ async function generateContingencyReportPdf(payload, options = {}) {
   const contentWidth = pageSize[0] - margin * 2;
   const lineHeight = 12.4;
   const sectionGap = 4;
-  const headerHeight = 86;
+  const headerHeight = 110;
   const footerY = 20;
   const palette = {
     header: rgb(1, 1, 1),
@@ -5342,8 +5342,8 @@ async function generateContingencyReportPdf(payload, options = {}) {
     const pageHeight = pageSize[1];
     const headerBottom = pageHeight - headerHeight;
     const headerTop = pageHeight - 8;
-    const logoWidth = 110;
-    const logoHeight = 30;
+    const logoWidth = 104;
+    const logoHeight = 26;
     const logoPad = 10;
     page.drawRectangle({
       x: margin,
@@ -5379,17 +5379,34 @@ async function generateContingencyReportPdf(payload, options = {}) {
         logoHeight
       );
     }
-    const headerCenterY = headerBottom + 20;
-    const titleMaxWidth = Math.max(180, contentWidth - (logoWidth + logoPad) * 2);
-    drawCenteredMultilineText(
-      reportTitle,
-      headerCenterY,
-      titleMaxWidth,
-      12.2,
-      true,
-      palette.primary,
-      2
-    );
+    const titleAreaTop = logoY - 6;
+    const titleAreaBottom = headerBottom + 8;
+    const titleAreaHeight = Math.max(24, titleAreaTop - titleAreaBottom);
+    const titleMaxWidth = Math.max(220, contentWidth - (logoWidth + logoPad) * 2);
+    let titleSize = 12.2;
+    let lineHeight = titleSize + 2.2;
+    let maxLines = Math.max(2, Math.floor(titleAreaHeight / lineHeight));
+    let titleLines = wrapPdfText(reportTitle, titleMaxWidth, titleSize, fontBold);
+    while (titleLines.length > maxLines && titleSize > 9.2) {
+      titleSize -= 0.6;
+      lineHeight = titleSize + 2.2;
+      maxLines = Math.max(2, Math.floor(titleAreaHeight / lineHeight));
+      titleLines = wrapPdfText(reportTitle, titleMaxWidth, titleSize, fontBold);
+    }
+    const titleBlockHeight = titleLines.length * lineHeight;
+    const titleCenterY = titleAreaBottom + titleAreaHeight / 2;
+    let lineY = titleCenterY + titleBlockHeight / 2 - lineHeight;
+    titleLines.forEach((line) => {
+      const width = fontBold.widthOfTextAtSize(line, titleSize);
+      page.drawText(line, {
+        x: margin + (contentWidth - width) / 2,
+        y: lineY,
+        size: titleSize,
+        font: fontBold,
+        color: palette.primary,
+      });
+      lineY -= lineHeight;
+    });
   };
 
   const addPage = () => {
