@@ -5321,6 +5321,8 @@ let perfThemeMode = PERF_THEME_EXECUTIVO;
 let homeTipsTimer = null;
 let homeTipIndex = 0;
 const SYNC_POLL_MS = 5 * 60 * 1000;
+const SYNC_UI_THROTTLE_MS = 60 * 1000;
+const MAINTENANCE_EVENT_DEBOUNCE_MS = 2000;
 const SYNC_DEBUG_KEY = "opscope.debugSync";
 const COMPAT_SCHEMA_VERSION = 1;
 const COMPAT_STATE_KEY = "opscope.compat.state";
@@ -5340,6 +5342,8 @@ let syncPollRunning = false;
 let syncDebugEnabled = false;
 let syncLastEventAt = 0;
 let syncSiteRunning = false;
+let syncUiLastUpdateAt = 0;
+let maintenanceEventRefreshTimer = null;
 let announcements = [];
 let announcementsLastFetch = 0;
 let announcementsUnreadCount = 0;
@@ -6386,6 +6390,11 @@ function updateSyncStatusLabel(meta = readLastSyncMeta()) {
 function setLastSyncAt(value = Date.now(), source = "manual") {
   const payload = { at: Number(value) || Date.now(), source };
   writeJson(getSyncStatusKey(), payload);
+  const now = Number(payload.at) || Date.now();
+  if (source !== "manual" && now - syncUiLastUpdateAt < SYNC_UI_THROTTLE_MS) {
+    return;
+  }
+  syncUiLastUpdateAt = now;
   updateSyncStatusLabel(payload);
 }
 
@@ -6633,6 +6642,17 @@ function stopSyncEvents() {
   }
 }
 
+function scheduleMaintenanceEventRefresh() {
+  if (maintenanceEventRefreshTimer) {
+    return;
+  }
+  maintenanceEventRefreshTimer = setTimeout(() => {
+    maintenanceEventRefreshTimer = null;
+    carregarManutencoesServidor(true);
+    loadDashboardSummary(true, { skipSync: true });
+  }, MAINTENANCE_EVENT_DEBOUNCE_MS);
+}
+
 function handleSyncEvent(eventName, payload = {}) {
   syncLastEventAt = Date.now();
   if (payload.projectId && activeProjectId && payload.projectId !== activeProjectId) {
@@ -6664,8 +6684,7 @@ function handleSyncEvent(eventName, payload = {}) {
         }
       }
     }
-    carregarManutencoesServidor(true);
-    loadDashboardSummary(true, { skipSync: true });
+    scheduleMaintenanceEventRefresh();
     return;
   }
   if (eventName === "templates.updated") {
@@ -16740,7 +16759,10 @@ function getMaintenanceListFingerprint(list) {
     .map((item) => ({
       id: String(item.id),
       status: normalizeMaintenanceStatus(item.status),
-      updatedAt: getMaintenanceUpdatedAtValue(item),
+      updatedAt: (() => {
+        const value = getMaintenanceUpdatedAtValue(item);
+        return value ? Math.floor(value / 60000) : 0;
+      })(),
       data: item.data || "",
       projectId: item.projectId || "",
       equipamento:
@@ -58761,6 +58783,90 @@ async function salvarCancelamentoExecucao(event) {
   mostrarMensagemManutencao("Execução cancelada.");
 }
 
+async function fecharDiaSemAtividade(index, dataRef) {
+  if (!requirePermission("complete")) {
+    return;
+  }
+  if (index < 0) {
+    mostrarMensagemManutencao("Manutenção não encontrada.", true);
+    return;
+  }
+  const item = manutencoes[index];
+  if (
+    !ensureExecucaoPermitida(item, mostrarMensagemManutencao, {
+      ignorePrazoExpirado: true,
+    })
+  ) {
+    return;
+  }
+  if (item.status !== "em_execucao" && item.status !== "encerramento") {
+    mostrarMensagemManutencao("A manutenção precisa estar em execução.", true);
+    return;
+  }
+  const normalizedRef =
+    normalizeRegistroExecucaoDiaKey(dataRef) || getRegistroExecucaoDataRef(item);
+  if (!normalizedRef) {
+    mostrarMensagemManutencao("Data do fechamento diário inválida.", true);
+    return;
+  }
+  const teamName = getProjectTeamName(item.projectId);
+  const executadoPor = teamName ? `team:${teamName}` : currentUser ? currentUser.id : "";
+  if (!executadoPor) {
+    mostrarMensagemManutencao("Responsável não identificado para fechamento diário.", true);
+    return;
+  }
+  const registradoEm = toIsoUtc(new Date());
+  const comentario = "Sem atividade operacional registrada no dia.";
+  const registroExecucao = {
+    executadoPor,
+    resultado: "sem_atividade",
+    comentario,
+    observacaoExecucao: "",
+    registradoEm,
+    dataRef: normalizedRef,
+    evidencias: [],
+    semAtividade: true,
+  };
+  const registrosDiariosExecucao = upsertRegistrosDiariosExecucao(
+    getRegistrosDiariosExecucao(item),
+    registroExecucao
+  );
+  const atualizado = {
+    ...item,
+    registrosDiariosExecucao,
+    updatedAt: registradoEm,
+    updatedBy: currentUser.id,
+  };
+  manutencoes[index] = atualizado;
+  salvarManutencoes(manutencoes);
+  scheduleMaintenanceSync(manutencoes, true);
+  logAction("execute_register", atualizado, {
+    executadoPor,
+    resultado: "sem_atividade",
+    dataRef: normalizedRef,
+    evidenciasCount: 0,
+    inicioExecucao: item.executionStartedAt || "",
+    osNumero: (getLiberacao(item) || {}).osNumero || "",
+    participantes: (getLiberacao(item) || {}).participantes || [],
+    resumo: "Fechamento diário sem atividade registrado.",
+  });
+  renderTudo();
+  const pendenciaRestante = getRegistroExecucaoPendenteDateKey(atualizado);
+  if (pendenciaRestante) {
+    mostrarMensagemManutencao(
+      `Dia ${formatRegistroExecucaoDiaLabel(
+        normalizedRef
+      )} fechado sem atividade. Ainda falta fechar ${formatRegistroExecucaoDiaLabel(
+        pendenciaRestante
+      )}.`
+    );
+    return;
+  }
+  mostrarMensagemManutencao(
+    `Dia ${formatRegistroExecucaoDiaLabel(normalizedRef)} fechado sem atividade.`
+  );
+}
+
 async function salvarRegistroExecucao(event) {
   event.preventDefault();
   if (!requirePermission("complete")) {
@@ -62925,7 +63031,25 @@ function agirNaManutencao(event) {
     executarManutencao(index);
   }
   if (acao === "register") {
-    abrirRegistroExecucao(manutencoes[index], { mode: "register" });
+    const item = manutencoes[index];
+    const pendente = getRegistroExecucaoPendenteDateKey(item);
+    if (pendente) {
+      const diaLabel = formatRegistroExecucaoDiaLabel(pendente);
+      openConfirmModal({
+        title: "Fechamento diário",
+        message: `Houve expediente desta atividade no dia ${diaLabel}?`,
+        confirmText: "Não, sem atividade",
+        cancelText: "Sim, houve",
+      }).then((semAtividade) => {
+        if (semAtividade) {
+          fecharDiaSemAtividade(index, pendente);
+          return;
+        }
+        abrirRegistroExecucao(item, { mode: "register" });
+      });
+      return;
+    }
+    abrirRegistroExecucao(item, { mode: "register" });
   }
   if (acao === "monthly_override") {
     toggleMonthlyInspectionOverride(index);
