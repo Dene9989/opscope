@@ -30896,6 +30896,28 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
     .rdo-note-muted { font-size: 0.75rem; color: var(--rdo-ink-soft); }
     .rdo-activity-card--empty { text-align: center; }
     .rdo-muted { color: var(--rdo-ink-soft); }
+    @media print {
+      @page { size: A4; margin: 10mm; }
+      body { margin: 0; }
+      .rdo-doc { max-width: none; }
+      .rdo-header { padding-bottom: 8px; }
+      .rdo-section { margin-bottom: 8px; }
+      .rdo-header-grid { gap: 6px; }
+      .rdo-kpi-row { gap: 6px; }
+      .rdo-grid-2 { gap: 8px; }
+      .rdo-tech-grid { gap: 8px; }
+      .rdo-block,
+      .rdo-tech-sheet,
+      .rdo-activity-card,
+      .rdo-journey-card,
+      .rdo-equip-group { break-inside: auto; page-break-inside: auto; }
+      .rdo-summary,
+      .rdo-editorial,
+      .rdo-premium,
+      .rdo-note,
+      .rdo-evidencia { break-inside: avoid; page-break-inside: avoid; }
+      h2, h3, h4 { break-after: avoid; page-break-after: avoid; }
+    }
   `;
   let body = buildRdoHtml(snapshot, { ...options, print: true });
   if (logoDataUrl) {
