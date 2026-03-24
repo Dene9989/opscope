@@ -9101,6 +9101,11 @@ textarea:focus {
   background: rgba(15, 36, 54, 0.04);
 }
 
+.rdo-shift-row--absent {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.08);
+}
+
 .rdo-shift-name {
   font-weight: 600;
   color: var(--ink);
@@ -9109,6 +9114,20 @@ textarea:focus {
 .rdo-shift-detail {
   display: grid;
   gap: 8px;
+}
+
+.rdo-shift-status {
+  display: grid;
+  grid-template-columns: auto minmax(160px, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.rdo-shift-status label {
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
 }
 
 .rdo-shift-inputs {
@@ -11165,6 +11184,10 @@ textarea:focus {
   }
 
   .rdo-shift-row {
+    grid-template-columns: 1fr;
+  }
+
+  .rdo-shift-status {
     grid-template-columns: 1fr;
   }
 

@@ -1692,6 +1692,13 @@ const DOC_LABELS = {
 const RDO_CLIENTE = "SOLARIG";
 const RDO_SETOR = "O&M - ENGELMIG";
 const RDO_PROJETO = "834 - PARACATU/SOLARIG (Boa Sorte II)";
+const RDO_SHIFT_STATUS_OPTIONS = [
+  { value: "EXPEDIENTE", label: "Expediente" },
+  { value: "FOLGA", label: "Folga" },
+  { value: "ABONO", label: "Dia abonado" },
+  { value: "FERIAS", label: "Férias" },
+  { value: "LICENCA", label: "Licença" },
+];
 const RDO_MENSAL_V2_OVERRIDE_KEY = "opscope.rdoMensalV2.override";
 const featureFlags = {
   rdoMensalV2: false,
@@ -13142,10 +13149,27 @@ function mergeRdoSnapshotLists(primary = [], secondary = []) {
   });
   normalizeRdoSnapshotList(secondary).forEach((item) => {
     const key = getRdoSnapshotKey(item);
-    if (!key || merged.has(key)) {
+    if (!key) {
       return;
     }
-    merged.set(key, item);
+    if (!merged.has(key)) {
+      merged.set(key, item);
+      return;
+    }
+    const existing = merged.get(key);
+    const existingDeleted = Boolean(existing && existing.deletedAt);
+    const incomingDeleted = Boolean(item && item.deletedAt);
+    if (incomingDeleted && !existingDeleted) {
+      merged.set(key, item);
+      return;
+    }
+    if (incomingDeleted && existingDeleted) {
+      const existingAt = parseDateTime(existing.deletedAt);
+      const incomingAt = parseDateTime(item.deletedAt);
+      if ((incomingAt && !existingAt) || (incomingAt && existingAt && incomingAt > existingAt)) {
+        merged.set(key, item);
+      }
+    }
   });
   return Array.from(merged.values());
 }
@@ -27107,6 +27131,16 @@ function montarRdoUI() {
   }
   if (rdoUI.jornadaList) {
     rdoUI.jornadaList.addEventListener("change", (event) => {
+      const statusSelect = event.target.closest("select[data-shift-status]");
+      if (statusSelect) {
+        const row = statusSelect.closest(".rdo-shift-row");
+        if (!row) {
+          return;
+        }
+        applyRdoShiftStatusToRow(row, statusSelect.value, { clearValues: true });
+        updateRdoJustificativas(true);
+        return;
+      }
       const toggle = event.target.closest("input[data-shift-extra-toggle]");
       if (!toggle) {
         return;
@@ -27492,6 +27526,7 @@ function confirmarDeleteRdo() {
     return atualizado;
   });
   salvarRdoSnapshots(rdoSnapshots);
+  syncRdoSnapshotsNow(rdoSnapshots);
   rdoSelection.clear();
   fecharRdoDeleteModal();
   renderRdoList();
@@ -27762,7 +27797,95 @@ function updateRdoShiftLabels() {
     rdoUI.shiftLabel.textContent = `Horas e acionamentos (${label})`;
   }
   if (rdoUI.shiftHint) {
-    rdoUI.shiftHint.textContent = `Informe entrada e saida dos colaboradores do ${label}. Marque hora extra/acionamento por colaborador quando necessario. Expediente: 07:00-17:00 (seg-qui) e 07:00-16:00 (sex).`;
+    rdoUI.shiftHint.textContent = `Informe entrada e saida dos colaboradores do ${label}. Marque hora extra/acionamento por colaborador quando necessario. Use "Situação" para Folga, Dia abonado, Férias ou Licença. Expediente: 07:00-17:00 (seg-qui) e 07:00-16:00 (sex).`;
+  }
+}
+
+function normalizeRdoShiftStatus(value) {
+  const raw = String(value || "")
+    .trim()
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  if (!raw) {
+    return "EXPEDIENTE";
+  }
+  if (raw === "FOLGA") {
+    return "FOLGA";
+  }
+  if (raw === "ABONO" || raw === "ABONADO" || raw === "DIA ABONADO" || raw === "ABONAMENTO") {
+    return "ABONO";
+  }
+  if (raw === "FERIAS" || raw === "FERIA") {
+    return "FERIAS";
+  }
+  if (raw === "LICENCA" || raw === "LICENCA MEDICA") {
+    return "LICENCA";
+  }
+  if (raw === "EXPEDIENTE" || raw === "NORMAL") {
+    return "EXPEDIENTE";
+  }
+  return "EXPEDIENTE";
+}
+
+function getRdoShiftStatusLabel(value) {
+  const normalized = normalizeRdoShiftStatus(value);
+  const match = RDO_SHIFT_STATUS_OPTIONS.find((option) => option.value === normalized);
+  return match ? match.label : "Expediente";
+}
+
+function buildRdoShiftStatusOptions(selected) {
+  const normalized = normalizeRdoShiftStatus(selected);
+  return RDO_SHIFT_STATUS_OPTIONS.map(
+    (option) =>
+      `<option value="${escapeHtml(option.value)}" ${
+        option.value === normalized ? "selected" : ""
+      }>${escapeHtml(option.label)}</option>`
+  ).join("");
+}
+
+function applyRdoShiftStatusToRow(row, status, options = {}) {
+  if (!row) {
+    return;
+  }
+  const normalized = normalizeRdoShiftStatus(status);
+  const isWorking = normalized === "EXPEDIENTE";
+  const shouldClear = Boolean(options && options.clearValues);
+  row.dataset.shiftStatus = normalized;
+  row.classList.toggle("rdo-shift-row--absent", !isWorking);
+
+  const entrada = row.querySelector("input[data-shift='entrada']");
+  const saida = row.querySelector("input[data-shift='saida']");
+  const horaExtraToggle = row.querySelector("input[data-shift-extra-toggle='horaExtra']");
+  const acionamentoToggle = row.querySelector("input[data-shift-extra-toggle='acionamento']");
+
+  if (entrada) {
+    entrada.disabled = !isWorking;
+    if (!isWorking && shouldClear) {
+      entrada.value = "";
+    }
+  }
+  if (saida) {
+    saida.disabled = !isWorking;
+    if (!isWorking && shouldClear) {
+      saida.value = "";
+    }
+  }
+
+  if (horaExtraToggle) {
+    horaExtraToggle.disabled = !isWorking;
+    if (!isWorking && shouldClear) {
+      horaExtraToggle.checked = false;
+    }
+    toggleRdoRowExtraFields(row, "horaExtra", Boolean(horaExtraToggle.checked) && isWorking);
+  }
+
+  if (acionamentoToggle) {
+    acionamentoToggle.disabled = !isWorking;
+    if (!isWorking && shouldClear) {
+      acionamentoToggle.checked = false;
+    }
+    toggleRdoRowExtraFields(row, "acionamento", Boolean(acionamentoToggle.checked) && isWorking);
   }
 }
 
@@ -28011,6 +28134,9 @@ function renderRdoJornadas(manual = {}) {
     const saidaPlaceholder = schedule.fim === 16 * 60 ? "16:00" : "17:00";
     const entrada = ref && ref.entrada ? ref.entrada : "";
     const saida = ref && ref.saida ? ref.saida : "";
+    const situacao = normalizeRdoShiftStatus(
+      ref && (ref.situacao || ref.status || ref.situacaoDia || ref.presenca || "")
+    );
     const horaExtra = ref && ref.horaExtra && typeof ref.horaExtra === "object" ? ref.horaExtra : {};
     const acionamento =
       ref && ref.acionamento && typeof ref.acionamento === "object" ? ref.acionamento : {};
@@ -28024,6 +28150,12 @@ function renderRdoJornadas(manual = {}) {
       <div class="rdo-shift-row" data-user-id="${escapeHtml(userId || "")}">
         <div class="rdo-shift-name">${escapeHtml(label || "Colaborador")}</div>
         <div class="rdo-shift-detail">
+          <div class="rdo-shift-status">
+            <label>Situação</label>
+            <select data-shift-status>
+              ${buildRdoShiftStatusOptions(situacao)}
+            </select>
+          </div>
           <div class="rdo-shift-inputs">
             <label>Entrada</label>
             <input type="time" data-shift="entrada" value="${escapeHtml(
@@ -28086,6 +28218,10 @@ function renderRdoJornadas(manual = {}) {
         return renderRowHtml(item, label, item.userId || "");
       })
       .join("");
+    rdoUI.jornadaList.querySelectorAll(".rdo-shift-row").forEach((row) => {
+      const select = row.querySelector("select[data-shift-status]");
+      applyRdoShiftStatusToRow(row, select ? select.value : "EXPEDIENTE");
+    });
     return;
   }
 
@@ -28097,6 +28233,10 @@ function renderRdoJornadas(manual = {}) {
       return renderRowHtml(ref, label, user.id);
     })
     .join("");
+  rdoUI.jornadaList.querySelectorAll(".rdo-shift-row").forEach((row) => {
+    const select = row.querySelector("select[data-shift-status]");
+    applyRdoShiftStatusToRow(row, select ? select.value : "EXPEDIENTE");
+  });
 }
 
 function toggleRdoHorarioFields(toggle, inicio, fim) {
@@ -28117,7 +28257,7 @@ function setRdoJornadaReadOnly(readOnly) {
     return;
   }
   rdoUI.jornadaList
-    .querySelectorAll("input")
+    .querySelectorAll("input, select, textarea")
     .forEach((input) => (input.disabled = readOnly));
 }
 
@@ -28137,6 +28277,11 @@ function coletarManualRdo() {
         .map((row) => {
           const entradaInput = row.querySelector("input[data-shift='entrada']");
           const saidaInput = row.querySelector("input[data-shift='saida']");
+          const situacaoSelect = row.querySelector("select[data-shift-status]");
+          const situacao = normalizeRdoShiftStatus(
+            situacaoSelect ? situacaoSelect.value : ""
+          );
+          const isWorking = situacao === "EXPEDIENTE";
           const horaExtraToggle = row.querySelector(
             "input[data-shift-extra-toggle='horaExtra']"
           );
@@ -28158,17 +28303,18 @@ function coletarManualRdo() {
             nome: row.querySelector(".rdo-shift-name")
               ? row.querySelector(".rdo-shift-name").textContent.trim()
               : "",
-            entrada: entradaInput ? entradaInput.value : "",
-            saida: saidaInput ? saidaInput.value : "",
+            situacao,
+            entrada: isWorking && entradaInput ? entradaInput.value : "",
+            saida: isWorking && saidaInput ? saidaInput.value : "",
             horaExtra: {
-              ativo: Boolean(horaExtraToggle && horaExtraToggle.checked),
-              inicio: horaExtraInicio ? horaExtraInicio.value : "",
-              fim: horaExtraFim ? horaExtraFim.value : "",
+              ativo: Boolean(isWorking && horaExtraToggle && horaExtraToggle.checked),
+              inicio: isWorking && horaExtraInicio ? horaExtraInicio.value : "",
+              fim: isWorking && horaExtraFim ? horaExtraFim.value : "",
             },
             acionamento: {
-              ativo: Boolean(acionamentoToggle && acionamentoToggle.checked),
-              inicio: acionamentoInicio ? acionamentoInicio.value : "",
-              fim: acionamentoFim ? acionamentoFim.value : "",
+              ativo: Boolean(isWorking && acionamentoToggle && acionamentoToggle.checked),
+              inicio: isWorking && acionamentoInicio ? acionamentoInicio.value : "",
+              fim: isWorking && acionamentoFim ? acionamentoFim.value : "",
             },
           };
         })
@@ -28176,6 +28322,7 @@ function coletarManualRdo() {
           (item) =>
             item.entrada ||
             item.saida ||
+            (item.situacao && item.situacao !== "EXPEDIENTE") ||
             (item.horaExtra && item.horaExtra.ativo) ||
             (item.acionamento && item.acionamento.ativo)
         )
@@ -29864,13 +30011,18 @@ function buildRdoHtml(snapshot, options = {}) {
   const jornadas = Array.isArray(manual.jornadas) ? manual.jornadas : [];
   const schedule = getRdoScheduleFromDate(dataParsed || new Date());
   const jornadasRows = jornadas.map((item) => {
-    const entrada = item.entrada || "";
-    const saida = item.saida || "";
-    const duracaoBrutaMin = calcDurationMinutes(entrada, saida);
-    const entradaMin = parseTimeToMinutes(entrada);
-    const saidaMin = parseTimeToMinutes(saida);
+    const statusKey = normalizeRdoShiftStatus(
+      item.situacao || item.status || item.presenca || item.situacaoDia || ""
+    );
+    const statusLabel = getRdoShiftStatusLabel(statusKey);
+    const isWorking = statusKey === "EXPEDIENTE";
+    const entrada = isWorking ? item.entrada || "" : "";
+    const saida = isWorking ? item.saida || "" : "";
+    const duracaoBrutaMin = isWorking ? calcDurationMinutes(entrada, saida) : 0;
+    const entradaMin = isWorking ? parseTimeToMinutes(entrada) : null;
+    const saidaMin = isWorking ? parseTimeToMinutes(saida) : null;
     const expedienteBrutoMin =
-      entradaMin === null || saidaMin === null || saidaMin < entradaMin
+      !isWorking || entradaMin === null || saidaMin === null || saidaMin < entradaMin
         ? 0
         : calcOverlapMinutes(entradaMin, saidaMin, schedule.inicio, schedule.fim);
     const almocoMin = duracaoBrutaMin > 0 ? ALMOCO_MIN : 0;
@@ -29881,8 +30033,8 @@ function buildRdoHtml(snapshot, options = {}) {
       item.horaExtra && typeof item.horaExtra === "object" ? item.horaExtra : {};
     const acionamento =
       item.acionamento && typeof item.acionamento === "object" ? item.acionamento : {};
-    const horaExtraAtivo = Boolean(horaExtra.ativo);
-    const acionamentoAtivo = Boolean(acionamento.ativo);
+    const horaExtraAtivo = Boolean(isWorking && horaExtra.ativo);
+    const acionamentoAtivo = Boolean(isWorking && acionamento.ativo);
     const horaExtraInicio = horaExtra.inicio || "";
     const horaExtraFim = horaExtra.fim || "";
     const acionamentoInicio = acionamento.inicio || "";
@@ -29895,6 +30047,9 @@ function buildRdoHtml(snapshot, options = {}) {
       : 0;
     return {
       nome: item.nome || item.label || item.userLabel || "Colaborador",
+      statusKey,
+      statusLabel,
+      isWorking,
       entrada: entrada || "-",
       saida: saida || "-",
       duracaoMin,
@@ -29911,11 +30066,16 @@ function buildRdoHtml(snapshot, options = {}) {
       acionamentoMin,
     };
   });
-  const totalJornadaMin = jornadasRows.reduce((acc, row) => acc + (row.duracaoMin || 0), 0);
-  const totalExpedienteMin = jornadasRows.reduce((acc, row) => acc + (row.expedienteMin || 0), 0);
-  const totalExtraCalcMin = jornadasRows.reduce((acc, row) => acc + (row.extraMin || 0), 0);
-  const horaExtraRows = jornadasRows.filter((row) => row.horaExtraAtivo);
-  const acionamentoRows = jornadasRows.filter((row) => row.acionamentoAtivo);
+  const activeRows = jornadasRows.filter((row) => row.isWorking);
+  const absentRows = jornadasRows.filter((row) => !row.isWorking);
+  const totalJornadaMin = activeRows.reduce((acc, row) => acc + (row.duracaoMin || 0), 0);
+  const totalExpedienteMin = activeRows.reduce(
+    (acc, row) => acc + (row.expedienteMin || 0),
+    0
+  );
+  const totalExtraCalcMin = activeRows.reduce((acc, row) => acc + (row.extraMin || 0), 0);
+  const horaExtraRows = activeRows.filter((row) => row.horaExtraAtivo);
+  const acionamentoRows = activeRows.filter((row) => row.acionamentoAtivo);
   const totalHoraExtraMin = horaExtraRows.reduce(
     (acc, row) => acc + (row.horaExtraMin || 0),
     0
@@ -29947,6 +30107,17 @@ function buildRdoHtml(snapshot, options = {}) {
   const horaExtraJustificativa = String(
     manual.horaExtra && manual.horaExtra.justificativa ? manual.horaExtra.justificativa : ""
   ).trim();
+  const ausenciaResumo = absentRows.length
+    ? Array.from(
+        absentRows.reduce((acc, row) => {
+          const label = row.statusLabel || "Ausência";
+          acc.set(label, (acc.get(label) || 0) + 1);
+          return acc;
+        }, new Map())
+      )
+        .map(([label, total]) => `${label} (${total})`)
+        .join(", ")
+    : "";
   const aiText = snapshot.aiText || null;
   const atividadesConsolidado =
     (aiText && aiText.atividades_consolidado) ||
@@ -30020,6 +30191,7 @@ function buildRdoHtml(snapshot, options = {}) {
         <thead>
           <tr>
             <th class="rdo-table__col-name">Colaborador</th>
+            <th>Situação</th>
             <th>Entrada</th>
             <th>Saída</th>
             <th>Horas líquidas</th>
@@ -30037,6 +30209,7 @@ function buildRdoHtml(snapshot, options = {}) {
                     (row) => `
               <tr>
                 <td class="rdo-table__col-name">${escapeHtml(row.nome)}</td>
+                <td>${escapeHtml(row.statusLabel || "Expediente")}</td>
                 <td>${escapeHtml(row.entrada)}</td>
                 <td>${escapeHtml(row.saida)}</td>
                 <td>${row.duracaoMin ? escapeHtml(formatDuracaoMin(row.duracaoMin)) : "—"}</td>
@@ -30064,13 +30237,15 @@ function buildRdoHtml(snapshot, options = {}) {
             `
                   )
                   .join("")
-              : `<tr><td colspan="8" class="rdo-muted">— (sem apontamentos no período)</td></tr>`
+              : `<tr><td colspan="9" class="rdo-muted">— (sem apontamentos no período)</td></tr>`
           }
         </tbody>
       </table>
       ${
         jornadasRows.length
-          ? ""
+          ? ausenciaResumo
+            ? `<p class="rdo-note-muted">Ausências registradas: ${escapeHtml(ausenciaResumo)}</p>`
+            : ""
           : `<p class="rdo-note-muted">Sem apontamentos de jornada no período.</p>`
       }
     `;
@@ -30093,7 +30268,7 @@ function buildRdoHtml(snapshot, options = {}) {
       <div class="rdo-summary-item">
         <span>Jornada líquida</span>
         <strong>${totalJornadaMin ? formatDuracaoMin(totalJornadaMin) : "-"}</strong>
-        <small>${jornadasRows.length} colaboradores • -1h almoço</small>
+        <small>${activeRows.length} colaboradores • -1h almoço</small>
       </div>
       <div class="rdo-summary-item">
         <span>Expediente líquido</span>
@@ -30116,13 +30291,18 @@ function buildRdoHtml(snapshot, options = {}) {
         <small>${escapeHtml(acionamentoLabel)}</small>
       </div>
     </div>
+    ${
+      ausenciaResumo
+        ? `<p class="rdo-note-muted">Ausências registradas: ${escapeHtml(ausenciaResumo)}</p>`
+        : ""
+    }
   `;
 
   const jornadaCards = [
     {
       label: "Jornada líquida",
       value: totalJornadaMin ? formatDuracaoMin(totalJornadaMin) : dash,
-      meta: `${jornadasRows.length} colaboradores • -1h almoço`,
+      meta: `${activeRows.length} colaboradores • -1h almoço`,
     },
     {
       label: "Expediente líquido",

@@ -13858,22 +13858,38 @@ function buildMaintenanceSummaryItem(item) {
   };
 }
 
-function sanitizeInlineDataUrls(value, context) {
+function shouldPreserveInlineDataUrl(path) {
+  if (!Array.isArray(path) || !path.length) {
+    return false;
+  }
+  const key = String(path[path.length - 1] || "").toLowerCase();
+  if (key !== "dataurl" && key !== "url") {
+    return false;
+  }
+  return path.some((segment) => /assinatura|signature/i.test(String(segment || "")));
+}
+
+function sanitizeInlineDataUrls(value, context, path = []) {
   if (typeof value === "string") {
     const trimmed = value.trim();
     if (/^data:[^;]+;base64,/i.test(trimmed)) {
+      if (shouldPreserveInlineDataUrl(path)) {
+        return value;
+      }
       context.removed += 1;
       return "[inline-data-url-omitted]";
     }
     return value;
   }
   if (Array.isArray(value)) {
-    return value.map((entry) => sanitizeInlineDataUrls(entry, context));
+    return value.map((entry, index) =>
+      sanitizeInlineDataUrls(entry, context, path.concat(index))
+    );
   }
   if (value && typeof value === "object") {
     const output = {};
     Object.keys(value).forEach((key) => {
-      output[key] = sanitizeInlineDataUrls(value[key], context);
+      output[key] = sanitizeInlineDataUrls(value[key], context, path.concat(key));
     });
     return output;
   }
