@@ -5129,6 +5129,8 @@ let kpiSnapshot = null;
 let rdoSnapshots = [];
 let rdoPreviewSnapshot = null;
 let rdoSelection = new Set();
+const RDO_LIST_PAGE_SIZE = 8;
+let rdoListLimit = RDO_LIST_PAGE_SIZE;
 let feedbacks = [];
 let dashboardSummary = null;
 let dashboardSummaryProjectId = "";
@@ -27048,14 +27050,17 @@ function montarRdoUI() {
   if (rdoUI.btnExportarCliente) {
     rdoUI.btnExportarCliente.addEventListener("click", async () => {
       const isReadOnly = rdoUI.modal && rdoUI.modal.dataset.readonly === "true";
-      const snapshot = isReadOnly ? rdoPreviewSnapshot : await gerarSnapshotRdo(true);
+      const snapshot = isReadOnly ? rdoPreviewSnapshot : await gerarSnapshotRdo(false);
       if (snapshot) {
         await exportarRdoPdf(snapshot, { cliente: true });
       }
     });
   }
   if (rdoUI.showDeleted) {
-    rdoUI.showDeleted.addEventListener("change", renderRdoList);
+    rdoUI.showDeleted.addEventListener("change", () => {
+      resetRdoListLimit();
+      renderRdoList();
+    });
   }
   if (rdoUI.btnExcluir) {
     rdoUI.btnExcluir.addEventListener("click", abrirRdoDeleteModal);
@@ -27253,6 +27258,9 @@ function getRdoMonthRange(monthKey) {
   const fim = endOfMonth(base);
   return { inicio, fim };
 }
+function resetRdoListLimit() {
+  rdoListLimit = RDO_LIST_PAGE_SIZE;
+}
 function setRdoMonthFilter(value) {
   rdoMonthFilter = String(value || "").trim();
   if (rdoUI.monthFilterInfo) {
@@ -27264,6 +27272,7 @@ function setRdoMonthFilter(value) {
       rdoUI.monthFilterInfo.hidden = true;
     }
   }
+  resetRdoListLimit();
   renderRdoList();
 }
 
@@ -27292,6 +27301,9 @@ function renderRdoList() {
     return;
   }
   rdoUI.list.innerHTML = "";
+  if (!Number.isFinite(rdoListLimit) || rdoListLimit <= 0) {
+    rdoListLimit = RDO_LIST_PAGE_SIZE;
+  }
   const showDeleted = rdoUI.showDeleted ? rdoUI.showDeleted.checked : false;
   const baseLista = Array.isArray(rdoSnapshots)
     ? rdoSnapshots.filter((item) => showDeleted || !item.deletedAt)
@@ -27307,6 +27319,7 @@ function renderRdoList() {
       })
     : baseLista;
   lista.sort((a, b) => (getTimeValue(b.createdAt) || 0) - (getTimeValue(a.createdAt) || 0));
+  const visibleList = lista.slice(0, rdoListLimit);
   rdoSelection.forEach((id) => {
     if (!lista.some((item) => item.id === id)) {
       rdoSelection.delete(id);
@@ -27321,7 +27334,7 @@ function renderRdoList() {
     return;
   }
   rdoUI.empty.hidden = true;
-  lista.forEach((snapshot) => {
+  visibleList.forEach((snapshot) => {
     const card = document.createElement("div");
     card.className = "report-item rdo-item";
     card.dataset.rdoId = snapshot.id;
@@ -27381,6 +27394,27 @@ function renderRdoList() {
     card.append(selectWrap, info, actions);
     rdoUI.list.append(card);
   });
+  if (lista.length > visibleList.length) {
+    const moreWrap = document.createElement("div");
+    moreWrap.className = "report-item rdo-item rdo-item--more";
+    const spacer = document.createElement("div");
+    spacer.className = "rdo-select";
+    const info = document.createElement("div");
+    info.innerHTML = `<strong>Mostrando ${visibleList.length} de ${lista.length} RDOs</strong>`;
+    const actions = document.createElement("div");
+    actions.className = "report-actions";
+    const btnMore = document.createElement("button");
+    btnMore.type = "button";
+    btnMore.className = "btn btn--ghost btn--small";
+    btnMore.textContent = "Ver mais";
+    btnMore.addEventListener("click", () => {
+      rdoListLimit = Math.min(lista.length, rdoListLimit + RDO_LIST_PAGE_SIZE);
+      renderRdoList();
+    });
+    actions.append(btnMore);
+    moreWrap.append(spacer, info, actions);
+    rdoUI.list.append(moreWrap);
+  }
   atualizarRdoExcluirState();
 }
 
