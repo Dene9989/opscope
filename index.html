@@ -7071,9 +7071,25 @@
             <label>Checklist de liberação</label>
             <ul id="liberacaoChecklist" class="checklist"></ul>
           </div>
+          <div class="field field--checkbox" data-full>
+            <label class="checkbox-field">
+              <input id="liberacaoProgramadaToggle" type="checkbox" />
+              Programar liberação automática
+            </label>
+            <p class="hint">
+              A execução será liberada automaticamente na data e horário informados (fuso America/Sao_Paulo).
+            </p>
+          </div>
+          <div id="liberacaoProgramadaFields" class="field" data-full hidden>
+            <label for="liberacaoProgramadaData">Data e hora da liberação</label>
+            <input id="liberacaoProgramadaData" type="datetime-local" />
+          </div>
         </div>
         <div class="modal__actions">
           <button class="btn btn--primary" type="submit">Salvar liberação</button>
+          <button id="btnAgendarLiberacao" class="btn btn--ghost" type="button" hidden>
+            Agendar liberação
+          </button>
           <button id="btnCancelarLiberacao" class="btn btn--ghost" type="button">Cancelar</button>
         </div>
         <p id="mensagemLiberacao" class="mensagem" aria-live="polite"></p>
@@ -7085,7 +7101,7 @@
     <div class="modal__content">
       <div class="modal__header">
         <div>
-          <h3>Justificativa obrigatoria</h3>
+          <h3>Justificativa obrigatória</h3>
           <p id="overrideInfo" class="hint">Liberação antes da data prevista.</p>
         </div>
         <button id="btnFecharOverride" class="btn btn--ghost btn--icon" type="button" aria-label="Fechar">

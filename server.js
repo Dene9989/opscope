@@ -649,6 +649,7 @@ const MAINTENANCE_TEAM_EMAIL_PERMISSION = "receberEmailNovaManutencao";
 const MAINTENANCE_TEAM_EMAIL_DEDUP_PREFIX = "maintenance_team_email";
 const MAINTENANCE_MONTHLY_STATE_DEFAULT = { lastWarnDate: "", lastBacklogMonth: "" };
 const MAINTENANCE_MONTHLY_CHECK_MS = 60 * 60 * 1000;
+const MAINTENANCE_RELEASE_SCHEDULE_CHECK_MS = 60 * 1000;
 
 const ALMOX_ITEM_TYPES = new Set(["FERRAMENTA", "EPI", "EPC", "CONSUMIVEL"]);
 const ALMOX_ITEM_UNITS = new Set(["UN", "PAR", "CX"]);
@@ -12992,6 +12993,235 @@ function startMaintenanceMonthlyScheduler() {
   return setInterval(runMaintenanceMonthlyScheduler, MAINTENANCE_MONTHLY_CHECK_MS);
 }
 
+function normalizeReleaseScheduleStatus(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) {
+    return "programada";
+  }
+  if (raw.includes("cancel")) {
+    return "cancelada";
+  }
+  if (raw.includes("execut")) {
+    return "executada";
+  }
+  return "programada";
+}
+
+function getMaintenanceReleaseSchedule(item) {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+  const schedule =
+    item.liberacaoProgramada ||
+    item.liberacao_programada ||
+    item.releaseSchedule ||
+    item.release_schedule ||
+    null;
+  if (!schedule || typeof schedule !== "object") {
+    return null;
+  }
+  return schedule;
+}
+
+function isMaintenanceReleaseScheduleActive(schedule) {
+  if (!schedule || typeof schedule !== "object") {
+    return false;
+  }
+  if (schedule.canceladaEm || schedule.executadaEm) {
+    return false;
+  }
+  const status = normalizeReleaseScheduleStatus(schedule.status);
+  if (status !== "programada") {
+    return false;
+  }
+  return Boolean(
+    schedule.agendadaEm ||
+      schedule.agendada_em ||
+      schedule.dataHora ||
+      schedule.data_hora ||
+      schedule.at ||
+      schedule.when
+  );
+}
+
+function getMaintenanceReleaseScheduleDate(schedule) {
+  if (!schedule || typeof schedule !== "object") {
+    return null;
+  }
+  const raw =
+    schedule.agendadaEm ||
+    schedule.agendada_em ||
+    schedule.dataHora ||
+    schedule.data_hora ||
+    schedule.at ||
+    schedule.when ||
+    schedule.data ||
+    "";
+  return parseDateTime(raw);
+}
+
+function getMaintenanceReleaseSchedulePayload(schedule) {
+  if (!schedule || typeof schedule !== "object") {
+    return null;
+  }
+  if (schedule.liberacao && typeof schedule.liberacao === "object") {
+    return schedule.liberacao;
+  }
+  if (schedule.liberacaoBase && typeof schedule.liberacaoBase === "object") {
+    return schedule.liberacaoBase;
+  }
+  if (schedule.dados && typeof schedule.dados === "object") {
+    return schedule.dados;
+  }
+  return null;
+}
+
+function applyMaintenanceReleaseScheduleExecution(item, schedule, nowIso) {
+  const liberacaoBase = getMaintenanceReleaseSchedulePayload(schedule);
+  if (!liberacaoBase) {
+    return null;
+  }
+  const scheduledBy =
+    String(
+      schedule.agendadaPor ||
+        schedule.agendada_por ||
+        schedule.scheduledBy ||
+        schedule.createdBy ||
+        ""
+    ).trim() || "system";
+  const liberacao = {
+    ...liberacaoBase,
+    liberadoEm: nowIso,
+    liberadoPor: scheduledBy,
+  };
+  const participantesFinal =
+    Array.isArray(liberacao.participantes) && liberacao.participantes.length
+      ? liberacao.participantes
+      : Array.isArray(item.participantes)
+        ? item.participantes
+        : [];
+  const equipamentoIds = normalizeStringIdList(
+    item.equipamentoIds || item.equipamentosIds || []
+  );
+  let equipamentoId = String(
+    liberacao.equipamentoId || item.equipamentoId || ""
+  ).trim();
+  if (!equipamentoId && equipamentoIds.length) {
+    equipamentoId = equipamentoIds[0];
+  }
+  if (equipamentoId && !equipamentoIds.includes(equipamentoId)) {
+    equipamentoIds.unshift(equipamentoId);
+  }
+  const equipeResponsavel = String(liberacao.equipeResponsavel || "").trim();
+  const executadoPorTime = equipeResponsavel ? `team:${equipeResponsavel}` : "";
+  const registroExecucaoAtual = executadoPorTime
+    ? { ...(item.registroExecucao || {}), executadoPor: executadoPorTime }
+    : item.registroExecucao;
+  return sanitizeMaintenanceLinkedData({
+    ...item,
+    liberacao,
+    liberacaoProgramada: {
+      ...schedule,
+      status: "executada",
+      executadaEm: nowIso,
+      executadaPor: scheduledBy,
+    },
+    status: "em_execucao",
+    categoria: liberacao.categoria || item.categoria || "",
+    prioridade: liberacao.prioridade || item.prioridade || "",
+    osReferencia: liberacao.osNumero || item.osReferencia || "",
+    criticidade:
+      liberacao.critico === true || liberacao.critico === "sim"
+        ? "sim"
+        : liberacao.critico === false || liberacao.critico === "nao"
+          ? "nao"
+          : item.criticidade || "",
+    equipamentoId: equipamentoId || item.equipamentoId,
+    equipamentoIds,
+    participantes: participantesFinal.length ? participantesFinal : item.participantes,
+    executadaPor: executadoPorTime || item.executadaPor,
+    registroExecucao: registroExecucaoAtual,
+    executionStartedAt: nowIso,
+    executionStartedBy: scheduledBy,
+    executionStartedAtFirst: item.executionStartedAtFirst || nowIso,
+    ...(item.prazoMaximo && !item.prazoMaximoInicio ? { prazoMaximoInicio: nowIso } : {}),
+    updatedAt: nowIso,
+    updatedBy: scheduledBy,
+  });
+}
+
+function runMaintenanceReleaseScheduler() {
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const dataset = loadMaintenanceData();
+  let changed = false;
+  const updatedProjects = new Set();
+  const next = dataset.map((item) => {
+    if (!item || typeof item !== "object") {
+      return item;
+    }
+    const schedule = getMaintenanceReleaseSchedule(item);
+    if (!isMaintenanceReleaseScheduleActive(schedule)) {
+      return item;
+    }
+    const when = getMaintenanceReleaseScheduleDate(schedule);
+    if (!when || when.getTime() > now.getTime()) {
+      return item;
+    }
+    const status = normalizeStatus(item.status);
+    if (status === "em_execucao" || status === "encerramento" || status === "concluida") {
+      const canceled = {
+        ...item,
+        liberacaoProgramada: {
+          ...schedule,
+          status: "cancelada",
+          canceladaEm: nowIso,
+          canceladaPor:
+            schedule.agendadaPor || schedule.agendada_por || schedule.scheduledBy || "system",
+        },
+        updatedAt: nowIso,
+        updatedBy:
+          schedule.agendadaPor || schedule.agendada_por || schedule.scheduledBy || "system",
+      };
+      changed = true;
+      if (canceled.projectId) {
+        updatedProjects.add(canceled.projectId);
+      }
+      return canceled;
+    }
+    const updated = applyMaintenanceReleaseScheduleExecution(item, schedule, nowIso);
+    if (!updated) {
+      return item;
+    }
+    changed = true;
+    if (updated.projectId) {
+      updatedProjects.add(updated.projectId);
+    }
+    return updated;
+  });
+  if (!changed) {
+    return;
+  }
+  writeJson(MAINTENANCE_FILE, next);
+  updatedProjects.forEach((projectId) => {
+    if (!projectId) {
+      return;
+    }
+    touchCompat("maintenance", projectId);
+    broadcastSse("maintenance.updated", {
+      projectId,
+      count: 0,
+      source: "release-schedule",
+    });
+  });
+  DASHBOARD_CACHE.clear();
+}
+
+function startMaintenanceReleaseScheduler() {
+  runMaintenanceReleaseScheduler();
+  return setInterval(runMaintenanceReleaseScheduler, MAINTENANCE_RELEASE_SCHEDULE_CHECK_MS);
+}
+
 function normalizeMaintenanceTemplateRecord(record, projectId) {
   if (!record || typeof record !== "object") {
     return null;
@@ -16457,6 +16687,7 @@ async function bootstrap() {
   }
   ensureProjectSeedData();
   startMaintenanceMonthlyScheduler();
+  startMaintenanceReleaseScheduler();
 }
 
 app.use(express.json({ limit: "20mb" }));

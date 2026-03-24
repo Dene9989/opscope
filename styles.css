@@ -13848,6 +13848,12 @@ textarea:focus {
   border-color: rgba(34, 197, 94, 0.5);
 }
 
+.app .status--liberacao-programada {
+  background: rgba(14, 165, 233, 0.22);
+  color: #dff3ff;
+  border-color: rgba(14, 165, 233, 0.55);
+}
+
 .app .status--hoje {
   background: rgba(245, 158, 11, 0.28);
   color: #fff1c9;
@@ -14041,6 +14047,12 @@ textarea:focus {
 .status--liberada {
   background: rgba(212, 106, 47, 0.16);
   color: #9a4319;
+}
+
+.status--liberacao-programada {
+  background: rgba(14, 165, 233, 0.16);
+  color: #0b5f82;
+  border-color: rgba(14, 165, 233, 0.35);
 }
 
 .status--hoje {
@@ -17605,6 +17617,12 @@ textarea:focus {
   background: rgba(62, 130, 96, 0.24);
   border-color: rgba(78, 149, 113, 0.46);
   color: #d7efe2;
+}
+
+#programacao .status--liberacao-programada {
+  background: rgba(70, 142, 182, 0.26);
+  border-color: rgba(90, 162, 204, 0.48);
+  color: #e3f2ff;
 }
 
 #programacao .status--backlog {

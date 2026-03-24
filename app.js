@@ -1326,6 +1326,10 @@ const btnAddParticipanteExternoLiberacao = document.getElementById(
 );
 const liberacaoParticipantesErro = document.getElementById("liberacaoParticipantesErro");
 const liberacaoChecklist = document.getElementById("liberacaoChecklist");
+const liberacaoProgramadaToggle = document.getElementById("liberacaoProgramadaToggle");
+const liberacaoProgramadaData = document.getElementById("liberacaoProgramadaData");
+const liberacaoProgramadaFields = document.getElementById("liberacaoProgramadaFields");
+const btnAgendarLiberacao = document.getElementById("btnAgendarLiberacao");
 const mensagemLiberacao = document.getElementById("mensagemLiberacao");
 const liberacaoDocPt = document.getElementById("liberacaoDocPt");
 const liberacaoDocInputs = Array.from(document.querySelectorAll("[data-doc-input]"));
@@ -4911,6 +4915,7 @@ const ACTION_LABELS = {
   remove: "Remover",
   reschedule: "Reagendar",
   release: "Liberação registrada",
+  release_schedule: "Liberação programada",
   execute: "Execução iniciada",
   cancel_start: "Início cancelado",
   cancel_execucao: "Execução cancelada",
@@ -6648,6 +6653,134 @@ function startSyncPolling() {
   runAutoSyncTick();
 }
 
+function runLiberacaoProgramadaScheduler() {
+  if (!Array.isArray(manutencoes) || !manutencoes.length) {
+    return;
+  }
+  const agora = new Date();
+  const agoraIso = toIsoUtc(agora);
+  let changed = false;
+  const atualizadas = manutencoes.map((item) => {
+    if (!item || typeof item !== "object") {
+      return item;
+    }
+    const programada = getLiberacaoProgramada(item);
+    if (!isLiberacaoProgramadaAtiva(programada)) {
+      return item;
+    }
+    const quando = getLiberacaoProgramadaAt(programada);
+    if (!quando || quando.getTime() > agora.getTime()) {
+      return item;
+    }
+    const liberacaoBase = getLiberacaoProgramadaBase(programada);
+    if (!liberacaoBase) {
+      return item;
+    }
+    const statusAtual = normalizeMaintenanceStatus(item.status);
+    if (
+      statusAtual === "em_execucao" ||
+      statusAtual === "encerramento" ||
+      statusAtual === "concluida"
+    ) {
+      changed = true;
+      return {
+        ...item,
+        liberacaoProgramada: {
+          ...programada,
+          status: "cancelada",
+          canceladaEm: agoraIso,
+          canceladaPor: programada.agendadaPor || programada.agendada_por || "",
+        },
+        updatedAt: agoraIso,
+        updatedBy: programada.agendadaPor || programada.agendada_por || item.updatedBy || "",
+      };
+    }
+    const liberadoPor = programada.agendadaPor || programada.agendada_por || SYSTEM_USER_ID;
+    const liberacao = {
+      ...liberacaoBase,
+      liberadoEm: agoraIso,
+      liberadoPor,
+    };
+    const participantesFinal =
+      Array.isArray(liberacao.participantes) && liberacao.participantes.length
+        ? liberacao.participantes
+        : Array.isArray(item.participantes)
+          ? item.participantes
+          : [];
+    const equipamentoFinal =
+      liberacao.equipamentoId ||
+      item.equipamentoId ||
+      resolveEquipamentoIdFromValue(item.equipamento);
+    const equipamentoIdsFinal = normalizeMaintenanceEquipamentoIdsValue(
+      item.equipamentoIds || item.equipamentosIds || (equipamentoFinal ? [equipamentoFinal] : [])
+    );
+    if (equipamentoFinal && !equipamentoIdsFinal.includes(equipamentoFinal)) {
+      equipamentoIdsFinal.unshift(equipamentoFinal);
+    }
+    const equipeResponsavel = liberacao.equipeResponsavel || "";
+    const executadoPorTime = equipeResponsavel ? `team:${equipeResponsavel}` : "";
+    const registroExecucaoAtual = executadoPorTime
+      ? { ...(item.registroExecucao || {}), executadoPor: executadoPorTime }
+      : item.registroExecucao;
+    changed = true;
+    return {
+      ...item,
+      liberacao,
+      liberacaoProgramada: {
+        ...programada,
+        status: "executada",
+        executadaEm: agoraIso,
+        executadaPor: liberadoPor,
+      },
+      status: "em_execucao",
+      categoria: liberacao.categoria || item.categoria || "",
+      prioridade: liberacao.prioridade || item.prioridade || "",
+      osReferencia: liberacao.osNumero || item.osReferencia || "",
+      criticidade:
+        liberacao.critico === true || liberacao.critico === "sim"
+          ? "sim"
+          : liberacao.critico === false || liberacao.critico === "nao"
+            ? "nao"
+            : item.criticidade || "",
+      equipamentoId: equipamentoFinal || item.equipamentoId,
+      equipamentoIds: equipamentoIdsFinal,
+      participantes: participantesFinal.length ? participantesFinal : item.participantes,
+      executadaPor: executadoPorTime || item.executadaPor,
+      registroExecucao: registroExecucaoAtual,
+      executionStartedAt: agoraIso,
+      executionStartedBy: liberadoPor,
+      executionStartedAtFirst: item.executionStartedAtFirst || agoraIso,
+      ...(item.prazoMaximo && !item.prazoMaximoInicio ? { prazoMaximoInicio: agoraIso } : {}),
+      updatedAt: agoraIso,
+      updatedBy: liberadoPor,
+    };
+  });
+  if (changed) {
+    manutencoes = atualizadas;
+    salvarManutencoes(manutencoes);
+    renderTudo();
+  }
+}
+
+function startLiberacaoProgramadaScheduler() {
+  if (liberacaoProgramadaTimer || USE_AUTH_API) {
+    return;
+  }
+  liberacaoProgramadaTimer = setInterval(
+    runLiberacaoProgramadaScheduler,
+    LIBERACAO_PROGRAMADA_CHECK_MS
+  );
+  runLiberacaoProgramadaScheduler();
+}
+
+function stopLiberacaoProgramadaScheduler() {
+  if (!liberacaoProgramadaTimer) {
+    return;
+  }
+  clearInterval(liberacaoProgramadaTimer);
+  liberacaoProgramadaTimer = null;
+}
+
 function stopSyncEvents() {
   if (syncEventSource) {
     syncEventSource.close();
@@ -8276,6 +8409,7 @@ const USE_AUTH_API = true;
 const USE_SST_INSPECTIONS_API = true;
 const STRICT_SERVER_SYNC = USE_AUTH_API;
 const API_TIMEOUT_MS = 15000;
+const LIBERACAO_PROGRAMADA_CHECK_MS = 60 * 1000;
 const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
 const AVATAR_ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const SIGNATURE_MAX_BYTES = 2 * 1024 * 1024;
@@ -8300,6 +8434,7 @@ let passwordResetCooldownTimer = null;
 let passwordResetCooldownUntil = 0;
 let passwordResetCodeSent = false;
 let passwordResetCodeValidated = false;
+let liberacaoProgramadaTimer = null;
 let authSessionExpired = false;
 let authSessionNoticeAt = 0;
 const AUTH_SESSION_NOTICE_COOLDOWN_MS = 30000;
@@ -13751,9 +13886,11 @@ async function carregarSessaoServidor() {
           maybeRestoreIdleDraftForCurrentUser();
           startSyncEvents();
           startSyncPolling();
+          startLiberacaoProgramadaScheduler();
         } else {
           stopSyncEvents();
           stopSyncPolling();
+          stopLiberacaoProgramadaScheduler();
         }
       }
     );
@@ -16277,16 +16414,20 @@ function buildSyntheticMaintenanceHistory(item, baseHistory) {
       liberacaoDetalhes
     );
   } else if (statusNormalizado === "agendada" || statusNormalizado === "backlog") {
-    const dataProgramada = item.data ? parseDate(item.data) : null;
+    const programadaInfo = getLiberacaoProgramadaInfo(item);
+    const dataProgramada =
+      programadaInfo && programadaInfo.when ? programadaInfo.when : item.data ? parseDate(item.data) : null;
     if (dataProgramada) {
-      const hoje = startOfDay(new Date());
-      if (startOfDay(dataProgramada).getTime() <= hoje.getTime()) {
+      const hoje = new Date();
+      const limite = programadaInfo ? dataProgramada.getTime() : startOfDay(dataProgramada).getTime();
+      if (limite <= hoje.getTime()) {
+        const autor = programadaInfo && programadaInfo.userId ? programadaInfo.userId : SYSTEM_USER_ID;
         addEntry(
           "release",
-          toIsoUtc(startOfDay(dataProgramada)),
-          SYSTEM_USER_ID,
+          toIsoUtc(dataProgramada),
+          autor,
           { ...liberacaoDetalhes, resumo: "Liberada automaticamente na data programada." },
-          "Sistema"
+          autor === SYSTEM_USER_ID ? "Sistema" : "Registro"
         );
       }
     }
@@ -16510,6 +16651,101 @@ function getLiberacao(item) {
     return null;
   }
   return item.liberacao;
+}
+
+function getLiberacaoProgramada(item) {
+  if (!item || !item.liberacaoProgramada || typeof item.liberacaoProgramada !== "object") {
+    return null;
+  }
+  return item.liberacaoProgramada;
+}
+
+function normalizeLiberacaoProgramadaStatus(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "programada";
+  }
+  const normalized = normalizeSearchValue(raw);
+  if (normalized.includes("cancel")) {
+    return "cancelada";
+  }
+  if (normalized.includes("execut")) {
+    return "executada";
+  }
+  return "programada";
+}
+
+function isLiberacaoProgramadaAtiva(info) {
+  if (!info || typeof info !== "object") {
+    return false;
+  }
+  const status = normalizeLiberacaoProgramadaStatus(info.status);
+  if (status !== "programada") {
+    return false;
+  }
+  if (info.canceladaEm || info.executadaEm) {
+    return false;
+  }
+  return Boolean(info.agendadaEm || info.agendada_em || info.dataHora || info.data_hora);
+}
+
+function getLiberacaoProgramadaAt(info) {
+  if (!info || typeof info !== "object") {
+    return null;
+  }
+  const raw =
+    info.agendadaEm || info.agendada_em || info.dataHora || info.data_hora || info.data || "";
+  if (!raw) {
+    return null;
+  }
+  return parseTimestamp(raw) || parseDateTime(raw);
+}
+
+function getLiberacaoProgramadaBase(info) {
+  if (!info || typeof info !== "object") {
+    return null;
+  }
+  if (info.liberacao && typeof info.liberacao === "object") {
+    return info.liberacao;
+  }
+  if (info.liberacaoBase && typeof info.liberacaoBase === "object") {
+    return info.liberacaoBase;
+  }
+  if (info.dados && typeof info.dados === "object") {
+    return info.dados;
+  }
+  return null;
+}
+
+function getLiberacaoProgramadaInfo(item) {
+  const programada = getLiberacaoProgramada(item);
+  if (!isLiberacaoProgramadaAtiva(programada)) {
+    return null;
+  }
+  const when = getLiberacaoProgramadaAt(programada);
+  if (!when) {
+    return null;
+  }
+  return {
+    when,
+    userId: programada.agendadaPor || programada.agendada_por || "",
+  };
+}
+
+function appendLiberacaoProgramadaLinha(container, item) {
+  if (!container) {
+    return;
+  }
+  const info = getLiberacaoProgramadaInfo(item);
+  if (!info) {
+    return;
+  }
+  const line = document.createElement("p");
+  line.className = "submeta";
+  const label = formatDateTime(info.when);
+  const autor = info.userId ? getUserLabel(info.userId) : "Desconhecido";
+  line.textContent = `Liberação programada: ${label} por ${autor}`;
+  container.append(line);
 }
 
 function getMaintenanceDocsMap(item) {
@@ -21616,6 +21852,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
     lockLine.append(lockIcon, lockText);
     info.append(lockLine);
   }
+  appendLiberacaoProgramadaLinha(info, item);
   if (statusNormalized === "liberada") {
     const liberadaInfo = document.createElement("p");
     liberadaInfo.className = "submeta";
@@ -21771,6 +22008,14 @@ function criarCardManutencao(item, permissoes, options = {}) {
     execBadge.className = "status status--execucao-registrada";
     execBadge.textContent = execucaoRegistradaLabel;
     statusGroup.append(execBadge);
+  }
+  const liberacaoProgramadaInfo = getLiberacaoProgramadaInfo(item);
+  if (liberacaoProgramadaInfo) {
+    const programadaBadge = document.createElement("span");
+    programadaBadge.className = "status status--liberacao-programada";
+    programadaBadge.textContent = "Liberação programada";
+    programadaBadge.title = `Programada para ${formatDateTime(liberacaoProgramadaInfo.when)}`;
+    statusGroup.append(programadaBadge);
   }
   if (
     revalidacaoDiariaPendente &&
@@ -22143,6 +22388,7 @@ function criarCardProgramacaoCompacto(item) {
     lockLine.append(lockIcon, lockText);
     info.append(lockLine);
   }
+  appendLiberacaoProgramadaLinha(info, item);
 
   const statusGroup = document.createElement("div");
   statusGroup.className = "status-group";
@@ -22167,6 +22413,14 @@ function criarCardProgramacaoCompacto(item) {
     execBadge.className = "status status--execucao-registrada";
     execBadge.textContent = execucaoRegistradaLabel;
     statusGroup.append(execBadge);
+  }
+  const liberacaoProgramadaInfo = getLiberacaoProgramadaInfo(item);
+  if (liberacaoProgramadaInfo) {
+    const programadaBadge = document.createElement("span");
+    programadaBadge.className = "status status--liberacao-programada";
+    programadaBadge.textContent = "Liberação programada";
+    programadaBadge.title = `Programada para ${formatDateTime(liberacaoProgramadaInfo.when)}`;
+    statusGroup.append(programadaBadge);
   }
   const pendenciaDiariaExecucao = getRegistroExecucaoPendenteDateKey(item);
   if (
@@ -58585,12 +58839,22 @@ async function confirmarInicioExecucao() {
     return;
   }
   const inicioIso = toIsoUtc(new Date());
+  const liberacaoProgramadaAtual = getLiberacaoProgramada(item);
+  const liberacaoProgramadaAtualizada = isLiberacaoProgramadaAtiva(liberacaoProgramadaAtual)
+    ? {
+        ...liberacaoProgramadaAtual,
+        status: "cancelada",
+        canceladaEm: inicioIso,
+        canceladaPor: currentUser.id,
+      }
+    : liberacaoProgramadaAtual;
   const atualizado = {
     ...item,
     status: "em_execucao",
     executionStartedAt: inicioIso,
     executionStartedBy: currentUser.id,
     executionStartedAtFirst: item.executionStartedAtFirst || inicioIso,
+    liberacaoProgramada: liberacaoProgramadaAtualizada || item.liberacaoProgramada,
     ...(item.prazoMaximo && !item.prazoMaximoInicio ? { prazoMaximoInicio: inicioIso } : {}),
     updatedAt: inicioIso,
     updatedBy: currentUser.id,
@@ -59518,6 +59782,21 @@ function atualizarLiberacaoChecklist() {
   }
 }
 
+function atualizarLiberacaoProgramadaUI() {
+  const ativo = Boolean(liberacaoProgramadaToggle && liberacaoProgramadaToggle.checked);
+  if (liberacaoProgramadaFields) {
+    liberacaoProgramadaFields.hidden = !ativo;
+    liberacaoProgramadaFields.style.display = ativo ? "" : "none";
+  }
+  if (liberacaoProgramadaData) {
+    liberacaoProgramadaData.required = ativo;
+  }
+  if (btnAgendarLiberacao) {
+    btnAgendarLiberacao.hidden = !ativo;
+    btnAgendarLiberacao.style.display = ativo ? "" : "none";
+  }
+}
+
 function atualizarLiberacaoCriticoUI() {
   const critico = liberacaoCritico && liberacaoCritico.value === "sim";
   if (liberacaoDocPt) {
@@ -59556,7 +59835,11 @@ function abrirLiberacao(item) {
   }
   manutencaoEmLiberacao = item.id;
   mostrarMensagemLiberacao("");
-  const liberacao = getLiberacao(item) || {};
+  const liberacaoProgramada = getLiberacaoProgramada(item);
+  const programadaAtiva = isLiberacaoProgramadaAtiva(liberacaoProgramada);
+  const liberacao = programadaAtiva
+    ? getLiberacaoProgramadaBase(liberacaoProgramada) || {}
+    : getLiberacao(item) || {};
   liberacaoDocsBase = liberacao.documentos ? { ...liberacao.documentos } : {};
   liberacaoDocsPreview = {};
   if (liberacaoId) {
@@ -59623,6 +59906,14 @@ function abrirLiberacao(item) {
   renderLiberacaoEquipeOptions(equipeSelecionada);
   const equipamentoBase = liberacao.equipamentoId || item.equipamentoId || item.equipamento || "";
   setEquipamentoSelectValue(liberacaoEquipamento, equipamentoBase);
+  if (liberacaoProgramadaToggle) {
+    liberacaoProgramadaToggle.checked = programadaAtiva;
+  }
+  if (liberacaoProgramadaData) {
+    const dataAgendada = programadaAtiva ? getLiberacaoProgramadaAt(liberacaoProgramada) : null;
+    liberacaoProgramadaData.value = dataAgendada ? formatDateTimeInput(dataAgendada) : "";
+  }
+  atualizarLiberacaoProgramadaUI();
   liberacaoDocInputs.forEach((input) => {
     if (input) {
       input.value = "";
@@ -59700,9 +59991,19 @@ async function finalizarLiberacao(index, item, liberacaoBase, overrideJustificat
   const registroExecucaoAtual = executadoPorTime
     ? { ...(item.registroExecucao || {}), executadoPor: executadoPorTime }
     : item.registroExecucao;
+  const liberacaoProgramadaAtual = getLiberacaoProgramada(item);
+  const liberacaoProgramadaAtualizada = isLiberacaoProgramadaAtiva(liberacaoProgramadaAtual)
+    ? {
+        ...liberacaoProgramadaAtual,
+        status: "cancelada",
+        canceladaEm: agoraIso,
+        canceladaPor: currentUser.id,
+      }
+    : liberacaoProgramadaAtual;
   const atualizado = {
     ...item,
     liberacao,
+    liberacaoProgramada: liberacaoProgramadaAtualizada || item.liberacaoProgramada,
     status: "liberada",
     categoria: liberacao.categoria || item.categoria || "",
     prioridade: liberacao.prioridade || item.prioridade || "",
@@ -59793,6 +60094,99 @@ async function confirmarOverrideLiberacao(event) {
   }
 }
 
+async function prepararLiberacaoFormData(item) {
+  const osNumero = liberacaoOs ? liberacaoOs.value.trim() : "";
+  if (!osNumero) {
+    mostrarMensagemLiberacao("Informe o Nº OS / referência.", true);
+    return null;
+  }
+  const categoria = liberacaoCategoria ? liberacaoCategoria.value.trim() : "";
+  if (!categoria) {
+    mostrarMensagemLiberacao("Informe a categoria da manutenção.", true);
+    return null;
+  }
+  const prioridade = liberacaoPrioridade ? liberacaoPrioridade.value.trim() : "";
+  if (!prioridade) {
+    mostrarMensagemLiberacao("Informe a prioridade da manutenção.", true);
+    return null;
+  }
+  const participantes = getLiberacaoParticipantesFromForm();
+  setFieldError(liberacaoParticipantesErro, "");
+  if (!participantes.length) {
+    setFieldError(liberacaoParticipantesErro, "Informe ao menos 1 participante.");
+    mostrarMensagemLiberacao("Informe ao menos 1 participante.", true);
+    return null;
+  }
+  const equipamentoSelecionado = liberacaoEquipamento ? liberacaoEquipamento.value.trim() : "";
+  const equipamentoFallback =
+    item.equipamentoId || resolveEquipamentoIdFromValue(item.equipamento);
+  const equipamentoId = equipamentoSelecionado || equipamentoFallback || "";
+  if (liberacaoEquipamento && !equipamentoId) {
+    mostrarMensagemLiberacao("Informe o equipamento da manutenção.", true);
+    return null;
+  }
+  const equipeResponsavel = liberacaoEquipeResponsavel
+    ? getLiberacaoEquipeSelecionada()
+    : "";
+  const criticoValor = liberacaoCritico ? liberacaoCritico.value : "";
+  if (!criticoValor) {
+    mostrarMensagemLiberacao("Informe se o trabalho é crítico.", true);
+    return null;
+  }
+  const critico = criticoValor === "sim";
+  if (critico && participantes.length < 2) {
+    setFieldError(
+      liberacaoParticipantesErro,
+      "Para trabalho crítico, informe ao menos 2 participantes."
+    );
+    mostrarMensagemLiberacao(
+      "Para trabalho crítico, informe ao menos 2 participantes.",
+      true
+    );
+    return null;
+  }
+  const documentos = { ...liberacaoDocsBase };
+  for (const chave of DOC_KEYS) {
+    const input = liberacaoDocInputs.find((itemInput) => itemInput.dataset.docInput === chave);
+    if (input && input.files && input.files[0]) {
+      try {
+        documentos[chave] = await uploadLiberacaoDoc(input.files[0], chave);
+      } catch (error) {
+        mostrarMensagemLiberacao(
+          error && error.message ? error.message : "Não foi possível enviar o documento.",
+          true
+        );
+        return null;
+      }
+      continue;
+    }
+    const docAtual = getLiberacaoDocAtual(chave);
+    if (docAtual) {
+      documentos[chave] = docAtual;
+    }
+  }
+  if (!documentos.apr || !documentos.os || !documentos.pte) {
+    mostrarMensagemLiberacao("Anexe APR, OS e PTE para liberar.", true);
+    return null;
+  }
+  if (critico && !documentos.pt) {
+    mostrarMensagemLiberacao("PT obrigatória para trabalho crítico.", true);
+    return null;
+  }
+  return {
+    liberacaoBase: {
+      osNumero,
+      categoria,
+      prioridade,
+      participantes,
+      critico,
+      documentos,
+      equipamentoId,
+      equipeResponsavel,
+    },
+  };
+}
+
 async function salvarLiberacao(event) {
   event.preventDefault();
   if (!requirePermission("complete")) {
@@ -59808,86 +60202,13 @@ async function salvarLiberacao(event) {
     return;
   }
   const item = manutencoes[index];
-  const osNumero = liberacaoOs ? liberacaoOs.value.trim() : "";
-  if (!osNumero) {
-    mostrarMensagemLiberacao("Informe o Nº OS / referência.", true);
-    return;
-  }
-  const categoria = liberacaoCategoria ? liberacaoCategoria.value.trim() : "";
-  if (!categoria) {
-    mostrarMensagemLiberacao("Informe a categoria da manutenção.", true);
-    return;
-  }
-  const prioridade = liberacaoPrioridade ? liberacaoPrioridade.value.trim() : "";
-  if (!prioridade) {
-    mostrarMensagemLiberacao("Informe a prioridade da manutenção.", true);
-    return;
-  }
-  const participantes = getLiberacaoParticipantesFromForm();
-  setFieldError(liberacaoParticipantesErro, "");
-  if (!participantes.length) {
-    setFieldError(liberacaoParticipantesErro, "Informe ao menos 1 participante.");
-    mostrarMensagemLiberacao("Informe ao menos 1 participante.", true);
-    return;
-  }
-  const equipamentoSelecionado = liberacaoEquipamento ? liberacaoEquipamento.value.trim() : "";
-  const equipamentoFallback =
-    item.equipamentoId || resolveEquipamentoIdFromValue(item.equipamento);
-  const equipamentoId = equipamentoSelecionado || equipamentoFallback || "";
-  if (liberacaoEquipamento && !equipamentoId) {
-    mostrarMensagemLiberacao("Informe o equipamento da manutenção.", true);
-    return;
-  }
-  const equipeResponsavel = liberacaoEquipeResponsavel
-    ? getLiberacaoEquipeSelecionada()
-    : "";
-  const criticoValor = liberacaoCritico ? liberacaoCritico.value : "";
-  if (!criticoValor) {
-    mostrarMensagemLiberacao("Informe se o trabalho é crítico.", true);
-    return;
-  }
-  const critico = criticoValor === "sim";
-  if (critico && participantes.length < 2) {
-    setFieldError(
-      liberacaoParticipantesErro,
-      "Para trabalho crítico, informe ao menos 2 participantes."
-    );
-    mostrarMensagemLiberacao(
-      "Para trabalho crítico, informe ao menos 2 participantes.",
-      true
-    );
-    return;
-  }
   mostrarCarregando();
   try {
-    const documentos = { ...liberacaoDocsBase };
-    for (const chave of DOC_KEYS) {
-      const input = liberacaoDocInputs.find((itemInput) => itemInput.dataset.docInput === chave);
-      if (input && input.files && input.files[0]) {
-        try {
-          documentos[chave] = await uploadLiberacaoDoc(input.files[0], chave);
-        } catch (error) {
-          mostrarMensagemLiberacao(
-            error && error.message ? error.message : "Não foi possível enviar o documento.",
-            true
-          );
-          return;
-        }
-        continue;
-      }
-      const docAtual = getLiberacaoDocAtual(chave);
-      if (docAtual) {
-        documentos[chave] = docAtual;
-      }
-    }
-    if (!documentos.apr || !documentos.os || !documentos.pte) {
-      mostrarMensagemLiberacao("Anexe APR, OS e PTE para liberar.", true);
+    const payload = await prepararLiberacaoFormData(item);
+    if (!payload) {
       return;
     }
-    if (critico && !documentos.pt) {
-      mostrarMensagemLiberacao("PT obrigatória para trabalho crítico.", true);
-      return;
-    }
+    const { liberacaoBase } = payload;
     const dataProgramada = parseDate(item.data);
     const hoje = startOfDay(new Date());
     const liberacaoAntecipada = dataProgramada && dataProgramada > hoje;
@@ -59898,16 +60219,6 @@ async function salvarLiberacao(event) {
       );
       return;
     }
-    const liberacaoBase = {
-      osNumero,
-      categoria,
-      prioridade,
-      participantes,
-      critico,
-      documentos,
-      equipamentoId,
-      equipeResponsavel,
-    };
     if (liberacaoAntecipada) {
       pendingLiberacaoOverride = { id: item.id, liberacaoBase };
       abrirOverrideLiberacao(dataProgramada);
@@ -59929,6 +60240,80 @@ async function salvarLiberacao(event) {
     if (!liberacaoOkNoServidor) {
       maintenancePendingSync = true;
     }
+  } finally {
+    esconderCarregando();
+  }
+}
+
+async function agendarLiberacao() {
+  if (!requirePermission("complete")) {
+    return;
+  }
+  if (!manutencaoEmLiberacao) {
+    mostrarMensagemLiberacao("Selecione uma manutenção.", true);
+    return;
+  }
+  const index = manutencoes.findIndex((item) => item.id === manutencaoEmLiberacao);
+  if (index < 0) {
+    mostrarMensagemLiberacao("Manutenção não encontrada.", true);
+    return;
+  }
+  if (!liberacaoProgramadaToggle || !liberacaoProgramadaToggle.checked) {
+    mostrarMensagemLiberacao("Ative a programação para agendar a liberação.", true);
+    return;
+  }
+  const dataValor = liberacaoProgramadaData ? liberacaoProgramadaData.value.trim() : "";
+  const dataAgendada = parseDateTimeInput(dataValor);
+  if (!dataAgendada) {
+    mostrarMensagemLiberacao("Informe a data e o horário da liberação.", true);
+    return;
+  }
+  const agora = new Date();
+  if (dataAgendada.getTime() <= agora.getTime()) {
+    mostrarMensagemLiberacao("A data e o horário devem ser futuros.", true);
+    return;
+  }
+  const item = manutencoes[index];
+  const dataProgramada = parseDate(item.data);
+  if (dataProgramada && startOfDay(dataAgendada) < startOfDay(dataProgramada)) {
+    mostrarMensagemLiberacao(
+      `Trancada - libera em ${formatDate(dataProgramada)}.`,
+      true
+    );
+    return;
+  }
+  mostrarCarregando();
+  try {
+    const payload = await prepararLiberacaoFormData(item);
+    if (!payload) {
+      return;
+    }
+    const agoraIso = toIsoUtc(new Date());
+    const agendadaIso = toIsoUtc(dataAgendada);
+    const liberacaoProgramada = {
+      status: "programada",
+      agendadaEm: agendadaIso,
+      agendadaPor: currentUser.id,
+      liberacao: payload.liberacaoBase,
+      createdAt: agoraIso,
+      updatedAt: agoraIso,
+    };
+    const atualizado = {
+      ...item,
+      liberacaoProgramada,
+      updatedAt: agoraIso,
+      updatedBy: currentUser.id,
+    };
+    manutencoes[index] = atualizado;
+    salvarManutencoes(manutencoes);
+    logAction("release_schedule", atualizado, {
+      dataProgramada: item.data || "",
+      agendadaEm: agendadaIso,
+      resumo: `Liberação programada para ${formatDateTime(dataAgendada)}.`,
+    });
+    renderTudo();
+    fecharLiberacao();
+    mostrarMensagemManutencao("Liberação programada.");
   } finally {
     esconderCarregando();
   }
@@ -68788,6 +69173,21 @@ if (liberacaoParticipanteExterno) {
 }
 if (liberacaoCritico) {
   liberacaoCritico.addEventListener("change", atualizarLiberacaoCriticoUI);
+}
+if (liberacaoProgramadaToggle) {
+  liberacaoProgramadaToggle.addEventListener("change", () => {
+    mostrarMensagemLiberacao("");
+    atualizarLiberacaoProgramadaUI();
+  });
+  atualizarLiberacaoProgramadaUI();
+}
+if (liberacaoProgramadaData) {
+  liberacaoProgramadaData.addEventListener("change", () => {
+    mostrarMensagemLiberacao("");
+  });
+}
+if (btnAgendarLiberacao) {
+  btnAgendarLiberacao.addEventListener("click", agendarLiberacao);
 }
 if (overrideMotivo) {
   overrideMotivo.addEventListener("input", () => {
