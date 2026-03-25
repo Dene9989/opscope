@@ -3575,6 +3575,10 @@ body.is-visitor .container.auth-only {
   white-space: pre-line;
 }
 
+#mensagemGerencial {
+  white-space: pre-wrap;
+}
+
 .template-grid {
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);

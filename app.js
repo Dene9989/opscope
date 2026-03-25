@@ -922,6 +922,9 @@ const btnLimparAuditoria = document.getElementById("btnLimparAuditoria");
 const limpezaControlInfo = document.getElementById("limpezaControlInfo");
 const btnRecalcularBacklog = document.getElementById("btnRecalcularBacklog");
 const btnGerarRelatorio = document.getElementById("btnGerarRelatorio");
+const btnVerDuplicadasManutencao = document.getElementById("btnVerDuplicadasManutencao");
+const btnMesclarDuplicadasManutencao = document.getElementById("btnMesclarDuplicadasManutencao");
+const duplicadasInfo = document.getElementById("duplicadasInfo");
 const relatorioGerencial = document.getElementById("relatorioGerencial");
 const mensagemGerencial = document.getElementById("mensagemGerencial");
 const btnLimparCacheLocal = document.getElementById("btnLimparCacheLocal");
@@ -5210,6 +5213,7 @@ const maintenanceRenderHashes = new Map();
 const templatesRenderHashes = new Map();
 let healthSnapshot = null;
 let healthLoading = false;
+let duplicadasLoading = false;
 let apiLogsState = {
   items: [],
   total: 0,
@@ -55290,6 +55294,8 @@ function renderAuthUI() {
     btnGerarRelatorio.classList.toggle("is-disabled", !podeExportar);
   }
 
+  updateDuplicadasButtonsState(duplicadasLoading);
+
   aplicarPermissoesRdo();
 
   if (diasLembrete) {
@@ -56138,6 +56144,179 @@ function gerarRelatorio() {
         `Evidências médias por manutenção: ${evidenciasMedia}`;
   }
   mostrarMensagemGerencial("Relatório atualizado.");
+}
+
+function canDedupeMaintenanceClient() {
+  if (!currentUser) {
+    return false;
+  }
+  return isAdmin() || can("edit") || can("remove");
+}
+
+function setDuplicadasInfo(texto) {
+  if (!duplicadasInfo) {
+    return;
+  }
+  duplicadasInfo.textContent = texto || "";
+}
+
+function updateDuplicadasButtonsState(loading = duplicadasLoading) {
+  const allowed = canDedupeMaintenanceClient();
+  const disabled = loading || !allowed;
+  if (btnVerDuplicadasManutencao) {
+    btnVerDuplicadasManutencao.disabled = disabled;
+    btnVerDuplicadasManutencao.classList.toggle("is-disabled", disabled);
+  }
+  if (btnMesclarDuplicadasManutencao) {
+    btnMesclarDuplicadasManutencao.disabled = disabled;
+    btnMesclarDuplicadasManutencao.classList.toggle("is-disabled", disabled);
+  }
+}
+
+function getDuplicadasModeLabel(mode) {
+  if (mode === "template") {
+    return "Template";
+  }
+  if (mode === "os") {
+    return "OS/Referência";
+  }
+  if (mode === "titulo") {
+    return "Título";
+  }
+  return "Registro";
+}
+
+function buildDuplicateSummary(groups) {
+  const totalGroups = Array.isArray(groups) ? groups.length : 0;
+  const totalItems = Array.isArray(groups)
+    ? groups.reduce((acc, group) => acc + (Number(group.count) || (group.items || []).length), 0)
+    : 0;
+  return `${totalGroups} grupos | ${totalItems} registros`;
+}
+
+function formatDuplicateItemLine(item) {
+  if (!item || typeof item !== "object") {
+    return "- Registro inválido";
+  }
+  const statusKey = normalizeMaintenanceStatus(item.status);
+  const statusLabel = STATUS_LABELS[statusKey] || item.status || "-";
+  const dataParsed = item.data ? parseDate(item.data) : null;
+  const dataLabel = dataParsed ? formatDate(dataParsed) : item.data || "-";
+  const titulo = item.titulo || item.nome || item.atividade || "-";
+  const local = item.local || item.subestacao || "-";
+  const equipamento = item.equipamento || "-";
+  const os =
+    item.osReferencia || item.osNumero || item.referencia || "-";
+  const atualizadoEm = item.updatedAt
+    ? formatDateTime(parseTimestamp(item.updatedAt))
+    : "-";
+  const id = item.id || "-";
+  return `- ${id} | ${statusLabel} | ${dataLabel} | ${titulo} | ${local} | ${equipamento} | OS ${os} | Atualizado ${atualizadoEm}`;
+}
+
+function formatDuplicateGroupLines(group, index) {
+  const items = Array.isArray(group && group.items) ? group.items : [];
+  const count = Number(group && group.count) || items.length;
+  const label = `${index}. ${getDuplicadasModeLabel(group && group.mode)} (${count})`;
+  const lines = [label];
+  items.forEach((item) => {
+    lines.push(formatDuplicateItemLine(item));
+  });
+  return lines;
+}
+
+async function verDuplicadasManutencao() {
+  if (!canDedupeMaintenanceClient()) {
+    mostrarMensagemGerencial("Sem permissão para validar duplicidades.", true);
+    return;
+  }
+  if (!activeProjectId) {
+    mostrarMensagemGerencial("Projeto ativo obrigatório.", true);
+    return;
+  }
+  duplicadasLoading = true;
+  updateDuplicadasButtonsState(true);
+  setDuplicadasInfo("Buscando duplicidades...");
+  mostrarMensagemGerencial("Buscando duplicidades...");
+  try {
+    const data = await apiMaintenanceDedupe({ projectId: activeProjectId, dryRun: true });
+    const grupos = Array.isArray(data && data.duplicates) ? data.duplicates : [];
+    if (!grupos.length) {
+      setDuplicadasInfo("Nenhuma duplicidade encontrada.");
+      mostrarMensagemGerencial("Nenhuma duplicidade encontrada.");
+      return;
+    }
+    const resumo = buildDuplicateSummary(grupos);
+    setDuplicadasInfo(resumo);
+    const linhas = [`Duplicidades encontradas (${resumo}):`];
+    grupos.forEach((grupo, index) => {
+      linhas.push(...formatDuplicateGroupLines(grupo, index + 1));
+      linhas.push("");
+    });
+    mostrarMensagemGerencial(linhas.join("\n").trim());
+  } catch (error) {
+    setDuplicadasInfo("");
+    mostrarMensagemGerencial(
+      error && error.message ? error.message : "Falha ao localizar duplicidades.",
+      true
+    );
+  } finally {
+    duplicadasLoading = false;
+    updateDuplicadasButtonsState(false);
+  }
+}
+
+async function mesclarDuplicadasManutencao() {
+  if (!canDedupeMaintenanceClient()) {
+    mostrarMensagemGerencial("Sem permissão para mesclar duplicidades.", true);
+    return;
+  }
+  if (!activeProjectId) {
+    mostrarMensagemGerencial("Projeto ativo obrigatório.", true);
+    return;
+  }
+  duplicadasLoading = true;
+  updateDuplicadasButtonsState(true);
+  setDuplicadasInfo("Verificando duplicidades...");
+  mostrarMensagemGerencial("Verificando duplicidades...");
+  try {
+    const preview = await apiMaintenanceDedupe({ projectId: activeProjectId, dryRun: true });
+    const grupos = Array.isArray(preview && preview.duplicates) ? preview.duplicates : [];
+    if (!grupos.length) {
+      setDuplicadasInfo("Nenhuma duplicidade encontrada.");
+      mostrarMensagemGerencial("Nenhuma duplicidade encontrada.");
+      return;
+    }
+    const resumo = buildDuplicateSummary(grupos);
+    const confirmacao = await openConfirmModal({
+      title: "Mesclar duplicidades",
+      message: `Foram encontrados ${resumo}. Deseja mesclar agora?`,
+      confirmText: "Mesclar",
+      cancelText: "Cancelar",
+    });
+    if (!confirmacao) {
+      setDuplicadasInfo("Operação cancelada.");
+      return;
+    }
+    setDuplicadasInfo("Mesclando duplicidades...");
+    const result = await apiMaintenanceDedupe({ projectId: activeProjectId, dryRun: false });
+    const removedIds = Array.isArray(result && result.removedIds) ? result.removedIds : [];
+    const removedCount = removedIds.length || Number(result && result.mergedCount) || 0;
+    setDuplicadasInfo(`Mescla concluída. Removidos ${removedCount} registros duplicados.`);
+    mostrarMensagemGerencial(
+      `Mescla concluída. Removidos ${removedCount} registros duplicados.`
+    );
+    await carregarManutencoesServidor(true);
+  } catch (error) {
+    setDuplicadasInfo("");
+    mostrarMensagemGerencial(
+      error && error.message ? error.message : "Falha ao mesclar duplicidades.",
+      true
+    );
+  } finally {
+    duplicadasLoading = false;
+    updateDuplicadasButtonsState(false);
+  }
 }
 
 function renderTudo() {
@@ -64688,6 +64867,13 @@ async function apiMaintenanceRelease(payload) {
   });
 }
 
+async function apiMaintenanceDedupe(payload) {
+  return apiRequest("/api/maintenance/dedupe", {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
 async function apiRdoGenerateText(payload) {
   return apiRequest("/api/rdo/generate-text", {
     method: "POST",
@@ -67449,6 +67635,14 @@ if (btnRecalcularBacklog) {
 
 if (btnGerarRelatorio) {
   btnGerarRelatorio.addEventListener("click", gerarRelatorio);
+}
+
+if (btnVerDuplicadasManutencao) {
+  btnVerDuplicadasManutencao.addEventListener("click", verDuplicadasManutencao);
+}
+
+if (btnMesclarDuplicadasManutencao) {
+  btnMesclarDuplicadasManutencao.addEventListener("click", mesclarDuplicadasManutencao);
 }
 
 if (btnLimparCacheLocal) {

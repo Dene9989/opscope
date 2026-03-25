@@ -8870,6 +8870,13 @@ function canDeleteMaintenance(user) {
   return hasPermission(user, "remove");
 }
 
+function canDedupeMaintenance(user) {
+  if (!user) {
+    return false;
+  }
+  return hasPermission(user, "edit") || hasPermission(user, "remove");
+}
+
 function canReopenMaintenance(user) {
   if (!user) {
     return false;
@@ -13378,12 +13385,136 @@ function getMaintenanceRecurrenceKey(item) {
   return `${projectId}::${templateId}::${date}`;
 }
 
+function getMaintenanceOsReference(item) {
+  if (!item || typeof item !== "object") {
+    return "";
+  }
+  const liberacao =
+    item.liberacao && typeof item.liberacao === "object" ? item.liberacao : {};
+  const conclusao =
+    item.conclusao && typeof item.conclusao === "object" ? item.conclusao : {};
+  return String(
+    item.osReferencia ||
+      item.osNumero ||
+      item.referencia ||
+      liberacao.osNumero ||
+      liberacao.osReferencia ||
+      conclusao.osNumero ||
+      conclusao.referencia ||
+      ""
+  ).trim();
+}
+
+function normalizeDedupeKeyPiece(value) {
+  const normalized = normalizeSearchValue(value);
+  if (!normalized) {
+    return "";
+  }
+  return normalized
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, "_");
+}
+
+function getMaintenanceDedupeKey(item, projectId = "") {
+  if (!item || typeof item !== "object") {
+    return { key: "", mode: "" };
+  }
+  const resolvedProjectId = String(projectId || item.projectId || "").trim();
+  const date = String(item.data || "").trim();
+  if (!date) {
+    return { key: "", mode: "" };
+  }
+  const templateId = String(item.templateId || "").trim();
+  if (templateId) {
+    return { key: `template::${resolvedProjectId}::${templateId}::${date}`, mode: "template" };
+  }
+  const osRef = getMaintenanceOsReference(item);
+  const osKey = normalizeDedupeKeyPiece(osRef);
+  if (osKey) {
+    return { key: `os::${resolvedProjectId}::${osKey}::${date}`, mode: "os" };
+  }
+  const titulo = String(item.titulo || item.nome || item.atividade || "").trim();
+  const titleKey = normalizeDedupeKeyPiece(titulo);
+  const titleCore = titleKey.replace(/_/g, "");
+  if (!titleKey || titleCore.length < 6) {
+    return { key: "", mode: "" };
+  }
+  const equipamento = String(item.equipamento || item.equipamentoId || "").trim();
+  const local = String(item.local || item.subestacao || "").trim();
+  const contextKey = normalizeDedupeKeyPiece([equipamento, local].filter(Boolean).join(" "));
+  if (!contextKey) {
+    return { key: "", mode: "" };
+  }
+  return { key: `titulo::${resolvedProjectId}::${titleKey}::${contextKey}::${date}`, mode: "titulo" };
+}
+
+function summarizeMaintenanceDuplicateItem(item, projectId = "") {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+  const itemProjectId = String(item.projectId || projectId || "").trim();
+  return {
+    id: item.id || "",
+    status: item.status || "",
+    titulo: item.titulo || item.nome || item.atividade || "",
+    data: item.data || "",
+    local: item.local || item.subestacao || "",
+    equipamento: getEquipmentLabel(item, itemProjectId) || item.equipamento || "",
+    osReferencia: getMaintenanceOsReference(item),
+    updatedAt: item.updatedAt || "",
+    createdAt: item.createdAt || "",
+    projectId: itemProjectId,
+  };
+}
+
+function listMaintenanceDuplicateGroups(list, projectId = "") {
+  if (!Array.isArray(list) || list.length === 0) {
+    return [];
+  }
+  const grouped = new Map();
+  list.forEach((item) => {
+    if (!item || typeof item !== "object") {
+      return;
+    }
+    if (projectId && String(item.projectId || "") !== String(projectId)) {
+      return;
+    }
+    const { key, mode } = getMaintenanceDedupeKey(item, projectId);
+    if (!key) {
+      return;
+    }
+    if (!grouped.has(key)) {
+      grouped.set(key, { key, mode, items: [] });
+    }
+    grouped.get(key).items.push(item);
+  });
+  const output = [];
+  grouped.forEach((group) => {
+    if (group.items.length < 2) {
+      return;
+    }
+    output.push({
+      key: group.key,
+      mode: group.mode,
+      count: group.items.length,
+      items: group.items
+        .map((item) => summarizeMaintenanceDuplicateItem(item, projectId))
+        .filter(Boolean),
+    });
+  });
+  output.sort((a, b) => b.count - a.count);
+  return output;
+}
+
 function dedupeMaintenanceRecords(list, projectId = "") {
   if (!Array.isArray(list) || list.length === 0) {
-    return { list: Array.isArray(list) ? list : [], changed: false };
+    return { list: Array.isArray(list) ? list : [], changed: false, removedIds: [] };
   }
   const output = [];
   const indexMap = new Map();
+  const candidateIds = new Set();
+  const keptIds = new Set();
   let changed = false;
   list.forEach((item) => {
     if (!item || typeof item !== "object") {
@@ -13394,23 +13525,47 @@ function dedupeMaintenanceRecords(list, projectId = "") {
       output.push(item);
       return;
     }
-    const key = getMaintenanceRecurrenceKey(item);
+    const { key } = getMaintenanceDedupeKey(item, projectId);
     if (!key) {
       output.push(item);
       return;
+    }
+    const incomingId = String(item.id || "").trim();
+    if (incomingId) {
+      candidateIds.add(incomingId);
     }
     const existingIndex = indexMap.get(key);
     if (existingIndex === undefined) {
       indexMap.set(key, output.length);
       output.push(item);
+      if (incomingId) {
+        keptIds.add(incomingId);
+      }
       return;
     }
     const existing = output[existingIndex];
     const merged = pickMaintenanceMerge(existing, item);
     output[existingIndex] = merged;
     changed = true;
+    const existingId = String((existing && existing.id) || "").trim();
+    let mergedId = String((merged && merged.id) || "").trim();
+    if (!mergedId) {
+      mergedId = existingId || incomingId;
+    }
+    if (mergedId) {
+      keptIds.add(mergedId);
+    }
   });
-  return { list: output, changed };
+  const removedIds = [];
+  candidateIds.forEach((id) => {
+    if (!keptIds.has(id)) {
+      removedIds.push(id);
+    }
+  });
+  if (removedIds.length) {
+    changed = true;
+  }
+  return { list: output, changed, removedIds };
 }
 
 function loadMaintenanceTombstones() {
@@ -21206,6 +21361,11 @@ app.post(
     if (deduped.changed) {
       mergedProject = deduped.list;
     }
+    if (deduped.removedIds && deduped.removedIds.length) {
+      deduped.removedIds.forEach((id) => {
+        addMaintenanceTombstone(projectId, id, user ? user.id : null);
+      });
+    }
     const mergedProjectIds = new Set(
       mergedProject.map((item) => String((item && item.id) || "")).filter(Boolean)
     );
@@ -21353,6 +21513,12 @@ app.get("/api/maintenance", requireAuth, (req, res) => {
     const filtered = dataset.filter((item) => !(item && item.projectId === projectId));
     writeJson(MAINTENANCE_FILE, [...filtered, ...list]);
     touchCompat("maintenance", projectId);
+    if (deduped.removedIds && deduped.removedIds.length) {
+      deduped.removedIds.forEach((id) => {
+        addMaintenanceTombstone(projectId, id, user ? user.id : null);
+      });
+    }
+    DASHBOARD_CACHE.delete(projectId);
   }
 
   const statusFilter = parseMaintenanceStatusFilter(req.query.status || "");
@@ -21457,6 +21623,115 @@ app.get("/api/maintenance", requireAuth, (req, res) => {
   }
 
   return res.json(payload);
+});
+
+app.post("/api/maintenance/dedupe", requireAuth, (req, res) => {
+  const user = req.currentUser || getSessionUser(req);
+  const fromQuery = String(req.query.projectId || "").trim();
+  const fromBody = String(req.body.projectId || "").trim();
+  const projectId = fromBody || fromQuery || getActiveProjectId(req, user);
+  if (!projectId) {
+    return res.status(400).json({ message: "Projeto ativo obrigatÃ³rio." });
+  }
+  if (!userHasProjectAccess(user, projectId)) {
+    return res.status(403).json({ message: "NÃ£o autorizado." });
+  }
+  if (!canDedupeMaintenance(user)) {
+    return res.status(403).json({ message: "Sem permissao para mesclar duplicidades." });
+  }
+  const bodyDryRun =
+    req.body && Object.prototype.hasOwnProperty.call(req.body, "dryRun") ? req.body.dryRun : undefined;
+  const queryDryRun = req.query.dryRun;
+  let dryRun = true;
+  if (bodyDryRun !== undefined) {
+    dryRun = Boolean(bodyDryRun);
+  } else if (queryDryRun !== undefined) {
+    dryRun = parseBooleanLike(queryDryRun);
+  }
+
+  const runDedupe = () => {
+    const tombstones = getMaintenanceTombstonesMap(projectId);
+    const dataset = loadMaintenanceData();
+    const list = dataset.filter((item) => {
+      if (!item || item.projectId !== projectId) {
+        return false;
+      }
+      return !tombstones.has(String(item.id || ""));
+    });
+    const duplicates = listMaintenanceDuplicateGroups(list, projectId);
+    if (dryRun) {
+      return res.json({
+        ok: true,
+        projectId,
+        dryRun: true,
+        totalGroups: duplicates.length,
+        totalItems: duplicates.reduce((acc, group) => acc + (group.count || 0), 0),
+        duplicates,
+      });
+    }
+
+    const deduped = dedupeMaintenanceRecords(list, projectId);
+    if (!deduped.changed) {
+      return res.json({
+        ok: true,
+        projectId,
+        dryRun: false,
+        mergedCount: 0,
+        removedIds: [],
+        duplicatesResolved: 0,
+      });
+    }
+    const filtered = dataset.filter((item) => !(item && item.projectId === projectId));
+    let merged = [...filtered, ...deduped.list];
+    const ssSequenced = ensureMaintenanceSsNumbers(merged);
+    if (ssSequenced.changed) {
+      merged = ssSequenced.list;
+    }
+    const writeOk = writeJson(MAINTENANCE_FILE, merged);
+    if (!writeOk) {
+      return res.status(503).json({
+        message: STORAGE_READONLY_MESSAGE,
+        reason: "storage_write_failed",
+      });
+    }
+    if (deduped.removedIds && deduped.removedIds.length) {
+      deduped.removedIds.forEach((id) => {
+        addMaintenanceTombstone(projectId, id, user ? user.id : null);
+      });
+    }
+    touchCompat("maintenance", projectId);
+    DASHBOARD_CACHE.delete(projectId);
+    appendAudit(
+      "maintenance_dedupe",
+      user ? user.id : null,
+      {
+        projectId,
+        removedIds: deduped.removedIds || [],
+        groups: duplicates.length,
+      },
+      getClientIp(req),
+      projectId
+    );
+    broadcastSse("maintenance.updated", {
+      projectId,
+      count: deduped.removedIds ? deduped.removedIds.length : 0,
+      source: "dedupe",
+      removedIds: deduped.removedIds || [],
+    });
+    return res.json({
+      ok: true,
+      projectId,
+      dryRun: false,
+      mergedCount: deduped.removedIds ? deduped.removedIds.length : 0,
+      removedIds: deduped.removedIds || [],
+      duplicatesResolved: duplicates.length,
+    });
+  };
+
+  if (!dryRun) {
+    return requireStorageWritable(req, res, runDedupe);
+  }
+  return runDedupe();
 });
 
 app.delete("/api/maintenance/:id", requireAuth, requireStorageWritable, (req, res) => {
