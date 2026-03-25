@@ -11917,6 +11917,25 @@ function getMaintenanceResponsibleIds(item) {
   );
 }
 
+function getMaintenanceParticipantIds(item) {
+  if (!item || typeof item !== "object") {
+    return [];
+  }
+  const liberacao =
+    item.liberacao && typeof item.liberacao === "object" ? item.liberacao : null;
+  const conclusao =
+    item.conclusao && typeof item.conclusao === "object" ? item.conclusao : null;
+  const participantes =
+    liberacao && Array.isArray(liberacao.participantes) && liberacao.participantes.length
+      ? liberacao.participantes
+      : Array.isArray(item.participantes) && item.participantes.length
+        ? item.participantes
+        : conclusao && Array.isArray(conclusao.participantes)
+          ? conclusao.participantes
+          : [];
+  return normalizeResponsavelIds(participantes);
+}
+
 function getMaintenanceResponsibleLabels(item) {
   const ids = getMaintenanceResponsibleIds(item);
   if (!ids.length) {
@@ -11970,6 +11989,47 @@ function isUserResponsibleForMaintenance(item, user) {
   });
 }
 
+function isUserParticipantForMaintenance(item, user) {
+  if (!user) {
+    return false;
+  }
+  const ids = getMaintenanceParticipantIds(item);
+  if (!ids.length) {
+    return false;
+  }
+  const actorIdentitySet = new Set(getMaintenanceUserIdentityKeys(user));
+  const actorNumericSet = new Set(
+    extractMaintenanceIdentityNumericTokens(user.matricula || user.id || "").map((token) =>
+      normalizeMaintenanceIdentity(token)
+    )
+  );
+  return ids.some((id) => {
+    const raw = String(id || "").trim();
+    if (!raw) {
+      return false;
+    }
+    const normalized = normalizeMaintenanceIdentity(raw);
+    if (actorIdentitySet.has(normalized)) {
+      return true;
+    }
+    const numericTokens = extractMaintenanceIdentityNumericTokens(raw);
+    if (
+      numericTokens.some((token) =>
+        actorNumericSet.has(normalizeMaintenanceIdentity(token))
+      )
+    ) {
+      return true;
+    }
+    const resolved = resolveMaintenanceUserByIdentity(raw);
+    if (!resolved) {
+      return false;
+    }
+    return getMaintenanceUserIdentityKeys(resolved).some((token) =>
+      actorIdentitySet.has(token)
+    );
+  });
+}
+
 function canExecuteMaintenanceForUser(item, user) {
   if (!user) {
     return false;
@@ -11983,7 +12043,10 @@ function canExecuteMaintenanceForUser(item, user) {
   if (hasGranularPermission(user, "executarManutencaoTerceiros")) {
     return true;
   }
-  return isUserResponsibleForMaintenance(item, user);
+  if (isUserResponsibleForMaintenance(item, user)) {
+    return true;
+  }
+  return isUserParticipantForMaintenance(item, user);
 }
 
 function canRevalidarPrazoManutencao(item, user) {
@@ -12329,6 +12392,22 @@ function sanitizeMaintenanceDailyRevalidacaoList(value) {
   return Array.isArray(sanitized) ? sanitized : [];
 }
 
+function hasMaintenanceCompletionData(item) {
+  if (!item || typeof item !== "object") {
+    return false;
+  }
+  const conclusao =
+    item.conclusao && typeof item.conclusao === "object" ? item.conclusao : null;
+  return Boolean(
+    item.doneAt ||
+      item.concluidaEm ||
+      item.dataConclusao ||
+      item.completedAt ||
+      item.executionFinishedAt ||
+      (conclusao && conclusao.fim)
+  );
+}
+
 function sanitizeMaintenanceIncoming(item, current, user) {
   if (!item || typeof item !== "object") {
     return item;
@@ -12403,6 +12482,14 @@ function sanitizeMaintenanceIncoming(item, current, user) {
     }
   }
   next = sanitizeConclusionSignature(next, current, user);
+  const statusAfterSanitize = normalizeStatus(next.status);
+  if (
+    statusAfterSanitize !== "concluida" &&
+    statusAfterSanitize !== "cancelada" &&
+    hasMaintenanceCompletionData(next)
+  ) {
+    next.status = "concluida";
+  }
   return next;
 }
 

@@ -43273,6 +43273,24 @@ function getMaintenanceResponsibleIds(item) {
   );
 }
 
+function getMaintenanceParticipantIds(item) {
+  if (!item) {
+    return [];
+  }
+  const liberacao = getLiberacao(item) || {};
+  const conclusao =
+    item.conclusao && typeof item.conclusao === "object" ? item.conclusao : {};
+  const participantes =
+    Array.isArray(liberacao.participantes) && liberacao.participantes.length
+      ? liberacao.participantes
+      : Array.isArray(item.participantes) && item.participantes.length
+        ? item.participantes
+        : Array.isArray(conclusao.participantes)
+          ? conclusao.participantes
+          : [];
+  return normalizeResponsavelIds(participantes);
+}
+
 function getMaintenanceResponsibleLabels(item) {
   const ids = getMaintenanceResponsibleIds(item);
   if (!ids.length) {
@@ -43325,6 +43343,46 @@ function isUserResponsibleForMaintenance(item, user) {
   });
 }
 
+function isUserParticipantForMaintenance(item, user) {
+  if (!user) {
+    return false;
+  }
+  const ids = getMaintenanceParticipantIds(item);
+  if (!ids.length) {
+    return false;
+  }
+  const userIdentitySet = new Set(getUserIdentityKeys(user));
+  const userNumericSet = new Set(
+    extractIdentityNumericTokens(user.matricula || user.id || "").map((token) =>
+      normalizeUserIdentity(token)
+    )
+  );
+  return ids.some((entry) => {
+    const raw = String(entry || "").trim();
+    if (!raw) {
+      return false;
+    }
+    const normalized = normalizeUserIdentity(raw);
+    if (userIdentitySet.has(normalized)) {
+      return true;
+    }
+    const numericTokens = extractIdentityNumericTokens(raw);
+    if (
+      numericTokens.some((token) => userNumericSet.has(normalizeUserIdentity(token)))
+    ) {
+      return true;
+    }
+    const resolved = resolveUserByIdentity(raw);
+    if (!resolved) {
+      return false;
+    }
+    return (
+      normalizeUserIdentity(resolved.id) === normalizeUserIdentity(user.id) ||
+      normalizeUserIdentity(resolved.matricula) === normalizeUserIdentity(user.matricula)
+    );
+  });
+}
+
 function canExecuteMaintenanceForUser(item, user = currentUser) {
   if (!user) {
     return false;
@@ -43335,7 +43393,10 @@ function canExecuteMaintenanceForUser(item, user = currentUser) {
   if (hasGranularPermission(user, "executarManutencaoTerceiros")) {
     return true;
   }
-  return isUserResponsibleForMaintenance(item, user);
+  if (isUserResponsibleForMaintenance(item, user)) {
+    return true;
+  }
+  return isUserParticipantForMaintenance(item, user);
 }
 
 function isSystemTemplateMaintenance(item) {
