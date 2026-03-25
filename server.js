@@ -10709,11 +10709,87 @@ function saveAnnouncements(list) {
   writeJson(ANNOUNCEMENTS_FILE, Array.isArray(list) ? list : []);
 }
 
+function normalizeProjectMatchValue(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+function findProjectByLabelMatch(label) {
+  const target = normalizeProjectMatchValue(label);
+  if (!target) {
+    return null;
+  }
+  return (
+    projects.find((project) => {
+      const labelKey = normalizeProjectMatchValue(getProjectLabel(project));
+      const nameKey = normalizeProjectMatchValue(project && project.nome ? project.nome : "");
+      const codeKey = normalizeProjectMatchValue(project && project.codigo ? project.codigo : "");
+      return (
+        labelKey === target ||
+        nameKey === target ||
+        codeKey === target ||
+        (labelKey && labelKey.includes(target)) ||
+        (nameKey && nameKey.includes(target)) ||
+        (target.includes(labelKey) && labelKey) ||
+        (target.includes(nameKey) && nameKey)
+      );
+    }) || null
+  );
+}
+
+function resolveRdoProjectId(record, forcedProjectId = "") {
+  const forced = String(forcedProjectId || "").trim();
+  if (forced) {
+    return forced;
+  }
+  const direct = String(record && record.projectId ? record.projectId : "").trim();
+  if (direct && getProjectById(direct)) {
+    return direct;
+  }
+  const labelRaw = String(
+    record && (record.projectLabel || record.projectName || record.project || record.projeto)
+      ? record.projectLabel || record.projectName || record.project || record.projeto
+      : ""
+  ).trim();
+  let codeRaw = String(
+    record && (record.projectCode || record.projectCodigo || record.codigo)
+      ? record.projectCode || record.projectCodigo || record.codigo
+      : ""
+  ).trim();
+  if (!codeRaw && labelRaw) {
+    const match = labelRaw.match(/^(\d{2,})\s*[-–—]/);
+    if (match) {
+      codeRaw = String(match[1] || "").trim();
+    }
+  }
+  if (codeRaw) {
+    const byCode = getProjectByCode(codeRaw);
+    if (byCode) {
+      return byCode.id;
+    }
+  }
+  if (labelRaw) {
+    const byLabel = findProjectByLabelMatch(labelRaw);
+    if (byLabel) {
+      return byLabel.id;
+    }
+  }
+  if (direct) {
+    return direct;
+  }
+  if (Array.isArray(projects) && projects.length === 1 && projects[0] && projects[0].id) {
+    return projects[0].id;
+  }
+  return getDefaultProjectId() || "";
+}
+
 function normalizeRdoSnapshotRecord(record, forcedProjectId = "") {
   if (!record || typeof record !== "object") {
     return null;
   }
-  const projectId = String(forcedProjectId || record.projectId || "").trim();
+  const projectId = resolveRdoProjectId(record, forcedProjectId);
   if (!projectId) {
     return null;
   }
@@ -10733,10 +10809,35 @@ function loadRdoSnapshots() {
   if (!Array.isArray(data)) {
     return [];
   }
-  return data
-    .map((item) => normalizeRdoSnapshotRecord(item))
+  let changed = false;
+  const normalized = data
+    .map((item) => {
+      const normalizedItem = normalizeRdoSnapshotRecord(item);
+      if (!normalizedItem) {
+        changed = true;
+        return null;
+      }
+      if (
+        !item ||
+        !item.id ||
+        !item.projectId ||
+        String(item.projectId || "").trim() !== String(normalizedItem.projectId || "").trim() ||
+        !item.createdAt
+      ) {
+        changed = true;
+      }
+      return normalizedItem;
+    })
     .filter(Boolean)
-    .sort((a, b) => (getTimeValue(parseDateTime(b.createdAt)) || 0) - (getTimeValue(parseDateTime(a.createdAt)) || 0));
+    .sort(
+      (a, b) =>
+        (getTimeValue(parseDateTime(b.createdAt)) || 0) -
+        (getTimeValue(parseDateTime(a.createdAt)) || 0)
+    );
+  if (changed) {
+    saveRdoSnapshots(normalized);
+  }
+  return normalized;
 }
 
 function saveRdoSnapshots(list) {

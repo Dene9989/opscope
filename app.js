@@ -59306,6 +59306,9 @@ function aplicarRegistroSemAtividadeState(checked, options = {}) {
       ? "Obrigatório: registre o motivo da ausência de atividade para fins de auditoria."
       : "Obrigatório: mínimo 12 caracteres. Este resumo é usado no RDO.";
   }
+  if (registroComentario) {
+    registroComentario.required = true;
+  }
   if (registroComentario && checked) {
     const current = registroComentario.value.trim();
     if (!current) {
@@ -59558,6 +59561,7 @@ function abrirRegistroExecucao(item) {
       : "";
   if (registroComentario) {
     registroComentario.value = registroBase.comentario || "";
+    registroComentario.required = true;
   }
   if (registroObsExecucao) {
     registroObsExecucao.value = registroBase.observacaoExecucao || "";
@@ -59963,7 +59967,15 @@ async function salvarRegistroExecucao(event) {
     ? "sem_atividade"
     : resultadoInformado || registroDiaAtual.resultado || "";
   const comentarioRaw = registroComentario ? registroComentario.value : "";
-  let comentario = normalizeResumoRdoTexto(comentarioRaw);
+  const comentarioBase = normalizeResumoRdoTexto(comentarioRaw);
+  if (!semAtividade && !comentarioBase) {
+    mostrarMensagemRegistroExecucao(
+      `Descrição técnica obrigatória (mínimo ${MIN_RESUMO_RDO_CHARS} caracteres).`,
+      true
+    );
+    return;
+  }
+  let comentario = comentarioBase;
   if (semAtividade && !comentario) {
     comentario = "Sem atividade operacional registrada no dia.";
   }
@@ -63608,17 +63620,12 @@ async function salvarConclusao(event) {
     item.executionStartedBy ||
     item.createdBy ||
     "";
-  const comentario =
-    registro.comentario ||
-    registro.descricao ||
-    registro.resumo ||
-    registro.observacaoExecucao ||
-    registro.observacao ||
-    "";
-  if (!executadoPor || !comentario) {
+  const comentarioRegistro = normalizeResumoRdoTexto(registro.comentario || "");
+  if (!executadoPor || !comentarioRegistro) {
     mostrarMensagemConclusao("Registre a execução antes de concluir.", true);
     return;
   }
+  const comentario = comentarioRegistro;
   const resultadoSelecionado = conclusaoResultado ? conclusaoResultado.value : "";
   const resultado = resultadoSelecionado || registro.resultado || "";
   if (!resultado) {
