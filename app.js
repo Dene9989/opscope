@@ -5201,6 +5201,7 @@ let maintenanceSyncFailed = false;
 let maintenanceLastUserId = null;
 let maintenanceLastFetch = 0;
 let maintenancePendingSync = false;
+const maintenanceRefreshByIdInFlight = new Set();
 let maintenanceStorageMode = getMaintenanceStorageMode();
 let maintenanceDirtyMemory = {};
 let maintenanceDirtyPersistFailed = false;
@@ -22669,6 +22670,16 @@ function abrirProgramacaoDetalhe(maintenanceId) {
   programacaoDetalheId = id;
   setProgramacaoDetalheVisivel(true);
   renderProgramacaoDetalheCard(item);
+  if (USE_AUTH_API && normalizeMaintenanceStatus(item.status) !== "concluida") {
+    refreshMaintenanceById(id, { silent: true }).then((found) => {
+      if (!found) {
+        return;
+      }
+      if (normalizeMaintenanceStatus(found.status) === "concluida") {
+        showAuthToast("Manutenção atualizada para concluída.");
+      }
+    });
+  }
 }
 
 function fecharProgramacaoDetalhe() {
@@ -58987,6 +58998,57 @@ function aplicarRegistroSemAtividadeState(checked, options = {}) {
     registroSemAtividadeHint.textContent = checked
       ? "Fechamento sem atividade não conta como execução e libera o próximo passo."
       : "Use quando não houve execução no dia. Não conta como execução e libera o fechamento.";
+  }
+}
+
+async function refreshMaintenanceById(maintenanceId, options = {}) {
+  if (!USE_AUTH_API || !currentUser || !activeProjectId) {
+    return null;
+  }
+  const id = String(maintenanceId || "").trim();
+  if (!id) {
+    return null;
+  }
+  if (maintenanceRefreshByIdInFlight.has(id)) {
+    return null;
+  }
+  maintenanceRefreshByIdInFlight.add(id);
+  const silent = Boolean(options.silent);
+  try {
+    const data = await apiMaintenanceList(activeProjectId, {
+      q: id,
+      limit: 50,
+      aggregate: false,
+      summary: false,
+    });
+    const items = data && Array.isArray(data.items) ? data.items : [];
+    const found =
+      items.find((item) => String((item && item.id) || "") === id) || items[0] || null;
+    if (!found) {
+      if (!silent) {
+        showAuthToast("Manutenção não encontrada no servidor.");
+      }
+      return null;
+    }
+    const index = manutencoes.findIndex((item) => String((item && item.id) || "") === id);
+    if (index >= 0) {
+      const merged = pickMaintenanceMerge(found, manutencoes[index]);
+      manutencoes[index] = merged.item || found;
+    } else {
+      manutencoes.push(found);
+    }
+    const resultado = normalizarManutencoes(manutencoes);
+    manutencoes = resultado.normalizadas;
+    salvarManutencoes(manutencoes, { skipSync: true, skipDirty: true });
+    renderTudo();
+    return found;
+  } catch (error) {
+    if (!silent) {
+      showAuthToast("Falha ao atualizar manutenção do servidor.");
+    }
+    return null;
+  } finally {
+    maintenanceRefreshByIdInFlight.delete(id);
   }
 }
 
