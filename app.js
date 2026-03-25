@@ -59631,6 +59631,7 @@ async function salvarRegistroExecucao(event) {
   }
   manutencoes[index] = atualizado;
   salvarManutencoes(manutencoes);
+  scheduleMaintenanceSync(manutencoes, true);
   const liberacao = getLiberacao(item) || {};
   const docsRegistro = getMaintenanceDocsMap(item);
   const documentosLista = DOC_KEYS.filter((key) => docsRegistro[key]).map(
@@ -60092,6 +60093,7 @@ async function finalizarLiberacao(index, item, liberacaoBase, overrideJustificat
   };
   manutencoes[index] = atualizado;
   salvarManutencoes(manutencoes);
+  scheduleMaintenanceSync(manutencoes, true);
   const docsLiberacao = getMaintenanceDocsMap(atualizado);
   const documentosLista = DOC_KEYS.filter((key) => docsLiberacao[key]).map(
     (key) => DOC_LABELS[key] || key
@@ -60384,6 +60386,7 @@ async function agendarLiberacao() {
     };
     manutencoes[index] = atualizado;
     salvarManutencoes(manutencoes);
+    scheduleMaintenanceSync(manutencoes, true);
     logAction("release_schedule", atualizado, {
       dataProgramada: item.data || "",
       agendadaEm: agendadaIso,
@@ -60541,6 +60544,7 @@ function salvarCancelarInicio(event) {
   };
   manutencoes[index] = atualizado;
   salvarManutencoes(manutencoes);
+  scheduleMaintenanceSync(manutencoes, true);
   const liberacao = getLiberacao(item) || {};
   const docsCancelamento = getMaintenanceDocsMap(atualizado);
   const documentosLista = DOC_KEYS.filter((key) => docsCancelamento[key]).map(
@@ -63527,6 +63531,7 @@ async function salvarConclusao(event) {
 
     manutencoes[index] = atualizado;
     salvarManutencoes(manutencoes);
+    scheduleMaintenanceSync(manutencoes, true);
     const dataProgramada = item.data ? parseDate(item.data) : null;
     const atrasoDias =
       dataProgramada && fimDate
