@@ -10804,6 +10804,25 @@ function normalizeRdoSnapshotRecord(record, forcedProjectId = "") {
   };
 }
 
+function sanitizeRdoSnapshotForSync(record) {
+  if (!record || typeof record !== "object") {
+    return null;
+  }
+  const context = { removed: 0 };
+  const sanitized = sanitizeInlineDataUrls(record, context);
+  if (sanitized && typeof sanitized === "object") {
+    if (context.removed > 0) {
+      const prev = Number(sanitized.inlineDataUrlsOmitted) || 0;
+      sanitized.inlineDataUrlsOmitted = prev + context.removed;
+    }
+    const logo = typeof sanitized.logoDataUrl === "string" ? sanitized.logoDataUrl.trim() : "";
+    if (logo && logo.startsWith("data:")) {
+      sanitized.logoDataUrl = "";
+    }
+  }
+  return sanitized;
+}
+
 function loadRdoSnapshots() {
   const data = readJson(RDO_SNAPSHOTS_FILE, []);
   if (!Array.isArray(data)) {
@@ -23603,43 +23622,80 @@ app.post(
   requirePermission("gerarRDOs"),
   requireStorageWritable,
   (req, res) => {
-    const user = req.currentUser || getSessionUser(req);
-    const fromQuery = String(req.query.projectId || "").trim();
-    const fromBody = String(req.body.projectId || "").trim();
-    const projectId = fromBody || fromQuery || getActiveProjectId(req, user);
-    if (!projectId) {
-      return res.status(400).json({ message: "Projeto ativo obrigat\u00f3rio." });
-    }
-    if (!userHasProjectAccess(user, projectId)) {
-      return res.status(403).json({ message: "NÃ£o autorizado." });
-    }
+    const errorId = crypto.randomUUID();
+    try {
+      const user = req.currentUser || getSessionUser(req);
+      const fromQuery = String(req.query.projectId || "").trim();
+      const fromBody = String((req.body && req.body.projectId) || "").trim();
+      const projectId = fromBody || fromQuery || getActiveProjectId(req, user);
+      if (!projectId) {
+        return res.status(400).json({ message: "Projeto ativo obrigat?rio." });
+      }
+      if (!userHasProjectAccess(user, projectId)) {
+        return res.status(403).json({ message: "N?o autorizado." });
+      }
 
-    const incoming = Array.isArray(req.body.items)
-      ? req.body.items
-          .map((item) => normalizeRdoSnapshotRecord(item, projectId))
-          .filter(Boolean)
-      : [];
+      const rawItems = Array.isArray(req.body && req.body.items) ? req.body.items : [];
+      const sanitizedItems = rawItems
+        .map((item) => {
+          try {
+            return sanitizeRdoSnapshotForSync(item);
+          } catch (error) {
+            console.warn("[rdo-sync] Falha ao sanitizar item.", {
+              errorId,
+              message: error && error.message ? error.message : String(error),
+            });
+            return null;
+          }
+        })
+        .filter(Boolean);
+      const incoming = sanitizedItems
+        .map((item) => {
+          try {
+            return normalizeRdoSnapshotRecord(item, projectId);
+          } catch (error) {
+            console.warn("[rdo-sync] Falha ao normalizar item.", {
+              errorId,
+              message: error && error.message ? error.message : String(error),
+            });
+            return null;
+          }
+        })
+        .filter(Boolean);
 
-    const existing = loadRdoSnapshots();
-    const sameProject = existing.filter((item) => item && item.projectId === projectId);
-    const mergedMap = new Map();
-    sameProject.forEach((item) => {
-      mergedMap.set(String(item.id || ""), item);
-    });
-    incoming.forEach((item) => {
-      mergedMap.set(String(item.id || ""), item);
-    });
-    const mergedProject = Array.from(mergedMap.values()).sort(
-      (a, b) => (getTimeValue(parseDateTime(b.createdAt)) || 0) - (getTimeValue(parseDateTime(a.createdAt)) || 0)
-    );
-    const otherProjects = existing.filter((item) => !(item && item.projectId === projectId));
-    saveRdoSnapshots([...otherProjects, ...mergedProject]);
-    broadcastSse("rdo.updated", {
-      projectId,
-      count: incoming.length,
-      source: "sync",
-    });
-    return res.json({ ok: true, count: incoming.length, projectId });
+      const existing = loadRdoSnapshots();
+      const sameProject = existing.filter((item) => item && item.projectId === projectId);
+      const mergedMap = new Map();
+      sameProject.forEach((item) => {
+        mergedMap.set(String(item.id || ""), item);
+      });
+      incoming.forEach((item) => {
+        mergedMap.set(String(item.id || ""), item);
+      });
+      const mergedProject = Array.from(mergedMap.values()).sort(
+        (a, b) =>
+          (getTimeValue(parseDateTime(b.createdAt)) || 0) -
+          (getTimeValue(parseDateTime(a.createdAt)) || 0)
+      );
+      const otherProjects = existing.filter((item) => !(item && item.projectId === projectId));
+      saveRdoSnapshots([...otherProjects, ...mergedProject]);
+      broadcastSse("rdo.updated", {
+        projectId,
+        count: incoming.length,
+        source: "sync",
+      });
+      return res.json({ ok: true, count: incoming.length, projectId });
+    } catch (error) {
+      console.error("[rdo-sync] Erro inesperado ao sincronizar.", {
+        errorId,
+        message: error && error.message ? error.message : String(error),
+        stack: error && error.stack ? String(error.stack) : "",
+      });
+      return res.status(500).json({
+        message: "Falha ao sincronizar snapshots do RDO.",
+        errorId,
+      });
+    }
   }
 );
 
