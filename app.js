@@ -1329,6 +1329,8 @@ const liberacaoChecklist = document.getElementById("liberacaoChecklist");
 const liberacaoProgramadaToggle = document.getElementById("liberacaoProgramadaToggle");
 const liberacaoProgramadaData = document.getElementById("liberacaoProgramadaData");
 const liberacaoProgramadaFields = document.getElementById("liberacaoProgramadaFields");
+const liberacaoProgramadaMotivo = document.getElementById("liberacaoProgramadaMotivo");
+const btnSalvarLiberacao = document.getElementById("btnSalvarLiberacao");
 const btnAgendarLiberacao = document.getElementById("btnAgendarLiberacao");
 const mensagemLiberacao = document.getElementById("mensagemLiberacao");
 const liberacaoDocPt = document.getElementById("liberacaoDocPt");
@@ -4970,6 +4972,21 @@ const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
   dateStyle: "short",
   timeStyle: "short",
 });
+const LIBERACAO_PROGRAMADA_TIMEZONE = "America/Sao_Paulo";
+const liberacaoProgramadaFormatter = new Intl.DateTimeFormat("pt-BR", {
+  dateStyle: "short",
+  timeStyle: "short",
+  timeZone: LIBERACAO_PROGRAMADA_TIMEZONE,
+});
+const liberacaoProgramadaInputFormatter = new Intl.DateTimeFormat("en-CA", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  timeZone: LIBERACAO_PROGRAMADA_TIMEZONE,
+});
 const monthYearFormatter = new Intl.DateTimeFormat("pt-BR", {
   month: "long",
   year: "numeric",
@@ -6196,6 +6213,17 @@ function stripMaintenanceDataUrls(item) {
     }
     updated.liberacao = liberacao;
   }
+  if (updated.liberacaoProgramada && typeof updated.liberacaoProgramada === "object") {
+    const programada = { ...updated.liberacaoProgramada };
+    if (programada.liberacao && typeof programada.liberacao === "object") {
+      const liberacao = { ...programada.liberacao };
+      if (liberacao.documentos) {
+        liberacao.documentos = sanitizeDocsForStorage(liberacao.documentos);
+      }
+      programada.liberacao = liberacao;
+    }
+    updated.liberacaoProgramada = programada;
+  }
   if (updated.documentos) {
     updated.documentos = sanitizeDocsForStorage(updated.documentos);
   }
@@ -6259,6 +6287,27 @@ function buildMaintenanceLiteItem(item) {
       replanejamentoMotivo: item.backlogMotivo.replanejamentoMotivo || "",
       replanejamentoObs: item.backlogMotivo.replanejamentoObs || "",
     };
+  }
+  if (item.liberacaoProgramada && typeof item.liberacaoProgramada === "object") {
+    const programada = item.liberacaoProgramada;
+    const programadaLite = {
+      status: programada.status || "",
+      agendadaEm: programada.agendadaEm || programada.agendada_em || "",
+      agendadaPor: programada.agendadaPor || programada.agendada_por || "",
+      motivo: programada.motivo || "",
+      createdAt: programada.createdAt || "",
+      updatedAt: programada.updatedAt || "",
+      executadaEm: programada.executadaEm || "",
+      canceladaEm: programada.canceladaEm || "",
+    };
+    if (programada.liberacao && typeof programada.liberacao === "object") {
+      const liberacao = { ...programada.liberacao };
+      if (liberacao.documentos) {
+        liberacao.documentos = sanitizeDocsForStorage(liberacao.documentos);
+      }
+      programadaLite.liberacao = liberacao;
+    }
+    lite.liberacaoProgramada = programadaLite;
   }
   if (item.registroExecucao && typeof item.registroExecucao === "object") {
     const registro = item.registroExecucao;
@@ -16742,7 +16791,7 @@ function appendLiberacaoProgramadaLinha(container, item) {
   }
   const line = document.createElement("p");
   line.className = "submeta";
-  const label = formatDateTime(info.when);
+  const label = liberacaoProgramadaFormatter.format(info.when);
   const autor = info.userId ? getUserLabel(info.userId) : "Desconhecido";
   line.textContent = `Liberação programada: ${label} por ${autor}`;
   container.append(line);
@@ -22014,7 +22063,9 @@ function criarCardManutencao(item, permissoes, options = {}) {
     const programadaBadge = document.createElement("span");
     programadaBadge.className = "status status--liberacao-programada";
     programadaBadge.textContent = "Liberação programada";
-    programadaBadge.title = `Programada para ${formatDateTime(liberacaoProgramadaInfo.when)}`;
+    programadaBadge.title = `Programada para ${liberacaoProgramadaFormatter.format(
+      liberacaoProgramadaInfo.when
+    )}`;
     statusGroup.append(programadaBadge);
   }
   if (
@@ -22153,9 +22204,9 @@ function criarCardManutencao(item, permissoes, options = {}) {
       const actionLabel = liberacaoOk ? "Iniciar execução" : "Liberar execução";
       const botao = criarBotaoAcao(actionLabel, action);
       if (action === "release" && lockInfo && !lockInfo.canOverride) {
-        botao.disabled = true;
-        botao.classList.add("is-disabled");
-        botao.title = `Trancada - libera em ${formatDate(lockInfo.date)}`;
+        botao.title = `Trancada para liberação manual até ${formatDate(
+          lockInfo.date
+        )}. Você pode programar a liberação.`;
       }
       actions.append(botao);
     }
@@ -22419,7 +22470,9 @@ function criarCardProgramacaoCompacto(item) {
     const programadaBadge = document.createElement("span");
     programadaBadge.className = "status status--liberacao-programada";
     programadaBadge.textContent = "Liberação programada";
-    programadaBadge.title = `Programada para ${formatDateTime(liberacaoProgramadaInfo.when)}`;
+    programadaBadge.title = `Programada para ${liberacaoProgramadaFormatter.format(
+      liberacaoProgramadaInfo.when
+    )}`;
     statusGroup.append(programadaBadge);
   }
   const pendenciaDiariaExecucao = getRegistroExecucaoPendenteDateKey(item);
@@ -59791,9 +59844,16 @@ function atualizarLiberacaoProgramadaUI() {
   if (liberacaoProgramadaData) {
     liberacaoProgramadaData.required = ativo;
   }
+  if (liberacaoProgramadaMotivo) {
+    liberacaoProgramadaMotivo.required = ativo;
+  }
   if (btnAgendarLiberacao) {
     btnAgendarLiberacao.hidden = !ativo;
     btnAgendarLiberacao.style.display = ativo ? "" : "none";
+  }
+  if (btnSalvarLiberacao) {
+    btnSalvarLiberacao.disabled = ativo;
+    btnSalvarLiberacao.classList.toggle("is-disabled", ativo);
   }
 }
 
@@ -59911,7 +59971,15 @@ function abrirLiberacao(item) {
   }
   if (liberacaoProgramadaData) {
     const dataAgendada = programadaAtiva ? getLiberacaoProgramadaAt(liberacaoProgramada) : null;
-    liberacaoProgramadaData.value = dataAgendada ? formatDateTimeInput(dataAgendada) : "";
+    liberacaoProgramadaData.value = dataAgendada
+      ? formatDateTimeInputInZone(dataAgendada, liberacaoProgramadaInputFormatter)
+      : "";
+  }
+  if (liberacaoProgramadaMotivo) {
+    liberacaoProgramadaMotivo.value =
+      programadaAtiva && liberacaoProgramada && liberacaoProgramada.motivo
+        ? String(liberacaoProgramada.motivo || "")
+        : "";
   }
   atualizarLiberacaoProgramadaUI();
   liberacaoDocInputs.forEach((input) => {
@@ -60202,6 +60270,13 @@ async function salvarLiberacao(event) {
     return;
   }
   const item = manutencoes[index];
+  if (liberacaoProgramadaToggle && liberacaoProgramadaToggle.checked) {
+    mostrarMensagemLiberacao(
+      "Liberação programada ativa. Use o botão Agendar liberação.",
+      true
+    );
+    return;
+  }
   mostrarCarregando();
   try {
     const payload = await prepararLiberacaoFormData(item);
@@ -60263,9 +60338,19 @@ async function agendarLiberacao() {
     return;
   }
   const dataValor = liberacaoProgramadaData ? liberacaoProgramadaData.value.trim() : "";
-  const dataAgendada = parseDateTimeInput(dataValor);
+  const dataAgendada = parseDateTimeInputInZone(
+    dataValor,
+    LIBERACAO_PROGRAMADA_TIMEZONE
+  );
   if (!dataAgendada) {
     mostrarMensagemLiberacao("Informe a data e o horário da liberação.", true);
+    return;
+  }
+  const motivoProgramacao = liberacaoProgramadaMotivo
+    ? String(liberacaoProgramadaMotivo.value || "").trim()
+    : "";
+  if (!motivoProgramacao) {
+    mostrarMensagemLiberacao("Selecione o motivo da programação.", true);
     return;
   }
   const agora = new Date();
@@ -60274,14 +60359,6 @@ async function agendarLiberacao() {
     return;
   }
   const item = manutencoes[index];
-  const dataProgramada = parseDate(item.data);
-  if (dataProgramada && startOfDay(dataAgendada) < startOfDay(dataProgramada)) {
-    mostrarMensagemLiberacao(
-      `Trancada - libera em ${formatDate(dataProgramada)}.`,
-      true
-    );
-    return;
-  }
   mostrarCarregando();
   try {
     const payload = await prepararLiberacaoFormData(item);
@@ -60294,6 +60371,7 @@ async function agendarLiberacao() {
       status: "programada",
       agendadaEm: agendadaIso,
       agendadaPor: currentUser.id,
+      motivo: motivoProgramacao,
       liberacao: payload.liberacaoBase,
       createdAt: agoraIso,
       updatedAt: agoraIso,
@@ -60309,7 +60387,8 @@ async function agendarLiberacao() {
     logAction("release_schedule", atualizado, {
       dataProgramada: item.data || "",
       agendadaEm: agendadaIso,
-      resumo: `Liberação programada para ${formatDateTime(dataAgendada)}.`,
+      motivo: motivoProgramacao,
+      resumo: `Liberação programada para ${liberacaoProgramadaFormatter.format(dataAgendada)}.`,
     });
     renderTudo();
     fecharLiberacao();
@@ -60353,16 +60432,6 @@ function liberarManutencao(index) {
   }
   if (item.status === "backlog") {
     mostrarMensagemManutencao("Manutenção em backlog. Não é possível liberar.", true);
-    return;
-  }
-  const dataProgramada = parseDate(item.data);
-  const hoje = startOfDay(new Date());
-  const lockInfo = getReleaseLockInfo(item, dataProgramada, hoje);
-  if (lockInfo && !lockInfo.canOverride) {
-    mostrarMensagemManutencao(
-      `Trancada - libera em ${formatDate(lockInfo.date)}.`,
-      true
-    );
     return;
   }
   abrirLiberacao(item);
@@ -60697,6 +60766,58 @@ function parseDateTimeInput(valor) {
     return null;
   }
   return new Date(ano, mes - 1, dia, hora, minuto);
+}
+
+function getTimeZoneOffsetMinutes(date, timeZone) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    timeZone,
+  });
+  const parts = formatter.formatToParts(date).reduce((acc, part) => {
+    acc[part.type] = part.value;
+    return acc;
+  }, {});
+  const iso = `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}Z`;
+  const zoned = new Date(iso);
+  return Math.round((zoned.getTime() - date.getTime()) / 60000);
+}
+
+function parseDateTimeInputInZone(valor, timeZone) {
+  if (!valor) {
+    return null;
+  }
+  const [dataParte, horaParte] = valor.split("T");
+  if (!dataParte || !horaParte) {
+    return null;
+  }
+  const [ano, mes, dia] = dataParte.split("-").map((item) => Number.parseInt(item, 10));
+  const [hora, minuto] = horaParte.split(":").map((item) => Number.parseInt(item, 10));
+  if (![ano, mes, dia, hora, minuto].every(Number.isFinite)) {
+    return null;
+  }
+  const baseUtc = new Date(Date.UTC(ano, mes - 1, dia, hora, minuto));
+  const offsetMinutes = getTimeZoneOffsetMinutes(baseUtc, timeZone);
+  return new Date(baseUtc.getTime() - offsetMinutes * 60000);
+}
+
+function formatDateTimeInputInZone(date, formatter) {
+  if (!date || Number.isNaN(date.getTime())) {
+    return "";
+  }
+  const parts = formatter.formatToParts(date).reduce((acc, part) => {
+    acc[part.type] = part.value;
+    return acc;
+  }, {});
+  if (!parts.year || !parts.month || !parts.day || !parts.hour || !parts.minute) {
+    return "";
+  }
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
 }
 
 function formatDuracaoMin(minutos) {
@@ -69183,6 +69304,11 @@ if (liberacaoProgramadaToggle) {
 }
 if (liberacaoProgramadaData) {
   liberacaoProgramadaData.addEventListener("change", () => {
+    mostrarMensagemLiberacao("");
+  });
+}
+if (liberacaoProgramadaMotivo) {
+  liberacaoProgramadaMotivo.addEventListener("change", () => {
     mostrarMensagemLiberacao("");
   });
 }

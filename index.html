@@ -7083,10 +7083,23 @@
           <div id="liberacaoProgramadaFields" class="field" data-full hidden>
             <label for="liberacaoProgramadaData">Data e hora da liberação</label>
             <input id="liberacaoProgramadaData" type="datetime-local" />
+            <label for="liberacaoProgramadaMotivo">Motivo da programação</label>
+            <select id="liberacaoProgramadaMotivo">
+              <option value="">Selecione</option>
+              <option value="Janela operacional">Janela operacional</option>
+              <option value="Aguardando documentação">Aguardando documentação</option>
+              <option value="Aguardando liberação do cliente">Aguardando liberação do cliente</option>
+              <option value="Equipe indisponível agora">Equipe indisponível agora</option>
+              <option value="Aguardando recursos/equipamentos">Aguardando recursos/equipamentos</option>
+              <option value="Aguardando terceiros">Aguardando terceiros</option>
+              <option value="Segurança/Permissão">Segurança/Permissão</option>
+            </select>
           </div>
         </div>
         <div class="modal__actions">
-          <button class="btn btn--primary" type="submit">Salvar liberação</button>
+          <button id="btnSalvarLiberacao" class="btn btn--primary" type="submit">
+            Salvar liberação
+          </button>
           <button id="btnAgendarLiberacao" class="btn btn--ghost" type="button" hidden>
             Agendar liberação
           </button>
