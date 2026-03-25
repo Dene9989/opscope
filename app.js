@@ -17224,6 +17224,8 @@ function pickMaintenanceMerge(remote, local) {
   const localTime = getMaintenanceUpdatedAtValue(local);
   const remoteConcluida = isMaintenanceConcluded(remote);
   const localConcluida = isMaintenanceConcluded(local);
+  const localReopened = Boolean(local.reopenedAt || local.reopenedBy);
+  const remoteReopened = Boolean(remote.reopenedAt || remote.reopenedBy);
   const localHasExec =
     hasExecucaoRegistrada(local) || getRegistrosDiariosExecucao(local).length > 0;
   const remoteHasExec =
@@ -17238,10 +17240,10 @@ function pickMaintenanceMerge(remote, local) {
     };
   }
 
-  if (localConcluida && !remoteConcluida && (!remoteTime || localTime >= remoteTime)) {
+  if (localConcluida && !remoteConcluida && !remoteReopened) {
     return { item: applySourceOverride(mergePreferLocal(local, remote), "local"), source: "local" };
   }
-  if (remoteConcluida && !localConcluida && (!localTime || remoteTime >= localTime)) {
+  if (remoteConcluida && !localConcluida && !localReopened) {
     return {
       item: applySourceOverride(mergePreferLocal(remote, local), "remote"),
       source: "remote",
@@ -17284,6 +17286,7 @@ function mergeLocalExecucaoRegistro(remote, local) {
   const remoteConcluida = remoteStatus === "concluida";
   const localConcluida = localStatus === "concluida";
   const localReopened = Boolean(local.reopenedAt || local.reopenedBy);
+  const remoteReopened = Boolean(remote.reopenedAt || remote.reopenedBy);
   const localHasExec =
     hasExecucaoRegistrada(local) || getRegistrosDiariosExecucao(local).length > 0;
   const remoteHasExec =
@@ -17294,15 +17297,10 @@ function mergeLocalExecucaoRegistro(remote, local) {
   if (localHasExec && !remoteHasExec && !remoteConcluida) {
     return mergePreferWithMonthlyOverride(local, remote);
   }
-  if (remoteConcluida && !localConcluida) {
-    if (!localReopened) {
-      return mergePreferWithMonthlyOverride(remote, local);
-    }
-    if (!localTime || (remoteTime && remoteTime >= localTime - 1000)) {
-      return mergePreferWithMonthlyOverride(remote, local);
-    }
+  if (remoteConcluida && !localConcluida && !localReopened) {
+    return mergePreferWithMonthlyOverride(remote, local);
   }
-  if (localConcluida && !remoteConcluida && (!remoteTime || localTime >= remoteTime)) {
+  if (localConcluida && !remoteConcluida && !remoteReopened) {
     return mergePreferWithMonthlyOverride(local, remote);
   }
   if (localDirty && (!remoteTime || localTime >= remoteTime)) {
