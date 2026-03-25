@@ -245,6 +245,7 @@ const DATA_FILE_NAMES = [
   "maintenance_tombstones.json",
   "maintenance_recurrence_suppressions.json",
   "maintenance_monthly.json",
+  "maintenance_dedupe_alerts.json",
   "rdo_snapshots.json",
   "maintenance_ss_counter.json",
   "announcements.json",
@@ -304,6 +305,7 @@ const MAINTENANCE_RECURRENCE_SUPPRESS_FILE = path.join(
 const MAINTENANCE_MONTHLY_FILE = path.join(DATA_DIR, "maintenance_monthly.json");
 const RDO_SNAPSHOTS_FILE = path.join(DATA_DIR, "rdo_snapshots.json");
 const MAINTENANCE_SS_COUNTER_FILE = path.join(DATA_DIR, "maintenance_ss_counter.json");
+const MAINTENANCE_DEDUPE_ALERTS_FILE = path.join(DATA_DIR, "maintenance_dedupe_alerts.json");
 const ANNOUNCEMENTS_FILE = path.join(DATA_DIR, "announcements.json");
 const FEEDBACKS_FILE = path.join(DATA_DIR, "feedbacks.json");
 const SST_DOCS_FILE = path.join(DATA_DIR, "sst_docs.json");
@@ -650,6 +652,8 @@ const MAINTENANCE_TEAM_EMAIL_DEDUP_PREFIX = "maintenance_team_email";
 const MAINTENANCE_MONTHLY_STATE_DEFAULT = { lastWarnDate: "", lastBacklogMonth: "" };
 const MAINTENANCE_MONTHLY_CHECK_MS = 60 * 60 * 1000;
 const MAINTENANCE_RELEASE_SCHEDULE_CHECK_MS = 60 * 1000;
+const MAINTENANCE_DEDUPE_CHECK_MS = 24 * 60 * 60 * 1000;
+const MAINTENANCE_STATUS_FIX_CHECK_MS = 60 * 60 * 1000;
 
 const ALMOX_ITEM_TYPES = new Set(["FERRAMENTA", "EPI", "EPC", "CONSUMIVEL"]);
 const ALMOX_ITEM_UNITS = new Set(["UN", "PAR", "CX"]);
@@ -12415,6 +12419,53 @@ function hasMaintenanceCompletionData(item) {
   );
 }
 
+function normalizeMaintenanceCompletionStatuses(list) {
+  if (!Array.isArray(list) || list.length === 0) {
+    return { list: Array.isArray(list) ? list : [], changed: false, updatedProjects: new Set(), fixedIds: [] };
+  }
+  const nowIso = new Date().toISOString();
+  const updatedProjects = new Set();
+  const fixedIds = [];
+  let changed = false;
+  const next = list.map((item) => {
+    if (!item || typeof item !== "object") {
+      return item;
+    }
+    const status = normalizeStatus(item.status);
+    if (status === "concluida" || status === "cancelada") {
+      return item;
+    }
+    if (!hasMaintenanceCompletionData(item)) {
+      return item;
+    }
+    changed = true;
+    if (item.projectId) {
+      updatedProjects.add(item.projectId);
+    }
+    if (item.id) {
+      fixedIds.push(String(item.id));
+    }
+    const conclusao =
+      item.conclusao && typeof item.conclusao === "object" ? item.conclusao : null;
+    const doneAt =
+      item.doneAt ||
+      item.executionFinishedAt ||
+      item.concluidaEm ||
+      item.dataConclusao ||
+      (conclusao ? conclusao.fim : "") ||
+      "";
+    return {
+      ...item,
+      status: "concluida",
+      doneAt: doneAt || item.doneAt || "",
+      executionFinishedAt: item.executionFinishedAt || doneAt || "",
+      updatedAt: nowIso,
+      updatedBy: "system",
+    };
+  });
+  return { list: next, changed, updatedProjects, fixedIds };
+}
+
 function sanitizeMaintenanceIncoming(item, current, user) {
   if (!item || typeof item !== "object") {
     return item;
@@ -13087,6 +13138,16 @@ function startMaintenanceMonthlyScheduler() {
   return setInterval(runMaintenanceMonthlyScheduler, MAINTENANCE_MONTHLY_CHECK_MS);
 }
 
+function startMaintenanceDedupeMonitor() {
+  runMaintenanceDedupeMonitor();
+  return setInterval(runMaintenanceDedupeMonitor, MAINTENANCE_DEDUPE_CHECK_MS);
+}
+
+function startMaintenanceStatusFixScheduler() {
+  runMaintenanceCompletionNormalizer();
+  return setInterval(runMaintenanceCompletionNormalizer, MAINTENANCE_STATUS_FIX_CHECK_MS);
+}
+
 function normalizeReleaseScheduleStatus(value) {
   const raw = String(value || "").trim().toLowerCase();
   if (!raw) {
@@ -13613,6 +13674,133 @@ function addMaintenanceTombstone(projectId, maintenanceId, userId) {
   filtered.push(entry);
   saveMaintenanceTombstones(filtered);
   return entry;
+}
+
+function loadMaintenanceDedupeAlerts() {
+  const data = readJson(MAINTENANCE_DEDUPE_ALERTS_FILE, {});
+  if (!data || typeof data !== "object") {
+    return { updatedAt: "", projects: {} };
+  }
+  const projects = data.projects && typeof data.projects === "object" ? data.projects : {};
+  return {
+    updatedAt: data.updatedAt || "",
+    projects,
+  };
+}
+
+function saveMaintenanceDedupeAlerts(state) {
+  const payload = state && typeof state === "object" ? state : { updatedAt: "", projects: {} };
+  writeJson(MAINTENANCE_DEDUPE_ALERTS_FILE, payload);
+}
+
+function buildMaintenanceDedupeSummary() {
+  const nowIso = new Date().toISOString();
+  const dataset = loadMaintenanceData();
+  const tombstones = loadMaintenanceTombstones();
+  const tombstonesByProject = new Map();
+  tombstones.forEach((entry) => {
+    if (!entry || !entry.id) {
+      return;
+    }
+    const projectId = String(entry.projectId || "").trim();
+    if (!projectId) {
+      return;
+    }
+    if (!tombstonesByProject.has(projectId)) {
+      tombstonesByProject.set(projectId, new Set());
+    }
+    tombstonesByProject.get(projectId).add(String(entry.id));
+  });
+
+  const fallbackProjectId = getDefaultProjectId();
+  const itemsByProject = new Map();
+  dataset.forEach((item) => {
+    if (!item || typeof item !== "object") {
+      return;
+    }
+    const projectId = String(item.projectId || fallbackProjectId || "").trim();
+    if (!projectId) {
+      return;
+    }
+    const tombstonesSet = tombstonesByProject.get(projectId);
+    if (tombstonesSet && tombstonesSet.has(String(item.id || ""))) {
+      return;
+    }
+    if (!itemsByProject.has(projectId)) {
+      itemsByProject.set(projectId, []);
+    }
+    itemsByProject.get(projectId).push(item);
+  });
+
+  const projects = {};
+  itemsByProject.forEach((items, projectId) => {
+    const duplicates = listMaintenanceDuplicateGroups(items, projectId);
+    const totalGroups = duplicates.length;
+    const totalItems = duplicates.reduce((acc, group) => acc + (group.count || 0), 0);
+    projects[projectId] = {
+      totalGroups,
+      totalItems,
+      checkedAt: nowIso,
+    };
+  });
+  return { updatedAt: nowIso, projects };
+}
+
+function runMaintenanceDedupeMonitor() {
+  try {
+    const summary = buildMaintenanceDedupeSummary();
+    saveMaintenanceDedupeAlerts(summary);
+    return summary;
+  } catch (error) {
+    console.warn("[maintenance-dedupe] Falha ao atualizar alertas.", {
+      message: error && error.message ? error.message : String(error || ""),
+    });
+    return null;
+  }
+}
+
+function getMaintenanceDedupeAlertState() {
+  const current = loadMaintenanceDedupeAlerts();
+  const lastRun = parseDateTime(current.updatedAt);
+  const stale = !lastRun || Date.now() - lastRun.getTime() > MAINTENANCE_DEDUPE_CHECK_MS;
+  if (stale) {
+    const updated = runMaintenanceDedupeMonitor();
+    if (updated) {
+      return updated;
+    }
+  }
+  return current;
+}
+
+function runMaintenanceCompletionNormalizer() {
+  const dataset = loadMaintenanceData();
+  const normalized = normalizeMaintenanceCompletionStatuses(dataset);
+  if (!normalized.changed) {
+    return null;
+  }
+  const writeOk = writeJson(MAINTENANCE_FILE, normalized.list);
+  if (!writeOk) {
+    console.warn("[maintenance-status] Falha ao salvar normalização de conclusão.");
+    return null;
+  }
+  normalized.updatedProjects.forEach((projectId) => {
+    touchCompat("maintenance", projectId);
+    broadcastSse("maintenance.updated", {
+      projectId,
+      count: 0,
+      source: "status-normalizer",
+    });
+  });
+  if (normalized.updatedProjects.size) {
+    DASHBOARD_CACHE.clear();
+  }
+  appendAudit(
+    "maintenance_status_fix",
+    "system",
+    { total: normalized.fixedIds.length },
+    "system"
+  );
+  return normalized;
 }
 
 function loadMaintenanceRecurrenceSuppressions() {
@@ -16930,6 +17118,8 @@ async function bootstrap() {
   ensureProjectSeedData();
   startMaintenanceMonthlyScheduler();
   startMaintenanceReleaseScheduler();
+  startMaintenanceDedupeMonitor();
+  startMaintenanceStatusFixScheduler();
 }
 
 app.use(express.json({ limit: "20mb" }));
@@ -21496,6 +21686,28 @@ app.get("/api/maintenance", requireAuth, (req, res) => {
   }
   const tombstones = getMaintenanceTombstonesMap(projectId);
   let dataset = loadMaintenanceData();
+  const statusFix = normalizeMaintenanceCompletionStatuses(dataset);
+  if (statusFix.changed) {
+    dataset = statusFix.list;
+    writeJson(MAINTENANCE_FILE, dataset);
+    statusFix.updatedProjects.forEach((pid) => {
+      touchCompat("maintenance", pid);
+      broadcastSse("maintenance.updated", {
+        projectId: pid,
+        count: 0,
+        source: "status-normalizer",
+      });
+    });
+    if (statusFix.updatedProjects.size) {
+      DASHBOARD_CACHE.clear();
+    }
+    appendAudit(
+      "maintenance_status_fix",
+      "system",
+      { total: statusFix.fixedIds.length },
+      "system"
+    );
+  }
   const ssSequenced = ensureMaintenanceSsNumbers(dataset);
   if (ssSequenced.changed) {
     dataset = ssSequenced.list;
@@ -21624,6 +21836,33 @@ app.get("/api/maintenance", requireAuth, (req, res) => {
 
   return res.json(payload);
 });
+
+app.get(
+  "/api/maintenance/dedupe/alert",
+  requireAuth,
+  requirePermission("verPainelGerencial"),
+  (req, res) => {
+    const user = req.currentUser || getSessionUser(req);
+    const fromQuery = String(req.query.projectId || "").trim();
+    const projectId = fromQuery || getActiveProjectId(req, user);
+    if (!projectId) {
+      return res.status(400).json({ message: "Projeto ativo obrigatÃ³rio." });
+    }
+    if (!userHasProjectAccess(user, projectId)) {
+      return res.status(403).json({ message: "NÃ£o autorizado." });
+    }
+    const state = getMaintenanceDedupeAlertState();
+    const summary =
+      state.projects && state.projects[projectId]
+        ? state.projects[projectId]
+        : { totalGroups: 0, totalItems: 0, checkedAt: state.updatedAt || "" };
+    return res.json({
+      projectId,
+      updatedAt: state.updatedAt || "",
+      summary,
+    });
+  }
+);
 
 app.post("/api/maintenance/dedupe", requireAuth, (req, res) => {
   const user = req.currentUser || getSessionUser(req);

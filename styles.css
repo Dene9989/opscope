@@ -3579,6 +3579,11 @@ body.is-visitor .container.auth-only {
   white-space: pre-wrap;
 }
 
+#duplicadasInfo.is-alert {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
 .template-grid {
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);

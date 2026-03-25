@@ -4550,6 +4550,7 @@ async function refreshGerencialAll() {
     carregarAutomacoes(true),
     carregarArquivos(true),
     carregarPermissoes(true),
+    carregarAlertaDuplicadas(),
   ]);
   const failed = results.some((item) => item.status === "rejected");
   if (failed) {
@@ -4588,6 +4589,7 @@ function loadGerencialTab(tabId, force = false) {
       break;
     case "operacoes":
       updateCacheLocalInfo();
+      carregarAlertaDuplicadas();
       break;
     case "geral":
       updateGerencialIndicators();
@@ -15113,6 +15115,26 @@ function hasExecucaoRegistrada(item) {
   );
 }
 
+function hasMaintenanceCompletionData(item, conclusaoOverride = null) {
+  if (!item || typeof item !== "object") {
+    return false;
+  }
+  const conclusao =
+    conclusaoOverride && typeof conclusaoOverride === "object"
+      ? conclusaoOverride
+      : item.conclusao && typeof item.conclusao === "object"
+        ? item.conclusao
+        : null;
+  return Boolean(
+    item.doneAt ||
+      item.concluidaEm ||
+      item.dataConclusao ||
+      item.completedAt ||
+      item.executionFinishedAt ||
+      (conclusao && conclusao.fim)
+  );
+}
+
 function hasExecucaoRegistradaCompleta(item) {
   if (!item) {
     return false;
@@ -15890,6 +15912,35 @@ function normalizarManutencoes(lista) {
       mudouCampos = true;
     }
     const statusOriginal = normalizeMaintenanceStatus(item.status);
+    if (statusOriginal !== "concluida" && statusOriginal !== "cancelada") {
+      const concluidaDetectada = hasMaintenanceCompletionData(item, conclusao);
+      if (concluidaDetectada) {
+        const doneAtFinal =
+          doneAt ||
+          executionFinishedAt ||
+          (conclusao ? conclusao.fim : "") ||
+          item.concluidaEm ||
+          item.dataConclusao ||
+          "";
+        const executionFinishedAtFinal = executionFinishedAt || doneAtFinal || "";
+        changes.push({ id: item.id, from: statusOriginal, to: "concluida" });
+        return {
+          ...baseItem,
+          status: "concluida",
+          equipamentoId,
+          equipamentoIds,
+          subequipamentos,
+          procedimentoIds: procedimentos,
+          createdAt,
+          updatedAt: toIsoUtc(new Date()),
+          updatedBy: SYSTEM_USER_ID,
+          doneAt: doneAtFinal || doneAt,
+          executionStartedAt: executionStartedAt || fallbackExecutionStartedAt,
+          executionFinishedAt: executionFinishedAtFinal || executionFinishedAt,
+          conclusao,
+        };
+      }
+    }
     if (statusOriginal === "concluida" || statusOriginal === "cancelada") {
       return {
         ...baseItem,
@@ -56153,11 +56204,12 @@ function canDedupeMaintenanceClient() {
   return isAdmin() || can("edit") || can("remove");
 }
 
-function setDuplicadasInfo(texto) {
+function setDuplicadasInfo(texto, isAlert = false) {
   if (!duplicadasInfo) {
     return;
   }
   duplicadasInfo.textContent = texto || "";
+  duplicadasInfo.classList.toggle("is-alert", Boolean(isAlert));
 }
 
 function updateDuplicadasButtonsState(loading = duplicadasLoading) {
@@ -56316,6 +56368,34 @@ async function mesclarDuplicadasManutencao() {
   } finally {
     duplicadasLoading = false;
     updateDuplicadasButtonsState(false);
+  }
+}
+
+async function carregarAlertaDuplicadas() {
+  if (!currentUser || !canViewGerencial(currentUser) || !activeProjectId) {
+    setDuplicadasInfo("");
+    return;
+  }
+  if (duplicadasLoading) {
+    return;
+  }
+  try {
+    const data = await apiMaintenanceDedupeAlert(activeProjectId);
+    const summary = data && data.summary ? data.summary : {};
+    const totalGroups = Number(summary.totalGroups) || 0;
+    const totalItems = Number(summary.totalItems) || 0;
+    const checkedAt = summary.checkedAt || (data && data.updatedAt) || "";
+    const checkedLabel = checkedAt ? formatDateTime(parseTimestamp(checkedAt)) : "Nunca";
+    if (totalGroups > 0) {
+      setDuplicadasInfo(
+        `ALERTA: ${totalGroups} grupos (${totalItems} registros). Última checagem: ${checkedLabel}.`,
+        true
+      );
+      return;
+    }
+    setDuplicadasInfo(`Sem duplicidades. Última checagem: ${checkedLabel}.`);
+  } catch (error) {
+    setDuplicadasInfo("");
   }
 }
 
@@ -64872,6 +64952,11 @@ async function apiMaintenanceDedupe(payload) {
     method: "POST",
     body: JSON.stringify(payload || {}),
   });
+}
+
+async function apiMaintenanceDedupeAlert(projectId) {
+  const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
+  return apiRequest(`/api/maintenance/dedupe/alert${query}`);
 }
 
 async function apiRdoGenerateText(payload) {
