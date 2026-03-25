@@ -13386,12 +13386,37 @@ function normalizeRdoSnapshotsForSync(list) {
   if (!projectId) {
     return [];
   }
+  const compactSnapshot = (snapshot) => {
+    if (!snapshot || typeof snapshot !== "object") {
+      return snapshot;
+    }
+    const evidencias = Array.isArray(snapshot.evidencias)
+      ? snapshot.evidencias.map((evidencia) => ({
+          ...evidencia,
+          dataUrl: "",
+        }))
+      : snapshot.evidencias;
+    const evidenciasNaoImagem = Array.isArray(snapshot.evidenciasNaoImagem)
+      ? snapshot.evidenciasNaoImagem.map((evidencia) => ({
+          ...evidencia,
+          dataUrl: "",
+        }))
+      : snapshot.evidenciasNaoImagem;
+    return {
+      ...snapshot,
+      evidencias,
+      evidenciasNaoImagem,
+      logoDataUrl: "",
+    };
+  };
   return (Array.isArray(list) ? list : [])
     .filter((item) => item && typeof item === "object")
-    .map((item) => ({
-      ...item,
-      projectId,
-    }));
+    .map((item) =>
+      compactSnapshot({
+        ...item,
+        projectId,
+      })
+    );
 }
 
 async function syncRdoSnapshotsNow(payload = rdoSnapshots) {
