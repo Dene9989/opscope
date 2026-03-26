@@ -1,5 +1,8 @@
 ﻿try {
-  require("dotenv").config();
+  const shouldLoadDotenv = !process.env.RENDER && process.env.NODE_ENV !== "production";
+  if (shouldLoadDotenv) {
+    require("dotenv").config();
+  }
 } catch (error) {
   // ignore if dotenv is not installed
 }
@@ -23694,6 +23697,7 @@ app.post(
       return res.status(500).json({
         message: "Falha ao sincronizar snapshots do RDO.",
         errorId,
+        errorMessage: error && error.message ? String(error.message) : String(error || ""),
       });
     }
   }
