@@ -29195,7 +29195,13 @@ async function getEvidenceDataUrl(evidencia) {
   }
   const dataUrl = resolvePublicUrl(rawUrl);
   try {
-    const response = await fetch(dataUrl);
+    let response = await fetch(dataUrl, { credentials: "include", cache: "no-store" });
+    if (!response.ok) {
+      response = await fetch(dataUrl, { cache: "no-store" });
+    }
+    if (!response.ok) {
+      return "";
+    }
     const blob = await response.blob();
     return await blobToDataUrl(blob);
   } catch (error) {
