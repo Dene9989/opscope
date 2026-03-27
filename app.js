@@ -1391,6 +1391,21 @@ const btnAplicarModeloBreve = document.getElementById("btnAplicarModeloBreve");
 const conclusaoDescricaoBreve = document.getElementById("conclusaoDescricaoBreve");
 const conclusaoParticipantes = document.getElementById("conclusaoParticipantes");
 const conclusaoDocs = document.getElementById("conclusaoDocs");
+const conclusaoDocsUploadField = document.getElementById("conclusaoDocsUploadField");
+const conclusaoDocPt = document.getElementById("conclusaoDocPt");
+const conclusaoDocInputs = Array.from(
+  document.querySelectorAll("[data-conclusao-doc-input]")
+);
+const conclusaoDocButtons = Array.from(
+  document.querySelectorAll("[data-conclusao-doc-btn]")
+);
+const conclusaoDocViews = Array.from(
+  document.querySelectorAll("[data-conclusao-doc-view]")
+);
+const conclusaoDocNames = Array.from(
+  document.querySelectorAll("[data-conclusao-doc-name]")
+);
+const conclusaoDocsErro = document.getElementById("conclusaoDocsErro");
 const conclusaoReferencia = document.getElementById("conclusaoReferencia");
 const conclusaoFotosToggle = document.getElementById("conclusaoFotosToggle");
 const conclusaoEvidenciasField = document.getElementById("conclusaoEvidenciasField");
@@ -5146,6 +5161,8 @@ let backlogMotivoEvidenciasAtual = [];
 let manutencaoEmCancelamento = null;
 let liberacaoDocsBase = {};
 let liberacaoDocsPreview = {};
+let conclusaoDocsBase = {};
+let conclusaoDocsPreview = {};
 let previewBlobUrl = "";
 let previewCurrentUrl = "";
 let idleTimeoutHandle = null;
@@ -60118,6 +60135,101 @@ function getLiberacaoDocAtual(chave) {
   return liberacaoDocsPreview[chave] || liberacaoDocsBase[chave] || null;
 }
 
+function getConclusaoDocAtual(chave) {
+  return conclusaoDocsPreview[chave] || conclusaoDocsBase[chave] || null;
+}
+
+function getConclusaoDocsMapFromState() {
+  const merged = { ...(conclusaoDocsBase || {}) };
+  DOC_KEYS.forEach((key) => {
+    const doc = getConclusaoDocAtual(key);
+    if (doc) {
+      merged[key] = doc;
+    }
+  });
+  return merged;
+}
+
+function getConclusaoDocsMissingKeys(documentos, critico) {
+  const required = ["apr", "os", "pte"];
+  if (isCriticoValor(critico)) {
+    required.push("pt");
+  }
+  return required.filter((key) => !documentos[key]);
+}
+
+function setConclusaoDocsErro(message) {
+  setFieldErrorText(conclusaoDocsErro, message);
+}
+
+function atualizarConclusaoDocsUI() {
+  const critico = conclusaoItemAtual ? isItemCritico(conclusaoItemAtual) : false;
+  if (conclusaoDocPt) {
+    conclusaoDocPt.hidden = !critico;
+    conclusaoDocPt.style.display = critico ? "" : "none";
+  }
+  const ptInput = conclusaoDocInputs.find(
+    (input) => input && input.dataset.conclusaoDocInput === "pt"
+  );
+  if (ptInput) {
+    ptInput.required = Boolean(critico);
+    ptInput.disabled = !critico;
+    if (!critico) {
+      ptInput.value = "";
+      delete conclusaoDocsPreview.pt;
+    }
+  }
+  DOC_KEYS.forEach((chave) => {
+    const nomeEl = conclusaoDocNames.find((item) => item.dataset.conclusaoDocName === chave);
+    const viewBtn = conclusaoDocViews.find((item) => item.dataset.conclusaoDocView === chave);
+    const doc = getConclusaoDocAtual(chave);
+    if (nomeEl) {
+      nomeEl.textContent = doc ? doc.nome || doc.name || "Arquivo" : "Nenhum arquivo";
+    }
+    if (viewBtn) {
+      viewBtn.disabled = !doc;
+    }
+  });
+  const docsAtual = getConclusaoDocsMapFromState();
+  const missing = getConclusaoDocsMissingKeys(docsAtual, critico);
+  const possuiSelecao = conclusaoDocInputs.some(
+    (input) => input && input.files && input.files[0]
+  );
+  if (conclusaoDocsUploadField) {
+    const mostrar = missing.length > 0 || possuiSelecao;
+    conclusaoDocsUploadField.hidden = !mostrar;
+    conclusaoDocsUploadField.style.display = mostrar ? "" : "none";
+  }
+  if (missing.length) {
+    const labels = missing.map((key) => DOC_LABELS[key] || key).join(", ");
+    setConclusaoDocsErro(`Documentação pendente: ${labels}.`);
+  } else {
+    setConclusaoDocsErro("");
+  }
+}
+
+function handleConclusaoDocChange(input) {
+  if (!input) {
+    return;
+  }
+  const chave = input.dataset.conclusaoDocInput;
+  if (!chave) {
+    return;
+  }
+  const file = input.files && input.files[0] ? input.files[0] : null;
+  if (!file) {
+    delete conclusaoDocsPreview[chave];
+    atualizarConclusaoDocsUI();
+    return;
+  }
+  lerDocumentoFile(file).then((doc) => {
+    if (doc) {
+      conclusaoDocsPreview[chave] = doc;
+    }
+    atualizarConclusaoDocsUI();
+  });
+}
+
 function atualizarLiberacaoDocsUI() {
   DOC_KEYS.forEach((chave) => {
     const nomeEl = liberacaoDocNames.find((item) => item.dataset.docName === chave);
@@ -63576,6 +63688,16 @@ function abrirConclusao(item) {
   if (conclusaoDocs) {
     const docs = getMaintenanceDocsMap(item);
     renderDocList(conclusaoDocs, docs, isItemCritico(item));
+    conclusaoDocsBase = docs;
+    conclusaoDocsPreview = {};
+    if (conclusaoDocInputs.length) {
+      conclusaoDocInputs.forEach((input) => {
+        if (input) {
+          input.value = "";
+        }
+      });
+    }
+    atualizarConclusaoDocsUI();
   }
   atualizarDuracaoConclusao();
 
@@ -63588,8 +63710,22 @@ function fecharConclusao() {
   }
   modalConclusao.hidden = true;
   setConclusaoAssinaturaErro("");
+  setConclusaoDocsErro("");
   if (conclusaoAssinaturaConfirm) {
     conclusaoAssinaturaConfirm.checked = false;
+  }
+  conclusaoDocsBase = {};
+  conclusaoDocsPreview = {};
+  if (conclusaoDocInputs.length) {
+    conclusaoDocInputs.forEach((input) => {
+      if (input) {
+        input.value = "";
+      }
+    });
+  }
+  if (conclusaoDocsUploadField) {
+    conclusaoDocsUploadField.hidden = true;
+    conclusaoDocsUploadField.style.display = "none";
   }
   conclusaoFalhaFotosAtual = [];
   if (conclusaoFalhaToggle) {
@@ -63598,6 +63734,67 @@ function fecharConclusao() {
   toggleConclusaoFalhaUI();
   manutencaoEmConclusao = null;
   conclusaoItemAtual = null;
+}
+
+async function prepararConclusaoDocumentos(item, liberacaoBase) {
+  if (!item) {
+    return null;
+  }
+  const liberacaoAtual =
+    liberacaoBase && typeof liberacaoBase === "object" ? { ...liberacaoBase } : null;
+  const documentosAtualizados = {
+    ...(item.documentos || {}),
+    ...((liberacaoAtual && liberacaoAtual.documentos) || {}),
+  };
+  for (const chave of DOC_KEYS) {
+    const input = conclusaoDocInputs.find(
+      (itemInput) => itemInput.dataset.conclusaoDocInput === chave
+    );
+    const file = input && input.files && input.files[0] ? input.files[0] : null;
+    if (!file) {
+      continue;
+    }
+    try {
+      documentosAtualizados[chave] = await uploadLiberacaoDoc(file, chave);
+    } catch (error) {
+      mostrarMensagemConclusao(
+        error && error.message ? error.message : "Não foi possível enviar o documento.",
+        true
+      );
+      return null;
+    }
+  }
+  const liberacaoAtualizada = liberacaoAtual
+    ? { ...liberacaoAtual, documentos: documentosAtualizados }
+    : liberacaoAtual;
+  const itemDocsProxy = {
+    ...item,
+    documentos: documentosAtualizados,
+    liberacao: liberacaoAtualizada || item.liberacao,
+  };
+  const docsFinal = getMaintenanceDocsMap(itemDocsProxy);
+  const missing = getConclusaoDocsMissingKeys(docsFinal, isItemCritico(item));
+  if (missing.length) {
+    const labels = missing.map((key) => DOC_LABELS[key] || key).join(", ");
+    setConclusaoDocsErro(`Documentação pendente: ${labels}.`);
+    mostrarMensagemConclusao("Documentação de liberação pendente.", true);
+    return null;
+  }
+  conclusaoDocsBase = docsFinal;
+  conclusaoDocsPreview = {};
+  if (conclusaoDocInputs.length) {
+    conclusaoDocInputs.forEach((input) => {
+      if (input) {
+        input.value = "";
+      }
+    });
+  }
+  atualizarConclusaoDocsUI();
+  if (conclusaoDocs) {
+    renderDocList(conclusaoDocs, docsFinal, isItemCritico(item));
+  }
+  setConclusaoDocsErro("");
+  return { documentosAtualizados, liberacaoAtualizada, docsFinal };
 }
 
 async function salvarConclusao(event) {
@@ -63657,11 +63854,7 @@ async function salvarConclusao(event) {
     mostrarMensagemConclusao("Informe o resultado da execução.", true);
     return;
   }
-  const liberacao = getLiberacao(item);
-  if (!isLiberacaoOk(item)) {
-    mostrarMensagemConclusao("Documentação de liberação pendente.", true);
-    return;
-  }
+  let liberacao = getLiberacao(item);
   const comentarioMsg = getMensagemResumoRdo(comentario);
   if (comentarioMsg) {
     mostrarMensagemConclusao(comentarioMsg, true);
@@ -63787,6 +63980,20 @@ async function salvarConclusao(event) {
   }
   mostrarCarregando();
   try {
+    const docsPayload = await prepararConclusaoDocumentos(item, liberacao);
+    if (!docsPayload) {
+      return;
+    }
+    const itemComDocs = {
+      ...item,
+      documentos: docsPayload.documentosAtualizados,
+      liberacao: docsPayload.liberacaoAtualizada || item.liberacao,
+    };
+    liberacao = docsPayload.liberacaoAtualizada || liberacao;
+    if (!isLiberacaoOk(itemComDocs)) {
+      mostrarMensagemConclusao("Documentação de liberação pendente.", true);
+      return;
+    }
     if (fotosObrigatorias) {
       mostrarMensagemConclusao("Enviando evidências...");
     }
@@ -63922,6 +64129,8 @@ async function salvarConclusao(event) {
 
     const atualizado = {
       ...item,
+      documentos: docsPayload.documentosAtualizados,
+      liberacao: docsPayload.liberacaoAtualizada || item.liberacao,
       registroExecucao: registroAtualizado,
       executionStartedAt: inicioIso,
       executionFinishedAt: fimIso,
@@ -70202,6 +70411,35 @@ if (liberacaoDocViews.length) {
     button.addEventListener("click", () => {
       const alvo = button.dataset.docView;
       const doc = getLiberacaoDocAtual(alvo);
+      if (doc) {
+        abrirDocumento(doc);
+      }
+    });
+  });
+}
+if (conclusaoDocButtons.length) {
+  conclusaoDocButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const alvo = button.dataset.conclusaoDocBtn;
+      const input = conclusaoDocInputs.find(
+        (item) => item.dataset.conclusaoDocInput === alvo
+      );
+      if (input) {
+        input.click();
+      }
+    });
+  });
+}
+if (conclusaoDocInputs.length) {
+  conclusaoDocInputs.forEach((input) => {
+    input.addEventListener("change", () => handleConclusaoDocChange(input));
+  });
+}
+if (conclusaoDocViews.length) {
+  conclusaoDocViews.forEach((button) => {
+    button.addEventListener("click", () => {
+      const alvo = button.dataset.conclusaoDocView;
+      const doc = getConclusaoDocAtual(alvo);
       if (doc) {
         abrirDocumento(doc);
       }

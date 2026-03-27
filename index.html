@@ -8004,6 +8004,65 @@
             <label>Documentos anexados</label>
             <div id="conclusaoDocs" class="doc-list"></div>
           </div>
+          <div class="field" data-full id="conclusaoDocsUploadField" hidden>
+            <label>Documentos obrigatórios (pendentes)</label>
+            <p class="hint">Se não foram anexados na liberação, anexe agora para concluir.</p>
+            <div class="doc-grid">
+              <div class="doc-item" data-doc="apr">
+                <div class="doc-head">
+                  <span>APR*</span>
+                  <button class="btn btn--ghost btn--small" type="button" data-conclusao-doc-view="apr" disabled>
+                    Visualizar
+                  </button>
+                </div>
+                <div class="doc-actions">
+                  <button class="btn btn--ghost btn--small" type="button" data-conclusao-doc-btn="apr">Anexar</button>
+                  <input id="conclusaoApr" type="file" accept=".pdf,image/*" data-conclusao-doc-input="apr" hidden />
+                  <span class="doc-name" data-conclusao-doc-name="apr">Nenhum arquivo</span>
+                </div>
+              </div>
+              <div class="doc-item" data-doc="os">
+                <div class="doc-head">
+                  <span>OS*</span>
+                  <button class="btn btn--ghost btn--small" type="button" data-conclusao-doc-view="os" disabled>
+                    Visualizar
+                  </button>
+                </div>
+                <div class="doc-actions">
+                  <button class="btn btn--ghost btn--small" type="button" data-conclusao-doc-btn="os">Anexar</button>
+                  <input id="conclusaoOsDoc" type="file" accept=".pdf,image/*" data-conclusao-doc-input="os" hidden />
+                  <span class="doc-name" data-conclusao-doc-name="os">Nenhum arquivo</span>
+                </div>
+              </div>
+              <div class="doc-item" data-doc="pte">
+                <div class="doc-head">
+                  <span>PTE*</span>
+                  <button class="btn btn--ghost btn--small" type="button" data-conclusao-doc-view="pte" disabled>
+                    Visualizar
+                  </button>
+                </div>
+                <div class="doc-actions">
+                  <button class="btn btn--ghost btn--small" type="button" data-conclusao-doc-btn="pte">Anexar</button>
+                  <input id="conclusaoPte" type="file" accept=".pdf,image/*" data-conclusao-doc-input="pte" hidden />
+                  <span class="doc-name" data-conclusao-doc-name="pte">Nenhum arquivo</span>
+                </div>
+              </div>
+              <div class="doc-item" data-doc="pt" id="conclusaoDocPt" hidden>
+                <div class="doc-head">
+                  <span>PT*</span>
+                  <button class="btn btn--ghost btn--small" type="button" data-conclusao-doc-view="pt" disabled>
+                    Visualizar
+                  </button>
+                </div>
+                <div class="doc-actions">
+                  <button class="btn btn--ghost btn--small" type="button" data-conclusao-doc-btn="pt">Anexar</button>
+                  <input id="conclusaoPt" type="file" accept=".pdf,image/*" data-conclusao-doc-input="pt" hidden />
+                  <span class="doc-name" data-conclusao-doc-name="pt">Nenhum arquivo</span>
+                </div>
+              </div>
+            </div>
+            <p id="conclusaoDocsErro" class="field-error" hidden></p>
+          </div>
           <div class="field" data-full>
             <label for="conclusaoReferencia">Nº OS / referência (obrigatório)</label>
             <input id="conclusaoReferencia" type="text" placeholder="Ex.: OS 123456" required />
