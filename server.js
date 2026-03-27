@@ -9243,6 +9243,11 @@ function parseDateTime(value) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function getTimeValue(value) {
+  const parsed = parseDateTime(value);
+  return parsed ? parsed.getTime() : null;
+}
+
 function startOfDay(date) {
   const copy = new Date(date);
   copy.setHours(0, 0, 0, 0);
