@@ -63807,7 +63807,9 @@ async function prepararConclusaoDocumentos(item, liberacaoBase) {
   }
   const liberacaoAtual =
     liberacaoBase && typeof liberacaoBase === "object" ? { ...liberacaoBase } : null;
+  const docsBase = getMaintenanceDocsMap(item) || {};
   const documentosAtualizados = {
+    ...docsBase,
     ...(item.documentos || {}),
     ...((liberacaoAtual && liberacaoAtual.documentos) || {}),
   };
@@ -63829,9 +63831,52 @@ async function prepararConclusaoDocumentos(item, liberacaoBase) {
       return null;
     }
   }
+  const referenciaConclusao = conclusaoReferencia ? conclusaoReferencia.value.trim() : "";
+  const participantesFallback = (() => {
+    const valores = [
+      item.participantes,
+      item.registroExecucao && item.registroExecucao.participantes,
+      item.conclusao && item.conclusao.participantes,
+    ];
+    for (const valor of valores) {
+      if (Array.isArray(valor) && valor.length) {
+        return valor.map((entry) => normalizeParticipantName(entry)).filter(Boolean);
+      }
+      if (typeof valor === "string" && valor.trim()) {
+        return valor
+          .split(/[;,|]/)
+          .map((entry) => normalizeParticipantName(entry))
+          .filter(Boolean);
+      }
+    }
+    return [];
+  })();
+  const liberacaoFallback = {
+    osNumero:
+      (liberacaoAtual && liberacaoAtual.osNumero) ||
+      referenciaConclusao ||
+      getMaintenanceOsReferencia(item) ||
+      "",
+    categoria: (liberacaoAtual && liberacaoAtual.categoria) || item.categoria || "",
+    prioridade: (liberacaoAtual && liberacaoAtual.prioridade) || item.prioridade || "",
+    participantes:
+      (liberacaoAtual && Array.isArray(liberacaoAtual.participantes) && liberacaoAtual.participantes.length
+        ? liberacaoAtual.participantes
+        : participantesFallback),
+    critico:
+      liberacaoAtual && liberacaoAtual.critico !== undefined
+        ? liberacaoAtual.critico
+        : isItemCritico(item),
+    documentos: documentosAtualizados,
+    equipamentoId:
+      (liberacaoAtual && liberacaoAtual.equipamentoId) ||
+      item.equipamentoId ||
+      resolveEquipamentoIdFromValue(item.equipamento) ||
+      "",
+  };
   const liberacaoAtualizada = liberacaoAtual
-    ? { ...liberacaoAtual, documentos: documentosAtualizados }
-    : liberacaoAtual;
+    ? { ...liberacaoAtual, ...liberacaoFallback, documentos: documentosAtualizados }
+    : liberacaoFallback;
   const itemDocsProxy = {
     ...item,
     documentos: documentosAtualizados,
