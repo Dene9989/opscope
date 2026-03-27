@@ -29203,18 +29203,31 @@ async function getEvidenceDataUrl(evidencia) {
   }
 }
 
+function getRdoEvidenciasFromItem(item, registroDia) {
+  if (registroDia && Array.isArray(registroDia.evidencias) && registroDia.evidencias.length) {
+    return registroDia.evidencias;
+  }
+  if (item && item.registroExecucao && Array.isArray(item.registroExecucao.evidencias)) {
+    if (item.registroExecucao.evidencias.length) {
+      return item.registroExecucao.evidencias;
+    }
+  }
+  if (item && item.conclusao && Array.isArray(item.conclusao.evidencias)) {
+    if (item.conclusao.evidencias.length) {
+      return item.conclusao.evidencias;
+    }
+  }
+  return [];
+}
+
 async function montarEvidenciasRdo(itens, limite, dataKey = "") {
   const lista = [];
   const naoImagem = [];
   let total = 0;
+  const itensEvidencias = [];
   for (const item of itens) {
     const registroDia = dataKey ? getRegistroDiarioExecucao(item, dataKey) : null;
-    const evidencias =
-      registroDia && Array.isArray(registroDia.evidencias) && registroDia.evidencias.length
-        ? registroDia.evidencias
-        : item && item.conclusao && Array.isArray(item.conclusao.evidencias)
-          ? item.conclusao.evidencias
-          : [];
+    const evidencias = getRdoEvidenciasFromItem(item, registroDia);
     const dataRef =
       (registroDia &&
         (parseAnyDate(registroDia.registradoEm || "") ||
@@ -29224,6 +29237,7 @@ async function montarEvidenciasRdo(itens, limite, dataKey = "") {
       getItemConclusaoDate(item);
     const dataHora = dataRef ? formatDateTime(dataRef) : "-";
     const responsavel = getResponsavelRdo(item, registroDia) || "-";
+    const imagens = [];
     for (const evidencia of evidencias) {
       const nome = evidencia.nome || evidencia.name || "Arquivo";
       if (!isImageEvidence(evidencia)) {
@@ -29234,8 +29248,21 @@ async function montarEvidenciasRdo(itens, limite, dataKey = "") {
         continue;
       }
       total += 1;
+      imagens.push({ evidencia, nome });
+    }
+    itensEvidencias.push({
+      item,
+      imagens,
+      dataHora,
+      responsavel,
+    });
+  }
+  const minPorItem = 2;
+  for (const entry of itensEvidencias) {
+    const base = entry.imagens.slice(0, minPorItem);
+    for (const { evidencia, nome } of base) {
       if (lista.length >= limite) {
-        continue;
+        break;
       }
       const dataUrl = await getEvidenceDataUrl(evidencia);
       if (!dataUrl) {
@@ -29244,11 +29271,39 @@ async function montarEvidenciasRdo(itens, limite, dataKey = "") {
       lista.push({
         dataUrl,
         nome,
-        itemId: item.id,
-        itemTitulo: item.titulo || "-",
-        dataHora,
-        responsavel,
+        itemId: entry.item.id,
+        itemTitulo: entry.item.titulo || "-",
+        dataHora: entry.dataHora,
+        responsavel: entry.responsavel,
       });
+    }
+    if (lista.length >= limite) {
+      break;
+    }
+  }
+  if (lista.length < limite) {
+    for (const entry of itensEvidencias) {
+      const extras = entry.imagens.slice(minPorItem);
+      for (const { evidencia, nome } of extras) {
+        if (lista.length >= limite) {
+          break;
+        }
+        const dataUrl = await getEvidenceDataUrl(evidencia);
+        if (!dataUrl) {
+          continue;
+        }
+        lista.push({
+          dataUrl,
+          nome,
+          itemId: entry.item.id,
+          itemTitulo: entry.item.titulo || "-",
+          dataHora: entry.dataHora,
+          responsavel: entry.responsavel,
+        });
+      }
+      if (lista.length >= limite) {
+        break;
+      }
     }
   }
   return { lista, total, naoImagem };
@@ -29258,12 +29313,7 @@ async function buscarLogoRdo(itens, dataKey = "") {
   const regex = /ENGELMIG|LOGO/i;
   for (const item of itens) {
     const registroDia = dataKey ? getRegistroDiarioExecucao(item, dataKey) : null;
-    const evidencias =
-      registroDia && Array.isArray(registroDia.evidencias) && registroDia.evidencias.length
-        ? registroDia.evidencias
-        : item && item.conclusao && Array.isArray(item.conclusao.evidencias)
-          ? item.conclusao.evidencias
-          : [];
+    const evidencias = getRdoEvidenciasFromItem(item, registroDia);
     for (const evidencia of evidencias) {
       const nome = evidencia.nome || evidencia.name || "";
       if (!regex.test(nome)) {
@@ -29321,12 +29371,7 @@ function mapItemRdo(item, options = {}) {
     : inicio && fim
       ? Math.max(0, Math.round((fim - inicio) / 60000))
       : null;
-  const evidencias =
-    registroDia && Array.isArray(registroDia.evidencias) && registroDia.evidencias.length
-      ? registroDia.evidencias
-      : item && item.conclusao && Array.isArray(item.conclusao.evidencias)
-        ? item.conclusao.evidencias
-        : [];
+  const evidencias = getRdoEvidenciasFromItem(item, registroDia);
   const evidenciasCount = evidencias.filter((evidencia) => isImageEvidence(evidencia)).length;
   const evidenciasNaoImagem = evidencias
     .filter((evidencia) => !isImageEvidence(evidencia))
