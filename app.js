@@ -8482,6 +8482,7 @@ const USE_AUTH_API = true;
 const USE_SST_INSPECTIONS_API = true;
 const STRICT_SERVER_SYNC = USE_AUTH_API;
 const API_TIMEOUT_MS = 15000;
+const UPLOAD_TIMEOUT_MS = 60000;
 const LIBERACAO_PROGRAMADA_CHECK_MS = 60 * 1000;
 const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
 const AVATAR_ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];
@@ -12459,6 +12460,27 @@ function isUnauthorizedError(error) {
   }
   const message = String(error.message || "").toLowerCase();
   return message.includes("nao autorizado") || message.includes("não autorizado") || message.includes("unauthorized");
+}
+
+function isNetworkOrTimeoutError(error) {
+  if (!error) {
+    return false;
+  }
+  if (error.code === "timeout") {
+    return true;
+  }
+  if (error.name === "AbortError") {
+    return true;
+  }
+  const message = String(error.message || "").toLowerCase();
+  return (
+    message.includes("tempo limite") ||
+    message.includes("timed out") ||
+    message.includes("failed to fetch") ||
+    message.includes("network") ||
+    message.includes("conexao") ||
+    message.includes("conexão")
+  );
 }
 
 function shouldFallbackAdminRequest(error) {
@@ -16992,6 +17014,49 @@ function isLiberacaoOk(item) {
   return true;
 }
 
+function getLiberacaoPendencias(item) {
+  const pendencias = [];
+  const liberacao = getLiberacao(item);
+  if (!liberacao) {
+    return ["Liberação não registrada"];
+  }
+  const categoria = String(liberacao.categoria || item.categoria || "").trim();
+  const prioridade = String(liberacao.prioridade || item.prioridade || "").trim();
+  const osNumero = (liberacao.osNumero || "").trim();
+  const participantes = Array.isArray(liberacao.participantes)
+    ? liberacao.participantes.filter(Boolean)
+    : [];
+  const critico = isCriticoValor(liberacao.critico);
+  if (!categoria) {
+    pendencias.push("Categoria");
+  }
+  if (!prioridade) {
+    pendencias.push("Prioridade");
+  }
+  if (!osNumero) {
+    pendencias.push("OS / referência");
+  }
+  if (!participantes.length) {
+    pendencias.push("Participantes");
+  } else if (critico && participantes.length < 2) {
+    pendencias.push("Participantes (mín. 2)");
+  }
+  const documentos = getMaintenanceDocsMap(item);
+  if (!documentos.apr) {
+    pendencias.push("APR");
+  }
+  if (!documentos.os) {
+    pendencias.push("OS");
+  }
+  if (!documentos.pte) {
+    pendencias.push("PTE");
+  }
+  if (critico && !documentos.pt) {
+    pendencias.push("PT");
+  }
+  return pendencias;
+}
+
 function isMeaningfulValue(value) {
   if (value === undefined || value === null) {
     return false;
@@ -18855,7 +18920,7 @@ async function uploadLiberacaoDoc(file, docType) {
       docType: info.docType || docType || "",
     };
   } catch (error) {
-    if (!isUnauthorizedError(error)) {
+    if (!isUnauthorizedError(error) && !isNetworkOrTimeoutError(error)) {
       throw error;
     }
     const doc = await lerDocumentoFile(file);
@@ -18917,7 +18982,7 @@ async function uploadEvidenceFile(file) {
       uploadedAt: info.createdAt || new Date().toISOString(),
     };
   } catch (error) {
-    if (!isUnauthorizedError(error)) {
+    if (!isUnauthorizedError(error) && !isNetworkOrTimeoutError(error)) {
       throw error;
     }
     const doc = await lerDocumentoFile(file);
@@ -63980,6 +64045,12 @@ async function salvarConclusao(event) {
   }
   mostrarCarregando();
   try {
+    const docsInputsSelecionados = conclusaoDocInputs.some(
+      (input) => input && input.files && input.files[0]
+    );
+    if (docsInputsSelecionados) {
+      mostrarMensagemConclusao("Enviando documentação...");
+    }
     const docsPayload = await prepararConclusaoDocumentos(item, liberacao);
     if (!docsPayload) {
       return;
@@ -63990,8 +64061,10 @@ async function salvarConclusao(event) {
       liberacao: docsPayload.liberacaoAtualizada || item.liberacao,
     };
     liberacao = docsPayload.liberacaoAtualizada || liberacao;
-    if (!isLiberacaoOk(itemComDocs)) {
-      mostrarMensagemConclusao("Documentação de liberação pendente.", true);
+    const pendenciasLiberacao = getLiberacaoPendencias(itemComDocs);
+    if (pendenciasLiberacao.length) {
+      const detalhe = pendenciasLiberacao.join(", ");
+      mostrarMensagemConclusao(`Liberação pendente: ${detalhe}.`, true);
       return;
     }
     if (fotosObrigatorias) {
@@ -64835,11 +64908,34 @@ async function apiUploadFile(formData) {
 }
 
 async function apiUploadLiberacaoDoc(formData) {
-  const response = await fetch(`${API_BASE}/api/maintenance/liberacao-doc`, {
-    method: "POST",
-    credentials: "include",
-    body: formData,
-  });
+  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  let timeoutId = null;
+  if (controller) {
+    timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+  }
+  let response;
+  try {
+    response = await fetch(`${API_BASE}/api/maintenance/liberacao-doc`, {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+      signal: controller ? controller.signal : undefined,
+    });
+  } catch (error) {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    if (error && error.name === "AbortError") {
+      const timeoutError = new Error("Tempo limite do upload do documento.");
+      timeoutError.code = "timeout";
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const message = data && data.message ? data.message : "Falha no envio do documento.";
@@ -64852,11 +64948,34 @@ async function apiUploadLiberacaoDoc(formData) {
 }
 
 async function apiUploadEvidence(formData) {
-  const response = await fetch(`${API_BASE}/api/maintenance/evidence`, {
-    method: "POST",
-    credentials: "include",
-    body: formData,
-  });
+  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  let timeoutId = null;
+  if (controller) {
+    timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+  }
+  let response;
+  try {
+    response = await fetch(`${API_BASE}/api/maintenance/evidence`, {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+      signal: controller ? controller.signal : undefined,
+    });
+  } catch (error) {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    if (error && error.name === "AbortError") {
+      const timeoutError = new Error("Tempo limite do upload da evidência.");
+      timeoutError.code = "timeout";
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const message = data && data.message ? data.message : "Falha ao enviar evidência.";
