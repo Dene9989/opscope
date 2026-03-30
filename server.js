@@ -11761,24 +11761,24 @@ function matchesAutomationCondition(automation, item) {
 async function executeAutomationAction(automation, item, actor) {
   const action = automation && automation.action ? automation.action : {};
   if (action.type !== "notify_email") {
-    return { status: "skipped", message: "AÃ§Ã£o nÃ£o suportada." };
+    return { status: "skipped", message: "Ação não suportada." };
   }
   const customTo = String(action.to || "").trim();
   const to = isValidEmail(customTo) ? customTo : getUserEmail(actor);
   if (!isValidEmail(to)) {
-    console.warn("AutomaÃ§Ã£o sem destinatÃ¡rio vÃ¡lido.");
-    return { status: "skipped", message: "Sem destinatÃ¡rio vÃ¡lido." };
+    console.warn("Automação sem destinatário válido.");
+    return { status: "skipped", message: "Sem destinatário válido." };
   }
   const title = getItemTitle(item);
   const due = getDueDate(item);
   const dueLabel = due ? due.toLocaleDateString("pt-BR") : "-";
-  const subject = "OPSCOPE - ManutenÃ§Ã£o crÃ­tica criada";
-  const text = `Uma manutenÃ§Ã£o crÃ­tica foi criada.\n\nAtividade: ${title}\nPrazo: ${dueLabel}\nResponsÃ¡vel: ${getItemOwner(item)}\n\nAcesse o OPSCOPE para detalhes.`;
+  const subject = "OPSCOPE - Manutenção crítica criada";
+  const text = `Uma manutenção crítica foi criada.\n\nAtividade: ${title}\nPrazo: ${dueLabel}\nResponsável: ${getItemOwner(item)}\n\nAcesse o OPSCOPE para detalhes.`;
   const html = `
-    <p>Uma manutenÃ§Ã£o <strong>crÃ­tica</strong> foi criada.</p>
+    <p>Uma manutenção <strong>crítica</strong> foi criada.</p>
     <p><strong>Atividade:</strong> ${title}</p>
     <p><strong>Prazo:</strong> ${dueLabel}</p>
-    <p><strong>ResponsÃ¡vel:</strong> ${getItemOwner(item)}</p>
+    <p><strong>Responsável:</strong> ${getItemOwner(item)}</p>
     <p>Acesse o OPSCOPE para detalhes.</p>
   `;
   const resendOk = await sendEmailViaResend({ to, subject, text, html });
@@ -11789,9 +11789,9 @@ async function executeAutomationAction(automation, item, actor) {
   if (smtpOk) {
     return { status: "ok", message: "E-mail enviado via SMTP." };
   }
-  console.warn("AutomaÃ§Ã£o sem envio de e-mail. Fallback console log.");
+  console.warn("Automação sem envio de e-mail. Fallback console log.");
   console.log(`[automation] ${subject} -> ${to}`, { id: item.id, title });
-  return { status: "warn", message: "Envio de e-mail indisponÃ­vel." };
+  return { status: "warn", message: "Envio de e-mail indisponível." };
 }
 
 async function runAutomationsForItems(event, items, actor, ip) {
@@ -13017,10 +13017,10 @@ function getMaintenanceStatusLabel(status) {
   const labels = {
     agendada: "Agendada",
     liberada: "Liberada",
-    em_execucao: "Em execuÃ§Ã£o",
+    em_execucao: "Em execução",
     encerramento: "Encerramento",
     backlog: "Backlog",
-    concluida: "ConcluÃ­da",
+    concluida: "Concluída",
     cancelada: "Cancelada",
   };
   return labels[normalized] || "Agendada";
@@ -13099,7 +13099,7 @@ async function notifyMaintenanceMonthlyAlerts(items, projectId, today, penultima
           : `- ${titulo} | ${equipamento} | Prazo: ${dueLabel} | Status: ${statusLabel}`;
         linhas.push(lineText);
         const linkHtml = link
-          ? `<a href="${escapeHtml(link)}">Abrir manutenÃ§Ã£o</a>`
+          ? `<a href="${escapeHtml(link)}">Abrir manutenção</a>`
           : "";
         return `<li><strong>${escapeHtml(titulo)}</strong> | ${escapeHtml(
           equipamento
@@ -13110,21 +13110,21 @@ async function notifyMaintenanceMonthlyAlerts(items, projectId, today, penultima
       .join("");
     const subject = `Alerta de fechamento mensal (${monthLabel}) - ${projectLabel}`;
     const text = [
-      `OlÃ¡ ${nome},`,
+      `Olá ${nome},`,
       "",
-      `Hoje Ã© o penÃºltimo dia do mÃªs (${penultimateLabel}). As manutenÃ§Ãµes abaixo ainda estÃ£o abertas no projeto ${projectLabel}:`,
+      `Hoje é o penúltimo dia do mês (${penultimateLabel}). As manutenções abaixo ainda estão abertas no projeto ${projectLabel}:`,
       "",
       ...linhas,
       "",
-      "Se nÃ£o concluir atÃ© o fim do mÃªs, elas serÃ£o movidas para backlog automaticamente no primeiro dia do prÃ³ximo mÃªs.",
+      "Se não concluir até o fim do mês, elas serão movidas para backlog automaticamente no primeiro dia do próximo mês.",
     ].join("\n");
     const html = `
-      <p>OlÃ¡ ${escapeHtml(nome)},</p>
-      <p>Hoje Ã© o penÃºltimo dia do mÃªs (${escapeHtml(penultimateLabel)}). As manutenÃ§Ãµes abaixo ainda estÃ£o abertas no projeto <strong>${escapeHtml(
+      <p>Olá ${escapeHtml(nome)},</p>
+      <p>Hoje é o penúltimo dia do mês (${escapeHtml(penultimateLabel)}). As manutenções abaixo ainda estão abertas no projeto <strong>${escapeHtml(
         projectLabel
       )}</strong>:</p>
       <ul>${htmlItems}</ul>
-      <p>Se nÃ£o concluir atÃ© o fim do mÃªs, elas serÃ£o movidas para backlog automaticamente no primeiro dia do prÃ³ximo mÃªs.</p>
+      <p>Se não concluir até o fim do mês, elas serão movidas para backlog automaticamente no primeiro dia do próximo mês.</p>
     `;
     const sent = await sendMaintenanceMonthlyAlertEmail({
       to,

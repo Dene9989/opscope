@@ -29186,27 +29186,54 @@ async function getEvidenceDataUrl(evidencia) {
   if (!evidencia) {
     return "";
   }
-  const rawUrl = evidencia.dataUrl || evidencia.url || "";
-  if (rawUrl.startsWith("data:")) {
-    return rawUrl;
-  }
-  if (!rawUrl) {
-    return "";
-  }
-  const dataUrl = resolvePublicUrl(rawUrl);
-  try {
-    let response = await fetch(dataUrl, { credentials: "include", cache: "no-store" });
-    if (!response.ok) {
-      response = await fetch(dataUrl, { cache: "no-store" });
+  const candidates = [];
+  if (typeof evidencia === "string") {
+    const raw = evidencia.trim();
+    if (raw && isLikelyEvidenceUrl(raw)) {
+      candidates.push(raw);
+    } else if (raw && isLikelyFileId(raw)) {
+      candidates.push(`/api/files/${encodeURIComponent(raw)}/content`);
     }
-    if (!response.ok) {
-      return "";
+  } else {
+    candidates.push(...collectEvidenceUrlCandidates(evidencia));
+    const fileId = getEvidenceFileId(evidencia);
+    if (fileId) {
+      candidates.push(`/api/files/${encodeURIComponent(fileId)}/content`);
     }
-    const blob = await response.blob();
-    return await blobToDataUrl(blob);
-  } catch (error) {
-    return "";
+    const fileName = getEvidenceFileName(evidencia);
+    if (fileName) {
+      candidates.push(`/uploads/files/evidencias/${encodeURIComponent(fileName)}`);
+    }
   }
+  const tried = new Set();
+  for (const candidate of candidates) {
+    const rawUrl = String(candidate || "").trim();
+    if (!rawUrl || tried.has(rawUrl)) {
+      continue;
+    }
+    tried.add(rawUrl);
+    if (rawUrl.startsWith("data:")) {
+      return rawUrl;
+    }
+    const resolved = resolvePublicUrl(rawUrl);
+    try {
+      let response = await fetch(resolved, { credentials: "include", cache: "no-store" });
+      if (!response.ok) {
+        response = await fetch(resolved, { cache: "no-store" });
+      }
+      if (!response.ok) {
+        continue;
+      }
+      const blob = await response.blob();
+      if (!blob || !blob.size) {
+        continue;
+      }
+      return await blobToDataUrl(blob);
+    } catch (error) {
+      // tenta o proximo candidato
+    }
+  }
+  return "";
 }
 
 function getRdoEvidenciasFromItem(item, registroDia) {
