@@ -32248,6 +32248,9 @@ function isItemOverdue(item, hoje) {
   if (!item || normalizeMaintenanceStatus(item.status) === "concluida") {
     return false;
   }
+  if (hasMaintenanceCompletionData(item) || hasExecucaoRegistrada(item)) {
+    return false;
+  }
   const data = parseDate(item.data);
   if (!data) {
     return false;
@@ -64022,7 +64025,8 @@ async function salvarConclusao(event) {
     mostrarMensagemConclusao("Inicie a execução antes de concluir.", true);
     return;
   }
-  const registro = item.registroExecucao || {};
+  const dataRefAtual = getRegistroExecucaoDataRef(item);
+  const registro = getRegistroExecucaoPreferencial(item, dataRefAtual) || item.registroExecucao || {};
   const executadoPor =
     registro.executadoPor ||
     registro.executedBy ||

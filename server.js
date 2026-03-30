@@ -10077,6 +10077,13 @@ function hasExecucaoRegistrada(item) {
   if (!item) {
     return false;
   }
+  const registroSemAtividade = (registro) => {
+    if (!registro || typeof registro !== "object") {
+      return false;
+    }
+    const resultado = String(registro.resultado || registro.status || "").trim().toLowerCase();
+    return Boolean(registro.semAtividade || resultado === "sem_atividade");
+  };
   const registrosDiarios = getMaintenanceDailyExecutionEntries(item);
   const registro =
     (item.registroExecucao && typeof item.registroExecucao === "object"
@@ -10084,6 +10091,9 @@ function hasExecucaoRegistrada(item) {
       : registrosDiarios.length
         ? registrosDiarios[registrosDiarios.length - 1]
         : null) || {};
+  if (registroSemAtividade(registro)) {
+    return false;
+  }
   const registradoEm =
     registro.registradoEm ||
     registro.registrado_em ||
@@ -10099,6 +10109,50 @@ function hasExecucaoRegistrada(item) {
   return Boolean(
     registradoEm || executadoPor || comentario || resultado || observacao || evidencias || marcadorTopo
   );
+}
+
+function hasExecucaoRegistradaValida(item) {
+  if (!item) {
+    return false;
+  }
+  const isSemAtividade = (registro) => {
+    if (!registro || typeof registro !== "object") {
+      return false;
+    }
+    const resultado = String(registro.resultado || registro.status || "").trim().toLowerCase();
+    return Boolean(registro.semAtividade || resultado === "sem_atividade");
+  };
+  const hasIndicadores = (registro) => {
+    if (!registro || typeof registro !== "object") {
+      return false;
+    }
+    if (isSemAtividade(registro)) {
+      return false;
+    }
+    const registradoEm =
+      registro.registradoEm ||
+      registro.registrado_em ||
+      registro.executadoEm ||
+      registro.executedAt;
+    const executadoPor = registro.executadoPor || registro.executedBy;
+    const comentario = registro.comentario || registro.descricao || registro.resumo;
+    const observacao = registro.observacaoExecucao || registro.observacao;
+    const resultado = registro.resultado || registro.status;
+    const evidencias = Array.isArray(registro.evidencias) && registro.evidencias.length > 0;
+    return Boolean(registradoEm || executadoPor || comentario || resultado || observacao || evidencias);
+  };
+  if (item.registroExecucao && typeof item.registroExecucao === "object") {
+    if (hasIndicadores(item.registroExecucao)) {
+      return true;
+    }
+  }
+  const registrosDiarios = getMaintenanceDailyExecutionEntries(item);
+  if (registrosDiarios.some((registro) => hasIndicadores(registro))) {
+    return true;
+  }
+  const marcadorTopo =
+    item.execucaoRegistradaEm || item.executionRegisteredAt || item.execucaoRegistradaAt;
+  return Boolean(marcadorTopo);
 }
 
 function getItemTitle(item) {
@@ -13168,6 +13222,9 @@ function applyMonthlyBacklog(dataset, currentMonthKey) {
     if (status === "concluida" || status === "cancelada" || status === "backlog") {
       return item;
     }
+    if (hasMaintenanceCompletionData(item) || hasExecucaoRegistradaValida(item)) {
+      return item;
+    }
     const itemMonth = getMaintenanceMonthKey(item);
     if (!itemMonth || itemMonth >= currentMonthKey) {
       return item;
@@ -13203,6 +13260,9 @@ function runMaintenanceMonthlyScheduler() {
       }
       const status = normalizeStatus(item.status);
       if (status === "concluida" || status === "cancelada" || status === "backlog") {
+        return;
+      }
+      if (hasMaintenanceCompletionData(item) || hasExecucaoRegistradaValida(item)) {
         return;
       }
       const itemMonth = getMaintenanceMonthKey(item);
