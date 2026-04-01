@@ -11334,6 +11334,13 @@ function mostrarMensagemConclusao(texto, erro = false) {
   }
   mensagemConclusao.textContent = texto;
   mensagemConclusao.classList.toggle("mensagem--erro", erro);
+  if (texto) {
+    try {
+      mensagemConclusao.scrollIntoView({ behavior: "smooth", block: "center" });
+    } catch (error) {
+      // ignore scroll errors
+    }
+  }
 }
 
 function mostrarMensagemReagendar(texto, erro = false) {
@@ -64030,16 +64037,29 @@ async function salvarConclusao(event) {
   const executadoPor =
     registro.executadoPor ||
     registro.executedBy ||
+    registro.executadaPor ||
+    registro.executado_por ||
+    registro.executadoPorId ||
     item.executadaPor ||
     item.executionStartedBy ||
     item.createdBy ||
     "";
-  const comentarioRegistro = normalizeResumoRdoTexto(registro.comentario || "");
-  if (!executadoPor || !comentarioRegistro) {
+  const comentarioRegistro = normalizeResumoRdoTexto(
+    registro.comentario ||
+      registro.descricao ||
+      registro.resumo ||
+      registro.observacaoExecucao ||
+      ""
+  );
+  const comentarioFallback = conclusaoDescricaoBreve
+    ? normalizeResumoRdoTexto(conclusaoDescricaoBreve.value)
+    : "";
+  const comentarioBase = comentarioRegistro || comentarioFallback;
+  if (!executadoPor || !comentarioBase) {
     mostrarMensagemConclusao("Registre a execução antes de concluir.", true);
     return;
   }
-  const comentario = comentarioRegistro;
+  const comentario = comentarioBase;
   const resultadoSelecionado = conclusaoResultado ? conclusaoResultado.value : "";
   const resultado = resultadoSelecionado || registro.resultado || "";
   if (!resultado) {
@@ -64397,6 +64417,15 @@ async function salvarConclusao(event) {
     renderTudo();
     fecharConclusao();
     mostrarMensagemManutencao("Manutenção concluída.");
+  } catch (error) {
+    const message =
+      error && error.message ? error.message : "Falha ao concluir a manutenção.";
+    mostrarMensagemConclusao(message, true);
+    try {
+      console.error(error);
+    } catch (err) {
+      // ignore console errors
+    }
   } finally {
     esconderCarregando();
   }
