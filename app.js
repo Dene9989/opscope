@@ -29376,8 +29376,10 @@ function mapItemRdo(item, options = {}) {
     registroDia &&
     (parseAnyDate(registroDia.registradoEm || "") ||
       parseAnyDate(`${registroDia.dataRef || ""}T12:00:00`));
-  const inicio = registroDiaData || getItemInicioExecucaoDate(item);
-  const fim = registroDiaData || getItemFimExecucaoDate(item) || getItemConclusaoDate(item);
+  const inicioExecucao = getItemInicioExecucaoDate(item);
+  const fimExecucao = getItemFimExecucaoDate(item) || getItemConclusaoDate(item);
+  const inicio = inicioExecucao || registroDiaData || null;
+  const fim = fimExecucao || null;
   const liberacao = getLiberacao(item) || {};
   const equipamento = getMaintenanceEquipamentoLabel(item);
   const osReferencia = getMaintenanceOsReferencia(item);
