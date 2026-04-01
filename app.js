@@ -69945,6 +69945,7 @@ if (rdoMensalPreviewModal) {
   });
 }
 if (formConclusao) {
+  formConclusao.noValidate = true;
   formConclusao.addEventListener("submit", salvarConclusao);
 }
 if (btnAplicarModeloBreve) {
