@@ -28506,6 +28506,12 @@ function collectActiveProjectMembers(jornadas = [], options = {}) {
       const entryId = String(item.userId || "").trim();
       const entryLabel = String(item.nome || item.label || "").trim();
       if (entryId && !members.has(entryId)) {
+        const found =
+          getUserById(entryId) || users.find((user) => String(user.id || "") === entryId);
+        if (found) {
+          addUser(found, entryLabel || found.name || "");
+          return;
+        }
         addUser({ id: entryId, name: entryLabel }, entryLabel);
       } else if (!entryId && entryLabel) {
         const syntheticId = `label:${normalizeSearchValue(entryLabel)}`;
@@ -28610,7 +28616,7 @@ function renderRdoJornadas(manual = {}) {
   );
   const colaboradores = collectActiveProjectMembers(jornadasValidas, {
     includeAdmins: false,
-    includeInactive: true,
+    includeInactive: false,
     requireProjectInfo: true,
   });
 
