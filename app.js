@@ -28512,6 +28512,9 @@ function collectActiveProjectMembers(jornadas = [], options = {}) {
           addUser(found, entryLabel || found.name || "");
           return;
         }
+        if (!includeInactive) {
+          return;
+        }
         addUser({ id: entryId, name: entryLabel }, entryLabel);
       } else if (!entryId && entryLabel) {
         const syntheticId = `label:${normalizeSearchValue(entryLabel)}`;
@@ -28601,12 +28604,47 @@ function renderRdoJornadas(manual = {}) {
   const dataBase = dataStr ? parseDate(dataStr) : null;
   const schedule = getRdoScheduleFromDate(dataBase || new Date());
   const jornadas = Array.isArray(manual.jornadas) ? manual.jornadas : [];
+  const isInactiveUserEntry = (entry) => {
+    if (!entry) {
+      return false;
+    }
+    const entryId = String(entry.userId || "").trim();
+    if (entryId) {
+      const user =
+        getUserById(entryId) ||
+        users.find((item) => String(item.id || "") === entryId);
+      if (!user) {
+        return true;
+      }
+      return normalizeAccessUserStatus(user.status, user.active) === "INATIVO";
+    }
+    const entryLabel = String(entry.nome || entry.label || "").trim();
+    if (!entryLabel) {
+      return false;
+    }
+    const normalizedLabel = normalizeSearchValue(entryLabel);
+    const match = users.find((user) => {
+      const userName = normalizeSearchValue(user.name || user.username || "");
+      const userMatricula = normalizeSearchValue(user.matricula || "");
+      return (
+        (userName && userName === normalizedLabel) ||
+        (userMatricula && userMatricula === normalizedLabel)
+      );
+    });
+    if (!match) {
+      return false;
+    }
+    return normalizeAccessUserStatus(match.status, match.active) === "INATIVO";
+  };
   const jornadasValidas = jornadas.filter((item) => {
     const nome = String(item && (item.nome || item.label || "")).toLowerCase();
     if (!nome) {
       return isRealUserId(item && item.userId ? item.userId : "");
     }
     if (nome.includes("administrador") || nome.includes("sistema")) {
+      return false;
+    }
+    if (isInactiveUserEntry(item)) {
       return false;
     }
     return true;
