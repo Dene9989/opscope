@@ -9863,6 +9863,9 @@ function pickMaintenanceMerge(existing, incoming) {
         incoming.responsavelUsers
     );
     let responsavelTexto = String(incoming.responsavel || "").trim();
+    if (responsavelTexto && isInactiveMaintenanceUserIdentity(responsavelTexto)) {
+      responsavelTexto = "";
+    }
     if (responsavelIds.length) {
       const labels = getMaintenanceResponsibleLabels({ responsavelIds });
       if (labels.length) {
@@ -10167,15 +10170,23 @@ function getItemOwner(item) {
   if (responsaveis.length) {
     return responsaveis.join("; ");
   }
-  return (
-    String(
-      item.responsavel ||
-        item.executadaPor ||
-        item.owner ||
-        item.responsavelManutencao ||
-      "Equipe"
-    ).trim() || "Equipe"
-  );
+  const candidates = [
+    item.responsavel,
+    item.executadaPor,
+    item.owner,
+    item.responsavelManutencao,
+  ];
+  for (const candidate of candidates) {
+    const raw = String(candidate || "").trim();
+    if (!raw) {
+      continue;
+    }
+    if (isInactiveMaintenanceUserIdentity(raw)) {
+      continue;
+    }
+    return raw;
+  }
+  return "Equipe";
 }
 
 function normalizeRegistroExecucaoDiaKey(value) {
@@ -12067,6 +12078,19 @@ function resolveMaintenanceUserByIdentity(value) {
   );
 }
 
+function isInactiveMaintenanceUserIdentity(value) {
+  const resolved = resolveMaintenanceUserByIdentity(value);
+  if (!resolved) {
+    return false;
+  }
+  return getUserStatus(resolved) === "INATIVO";
+}
+
+function filterActiveMaintenanceResponsibleIds(list) {
+  const ids = normalizeResponsavelIds(list);
+  return ids.filter((id) => !isInactiveMaintenanceUserIdentity(id));
+}
+
 function isSystemMaintenanceActor(value) {
   return MAINTENANCE_SYSTEM_USER_IDS.has(normalizeMaintenanceIdentity(value));
 }
@@ -12130,7 +12154,7 @@ function getMaintenanceParticipantIds(item) {
 }
 
 function getMaintenanceResponsibleLabels(item) {
-  const ids = getMaintenanceResponsibleIds(item);
+  const ids = filterActiveMaintenanceResponsibleIds(getMaintenanceResponsibleIds(item));
   if (!ids.length) {
     return [];
   }
@@ -12297,6 +12321,9 @@ function normalizeMaintenanceResponsaveis(item) {
     item.responsavelIds || item.responsavelId || item.responsaveis || item.responsavelUsers
   );
   let responsavelTexto = String(item.responsavel || "").trim();
+  if (responsavelTexto && isInactiveMaintenanceUserIdentity(responsavelTexto)) {
+    responsavelTexto = "";
+  }
   if (responsavelIds.length) {
     const labels = getMaintenanceResponsibleLabels({ responsavelIds });
     if (labels.length) {
@@ -12779,6 +12806,9 @@ function hasAccessRoleConfig(user) {
 
 function canUserReceiveMaintenanceEmail(user) {
   if (!user) {
+    return false;
+  }
+  if (getUserStatus(user) === "INATIVO") {
     return false;
   }
   if (isMasterUser(user) || isFullAccessRole(user.rbacRole || user.role)) {
@@ -14667,6 +14697,13 @@ function buildMaintenanceSummaryItem(item) {
     item.liberacao && typeof item.liberacao === "object" ? item.liberacao : {};
   const conclusao =
     item.conclusao && typeof item.conclusao === "object" ? item.conclusao : {};
+  const responsavelLabels = getMaintenanceResponsibleLabels(item);
+  let responsavelTexto = responsavelLabels.length
+    ? responsavelLabels.join("; ")
+    : String(item.responsavel || "").trim();
+  if (!responsavelLabels.length && responsavelTexto && isInactiveMaintenanceUserIdentity(responsavelTexto)) {
+    responsavelTexto = "";
+  }
   return {
     id: item.id || "",
     projectId: itemProjectId,
@@ -14682,7 +14719,7 @@ function buildMaintenanceSummaryItem(item) {
     categoria: item.categoria || "",
     prioridade: item.prioridade || "",
     criticidade: item.criticidade || "",
-    responsavel: item.responsavel || "",
+    responsavel: responsavelTexto,
     responsavelIds: getMaintenanceResponsibleIds(item),
     osNumero:
       item.osNumero ||
@@ -15269,9 +15306,12 @@ function mapMaintenanceToMonthlyActivity(item) {
     end: executionEnd,
   });
   const responsaveis = getMaintenanceResponsibleLabels(item);
-  const responsavelTexto = responsaveis.length
+  let responsavelTexto = responsaveis.length
     ? responsaveis.join("; ")
     : String(item.responsavel || "").trim();
+  if (!responsaveis.length && responsavelTexto && isInactiveMaintenanceUserIdentity(responsavelTexto)) {
+    responsavelTexto = "";
+  }
   const equipe = String(
     item.equipe || item.time || item.nomeTime || (responsaveis[0] || "")
   ).trim();

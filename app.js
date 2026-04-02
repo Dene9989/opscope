@@ -14170,6 +14170,14 @@ function getUserById(id) {
   return resolveUserByIdentity(id);
 }
 
+function isInactiveUserIdentity(value) {
+  const resolved = resolveUserByIdentity(value);
+  if (!resolved) {
+    return false;
+  }
+  return normalizeAccessUserStatus(resolved.status, resolved.active) === "INATIVO";
+}
+
 function isAdminUser(user) {
   if (!user) {
     return false;
@@ -14293,6 +14301,16 @@ function getUserLabel(id) {
     return String(id);
   }
   return matricula ? `${name} (${matricula})` : name;
+}
+
+function getActiveUserLabel(id) {
+  if (!id) {
+    return "";
+  }
+  if (isInactiveUserIdentity(id)) {
+    return "";
+  }
+  return getUserLabel(id);
 }
 
 function getProjectLabel(project) {
@@ -24103,9 +24121,12 @@ function getRelatorioResponsavel(item) {
     item.updatedBy ||
     "";
   if (item.responsavel && typeof item.responsavel === "string") {
-    return item.responsavel;
+    if (!isInactiveUserIdentity(item.responsavel)) {
+      return item.responsavel;
+    }
   }
-  return getUserLabel(id);
+  const label = getActiveUserLabel(id);
+  return label || "-";
 }
 
 function mapRelatorioStatusFiltro(valor) {
@@ -24340,6 +24361,9 @@ function formatResponsavelText(value) {
   if (!text) {
     return "-";
   }
+  if (isInactiveUserIdentity(text)) {
+    return "-";
+  }
   if (text.startsWith("team:") || text.startsWith("time:")) {
     const name = text.slice(5).trim();
     return name || "Time";
@@ -24353,6 +24377,9 @@ function getResponsavelLabel(item) {
     return formatResponsavelLista(responsaveis);
   }
   const id = getExecutadoPorId(item) || item.doneBy || item.createdBy || "";
+  if (id && isInactiveUserIdentity(id)) {
+    return "-";
+  }
   return getUserLabel(id) || "Sistema";
 }
 
@@ -29192,6 +29219,9 @@ function getResponsavelRdo(item, registroDia = null) {
   const id =
     (diario ? diario.executadoPor || "" : "") || getExecutadoPorId(item) || item.doneBy || item.createdBy || "";
   if (!id || !isRealUserId(id)) {
+    return "";
+  }
+  if (isInactiveUserIdentity(id)) {
     return "";
   }
   return getUserLabel(id);
@@ -43616,6 +43646,11 @@ function normalizeResponsavelIds(list) {
   return Array.from(new Set(ids.filter(Boolean)));
 }
 
+function filterActiveUserIds(list) {
+  const ids = normalizeResponsavelIds(list);
+  return ids.filter((id) => !isInactiveUserIdentity(id));
+}
+
 function getMaintenanceResponsibleIds(item) {
   if (!item) {
     return [];
@@ -43644,7 +43679,7 @@ function getMaintenanceParticipantIds(item) {
 }
 
 function getMaintenanceResponsibleLabels(item) {
-  const ids = getMaintenanceResponsibleIds(item);
+  const ids = filterActiveUserIds(getMaintenanceResponsibleIds(item));
   if (!ids.length) {
     return [];
   }
@@ -44263,7 +44298,7 @@ function renderManutencaoResponsaveisOptions() {
 }
 
 function setManutencaoResponsaveis(list = []) {
-  const ids = normalizeResponsavelIds(list);
+  const ids = filterActiveUserIds(list);
   manutencaoResponsaveisSelecionados = ids;
   syncManutencaoResponsaveisInput();
   renderManutencaoResponsaveisOptions();
@@ -44293,10 +44328,10 @@ function toggleManutencaoResponsavel(id) {
 
 function getManutencaoResponsaveisFromForm() {
   if (manutencaoResponsaveisSelecionados.length) {
-    return manutencaoResponsaveisSelecionados.slice();
+    return filterActiveUserIds(manutencaoResponsaveisSelecionados);
   }
   const texto = manutencaoResponsaveisIds ? manutencaoResponsaveisIds.value : "";
-  return normalizeResponsavelIds(texto);
+  return filterActiveUserIds(texto);
 }
 
 function updateManutencaoResponsaveisUI() {
@@ -44382,7 +44417,7 @@ function renderTemplateResponsaveisOptions() {
 }
 
 function setTemplateResponsaveis(list = []) {
-  const ids = normalizeResponsavelIds(list);
+  const ids = filterActiveUserIds(list);
   templateResponsaveisSelecionados = ids;
   syncTemplateResponsaveisInput();
   renderTemplateResponsaveisOptions();
@@ -44410,10 +44445,10 @@ function toggleTemplateResponsavel(id) {
 
 function getTemplateResponsaveisFromForm() {
   if (templateResponsaveisSelecionados.length) {
-    return templateResponsaveisSelecionados.slice();
+    return filterActiveUserIds(templateResponsaveisSelecionados);
   }
   const texto = templateResponsaveisIds ? templateResponsaveisIds.value : "";
-  return normalizeResponsavelIds(texto);
+  return filterActiveUserIds(texto);
 }
 
 function updateTemplateResponsaveisUI() {
