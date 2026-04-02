@@ -222,6 +222,7 @@ const badgeIntercorrencias = document.getElementById("badgeIntercorrencias");
 const countEmExecucao = document.getElementById("countEmExecucao");
 const countEncerramento = document.getElementById("countEncerramento");
 const countConcluidas = document.getElementById("countConcluidas");
+const painelMesLabel = document.getElementById("painelMesLabel");
 const diasLembrete = document.getElementById("diasLembrete");
 const graficoKpi = document.getElementById("graficoKpi");
 const kpiTotal = document.getElementById("kpiTotal");
@@ -19398,6 +19399,45 @@ function renderMensalOverrideBanner() {
   }
 }
 
+function formatMonthYearLabel(date) {
+  if (!date) {
+    return "";
+  }
+  try {
+    const formatter = new Intl.DateTimeFormat("pt-BR", {
+      month: "long",
+      year: "numeric",
+    });
+    const label = formatter.format(date);
+    return label ? label.charAt(0).toUpperCase() + label.slice(1) : "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function getPainelMesReferenciaDate(item) {
+  if (!item) {
+    return null;
+  }
+  const dataProgramada = parseDate(item.data);
+  if (dataProgramada) {
+    return startOfDay(dataProgramada);
+  }
+  const inicio = getItemInicioExecucaoDate(item);
+  if (inicio) {
+    return startOfDay(inicio);
+  }
+  const fim = getItemConclusaoDate(item);
+  if (fim) {
+    return startOfDay(fim);
+  }
+  const criadoEm = parseTimestamp(item.createdAt || "");
+  if (criadoEm) {
+    return startOfDay(criadoEm);
+  }
+  return null;
+}
+
 function atualizarResumo() {
   const contagem = {
     agendada: 0,
@@ -19409,8 +19449,17 @@ function atualizarResumo() {
   };
 
   const hoje = startOfDay(new Date());
+  const mesInicio = startOfMonth(hoje);
+  const mesFim = endOfMonth(hoje);
   const suppressionMap = buildInspectionMonthlySuppressionMap(manutencoes);
-  const itensVisiveis = filterInspectionSuppressed(manutencoes, suppressionMap);
+  const itensBase = filterInspectionSuppressed(manutencoes, suppressionMap);
+  const itensVisiveis = itensBase.filter((item) => {
+    const ref = getPainelMesReferenciaDate(item);
+    if (!ref) {
+      return false;
+    }
+    return ref.getTime() >= mesInicio.getTime() && ref.getTime() <= mesFim.getTime();
+  });
   itensVisiveis.forEach((item) => {
     if (!item) {
       return;
@@ -19436,7 +19485,7 @@ function atualizarResumo() {
     }
     contagem.agendada += 1;
   });
-  const intercorrenciasAbertas = itensVisiveis.reduce((acc, item) => {
+  const intercorrenciasAbertas = itensBase.reduce((acc, item) => {
     const issue = getMaintenanceIntercorrencia(item);
     if (!issue) {
       return acc;
@@ -19455,13 +19504,20 @@ function atualizarResumo() {
     return status === "em_execucao" || status === "encerramento";
   }).length;
 
+  if (painelMesLabel) {
+    const label = formatMonthYearLabel(hoje);
+    painelMesLabel.textContent = label ? `Mês atual: ${label}` : "";
+  }
+
   countAgendadas.textContent = contagem.agendada;
   if (countLiberadas) {
     countLiberadas.textContent = contagem.liberada;
   }
   countBacklog.textContent = contagem.backlog;
   if (badgeBacklog) {
-    badgeBacklog.textContent = contagem.backlog;
+    badgeBacklog.textContent = String(
+      itensBase.filter((item) => normalizeMaintenanceStatus(item.status) === "backlog").length
+    );
   }
   if (badgeIntercorrencias) {
     badgeIntercorrencias.textContent = String(intercorrenciasAbertas);
