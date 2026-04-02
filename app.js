@@ -31080,7 +31080,7 @@ function buildRdoHtml(snapshot, options = {}) {
   const osList = Array.from(
     new Set((snapshot.itens || []).map((item) => item.osReferencia).filter(Boolean))
   );
-  const osLabel = osList.length ? formatListLimited(osList, 3) : "-";
+  const osLabel = osList.length ? formatListFull(osList) : "-";
   const subestacoesHeader = Array.from(
     new Set(
       (snapshot.itens || [])
