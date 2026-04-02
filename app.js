@@ -62647,9 +62647,17 @@ async function buildSolicitacaoServicoDocument(item) {
       .join("")
     : `<tr><td colspan="4">Sem histórico registrado.</td></tr>`;
 
-  const documentTitle = `SS-${String(ssNumero || item.id || "manutencao")
-    .replace(/[^\w\-]+/g, "_")
-    .slice(0, 64)}`;
+  const solicitacaoDataLabel =
+    (criadaEm && formatDate(criadaEm)) || (dataProgramadaDate && formatDate(dataProgramadaDate)) || "";
+  const execucaoDataLabel =
+    (fimExec && formatDate(fimExec)) || (inicioExec && formatDate(inicioExec)) || "";
+  const datasSuffix =
+    solicitacaoDataLabel || execucaoDataLabel
+      ? ` (Solicitação ${solicitacaoDataLabel || "-"} - Execução ${execucaoDataLabel || "-"})`
+      : "";
+  const documentTitle = sanitizeFilename(
+    `Solicitação de Serviço Nº ${ssNumero}${datasSuffix}`
+  ).slice(0, 120);
 
   const html = `
     <!doctype html>
