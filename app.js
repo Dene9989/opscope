@@ -5166,6 +5166,8 @@ let conclusaoDocsBase = {};
 let conclusaoDocsPreview = {};
 let previewBlobUrl = "";
 let previewCurrentUrl = "";
+let previewFileName = "";
+let previewOriginalTitle = "";
 let idleTimeoutHandle = null;
 let idleExpired = false;
 let idleReconnectOpen = false;
@@ -19116,6 +19118,33 @@ function setPreviewModalTitle(texto = "Visualizar documento") {
   }
 }
 
+function applyPreviewFilename(name) {
+  const safe = sanitizeFilename(name || "");
+  if (!safe) {
+    return;
+  }
+  previewFileName = safe;
+  if (!previewOriginalTitle) {
+    previewOriginalTitle = document.title;
+  }
+  document.title = safe;
+  if (previewFrame && previewFrame.contentDocument) {
+    try {
+      previewFrame.contentDocument.title = safe;
+    } catch (error) {
+      // ignore cross-origin previews
+    }
+  }
+}
+
+function clearPreviewFilename() {
+  previewFileName = "";
+  if (previewOriginalTitle) {
+    document.title = previewOriginalTitle;
+    previewOriginalTitle = "";
+  }
+}
+
 function abrirPreview(url, blobUrl = "", options = {}) {
   if (!modalPreview || !previewFrame) {
     return;
@@ -19129,7 +19158,17 @@ function abrirPreview(url, blobUrl = "", options = {}) {
   }
   previewCurrentUrl = resolvePublicUrl(url || "");
   previewFrame.src = previewCurrentUrl;
+  previewFrame.onload = () => {
+    if (previewFileName) {
+      applyPreviewFilename(previewFileName);
+    }
+  };
   setPreviewModalTitle(options && options.title ? options.title : "Visualizar documento");
+  if (options && options.filename) {
+    applyPreviewFilename(options.filename);
+  } else {
+    clearPreviewFilename();
+  }
   if (btnAbrirPreview) {
     btnAbrirPreview.disabled = !previewCurrentUrl;
   }
@@ -19147,6 +19186,7 @@ function fecharPreview() {
   previewFrame.src = "";
   previewCurrentUrl = "";
   setPreviewModalTitle("Visualizar documento");
+  clearPreviewFilename();
   if (btnAbrirPreview) {
     btnAbrirPreview.disabled = true;
   }
@@ -63016,10 +63056,13 @@ async function abrirPreviewSolicitacaoServico(item) {
   if (!item) {
     return;
   }
-  const { html } = await buildSolicitacaoServicoDocument(item);
+  const { html, title } = await buildSolicitacaoServicoDocument(item);
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
   const blobUrl = URL.createObjectURL(blob);
-  abrirPreview(blobUrl, blobUrl, { title: "Pré-visualização da SS" });
+  abrirPreview(blobUrl, blobUrl, {
+    title: "Pré-visualização da SS",
+    filename: title,
+  });
 }
 
 async function exportarSolicitacaoServico(item) {
