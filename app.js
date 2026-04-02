@@ -71,6 +71,7 @@ const btnProgramacaoVoltar = document.getElementById("btnProgramacaoVoltar");
 const filtroProgramacaoSubestacao = document.getElementById("filtroProgramacaoSubestacao");
 const filtroProgramacaoStatus = document.getElementById("filtroProgramacaoStatus");
 const filtroProgramacaoPeriodo = document.getElementById("filtroProgramacaoPeriodo");
+const filtroProgramacaoSs = document.getElementById("filtroProgramacaoSs");
 const programacaoExportMes = document.getElementById("programacaoExportMes");
 const programacaoExportStatus = document.getElementById("programacaoExportStatus");
 const btnProgramacaoExportPdf = document.getElementById("btnProgramacaoExportPdf");
@@ -91,6 +92,7 @@ const listaRelatoriosVazia = document.getElementById("listaRelatoriosVazia");
 const relatorioPeriodoFiltro = document.getElementById("relatorioPeriodo");
 const relatorioStatusFiltro = document.getElementById("relatorioStatus");
 const relatorioResponsavelFiltro = document.getElementById("relatorioResponsavel");
+const relatorioSsFiltro = document.getElementById("relatorioSsFiltro");
 const relatorioTipoFiltro = document.getElementById("relatorioTipoFiltro");
 const btnRelatoriosExportar = document.getElementById("btnRelatoriosExportar");
 const btnRelatoriosResumo = document.getElementById("btnRelatoriosResumo");
@@ -22094,6 +22096,10 @@ function criarCardManutencao(item, permissoes, options = {}) {
   equipamentoLinha.textContent = `Equipamento: ${
     equipamentoLabel && equipamentoLabel !== "-" ? equipamentoLabel : "não informado"
   }`;
+  const ssLinha = document.createElement("p");
+  ssLinha.className = "submeta";
+  const ssLabel = getMaintenanceSsLabel(item);
+  ssLinha.textContent = `Nº SS: ${ssLabel || "-"}`;
   const subequipamentos = getMaintenanceSubequipamentos(item);
   const procedimentos = getMaintenanceProcedimentoLabels(item);
 
@@ -22130,7 +22136,7 @@ function criarCardManutencao(item, permissoes, options = {}) {
     autoria.textContent = `Criada por ${getUserLabel(item.createdBy)}`;
   }
 
-  info.append(titulo, meta, equipamentoLinha);
+  info.append(titulo, meta, equipamentoLinha, ssLinha);
   if (subequipamentos.length) {
     const subequipLinha = document.createElement("p");
     subequipLinha.className = "submeta";
@@ -23063,11 +23069,14 @@ function renderProgramacao() {
         );
       })()
   );
+  const filtroSsRaw = filtroProgramacaoSs ? filtroProgramacaoSs.value : "";
+  const ssAtivo = normalizeSsSearchValue(filtroSsRaw);
+  const baseList = ssAtivo ? manutencoes.filter(Boolean) : existentes;
 
   if (filtroProgramacaoSubestacao) {
     const atual = filtroProgramacaoSubestacao.value;
     const subestacoes = Array.from(
-      new Set([...getSubestacoesBase(), ...existentes.map((item) => item.local).filter(Boolean)])
+      new Set([...getSubestacoesBase(), ...baseList.map((item) => item.local).filter(Boolean)])
     ).sort((a, b) => a.localeCompare(b, "pt-BR"));
     filtroProgramacaoSubestacao.innerHTML = "";
     const optionAll = document.createElement("option");
@@ -23087,8 +23096,7 @@ function renderProgramacao() {
 
   const filtroSubestacao = filtroProgramacaoSubestacao ? filtroProgramacaoSubestacao.value : "";
   const filtroPeriodo = filtroProgramacaoPeriodo ? filtroProgramacaoPeriodo.value : "";
-
-  const filtrados = existentes.filter((item) => {
+  const filtrados = baseList.filter((item) => {
     const status = normalizeMaintenanceStatus(item.status);
     if (filtroSubestacao && item.local !== filtroSubestacao) {
       return false;
@@ -23104,67 +23112,73 @@ function renderProgramacao() {
       : getDateInfo(item, hoje);
     const diff = info ? info.diff : null;
 
-    if (status === "backlog") {
-      return false;
-    }
-    if (filtroStatus === "liberada") {
-      if (status !== "liberada") {
+    if (!ssAtivo) {
+      if (status === "backlog") {
         return false;
       }
-    } else if (filtroStatus === "em_execucao") {
-      if (status !== "em_execucao" || hasExecucaoRegistradaCompleta(item)) {
-        return false;
-      }
-    } else if (filtroStatus === "encerramento") {
-      if (status !== "encerramento") {
-        return false;
-      }
-    } else if (filtroStatus === "execucao_registrada") {
-      if (
-        !(
-          hasExecucaoRegistradaCompleta(item) &&
-          (status === "em_execucao" || status === "encerramento")
-        )
-      ) {
-        return false;
-      }
-    } else if (filtroStatus === "concluida") {
-      if (status !== "concluida") {
-        return false;
-      }
-    } else if (filtroStatus === "hoje") {
-      if (diff !== 0) {
-        return false;
-      }
-    } else if (filtroStatus === "agendada") {
-      if (
-        (status !== "agendada" && status !== "liberada") ||
-        diff === null ||
-        diff < 1
-      ) {
-        return false;
-      }
-    }
-
-    if (filtroPeriodo) {
-      const data = info ? info.data : null;
-      if (!data) {
-        return false;
-      }
-      if (filtroPeriodo === "hoje") {
+      if (filtroStatus === "liberada") {
+        if (status !== "liberada") {
+          return false;
+        }
+      } else if (filtroStatus === "em_execucao") {
+        if (status !== "em_execucao" || hasExecucaoRegistradaCompleta(item)) {
+          return false;
+        }
+      } else if (filtroStatus === "encerramento") {
+        if (status !== "encerramento") {
+          return false;
+        }
+      } else if (filtroStatus === "execucao_registrada") {
+        if (
+          !(
+            hasExecucaoRegistradaCompleta(item) &&
+            (status === "em_execucao" || status === "encerramento")
+          )
+        ) {
+          return false;
+        }
+      } else if (filtroStatus === "concluida") {
+        if (status !== "concluida") {
+          return false;
+        }
+      } else if (filtroStatus === "hoje") {
         if (diff !== 0) {
           return false;
         }
-      } else if (filtroPeriodo === "semana") {
-        if (diff === null || diff < 0 || diff > 6) {
-          return false;
-        }
-      } else if (filtroPeriodo === "mes") {
-        const base = startOfDay(data);
-        if (base.getMonth() !== hoje.getMonth() || base.getFullYear() !== hoje.getFullYear()) {
+      } else if (filtroStatus === "agendada") {
+        if (
+          (status !== "agendada" && status !== "liberada") ||
+          diff === null ||
+          diff < 1
+        ) {
           return false;
         }
       }
+
+      if (filtroPeriodo) {
+        const data = info ? info.data : null;
+        if (!data) {
+          return false;
+        }
+        if (filtroPeriodo === "hoje") {
+          if (diff !== 0) {
+            return false;
+          }
+        } else if (filtroPeriodo === "semana") {
+          if (diff === null || diff < 0 || diff > 6) {
+            return false;
+          }
+        } else if (filtroPeriodo === "mes") {
+          const base = startOfDay(data);
+          if (base.getMonth() !== hoje.getMonth() || base.getFullYear() !== hoje.getFullYear()) {
+            return false;
+          }
+        }
+      }
+    }
+
+    if (ssAtivo && !matchesMaintenanceSsFilter(item, filtroSsRaw)) {
+      return false;
     }
 
     return true;
@@ -24205,6 +24219,11 @@ function filtrarRelatorioLista(lista, filtros) {
         return false;
       }
     }
+    if (filtros.ss) {
+      if (!matchesMaintenanceSsFilter(item, filtros.ss)) {
+        return false;
+      }
+    }
     if (filtros.responsavel) {
       const responsavel = getRelatorioResponsavel(item);
       if (responsavel !== filtros.responsavel) {
@@ -24329,6 +24348,7 @@ function getRelatorioFiltros() {
     status: statusValores,
     responsavel: relatorioResponsavelFiltro ? relatorioResponsavelFiltro.value : "",
     tipo: relatorioTipoFiltro ? relatorioTipoFiltro.value : "",
+    ss: relatorioSsFiltro ? relatorioSsFiltro.value : "",
   };
 }
 
@@ -62144,6 +62164,64 @@ function getMaintenanceSsReferencia(item) {
   );
 }
 
+function formatSsDigits(value) {
+  const digits = String(value || "").replace(/\D+/g, "");
+  if (!digits) {
+    return "";
+  }
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
+function getMaintenanceSsNumero(item) {
+  if (!item || typeof item !== "object") {
+    return "";
+  }
+  const raw = String(item.ssNumero || item.ssNumber || item.ssId || "").trim();
+  if (!raw) {
+    return "";
+  }
+  const digits = raw.replace(/\D+/g, "");
+  return digits || raw;
+}
+
+function getMaintenanceSsLabel(item) {
+  const ssRaw = getMaintenanceSsNumero(item);
+  if (!ssRaw) {
+    return "";
+  }
+  const digits = ssRaw.replace(/\D+/g, "");
+  if (!digits) {
+    return ssRaw;
+  }
+  return formatSsDigits(digits);
+}
+
+function normalizeSsSearchValue(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "";
+  }
+  const digits = raw.replace(/\D+/g, "");
+  return (digits || raw).toLowerCase();
+}
+
+function matchesMaintenanceSsFilter(item, filtro) {
+  const normalized = normalizeSsSearchValue(filtro);
+  if (!normalized) {
+    return true;
+  }
+  const ssRaw = getMaintenanceSsNumero(item);
+  if (!ssRaw) {
+    return false;
+  }
+  const digits = ssRaw.replace(/\D+/g, "");
+  if (digits && digits.includes(normalized)) {
+    return true;
+  }
+  const label = getMaintenanceSsLabel(item).toLowerCase();
+  return Boolean(label && label.includes(normalized));
+}
+
 function getSsDocInfo(doc, fallbackLabel = "Arquivo") {
   if (!doc) {
     return {
@@ -68840,6 +68918,9 @@ if (filtroProgramacaoStatus) {
 if (filtroProgramacaoPeriodo) {
   filtroProgramacaoPeriodo.addEventListener("change", renderProgramacao);
 }
+if (filtroProgramacaoSs) {
+  filtroProgramacaoSs.addEventListener("input", renderProgramacao);
+}
 if (btnProgramacaoExportPdf) {
   btnProgramacaoExportPdf.addEventListener("click", () => {
     exportarProgramacaoPdf();
@@ -70031,6 +70112,9 @@ if (relatorioResponsavelFiltro) {
 }
 if (relatorioTipoFiltro) {
   relatorioTipoFiltro.addEventListener("change", renderRelatorios);
+}
+if (relatorioSsFiltro) {
+  relatorioSsFiltro.addEventListener("input", renderRelatorios);
 }
 if (btnRelatoriosExportar) {
   btnRelatoriosExportar.addEventListener("click", () => {
@@ -72499,6 +72583,7 @@ function setupPowerBIExportButtons() {
         subestacao: readPowerBIFieldValue(filtroProgramacaoSubestacao),
         status: readPowerBIFieldValue(filtroProgramacaoStatus),
         periodo: readPowerBIFieldValue(filtroProgramacaoPeriodo),
+        ss: readPowerBIFieldValue(filtroProgramacaoSs),
       },
     }),
   });
@@ -72616,6 +72701,7 @@ function setupPowerBIExportButtons() {
         periodo: readPowerBIFieldValue(relatorioPeriodoFiltro),
         status: readPowerBIFieldValue(relatorioStatusFiltro),
         responsavel: readPowerBIFieldValue(relatorioResponsavelFiltro),
+        ss: readPowerBIFieldValue(relatorioSsFiltro),
         tipo: readPowerBIFieldValue(relatorioTipoFiltro),
         mes: readPowerBIFieldValue(relatorioMes),
       },
