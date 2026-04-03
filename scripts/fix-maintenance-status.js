@@ -211,6 +211,7 @@ async function main() {
   const status = String(args.status || "concluida").trim().toLowerCase();
   const dryRun = Boolean(args["dry-run"] || args.dryRun);
   const force = Boolean(args.force);
+  const applyAll = Boolean(args.all || args["apply-all"]);
   const updatedBy = String(args.by || args.updatedBy || "").trim();
 
   if (!id && !date && !title && !local) {
@@ -258,52 +259,75 @@ async function main() {
     console.error("Nenhuma manutenção encontrada com os filtros informados.");
     process.exit(1);
   }
-  if (matches.length > 1 && !id) {
+  if (matches.length > 1 && !id && !applyAll) {
     console.error("Mais de uma manutenção encontrada. Use --id para escolher.");
     matches.forEach((item) => {
       console.error(
         `- ${item.id} | ${item.titulo} | ${item.data} | ${item.local} | status=${item.status}`
       );
     });
+    console.error("Para aplicar em todas, repita com --all.");
     process.exit(1);
   }
 
-  const target = matches[0];
-  console.log(
-    `Encontrada: ${target.id} | ${target.titulo} | ${target.data} | status=${target.status}`
-  );
+  const targets = matches.length > 1 && applyAll ? matches : [matches[0]];
+  targets.forEach((target) => {
+    console.log(
+      `Encontrada: ${target.id} | ${target.titulo} | ${target.data} | status=${target.status}`
+    );
+  });
 
   if (status !== "concluida") {
     console.error("Este script atualmente suporta apenas --status=concluida.");
     process.exit(1);
   }
 
-  let atualizado = null;
-  try {
-    atualizado = updateToConcluida(target, { force, updatedBy });
-  } catch (error) {
-    console.error(error.message || error);
+  const updatesById = new Map();
+  const errors = [];
+  targets.forEach((target) => {
+    try {
+      const atualizado = updateToConcluida(target, { force, updatedBy });
+      updatesById.set(String(atualizado.id), atualizado);
+    } catch (error) {
+      errors.push({
+        id: target.id,
+        message: error && error.message ? error.message : String(error),
+      });
+    }
+  });
+  if (errors.length) {
+    errors.forEach((entry) => {
+      console.error(`Erro em ${entry.id}: ${entry.message}`);
+    });
     process.exit(1);
   }
 
-  const nextItems = items.map((item) => (item && item.id === target.id ? atualizado : item));
+  const nextItems = items.map((item) => {
+    if (!item || !item.id) {
+      return item;
+    }
+    const updated = updatesById.get(String(item.id));
+    return updated || item;
+  });
   const nextPayload = buildPayload(nextItems, wrapper);
 
   if (dryRun) {
     console.log("Dry-run ativo. Nenhuma alteração foi salva.");
-    console.log(
-      JSON.stringify(
-        {
-          id: atualizado.id,
-          status: atualizado.status,
-          doneAt: atualizado.doneAt,
-          doneBy: atualizado.doneBy,
-          updatedAt: atualizado.updatedAt,
-        },
-        null,
-        2
-      )
-    );
+    updatesById.forEach((atualizado) => {
+      console.log(
+        JSON.stringify(
+          {
+            id: atualizado.id,
+            status: atualizado.status,
+            doneAt: atualizado.doneAt,
+            doneBy: atualizado.doneBy,
+            updatedAt: atualizado.updatedAt,
+          },
+          null,
+          2
+        )
+      );
+    });
     return;
   }
 

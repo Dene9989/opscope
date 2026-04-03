@@ -15209,6 +15209,76 @@ function hasExecucaoRegistrada(item) {
   );
 }
 
+function normalizeMaintenanceResultValue(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) {
+    return "";
+  }
+  return raw
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+const MAINTENANCE_CONCLUSION_RESULTS = new Set([
+  "concluida",
+  "concluido",
+  "concluida_com_ressalva",
+  "concluida_ressalva",
+  "ressalva",
+  "nao_executada",
+  "nao_executado",
+  "executada",
+  "executado",
+  "finalizada",
+  "finalizado",
+]);
+
+function isMaintenanceConclusionResult(value) {
+  const normalized = normalizeMaintenanceResultValue(value);
+  if (!normalized) {
+    return false;
+  }
+  return MAINTENANCE_CONCLUSION_RESULTS.has(normalized);
+}
+
+function getMaintenanceCompletionFallbackDate(item) {
+  if (!item || typeof item !== "object") {
+    return "";
+  }
+  const registros = [];
+  if (item.registroExecucao && typeof item.registroExecucao === "object") {
+    registros.push(item.registroExecucao);
+  }
+  const diarios = getRegistrosDiariosExecucao(item);
+  if (Array.isArray(diarios) && diarios.length) {
+    registros.push(...diarios);
+  }
+  for (let index = registros.length - 1; index >= 0; index -= 1) {
+    const registro = registros[index];
+    if (!registro || typeof registro !== "object") {
+      continue;
+    }
+    if (!isMaintenanceConclusionResult(registro.resultado || registro.status)) {
+      continue;
+    }
+    const fallback =
+      registro.fim ||
+      registro.finalizadoEm ||
+      registro.encerradoEm ||
+      registro.registradoEm ||
+      registro.registrado_em ||
+      registro.executadoEm ||
+      registro.executedAt ||
+      "";
+    if (fallback) {
+      return fallback;
+    }
+  }
+  return "";
+}
+
 function hasMaintenanceCompletionData(item, conclusaoOverride = null) {
   if (!item || typeof item !== "object") {
     return false;
@@ -15219,13 +15289,15 @@ function hasMaintenanceCompletionData(item, conclusaoOverride = null) {
       : item.conclusao && typeof item.conclusao === "object"
         ? item.conclusao
         : null;
+  const fallbackDate = getMaintenanceCompletionFallbackDate(item);
   return Boolean(
     item.doneAt ||
       item.concluidaEm ||
       item.dataConclusao ||
       item.completedAt ||
       item.executionFinishedAt ||
-      (conclusao && conclusao.fim)
+      (conclusao && conclusao.fim) ||
+      fallbackDate
   );
 }
 
@@ -16009,14 +16081,17 @@ function normalizarManutencoes(lista) {
     if (statusOriginal !== "concluida" && statusOriginal !== "cancelada") {
       const concluidaDetectada = hasMaintenanceCompletionData(item, conclusao);
       if (concluidaDetectada) {
+        const fallbackConclusao = getMaintenanceCompletionFallbackDate(item);
         const doneAtFinal =
           doneAt ||
           executionFinishedAt ||
           (conclusao ? conclusao.fim : "") ||
+          fallbackConclusao ||
           item.concluidaEm ||
           item.dataConclusao ||
           "";
-        const executionFinishedAtFinal = executionFinishedAt || doneAtFinal || "";
+        const executionFinishedAtFinal =
+          executionFinishedAt || doneAtFinal || fallbackConclusao || "";
         changes.push({ id: item.id, from: statusOriginal, to: "concluida" });
         return {
           ...baseItem,
