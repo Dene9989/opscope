@@ -1,4 +1,5 @@
 const fs = require("fs");
+const fs = require("fs");
 const path = require("path");
 
 require("dotenv").config();
@@ -160,6 +161,40 @@ function normalizeStatus(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+function normalizeResultValue(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) {
+    return "";
+  }
+  return raw
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+const CONCLUSION_RESULTS = new Set([
+  "concluida",
+  "concluido",
+  "concluida_com_ressalva",
+  "concluida_ressalva",
+  "ressalva",
+  "nao_executada",
+  "nao_executado",
+  "executada",
+  "executado",
+  "finalizada",
+  "finalizado",
+]);
+
+function isConclusionResult(value) {
+  const normalized = normalizeResultValue(value);
+  if (!normalized) {
+    return false;
+  }
+  return CONCLUSION_RESULTS.has(normalized);
+}
+
 function normalizeIso(value) {
   if (!value) {
     return "";
@@ -171,18 +206,65 @@ function normalizeIso(value) {
   return parsed.toISOString();
 }
 
+function getExecutionEntries(item) {
+  if (!item || typeof item !== "object") {
+    return [];
+  }
+  const entries = [];
+  if (item.registroExecucao && typeof item.registroExecucao === "object") {
+    entries.push(item.registroExecucao);
+  }
+  const diarios = Array.isArray(item.registrosDiariosExecucao)
+    ? item.registrosDiariosExecucao
+    : Array.isArray(item.registroExecucaoDiaria)
+      ? item.registroExecucaoDiaria
+      : [];
+  if (diarios.length) {
+    entries.push(...diarios);
+  }
+  return entries.filter(Boolean);
+}
+
+function getCompletionFallbackDate(item) {
+  const entries = getExecutionEntries(item);
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const registro = entries[index];
+    if (!registro || typeof registro !== "object") {
+      continue;
+    }
+    if (!isConclusionResult(registro.resultado || registro.status)) {
+      continue;
+    }
+    const fallback =
+      registro.fim ||
+      registro.finalizadoEm ||
+      registro.encerradoEm ||
+      registro.registradoEm ||
+      registro.registrado_em ||
+      registro.executadoEm ||
+      registro.executedAt ||
+      "";
+    if (fallback) {
+      return fallback;
+    }
+  }
+  return "";
+}
+
 function hasCompletionData(item) {
   if (!item || typeof item !== "object") {
     return false;
   }
   const conclusao = item.conclusao && typeof item.conclusao === "object" ? item.conclusao : null;
+  const fallback = getCompletionFallbackDate(item);
   return Boolean(
     item.doneAt ||
       item.concluidaEm ||
       item.dataConclusao ||
       item.completedAt ||
       item.executionFinishedAt ||
-      (conclusao && conclusao.fim)
+      (conclusao && conclusao.fim) ||
+      fallback
   );
 }
 
@@ -191,6 +273,7 @@ function resolveDoneAt(item) {
     return "";
   }
   const conclusao = item.conclusao && typeof item.conclusao === "object" ? item.conclusao : null;
+  const fallback = getCompletionFallbackDate(item);
   const raw =
     item.doneAt ||
     item.executionFinishedAt ||
@@ -198,6 +281,7 @@ function resolveDoneAt(item) {
     item.dataConclusao ||
     item.completedAt ||
     (conclusao && conclusao.fim) ||
+    fallback ||
     item.executionRegisteredAt ||
     item.execucaoRegistradaEm ||
     "";
