@@ -99,11 +99,11 @@ async function loadFromDb() {
 function loadFromFile() {
   const { maintenanceFile } = buildStoragePaths();
   if (!fs.existsSync(maintenanceFile)) {
-    return { source: "file", payload: [] };
+    return { source: "file", payload: [], exists: false, path: maintenanceFile };
   }
   const raw = fs.readFileSync(maintenanceFile, "utf8");
   const parsed = raw ? JSON.parse(raw) : [];
-  return { source: "file", payload: parsed };
+  return { source: "file", payload: parsed, exists: true, path: maintenanceFile };
 }
 
 async function saveToDb(payload) {
@@ -221,15 +221,19 @@ async function main() {
     process.exit(1);
   }
 
-  let store = null;
-  try {
-    store = await loadFromDb();
-  } catch (error) {
-    console.warn("[fix] Falha ao ler do banco. Usando arquivo local.", error.message || error);
-    store = null;
-  }
-  if (!store) {
-    store = loadFromFile();
+  const fileStore = loadFromFile();
+  let store = fileStore;
+  let dbStore = null;
+  if (!fileStore.exists) {
+    try {
+      dbStore = await loadFromDb();
+    } catch (error) {
+      console.warn("[fix] Falha ao ler do banco. Usando arquivo local.", error.message || error);
+      dbStore = null;
+    }
+    if (dbStore) {
+      store = dbStore;
+    }
   }
 
   const { items, wrapper } = extractItems(store.payload);
@@ -331,12 +335,21 @@ async function main() {
     return;
   }
 
-  if (store.source === "db") {
-    await saveToDb(nextPayload);
-    console.log("Atualizado no banco com sucesso.");
-  } else {
+  const dbConfigured = Boolean(process.env.OPSCOPE_DATABASE_URL || process.env.DATABASE_URL);
+  let saved = false;
+  if (fileStore.exists) {
     saveToFile(nextPayload);
     console.log("Atualizado no arquivo local com sucesso.");
+    saved = true;
+  }
+  if (dbConfigured) {
+    await saveToDb(nextPayload);
+    console.log("Atualizado no banco com sucesso.");
+    saved = true;
+  }
+  if (!saved) {
+    console.error("Nenhum destino disponivel para salvar (arquivo local ausente e DATABASE_URL vazio).");
+    process.exit(1);
   }
 }
 

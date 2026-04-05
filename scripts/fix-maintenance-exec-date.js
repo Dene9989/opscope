@@ -99,11 +99,11 @@ async function loadFromDb() {
 function loadFromFile() {
   const { maintenanceFile } = buildStoragePaths();
   if (!fs.existsSync(maintenanceFile)) {
-    return { source: "file", payload: [] };
+    return { source: "file", payload: [], exists: false, path: maintenanceFile };
   }
   const raw = fs.readFileSync(maintenanceFile, "utf8");
   const parsed = raw ? JSON.parse(raw) : [];
-  return { source: "file", payload: parsed };
+  return { source: "file", payload: parsed, exists: true, path: maintenanceFile };
 }
 
 async function saveToDb(payload) {
@@ -338,8 +338,20 @@ async function main() {
     process.exit(1);
   }
 
-  const fromDb = await loadFromDb();
-  const source = fromDb || loadFromFile();
+  const fileStore = loadFromFile();
+  let source = fileStore;
+  let dbStore = null;
+  if (!fileStore.exists) {
+    try {
+      dbStore = await loadFromDb();
+    } catch (error) {
+      console.warn("[fix] Falha ao ler do banco. Usando arquivo local.", error.message || error);
+      dbStore = null;
+    }
+    if (dbStore) {
+      source = dbStore;
+    }
+  }
   const { items, wrapper } = extractItems(source.payload);
 
   const normalizedTitle = normalizeText(titleFilter);
@@ -423,12 +435,23 @@ async function main() {
   const nextItems = items.map((item) => (item && item.id === target.id ? updated : item));
   const payload = buildPayload(nextItems, wrapper);
 
-  if (fromDb) {
-    await saveToDb(payload);
-    console.log("[fix] Atualizado no banco com sucesso.");
-  } else {
+  const dbConfigured = Boolean(process.env.OPSCOPE_DATABASE_URL || process.env.DATABASE_URL);
+  let saved = false;
+  if (fileStore.exists) {
     saveToFile(payload);
     console.log("[fix] Atualizado no arquivo local com sucesso.");
+    saved = true;
+  }
+  if (dbConfigured) {
+    await saveToDb(payload);
+    console.log("[fix] Atualizado no banco com sucesso.");
+    saved = true;
+  }
+  if (!saved) {
+    console.error(
+      "[fix] Nenhum destino disponivel para salvar (arquivo local ausente e DATABASE_URL vazio)."
+    );
+    process.exit(1);
   }
 }
 

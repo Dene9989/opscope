@@ -203,6 +203,11 @@ const STORAGE_DATA_DIR = path.join(STORAGE_DIR, "data");
 const SESSION_STORE_FILE = path.join(STORAGE_DIR, SESSION_FILE);
 const DATABASE_URL = process.env.OPSCOPE_DATABASE_URL || process.env.DATABASE_URL || "";
 const DB_ENABLED = Boolean(DATABASE_URL);
+const DB_REQUIRED = String(process.env.OPSCOPE_DB_REQUIRED || "").trim().toLowerCase() === "true";
+const DB_SYNC_INTERVAL_MS = Math.max(
+  0,
+  Number(process.env.OPSCOPE_DB_SYNC_INTERVAL_MS) || 60000
+);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const OPENAI_MODEL = process.env.OPSCOPE_OPENAI_MODEL || "gpt-4o-mini-2024-07-18";
 const OPENAI_TIMEOUT_MS = Number(process.env.OPSCOPE_OPENAI_TIMEOUT_MS) || 12000;
@@ -237,6 +242,10 @@ let dbWriteQueue = Promise.resolve();
 let dbWritesPausedUntil = 0;
 let dbReconnectTimer = null;
 let dbLastConnectivityLogAt = 0;
+let storeSyncTimer = null;
+let storeSyncInFlight = null;
+let storeSyncLastAt = "";
+let storeSyncLastSource = "";
 let storageWriteFailure = null;
 const oversizedJsonReadFiles = new Set();
 const oversizedJsonWarned = new Set();
@@ -1612,6 +1621,8 @@ function logStoragePaths() {
   console.log("[storage] DATA_DIR=", DATA_DIR);
   console.log("[storage] STORAGE_DIR=", STORAGE_DIR);
   console.log("[storage] DB_ENABLED=", DB_ENABLED);
+  console.log("[storage] DB_REQUIRED=", DB_REQUIRED);
+  console.log("[storage] DB_SYNC_INTERVAL_MS=", DB_SYNC_INTERVAL_MS);
   console.log("[storage] STORE_UPLOADS=", STORE_UPLOADS);
   if (envData) {
     console.log("[storage] OPSCOPE_DATA_DIR=", envData);
@@ -2379,6 +2390,7 @@ function scheduleDbRecovery(delayMs = DB_PROBE_INTERVAL_MS) {
       dbWritesPausedUntil = 0;
       dbReady = true;
       warnedUploadsDisabled = false;
+      runStoreSync("db-recovery");
     } catch (error) {
       dbWritesPausedUntil = Date.now() + DB_WRITE_PAUSE_MS;
       const now = Date.now();
@@ -2459,10 +2471,33 @@ async function syncStoreFile(filePath) {
   const localExists = fs.existsSync(filePath);
   const localPayload = localExists ? readJson(filePath, null) : null;
   const localHasPayload = localPayload !== null && typeof localPayload !== "undefined";
+  let localMtime = 0;
+  if (localExists) {
+    try {
+      const stats = fs.statSync(filePath);
+      localMtime = Number(stats.mtimeMs || 0);
+    } catch (error) {
+      localMtime = 0;
+    }
+  }
 
   const remote = await fetchStorePayload(key);
   const remotePayload = remote && remote.payload !== undefined ? remote.payload : null;
+  const remoteUpdatedAtMs = remote && remote.updatedAt ? Date.parse(remote.updatedAt) : 0;
+  const localIsNewer =
+    localExists &&
+    localMtime > 0 &&
+    Number.isFinite(remoteUpdatedAtMs) &&
+    remoteUpdatedAtMs > 0 &&
+    localMtime > remoteUpdatedAtMs + 1000;
   if (remotePayload !== null && typeof remotePayload !== "undefined") {
+    if (localIsNewer && localHasPayload) {
+      if (remote && remote.oversized) {
+        console.warn("[db] Regravando payload local para substituir remoto excessivo.", { key });
+      }
+      await upsertStorePayload(key, localPayload);
+      return;
+    }
     if (!writeJson(filePath, remotePayload, { skipDb: true })) {
       console.warn("[db] Falha ao materializar payload remoto no arquivo local.", { key, filePath });
     }
@@ -2495,6 +2530,54 @@ async function syncStoreFiles() {
   }
 }
 
+function shouldRunStoreSync() {
+  return (
+    DB_ENABLED &&
+    dbReady &&
+    dbPool &&
+    Date.now() >= dbWritesPausedUntil
+  );
+}
+
+async function runStoreSync(reason = "interval") {
+  if (!shouldRunStoreSync()) {
+    return;
+  }
+  if (storeSyncInFlight) {
+    return storeSyncInFlight;
+  }
+  storeSyncInFlight = (async () => {
+    try {
+      await syncStoreFiles();
+      storeSyncLastAt = new Date().toISOString();
+      storeSyncLastSource = reason;
+    } catch (error) {
+      console.warn("[db] Falha ao sincronizar store.", {
+        reason,
+        message: error && error.message ? error.message : String(error || ""),
+      });
+    } finally {
+      storeSyncInFlight = null;
+    }
+  })();
+  return storeSyncInFlight;
+}
+
+function startStoreSyncScheduler() {
+  if (!DB_ENABLED || DB_SYNC_INTERVAL_MS <= 0) {
+    return;
+  }
+  if (storeSyncTimer) {
+    return;
+  }
+  storeSyncTimer = setInterval(() => {
+    runStoreSync("interval");
+  }, DB_SYNC_INTERVAL_MS);
+  if (typeof storeSyncTimer.unref === "function") {
+    storeSyncTimer.unref();
+  }
+}
+
 function getDatabaseInfo() {
   if (!DATABASE_URL) {
     return { configured: false, host: "", database: "" };
@@ -2512,6 +2595,10 @@ function getStorageSnapshot() {
   return {
     dbEnabled: DB_ENABLED,
     dbReady,
+    dbRequired: DB_REQUIRED,
+    dbSyncIntervalMs: DB_SYNC_INTERVAL_MS,
+    dbSyncLastAt: storeSyncLastAt,
+    dbSyncLastSource: storeSyncLastSource,
     writeBlocked: isStorageWriteBlocked(),
     writeBlockReason: getStorageWriteBlockReason(),
     localWriteFailure: getStorageWriteFailureSnapshot(),
@@ -16877,6 +16964,9 @@ function requireAccessManage(req, res, next) {
 }
 
 function getStorageWriteBlockReason() {
+  if (DB_REQUIRED && !dbReady) {
+    return "db_required";
+  }
   if (DB_ENABLED && !dbReady) {
     return "db_unavailable";
   }
@@ -17265,13 +17355,16 @@ async function bootstrap() {
   migrateLegacyUploads();
   migrateLegacyAvatars();
   await initDatabase();
-  try {
-    await syncStoreFiles();
-  } catch (error) {
-    console.warn("[db] SincronizaÃ§Ã£o inicial do store falhou. Sistema seguirÃ¡ com dados locais.", {
-      message: error && error.message ? error.message : String(error || ""),
-    });
+  if (DB_REQUIRED && !DB_ENABLED) {
+    console.error("[db] OPSCOPE_DB_REQUIRED ativo, mas DATABASE_URL nao configurado.");
+    process.exit(1);
   }
+  if (DB_REQUIRED && !dbReady) {
+    console.error("[db] OPSCOPE_DB_REQUIRED ativo, mas banco indisponivel no startup.");
+    process.exit(1);
+  }
+  startStoreSyncScheduler();
+  await runStoreSync("startup");
   registerShutdownHandlers();
 
   const usersFileExists = fs.existsSync(USERS_FILE);
