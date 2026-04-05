@@ -55154,7 +55154,23 @@ async function carregarTemplatesServidor(force = false) {
   try {
     const data = await apiTemplatesList(activeProjectId);
     const list = Array.isArray(data.items) ? data.items : [];
+    const state = data && data.state ? data.state : null;
+    const clearedAt =
+      state && typeof state.clearedAt === "string" ? state.clearedAt.trim() : "";
     const localSnapshot = Array.isArray(templates) ? templates.slice() : [];
+    if (!list.length && clearedAt) {
+      templates = [];
+      salvarTemplates(templates, { skipSync: true });
+      templatesLoadedProjects.add(activeProjectId);
+      const nextHash = hashString(JSON.stringify(templates));
+      const prevHash = templatesRenderHashes.get(activeProjectId);
+      templatesRenderHashes.set(activeProjectId, nextHash);
+      if (!prevHash || nextHash !== prevHash) {
+        renderTudo();
+      }
+      templatesSyncEnabled = true;
+      return;
+    }
     if (!list.length && localSnapshot.length) {
       const normalizados = normalizarTemplates(localSnapshot);
       templates = normalizados.normalizadas;

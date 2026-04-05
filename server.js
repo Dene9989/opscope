@@ -257,6 +257,7 @@ const DATA_FILE_NAMES = [
   "maintenance_tombstones.json",
   "maintenance_recurrence_suppressions.json",
   "maintenance_monthly.json",
+  "maintenance_templates_state.json",
   "maintenance_dedupe_alerts.json",
   "rdo_snapshots.json",
   "maintenance_ss_counter.json",
@@ -309,6 +310,7 @@ const INVITES_FILE = path.join(DATA_DIR, "invites.json");
 const AUDIT_FILE = path.join(DATA_DIR, "audit.json");
 const MAINTENANCE_FILE = path.join(DATA_DIR, "maintenance.json");
 const MAINTENANCE_TEMPLATES_FILE = path.join(DATA_DIR, "maintenance_templates.json");
+const MAINTENANCE_TEMPLATES_STATE_FILE = path.join(DATA_DIR, "maintenance_templates_state.json");
 const MAINTENANCE_TOMBSTONES_FILE = path.join(DATA_DIR, "maintenance_tombstones.json");
 const MAINTENANCE_RECURRENCE_SUPPRESS_FILE = path.join(
   DATA_DIR,
@@ -373,6 +375,7 @@ const STORE_FILES = [
   AUDIT_FILE,
   MAINTENANCE_FILE,
   MAINTENANCE_TEMPLATES_FILE,
+  MAINTENANCE_TEMPLATES_STATE_FILE,
   MAINTENANCE_TOMBSTONES_FILE,
   MAINTENANCE_RECURRENCE_SUPPRESS_FILE,
   MAINTENANCE_MONTHLY_FILE,
@@ -13245,6 +13248,42 @@ function saveMaintenanceTemplates(list) {
   return writeJson(MAINTENANCE_TEMPLATES_FILE, Array.isArray(list) ? list : []);
 }
 
+function loadMaintenanceTemplatesState() {
+  const data = readJson(MAINTENANCE_TEMPLATES_STATE_FILE, {});
+  return data && typeof data === "object" ? data : {};
+}
+
+function saveMaintenanceTemplatesState(state) {
+  const payload = state && typeof state === "object" ? state : {};
+  return writeJson(MAINTENANCE_TEMPLATES_STATE_FILE, payload);
+}
+
+function getMaintenanceTemplatesState(projectId) {
+  if (!projectId) {
+    return null;
+  }
+  const state = loadMaintenanceTemplatesState();
+  const entry = state[projectId];
+  return entry && typeof entry === "object" ? entry : null;
+}
+
+function setMaintenanceTemplatesState(projectId, entry) {
+  if (!projectId) {
+    return null;
+  }
+  const state = loadMaintenanceTemplatesState();
+  if (!entry) {
+    if (state[projectId]) {
+      delete state[projectId];
+      saveMaintenanceTemplatesState(state);
+    }
+    return null;
+  }
+  state[projectId] = entry;
+  saveMaintenanceTemplatesState(state);
+  return entry;
+}
+
 function buildMaintenanceProgramacaoLink(item, projectId) {
   const base = String(APP_BASE_URL || "").replace(/\/+$/g, "");
   const maintenanceId = item && item.id ? String(item.id) : "";
@@ -22027,7 +22066,8 @@ app.get("/api/maintenance/templates", requireAuth, (req, res) => {
   }
   const dataset = loadMaintenanceTemplates();
   const list = dataset.filter((item) => item && item.projectId === projectId);
-  return res.json({ items: list, projectId });
+  const state = getMaintenanceTemplatesState(projectId);
+  return res.json({ items: list, projectId, state });
 });
 
 app.post("/api/maintenance/templates/sync", requireAuth, requireStorageWritable, (req, res) => {
@@ -22060,12 +22100,22 @@ app.post("/api/maintenance/templates/sync", requireAuth, requireStorageWritable,
     });
   }
   touchCompat("templates", projectId);
+  let state = getMaintenanceTemplatesState(projectId);
+  if (sanitized.length === 0) {
+    state = setMaintenanceTemplatesState(projectId, {
+      clearedAt: new Date().toISOString(),
+      clearedBy: user ? user.id : null,
+    });
+  } else if (state) {
+    setMaintenanceTemplatesState(projectId, null);
+    state = null;
+  }
   broadcastSse("templates.updated", {
     projectId,
     count: sanitized.length,
     source: "sync",
   });
-  return res.json({ ok: true, count: sanitized.length, projectId });
+  return res.json({ ok: true, count: sanitized.length, projectId, state });
 });
 
 app.get("/api/maintenance", requireAuth, (req, res) => {
