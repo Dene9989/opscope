@@ -61819,9 +61819,10 @@ function renderHistorico(item) {
       : "Histórico da manutenção";
   }
   if (historicoResumo) {
+    const idLabel = item && item.id ? ` | ID: ${item.id}` : "";
     historicoResumo.textContent = issueMode
-      ? `${buildManutencaoResumoTexto(item)} | Intercorrência rastreada`
-      : buildManutencaoResumoTexto(item);
+      ? `${buildManutencaoResumoTexto(item)} | Intercorrência rastreada${idLabel}`
+      : `${buildManutencaoResumoTexto(item)}${idLabel}`;
   }
 
   if (!historico.length) {
