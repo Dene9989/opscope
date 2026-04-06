@@ -36,6 +36,49 @@ function normalizeKey(value) {
   return base.replace(/[^a-z0-9]+/g, " ").trim();
 }
 
+function parseBrazilianDateParts(value) {
+  const text = normalizeText(value);
+  if (!text) {
+    return null;
+  }
+  const match = text.match(
+    /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/
+  );
+  if (!match) {
+    return null;
+  }
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  const hour = Number(match[4] || 0);
+  const minute = Number(match[5] || 0);
+  const second = Number(match[6] || 0);
+  if (
+    !Number.isFinite(day) ||
+    !Number.isFinite(month) ||
+    !Number.isFinite(year) ||
+    !Number.isFinite(hour) ||
+    !Number.isFinite(minute) ||
+    !Number.isFinite(second)
+  ) {
+    return null;
+  }
+  if (month < 1 || month > 12 || day < 1 || day > 31) {
+    return null;
+  }
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59) {
+    return null;
+  }
+  return {
+    day,
+    month,
+    year,
+    hour,
+    minute,
+    second,
+  };
+}
+
 function parseDateOnly(value) {
   if (!value && value !== 0) {
     return null;
@@ -57,6 +100,10 @@ function parseDateOnly(value) {
     }
     return new Date(year, month - 1, day);
   }
+  const br = parseBrazilianDateParts(text);
+  if (br) {
+    return new Date(br.year, br.month - 1, br.day);
+  }
   const parsed = new Date(text);
   return isDate(parsed) ? new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()) : null;
 }
@@ -71,6 +118,10 @@ function parseDateTime(value) {
   const text = normalizeText(value);
   if (!text) {
     return null;
+  }
+  const br = parseBrazilianDateParts(text);
+  if (br) {
+    return new Date(br.year, br.month - 1, br.day, br.hour, br.minute, br.second);
   }
   const parsed = new Date(text);
   return isDate(parsed) ? parsed : null;
