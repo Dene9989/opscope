@@ -2495,6 +2495,71 @@ async function syncStoreFile(filePath) {
     localMtime > remoteUpdatedAtMs + 1000;
   if (remotePayload !== null && typeof remotePayload !== "undefined") {
     if (localIsNewer && localHasPayload) {
+      const shouldBlockMaintenanceOverwrite = (() => {
+        if (resolvedFile !== path.resolve(MAINTENANCE_FILE)) {
+          return false;
+        }
+        const toList = (payload) => {
+          if (Array.isArray(payload)) {
+            return payload;
+          }
+          if (payload && Array.isArray(payload.items)) {
+            return payload.items;
+          }
+          return [];
+        };
+        const localList = toList(localPayload);
+        const remoteList = toList(remotePayload);
+        if (!remoteList.length) {
+          return false;
+        }
+        const countCompletion = (list) =>
+          list.reduce((acc, item) => {
+            if (!item || typeof item !== "object") {
+              return acc;
+            }
+            const status = normalizeStatus(item.status);
+            if (status === "concluida" || status === "cancelada") {
+              return acc + 1;
+            }
+            if (
+              item.doneAt ||
+              item.concluidaEm ||
+              item.dataConclusao ||
+              item.completedAt ||
+              item.executionFinishedAt ||
+              (item.conclusao && item.conclusao.fim)
+            ) {
+              return acc + 1;
+            }
+            return acc;
+          }, 0);
+        const localCompletion = countCompletion(localList);
+        const remoteCompletion = countCompletion(remoteList);
+        if (remoteCompletion > 0 && localCompletion === 0) {
+          return true;
+        }
+        if (remoteList.length > 0 && localList.length === 0) {
+          return true;
+        }
+        return false;
+      })();
+      if (shouldBlockMaintenanceOverwrite) {
+        console.warn(
+          "[db] Sincronizacao bloqueada: payload local suspeito para maintenance.json.",
+          {
+            localCount: Array.isArray(localPayload) ? localPayload.length : null,
+            remoteCount: Array.isArray(remotePayload) ? remotePayload.length : null,
+          }
+        );
+        if (!writeJson(filePath, remotePayload, { skipDb: true })) {
+          console.warn("[db] Falha ao regravar payload remoto no arquivo local.", {
+            key,
+            filePath,
+          });
+        }
+        return;
+      }
       if (remote && remote.oversized) {
         console.warn("[db] Regravando payload local para substituir remoto excessivo.", { key });
       }
@@ -9269,6 +9334,41 @@ function getActiveProjectId(req, user) {
   return fallback ? fallback.id : null;
 }
 
+function parseBrazilianDateParts(text) {
+  if (!text) {
+    return null;
+  }
+  const match = String(text)
+    .trim()
+    .match(
+      /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:[,\sT]+(\d{1,2})(?::(\d{1,2}))?(?::(\d{1,2}))?)?$/
+    );
+  if (!match) {
+    return null;
+  }
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  if (!year || !month || !day) {
+    return null;
+  }
+  const hour = match[4] !== undefined ? Number(match[4] || 0) : 0;
+  const minute = match[5] !== undefined ? Number(match[5] || 0) : 0;
+  const second = match[6] !== undefined ? Number(match[6] || 0) : 0;
+  const date = new Date(year, month - 1, day, hour, minute, second, 0);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+  return date;
+}
+
 function parseDateOnly(value) {
   if (!value) {
     return null;
@@ -9289,7 +9389,11 @@ function parseDateOnly(value) {
     return Number.isNaN(date.getTime()) ? null : startOfDay(date);
   }
   const parsed = new Date(text);
-  return Number.isNaN(parsed.getTime()) ? null : startOfDay(parsed);
+  if (!Number.isNaN(parsed.getTime())) {
+    return startOfDay(parsed);
+  }
+  const br = parseBrazilianDateParts(text);
+  return br ? startOfDay(br) : null;
 }
 
 function stripAccents(value) {
@@ -9330,7 +9434,10 @@ function parseDateTime(value) {
     return null;
   }
   const parsed = new Date(text);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed;
+  }
+  return parseBrazilianDateParts(text);
 }
 
 function getTimeValue(value) {
@@ -13524,28 +13631,28 @@ function runMaintenanceMonthlyScheduler() {
       });
   }
 
-  if (maintenanceMonthlyState.lastBacklogMonth !== currentMonthKey) {
-    const dataset = loadMaintenanceData();
-    const resultado = applyMonthlyBacklog(dataset, currentMonthKey);
-    if (resultado.changed) {
-      writeJson(MAINTENANCE_FILE, resultado.list);
-      resultado.updatedProjects.forEach((projectId) => {
-        touchCompat("maintenance", projectId);
-        broadcastSse("maintenance.updated", {
-          projectId,
-          count: 0,
-          source: "monthly-backlog",
-        });
-        appendAudit(
-          "maintenance_backlog_auto",
-          "system",
-          { projectId, month: currentMonthKey },
-          "system",
-          projectId
-        );
+  const dataset = loadMaintenanceData();
+  const resultado = applyMonthlyBacklog(dataset, currentMonthKey);
+  if (resultado.changed) {
+    writeJson(MAINTENANCE_FILE, resultado.list);
+    resultado.updatedProjects.forEach((projectId) => {
+      touchCompat("maintenance", projectId);
+      broadcastSse("maintenance.updated", {
+        projectId,
+        count: 0,
+        source: "monthly-backlog",
       });
-      DASHBOARD_CACHE.clear();
-    }
+      appendAudit(
+        "maintenance_backlog_auto",
+        "system",
+        { projectId, month: currentMonthKey },
+        "system",
+        projectId
+      );
+    });
+    DASHBOARD_CACHE.clear();
+  }
+  if (maintenanceMonthlyState.lastBacklogMonth !== currentMonthKey) {
     maintenanceMonthlyState.lastBacklogMonth = currentMonthKey;
     saveMaintenanceMonthlyState(maintenanceMonthlyState);
   }

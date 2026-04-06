@@ -12442,24 +12442,25 @@ function parseDate(value) {
   if (!value) {
     return null;
   }
-  const partes = value.split("-");
-  if (partes.length !== 3) {
-    return null;
+  const partes = String(value).split("-");
+  if (partes.length === 3) {
+    const ano = Number(partes[0]);
+    const mes = Number(partes[1]);
+    const dia = Number(partes[2]);
+    if (ano && mes && dia) {
+      const data = new Date(ano, mes - 1, dia);
+      if (
+        !Number.isNaN(data.getTime()) &&
+        data.getFullYear() === ano &&
+        data.getMonth() === mes - 1 &&
+        data.getDate() === dia
+      ) {
+        return data;
+      }
+    }
   }
-  const ano = Number(partes[0]);
-  const mes = Number(partes[1]);
-  const dia = Number(partes[2]);
-  if (!ano || !mes || !dia) {
-    return null;
-  }
-  const data = new Date(ano, mes - 1, dia);
-  if (Number.isNaN(data.getTime())) {
-    return null;
-  }
-  if (data.getFullYear() !== ano || data.getMonth() !== mes - 1 || data.getDate() !== dia) {
-    return null;
-  }
-  return data;
+  const br = parseBrazilianDateParts(value);
+  return br ? startOfDay(br) : null;
 }
 
 function isUnauthorizedError(error) {
@@ -12579,6 +12580,41 @@ function toIsoUtc(value) {
   return "";
 }
 
+function parseBrazilianDateParts(text) {
+  if (!text) {
+    return null;
+  }
+  const match = String(text)
+    .trim()
+    .match(
+      /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:[,\sT]+(\d{1,2})(?::(\d{1,2}))?(?::(\d{1,2}))?)?$/
+    );
+  if (!match) {
+    return null;
+  }
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  if (!year || !month || !day) {
+    return null;
+  }
+  const hour = match[4] !== undefined ? Number(match[4] || 0) : 0;
+  const minute = match[5] !== undefined ? Number(match[5] || 0) : 0;
+  const second = match[6] !== undefined ? Number(match[6] || 0) : 0;
+  const date = new Date(year, month - 1, day, hour, minute, second, 0);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+  return date;
+}
+
 function parseTimestamp(value) {
   if (!value) {
     return null;
@@ -12592,7 +12628,10 @@ function parseTimestamp(value) {
   }
   if (typeof value === "string") {
     const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+    return parseBrazilianDateParts(value);
   }
   return null;
 }
