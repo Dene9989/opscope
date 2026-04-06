@@ -340,9 +340,50 @@ function normalizeActivity(activity, warningStore, idCounts, index) {
   if (!dueDate) {
     warningStore.add("missing_due_date", "Missing or invalid dueDate.", { ...context, id });
   }
+  const conclusao =
+    activity && activity.conclusao && typeof activity.conclusao === "object" ? activity.conclusao : null;
   let doneAt = parseDateTime(activity && activity.doneAt);
   if (!doneAt) {
     doneAt = parseDateTime(activity && activity.executionFinishedAt);
+  }
+  if (!doneAt && conclusao) {
+    doneAt = parseDateTime(
+      conclusao.fim ||
+        conclusao.dataFim ||
+        conclusao.dataEncerramento ||
+        conclusao.encerradoEm ||
+        conclusao.concluidaEm
+    );
+  }
+  if (!doneAt) {
+    doneAt = parseDateTime(activity && activity.concluidaEm);
+  }
+  if (!doneAt) {
+    doneAt = parseDateTime(activity && activity.dataConclusao);
+  }
+  if (!doneAt) {
+    doneAt = parseDateTime(activity && activity.execucaoRegistradaEm);
+  }
+  if (!doneAt) {
+    doneAt = parseDateTime(activity && activity.executionRegisteredAt);
+  }
+  if (!doneAt) {
+    doneAt = parseDateTime(activity && activity.execucaoRegistradaAt);
+  }
+  if (!doneAt) {
+    doneAt = parseDateTime(activity && activity.registroExecucao && activity.registroExecucao.registradoEm);
+  }
+  if (!doneAt && Array.isArray(activity && activity.registrosDiariosExecucao)) {
+    let best = null;
+    activity.registrosDiariosExecucao.forEach((entry) => {
+      const candidate = parseDateTime(entry && (entry.registradoEm || entry.data || entry.dataRef));
+      if (candidate && (!best || candidate.getTime() > best.getTime())) {
+        best = candidate;
+      }
+    });
+    if (best) {
+      doneAt = best;
+    }
   }
   if (activity && activity.doneAt && !doneAt) {
     warningStore.add("invalid_done_at", "Invalid doneAt.", { ...context, id });
