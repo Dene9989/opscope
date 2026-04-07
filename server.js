@@ -11633,16 +11633,72 @@ function normalizeSstDoc(record) {
   }
   const createdAt = record.createdAt || new Date().toISOString();
   const status = record.status ? String(record.status).toUpperCase() : "PENDENTE";
-  const projectId = String(record.projectId || "").trim();
-  const activity = String(record.activity || record.activityName || "").trim();
-  if (!projectId || !activity) {
+  const projectId = String(
+    record.projectId ||
+      record.project_id ||
+      record.projetoId ||
+      record.project ||
+      record.projeto ||
+      ""
+  ).trim();
+  const activity = String(
+    record.activity ||
+      record.activityName ||
+      record.titulo ||
+      record.tituloAtividade ||
+      record.nome ||
+      record.maintenanceTitle ||
+      ""
+  ).trim();
+  const relatedCandidates = [
+    record.relatedId,
+    record.maintenanceId,
+    record.manutencaoId,
+    record.activityId,
+    record.itemId,
+    record.parentId,
+    record.sourceId,
+    record.referenceId,
+    record.refId,
+    record.execucaoId,
+    record.registroExecucaoId,
+    record.liberacaoId,
+    record.conclusaoId,
+    record.related && (record.related.id || record.related.maintenanceId || record.related.activityId),
+    record.meta &&
+      (record.meta.relatedId ||
+        record.meta.maintenanceId ||
+        record.meta.activityId ||
+        record.meta.itemId),
+    record.context &&
+      (record.context.relatedId ||
+        record.context.maintenanceId ||
+        record.context.activityId ||
+        record.context.itemId),
+    record.maintenance && (record.maintenance.id || record.maintenance.maintenanceId),
+    record.manutencao && (record.manutencao.id || record.manutencao.maintenanceId),
+    record.item && (record.item.id || record.item.maintenanceId),
+  ];
+  const relatedIds = Array.from(
+    new Set(
+      relatedCandidates
+        .map((value) => String(value || "").trim())
+        .filter(Boolean)
+    )
+  );
+  const resolvedRelatedId = relatedIds[0] || String(record.relatedId || "").trim();
+  if (!projectId && !activity && !resolvedRelatedId) {
     return null;
   }
+  const fallbackActivity =
+    activity ||
+    String(record.documento || record.docType || record.tipo || "Documentação").trim() ||
+    "Documentação";
   const extracted = extractSstDocDocuments(record);
   const docs = extracted.docs;
   return {
     id: record.id ? String(record.id) : crypto.randomUUID(),
-    activity,
+    activity: fallbackActivity,
     projectId,
     responsibleId: record.responsibleId || record.createdBy || "",
     aprCode: record.aprCode || "",
@@ -11662,7 +11718,8 @@ function normalizeSstDoc(record) {
     correctionInstructions: record.correctionInstructions || "",
     notifiedAt: record.notifiedAt || "",
     source: record.source || "manual",
-    relatedId: record.relatedId || "",
+    relatedId: resolvedRelatedId,
+    relatedIds,
     updatedAt: record.updatedAt || createdAt,
   };
 }
@@ -15539,13 +15596,21 @@ function getMaintenanceDocsFromSstRecords(item) {
     if (!doc) {
       return false;
     }
-    const candidates = [
+    const candidates = [];
+    if (Array.isArray(doc.relatedIds)) {
+      candidates.push(...doc.relatedIds);
+    }
+    candidates.push(
       doc.relatedId,
       doc.maintenanceId,
       doc.manutencaoId,
       doc.activityId,
       doc.itemId,
-    ];
+      doc.parentId,
+      doc.sourceId,
+      doc.referenceId,
+      doc.refId
+    );
     return candidates.some((value) => String(value || "").trim() === relatedId);
   };
   return sstDocs
