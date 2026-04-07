@@ -10247,18 +10247,66 @@ function getCompletedAt(item) {
     return null;
   }
   const conclusao =
-    item.dataConclusao ||
-    item.doneAt ||
-    item.concluidaEm ||
-    item.concluidoEm ||
-    item.completedAt ||
-    item.executionFinishedAt ||
-    item.fimExecucao ||
-    item.fim ||
-    (item.conclusao && item.conclusao.fim) ||
-    (item.registroExecucao &&
-      (item.registroExecucao.executedAt || item.registroExecucao.executadoEm));
-  return parseDateTime(conclusao);
+    item.conclusao && typeof item.conclusao === "object" ? item.conclusao : null;
+  const encerramento =
+    item.encerramento && typeof item.encerramento === "object" ? item.encerramento : null;
+  const registroExecucao =
+    item.registroExecucao && typeof item.registroExecucao === "object"
+      ? item.registroExecucao
+      : null;
+  const candidates = [
+    item.dataConclusao,
+    item.doneAt,
+    item.concluidaEm,
+    item.concluidoEm,
+    item.completedAt,
+    item.executionFinishedAt,
+    item.fimExecucao,
+    item.fim,
+    item.encerramentoEm,
+    item.encerramentoFim,
+    encerramento &&
+      (encerramento.fim ||
+        encerramento.dataFim ||
+        encerramento.dataEncerramento ||
+        encerramento.encerradoEm ||
+        encerramento.concluidaEm),
+    conclusao && (conclusao.fim || conclusao.dataFim || conclusao.dataEncerramento || conclusao.encerradoEm || conclusao.concluidaEm),
+    item.execucaoRegistradaEm,
+    item.executionRegisteredAt,
+    item.execucaoRegistradaAt,
+    registroExecucao &&
+      (registroExecucao.executedAt ||
+        registroExecucao.executadoEm ||
+        registroExecucao.registradoEm ||
+        registroExecucao.dataFim ||
+        registroExecucao.dataRef ||
+        registroExecucao.data),
+  ];
+  let best = null;
+  candidates.forEach((value) => {
+    const parsed = parseDateTime(value);
+    if (!parsed) {
+      return;
+    }
+    if (!best || parsed.getTime() > best.getTime()) {
+      best = parsed;
+    }
+  });
+  if (!best && Array.isArray(item.registrosDiariosExecucao)) {
+    item.registrosDiariosExecucao.forEach((entry) => {
+      const parsed = parseDateTime(
+        entry && (entry.registradoEm || entry.executadoEm || entry.data || entry.dataRef)
+      );
+      if (!parsed) {
+        return;
+      }
+      if (!best || parsed.getTime() > best.getTime()) {
+        best = parsed;
+      }
+    });
+  }
+  return best;
 }
 
 function isCritical(item) {
