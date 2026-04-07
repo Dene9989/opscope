@@ -46,7 +46,7 @@ function parseBrazilianDateParts(value) {
     .replace(/\s+às?\s+/gi, " ")
     .replace(/\s*-\s*/g, " ");
   const match = cleaned.match(
-    /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/
+    /(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/
   );
   if (!match) {
     return null;

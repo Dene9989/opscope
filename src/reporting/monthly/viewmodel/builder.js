@@ -511,7 +511,16 @@ function extractEvidenceSource(entry) {
   if (!entry || typeof entry !== "object") {
     return "";
   }
-  let source = entry.dataUrl || entry.url || entry.src || entry.preview || entry.image || entry.storagePath || "";
+  let source =
+    entry.dataUrl ||
+    entry.url ||
+    entry.src ||
+    entry.preview ||
+    entry.image ||
+    entry.storagePath ||
+    entry.filePath ||
+    entry.path ||
+    "";
   if (typeof source !== "string") {
     return "";
   }

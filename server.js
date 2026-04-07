@@ -9341,7 +9341,7 @@ function parseBrazilianDateParts(text) {
   const match = String(text)
     .trim()
     .match(
-      /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:[,\sT]+(\d{1,2})(?::(\d{1,2}))?(?::(\d{1,2}))?)?$/
+      /(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})(?:[,\sT]+(\d{1,2})(?::(\d{1,2}))?(?::(\d{1,2}))?)?/
     );
   if (!match) {
     return null;
@@ -10327,6 +10327,10 @@ function getCompletedAt(item) {
         registroExecucao.finalizadaEm ||
         registroExecucao.concluidoEm ||
         registroExecucao.dataFim ||
+        registroExecucao.registrado_em ||
+        registroExecucao.registroEm ||
+        registroExecucao.dataRegistro ||
+        registroExecucao.data_execucao ||
         registroExecucao.dataRef ||
         registroExecucao.data),
   ];
@@ -10361,6 +10365,30 @@ function getCompletedAt(item) {
         best = parsed;
       }
     });
+  }
+  if (!best && conclusao) {
+    best = parseDateTime(
+      conclusao.inicio ||
+        conclusao.inicioExecucao ||
+        conclusao.dataInicio ||
+        conclusao.registradoEm ||
+        conclusao.updatedAt ||
+        conclusao.atualizadaEm ||
+        ""
+    );
+  }
+  if (!best && registroExecucao) {
+    best = parseDateTime(
+      registroExecucao.registradoEm ||
+        registroExecucao.registrado_em ||
+        registroExecucao.executadoEm ||
+        registroExecucao.inicio ||
+        registroExecucao.inicioExecucao ||
+        registroExecucao.dataInicio ||
+        registroExecucao.updatedAt ||
+        registroExecucao.atualizadaEm ||
+        ""
+    );
   }
   return best;
 }
@@ -15544,10 +15572,13 @@ function buildMaintenanceDocsSnapshot(item) {
     item.documentos,
     item.documents,
     item.filesByType,
+    item.liberacao,
     item.liberacao && item.liberacao.docs,
     item.liberacao && item.liberacao.documentos,
+    item.registroExecucao,
     item.registroExecucao && item.registroExecucao.docs,
     item.registroExecucao && item.registroExecucao.documentos,
+    item.conclusao,
     item.conclusao && item.conclusao.docs,
     item.conclusao && item.conclusao.documentos,
   ];
@@ -15578,6 +15609,15 @@ function buildMaintenanceDocsSnapshot(item) {
       const alias = `${key}Doc`;
       if (source[alias] !== undefined && source[alias] !== null) {
         applyDocValue(key, source[alias]);
+      }
+    });
+    Object.keys(source).forEach((rawKey) => {
+      const normalized = normalizeSstDocTypeKey(rawKey);
+      if (!normalized) {
+        return;
+      }
+      if (source[rawKey] !== undefined && source[rawKey] !== null) {
+        applyDocValue(normalized, source[rawKey]);
       }
     });
   };
@@ -15766,12 +15806,21 @@ function normalizeMonthlyEvidenceEntry(entry) {
     if (!text) {
       return null;
     }
-    const looksLikeUrl = Boolean(normalizeEvidenceUrl(text));
+    let url = normalizeEvidenceUrl(text);
+    let fileId = "";
+    if (!url && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(text)) {
+      fileId = text;
+      url = `/api/files/${encodeURIComponent(text)}/content`;
+    }
+    if (!url && /\.(png|jpe?g|gif|webp)$/i.test(text)) {
+      url = `/uploads/files/evidencias/${encodeURIComponent(text)}`;
+    }
     return {
       label: text,
-      url: looksLikeUrl ? normalizeEvidenceUrl(text) : "",
+      url,
       category: "evidencia",
       notes: "",
+      fileId,
     };
   }
   if (typeof entry !== "object") {
@@ -15779,6 +15828,9 @@ function normalizeMonthlyEvidenceEntry(entry) {
   }
   const fileId = String(
     entry.fileId ||
+      entry.file_id ||
+      entry.uploadId ||
+      entry.upload_id ||
       entry.id ||
       (entry.file && entry.file.id) ||
       (entry.arquivo && entry.arquivo.id) ||
@@ -15789,8 +15841,10 @@ function normalizeMonthlyEvidenceEntry(entry) {
   ).trim();
   const storagePath = String(
     entry.storagePath ||
+      entry.storage_path ||
       entry.path ||
       entry.filePath ||
+      entry.file_path ||
       (entry.file && entry.file.path) ||
       (entry.arquivo && entry.arquivo.path) ||
       ""
@@ -15811,10 +15865,11 @@ function normalizeMonthlyEvidenceEntry(entry) {
       (entry.arquivo && entry.arquivo.path) ||
       ""
   );
-  if (!url && storagePath) {
+  const isPlaceholder = url.includes("inline-data-url-omitted");
+  if ((!url || isPlaceholder) && storagePath) {
     url = normalizeEvidenceUrl(storagePath);
   }
-  if (!url && fileId) {
+  if ((!url || isPlaceholder) && fileId) {
     url = `/api/files/${encodeURIComponent(fileId)}/content`;
   }
   if (!url) {
@@ -15838,6 +15893,7 @@ function normalizeMonthlyEvidenceEntry(entry) {
     category: String(entry.categoria || entry.tipo || "evidencia").trim(),
     notes: String(entry.observacao || entry.obs || entry.notes || "").trim(),
     fileId,
+    storagePath,
     mimeType: String(entry.mimeType || entry.mime || entry.contentType || "").trim(),
   };
 }
@@ -16045,18 +16101,25 @@ function mapMaintenanceToMonthlyActivity(item) {
     (item.conclusao && item.conclusao.intercorrencia) ||
     null;
   const issue = normalizeMonthlyIntercorrencia(intercorrenciaSource, item);
-    return {
-      id: String(item.id || ""),
-      title: String(item.titulo || item.nome || item.atividade || "").trim(),
-      status: statusForReport,
-      dueDate: due ? formatDateISO(due) : "",
-      slaDueAt: slaDueAt ? slaDueAt.toISOString() : "",
-      doneAt: doneAt ? doneAt.toISOString() : "",
-      executionStartedAt: executionStart ? executionStart.toISOString() : "",
-      executionFinishedAt: executionEnd ? executionEnd.toISOString() : "",
+  return {
+    id: String(item.id || ""),
+    title: String(item.titulo || item.nome || item.atividade || "").trim(),
+    status: statusForReport,
+    dueDate: due ? formatDateISO(due) : "",
+    slaDueAt: slaDueAt ? slaDueAt.toISOString() : "",
+    doneAt: doneAt ? doneAt.toISOString() : "",
+    executionStartedAt: executionStart ? executionStart.toISOString() : "",
+    executionFinishedAt: executionEnd ? executionEnd.toISOString() : "",
     priority: String(item.prioridade || item.criticidade || item.priority || "").trim(),
     category: String(
-      item.categoria || item.tipo || item.tipoManutencao || item.tipo_atividade || ""
+      item.categoria ||
+        item.tipo ||
+        item.tipoManutencao ||
+        item.tipo_atividade ||
+        (item.liberacao && item.liberacao.categoria) ||
+        (item.registroExecucao && item.registroExecucao.categoria) ||
+        (item.conclusao && item.conclusao.categoria) ||
+        ""
     ).trim(),
     location: String(item.local || item.subestacao || item.localidade || "").trim(),
     team: equipe,
