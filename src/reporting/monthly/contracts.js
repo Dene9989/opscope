@@ -73,11 +73,13 @@ const PRIORITY_SYNONYMS = {
 const DOC_KEYS = ["apr", "os", "pte", "pt"];
 
 const DOC_REQUIREMENTS_BY_CATEGORY = {
-  "preventiva simples": ["apr", "os"],
+  "preventiva simples": ["apr", "os", "pte"],
   "preventiva critica": ["apr", "os", "pte", "pt"],
   "corretiva eletrica": ["apr", "os", "pte", "pt"],
-  inspecao: ["apr", "os"],
+  inspecao: ["apr", "os", "pte"],
 };
+
+const DOC_REQUIREMENTS_DEFAULT = ["apr", "os", "pte"];
 
 const DOC_VALUE_PRESENT = new Set(["sim", "true", "1", "ok", "aprovado", "completo", "presente"]);
 const DOC_VALUE_PARTIAL = new Set(["parcial", "incompleto", "pendente"]);
@@ -131,6 +133,11 @@ function normalizeDocValue(raw) {
   return "unknown";
 }
 
+function hasAnyDocs(activity = {}) {
+  const docs = activity && activity.docs ? activity.docs : {};
+  return DOC_KEYS.some((key) => Boolean(docs && docs[key]));
+}
+
 function getRequiredDocsForActivity(activity = {}) {
   const critical = Boolean(activity.critical);
   if (critical) {
@@ -141,13 +148,33 @@ function getRequiredDocsForActivity(activity = {}) {
     return { requiredDocs: [], isUnknown: false, reason: "future_programming" };
   }
   if (!categoryKey || categoryKey === "desconhecida") {
+    if (hasAnyDocs(activity)) {
+      return { requiredDocs: DOC_REQUIREMENTS_DEFAULT.slice(), isUnknown: false, reason: "docs_present_fallback" };
+    }
     return { requiredDocs: null, isUnknown: true, reason: "unknown_category" };
   }
-  const requiredDocs = DOC_REQUIREMENTS_BY_CATEGORY[categoryKey];
-  if (!requiredDocs) {
-    return { requiredDocs: null, isUnknown: true, reason: "unmapped_category" };
+  const direct = DOC_REQUIREMENTS_BY_CATEGORY[categoryKey];
+  if (direct && direct.length) {
+    return { requiredDocs: direct.slice(), isUnknown: false, reason: "category" };
   }
-  return { requiredDocs, isUnknown: false, reason: "category" };
+
+  const needsDocsByKeyword = [
+    "inspecao",
+    "preventiva",
+    "corretiva",
+    "preditiva",
+    "manutencao",
+    "desligamento",
+    "intervencao",
+  ].some((term) => categoryKey.includes(term));
+  if (needsDocsByKeyword) {
+    return { requiredDocs: DOC_REQUIREMENTS_DEFAULT.slice(), isUnknown: false, reason: "heuristic" };
+  }
+
+  if (hasAnyDocs(activity)) {
+    return { requiredDocs: DOC_REQUIREMENTS_DEFAULT.slice(), isUnknown: false, reason: "docs_present_fallback" };
+  }
+  return { requiredDocs: null, isUnknown: true, reason: "unmapped_category" };
 }
 
 module.exports = {

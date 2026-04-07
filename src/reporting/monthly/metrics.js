@@ -282,12 +282,13 @@ function computeSlaMetrics(executedSet) {
   let notApplicable = 0;
 
   executedSet.forEach((activity) => {
-    if (!activity.dueDate) {
+    const dueAt = activity.slaDueAt || (activity.dueDate ? endOfDay(activity.dueDate) : null);
+    if (!dueAt) {
       notApplicable += 1;
       return;
     }
     eligible += 1;
-    if (activity.doneAt && activity.dueDate && activity.doneAt <= activity.dueDate) {
+    if (activity.doneAt && activity.doneAt <= dueAt) {
       onTime += 1;
     } else {
       late += 1;

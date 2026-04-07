@@ -10207,6 +10207,23 @@ function calcPrazoMaximoDeadline(inicio, prazo) {
   return addDays(base, prazo.quantidade);
 }
 
+function getSlaDueAt(item) {
+  if (!item) {
+    return null;
+  }
+  const prazo = normalizePrazoMaximo(item.prazoMaximo);
+  const inicio = getPrazoMaximoInicio(item);
+  const deadline = calcPrazoMaximoDeadline(inicio, prazo);
+  if (deadline) {
+    return deadline;
+  }
+  const due = getDueDate(item);
+  if (!due) {
+    return null;
+  }
+  return new Date(due.getFullYear(), due.getMonth(), due.getDate(), 23, 59, 59, 999);
+}
+
 function isPrazoMaximoExpirado(item, now = new Date()) {
   if (!item) {
     return false;
@@ -14982,22 +14999,32 @@ function countMaintenanceEvidenceEntries(item) {
   total += count(item.evidencias);
   total += count(item.anexos);
   total += count(item.arquivos);
+  total += count(item.fotos);
+  total += count(item.imagens);
+  total += count(item.images);
+  total += count(item.photos);
   if (item.registroExecucao && typeof item.registroExecucao === "object") {
     total += count(item.registroExecucao.evidencias);
     total += count(item.registroExecucao.evidenciasCancelamento);
+    total += count(item.registroExecucao.fotos);
+    total += count(item.registroExecucao.imagens);
   }
   if (item.cancelamentoExecucao && typeof item.cancelamentoExecucao === "object") {
     total += count(item.cancelamentoExecucao.evidencias);
+    total += count(item.cancelamentoExecucao.fotos);
   }
   if (item.backlogMotivo && typeof item.backlogMotivo === "object") {
     total += count(item.backlogMotivo.evidencias);
+    total += count(item.backlogMotivo.fotos);
   }
   const registrosDiarios = getMaintenanceDailyExecutionEntries(item);
   registrosDiarios.forEach((entry) => {
     total += count(entry.evidencias);
+    total += count(entry.fotos);
   });
   if (item.conclusao && typeof item.conclusao === "object") {
     total += count(item.conclusao.evidencias);
+    total += count(item.conclusao.fotos);
     if (item.conclusao.intercorrencia && typeof item.conclusao.intercorrencia === "object") {
       total += count(item.conclusao.intercorrencia.fotos);
     }
@@ -15441,28 +15468,94 @@ function buildMaintenanceDocsSnapshot(item) {
     item.liberacao && item.liberacao.docs,
     item.liberacao && item.liberacao.documentos,
     item.registroExecucao && item.registroExecucao.docs,
+    item.registroExecucao && item.registroExecucao.documentos,
     item.conclusao && item.conclusao.docs,
     item.conclusao && item.conclusao.documentos,
   ];
   let found = false;
-  sources.forEach((source) => {
+  const applyDocValue = (key, value) => {
+    if (!key) {
+      return;
+    }
+    if (output[key] !== undefined) {
+      return;
+    }
+    if (value === undefined || value === null) {
+      return;
+    }
+    output[key] = value;
+    found = true;
+  };
+  const parseObject = (source) => {
     if (!source || typeof source !== "object" || Array.isArray(source)) {
       return;
     }
-    found = true;
     MONTHLY_DOC_KEYS.forEach((key) => {
       if (source[key] !== undefined && source[key] !== null) {
-        output[key] = source[key];
+        applyDocValue(key, source[key]);
       }
     });
+    MONTHLY_DOC_KEYS.forEach((key) => {
+      const alias = `${key}Doc`;
+      if (source[alias] !== undefined && source[alias] !== null) {
+        applyDocValue(key, source[alias]);
+      }
+    });
+  };
+  const parseList = (list) => {
+    if (!Array.isArray(list)) {
+      return;
+    }
+    list.forEach((entry) => {
+      if (!entry) {
+        return;
+      }
+      if (typeof entry === "string") {
+        const key = normalizeSstDocTypeKey(entry);
+        if (key) {
+          applyDocValue(key, true);
+        }
+        return;
+      }
+      if (typeof entry !== "object") {
+        return;
+      }
+      const key = normalizeSstDocTypeKey(
+        entry.key || entry.type || entry.tipo || entry.documento || entry.docType || entry.nome
+      );
+      if (!key) {
+        return;
+      }
+      const value =
+        entry.doc || entry.file || entry.arquivo || entry.url || entry.path || entry.dataUrl || entry.data || true;
+      applyDocValue(key, value);
+    });
+  };
+  sources.forEach((source) => {
+    if (Array.isArray(source)) {
+      parseList(source);
+      return;
+    }
+    parseObject(source);
   });
 
   const extracted = extractSstDocDocuments(item);
   if (extracted && extracted.docs) {
     MONTHLY_DOC_KEYS.forEach((key) => {
       if (output[key] === undefined && extracted.docs[key]) {
-        output[key] = true;
-        found = true;
+        applyDocValue(key, true);
+      }
+    });
+  }
+
+  const sstDocs = extractMaintenanceSstDocumentos(
+    item,
+    item && item.liberacao && typeof item.liberacao === "object" ? item.liberacao : {}
+  );
+  if (sstDocs && typeof sstDocs === "object") {
+    MONTHLY_DOC_KEYS.forEach((key) => {
+      if (output[key] === undefined && sstDocs[key]) {
+        applyDocValue(key, true);
       }
     });
   }
@@ -15488,8 +15581,23 @@ function buildMaintenanceDocsSnapshot(item) {
 }
 
 function computeExecutionDurationHours(item, execution) {
-  if (item && item.conclusao && Number.isFinite(item.conclusao.duracaoMin)) {
-    return Number((item.conclusao.duracaoMin / 60).toFixed(2));
+  const minuteCandidates = [
+    item && item.conclusao && item.conclusao.duracaoMin,
+    item && item.conclusao && item.conclusao.duracao,
+    item && item.conclusao && item.conclusao.tempoTotalMin,
+    item && item.duracaoMin,
+    item && item.duracao,
+    item && item.tempoTotalMin,
+    item && item.tempoTotal,
+    item && item.registroExecucao && item.registroExecucao.duracaoMin,
+    item && item.registroExecucao && item.registroExecucao.duracao,
+    item && item.registroExecucao && item.registroExecucao.tempoTotalMin,
+  ];
+  for (const candidate of minuteCandidates) {
+    const minutes = parseDurationToMinutes(candidate);
+    if (Number.isFinite(minutes) && minutes > 0) {
+      return Number((minutes / 60).toFixed(2));
+    }
   }
   const start = execution && execution.start ? execution.start.getTime() : null;
   const end = execution && execution.end ? execution.end.getTime() : null;
@@ -15579,22 +15687,32 @@ function collectMaintenanceEvidenceEntries(item) {
   pushAll(item.evidencias);
   pushAll(item.anexos);
   pushAll(item.arquivos);
+  pushAll(item.fotos);
+  pushAll(item.imagens);
+  pushAll(item.images);
+  pushAll(item.photos);
   if (item.registroExecucao && typeof item.registroExecucao === "object") {
     pushAll(item.registroExecucao.evidencias);
     pushAll(item.registroExecucao.evidenciasCancelamento);
+    pushAll(item.registroExecucao.fotos);
+    pushAll(item.registroExecucao.imagens);
   }
   if (item.cancelamentoExecucao && typeof item.cancelamentoExecucao === "object") {
     pushAll(item.cancelamentoExecucao.evidencias);
+    pushAll(item.cancelamentoExecucao.fotos);
   }
   if (item.backlogMotivo && typeof item.backlogMotivo === "object") {
     pushAll(item.backlogMotivo.evidencias);
+    pushAll(item.backlogMotivo.fotos);
   }
   const registrosDiarios = getMaintenanceDailyExecutionEntries(item);
   registrosDiarios.forEach((entry) => {
     pushAll(entry.evidencias);
+    pushAll(entry.fotos);
   });
   if (item.conclusao && typeof item.conclusao === "object") {
     pushAll(item.conclusao.evidencias);
+    pushAll(item.conclusao.fotos);
     if (item.conclusao.intercorrencia && typeof item.conclusao.intercorrencia === "object") {
       pushAll(item.conclusao.intercorrencia.fotos);
     }
@@ -15643,6 +15761,7 @@ function normalizeMonthlyIntercorrencia(value, item) {
 function mapMaintenanceToMonthlyActivity(item) {
   const due = getDueDate(item);
   const doneAt = getCompletedAt(item);
+  const slaDueAt = getSlaDueAt(item);
   const statusRaw = String(item.status || "").trim();
   const statusKey = stripAccents(statusRaw).toLowerCase();
   const isConcluidaStatus = ["concluida", "concluido", "finalizada", "finalizado"].includes(
@@ -15693,14 +15812,15 @@ function mapMaintenanceToMonthlyActivity(item) {
     (item.conclusao && item.conclusao.intercorrencia) ||
     null;
   const issue = normalizeMonthlyIntercorrencia(intercorrenciaSource, item);
-  return {
-    id: String(item.id || ""),
-    title: String(item.titulo || item.nome || item.atividade || "").trim(),
-    status: statusForReport,
-    dueDate: due ? formatDateISO(due) : "",
-    doneAt: doneAt ? doneAt.toISOString() : "",
-    executionStartedAt: executionStart ? executionStart.toISOString() : "",
-    executionFinishedAt: executionEnd ? executionEnd.toISOString() : "",
+    return {
+      id: String(item.id || ""),
+      title: String(item.titulo || item.nome || item.atividade || "").trim(),
+      status: statusForReport,
+      dueDate: due ? formatDateISO(due) : "",
+      slaDueAt: slaDueAt ? slaDueAt.toISOString() : "",
+      doneAt: doneAt ? doneAt.toISOString() : "",
+      executionStartedAt: executionStart ? executionStart.toISOString() : "",
+      executionFinishedAt: executionEnd ? executionEnd.toISOString() : "",
     priority: String(item.prioridade || item.criticidade || item.priority || "").trim(),
     category: String(
       item.categoria || item.tipo || item.tipoManutencao || item.tipo_atividade || ""

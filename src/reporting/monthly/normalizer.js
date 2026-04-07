@@ -340,6 +340,10 @@ function normalizeActivity(activity, warningStore, idCounts, index) {
   if (!dueDate) {
     warningStore.add("missing_due_date", "Missing or invalid dueDate.", { ...context, id });
   }
+  const slaDueAt = parseDateTime(activity && activity.slaDueAt);
+  if (activity && activity.slaDueAt && !slaDueAt) {
+    warningStore.add("invalid_sla_due_at", "Invalid slaDueAt.", { ...context, id });
+  }
   const conclusao =
     activity && activity.conclusao && typeof activity.conclusao === "object" ? activity.conclusao : null;
   let doneAt = parseDateTime(activity && activity.doneAt);
@@ -441,6 +445,8 @@ function normalizeActivity(activity, warningStore, idCounts, index) {
     status,
     dueDate,
     dueDateIso: toIsoDate(dueDate),
+    slaDueAt,
+    slaDueAtIso: toIsoDateTime(slaDueAt),
     doneAt,
     doneAtIso: toIsoDateTime(doneAt),
     executionStartedAt,

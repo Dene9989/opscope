@@ -1,0 +1,568 @@
+
+--- PAGE 1 ---
+RELATÓRIO DE
+DESEMPENHO MENSAL - HV
+CLIENTE
+Cliente nao informado
+PROJETO
+834 - PARACATU/SOLARIG
+(Boa Sorte II)
+PERÍODO
+28/02/2026 a 30/03/2026
+EMISSÃO
+07/04/2026, 08:19
+UNIDADE
+PARACATU/SOLARIG
+(Boa Sorte II)
+CONSOLIDAÇÃO
+Fechado
+INTEGRIDADE
+Atenção
+COMPARATIVO
+Período anterior
+(recalculado)
+Há alertas de integridade que podem impactar a leitura dos indicadores.
+Desempenho operacional do mês
+Entrega alinhada ao planejamento, com foco em confiabilidade e disciplina operacional.
+Visão executiva
+Síntese gerencial e indicadores críticos do período.
+ATIVIDADES PLANEJADAS NO MÊS
+42
++32 +320% Programação ativa
+Busca: volume planejado do mês. Soma: atividades com dueDate no período e status não cancelado. Base: programação
+mensal.
+ATIVIDADES EXECUTADAS NO MÊS
+42
++32 +320% Execução registrada
+Busca: entregas concluídas no mês. Soma: atividades com doneAt no período e status concluída. Base: execução real.
+RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig Página 1 de 19
+
+--- PAGE 2 ---
+EXECUÇÃO DO PLANO
+100%
+Dentro da meta
+Busca: aderência ao plano. Cálculo: executadas ÷ planejadas. Meta ≥ 90%.
+BACKLOG
+0
+0  Controlado
+Busca: pendências do mês. Soma: atividades planejadas no período com status backlog. Meta = 0.
+VENCIDAS
+0
+0  Sem vencimentos
+Busca: atraso vencido. Soma: dueDate até fim do mês sem conclusão até a data de corte. Meta = 0.
+SLA NO PRAZO
+17%
++17 Fora da meta
+Busca: cumprimento de prazo. Base: concluídas no mês com dueDate. No prazo = doneAt ≤ dueDate; fora do prazo =
+100% - no prazo. Meta ≥ 90%.
+RESUMO EXECUTIVO
+LEITURA DO MÊS
+Foram concluídas 42 atividades no mês, sobre 42 planejadas (100%), com execução consistente, porém
+com pressão de SLA. Executadas = conclusões registradas no mês (doneAt), independentemente da
+programação original. Comparativo: planejamento +32 vs mês anterior, execução +32 vs mês anterior.
+O QUE PERFORMOU BEM
+Execução dentro da meta (100%). Backlog e vencimentos sob controle. Predominância
+preventiva/preditiva (83%), reforçando confiabilidade.
+O QUE EXIGIU ATENÇÃO
+SLA em 17% abaixo da meta.
+RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig Página 2 de 19
+
+--- PAGE 3 ---
+ATUAÇÃO DO TIME
+Evidências registradas: 33. Atuação com foco preventivo/preditivo consistente. Atuação concentrada na
+equipe O&M Boa Sorte II com foco em continuidade operacional.
+IMPACTO E CONTROLE
+Impacto operacional controlado, com previsibilidade de entrega mantida. SLA em 17% das atividades
+elegíveis. Sem exigência documental no período.
+Conclusão gerencial: Priorizar tratativa de backlog e vencimentos, com plano de
+saneamento acordado com o cliente e reforço de capacidade no próximo ciclo. Há alertas
+de integridade que podem afetar leituras específicas.
+DESVIOS E ALERTAS
+ENTREGA DO MÊS
+Executadas 42 de 42 planejadas (100%).
+RISCOS DO PERÍODO
+Backlog 0 • Vencidas 0 • SLA 17%.
+DIRECIONAMENTO
+Foco no próximo ciclo: tratar backlog e estabilizar SLA, com plano de saneamento alinhado
+ao cliente.
+Comparativo com período anterior
+Variações em relação ao mês anterior.
+PLANEJADAS NO MÊS
+ATUAL
+42
+ANTERIOR
+10
++32 +320%
+EXECUTADAS NO MÊS
+ATUAL
+42
+ANTERIOR
+10
++32 +320%
+RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig Página 3 de 19
+
+--- PAGE 4 ---
+BACKLOG
+ATUAL
+0
+ANTERIOR
+0
+0 -
+VENCIDAS
+ATUAL
+0
+ANTERIOR
+0
+0 -
+INTERCORRÊNCIAS ABERTAS
+ATUAL
+1
+ANTERIOR
+0
++1 -
+SLA NO PRAZO
+ATUAL
+17
+ANTERIOR
+0
++17 -
+COMPLIANCE DOCUMENTAL
+ATUAL
+0
+ANTERIOR
+0
+0 -
+HORAS EXECUTADAS
+ATUAL
+0
+ANTERIOR
+0
+0 -
+RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig Página 4 de 19
+
+--- PAGE 5 ---
+EVIDÊNCIAS
+ATUAL
+33
+ANTERIOR
+1
++32 +3.200%
+Indicadores complementares
+Apoio à leitura executiva.
+INTERCORRÊNCIAS ABERTAS
+1
++1  Com intercorrências
+Busca: intercorrências/falhas abertas (status aberta ou em tratativa). Soma: registros de anomalias não corrigidas no
+período. Meta = 0.
+COMPLIANCE DOCUMENTAL
+0%
+0  Sem exigência
+Busca: documentação correta. Cálculo: docs OK ÷ docs exigidos em atividades concluídas. Meta ≥ 95%.
+TAXA PREVENTIVA/PREDITIVA
+83%
+Dentro da meta
+Busca: confiabilidade preventiva. Cálculo: preventivas/preditivas ÷ total executado no mês. Meta ≥ 70%.
+TAXA CORRETIVA (PARADAS)
+12%
+Dentro da meta
+Busca: exposição a corretivas. Cálculo: corretivas ÷ total executado no mês. Meta ≤ 25%.
+RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig Página 5 de 19
+
+--- PAGE 6 ---
+HORAS EXECUTADAS
+0h
+0  Sem registro
+Busca: esforço aplicado. Soma: duração registrada ou diferença entre início e fim das execuções no mês.
+EVIDÊNCIAS
+33
++32 +3.200% Com evidências
+Busca: rastreabilidade visual. Soma: evidências anexadas nas atividades concluídas e RDOs do mês.
+Tendências e performance
+A série semanal mostra aderência entre planejamento e execução, com 98% do plano entregue no mês. Pico de
+programação em S3 (13 atividades). Os insights abaixo destacam pontos de atenção e estabilidade do período.
+Ritmo semanal de execução
+Planejado (dueDate) vs executado (doneAt) por semana
+0
+10
+20
+S1 S2 S3 S4 S5
+Planejadas: 1
+Executadas: 1
+Leitura: compare o planejado com as conclusões do mês para identificar semanas com ajuste de capacidade.
+Planejadas (total) 43
+Executadas (total) 42
+Execução do plano 98%
+Pico de planejamento S3
+RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig Página 6 de 19
+
+--- PAGE 7 ---
+Backlog real por semana
+Cumulativo baseado em status
+0
+11
+S1 S2 S3 S4 S5
+Backlog (status): 0
+Leitura: backlog calculado por status real, sem diferença entre planejado e executado.
+Backlog final 0
+Pico de backlog 0
+Semana do pico S1
+RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig Página 7 de 19
+
+--- PAGE 8 ---
+Status no período
+Base: planejadas no mês + concluídas no mês (doneAt)
+0
+25
+50
+Atividades
+42
+Concluída
+1
+Cancelada
+0
+Em execução
+0
+Agendada
+0
+Backlog
+Leitura: executadas são as atividades concluídas no mês, mesmo se planejadas em outro período.
+Status com maior volume Concluída
+Total no período 43
+Cumprimento de SLA
+Percentual de atividades elegíveis (concluídas no mês com dueDate)
+SLA no prazo
+No prazo: 17% Fora do prazo: 83%
+Leitura: no prazo = doneAt <= dueDate. Fora do prazo = 100% - no prazo.
+No prazo 17%
+Fora do prazo 83%
+RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig Página 8 de 19
+
+--- PAGE 9 ---
+Execução alinhada ao planejado, indicando estabilidade de capacidade.
+Backlog controlado no fechamento do período.
+Sem vencimentos relevantes no período.
+SLA abaixo da meta, demandando ajustes de capacidade e priorização.
+Predominância preventiva/preditiva reforça a confiabilidade operacional.
+Há exigências documentais indeterminadas; revisar cadastro de categorias.
+Análise operacional
+Distribuição operacional do período (planejado vs execução). A operação concentrou-se em categoria Preventiva,
+equipe O&M Boa Sorte II. A predominância de Preventiva reforça a estratégia de confiabilidade e disciplina
+operacional. Preventivas/preditivas representam 83% do esforço executado, fortalecendo confiabilidade.
+Corretivas em 12% permaneceram em patamar controlado no período. Prioridade mais frequente: Baixa.
+Abrangência operacional em 1 locais do projeto.
+RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig Página 9 de 19
+
+--- PAGE 10 ---
+Execução por categoria
+Atividades concluídas no mês
+0
+25
+50
+Atividades
+35
+Preventiva
+5
+Corretiva
+1
+Melhoria
+1
+Contingencia
+Leitura: destaca frentes preventivas/preditivas vs corretivas, sem perder contexto do esforço executado.
+Categoria com maior volume Preventiva
+Participação 83%
+Preventivas/preditivas 35 (83%)
+Corretivas 5 (12%)
+RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig Página 10 de 19
+
+--- PAGE 11 ---
+Execução por local
+Atividades concluídas no mês
+0
+25
+50
+Atividades
+42
+834 -
+PARACATU/SOLARIG
+(Boa Sorte II)
+Leitura: distribuição por locais dentro do projeto, usada apenas como contexto operacional.
+Locais com execução 1
+Total executado 42
+Execução por prioridade
+Criticidade das atividades concluídas
+0
+25
+50
+Atividades
+25
+Baixa
+14
+Média
+3
+Alta
+Leitura: identifica a pressão operacional por criticidade no período.
+Prioridade com maior volume Baixa
+Participação 60%
+RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig Página 11 de 19
+
+--- PAGE 12 ---
+Status no período (planejado + executado)
+DESCRIÇÃO QUANTIDADE %
+Concluída 42 98%
+Cancelada 1 2%
+Em execução 0 0%
+Agendada 0 0%
+Backlog 0 0%
+Planejado no mês por tipo
+DESCRIÇÃO QUANTIDADE %
+Preventiva 36 84%
+Corretiva 5 12%
+Melhoria 1 2%
+Contingencia 1 2%
+Planejado no mês por local
+DESCRIÇÃO QUANTIDADE %
+834 - PARACATU/SOLARIG (Boa Sorte II) 43 100%
+Planejado no mês por equipe
+DESCRIÇÃO QUANTIDADE %
+O&M Boa Sorte II 43 100%
+Planejado no mês por prioridade
+DESCRIÇÃO QUANTIDADE %
+Baixa 26 60%
+Média 14 33%
+Alta 3 7%
+Segurança, compliance e evidências
+RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig Página 12 de 19
+
+--- PAGE 13 ---
+Não houve atividades com exigência documental no período. Há atividades com exigências documentais não
+classificadas. Evidências registradas: 33. Há alertas de integridade de dados que podem afetar a leitura do
+compliance.
+Compliance sem exigência documental; foco em evidências e rastreabilidade.
+DOCUMENTOS EXIGIDOS DOCUMENTOS OK PARCIAIS NÃO INFORMADO COMPLIANCE
+0 0 0 42 0%
+Análise técnica
+Leitura técnica da distribuição das atividades, criticidade e concentração operacional.
+A análise técnica evidencia onde o esforço se concentrou e quais frentes exigem atenção de engenharia.
+CONTEXTO DO PERÍODO
+Planejamento de 42 atividades e execução de 42 no mês, com atuação concentrada do time O&M Boa Sorte II.
+CONCENTRAÇÃO DE ESFORÇO EXECUTADO
+Maior concentração nas frentes Preventiva (35 atividades); equipe O&M Boa Sorte II.
+LEITURA PREVENTIVA VS CORRETIVA
+Preventivas/preditivas: 83% do esforço executado, reforçando confiabilidade e disciplina operacional. Corretivas
+em 12% mantidas sob controle no período.
+PENDÊNCIAS RELEVANTES
+10 críticas.
+RISCOS RESIDUAIS
+Risco residual controlado, sem impactos relevantes identificados.
+AÇÃO RECOMENDADA
+Manter disciplina de programação e monitorar criticidade para sustentar estabilidade operacional.
+Foram registradas 10 atividades críticas no período.
+Prioridade mais frequente: Baixa (25 atividades).
+Contingências do período
+Resumo técnico-operacional das ocorrências do mês.
+1 contingência registrada no período, com síntese técnica e impacto operacional abaixo.
+RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig Página 13 de 19
+
+--- PAGE 14 ---
+CON
+TIN
+GÊN
+CIA
+INÍCIO
+SE
+VE
+RI
+DA
+DE
+IMPACTO /
+CONSEQUÊNCIA RESPOSTA OPERACIONAL
+CTG
+-202
+6-
+000
+33 •
+Des
+arm
+e •
+Tran
+sfor
+mad
+or
+de
+Ater
+ram
+ento
+–
+T2Y
+Z
+21/03/2026, 05:38 S4
+Ocorrência de
+perturbação com
+desligamento da
+Subestação Coletora
+Boa Sorte II, da
+interligação associada
+com a SE Paracatu 4 e
+do BAY no terminal
+remoto, caracterizando
+evento com propagação
+entre subestações. A
+atuação resultou em
+indisponibilidade
+temporária da
+configuração
+operacional do sistema,
+demandando atuação
+em contingência,
+inspeções em campo,
+análise das proteções,
+correções de
+parametrização e
+recomposição
+controlada dos circuitos
+até o restabelecimento
+integral da instalação.
+Após a atuação das proteções e o desligamento
+ampliado da instalação, foram iniciadas as ações
+de contingência com comunicação imediata ao
+COSR-SE e acionamento da equipe de sobreaviso.
+Foram mobilizadas equipes para a SE Boa Sorte II
+e para o Bay de Conexão Paracatu 4, com
+realização de inspeções em campo, levantamento
+das condições operativas e avaliação dos
+equipamentos envolvidos. Durante a contingência,
+foi identificada condição anormal no Transformador
+de Aterramento T2YZ, com indicação zerada no
+visor de nível de óleo, sendo adotadas medidas
+mitigadoras para evitar recorrência de atuação
+indevida durante a recomposição. Em etapa
+intermediária, foi realizada recomposição parcial do
+sistema, com retorno do T1 completo e T2 parcial,
+mantendo-se o T2YZ segregado até conclusão das
+verificações técnicas. Após as intervenções da
+Elecnor em campo e a correção da lógica de
+proteção pela Schneider, foram executadas as
+validações operacionais necessárias, preparação
+para recomposição final e retorno completo do T2,
+com restabelecimento integral dos circuitos
+associados e normalização da instalação.
+Intercorrências e falhas registradas
+Ocorrências abertas com encaminhamento ao cliente.
+1 intercorrência aberta registrada no período, com ação imediata e encaminhamento ao cliente.
+RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig Página 14 de 19
+
+--- PAGE 15 ---
+Inspeção Preventiva Termográfica nos Equipamentos do Pátio / 34,5 kV
+Aberta Média 19/03/2026, 14:01
+834 - PARACATU/SOLARIG (Boa Sorte II) • Preventiva • Baixa
+DESCRIÇÃO
+Durante a inspeção termográfica das conexões do transformador de aterramento T1XZ, nas fases B e C, foi
+identificado aquecimento anormal localizado em ponto de conexão, com temperatura aparente máxima de
+aproximadamente 72,7 °C, superior aos demais pontos de referência da imagem. O comportamento térmico
+observado caracteriza assimetria térmica e indica provável elevação de resistência de contato, possivelmente
+associada a afrouxamento, oxidação, contaminação ou degradação da conexão. A condição pode evoluir com
+aumento de perdas elétricas, degradação do ponto de contato e risco de falha operacional, sendo classificada como
+criticidade média, com necessidade de tratamento programado.
+AÇÃO IMEDIATA
+Anomalia registrada em inspeção, com emissão de recomendação para avaliação de manutenção na conexão
+aquecida, contemplando verificação de aperto/torque, inspeção física do ponto de conexão e correção da não
+conformidade identificada. Recomendada nova inspeção termográfica após a intervenção para validação da condição
+operacional.
+Anomalia repassada ao cliente para decisão de intervenção.
+T1XZ - TERMINAL DA FASE C
+Riscos e recomendações
+Avaliação de riscos baseada em backlog, vencimentos, SLA e compliance.
+Nível de atenção moderada. Principais vetores: SLA abaixo da meta, alertas de integridade.
+SLA abaixo da meta pede reequilíbrio de capacidade e priorização.
+Alertas de integridade indicam necessidade de revisão de base de dados.
+Recomendações priorizadas para o próximo ciclo, com foco em capacidade, prazos e governança documental.
+Revisar pontos de pressão na execução e tempos de atendimento para recuperar a meta de SLA.
+Backlog e justificativas
+Sem backlog com vencimento no período.
+RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig Página 15 de 19
+
+--- PAGE 16 ---
+Sem justificativas registradas para não execução no período.
+Sem backlog com justificativa registrada.
+Plano de ação
+Plano de ação priorizado para endereçar os principais desvios do período.
+AÇÃO RESPONSÁ
+VEL PRAZO STAT
+US
+Revisar pontos de pressão na execução e tempos de atendimento para
+recuperar a meta de SLA.
+Gestão de
+Contrato
+Próximo
+ciclo
+Prioritá
+ria
+Tabelas consolidadas
+Tabelas consolidadas com separação entre planejado (dueDate) e executado (doneAt) no mês.
+Status no período (planejado + executado)
+DESCRIÇÃO QUANTIDADE %
+Concluída 42 98%
+Cancelada 1 2%
+Em execução 0 0%
+Agendada 0 0%
+Backlog 0 0%
+PLANEJAMENTO DO PERÍODO
+Planejado no mês • Categorias
+DESCRIÇÃO QUANTIDADE %
+Preventiva 36 84%
+Corretiva 5 12%
+Melhoria 1 2%
+Contingencia 1 2%
+Planejado no mês • Locais
+RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig Página 16 de 19
+
+--- PAGE 17 ---
+DESCRIÇÃO QUANTIDADE %
+834 - PARACATU/SOLARIG (Boa Sorte II) 43 100%
+Planejado no mês • Equipes
+DESCRIÇÃO QUANTIDADE %
+O&M Boa Sorte II 43 100%
+Planejado no mês • Prioridades
+DESCRIÇÃO QUANTIDADE %
+Baixa 26 60%
+Média 14 33%
+Alta 3 7%
+EXECUÇÃO DO PERÍODO
+Executado no mês • Categorias
+DESCRIÇÃO QUANTIDADE %
+Preventiva 35 83%
+Corretiva 5 12%
+Melhoria 1 2%
+Contingencia 1 2%
+Executado no mês • Locais
+DESCRIÇÃO QUANTIDADE %
+834 - PARACATU/SOLARIG (Boa Sorte II) 42 100%
+Executado no mês • Equipes
+DESCRIÇÃO QUANTIDADE %
+O&M Boa Sorte II 42 100%
+Executado no mês • Prioridades
+RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig Página 17 de 19
+
+--- PAGE 18 ---
+DESCRIÇÃO QUANTIDADE %
+Baixa 25 60%
+Média 14 33%
+Alta 3 7%
+Evidências selecionadas
+Registro visual representativo das atividades executadas.
+Evidências com pelo menos 1 foto por atividade executada (5 atividades). 37 atividades concluídas sem evidência
+registrada.
+Inspeção Preventiva Diária da Subestação
+10/03/2026
+Inspeção Preventiva Diária da Subestação
+11/03/2026
+Inspeção Preventiva Mensal dos GMG
+11/03/2026
+RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig Página 18 de 19
+
+--- PAGE 19 ---
+Acompanhamento técnico da retirada de pendências da Elecnor – Bay de Conexão Paracatu 4
+10/03/2026
+T1XZ - TERMINAL DA FASE C
+19/03/2026
+RELATÓRIO DE DESEMPENHO MENSAL - HV • Engelmig Página 19 de 19
