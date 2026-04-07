@@ -15595,6 +15595,12 @@ function normalizeMonthlyIntercorrencia(value, item) {
 function mapMaintenanceToMonthlyActivity(item) {
   const due = getDueDate(item);
   const doneAt = getCompletedAt(item);
+  const statusRaw = String(item.status || "").trim();
+  const statusKey = stripAccents(statusRaw).toLowerCase();
+  const isConcluidaStatus = ["concluida", "concluido", "finalizada", "finalizado"].includes(
+    statusKey
+  );
+  const statusForReport = doneAt && !isConcluidaStatus ? "concluida" : statusRaw;
   const executionStart = parseDateTime(
     item.executionStartedAt ||
       item.inicioExecucao ||
@@ -15642,7 +15648,7 @@ function mapMaintenanceToMonthlyActivity(item) {
   return {
     id: String(item.id || ""),
     title: String(item.titulo || item.nome || item.atividade || "").trim(),
-    status: item.status || "",
+    status: statusForReport,
     dueDate: due ? formatDateISO(due) : "",
     doneAt: doneAt ? doneAt.toISOString() : "",
     executionStartedAt: executionStart ? executionStart.toISOString() : "",
