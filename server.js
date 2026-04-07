@@ -12950,15 +12950,13 @@ function hasMaintenanceCompletionData(item) {
   }
   const conclusao =
     item.conclusao && typeof item.conclusao === "object" ? item.conclusao : null;
-  const fallbackDate = getMaintenanceCompletionFallbackDate(item);
   return Boolean(
     item.doneAt ||
       item.concluidaEm ||
       item.dataConclusao ||
       item.completedAt ||
       item.executionFinishedAt ||
-      (conclusao && conclusao.fim) ||
-      fallbackDate
+      (conclusao && conclusao.fim)
   );
 }
 
@@ -22799,6 +22797,12 @@ app.post("/api/maintenance/reopen", requireAuth, requireStorageWritable, (req, r
     executionFinishedAt: "",
     doneAt: "",
     doneBy: "",
+    registroExecucao: null,
+    registrosDiariosExecucao: [],
+    registroExecucaoDiaria: [],
+    execucaoRegistradaEm: "",
+    executionRegisteredAt: "",
+    execucaoRegistradaAt: "",
     conclusao: null,
     conclusoesAnteriores: historico,
     reopenedAt: now,

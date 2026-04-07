@@ -15328,15 +15328,13 @@ function hasMaintenanceCompletionData(item, conclusaoOverride = null) {
       : item.conclusao && typeof item.conclusao === "object"
         ? item.conclusao
         : null;
-  const fallbackDate = getMaintenanceCompletionFallbackDate(item);
   return Boolean(
     item.doneAt ||
       item.concluidaEm ||
       item.dataConclusao ||
       item.completedAt ||
       item.executionFinishedAt ||
-      (conclusao && conclusao.fim) ||
-      fallbackDate
+      (conclusao && conclusao.fim)
   );
 }
 
