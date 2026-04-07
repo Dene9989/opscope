@@ -10276,6 +10276,8 @@ function getCompletedAt(item) {
     item.doneAt,
     item.concluidaEm,
     item.concluidoEm,
+    item.finalizadoEm,
+    item.finalizadaEm,
     item.completedAt,
     item.executionFinishedAt,
     item.fimExecucao,
@@ -10285,10 +10287,29 @@ function getCompletedAt(item) {
     encerramento &&
       (encerramento.fim ||
         encerramento.dataFim ||
+        encerramento.fimExecucao ||
+        encerramento.dataFimExecucao ||
+        encerramento.finalizadoEm ||
+        encerramento.finalizadaEm ||
+        encerramento.concluidoEm ||
         encerramento.dataEncerramento ||
         encerramento.encerradoEm ||
         encerramento.concluidaEm),
-    conclusao && (conclusao.fim || conclusao.dataFim || conclusao.dataEncerramento || conclusao.encerradoEm || conclusao.concluidaEm),
+    conclusao &&
+      (conclusao.fim ||
+        conclusao.dataFim ||
+        conclusao.fimExecucao ||
+        conclusao.fim_execucao ||
+        conclusao.dataFimExecucao ||
+        conclusao.dataFinal ||
+        conclusao.dataConclusao ||
+        conclusao.dataConclusaoExecucao ||
+        conclusao.finalizadoEm ||
+        conclusao.finalizadaEm ||
+        conclusao.concluidoEm ||
+        conclusao.dataEncerramento ||
+        conclusao.encerradoEm ||
+        conclusao.concluidaEm),
     item.execucaoRegistradaEm,
     item.executionRegisteredAt,
     item.execucaoRegistradaAt,
@@ -10296,6 +10317,15 @@ function getCompletedAt(item) {
       (registroExecucao.executedAt ||
         registroExecucao.executadoEm ||
         registroExecucao.registradoEm ||
+        registroExecucao.fimExecucao ||
+        registroExecucao.fim_execucao ||
+        registroExecucao.fim ||
+        registroExecucao.dataFim ||
+        registroExecucao.dataFimExecucao ||
+        registroExecucao.dataConclusao ||
+        registroExecucao.finalizadoEm ||
+        registroExecucao.finalizadaEm ||
+        registroExecucao.concluidoEm ||
         registroExecucao.dataFim ||
         registroExecucao.dataRef ||
         registroExecucao.data),
@@ -10313,7 +10343,16 @@ function getCompletedAt(item) {
   if (!best && Array.isArray(item.registrosDiariosExecucao)) {
     item.registrosDiariosExecucao.forEach((entry) => {
       const parsed = parseDateTime(
-        entry && (entry.registradoEm || entry.executadoEm || entry.data || entry.dataRef)
+        entry &&
+          (entry.fim ||
+            entry.fimExecucao ||
+            entry.fim_execucao ||
+            entry.dataFim ||
+            entry.dataFimExecucao ||
+            entry.registradoEm ||
+            entry.executadoEm ||
+            entry.data ||
+            entry.dataRef)
       );
       if (!parsed) {
         return;
@@ -15456,6 +15495,48 @@ function getPreviousMonthlyRange(currentRange) {
   return { start: startOfDay(prevStart), end: startOfDay(prevEnd) };
 }
 
+function getMaintenanceDocsFromSstRecords(item) {
+  if (!item || typeof item !== "object") {
+    return [];
+  }
+  if (!Array.isArray(sstDocs) || !sstDocs.length) {
+    return [];
+  }
+  const relatedId = String(item.id || "").trim();
+  if (!relatedId) {
+    return [];
+  }
+  const projectId = String(item.projectId || "").trim();
+  const matchesRelated = (doc) => {
+    if (!doc) {
+      return false;
+    }
+    const candidates = [
+      doc.relatedId,
+      doc.maintenanceId,
+      doc.manutencaoId,
+      doc.activityId,
+      doc.itemId,
+    ];
+    return candidates.some((value) => String(value || "").trim() === relatedId);
+  };
+  return sstDocs
+    .filter((doc) => {
+      if (!matchesRelated(doc)) {
+        return false;
+      }
+      if (projectId && doc.projectId && String(doc.projectId) !== projectId) {
+        return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      const dateA = getTimeValue(a && (a.updatedAt || a.createdAt)) || 0;
+      const dateB = getTimeValue(b && (b.updatedAt || b.createdAt)) || 0;
+      return dateB - dateA;
+    });
+}
+
 function buildMaintenanceDocsSnapshot(item) {
   const output = {};
   const sources = [
@@ -15546,17 +15627,45 @@ function buildMaintenanceDocsSnapshot(item) {
     });
   }
 
-  const sstDocs = extractMaintenanceSstDocumentos(
+  const maintenanceSstDocs = extractMaintenanceSstDocumentos(
     item,
     item && item.liberacao && typeof item.liberacao === "object" ? item.liberacao : {}
   );
-  if (sstDocs && typeof sstDocs === "object") {
+  if (maintenanceSstDocs && typeof maintenanceSstDocs === "object") {
     MONTHLY_DOC_KEYS.forEach((key) => {
-      if (output[key] === undefined && sstDocs[key]) {
+      if (output[key] === undefined && maintenanceSstDocs[key]) {
         applyDocValue(key, true);
       }
     });
   }
+
+  const relatedDocs = getMaintenanceDocsFromSstRecords(item);
+  if (relatedDocs.length) {
+    relatedDocs.forEach((doc) => {
+      const extractedDoc = extractSstDocDocuments(doc || {});
+      if (!extractedDoc || !extractedDoc.docs) {
+        return;
+      }
+      MONTHLY_DOC_KEYS.forEach((key) => {
+        if (output[key] === undefined && extractedDoc.docs[key]) {
+          applyDocValue(key, true);
+        }
+      });
+    });
+  }
+
+  const registrosDiarios = getMaintenanceDailyExecutionEntries(item);
+  registrosDiarios.forEach((entry) => {
+    const revalidacao = entry && entry.revalidacaoDocumental ? entry.revalidacaoDocumental : null;
+    if (!revalidacao || !revalidacao.docs || typeof revalidacao.docs !== "object") {
+      return;
+    }
+    MONTHLY_DOC_KEYS.forEach((key) => {
+      if (output[key] === undefined && revalidacao.docs[key]) {
+        applyDocValue(key, true);
+      }
+    });
+  });
 
   if (!found) {
     return {};
@@ -15583,19 +15692,40 @@ function computeExecutionDurationHours(item, execution) {
     item && item.conclusao && item.conclusao.duracaoMin,
     item && item.conclusao && item.conclusao.duracao,
     item && item.conclusao && item.conclusao.tempoTotalMin,
+    item && item.conclusao && item.conclusao.tempoTotal,
+    item && item.conclusao && item.conclusao.tempo_total,
+    item && item.conclusao && item.conclusao.tempo_total_min,
+    item && item.conclusao && item.conclusao.duracaoMinutos,
     item && item.duracaoMin,
     item && item.duracao,
     item && item.tempoTotalMin,
     item && item.tempoTotal,
+    item && item.tempo_total,
+    item && item.tempo_total_min,
+    item && item.duracaoMinutos,
     item && item.registroExecucao && item.registroExecucao.duracaoMin,
     item && item.registroExecucao && item.registroExecucao.duracao,
     item && item.registroExecucao && item.registroExecucao.tempoTotalMin,
+    item && item.registroExecucao && item.registroExecucao.tempoTotal,
+    item && item.registroExecucao && item.registroExecucao.tempo_total,
+    item && item.registroExecucao && item.registroExecucao.tempo_total_min,
+    item && item.registroExecucao && item.registroExecucao.duracaoMinutos,
   ];
   for (const candidate of minuteCandidates) {
     const minutes = parseDurationToMinutes(candidate);
     if (Number.isFinite(minutes) && minutes > 0) {
       return Number((minutes / 60).toFixed(2));
     }
+  }
+  const registrosDiarios = getMaintenanceDailyExecutionEntries(item);
+  const dailyMinutes = registrosDiarios.reduce((acc, entry) => {
+    const minutes = parseDurationToMinutes(
+      entry && (entry.duracaoMin || entry.duracaoMinutos || entry.duracao || entry.tempoTotalMin || entry.tempoTotal || entry.tempo_total || entry.tempo_total_min)
+    );
+    return acc + (Number.isFinite(minutes) ? minutes : 0);
+  }, 0);
+  if (dailyMinutes > 0) {
+    return Number((dailyMinutes / 60).toFixed(2));
   }
   const start = execution && execution.start ? execution.start.getTime() : null;
   const end = execution && execution.end ? execution.end.getTime() : null;
@@ -15647,14 +15777,60 @@ function normalizeMonthlyEvidenceEntry(entry) {
   if (typeof entry !== "object") {
     return null;
   }
-  const fileId = String(entry.fileId || entry.id || "").trim();
-  const storagePath = String(entry.storagePath || entry.path || "").trim();
-  let url = normalizeEvidenceUrl(entry.url || entry.dataUrl || entry.src || entry.preview || entry.image || "");
+  const fileId = String(
+    entry.fileId ||
+      entry.id ||
+      (entry.file && entry.file.id) ||
+      (entry.arquivo && entry.arquivo.id) ||
+      entry.docId ||
+      entry.documentId ||
+      entry.arquivoId ||
+      ""
+  ).trim();
+  const storagePath = String(
+    entry.storagePath ||
+      entry.path ||
+      entry.filePath ||
+      (entry.file && entry.file.path) ||
+      (entry.arquivo && entry.arquivo.path) ||
+      ""
+  ).trim();
+  let url = normalizeEvidenceUrl(
+    entry.url ||
+      entry.dataUrl ||
+      entry.src ||
+      entry.preview ||
+      entry.image ||
+      entry.fileUrl ||
+      entry.filePath ||
+      (entry.file && entry.file.url) ||
+      (entry.file && entry.file.dataUrl) ||
+      (entry.file && entry.file.path) ||
+      (entry.arquivo && entry.arquivo.url) ||
+      (entry.arquivo && entry.arquivo.dataUrl) ||
+      (entry.arquivo && entry.arquivo.path) ||
+      ""
+  );
   if (!url && storagePath) {
     url = normalizeEvidenceUrl(storagePath);
   }
   if (!url && fileId) {
     url = `/api/files/${encodeURIComponent(fileId)}/content`;
+  }
+  if (!url) {
+    const fallbackName = String(
+      entry.fileName ||
+        entry.originalName ||
+        entry.name ||
+        entry.nomeArquivo ||
+        entry.arquivoNome ||
+        (entry.file && (entry.file.name || entry.file.originalName)) ||
+        (entry.arquivo && (entry.arquivo.name || entry.arquivo.originalName)) ||
+        ""
+    ).trim();
+    if (fallbackName && /\.(png|jpe?g|gif|webp)$/i.test(fallbackName)) {
+      url = `/uploads/files/evidencias/${encodeURIComponent(fallbackName)}`;
+    }
   }
   return {
     label: String(entry.nome || entry.name || entry.label || entry.titulo || entry.title || "").trim(),
@@ -15664,6 +15840,40 @@ function normalizeMonthlyEvidenceEntry(entry) {
     fileId,
     mimeType: String(entry.mimeType || entry.mime || entry.contentType || "").trim(),
   };
+}
+
+function getMaintenanceExecutionWindowFromDaily(item) {
+  const registros = getMaintenanceDailyExecutionEntries(item);
+  let start = null;
+  let end = null;
+  registros.forEach((entry) => {
+    const startCandidate = parseDateTime(
+      entry &&
+        (entry.inicio ||
+          entry.inicioExecucao ||
+          entry.dataInicio ||
+          entry.dataInicioExecucao ||
+          entry.inicio_execucao ||
+          "")
+    );
+    const endCandidate = parseDateTime(
+      entry &&
+        (entry.fim ||
+          entry.fimExecucao ||
+          entry.dataFim ||
+          entry.dataFimExecucao ||
+          entry.fim_execucao ||
+          entry.registradoEm ||
+          "")
+    );
+    if (startCandidate && (!start || startCandidate < start)) {
+      start = startCandidate;
+    }
+    if (endCandidate && (!end || endCandidate > end)) {
+      end = endCandidate;
+    }
+  });
+  return { start, end };
 }
 
 function collectMaintenanceEvidenceEntries(item) {
@@ -15758,27 +15968,52 @@ function normalizeMonthlyIntercorrencia(value, item) {
 
 function mapMaintenanceToMonthlyActivity(item) {
   const due = getDueDate(item);
-  const doneAt = getCompletedAt(item);
   const slaDueAt = getSlaDueAt(item);
   const statusRaw = String(item.status || "").trim();
   const statusKey = stripAccents(statusRaw).toLowerCase();
   const isConcluidaStatus = ["concluida", "concluido", "finalizada", "finalizado"].includes(
     statusKey
   );
-  const statusForReport = doneAt && !isConcluidaStatus ? "concluida" : statusRaw;
-  const executionStart = parseDateTime(
+  const dailyWindow = getMaintenanceExecutionWindowFromDaily(item);
+  let executionStart = parseDateTime(
     item.executionStartedAt ||
       item.inicioExecucao ||
-      (item.conclusao && item.conclusao.inicio) ||
-      (item.registroExecucao && item.registroExecucao.inicio)
+      item.execucaoInicio ||
+      item.inicio ||
+      (item.conclusao && (item.conclusao.inicio || item.conclusao.inicioExecucao || item.conclusao.dataInicio)) ||
+      (item.registroExecucao && (item.registroExecucao.inicio || item.registroExecucao.inicioExecucao || item.registroExecucao.dataInicio)) ||
+      dailyWindow.start ||
+      ""
   );
-  const executionEnd = parseDateTime(
+  let executionEnd = parseDateTime(
     item.executionFinishedAt ||
       item.fimExecucao ||
-      (item.conclusao && item.conclusao.fim) ||
+      item.execucaoFim ||
+      item.fim ||
+      (item.conclusao && (item.conclusao.fim || item.conclusao.fimExecucao || item.conclusao.dataFim)) ||
+      (item.registroExecucao && (item.registroExecucao.fim || item.registroExecucao.fimExecucao || item.registroExecucao.dataFim)) ||
       item.doneAt ||
-      item.dataConclusao
+      item.dataConclusao ||
+      dailyWindow.end ||
+      ""
   );
+  let doneAt = getCompletedAt(item);
+  if (!doneAt) {
+    doneAt = executionEnd || executionStart || null;
+  }
+  if (!doneAt && (isConcluidaStatus || hasExecucaoRegistrada(item))) {
+    doneAt = parseDateTime(
+      item.updatedAt ||
+        (item.conclusao && (item.conclusao.updatedAt || item.conclusao.atualizadaEm)) ||
+        (item.registroExecucao && (item.registroExecucao.updatedAt || item.registroExecucao.atualizadaEm)) ||
+        item.createdAt ||
+        ""
+    );
+  }
+  if (!executionEnd && doneAt) {
+    executionEnd = doneAt;
+  }
+  const statusForReport = doneAt && !isConcluidaStatus ? "concluida" : statusRaw;
   const executionDurationHours = computeExecutionDurationHours(item, {
     start: executionStart,
     end: executionEnd,
