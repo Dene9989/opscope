@@ -11657,7 +11657,7 @@ function normalizeSstDoc(record) {
       record.projeto ||
       ""
   ).trim();
-  const activity = String(
+  let activity = String(
     record.activity ||
       record.activityName ||
       record.titulo ||
@@ -11706,12 +11706,37 @@ function normalizeSstDoc(record) {
   if (!projectId && !activity && !resolvedRelatedId) {
     return null;
   }
+  const extracted = extractSstDocDocuments(record);
+  const docs = extracted.docs;
+  if (!activity) {
+    const docNames = [];
+    ["apr", "os", "pte", "pt"].forEach((key) => {
+      const file = docs && docs[key];
+      if (!file) {
+        return;
+      }
+      const name = String(file.name || file.nome || "").trim();
+      if (name) {
+        docNames.push(name);
+      }
+    });
+    (extracted.attachments || []).forEach((entry) => {
+      if (!entry || !entry.doc) {
+        return;
+      }
+      const name = String(entry.doc.name || entry.doc.nome || "").trim();
+      if (name) {
+        docNames.push(name);
+      }
+    });
+    if (docNames.length) {
+      activity = docNames[0];
+    }
+  }
   const fallbackActivity =
     activity ||
     String(record.documento || record.docType || record.tipo || "Documentação").trim() ||
     "Documentação";
-  const extracted = extractSstDocDocuments(record);
-  const docs = extracted.docs;
   const osNumeroRaw =
     record.osNumero ||
     record.os_numero ||
@@ -15732,7 +15757,7 @@ function getMaintenanceDocsFromSstRecords(item) {
       return false;
     }
     const docTitle = normalizeSearchValue(String(doc.activity || "").trim());
-    if (!docTitle || docTitle !== titleRef) {
+    if (!docTitle || (!docTitle.includes(titleRef) && !titleRef.includes(docTitle))) {
       return false;
     }
     if (!doneDay) {
@@ -15743,7 +15768,7 @@ function getMaintenanceDocsFromSstRecords(item) {
       return true;
     }
     const diffDays = Math.abs(doneDay - startOfDay(new Date(docDate)).getTime()) / (1000 * 60 * 60 * 24);
-    return diffDays <= 3;
+    return diffDays <= 31;
   };
   return sstDocs
     .filter((doc) => {
@@ -16146,6 +16171,17 @@ function collectMaintenanceEvidenceEntries(item) {
       }
     });
   };
+  const pushByKeyMatch = (source) => {
+    if (!source || typeof source !== "object") {
+      return;
+    }
+    Object.keys(source).forEach((key) => {
+      if (!/foto|evidenc|imagem|image|anexo|arquivo/i.test(key)) {
+        return;
+      }
+      pushAll(source[key]);
+    });
+  };
   pushAll(item.evidencias);
   pushAll(item.anexos);
   pushAll(item.arquivos);
@@ -16153,36 +16189,52 @@ function collectMaintenanceEvidenceEntries(item) {
   pushAll(item.imagens);
   pushAll(item.images);
   pushAll(item.photos);
+  pushByKeyMatch(item);
   if (item.registroExecucao && typeof item.registroExecucao === "object") {
     pushAll(item.registroExecucao.evidencias);
     pushAll(item.registroExecucao.evidenciasCancelamento);
     pushAll(item.registroExecucao.fotos);
     pushAll(item.registroExecucao.imagens);
+    pushByKeyMatch(item.registroExecucao);
   }
   if (item.cancelamentoExecucao && typeof item.cancelamentoExecucao === "object") {
     pushAll(item.cancelamentoExecucao.evidencias);
     pushAll(item.cancelamentoExecucao.fotos);
+    pushByKeyMatch(item.cancelamentoExecucao);
   }
   if (item.backlogMotivo && typeof item.backlogMotivo === "object") {
     pushAll(item.backlogMotivo.evidencias);
     pushAll(item.backlogMotivo.fotos);
+    pushByKeyMatch(item.backlogMotivo);
   }
   const registrosDiarios = getMaintenanceDailyExecutionEntries(item);
   registrosDiarios.forEach((entry) => {
     pushAll(entry.evidencias);
     pushAll(entry.fotos);
+    pushByKeyMatch(entry);
   });
   if (item.conclusao && typeof item.conclusao === "object") {
     pushAll(item.conclusao.evidencias);
     pushAll(item.conclusao.fotos);
     if (item.conclusao.intercorrencia && typeof item.conclusao.intercorrencia === "object") {
       pushAll(item.conclusao.intercorrencia.fotos);
+      pushByKeyMatch(item.conclusao.intercorrencia);
     }
+    pushByKeyMatch(item.conclusao);
   }
   if (item.intercorrencia && typeof item.intercorrencia === "object") {
     pushAll(item.intercorrencia.fotos);
+    pushByKeyMatch(item.intercorrencia);
   }
-  return entries;
+  const seen = new Set();
+  return entries.filter((entry) => {
+    const key = String(entry.fileId || "") || String(entry.url || "") || `${entry.label || ""}:${entry.storagePath || ""}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
 }
 
 function normalizeMonthlyIntercorrencia(value, item) {
@@ -16245,13 +16297,16 @@ function mapMaintenanceToMonthlyActivity(item) {
       item.execucaoFim ||
       item.fim ||
       (item.conclusao && (item.conclusao.fim || item.conclusao.fimExecucao || item.conclusao.dataFim)) ||
-      (item.registroExecucao && (item.registroExecucao.fim || item.registroExecucao.fimExecucao || item.registroExecucao.dataFim)) ||
+      (item.registroExecucao && (item.registroExecucao.fim || item.registroExecucao.fimExecucao || item.registroExecucao.dataFim || item.registroExecucao.executadoEm || item.registroExecucao.executedAt || item.registroExecucao.registradoEm)) ||
       item.doneAt ||
       item.dataConclusao ||
       dailyWindow.end ||
       ""
   );
   let doneAt = getCompletedAt(item);
+  if (executionEnd && (!doneAt || executionEnd.getTime() < doneAt.getTime())) {
+    doneAt = executionEnd;
+  }
   if (!doneAt) {
     doneAt = executionEnd || executionStart || null;
   }
