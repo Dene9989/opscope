@@ -2907,6 +2907,102 @@ async function backfillUploadsToDb() {
   }
 }
 
+async function backfillUploadsMetaFromDb(options = {}) {
+  if (!shouldStoreUploads() || !dbPool) {
+    return null;
+  }
+  const ttlMs = Number.isFinite(options.ttlMs) ? options.ttlMs : 5 * 60 * 1000;
+  const now = Date.now();
+  if (uploadsMetaLastSyncAt && now - uploadsMetaLastSyncAt < ttlMs) {
+    return null;
+  }
+  if (uploadsMetaSyncInFlight) {
+    return uploadsMetaSyncInFlight;
+  }
+  uploadsMetaSyncInFlight = (async () => {
+    try {
+      const types = Array.isArray(options.types) && options.types.length
+        ? options.types
+        : ["liberacao", "evidence"];
+      const projectId = String(options.projectId || "").trim();
+      const sinceDays = Number.isFinite(options.sinceDays) ? options.sinceDays : 180;
+      const since = new Date(Date.now() - sinceDays * 24 * 60 * 60 * 1000);
+      const limit =
+        Number.isFinite(options.limit) && options.limit > 0
+          ? options.limit
+          : STORE_UPLOADS_BACKFILL_LIMIT > 0
+            ? STORE_UPLOADS_BACKFILL_LIMIT
+            : 5000;
+
+      const values = [types, since];
+      let sql =
+        `SELECT id, name, type, mime, size, project_id, created_at, updated_at
+         FROM ${DB_UPLOADS_TABLE}
+         WHERE type = ANY($1) AND updated_at >= $2`;
+      if (projectId) {
+        sql += " AND (project_id = $3 OR project_id IS NULL OR project_id = '')";
+        values.push(projectId);
+      }
+      sql += " ORDER BY updated_at DESC";
+      if (limit) {
+        sql += ` LIMIT $${values.length + 1}`;
+        values.push(limit);
+      }
+      const result = await dbPool.query(sql, values);
+      if (!result || !Array.isArray(result.rows) || !result.rows.length) {
+        uploadsMetaLastSyncAt = Date.now();
+        return { added: 0, total: 0 };
+      }
+
+      const existing = new Set(
+        Array.isArray(filesMeta)
+          ? filesMeta.map((entry) => String(entry && entry.id || ""))
+          : []
+      );
+      if (!Array.isArray(filesMeta)) {
+        filesMeta = [];
+      }
+      let added = 0;
+      result.rows.forEach((row) => {
+        const id = String(row.id || "").trim();
+        if (!id || existing.has(id)) {
+          return;
+        }
+        const typeKey = String(row.type || "").trim();
+        const typeConfig = getFileTypeConfig(typeKey);
+        const dir = typeConfig ? typeConfig.dir : typeKey;
+        const name = String(row.name || "").trim();
+        const createdAt = row.created_at || row.updated_at || null;
+        const entry = {
+          id,
+          name,
+          originalName: name,
+          type: typeKey,
+          size: Number(row.size) || 0,
+          mime: String(row.mime || ""),
+          url: dir && name ? `/uploads/files/${dir}/${name}` : "",
+          createdAt: createdAt ? new Date(createdAt).toISOString() : new Date().toISOString(),
+          projectId: String(row.project_id || ""),
+        };
+        filesMeta.push(entry);
+        existing.add(id);
+        added += 1;
+      });
+      if (added > 0) {
+        writeJson(FILES_META_FILE, filesMeta);
+      }
+      uploadsMetaLastSyncAt = Date.now();
+      return { added, total: result.rows.length };
+    } catch (error) {
+      console.warn("[db] Falha ao backfill uploads meta:", error.message || error);
+      return null;
+    } finally {
+      uploadsMetaSyncInFlight = null;
+    }
+  })();
+  return uploadsMetaSyncInFlight;
+}
+
 function registerShutdownHandlers() {
   const shutdown = async () => {
     if (dbReady) {
@@ -15217,6 +15313,145 @@ function normalizeEvidenceList(value) {
   return [];
 }
 
+function getMaintenanceEvidenceFromFilesMeta(item) {
+  if (!item || !Array.isArray(filesMeta) || !filesMeta.length) {
+    return [];
+  }
+  const projectId = String(item.projectId || "").trim();
+  const osRefRaw = getMaintenanceOsReference(item);
+  const normalizeOsRef = (value) =>
+    String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "");
+  const osRef = normalizeOsRef(osRefRaw);
+  const titleRef = normalizeSearchValue(String(item.titulo || item.nome || item.atividade || "").trim());
+  const dailyWindow = getMaintenanceExecutionWindowFromDaily(item);
+  const doneAt = getCompletedAt(item);
+  let start = dailyWindow.start || (doneAt ? new Date(doneAt) : null);
+  let end = dailyWindow.end || (doneAt ? new Date(doneAt) : null);
+  if (start && !end) {
+    end = new Date(start.getTime() + 12 * 60 * 60 * 1000);
+  }
+  if (end && !start) {
+    start = new Date(end.getTime() - 12 * 60 * 60 * 1000);
+  }
+  if (!start && !end) {
+    const due = getDueDate(item);
+    if (due) {
+      start = startOfDay(due);
+      end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+    }
+  }
+  const startTime = start ? start.getTime() : null;
+  const endTime = end ? end.getTime() : null;
+  const paddingMs = 36 * 60 * 60 * 1000;
+  const candidates = filesMeta.filter((entry) => {
+    if (!entry || entry.type !== "evidence") {
+      return false;
+    }
+    if (projectId && entry.projectId && String(entry.projectId) !== projectId) {
+      return false;
+    }
+    const createdAt = getTimeValue(entry.createdAt);
+    if (startTime && endTime && createdAt) {
+      if (createdAt < startTime - paddingMs) {
+        return false;
+      }
+      if (createdAt > endTime + paddingMs) {
+        return false;
+      }
+    }
+    return true;
+  });
+  if (!candidates.length) {
+    return [];
+  }
+  const scored = candidates
+    .map((entry) => {
+      const name = String(entry.originalName || entry.name || "").toLowerCase();
+      const blob = normalizeSearchValue(name);
+      let score = 0;
+      if (osRef && normalizeOsRef(name).includes(osRef)) {
+        score += 3;
+      }
+      if (titleRef && blob && (blob.includes(titleRef) || titleRef.includes(blob))) {
+        score += 2;
+      }
+      return { entry, score };
+    })
+    .sort((a, b) => b.score - a.score);
+  return scored.slice(0, 2).map(({ entry }) => ({
+    fileId: entry.id,
+    url: entry.url,
+    name: entry.originalName || entry.name || "",
+    mimeType: entry.mime || "",
+  }));
+}
+
+function getMaintenanceDocsFromFilesMeta(item) {
+  if (!item || !Array.isArray(filesMeta) || !filesMeta.length) {
+    return {};
+  }
+  const projectId = String(item.projectId || "").trim();
+  const osRefRaw = getMaintenanceOsReference(item);
+  const normalizeOsRef = (value) =>
+    String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "");
+  const osRef = normalizeOsRef(osRefRaw);
+  const titleRef = normalizeSearchValue(String(item.titulo || item.nome || item.atividade || "").trim());
+  const liberadoEm = parseDateTime(item.liberacao && (item.liberacao.liberadoEm || item.liberacao.liberado_em));
+  const baseDate = liberadoEm || getCompletedAt(item) || parseDateTime(item.createdAt || "");
+  const baseTime = baseDate ? baseDate.getTime() : null;
+  const candidates = filesMeta.filter((entry) => {
+    if (!entry || entry.type !== "liberacao") {
+      return false;
+    }
+    if (projectId && entry.projectId && String(entry.projectId) !== projectId) {
+      return false;
+    }
+    if (baseTime) {
+      const createdAt = getTimeValue(entry.createdAt);
+      if (createdAt && Math.abs(createdAt - baseTime) > 14 * 24 * 60 * 60 * 1000) {
+        return false;
+      }
+    }
+    return true;
+  });
+  const typeCounts = {};
+  candidates.forEach((entry) => {
+    const name = String(entry.originalName || entry.name || "").toLowerCase();
+    const typeKey = normalizeSstDocTypeKey(entry.docType || name);
+    if (!typeKey) {
+      return;
+    }
+    typeCounts[typeKey] = (typeCounts[typeKey] || 0) + 1;
+  });
+  const output = {};
+  candidates.forEach((entry) => {
+    const name = String(entry.originalName || entry.name || "").toLowerCase();
+    const typeKey = normalizeSstDocTypeKey(entry.docType || name);
+    const blob = normalizeSearchValue(name);
+    const osMatch = osRef && normalizeOsRef(name).includes(osRef);
+    const titleMatch = titleRef && blob && (blob.includes(titleRef) || titleRef.includes(blob));
+    const fallbackAllowed = typeKey && typeCounts[typeKey] === 1;
+    if (!typeKey || (!osMatch && !titleMatch && !fallbackAllowed)) {
+      return;
+    }
+    if (output[typeKey]) {
+      return;
+    }
+    output[typeKey] = {
+      id: entry.id,
+      fileId: entry.id,
+      url: entry.url,
+      name: entry.originalName || entry.name || "",
+      mime: entry.mime || "",
+    };
+  });
+  return output;
+}
+
 function countMaintenanceEvidenceEntries(item) {
   if (!item || typeof item !== "object") {
     return 0;
@@ -15259,6 +15494,7 @@ function countMaintenanceEvidenceEntries(item) {
   if (item.intercorrencia && typeof item.intercorrencia === "object") {
     total += count(item.intercorrencia.fotos);
   }
+  total += getMaintenanceEvidenceFromFilesMeta(item).length;
   return total;
 }
 
@@ -15932,6 +16168,15 @@ function buildMaintenanceDocsSnapshot(item) {
     });
   });
 
+  const metaDocs = getMaintenanceDocsFromFilesMeta(item);
+  if (metaDocs && typeof metaDocs === "object") {
+    MONTHLY_DOC_KEYS.forEach((key) => {
+      if (output[key] === undefined && metaDocs[key]) {
+        applyDocValue(key, true);
+      }
+    });
+  }
+
   if (!found) {
     return {};
   }
@@ -16226,6 +16471,13 @@ function collectMaintenanceEvidenceEntries(item) {
     pushAll(item.intercorrencia.fotos);
     pushByKeyMatch(item.intercorrencia);
   }
+  const metaEvidence = getMaintenanceEvidenceFromFilesMeta(item);
+  metaEvidence.forEach((entry) => {
+    const normalized = normalizeMonthlyEvidenceEntry(entry);
+    if (normalized) {
+      entries.push(normalized);
+    }
+  });
   const seen = new Set();
   return entries.filter((entry) => {
     const key = String(entry.fileId || "") || String(entry.url || "") || `${entry.label || ""}:${entry.storagePath || ""}`;
@@ -18215,6 +18467,8 @@ let automations = [];
 let granularPermissions = null;
 let filesMeta = [];
 let warnedUploadsDisabled = false;
+let uploadsMetaLastSyncAt = 0;
+let uploadsMetaSyncInFlight = null;
 
 async function bootstrap() {
   ensureDataDir();
@@ -18277,6 +18531,7 @@ async function bootstrap() {
     filesMeta = [];
   }
   await backfillUploadsToDb();
+  await backfillUploadsMetaFromDb();
   cleanupVerifications();
   cleanupPasswordResets();
   users = users.map(normalizeUserRecord);
@@ -22406,6 +22661,7 @@ app.post(
       name: fileName,
       originalName: parsed.file.originalName || fileName,
       type: typeKey,
+      docType,
       size: parsed.file.buffer.length,
       mime,
       url: `/uploads/files/${typeConfig.dir}/${fileName}`,
@@ -22414,6 +22670,8 @@ app.post(
       createdByName: actor ? actor.name : "",
       projectId,
     };
+    filesMeta = Array.isArray(filesMeta) ? filesMeta.concat(entry) : [entry];
+    writeJson(FILES_META_FILE, filesMeta);
     await upsertUploadBlob(entry, parsed.file.buffer);
     appendAudit(
       "file_upload",
@@ -24940,6 +25198,7 @@ async function buildMonthlyReportV2Pipeline({ req, user, projectId, payload }) {
   const isPartial = range.end > startOfDay(new Date());
 
   const inputStart = Date.now();
+  await backfillUploadsMetaFromDb({ projectId, types: ["liberacao", "evidence"], sinceDays: 200 });
   const input = buildMonthlyReportInputFromOpscope({
     projectId,
     start: payload.start,
