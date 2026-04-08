@@ -11627,6 +11627,22 @@ function getSstDocSearchBlob(doc) {
   return names.join(" ");
 }
 
+function extractOsReferenceFromText(value) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) {
+    return "";
+  }
+  const match = text.match(/\bOS\b[^0-9]*([0-9]{1,4}(?:[.,]\d{3})+|[0-9]{3,})/i);
+  if (match && match[1]) {
+    return match[1].trim();
+  }
+  const loose = text.match(/\b([0-9]{1,4}(?:[.,]\d{3})+)\b/);
+  if (loose && loose[1]) {
+    return loose[1].trim();
+  }
+  return "";
+}
+
 function normalizeSstDoc(record) {
   if (!record || typeof record !== "object") {
     return null;
@@ -11696,12 +11712,34 @@ function normalizeSstDoc(record) {
     "Documentação";
   const extracted = extractSstDocDocuments(record);
   const docs = extracted.docs;
+  const osNumeroRaw =
+    record.osNumero ||
+    record.os_numero ||
+    record.osNumber ||
+    record.os ||
+    record.osReferencia ||
+    record.os_referencia ||
+    record.referencia ||
+    record.reference ||
+    record.ref ||
+    "";
+  let osNumero = String(osNumeroRaw || "").trim();
+  if (!osNumero) {
+    osNumero = extractOsReferenceFromText(getSstDocSearchBlob(record));
+  }
+  const osReferenciaRaw =
+    record.osReferencia || record.os_referencia || record.referencia || record.reference || record.ref || "";
+  const osReferencia = String(osReferenciaRaw || "").trim() || osNumero;
   return {
     id: record.id ? String(record.id) : crypto.randomUUID(),
     activity: fallbackActivity,
     projectId,
     responsibleId: record.responsibleId || record.createdBy || "",
     aprCode: record.aprCode || "",
+    osNumero,
+    osReferencia,
+    referencia: osReferencia || "",
+    os: osNumero || "",
     docs,
     aprDoc: docs.apr,
     osDoc: docs.os,
@@ -15112,12 +15150,54 @@ function getMaintenanceSearchBlob(item) {
   return normalizeSearchValue(fields.filter(Boolean).join(" "));
 }
 
+function isEvidenceLikeEntry(value) {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  return [
+    "url",
+    "dataUrl",
+    "src",
+    "preview",
+    "image",
+    "fileId",
+    "file_id",
+    "docId",
+    "path",
+    "storagePath",
+    "filePath",
+    "name",
+    "nome",
+    "originalName",
+  ].some((key) => value[key]);
+}
+
+function normalizeEvidenceList(value) {
+  if (!value) {
+    return [];
+  }
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const text = value.trim();
+    return text ? [text] : [];
+  }
+  if (typeof value === "object") {
+    if (isEvidenceLikeEntry(value)) {
+      return [value];
+    }
+    return Object.values(value).filter((entry) => entry !== null && entry !== undefined && entry !== "");
+  }
+  return [];
+}
+
 function countMaintenanceEvidenceEntries(item) {
   if (!item || typeof item !== "object") {
     return 0;
   }
   let total = 0;
-  const count = (value) => (Array.isArray(value) ? value.length : 0);
+  const count = (value) => normalizeEvidenceList(value).length;
   total += count(item.evidencias);
   total += count(item.anexos);
   total += count(item.arquivos);
@@ -15592,6 +15672,17 @@ function getMaintenanceDocsFromSstRecords(item) {
     return [];
   }
   const projectId = String(item.projectId || "").trim();
+  const osRefRaw = getMaintenanceOsReference(item);
+  const normalizeOsRef = (value) =>
+    String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "");
+  const osRef = normalizeOsRef(osRefRaw);
+  const titleRef = normalizeSearchValue(
+    String(item.titulo || item.nome || item.atividade || "").trim()
+  );
+  const doneAt = getCompletedAt(item);
+  const doneDay = doneAt ? startOfDay(doneAt).getTime() : null;
   const matchesRelated = (doc) => {
     if (!doc) {
       return false;
@@ -15613,9 +15704,53 @@ function getMaintenanceDocsFromSstRecords(item) {
     );
     return candidates.some((value) => String(value || "").trim() === relatedId);
   };
+  const matchesOs = (doc) => {
+    if (!doc || !osRef) {
+      return false;
+    }
+    const docOs = normalizeOsRef(
+      doc.osNumero ||
+        doc.osReferencia ||
+        doc.referencia ||
+        doc.os ||
+        doc.osNumber ||
+        doc.osRef ||
+        doc.aprCode ||
+        ""
+    );
+    if (docOs && (docOs === osRef || docOs.includes(osRef) || osRef.includes(docOs))) {
+      return true;
+    }
+    const blob = normalizeOsRef(getSstDocSearchBlob(doc));
+    if (!blob) {
+      return false;
+    }
+    return blob.includes(osRef);
+  };
+  const matchesTitleAndDate = (doc) => {
+    if (!doc || !titleRef) {
+      return false;
+    }
+    const docTitle = normalizeSearchValue(String(doc.activity || "").trim());
+    if (!docTitle || docTitle !== titleRef) {
+      return false;
+    }
+    if (!doneDay) {
+      return true;
+    }
+    const docDate = getTimeValue(doc.updatedAt || doc.createdAt);
+    if (!docDate) {
+      return true;
+    }
+    const diffDays = Math.abs(doneDay - startOfDay(new Date(docDate)).getTime()) / (1000 * 60 * 60 * 24);
+    return diffDays <= 3;
+  };
   return sstDocs
     .filter((doc) => {
-      if (!matchesRelated(doc)) {
+      const relatedMatch = matchesRelated(doc);
+      const osMatch = matchesOs(doc);
+      const titleMatch = matchesTitleAndDate(doc);
+      if (!relatedMatch && !osMatch && !titleMatch) {
         return false;
       }
       if (projectId && doc.projectId && String(doc.projectId) !== projectId) {
@@ -16003,10 +16138,8 @@ function collectMaintenanceEvidenceEntries(item) {
   }
   const entries = [];
   const pushAll = (list) => {
-    if (!Array.isArray(list)) {
-      return;
-    }
-    list.forEach((entry) => {
+    const normalizedList = normalizeEvidenceList(list);
+    normalizedList.forEach((entry) => {
       const normalized = normalizeMonthlyEvidenceEntry(entry);
       if (normalized) {
         entries.push(normalized);

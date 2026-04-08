@@ -356,7 +356,12 @@ function computeEvidenceCount(executedSet, rdos, period) {
     .filter((rdo) => rdo.rdoDate && inRange(rdo.rdoDate, period.start, period.end))
     .reduce((acc, rdo) => {
       const evidencias = Number(rdo.evidenciasTotal) || 0;
-      const count = evidencias || (Array.isArray(rdo.evidencias) ? rdo.evidencias.length : 0);
+      const list = Array.isArray(rdo.evidencias)
+        ? rdo.evidencias
+        : rdo.evidencias && typeof rdo.evidencias === "object"
+          ? Object.values(rdo.evidencias).filter((entry) => entry !== null && entry !== undefined)
+          : [];
+      const count = evidencias || list.length;
       return acc + count;
     }, 0);
   return activityEvidence + rdoEvidence;
