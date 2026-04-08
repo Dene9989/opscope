@@ -16735,6 +16735,50 @@ function buildMonthlyRdosForPeriod(list, period) {
     .map(mapRdoSnapshotToMonthly);
 }
 
+function normalizeClientDisplayName(value) {
+  const cleaned = String(value || "").trim();
+  if (!cleaned) {
+    return "";
+  }
+  const hasLower = /[a-z]/.test(cleaned);
+  const hasSymbols = /[&0-9]/.test(cleaned);
+  if (hasLower || hasSymbols) {
+    return cleaned;
+  }
+  return cleaned.charAt(0) + cleaned.slice(1).toLowerCase();
+}
+
+function resolveProjectClientName(project) {
+  if (!project) {
+    return "";
+  }
+  const direct =
+    String(
+      project.cliente ||
+        project.client ||
+        project.customer ||
+        project.clienteNome ||
+        project.nomeCliente ||
+        ""
+    ).trim();
+  if (direct) {
+    return normalizeClientDisplayName(direct);
+  }
+  const rawName = String(project.nome || project.nomeTime || "").trim();
+  if (!rawName) {
+    return "";
+  }
+  let candidate = rawName;
+  if (candidate.includes("/")) {
+    candidate = candidate.split("/").pop();
+  }
+  if (candidate.includes(" - ")) {
+    candidate = candidate.split(" - ").pop();
+  }
+  candidate = candidate.replace(/\s*\(.*?\)\s*$/, "").trim();
+  return normalizeClientDisplayName(candidate);
+}
+
 function buildMonthlyReportInputFromOpscope(options = {}) {
   const projectId = String(options.projectId || "").trim();
   const comparisonModeRaw = String(options.comparisonMode || "").trim().toLowerCase();
@@ -16744,7 +16788,7 @@ function buildMonthlyReportInputFromOpscope(options = {}) {
       : "";
   const currentRange = resolveMonthlyRange(options.start, options.end);
   const project = getProjectById(projectId);
-  const clientName = project && project.cliente ? String(project.cliente).trim() : "";
+  const clientName = resolveProjectClientName(project);
   const projectName = project ? getProjectLabel(project) : projectId;
   const plantName = project ? String(project.nome || project.nomeTime || "").trim() : "";
 
