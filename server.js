@@ -16178,6 +16178,17 @@ function buildMaintenanceDocsSnapshot(item) {
   }
 
   if (!found) {
+    const doneAt = getCompletedAt(item);
+    if (doneAt) {
+      MONTHLY_DOC_KEYS.forEach((key) => {
+        if (output[key] === undefined) {
+          applyDocValue(key, true);
+        }
+      });
+    }
+  }
+
+  if (!found) {
     return {};
   }
   const sanitized = {};
