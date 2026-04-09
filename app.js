@@ -45501,14 +45501,9 @@ function buildEquipamentosPdfHtml(list, meta) {
   const rowsHtml = rows
     .map((row, index) => {
       const subList = Array.isArray(row.subequipamentosList) ? row.subequipamentosList : [];
-      const maxChips = 6;
-      const chips = subList.slice(0, maxChips);
-      const extra = subList.length - chips.length;
-      const allSubs = subList.join(" | ");
-      const chipHtml = chips.length
-        ? chips.map((item) => `<span class="chip">${escapeHtml(item)}</span>`).join("")
+      const chipHtml = subList.length
+        ? subList.map((item) => `<span class="chip">${escapeHtml(item)}</span>`).join("")
         : '<span class="muted">-</span>';
-      const extraHtml = extra > 0 ? `<span class="chip chip--muted">+${extra}</span>` : "";
       return `
       <tr>
         <td class="col-index">${index + 1}</td>
@@ -45516,9 +45511,7 @@ function buildEquipamentosPdfHtml(list, meta) {
         <td class="col-name">${escapeHtml(row.nome || "-")}</td>
         <td class="col-category">${escapeHtml(row.categoria || "-")}</td>
         <td class="col-subeq">
-          <div class="chips" title="${escapeHtml(allSubs || "-")}">
-            ${chipHtml}${extraHtml}
-          </div>
+          <div class="chips">${chipHtml}</div>
         </td>
         <td class="col-desc">${escapeHtml(row.descricao || "-")}</td>
       </tr>
@@ -45558,8 +45551,8 @@ function buildEquipamentosPdfHtml(list, meta) {
           .col-tag { font-weight: 600; color: #0f172a; }
           .col-category { color: #475467; }
           .col-desc { color: #344054; }
-          .chip { display: inline-block; margin: 2px 4px 2px 0; padding: 2px 8px; border-radius: 999px; background: #eef2f6; border: 1px solid #e4e7ec; font-size: 10px; color: #344054; }
-          .chip--muted { color: #667085; background: #fff; }
+          .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+          .chip { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #eef2f6; border: 1px solid #e4e7ec; font-size: 10px; color: #344054; }
           .muted { color: #98a2b3; }
           .footer { margin-top: 12px; font-size: 10px; color: #98a2b3; text-align: right; }
         </style>
