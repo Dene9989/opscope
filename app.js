@@ -45532,8 +45532,8 @@ function buildEquipamentosPdfHtml(list, meta) {
           .cover { padding: 16px 18px; border: 1px solid #e4e7ec; border-radius: 14px; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); }
           .header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
           .header__title { display: flex; align-items: center; gap: 12px; }
-          .header__logo { height: 34px; width: auto; }
-          .logo-fallback { width: 34px; height: 34px; border-radius: 10px; background: #0f172a; color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
+          .header__logo { height: 48px; width: auto; }
+          .logo-fallback { width: 48px; height: 48px; border-radius: 12px; background: #0f172a; color: #fff; display: grid; place-items: center; font-size: 12px; font-weight: 700; letter-spacing: 0.6px; }
           h1 { margin: 0; font-size: 20px; color: #1d2939; }
           .subtitle { margin: 2px 0 0; font-size: 12px; color: #475467; }
           .meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; font-size: 11px; color: #475467; }
@@ -45542,11 +45542,10 @@ function buildEquipamentosPdfHtml(list, meta) {
           .summary .card { background: #fff; border: 1px solid #e4e7ec; border-radius: 12px; padding: 8px 10px; }
           .summary .card strong { display: block; font-size: 11px; color: #667085; margin-bottom: 2px; }
           .summary .card span { font-size: 14px; font-weight: 600; color: #101828; }
-          table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 11px; margin-top: 10px; }
-          th, td { border-bottom: 1px solid #e4e7ec; padding: 8px; vertical-align: top; }
+          table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; border: 1px solid #e4e7ec; }
+          th, td { border: 1px solid #e4e7ec; padding: 9px 10px; vertical-align: top; line-height: 1.35; }
           th { background: #f9fafb; color: #1d2939; text-align: left; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; font-size: 10px; }
           tbody tr:nth-child(even) { background: #fcfcfd; }
-          tbody tr:hover { background: #f1f5f9; }
           td.col-index { width: 34px; text-align: center; font-weight: 600; color: #475467; }
           .col-tag { font-weight: 600; color: #0f172a; }
           .col-category { color: #475467; }
