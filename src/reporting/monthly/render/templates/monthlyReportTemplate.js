@@ -14,6 +14,7 @@ const { BacklogTable } = require("../components/BacklogTable");
 const { ContingencyTable } = require("../components/ContingencyTable");
 const { IntercorrenciaGallery } = require("../components/IntercorrenciaGallery");
 const { EvidenceGallery } = require("../components/EvidenceGallery");
+const { MaintenanceSummaryTable } = require("../components/MaintenanceSummaryTable");
 const { Footer } = require("../components/Footer");
 const { ChartContainer } = require("../components/ChartContainer");
 const { EmptyState } = require("../components/EmptyState");
@@ -220,6 +221,7 @@ function renderMonthlyReportTemplate(viewModel, charts) {
   const contingencySummary = viewModel.contingencySummary;
   const issueSummary = viewModel.issueSummary;
   const evidenceGallery = viewModel.evidenceGallery;
+  const maintenanceSummary = viewModel.maintenanceSummary;
   const hasEvidence = evidenceGallery && evidenceGallery.items && evidenceGallery.items.length;
   const hasTechnicalContent = technicalHighlights && (
     (technicalHighlights.blocks && technicalHighlights.blocks.length) ||
@@ -380,8 +382,15 @@ function renderMonthlyReportTemplate(viewModel, charts) {
     ${EvidenceGallery(evidenceGallery) || EmptyState("Sem evidências visuais disponíveis para o período.")}
   `;
 
+  const maintenanceSummarySection = `
+    ${SectionHeader("Resumo por manutenção executada", "Agrupamento das manutenções executadas no mês.")}
+    ${renderSectionNote(maintenanceSummary && maintenanceSummary.text ? maintenanceSummary.text : "")}
+    ${MaintenanceSummaryTable(maintenanceSummary) || EmptyState("Sem manutenções executadas no período.")}
+  `;
+
   const page5Content = `
     ${!inlineConsolidatedTables ? consolidatedSection : ""}
+    ${maintenanceSummarySection}
     ${hasEvidence ? evidenceSection : ""}
   `;
   const page5 = page5Content.trim()

@@ -723,6 +723,18 @@ td:nth-child(3) {
   text-align: right;
 }
 
+.maintenance-summary table th:nth-child(2),
+.maintenance-summary table td:nth-child(2) {
+  text-align: left;
+}
+
+.maintenance-summary table th:nth-child(3),
+.maintenance-summary table td:nth-child(3),
+.maintenance-summary table th:nth-child(4),
+.maintenance-summary table td:nth-child(4) {
+  text-align: right;
+}
+
 .recommendation-list {
   padding-left: 16pt;
   margin: 8pt 0 0;

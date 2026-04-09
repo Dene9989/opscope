@@ -624,6 +624,108 @@ function buildEvidenceGallery(normalized) {
   };
 }
 
+function normalizeMaintenanceGroupKey(value) {
+  return String(value || "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function resolveExecutionDurationHours(activity) {
+  const raw = Number(activity && activity.executionDurationHours);
+  if (Number.isFinite(raw) && raw > 0) {
+    return raw;
+  }
+  const start = activity && activity.executionStartedAt instanceof Date ? activity.executionStartedAt : null;
+  const end = activity && activity.executionFinishedAt instanceof Date ? activity.executionFinishedAt : null;
+  if (!start || !end) {
+    return null;
+  }
+  const diffMs = end.getTime() - start.getTime();
+  if (!Number.isFinite(diffMs) || diffMs <= 0) {
+    return null;
+  }
+  return diffMs / (1000 * 60 * 60);
+}
+
+function pickTopCategory(categoryCounts) {
+  if (!categoryCounts || !categoryCounts.size) {
+    return "-";
+  }
+  let selected = null;
+  categoryCounts.forEach((count, label) => {
+    if (!selected || count > selected.count || (count === selected.count && label < selected.label)) {
+      selected = { label, count };
+    }
+  });
+  return selected ? selected.label : "-";
+}
+
+function buildMaintenanceExecutionSummary(normalized) {
+  if (!normalized || !normalized.currentPeriod || !normalized.currentPeriod.activities) {
+    return { text: "Sem manutenções executadas no período.", rows: [] };
+  }
+  const period = normalized.currentPeriod.period || {};
+  const executedSet = buildExecutedSet(normalized.currentPeriod.activities || [], period);
+  if (!executedSet.length) {
+    return { text: "Sem manutenções executadas no período.", rows: [] };
+  }
+
+  const groups = new Map();
+  let missingDurations = 0;
+
+  executedSet.forEach((activity) => {
+    const title = String(activity.title || "").trim() || "(sem título)";
+    const key = normalizeMaintenanceGroupKey(title) || title;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        title,
+        count: 0,
+        durationSum: 0,
+        durationCount: 0,
+        categoryCounts: new Map(),
+      });
+    }
+    const group = groups.get(key);
+    group.count += 1;
+
+    const category = String(activity.category || "").trim();
+    if (category) {
+      group.categoryCounts.set(category, (group.categoryCounts.get(category) || 0) + 1);
+    }
+
+    const duration = resolveExecutionDurationHours(activity);
+    if (Number.isFinite(duration)) {
+      group.durationSum += duration;
+      group.durationCount += 1;
+    } else {
+      missingDurations += 1;
+    }
+  });
+
+  const rows = Array.from(groups.values())
+    .map((group) => {
+      const avg = group.durationCount ? group.durationSum / group.durationCount : null;
+      return {
+        title: group.title,
+        category: pickTopCategory(group.categoryCounts),
+        count: group.count,
+        countLabel: formatNumber(group.count),
+        avgDurationLabel: avg !== null ? formatHours(avg) : "--",
+      };
+    })
+    .sort((a, b) => {
+      if (b.count !== a.count) {
+        return b.count - a.count;
+      }
+      return a.title.localeCompare(b.title);
+    });
+
+  const baseText = `Agrupamento por nome das manutenções executadas no mês. ${formatNumber(executedSet.length)} execuções no período.`;
+  const text = missingDurations > 0
+    ? `${baseText} ${formatNumber(missingDurations)} execuções sem duração registrada.`
+    : baseText;
+
+  return { text, rows };
+}
+
 function normalizeJustification(reason) {
   const text = String(reason || "").replace(/\s+/g, " ").trim();
   if (!text) {
@@ -973,6 +1075,7 @@ function buildMonthlyReportViewModel({ aggregated, validation, normalized, optio
     totalPeriod,
   });
   const evidenceGallery = buildEvidenceGallery(normalized);
+  const maintenanceSummary = buildMaintenanceExecutionSummary(normalized);
 
   return {
     meta: {
@@ -1011,6 +1114,7 @@ function buildMonthlyReportViewModel({ aggregated, validation, normalized, optio
     contingencySummary,
     issueSummary,
     evidenceGallery,
+    maintenanceSummary,
   };
 }
 
