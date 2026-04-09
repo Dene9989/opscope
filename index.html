@@ -3627,6 +3627,25 @@
               <button class="btn btn--ghost" type="button" id="equipamentoFormCancel">Limpar</button>
             </div>
           </form>
+          <div class="equipamento-toolbar">
+            <div class="field equipamento-toolbar__search">
+              <label for="equipamentoSearch">Buscar equipamento</label>
+              <input
+                id="equipamentoSearch"
+                type="search"
+                placeholder="Nome, tag, categoria ou sub-equipamento"
+              />
+              <p class="hint">Busca por semelhança (contém) dentro do projeto selecionado.</p>
+            </div>
+            <div class="equipamento-toolbar__actions">
+              <button class="btn btn--ghost btn--small" type="button" id="btnEquipamentoExportExcel">
+                Exportar Excel
+              </button>
+              <button class="btn btn--ghost btn--small" type="button" id="btnEquipamentoExportPdf">
+                Exportar PDF
+              </button>
+            </div>
+          </div>
           <div class="report-table__wrap">
             <table class="report__table" id="equipamentoTable">
               <thead>

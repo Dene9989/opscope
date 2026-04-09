@@ -350,6 +350,9 @@ const equipamentoFormDescricao = document.getElementById("equipamentoFormDescric
 const equipamentoFormCancel = document.getElementById("equipamentoFormCancel");
 const equipamentoTable = document.getElementById("equipamentoTable");
 const equipamentoTableBody = document.querySelector("#equipamentoTable tbody");
+const equipamentoSearch = document.getElementById("equipamentoSearch");
+const btnEquipamentoExportExcel = document.getElementById("btnEquipamentoExportExcel");
+const btnEquipamentoExportPdf = document.getElementById("btnEquipamentoExportPdf");
 const procedimentoForm = document.getElementById("procedimentoForm");
 const procedimentoFormId = document.getElementById("procedimentoFormId");
 const procedimentoFormProject = document.getElementById("procedimentoFormProject");
@@ -45375,6 +45378,209 @@ function renderEquipamentoSubRows() {
   }
 }
 
+function buildEquipamentoSearchBlob(equipamento) {
+  if (!equipamento) {
+    return "";
+  }
+  const subequipamentos = normalizeLocaisList(equipamento.subequipamentos || []);
+  const parts = [
+    equipamento.tag,
+    equipamento.nome,
+    equipamento.categoria,
+    equipamento.descricao,
+    ...subequipamentos,
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+  return normalizeSearchValue(parts.join(" "));
+}
+
+function getFilteredProjectEquipamentos() {
+  const sourceList = Array.isArray(projectEquipamentos) ? projectEquipamentos : [];
+  const termo = normalizeSearchValue(equipamentoSearch ? equipamentoSearch.value : "");
+  if (!termo) {
+    return sourceList;
+  }
+  const tokens = termo.split(/\s+/g).filter(Boolean);
+  if (!tokens.length) {
+    return sourceList;
+  }
+  return sourceList.filter((equipamento) => {
+    const blob = buildEquipamentoSearchBlob(equipamento);
+    return tokens.every((token) => blob.includes(token));
+  });
+}
+
+function updateEquipamentoExportState(list) {
+  const hasItems = Array.isArray(list) && list.length > 0;
+  if (btnEquipamentoExportExcel) {
+    btnEquipamentoExportExcel.disabled = !hasItems;
+  }
+  if (btnEquipamentoExportPdf) {
+    btnEquipamentoExportPdf.disabled = !hasItems;
+  }
+}
+
+function getEquipamentosExportProjectLabel() {
+  if (!activeProjectId) {
+    return "Todos os projetos";
+  }
+  const project = getProjectById(activeProjectId);
+  return project ? getProjectLabel(project) : activeProjectId;
+}
+
+function buildEquipamentoExportRows(list) {
+  return (Array.isArray(list) ? list : []).map((equipamento) => {
+    const subequipamentos = normalizeLocaisList(equipamento.subequipamentos || []);
+    return {
+      tag: equipamento.tag || "",
+      nome: equipamento.nome || "",
+      categoria: equipamento.categoria || "",
+      descricao: equipamento.descricao || "",
+      subequipamentos: subequipamentos.join(" | "),
+    };
+  });
+}
+
+function exportarEquipamentosExcel() {
+  const list = getFilteredProjectEquipamentos();
+  if (!list.length) {
+    showAuthToast("Nenhum equipamento para exportar.");
+    return;
+  }
+  const rows = buildEquipamentoExportRows(list);
+  const header = ["tag", "nome", "categoria", "descricao", "subequipamentos"];
+  const linhas = rows.map((row) =>
+    [
+      row.tag,
+      row.nome,
+      row.categoria,
+      row.descricao,
+      row.subequipamentos,
+    ]
+      .map(escapeCsv)
+      .join(",")
+  );
+  const csv = [header.map(escapeCsv).join(","), ...linhas].join("\n");
+  const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  const projectLabel = getEquipamentosExportProjectLabel();
+  const stamp = formatDateISO(new Date()) || "export";
+  link.download = sanitizeFilename(`equipamentos-${projectLabel}-${stamp}.csv`);
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function buildEquipamentosPdfHtml(list, meta) {
+  const rows = buildEquipamentoExportRows(list);
+  const filterLabel = meta && meta.filterLabel ? meta.filterLabel : "Sem filtro";
+  const projectLabel = meta && meta.projectLabel ? meta.projectLabel : "Todos os projetos";
+  const generatedAt = meta && meta.generatedAt ? meta.generatedAt : formatDateTime(new Date());
+  const totalLabel = meta && meta.totalLabel ? meta.totalLabel : String(rows.length);
+  const rowsHtml = rows
+    .map(
+      (row, index) => `
+      <tr>
+        <td class="col-index">${index + 1}</td>
+        <td>${escapeHtml(row.tag || "-")}</td>
+        <td>${escapeHtml(row.nome || "-")}</td>
+        <td>${escapeHtml(row.categoria || "-")}</td>
+        <td>${row.subequipamentos ? row.subequipamentos.split(" | ").map((item) => `<span class="chip">${escapeHtml(item)}</span>`).join("") : '<span class="muted">-</span>'}</td>
+        <td>${escapeHtml(row.descricao || "-")}</td>
+      </tr>
+    `
+    )
+    .join("");
+
+  return `
+    <!doctype html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="utf-8" />
+        <title>${escapeHtml(`Equipamentos - ${projectLabel}`)}</title>
+        <style>
+          @page { size: A4 landscape; margin: 16mm; }
+          * { box-sizing: border-box; }
+          body { font-family: "Segoe UI", Arial, sans-serif; color: #0f1d2d; margin: 0; }
+          .header { padding: 0 0 14px; border-bottom: 1px solid #d7e1eb; margin-bottom: 18px; }
+          h1 { margin: 0 0 6px; font-size: 20px; color: #0a2a43; }
+          .meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: #4a5b6b; }
+          .meta span { background: #f3f6fa; border-radius: 999px; padding: 4px 10px; }
+          table { width: 100%; border-collapse: collapse; font-size: 11px; }
+          th, td { border: 1px solid #d7e1eb; padding: 8px; vertical-align: top; }
+          th { background: #0f2f46; color: #fff; text-align: left; font-weight: 600; }
+          td.col-index { width: 34px; text-align: center; font-weight: 600; color: #0f2f46; }
+          .chip { display: inline-block; margin: 2px 4px 2px 0; padding: 2px 8px; border-radius: 999px; background: #ecf2f8; border: 1px solid #d2dde8; font-size: 10px; color: #2e3c4d; }
+          .muted { color: #7a8a9b; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Equipamentos do projeto</h1>
+          <div class="meta">
+            <span><strong>Projeto:</strong> ${escapeHtml(projectLabel)}</span>
+            <span><strong>Filtro:</strong> ${escapeHtml(filterLabel)}</span>
+            <span><strong>Total:</strong> ${escapeHtml(totalLabel)}</span>
+            <span><strong>Gerado em:</strong> ${escapeHtml(generatedAt)}</span>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Tag</th>
+              <th>Nome</th>
+              <th>Categoria</th>
+              <th>Sub-equipamentos</th>
+              <th>Descrição</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml || '<tr><td colspan="6" class="muted">Nenhum equipamento encontrado.</td></tr>'}
+          </tbody>
+        </table>
+      </body>
+    </html>
+  `;
+}
+
+function preencherEquipamentosPdf(popup, html, titulo) {
+  if (!popup) {
+    return;
+  }
+  popup.document.open();
+  popup.document.write(html);
+  popup.document.close();
+  popup.document.title = titulo || "Equipamentos";
+}
+
+function exportarEquipamentosPdf() {
+  const list = getFilteredProjectEquipamentos();
+  if (!list.length) {
+    showAuthToast("Nenhum equipamento para exportar.");
+    return;
+  }
+  const popup = window.open("", "_blank");
+  if (!popup) {
+    alert("Popup bloqueado. Permita a abertura para exportar o PDF.");
+    return;
+  }
+  const filterValue = equipamentoSearch ? equipamentoSearch.value.trim() : "";
+  const html = buildEquipamentosPdfHtml(list, {
+    projectLabel: getEquipamentosExportProjectLabel(),
+    filterLabel: filterValue ? filterValue : "Sem filtro",
+    totalLabel: String(list.length),
+    generatedAt: formatDateTime(new Date()),
+  });
+  preencherEquipamentosPdf(popup, html, `Equipamentos - ${getEquipamentosExportProjectLabel()}`);
+  popup.focus();
+  popup.print();
+}
+
 function resetEquipamentoSubBuilder(value = []) {
   equipamentoSubRows = normalizeEquipamentoSubRows(value);
   equipamentoSubEditIndex = -1;
@@ -45432,19 +45638,24 @@ function renderEquipamentosTable() {
     return;
   }
   equipamentoTableBody.innerHTML = "";
-  if (!projectEquipamentos.length) {
+  const sourceList = Array.isArray(projectEquipamentos) ? projectEquipamentos : [];
+  const visibleList = getFilteredProjectEquipamentos();
+  updateEquipamentoExportState(visibleList);
+  if (!visibleList.length) {
     const tr = document.createElement("tr");
     const td = document.createElement("td");
     td.colSpan = 6;
     td.className = "empty-state";
-    td.textContent = projectEquipamentosLoadError
-      ? `Não foi possível carregar equipamentos agora (${projectEquipamentosLoadError}).`
-      : "Nenhum equipamento cadastrado para este projeto.";
+    td.textContent = sourceList.length
+      ? "Nenhum equipamento encontrado para os filtros atuais."
+      : projectEquipamentosLoadError
+        ? `Não foi possível carregar equipamentos agora (${projectEquipamentosLoadError}).`
+        : "Nenhum equipamento cadastrado para este projeto.";
     tr.append(td);
     equipamentoTableBody.append(tr);
     return;
   }
-  projectEquipamentos.forEach((equip) => {
+  visibleList.forEach((equip) => {
     const tr = document.createElement("tr");
     const actions = [];
     if (currentUser && canManageEquipamentos(currentUser)) {
@@ -69316,6 +69527,24 @@ if (equipamentoFormProject) {
       return;
     }
     setActiveProjectId(nextId);
+  });
+}
+
+if (equipamentoSearch) {
+  equipamentoSearch.addEventListener("input", () => {
+    renderEquipamentosTable();
+  });
+}
+
+if (btnEquipamentoExportExcel) {
+  btnEquipamentoExportExcel.addEventListener("click", () => {
+    exportarEquipamentosExcel();
+  });
+}
+
+if (btnEquipamentoExportPdf) {
+  btnEquipamentoExportPdf.addEventListener("click", () => {
+    exportarEquipamentosPdf();
   });
 }
 

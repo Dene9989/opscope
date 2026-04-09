@@ -6974,6 +6974,29 @@ label {
   background: rgba(10, 22, 34, 0.9);
 }
 
+.equipamento-toolbar {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  gap: 16px;
+  align-items: end;
+}
+
+.equipamento-toolbar__search .hint {
+  margin-top: 6px;
+}
+
+.equipamento-toolbar__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.equipamento-toolbar__actions .btn {
+  min-width: 140px;
+}
+
 .project-panel .report__table {
   width: 100%;
   table-layout: auto;
@@ -7152,6 +7175,15 @@ label {
 }
 
 @media (max-width: 1024px) {
+  .equipamento-toolbar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .equipamento-toolbar__actions {
+    justify-content: flex-start;
+  }
+
   .subequip-builder__grid {
     grid-template-columns: 1fr 1fr;
   }
