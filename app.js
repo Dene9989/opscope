@@ -45452,6 +45452,11 @@ function renderEquipamentosTable() {
       actions.push(`<button type="button" class="btn btn--ghost btn--small btn--danger" data-action="delete-equipment">Excluir</button>`);
     }
     tr.dataset.equipmentId = equip.id;
+    const tagLabel = escapeHtml(equip.tag || "-");
+    const nomeLabel = escapeHtml(equip.nome || "-");
+    const categoriaLabel = escapeHtml(equip.categoria || "-");
+    const descricaoRaw = equip.descricao || "-";
+    const descricaoLabel = escapeHtml(descricaoRaw);
     const subequipamentos = normalizeLocaisList(equip.subequipamentos || []);
     const subequipamentosHtml = subequipamentos.length
       ? `<div class="subequip-summary">${subequipamentos
@@ -45459,11 +45464,11 @@ function renderEquipamentosTable() {
           .join("")}</div>`
       : '<span class="subequip-summary__empty">-</span>';
     tr.innerHTML = `
-      <td>${escapeHtml(equip.tag || "-")}</td>
-      <td>${escapeHtml(equip.nome || "-")}</td>
-      <td>${escapeHtml(equip.categoria || "-")}</td>
+      <td><span class="equip-tag">${tagLabel}</span></td>
+      <td><span class="equip-name">${nomeLabel}</span></td>
+      <td><span class="equip-category">${categoriaLabel}</span></td>
       <td>${subequipamentosHtml}</td>
-      <td>${escapeHtml(equip.descricao || "-")}</td>
+      <td><span class="equip-desc" title="${descricaoLabel}">${descricaoLabel}</span></td>
       <td class="table-actions">${actions.join(" ")}</td>
     `;
     equipamentoTableBody.append(tr);

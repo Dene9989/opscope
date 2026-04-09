@@ -6980,6 +6980,11 @@ label {
   min-width: 640px;
 }
 
+.project-panel #equipamentoTable {
+  table-layout: fixed;
+  min-width: 980px;
+}
+
 .project-panel .report__table th,
 .project-panel .report__table td {
   white-space: normal;
@@ -6988,6 +6993,7 @@ label {
   font-size: 0.85rem;
   color: var(--text);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  vertical-align: top;
 }
 
 .project-panel .report__table thead th {
@@ -7019,6 +7025,73 @@ label {
   gap: 6px;
 }
 
+.project-panel #equipamentoTable th:nth-child(1) {
+  width: 90px;
+}
+
+.project-panel #equipamentoTable th:nth-child(2) {
+  width: 200px;
+}
+
+.project-panel #equipamentoTable th:nth-child(3) {
+  width: 140px;
+}
+
+.project-panel #equipamentoTable th:nth-child(4) {
+  width: 420px;
+}
+
+.project-panel #equipamentoTable th:nth-child(5) {
+  width: 260px;
+}
+
+.project-panel #equipamentoTable th:nth-child(6) {
+  width: 120px;
+}
+
+.project-panel #equipamentoTable .equip-tag {
+  font-family: "Consolas", "SFMono-Regular", "Liberation Mono", monospace;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #dbe7f6;
+}
+
+.project-panel #equipamentoTable .equip-name {
+  font-weight: 600;
+  color: #f2f6fb;
+}
+
+.project-panel #equipamentoTable .equip-category {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(18, 35, 52, 0.8);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(222, 231, 242, 0.9);
+}
+
+.project-panel #equipamentoTable .equip-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: rgba(223, 230, 240, 0.88);
+}
+
+.project-panel #equipamentoTable .table-actions {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.project-panel #equipamentoTable .table-actions .btn {
+  width: 100%;
+  justify-content: center;
+}
+
 .subequip-builder {
   display: grid;
   gap: 10px;
@@ -7045,6 +7118,19 @@ label {
   gap: 6px;
 }
 
+.project-panel #equipamentoTable .subequip-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 6px;
+  max-height: 72px;
+  overflow: hidden;
+  padding-right: 4px;
+}
+
+.project-panel #equipamentoTable .subequip-summary:hover {
+  max-height: 260px;
+}
+
 .subequip-summary__item {
   display: inline-flex;
   align-items: center;
@@ -7056,6 +7142,9 @@ label {
   font-size: 0.72rem;
   line-height: 1.35;
   color: #e8eff9;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 
 .subequip-summary__empty {
