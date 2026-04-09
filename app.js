@@ -45487,12 +45487,24 @@ function buildEquipamentosPdfHtml(list, meta) {
     (acc, row) => acc + (Array.isArray(row.subequipamentosList) ? row.subequipamentosList.length : 0),
     0
   );
+  const categoriaMap = rows.reduce((acc, row) => {
+    const categoria = String(row.categoria || "").trim() || "Sem categoria";
+    acc.set(categoria, (acc.get(categoria) || 0) + 1);
+    return acc;
+  }, new Map());
+  const categoriasTotal = categoriaMap.size;
+  const categoriasTop = Array.from(categoriaMap.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([categoria, count]) => `${categoria} (${count})`)
+    .join(" • ");
   const rowsHtml = rows
     .map((row, index) => {
       const subList = Array.isArray(row.subequipamentosList) ? row.subequipamentosList : [];
       const maxChips = 6;
       const chips = subList.slice(0, maxChips);
       const extra = subList.length - chips.length;
+      const allSubs = subList.join(" | ");
       const chipHtml = chips.length
         ? chips.map((item) => `<span class="chip">${escapeHtml(item)}</span>`).join("")
         : '<span class="muted">-</span>';
@@ -45500,11 +45512,15 @@ function buildEquipamentosPdfHtml(list, meta) {
       return `
       <tr>
         <td class="col-index">${index + 1}</td>
-        <td>${escapeHtml(row.tag || "-")}</td>
-        <td>${escapeHtml(row.nome || "-")}</td>
-        <td>${escapeHtml(row.categoria || "-")}</td>
-        <td>${chipHtml}${extraHtml}</td>
-        <td>${escapeHtml(row.descricao || "-")}</td>
+        <td class="col-tag">${escapeHtml(row.tag || "-")}</td>
+        <td class="col-name">${escapeHtml(row.nome || "-")}</td>
+        <td class="col-category">${escapeHtml(row.categoria || "-")}</td>
+        <td class="col-subeq">
+          <div class="chips" title="${escapeHtml(allSubs || "-")}">
+            ${chipHtml}${extraHtml}
+          </div>
+        </td>
+        <td class="col-desc">${escapeHtml(row.descricao || "-")}</td>
       </tr>
     `;
     })
@@ -45517,44 +45533,82 @@ function buildEquipamentosPdfHtml(list, meta) {
         <meta charset="utf-8" />
         <title>${escapeHtml(`Equipamentos - ${projectLabel}`)}</title>
         <style>
-          @page { size: A4 landscape; margin: 16mm; }
+          @page { size: A4 landscape; margin: 14mm; }
           * { box-sizing: border-box; }
           body { font-family: "Segoe UI", Arial, sans-serif; color: #101828; margin: 0; background: #fff; }
-          .header { display: flex; align-items: center; justify-content: space-between; padding: 0 0 14px; border-bottom: 1px solid #e4e7ec; margin-bottom: 16px; gap: 16px; }
+          .cover { padding: 16px 18px; border: 1px solid #e4e7ec; border-radius: 14px; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); }
+          .header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
           .header__title { display: flex; align-items: center; gap: 12px; }
-          .header__logo { height: 30px; width: auto; }
+          .header__logo { height: 34px; width: auto; }
+          .logo-fallback { width: 34px; height: 34px; border-radius: 10px; background: #0f172a; color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
           h1 { margin: 0; font-size: 20px; color: #1d2939; }
-          .meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; color: #475467; }
+          .subtitle { margin: 2px 0 0; font-size: 12px; color: #475467; }
+          .meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; font-size: 11px; color: #475467; }
           .meta span { background: #f2f4f7; border-radius: 999px; padding: 4px 10px; }
-          .summary { display: flex; gap: 12px; margin: 0 0 12px; font-size: 12px; color: #344054; }
-          .summary span { background: #f8fafc; border: 1px solid #e4e7ec; border-radius: 10px; padding: 6px 10px; }
-          table { width: 100%; border-collapse: collapse; font-size: 11px; }
-          th, td { border: 1px solid #e4e7ec; padding: 8px; vertical-align: top; }
-          th { background: #f9fafb; color: #1d2939; text-align: left; font-weight: 600; }
+          .summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 12px 0 6px; font-size: 12px; color: #344054; }
+          .summary .card { background: #fff; border: 1px solid #e4e7ec; border-radius: 12px; padding: 8px 10px; }
+          .summary .card strong { display: block; font-size: 11px; color: #667085; margin-bottom: 2px; }
+          .summary .card span { font-size: 14px; font-weight: 600; color: #101828; }
+          table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 11px; margin-top: 10px; }
+          th, td { border-bottom: 1px solid #e4e7ec; padding: 8px; vertical-align: top; }
+          th { background: #f9fafb; color: #1d2939; text-align: left; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; font-size: 10px; }
           tbody tr:nth-child(even) { background: #fcfcfd; }
+          tbody tr:hover { background: #f1f5f9; }
           td.col-index { width: 34px; text-align: center; font-weight: 600; color: #475467; }
-          .chip { display: inline-block; margin: 2px 4px 2px 0; padding: 2px 8px; border-radius: 999px; background: #f2f4f7; border: 1px solid #e4e7ec; font-size: 10px; color: #344054; }
+          .col-tag { font-weight: 600; color: #0f172a; }
+          .col-category { color: #475467; }
+          .col-desc { color: #344054; }
+          .chip { display: inline-block; margin: 2px 4px 2px 0; padding: 2px 8px; border-radius: 999px; background: #eef2f6; border: 1px solid #e4e7ec; font-size: 10px; color: #344054; }
           .chip--muted { color: #667085; background: #fff; }
           .muted { color: #98a2b3; }
+          .footer { margin-top: 12px; font-size: 10px; color: #98a2b3; text-align: right; }
         </style>
       </head>
       <body>
-        <div class="header">
-          <div class="header__title">
-            ${logoUrl ? `<img src="${logoUrl}" alt="Opscope" class="header__logo" />` : ""}
-            <h1>Inventário de equipamentos</h1>
+        <div class="cover">
+          <div class="header">
+            <div class="header__title">
+              ${
+                logoUrl
+                  ? `<img src="${logoUrl}" alt="Opscope" class="header__logo" />`
+                  : `<div class="logo-fallback">OP</div>`
+              }
+              <div>
+                <h1>Inventário de equipamentos</h1>
+                <p class="subtitle">Resumo organizado para análise e auditoria</p>
+              </div>
+            </div>
+            <div class="meta">
+              <span><strong>Projeto:</strong> ${escapeHtml(projectLabel)}</span>
+              <span><strong>Filtro:</strong> ${escapeHtml(filterLabel)}</span>
+              <span><strong>Gerado em:</strong> ${escapeHtml(generatedAt)}</span>
+              <span><strong>Categorias:</strong> ${escapeHtml(String(categoriasTotal))}</span>
+            </div>
           </div>
-          <div class="meta">
-            <span><strong>Projeto:</strong> ${escapeHtml(projectLabel)}</span>
-            <span><strong>Filtro:</strong> ${escapeHtml(filterLabel)}</span>
-            <span><strong>Gerado em:</strong> ${escapeHtml(generatedAt)}</span>
+          <div class="summary">
+            <div class="card">
+              <strong>Total de equipamentos</strong>
+              <span>${escapeHtml(totalLabel)}</span>
+            </div>
+            <div class="card">
+              <strong>Total de sub-equipamentos</strong>
+              <span>${escapeHtml(String(totalSubequipamentos))}</span>
+            </div>
+            <div class="card">
+              <strong>Categorias em destaque</strong>
+              <span>${escapeHtml(categoriasTop || "Sem categorias")}</span>
+            </div>
           </div>
-        </div>
-        <div class="summary">
-          <span><strong>Total de equipamentos:</strong> ${escapeHtml(totalLabel)}</span>
-          <span><strong>Total de sub-equipamentos:</strong> ${escapeHtml(String(totalSubequipamentos))}</span>
         </div>
         <table>
+          <colgroup>
+            <col style="width: 4%" />
+            <col style="width: 12%" />
+            <col style="width: 20%" />
+            <col style="width: 12%" />
+            <col style="width: 26%" />
+            <col style="width: 26%" />
+          </colgroup>
           <thead>
             <tr>
               <th>#</th>
@@ -45569,6 +45623,7 @@ function buildEquipamentosPdfHtml(list, meta) {
             ${rowsHtml || '<tr><td colspan="6" class="muted">Nenhum equipamento encontrado.</td></tr>'}
           </tbody>
         </table>
+        <div class="footer">Relatório de equipamentos - Opscope</div>
       </body>
     </html>
   `;
@@ -45606,6 +45661,7 @@ async function exportarEquipamentosPdf() {
   });
   preencherEquipamentosPdf(popup, html, `Equipamentos - ${getEquipamentosExportProjectLabel()}`);
   popup.focus();
+  await waitForDocumentImages(popup.document);
   popup.print();
 }
 
