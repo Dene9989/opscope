@@ -45437,7 +45437,8 @@ function buildEquipamentoExportRows(list) {
       nome: equipamento.nome || "",
       categoria: equipamento.categoria || "",
       descricao: equipamento.descricao || "",
-      subequipamentos: subequipamentos.join(" | "),
+      subequipamentosText: subequipamentos.join(" | "),
+      subequipamentosList: subequipamentos,
     };
   });
 }
@@ -45456,7 +45457,7 @@ function exportarEquipamentosExcel() {
       row.nome,
       row.categoria,
       row.descricao,
-      row.subequipamentos,
+      row.subequipamentosText,
     ]
       .map(escapeCsv)
       .join(",")
@@ -45481,19 +45482,32 @@ function buildEquipamentosPdfHtml(list, meta) {
   const projectLabel = meta && meta.projectLabel ? meta.projectLabel : "Todos os projetos";
   const generatedAt = meta && meta.generatedAt ? meta.generatedAt : formatDateTime(new Date());
   const totalLabel = meta && meta.totalLabel ? meta.totalLabel : String(rows.length);
+  const logoUrl = meta && meta.logoUrl ? meta.logoUrl : "";
+  const totalSubequipamentos = rows.reduce(
+    (acc, row) => acc + (Array.isArray(row.subequipamentosList) ? row.subequipamentosList.length : 0),
+    0
+  );
   const rowsHtml = rows
-    .map(
-      (row, index) => `
+    .map((row, index) => {
+      const subList = Array.isArray(row.subequipamentosList) ? row.subequipamentosList : [];
+      const maxChips = 6;
+      const chips = subList.slice(0, maxChips);
+      const extra = subList.length - chips.length;
+      const chipHtml = chips.length
+        ? chips.map((item) => `<span class="chip">${escapeHtml(item)}</span>`).join("")
+        : '<span class="muted">-</span>';
+      const extraHtml = extra > 0 ? `<span class="chip chip--muted">+${extra}</span>` : "";
+      return `
       <tr>
         <td class="col-index">${index + 1}</td>
         <td>${escapeHtml(row.tag || "-")}</td>
         <td>${escapeHtml(row.nome || "-")}</td>
         <td>${escapeHtml(row.categoria || "-")}</td>
-        <td>${row.subequipamentos ? row.subequipamentos.split(" | ").map((item) => `<span class="chip">${escapeHtml(item)}</span>`).join("") : '<span class="muted">-</span>'}</td>
+        <td>${chipHtml}${extraHtml}</td>
         <td>${escapeHtml(row.descricao || "-")}</td>
       </tr>
-    `
-    )
+    `;
+    })
     .join("");
 
   return `
@@ -45505,28 +45519,40 @@ function buildEquipamentosPdfHtml(list, meta) {
         <style>
           @page { size: A4 landscape; margin: 16mm; }
           * { box-sizing: border-box; }
-          body { font-family: "Segoe UI", Arial, sans-serif; color: #0f1d2d; margin: 0; }
-          .header { padding: 0 0 14px; border-bottom: 1px solid #d7e1eb; margin-bottom: 18px; }
-          h1 { margin: 0 0 6px; font-size: 20px; color: #0a2a43; }
-          .meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: #4a5b6b; }
-          .meta span { background: #f3f6fa; border-radius: 999px; padding: 4px 10px; }
+          body { font-family: "Segoe UI", Arial, sans-serif; color: #101828; margin: 0; background: #fff; }
+          .header { display: flex; align-items: center; justify-content: space-between; padding: 0 0 14px; border-bottom: 1px solid #e4e7ec; margin-bottom: 16px; gap: 16px; }
+          .header__title { display: flex; align-items: center; gap: 12px; }
+          .header__logo { height: 30px; width: auto; }
+          h1 { margin: 0; font-size: 20px; color: #1d2939; }
+          .meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; color: #475467; }
+          .meta span { background: #f2f4f7; border-radius: 999px; padding: 4px 10px; }
+          .summary { display: flex; gap: 12px; margin: 0 0 12px; font-size: 12px; color: #344054; }
+          .summary span { background: #f8fafc; border: 1px solid #e4e7ec; border-radius: 10px; padding: 6px 10px; }
           table { width: 100%; border-collapse: collapse; font-size: 11px; }
-          th, td { border: 1px solid #d7e1eb; padding: 8px; vertical-align: top; }
-          th { background: #0f2f46; color: #fff; text-align: left; font-weight: 600; }
-          td.col-index { width: 34px; text-align: center; font-weight: 600; color: #0f2f46; }
-          .chip { display: inline-block; margin: 2px 4px 2px 0; padding: 2px 8px; border-radius: 999px; background: #ecf2f8; border: 1px solid #d2dde8; font-size: 10px; color: #2e3c4d; }
-          .muted { color: #7a8a9b; }
+          th, td { border: 1px solid #e4e7ec; padding: 8px; vertical-align: top; }
+          th { background: #f9fafb; color: #1d2939; text-align: left; font-weight: 600; }
+          tbody tr:nth-child(even) { background: #fcfcfd; }
+          td.col-index { width: 34px; text-align: center; font-weight: 600; color: #475467; }
+          .chip { display: inline-block; margin: 2px 4px 2px 0; padding: 2px 8px; border-radius: 999px; background: #f2f4f7; border: 1px solid #e4e7ec; font-size: 10px; color: #344054; }
+          .chip--muted { color: #667085; background: #fff; }
+          .muted { color: #98a2b3; }
         </style>
       </head>
       <body>
         <div class="header">
-          <h1>Equipamentos do projeto</h1>
+          <div class="header__title">
+            ${logoUrl ? `<img src="${logoUrl}" alt="Opscope" class="header__logo" />` : ""}
+            <h1>Inventário de equipamentos</h1>
+          </div>
           <div class="meta">
             <span><strong>Projeto:</strong> ${escapeHtml(projectLabel)}</span>
             <span><strong>Filtro:</strong> ${escapeHtml(filterLabel)}</span>
-            <span><strong>Total:</strong> ${escapeHtml(totalLabel)}</span>
             <span><strong>Gerado em:</strong> ${escapeHtml(generatedAt)}</span>
           </div>
+        </div>
+        <div class="summary">
+          <span><strong>Total de equipamentos:</strong> ${escapeHtml(totalLabel)}</span>
+          <span><strong>Total de sub-equipamentos:</strong> ${escapeHtml(String(totalSubequipamentos))}</span>
         </div>
         <table>
           <thead>
@@ -45558,7 +45584,7 @@ function preencherEquipamentosPdf(popup, html, titulo) {
   popup.document.title = titulo || "Equipamentos";
 }
 
-function exportarEquipamentosPdf() {
+async function exportarEquipamentosPdf() {
   const list = getFilteredProjectEquipamentos();
   if (!list.length) {
     showAuthToast("Nenhum equipamento para exportar.");
@@ -45570,11 +45596,13 @@ function exportarEquipamentosPdf() {
     return;
   }
   const filterValue = equipamentoSearch ? equipamentoSearch.value.trim() : "";
+  const logoUrl = await loadProgramacaoPdfLogo("assets/img/opscope-logo.png");
   const html = buildEquipamentosPdfHtml(list, {
     projectLabel: getEquipamentosExportProjectLabel(),
     filterLabel: filterValue ? filterValue : "Sem filtro",
     totalLabel: String(list.length),
     generatedAt: formatDateTime(new Date()),
+    logoUrl,
   });
   preencherEquipamentosPdf(popup, html, `Equipamentos - ${getEquipamentosExportProjectLabel()}`);
   popup.focus();
