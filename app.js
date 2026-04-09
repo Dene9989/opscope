@@ -45532,8 +45532,8 @@ function buildEquipamentosPdfHtml(list, meta) {
           .cover { padding: 16px 18px; border: 1px solid #e4e7ec; border-radius: 14px; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); }
           .header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
           .header__title { display: flex; align-items: center; gap: 12px; }
-          .header__logo { height: 48px; width: auto; }
-          .logo-fallback { width: 48px; height: 48px; border-radius: 12px; background: #0f172a; color: #fff; display: grid; place-items: center; font-size: 12px; font-weight: 700; letter-spacing: 0.6px; }
+          .header__logo { height: 70px; width: auto; }
+          .logo-fallback { width: 70px; height: 70px; border-radius: 16px; background: #0f172a; color: #fff; display: grid; place-items: center; font-size: 14px; font-weight: 700; letter-spacing: 0.6px; }
           h1 { margin: 0; font-size: 20px; color: #1d2939; }
           .subtitle { margin: 2px 0 0; font-size: 12px; color: #475467; }
           .meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; font-size: 11px; color: #475467; }
