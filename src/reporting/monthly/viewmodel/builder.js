@@ -896,12 +896,26 @@ function formatContingencyLabel(map, value, fallback) {
 }
 
 function normalizeSeverityKey(value) {
-  return String(value || "")
+  const key = String(value || "")
     .trim()
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/\s+/g, "_");
+  if (!key) {
+    return "";
+  }
+  const levelMap = {
+    "1": "critica",
+    "2": "alta",
+    "3": "media",
+    "4": "baixa",
+  };
+  const match = key.match(/^(?:nivel_|severidade_|grau_)?s?([1-4])$/);
+  if (match && levelMap[match[1]]) {
+    return levelMap[match[1]];
+  }
+  return key;
 }
 
 function formatContingencySeverity(value) {
