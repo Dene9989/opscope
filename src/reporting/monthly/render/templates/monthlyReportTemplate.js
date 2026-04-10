@@ -12,6 +12,7 @@ const { renderSummaryTable } = require("../components/SummaryTable");
 const { ComplianceTable } = require("../components/ComplianceTable");
 const { BacklogTable } = require("../components/BacklogTable");
 const { ContingencyTable } = require("../components/ContingencyTable");
+const { ContingencySeverity } = require("../components/ContingencySeverity");
 const { IntercorrenciaGallery } = require("../components/IntercorrenciaGallery");
 const { EvidenceGallery } = require("../components/EvidenceGallery");
 const { MaintenanceSummaryTable } = require("../components/MaintenanceSummaryTable");
@@ -355,6 +356,7 @@ function renderMonthlyReportTemplate(viewModel, charts) {
 
     ${SectionHeader("Contingências do período", "Resumo técnico-operacional das ocorrências do mês.")}
     ${renderSectionNote(contingencySummary && contingencySummary.text ? contingencySummary.text : "")}
+    ${ContingencySeverity(contingencySummary)}
     ${ContingencyTable(contingencySummary) || EmptyState("Sem contingências registradas no período.")}
 
     ${SectionHeader("Intercorrências e falhas registradas", "Ocorrências abertas com encaminhamento ao cliente.")}

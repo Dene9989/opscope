@@ -831,6 +831,39 @@ const CONTINGENCY_SYSTEM_CONDITION_LABELS = {
   UNAVAILABLE: "Indisponível",
 };
 
+const CONTINGENCY_SEVERITY_LEVELS = [
+  {
+    key: "critica",
+    label: "Crítica",
+    className: "critica",
+    description: "Interrupção total, risco elevado à segurança ou impacto operacional severo.",
+  },
+  {
+    key: "alta",
+    label: "Alta",
+    className: "alta",
+    description: "Impacto relevante com restrição operacional significativa ou degradação prolongada.",
+  },
+  {
+    key: "media",
+    label: "Média",
+    className: "media",
+    description: "Impacto moderado, com degradação localizada e contorno operacional disponível.",
+  },
+  {
+    key: "baixa",
+    label: "Baixa",
+    className: "baixa",
+    description: "Impacto leve, sem restrição operacional relevante e rápida normalização.",
+  },
+  {
+    key: "nao_informado",
+    label: "Sem classificação",
+    className: "nao_informado",
+    description: "Severidade não registrada na contingência.",
+  },
+];
+
 const INTERCORRENCIA_STATUS_LABELS = {
   ABERTA: "Aberta",
   EM_TRATATIVA: "Em tratativa",
@@ -862,14 +895,64 @@ function formatContingencyLabel(map, value, fallback) {
   return map[key] || fallback || key || "-";
 }
 
+function normalizeSeverityKey(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "_");
+}
+
+function formatContingencySeverity(value) {
+  const key = normalizeSeverityKey(value);
+  const entry = CONTINGENCY_SEVERITY_LEVELS.find((item) => item.key === key);
+  if (entry) {
+    return entry.label;
+  }
+  if (!key) {
+    return "Sem classificação";
+  }
+  return formatLabel(value, "category");
+}
+
+function buildContingencySeverityStats(list) {
+  const total = Array.isArray(list) ? list.length : 0;
+  const counts = CONTINGENCY_SEVERITY_LEVELS.reduce((acc, item) => {
+    acc[item.key] = 0;
+    return acc;
+  }, {});
+  if (Array.isArray(list)) {
+    list.forEach((item) => {
+      const key = normalizeSeverityKey(item && item.severity);
+      if (counts[key] !== undefined) {
+        counts[key] += 1;
+      } else {
+        counts.nao_informado += 1;
+      }
+    });
+  }
+  const items = CONTINGENCY_SEVERITY_LEVELS.map((level) => {
+    const count = counts[level.key] || 0;
+    const pct = total ? Math.round((count / total) * 100) : 0;
+    return { ...level, count, pct };
+  });
+  return {
+    total,
+    items,
+    note: "Classificação registrada no momento da contingência.",
+  };
+}
+
 function buildContingencySummary(normalized) {
   if (!normalized || !normalized.currentPeriod || !Array.isArray(normalized.currentPeriod.contingencies)) {
-    return { text: "Sem dados de contingências no período.", items: [], count: 0 };
+    return { text: "Sem dados de contingências no período.", items: [], count: 0, severityStats: null };
   }
   const list = normalized.currentPeriod.contingencies;
   if (!list.length) {
-    return { text: "Sem contingências registradas no período.", items: [], count: 0 };
+    return { text: "Sem contingências registradas no período.", items: [], count: 0, severityStats: null };
   }
+  const severityStats = buildContingencySeverityStats(list);
   const items = list
     .map((item) => {
       const eventLabel = formatContingencyLabel(CONTINGENCY_EVENT_LABELS, item.eventType, "Outro");
@@ -889,7 +972,7 @@ function buildContingencySummary(normalized) {
         code: item.code || item.id,
         title,
         startAtLabel: item.startAt ? formatDateTime(item.startAt) : "-",
-        severityLabel: item.severity || "-",
+        severityLabel: formatContingencySeverity(item.severity),
         statusLabel,
         impact,
         response,
@@ -906,6 +989,7 @@ function buildContingencySummary(normalized) {
     text,
     items,
     count: list.length,
+    severityStats,
   };
 }
 
