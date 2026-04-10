@@ -1,3 +1,5 @@
+const { escapeHtml } = require("../helpers/escape");
+
 function ContingencySeverity(summary) {
   if (!summary || !summary.severityStats || !summary.severityStats.total) {
     return "";
