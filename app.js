@@ -29274,13 +29274,18 @@ function getMaintenanceRdoPresence(item, dataStr) {
   const entrouConclusao = isDateInRange(conclusao, range.inicio, range.fim);
   const dataProgramada = item && item.data ? parseDate(item.data) : null;
   const entrouProgramada = isDateInRange(dataProgramada, range.inicio, range.fim);
+  const isSemDataProgramada = !dataProgramada;
+  const podeEntrarPorEventosDoDia = entrouProgramada || isSemDataProgramada;
   const backlogMotivo = item && item.backlogMotivo ? item.backlogMotivo : null;
   const justificativaData = backlogMotivo
     ? parseAnyDate(backlogMotivo.registradoEm || backlogMotivo.registrado_em || "")
     : null;
-  const entrouJustificativa = isDateInRange(justificativaData, range.inicio, range.fim);
+  // Evita "vazamento" de backlog de dias anteriores no RDO atual.
+  const entrouJustificativa =
+    podeEntrarPorEventosDoDia && isDateInRange(justificativaData, range.inicio, range.fim);
   const backlogAutoData = parseAnyDate(item && item.backlogAutoEm ? item.backlogAutoEm : "");
-  const entrouBacklogAuto = isDateInRange(backlogAutoData, range.inicio, range.fim);
+  const entrouBacklogAuto =
+    podeEntrarPorEventosDoDia && isDateInRange(backlogAutoData, range.inicio, range.fim);
   const naoExecutadaNoDia =
     entrouProgramada &&
     !entrouDiario &&
