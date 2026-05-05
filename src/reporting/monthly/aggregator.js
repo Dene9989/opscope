@@ -23,6 +23,7 @@ const { STATUS_NORMALIZED } = require("./contracts");
 function summarizeSlice(slice, label) {
   const period = slice.period || {};
   const activities = Array.isArray(slice.activities) ? slice.activities : [];
+  const issueActivities = Array.isArray(slice.issueActivities) ? slice.issueActivities : [];
   const rdos = Array.isArray(slice.rdos) ? slice.rdos : [];
 
   const plannedSet = buildPlannedSet(activities, period);
@@ -38,7 +39,8 @@ function summarizeSlice(slice, label) {
   const docs = computeDocsMetrics(executedSet);
   const hoursExecuted = computeHoursExecuted(executedSet);
   const evidenceCount = computeEvidenceCount(executedSet, rdos, period);
-  const openIssues = countOpenIssues(periodSet);
+  const openIssueSet = issueActivities.length ? issueActivities.filter((activity) => activity && activity.isValid) : periodSet;
+  const openIssues = countOpenIssues(openIssueSet);
   const rdoCount = countRdos(rdos, period);
 
   const completed = statusCounts.concluida || 0;

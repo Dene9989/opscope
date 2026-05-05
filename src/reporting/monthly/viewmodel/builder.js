@@ -1021,10 +1021,14 @@ function isIssueOpen(issue) {
 }
 
 function buildIntercorrenciaSummary(normalized, timeZone) {
-  if (!normalized || !normalized.currentPeriod || !Array.isArray(normalized.currentPeriod.activities)) {
+  if (!normalized || !normalized.currentPeriod) {
     return { text: "Sem dados de intercorrências no período.", items: [], count: 0 };
   }
-  const activities = normalized.currentPeriod.activities || [];
+  const activities = Array.isArray(normalized.currentPeriod.issueActivities) && normalized.currentPeriod.issueActivities.length
+    ? normalized.currentPeriod.issueActivities
+    : Array.isArray(normalized.currentPeriod.activities)
+      ? normalized.currentPeriod.activities
+      : [];
   const items = [];
 
   activities.forEach((activity) => {
