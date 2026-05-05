@@ -16666,10 +16666,74 @@ function isMaintenanceRelevantToPeriod(item, period) {
   return false;
 }
 
+function normalizeIntercorrenciaStatusKey(value) {
+  return stripAccents(String(value || ""))
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .trim();
+}
+
+function isIntercorrenciaOpenInPeriod(activity, period) {
+  if (!activity || !activity.issue || !period) {
+    return false;
+  }
+  const issue = activity.issue;
+  const statusKey = normalizeIntercorrenciaStatusKey(issue.status);
+  const correctedAt = parseDateTime(
+    issue.corrigidaEm || issue.resolvidaEm || issue.correctedAt || ""
+  );
+  if (correctedAt && correctedAt.getTime() <= period.end.getTime()) {
+    return false;
+  }
+  if (
+    [
+      "corrigida",
+      "corrigido",
+      "resolvida",
+      "resolvido",
+      "closed",
+      "finalizada",
+      "finalizado",
+    ].includes(statusKey)
+  ) {
+    return false;
+  }
+  const createdAt = parseDateTime(
+    issue.criadaEm ||
+      issue.createdAt ||
+      issue.registradaEm ||
+      issue.registeredAt ||
+      issue.atualizadaEm ||
+      issue.updatedAt ||
+      ""
+  );
+  if (createdAt && createdAt.getTime() > period.end.getTime()) {
+    return false;
+  }
+  return true;
+}
+
 function buildMonthlyActivitiesForPeriod(list, period) {
   return list
     .filter((item) => isMaintenanceRelevantToPeriod(item, period))
     .map(mapMaintenanceToMonthlyActivity);
+}
+
+function buildMonthlyIssueActivitiesForPeriod(list, period) {
+  const seen = new Set();
+  return list
+    .map(mapMaintenanceToMonthlyActivity)
+    .filter((activity) => {
+      if (!isIntercorrenciaOpenInPeriod(activity, period)) {
+        return false;
+      }
+      const id = String(activity.id || "");
+      if (!id || seen.has(id)) {
+        return false;
+      }
+      seen.add(id);
+      return true;
+    });
 }
 
 function isContingencyRelevantToPeriod(item, period) {
@@ -16806,6 +16870,7 @@ function buildMonthlyReportInputFromOpscope(options = {}) {
       end: formatDateISO(currentRange.end),
     },
     activities: buildMonthlyActivitiesForPeriod(maintenanceList, currentRange),
+    issueActivities: buildMonthlyIssueActivitiesForPeriod(maintenanceList, currentRange),
     rdos: buildMonthlyRdosForPeriod(rdoList, currentRange),
     contingencies: buildMonthlyContingenciesForPeriod(contingencyList, currentRange),
   };
@@ -16821,6 +16886,7 @@ function buildMonthlyReportInputFromOpscope(options = {}) {
         end: formatDateISO(previousRange.end),
       },
       activities: buildMonthlyActivitiesForPeriod(maintenanceList, previousRange),
+      issueActivities: buildMonthlyIssueActivitiesForPeriod(maintenanceList, previousRange),
       rdos: buildMonthlyRdosForPeriod(rdoList, previousRange),
       contingencies: buildMonthlyContingenciesForPeriod(contingencyList, previousRange),
     };

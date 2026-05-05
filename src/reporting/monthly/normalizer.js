@@ -478,12 +478,18 @@ function normalizeSlice(slice, warningStore, label) {
     warningStore.add("invalid_period", "Invalid period start/end.", { slice: label });
   }
   const activityIdCounts = new Map();
+  const issueActivityIdCounts = new Map();
   const rdoIdCounts = new Map();
   const contingencyIdCounts = new Map();
 
   const activities = Array.isArray(slice && slice.activities)
     ? slice.activities.map((activity, index) =>
         normalizeActivity(activity, warningStore, activityIdCounts, index)
+      )
+    : [];
+  const issueActivities = Array.isArray(slice && slice.issueActivities)
+    ? slice.issueActivities.map((activity, index) =>
+        normalizeActivity(activity, warningStore, issueActivityIdCounts, index)
       )
     : [];
   const rdos = Array.isArray(slice && slice.rdos)
@@ -503,6 +509,7 @@ function normalizeSlice(slice, warningStore, label) {
       endIso: toIsoDate(end),
     },
     activities,
+    issueActivities,
     rdos,
     contingencies,
   };
