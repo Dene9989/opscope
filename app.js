@@ -63084,6 +63084,40 @@ async function buildSolicitacaoServicoDocument(item) {
     })();
   const docs = getItemDocs(item) || {};
   const critico = isItemCritico(item);
+  const intercorrencia = getMaintenanceIntercorrencia(item);
+  const intercorrenciaStatusLabel = intercorrencia
+    ? INTERCORRENCIA_STATUS_LABELS[intercorrencia.status] || intercorrencia.status || "-"
+    : "Sem registro";
+  const intercorrenciaCriticidadeLabel = intercorrencia
+    ? INTERCORRENCIA_CRITICIDADE_LABELS[intercorrencia.criticidade] ||
+      intercorrencia.criticidade ||
+      "-"
+    : "-";
+  const intercorrenciaRegistradaEm = intercorrencia
+    ? parseTimestamp(intercorrencia.criadaEm || intercorrencia.atualizadaEm || "")
+    : null;
+  const intercorrenciaAtualizadaEm = intercorrencia
+    ? parseTimestamp(intercorrencia.atualizadaEm || intercorrencia.criadaEm || "")
+    : null;
+  const intercorrenciaCorrigidaEm = intercorrencia
+    ? parseTimestamp(intercorrencia.corrigidaEm || "")
+    : null;
+  const intercorrenciaRegistradaPor = intercorrencia
+    ? getUserLabel(intercorrencia.criadaPor || "") || intercorrencia.criadaPor || "-"
+    : "-";
+  const intercorrenciaAtualizadaPor = intercorrencia
+    ? getUserLabel(intercorrencia.atualizadaPor || "") || intercorrencia.atualizadaPor || "-"
+    : "-";
+  const intercorrenciaCorrigidaPor = intercorrencia
+    ? getUserLabel(intercorrencia.corrigidaPor || "") || intercorrencia.corrigidaPor || "-"
+    : "-";
+  const intercorrenciaResumoHeader = intercorrencia
+    ? `${intercorrenciaStatusLabel}${
+        intercorrenciaCriticidadeLabel && intercorrenciaCriticidadeLabel !== "-"
+          ? ` / ${intercorrenciaCriticidadeLabel}`
+          : ""
+      }`
+    : "Sem registro";
   const emitidoEm = formatDateTime(new Date());
   const descricaoTecnica = conclusao.descricaoBreve || registro.comentario || item.observacao || "-";
   const obsExecucao = conclusao.observacaoExecucao || registro.observacaoExecucao || "-";
@@ -63170,6 +63204,44 @@ async function buildSolicitacaoServicoDocument(item) {
         )
       ).join("")
     : `<tr><td colspan="5">Sem evidências registradas.</td></tr>`;
+  const intercorrenciaFotos = intercorrencia
+    ? dedupeEvidenceList(intercorrencia.fotos || [])
+    : [];
+  const intercorrenciaFotosRows = intercorrenciaFotos.length
+    ? (
+        await Promise.all(
+          intercorrenciaFotos.map(async (foto, index) => {
+            const name = String(foto.nome || foto.name || `Foto da falha ${index + 1}`).trim();
+            const type = String(foto.type || foto.mime || "-").trim();
+            const imageUrl = await resolveSsEvidenceUrl(foto, { expectImage: true });
+            const url = imageUrl || (await resolveSsEvidenceUrl(foto, { expectImage: false }));
+            const preview = imageUrl
+              ? `<button class="ss-evidence-thumb ss-evidence-thumb--btn" type="button" data-ss-zoom="${escapeHtml(
+                  imageUrl
+                )}" data-ss-zoom-name="${escapeHtml(name)}" title="Clique para ampliar">
+                  <img class="ss-evidence-thumb__img" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(
+                  name
+                )}" loading="eager" />
+                </button>`
+              : `<div class="ss-evidence-thumb"><span class="ss-evidence-thumb__placeholder">${
+                  url ? "Arquivo" : "Sem arquivo"
+                }</span></div>`;
+            const acao = url
+              ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">Visualizar</a>`
+              : "-";
+            return `
+              <tr>
+                <td>${index + 1}</td>
+                <td>${escapeHtml(name)}</td>
+                <td>${escapeHtml(type || "-")}</td>
+                <td>${preview}</td>
+                <td>${acao}</td>
+              </tr>
+            `;
+          })
+        )
+      ).join("")
+    : `<tr><td colspan="5">Sem fotos da falha registradas.</td></tr>`;
 
   const historico = sortHistoricoAsc(getHistoricoManutencaoCompleto(item));
   const historicoRows = historico.length
@@ -63240,6 +63312,11 @@ async function buildSolicitacaoServicoDocument(item) {
           .text-block { border: 1px solid #d9e3f2; border-radius: 10px; padding: 10px; min-height: 60px; background: #fdfefe; font-size: 13px; line-height: 1.45; }
           .chips { display: flex; flex-wrap: wrap; gap: 8px; }
           .chip { border: 1px solid #cdd7e8; border-radius: 999px; background: #f8fafc; color: #0f3a63; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+          .issue-strip { border: 1px solid #d4deee; background: #f3f8ff; border-radius: 10px; padding: 10px; display: grid; gap: 8px; }
+          .issue-strip__kpis { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+          .issue-strip__kpi { border: 1px solid #d4deee; border-radius: 8px; background: #fdfefe; padding: 8px; }
+          .issue-strip__kpi span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #64748b; margin-bottom: 2px; }
+          .issue-strip__kpi strong { font-size: 13px; color: #0b1220; }
           .flags { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
           .flag { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; }
           .flag__box { width: 14px; height: 14px; border: 1px solid #94a3b8; border-radius: 3px; display: inline-block; }
@@ -63294,6 +63371,7 @@ async function buildSolicitacaoServicoDocument(item) {
               <span><strong>Projeto:</strong> ${escapeHtml(projetoLabel)}</span>
               <span><strong>Emitido em:</strong> ${escapeHtml(emitidoEm)}</span>
               <span><strong>Status atual:</strong> ${escapeHtml(statusLabel)}</span>
+              <span><strong>Intercorrências:</strong> ${escapeHtml(intercorrenciaResumoHeader)}</span>
             </div>
           </header>
 
@@ -63447,6 +63525,93 @@ async function buildSolicitacaoServicoDocument(item) {
           <section class="section">
             <div class="section__head">
               <span class="section__number">6</span>
+              <h2 class="section__title">Intercorrências / Falhas Registradas</h2>
+            </div>
+            <div class="section__body">
+              ${
+                intercorrencia
+                  ? `
+                    <div class="issue-strip">
+                      <div class="chips">
+                        <span class="chip">Status: ${escapeHtml(intercorrenciaStatusLabel)}</span>
+                        <span class="chip">Criticidade: ${escapeHtml(intercorrenciaCriticidadeLabel)}</span>
+                        <span class="chip">Fotos da falha: ${intercorrenciaFotos.length}</span>
+                      </div>
+                      <div class="issue-strip__kpis">
+                        <div class="issue-strip__kpi">
+                          <span>ID da falha</span>
+                          <strong>${escapeHtml(intercorrencia.id || "-")}</strong>
+                        </div>
+                        <div class="issue-strip__kpi">
+                          <span>Registrada em</span>
+                          <strong>${escapeHtml(
+                            intercorrenciaRegistradaEm ? formatDateTime(intercorrenciaRegistradaEm) : "-"
+                          )}</strong>
+                        </div>
+                        <div class="issue-strip__kpi">
+                          <span>Registrada por</span>
+                          <strong>${escapeHtml(intercorrenciaRegistradaPor)}</strong>
+                        </div>
+                        <div class="issue-strip__kpi">
+                          <span>Atualizada em</span>
+                          <strong>${escapeHtml(
+                            intercorrenciaAtualizadaEm ? formatDateTime(intercorrenciaAtualizadaEm) : "-"
+                          )}</strong>
+                        </div>
+                        <div class="issue-strip__kpi">
+                          <span>Atualizada por</span>
+                          <strong>${escapeHtml(intercorrenciaAtualizadaPor)}</strong>
+                        </div>
+                        <div class="issue-strip__kpi">
+                          <span>Corrigida em</span>
+                          <strong>${escapeHtml(
+                            intercorrenciaCorrigidaEm ? formatDateTime(intercorrenciaCorrigidaEm) : "-"
+                          )}</strong>
+                        </div>
+                        <div class="issue-strip__kpi">
+                          <span>Corrigida por</span>
+                          <strong>${escapeHtml(intercorrenciaCorrigidaPor)}</strong>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <span class="muted" style="font-size:12px;">Descrição da falha</span>
+                      <div class="text-block">${escapeHtml(intercorrencia.descricao || "-")}</div>
+                    </div>
+                    <div>
+                      <span class="muted" style="font-size:12px;">Ação imediata adotada</span>
+                      <div class="text-block">${escapeHtml(intercorrencia.acaoImediata || "-")}</div>
+                    </div>
+                    <div>
+                      <span class="muted" style="font-size:12px;">Fotos e anexos da falha</span>
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>Nome</th>
+                            <th>Tipo</th>
+                            <th>Preview</th>
+                            <th>Ação</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          ${intercorrenciaFotosRows}
+                        </tbody>
+                      </table>
+                    </div>
+                  `
+                  : `
+                    <div class="text-block">
+                      Não há intercorrências/falhas registradas para esta solicitação de serviço.
+                    </div>
+                  `
+              }
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section__head">
+              <span class="section__number">7</span>
               <h2 class="section__title">Rastreabilidade da Solicitação</h2>
             </div>
             <div class="section__body">
@@ -63468,7 +63633,7 @@ async function buildSolicitacaoServicoDocument(item) {
 
           <section class="section">
             <div class="section__head">
-              <span class="section__number">7</span>
+              <span class="section__number">8</span>
               <h2 class="section__title">Encerramento e Assinatura</h2>
             </div>
             <div class="section__body">
