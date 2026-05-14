@@ -31965,13 +31965,32 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
       .rdo-tech-sheet,
       .rdo-activity-card,
       .rdo-journey-card,
-      .rdo-equip-group { break-inside: auto; page-break-inside: auto; }
+      .rdo-equip-group,
+      .rdo-editorial-activity-card,
+      .rdo-field,
+      .rdo-header-grid > div,
+      .rdo-kpi-card,
+      .rdo-consolidado-activity,
+      .rdo-consolidado-grid > div,
+      .rdo-grid-2 > div,
+      .rdo-tech-grid > div,
+      .rdo-info-grid > div,
+      .rdo-activity-grid > div,
+      .rdo-journey-row > div,
+      .rdo-evidencias-grid > figure,
+      .rdo-table,
+      .rdo-table thead,
+      .rdo-table tbody,
+      .rdo-table tr,
+      .rdo-table th,
+      .rdo-table td { break-inside: avoid; page-break-inside: avoid; }
       .rdo-summary,
       .rdo-editorial,
       .rdo-premium,
       .rdo-note,
       .rdo-evidencia { break-inside: avoid; page-break-inside: avoid; }
-      h2, h3, h4 { break-after: avoid; page-break-after: avoid; }
+      h2, h3, h4, h5 { break-after: avoid; page-break-after: avoid; }
+      h2 + *, h3 + *, h4 + *, h5 + * { break-before: avoid; page-break-before: avoid; }
     }
   `;
   let body = buildRdoHtml(snapshot, { ...options, print: true });
