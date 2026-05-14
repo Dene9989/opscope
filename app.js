@@ -31962,15 +31962,9 @@ function buildRdoPrintHtml(snapshot, logoDataUrl = "", options = {}) {
       .rdo-grid-2 { gap: 8px; }
       .rdo-tech-grid { gap: 8px; }
       .rdo-section.rdo-grid-2--compact { break-inside: avoid; page-break-inside: avoid; }
-      .rdo-grid-2--compact { display: block; }
-      .rdo-grid-2--compact > .rdo-block { margin-bottom: 8px; }
-      .rdo-info-grid--compact,
-      .rdo-info-grid--safety { display: block; }
-      .rdo-info-grid--compact .rdo-field,
-      .rdo-info-grid--safety .rdo-field {
-        display: block;
-        margin-bottom: 6px;
-      }
+      .rdo-grid-2--compact { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: start; }
+      .rdo-info-grid--compact { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+      .rdo-info-grid--safety { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
       .rdo-block,
       .rdo-tech-sheet,
       .rdo-activity-card,
